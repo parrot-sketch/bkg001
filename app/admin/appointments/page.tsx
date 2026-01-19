@@ -10,16 +10,16 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '../../../../hooks/patient/useAuth';
-import { adminApi } from '../../../../lib/api/admin';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../components/ui/card';
-import { Button } from '../../../../components/ui/button';
-import { Input } from '../../../../components/ui/input';
-import { Label } from '../../../../components/ui/label';
+import { useAuth } from '@/hooks/patient/useAuth';
+import { adminApi } from '@/lib/api/admin';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Calendar, Search, Filter, Clock, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import type { AppointmentResponseDto } from '../../../../application/dtos/AppointmentResponseDto';
-import { AppointmentStatus } from '../../../../domain/enums/AppointmentStatus';
+import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { format } from 'date-fns';
 import { AppointmentCard } from '@/components/patient/AppointmentCard';
 
@@ -84,8 +84,10 @@ export default function AdminAppointmentsPage() {
       if (response.success && response.data) {
         setAppointments(response.data);
         setFilteredAppointments(response.data);
-      } else {
+      } else if (!response.success) {
         toast.error(response.error || 'Failed to load appointments');
+      } else {
+        toast.error('Failed to load appointments');
       }
     } catch (error) {
       toast.error('An error occurred while loading appointments');

@@ -7,9 +7,9 @@
  */
 
 import { useState, useEffect } from 'react';
-import { adminApi } from '../../lib/api/admin';
-import { Button } from '../../ui/button';
-import { Label } from '../../ui/label';
+import { adminApi } from '@/lib/api/admin';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -17,11 +17,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '../../ui/dialog';
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import type { PatientResponseDto } from '../../application/dtos/PatientResponseDto';
-import type { UserResponseDto } from '../../application/dtos/UserResponseDto';
-import { Role } from '../../domain/enums/Role';
+import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
+import type { UserResponseDto } from '@/application/dtos/UserResponseDto';
+import { Role } from '@/domain/enums/Role';
 
 interface AssignPatientDialogProps {
   open: boolean;
@@ -92,8 +92,10 @@ export function AssignPatientDialog({
         onSuccess();
         setSelectedStaffId('');
         setNotes('');
-      } else {
+      } else if (!response.success) {
         toast.error(response.error || 'Failed to assign patient');
+      } else {
+        toast.error('Failed to assign patient');
       }
     } catch (error) {
       toast.error('An error occurred while assigning patient');

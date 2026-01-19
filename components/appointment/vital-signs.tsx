@@ -1,10 +1,10 @@
 import db from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { calculateBMI } from "@/utils";
+import { calculateBMI } from "@/lib/utils";
 import { stat } from "fs";
 import { format } from "date-fns";
 import { Separator } from "../ui/separator";
-import { checkRole } from "@/utils/roles";
+import { checkRole } from "@/lib/utils/roles";
 import { AddVitalSigns } from "../dialogs/add-vital-signs";
 
 interface VitalSignsProps {
@@ -28,7 +28,7 @@ export const VitalSigns = async ({
   patientId,
   doctorId,
 }: VitalSignsProps) => {
-  const data = await db.medicalRecords.findFirst({
+  const data = await db.medicalRecord.findFirst({
     where: { appointment_id: Number(id) },
     include: {
       vital_signs: {
@@ -77,7 +77,7 @@ export const VitalSigns = async ({
                     label="Blood Pressure"
                     value={`${el?.systolic} / ${el?.diastolic} mmHg`}
                   />
-                  <ItemCard label="Heart Rate" value={`${el?.heartRate} bpm`} />
+                  <ItemCard label="Heart Rate" value={`${el?.heart_rate} bpm`} />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

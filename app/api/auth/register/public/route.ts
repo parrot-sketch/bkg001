@@ -23,7 +23,7 @@ import { PrismaUserRepository } from '@/infrastructure/database/repositories/Pri
 import { ConsoleAuditService } from '@/infrastructure/services/ConsoleAuditService';
 import db from '@/lib/db';
 import { PublicRegisterUserDto } from '@/application/dtos/PublicRegisterUserDto';
-import { ControllerRequest, ControllerResponse } from '@/controllers/types';
+import { ControllerRequest, ControllerResponse } from '@/lib/auth/types';
 import { DomainException } from '@/domain/exceptions/DomainException';
 
 // Initialize dependencies (singleton pattern)

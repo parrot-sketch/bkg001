@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { toast } from 'sonner';
 import { Role } from '@/domain/enums/Role';
-import { getPostAuthRedirect } from '@/lib/utils/patient';
+import { getPostAuthRedirect } from '@/lib/utils/auth-redirect';
 
 export default function PatientRegisterPage() {
   const router = useRouter();
@@ -93,13 +93,13 @@ export default function PatientRegisterPage() {
 
       toast.success('Account created successfully');
       
-      // Intelligent redirect: new users go to Client Portal (not Patient Dashboard)
-      // They become Patients only after booking consultation/intake
-      // Get user ID from stored auth state after login
+      // Intelligent redirect based on user role
+      // Get user ID and role from stored auth state after login
       const { tokenStorage } = await import('@/lib/auth/token');
       const storedUser = tokenStorage.getUser();
       const userIdentifier = storedUser?.id || generatedUserId; // Use generated userId if storedUser not available yet
-      const redirectPath = await getPostAuthRedirect(userIdentifier);
+      const userRole = storedUser?.role || Role.PATIENT; // Default to PATIENT for new registrations
+      const redirectPath = await getPostAuthRedirect(userIdentifier, userRole);
       router.push(redirectPath);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Registration failed. Please try again.';
@@ -112,7 +112,8 @@ export default function PatientRegisterPage() {
   const updateField = (field: string, value: string) => {
     setFormData({ ...formData, [field]: value });
     if (errors[field]) {
-      setErrors({ ...errors, [field]: undefined });
+      const { [field]: _, ...rest } = errors;
+      setErrors(rest);
     }
   };
 

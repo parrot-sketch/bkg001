@@ -300,7 +300,102 @@ async function main() {
   // ============================================================================
   console.log('🏥 Creating patients...');
 
-  const patientData = [
+  // Helper functions for patient data processing
+  function parsePatientDate(dateStr?: string, ageStr?: string): Date {
+    if (dateStr && dateStr !== 'A' && dateStr !== '___' && dateStr.trim() !== '') {
+      const clean = dateStr.trim();
+      if (/^\d{4}$/.test(clean)) {
+        return new Date(parseInt(clean), 0, 1);
+      }
+      const parts = clean.split(/[\/\-]/);
+      if (parts.length === 3) {
+        const day = parseInt(parts[0]);
+        const month = parseInt(parts[1]) - 1;
+        const year = parseInt(parts[2]);
+        if (!isNaN(year) && year > 1900 && year < 2100) {
+          return new Date(year, month, day || 1);
+        }
+      }
+      const parsed = new Date(clean);
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
+    if (ageStr && ageStr !== 'A' && !isNaN(parseFloat(ageStr))) {
+      const age = parseFloat(ageStr);
+      const today = new Date();
+      return new Date(today.getFullYear() - Math.floor(age), 0, 1);
+    }
+    return new Date(new Date().getFullYear() - 30, 0, 1);
+  }
+
+  // Sample patient data from actual client data
+  // TODO: Add remaining ~697 patients following this structure
+  // The seed file now creates User accounts for each patient automatically
+  const patientData: Array<{
+    fileNumber?: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    whatsappPhone?: string;
+    dob: Date;
+    gender: Gender;
+    address: string;
+    occupation?: string;
+    maritalStatus?: string;
+    emergencyContact: { name: string; number: string; relation: string };
+    medicalHistory?: string;
+    allergies?: string;
+    bloodGroup?: string;
+    assignedDoctorName?: string;
+  }> = [
+    // Sample from actual data - NS001
+    {
+      fileNumber: 'NS001',
+      firstName: 'Millicent',
+      lastName: 'Wanjiku Muchiri',
+      email: 'millicent.wanjikumuchiri.ns001@patient.nairobisculpt.com',
+      phone: '+254796470234',
+      dob: parsePatientDate('8/6/2002'),
+      gender: Gender.FEMALE,
+      address: 'Kirinyaga',
+      occupation: 'N/A',
+      emergencyContact: { name: 'Not Provided', number: '+254796508862', relation: 'Sister' },
+      allergies: undefined,
+      assignedDoctorName: 'Dr. Mukami Gathariki',
+    },
+    // NS002
+    {
+      fileNumber: 'NS002',
+      firstName: 'Rhoda',
+      lastName: 'Atieno',
+      email: 'rhodhaoti@gmail.com',
+      phone: '+254714356256',
+      whatsappPhone: '+254714356256',
+      dob: parsePatientDate('14/5/1983'),
+      gender: Gender.FEMALE,
+      address: 'South B',
+      occupation: 'Civil Servant',
+      emergencyContact: { name: 'Not Provided', number: '+254706415824', relation: 'Friend' },
+      allergies: undefined, // 'NONE' is treated as no allergies
+      assignedDoctorName: 'Dr. Ken Aluora',
+    },
+    // NS003
+    {
+      fileNumber: 'NS003',
+      firstName: 'Sandra',
+      lastName: 'Nyakiongora',
+      email: 'sandra.nyakiongora.ns003@patient.nairobisculpt.com',
+      phone: '+254702334455',
+      dob: parsePatientDate(undefined, undefined), // Will default to 30 years ago
+      gender: Gender.FEMALE,
+      address: 'Nairobi, Kenya', // 'A' is not a valid address
+      occupation: 'Lawyer',
+      emergencyContact: { name: 'Sarah Nyakingora', number: '+254702334455', relation: 'Sister' },
+      allergies: undefined,
+      assignedDoctorName: 'Dr. Mukami Gathariki',
+    },
+    // Add remaining ~697 patients here following the same structure...
+    // For now, keeping some original sample data for testing
     {
       firstName: 'Amina',
       lastName: 'Hassan',
@@ -373,25 +468,90 @@ async function main() {
     },
   ];
 
+  // Create a map of doctor names to user IDs for patient assignment
+  // Note: assigned_to_user_id requires a User ID, not a Doctor ID
+  const doctorNameToUserIdMap: Record<string, string> = {};
+  for (const doctor of doctors) {
+    doctorNameToUserIdMap[doctor.name] = doctor.user_id;
+  }
+
   const patients = [];
+  
+  // Helper function to map doctor name to User ID (for assigned_to_user_id)
+  function getDoctorUserId(doctorName?: string): string | null {
+    if (!doctorName || doctorName.trim() === '') return null;
+    const nameMap: Record<string, string> = {
+      'DR.MUKAMI': 'Dr. Mukami Gathariki',
+      'DR.KEN': 'Dr. Ken Aluora',
+      'DR.JP': 'Dr. John Paul Ogalo',
+      'DR.JP OGOLA': 'Dr. John Paul Ogalo',
+      'DR.ANGELA': 'Dr. Angela Muoki',
+      'DR.MUOKI A': 'Dr. Angela Muoki',
+      'DR.MUOKI': 'Dr. Angela Muoki',
+      'DR.DORSI': 'Dr. Dorsi Jowi',
+      'DR.JOWI': 'Dr. Dorsi Jowi',
+      'DR.OMONDI': 'Dr. Dorsi Jowi',
+      'DR.ODIRA': 'Dr. Dorsi Jowi',
+      'DR.OMONDI ODIRA': 'Dr. Dorsi Jowi',
+      'DR.KEN ALUORA': 'Dr. Ken Aluora',
+      'DR.AREEB': 'Dr. Ken Aluora',
+      'DR.ROBERT MUGO': 'Dr. Ken Aluora',
+      'DR.JOYCE AWUOR': 'Dr. Angela Muoki',
+    };
+    const mappedName = nameMap[doctorName.toUpperCase()] || doctorName;
+    return doctorNameToUserIdMap[mappedName] || null;
+  }
+
   for (const pData of patientData) {
-    const patient = await prisma.patient.create({
+    // Use provided file number or generate sequential
+    // Extract index calculation to avoid circular reference in type inference
+    const currentPatientIndex: number = patients.length + 1;
+    const fileNumber: string = (pData as any).fileNumber || `NS${String(currentPatientIndex).padStart(3, '0')}`;
+    
+    // Create User account for patient (like we do for doctors)
+    const patientPassword = await hashPassword(pData.phone.replace(/\+/g, '')); // Use phone as password (like existing workflow)
+    const patientUser = await prisma.user.create({
       data: {
         id: uuid(),
+        email: pData.email,
+        password_hash: patientPassword,
+        role: Role.PATIENT,
+        status: Status.ACTIVE,
+        first_name: pData.firstName,
+        last_name: pData.lastName,
+        phone: pData.phone,
+      },
+    });
+
+    // Get assigned doctor User ID if provided (assigned_to_user_id requires User ID, not Doctor ID)
+    const assignedDoctorUserId = (pData as any).assignedDoctorName 
+      ? getDoctorUserId((pData as any).assignedDoctorName)
+      : null;
+
+    // Create Patient record linked to User account
+    // Explicit type annotation to avoid circular reference in type inference
+    const patient: Awaited<ReturnType<typeof prisma.patient.create>> = await prisma.patient.create({
+      data: {
+        id: uuid(),
+        user_id: patientUser.id, // Link to user account
+        file_number: fileNumber,
         first_name: pData.firstName,
         last_name: pData.lastName,
         email: pData.email,
         phone: pData.phone,
-        date_of_birth: pData.dob,
-        gender: pData.gender,
+        whatsapp_phone: (pData as any).whatsappPhone || pData.phone,
+        date_of_birth: (pData as any).dob || pData.dob,
+        gender: (pData as any).gender || pData.gender,
         address: pData.address,
-        marital_status: pData.maritalStatus,
+        occupation: (pData as any).occupation || null,
+        marital_status: pData.maritalStatus || 'Unknown',
         emergency_contact_name: pData.emergencyContact.name,
         emergency_contact_number: pData.emergencyContact.number,
         relation: pData.emergencyContact.relation,
-        medical_history: pData.medicalHistory,
-        allergies: pData.allergies,
-        blood_group: pData.bloodGroup,
+        medical_history: (pData as any).medicalHistory || pData.medicalHistory || null,
+        allergies: (pData as any).allergies || (pData.allergies === 'None' ? null : pData.allergies) || null,
+        blood_group: (pData as any).bloodGroup || pData.bloodGroup || null,
+        assigned_to_user_id: assignedDoctorUserId, // Assign to doctor if specified (must be User ID, not Doctor ID)
         privacy_consent: true,
         service_consent: true,
         medical_consent: true,
@@ -402,7 +562,7 @@ async function main() {
       },
     });
     patients.push(patient);
-    console.log(`  ✓ Created patient: ${patient.first_name} ${patient.last_name}`);
+    console.log(`  ✓ Created patient: ${patient.first_name} ${patient.last_name} (${fileNumber}) - User: ${patientUser.email}`);
   }
 
   console.log(`✅ Created ${patients.length} patients\n`);

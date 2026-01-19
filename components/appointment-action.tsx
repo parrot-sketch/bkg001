@@ -65,7 +65,7 @@ export const AppointmentAction = ({ id, status }: ActionProps) => {
           className="bg-blue-200 text-black"
           onClick={() => setSelected("SCHEDULED")}
         >
-          Approve
+          Accept for Scheduling
         </Button>
         <Button
           variant="outline"

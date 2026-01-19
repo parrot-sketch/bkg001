@@ -1,6 +1,6 @@
 import db from "@/lib/db";
 import { getMonth, format, startOfYear, endOfMonth, isToday } from "date-fns";
-import { daysOfWeek } from "@/utils";
+import { daysOfWeek } from "@/lib/utils";
 
 type AppointmentStatus = "PENDING" | "SCHEDULED" | "COMPLETED" | "CANCELLED";
 
@@ -275,7 +275,7 @@ export async function getAllPatients({
         include: {
           appointments: {
             select: {
-              medical: {
+              medical_records: {
                 select: { created_at: true, treatment_plan: true },
                 orderBy: { created_at: "desc" },
                 take: 1,

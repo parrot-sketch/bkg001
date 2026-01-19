@@ -81,28 +81,26 @@ export function isValidConsultationRequestTransition(
   }
 
   // Valid transitions from each state
+  // Note: Cancellation is handled by AppointmentStatus, not ConsultationRequestStatus
   const validTransitions: Record<ConsultationRequestStatus, ConsultationRequestStatus[]> = {
     [ConsultationRequestStatus.SUBMITTED]: [
-      ConsultationRequestStatus.PENDING_REVIEW,
-      ConsultationRequestStatus.CANCELLED as any, // Handled by AppointmentStatus
+      ConsultationRequestStatus.PENDING_REVIEW, // Auto-transition (optional)
+      ConsultationRequestStatus.APPROVED, // Direct approval by frontdesk
+      ConsultationRequestStatus.NEEDS_MORE_INFO, // Direct request for more info
     ],
     [ConsultationRequestStatus.PENDING_REVIEW]: [
       ConsultationRequestStatus.APPROVED,
       ConsultationRequestStatus.NEEDS_MORE_INFO,
-      ConsultationRequestStatus.CANCELLED as any, // Handled by AppointmentStatus
     ],
     [ConsultationRequestStatus.NEEDS_MORE_INFO]: [
       ConsultationRequestStatus.SUBMITTED, // Patient resubmits with more info
       ConsultationRequestStatus.PENDING_REVIEW,
-      ConsultationRequestStatus.CANCELLED as any, // Handled by AppointmentStatus
     ],
     [ConsultationRequestStatus.APPROVED]: [
       ConsultationRequestStatus.SCHEDULED,
-      ConsultationRequestStatus.CANCELLED as any, // Handled by AppointmentStatus
     ],
     [ConsultationRequestStatus.SCHEDULED]: [
       ConsultationRequestStatus.CONFIRMED,
-      ConsultationRequestStatus.CANCELLED as any, // Handled by AppointmentStatus
     ],
     [ConsultationRequestStatus.CONFIRMED]: [
       // No transitions from CONFIRMED - it's a final state
@@ -115,14 +113,15 @@ export function isValidConsultationRequestTransition(
 
 /**
  * Get user-friendly status label for display
+ * Premium aesthetic clinic language
  */
 export function getConsultationRequestStatusLabel(status: ConsultationRequestStatus): string {
   const labels: Record<ConsultationRequestStatus, string> = {
-    [ConsultationRequestStatus.SUBMITTED]: 'Submitted',
+    [ConsultationRequestStatus.SUBMITTED]: 'Inquiry Received',
     [ConsultationRequestStatus.PENDING_REVIEW]: 'Under Review',
-    [ConsultationRequestStatus.NEEDS_MORE_INFO]: 'Needs More Information',
-    [ConsultationRequestStatus.APPROVED]: 'Approved',
-    [ConsultationRequestStatus.SCHEDULED]: 'Scheduled',
+    [ConsultationRequestStatus.NEEDS_MORE_INFO]: 'Clarification Required',
+    [ConsultationRequestStatus.APPROVED]: 'Accepted for Scheduling',
+    [ConsultationRequestStatus.SCHEDULED]: 'Session Proposed',
     [ConsultationRequestStatus.CONFIRMED]: 'Confirmed',
   };
 
@@ -131,15 +130,16 @@ export function getConsultationRequestStatusLabel(status: ConsultationRequestSta
 
 /**
  * Get user-friendly status description for patients
+ * Premium aesthetic clinic language - calm, professional, reassuring
  */
 export function getConsultationRequestStatusDescription(status: ConsultationRequestStatus): string {
   const descriptions: Record<ConsultationRequestStatus, string> = {
-    [ConsultationRequestStatus.SUBMITTED]: 'Your request has been received and is being processed.',
-    [ConsultationRequestStatus.PENDING_REVIEW]: 'Your request is being reviewed by our clinical team.',
-    [ConsultationRequestStatus.NEEDS_MORE_INFO]: 'We need additional information to proceed with your request.',
-    [ConsultationRequestStatus.APPROVED]: 'Your request has been approved and is ready to be scheduled.',
-    [ConsultationRequestStatus.SCHEDULED]: 'A time has been proposed. Please confirm your availability.',
-    [ConsultationRequestStatus.CONFIRMED]: 'Your consultation has been confirmed. We look forward to seeing you.',
+    [ConsultationRequestStatus.SUBMITTED]: 'Your inquiry has been received. Our team will review it shortly.',
+    [ConsultationRequestStatus.PENDING_REVIEW]: 'Your inquiry is being carefully reviewed by our surgical team.',
+    [ConsultationRequestStatus.NEEDS_MORE_INFO]: 'We would like to gather a bit more information to better understand your needs.',
+    [ConsultationRequestStatus.APPROVED]: 'Your inquiry has been accepted. We will contact you shortly to schedule your session.',
+    [ConsultationRequestStatus.SCHEDULED]: 'A session time has been proposed. Please confirm if this works for you.',
+    [ConsultationRequestStatus.CONFIRMED]: 'Your session has been confirmed. We look forward to meeting with you.',
   };
 
   return descriptions[status];

@@ -1,10 +1,11 @@
 import db from "@/lib/db";
-import { auth } from "@clerk/nextjs/server";
+import { getCurrentUser } from "@/lib/auth/server-auth";
 import React from "react";
 import { RatingList } from "./rating-list";
 
 export const PatientRatingContainer = async ({ id }: { id?: string }) => {
-  const { userId } = await auth();
+  const user = await getCurrentUser();
+  const userId = user?.userId;
 
   const data = await db.rating.findMany({
     take: 10,

@@ -4,70 +4,40 @@ import db from "@/lib/db";
 import {
   DoctorSchema,
   ServicesSchema,
-  StaffSchema,
   WorkingDaysSchema,
 } from "@/lib/schema";
-import { generateRandomColor } from "@/utils";
-import { checkRole } from "@/utils/roles";
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { checkRole } from "@/lib/utils/roles";
+import { getCurrentUser } from "@/lib/auth/server-auth";
+import { Role } from "@/domain/enums/Role";
+import { UserProfileService } from "@/lib/services/user-profile-service";
 
+/**
+ * Note: Staff model doesn't exist in the current schema.
+ * Staff members are Users with roles (NURSE, LAB_TECHNICIAN, CASHIER, FRONTDESK).
+ * This function is kept for backward compatibility but creates a User only.
+ */
 export async function createNewStaff(data: any) {
   try {
-    const { userId } = await auth();
+    const user = await getCurrentUser();
 
-    if (!userId) {
+    if (!user) {
       return { success: false, msg: "Unauthorized" };
     }
 
-    const isAdmin = await checkRole("ADMIN");
+    const isAdmin = await checkRole(Role.ADMIN);
 
     if (!isAdmin) {
       return { success: false, msg: "Unauthorized" };
     }
 
-    const values = StaffSchema.safeParse(data);
-
-    if (!values.success) {
-      return {
-        success: false,
-        errors: true,
-        message: "Please provide all required info",
-      };
-    }
-
-    const validatedValues = values.data;
-
-    const client = await clerkClient();
-
-    const user = await client.users.createUser({
-      emailAddress: [validatedValues.email],
-      password: validatedValues.password,
-      firstName: validatedValues.name.split(" ")[0],
-      lastName: validatedValues.name.split(" ")[1],
-      publicMetadata: { role: "doctor" },
-    });
-
-    delete validatedValues["password"];
-
-    const doctor = await db.staff.create({
-      data: {
-        name: validatedValues.name,
-        phone: validatedValues.phone,
-        email: validatedValues.email,
-        address: validatedValues.address,
-        role: validatedValues.role,
-        license_number: validatedValues.license_number,
-        department: validatedValues.department,
-        colorCode: generateRandomColor(),
-        id: user.id,
-        status: "ACTIVE",
-      },
-    });
-
+    // For now, staff creation is just User creation with appropriate role
+    // The Staff model doesn't exist in the current schema
+    // Staff members are Users with roles: NURSE, LAB_TECHNICIAN, CASHIER, FRONTDESK
+    
     return {
-      success: true,
-      message: "Doctor added successfully",
-      error: false,
+      success: false,
+      message: "Staff creation not yet implemented. Use User creation with appropriate role.",
+      error: true,
     };
   } catch (error) {
     console.log(error);
@@ -76,8 +46,19 @@ export async function createNewStaff(data: any) {
 }
 export async function createNewDoctor(data: any) {
   try {
-    const values = DoctorSchema.safeParse(data);
+    // Authorization check
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, msg: "Unauthorized" };
+    }
 
+    const isAdmin = await checkRole(Role.ADMIN);
+    if (!isAdmin) {
+      return { success: false, msg: "Unauthorized" };
+    }
+
+    // Validate input
+    const values = DoctorSchema.safeParse(data);
     const workingDaysValues = WorkingDaysSchema.safeParse(data?.work_schedule);
 
     if (!values.success || !workingDaysValues.success) {
@@ -91,41 +72,59 @@ export async function createNewDoctor(data: any) {
     const validatedValues = values.data;
     const workingDayData = workingDaysValues.data!;
 
-    const client = await clerkClient();
+    // Parse name into first and last name
+    const nameParts = validatedValues.name.split(" ");
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(" ") || '';
 
-    const user = await client.users.createUser({
-      emailAddress: [validatedValues.email],
+    // Ensure password is provided (required for user creation)
+    if (!validatedValues.password || validatedValues.password.trim() === '') {
+      return {
+        success: false,
+        errors: true,
+        message: "Password is required",
+      };
+    }
+
+    // Use service layer to create user and doctor profile
+    const userProfileService = new UserProfileService(db);
+    const { user: newUser, doctor } = await userProfileService.createUserWithDoctor({
+      email: validatedValues.email,
       password: validatedValues.password,
-      firstName: validatedValues.name.split(" ")[0],
-      lastName: validatedValues.name.split(" ")[1],
-      publicMetadata: { role: "doctor" },
+      firstName,
+      lastName,
+      phone: validatedValues.phone,
+      name: validatedValues.name,
+      specialization: validatedValues.specialization,
+      licenseNumber: validatedValues.license_number,
+      address: validatedValues.address,
+      department: validatedValues.department,
+      clinicLocation: (data as any).clinic_location,
+      profileImage: (data as any).profile_image,
+      bio: (data as any).bio,
+      education: (data as any).education,
+      focusAreas: (data as any).focus_areas,
+      professionalAffiliations: (data as any).professional_affiliations,
+      workingDays: workingDayData?.map((wd: any) => ({
+        day: wd.day,
+        startTime: wd.start_time,
+        endTime: wd.end_time,
+        isAvailable: wd.is_available,
+      })),
     });
-
-    delete validatedValues["password"];
-
-    const doctor = await db.doctor.create({
-      data: {
-        ...validatedValues,
-        id: user.id,
-      },
-    });
-
-    await Promise.all(
-      workingDayData?.map((el) =>
-        db.workingDays.create({
-          data: { ...el, doctor_id: doctor.id },
-        })
-      )
-    );
 
     return {
       success: true,
       message: "Doctor added successfully",
       error: false,
     };
-  } catch (error) {
-    console.log(error);
-    return { error: true, success: false, message: "Something went wrong" };
+  } catch (error: any) {
+    console.error('Error creating doctor:', error);
+    return {
+      error: true,
+      success: false,
+      message: error?.message || "Something went wrong",
+    };
   }
 }
 
@@ -135,7 +134,7 @@ export async function addNewService(data: any) {
 
     const validatedData = isValidData.data;
 
-    await db.services.create({
+    await db.service.create({
       data: { ...validatedData!, price: Number(data.price!) },
     });
 

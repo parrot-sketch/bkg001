@@ -10,18 +10,19 @@ import {
   DialogTrigger,
 } from "./ui/dialog";
 import { Button } from "./ui/button";
-import { calculateAge, formatDateTime } from "@/utils";
+import { calculateAge, formatDateTime } from "@/lib/utils";
 import { ProfileImage } from "./profile-image";
 import { Calendar, Phone } from "lucide-react";
 import { format } from "date-fns";
 import { AppointmentStatusIndicator } from "./appointment-status-indicator";
-import { checkRole } from "@/utils/roles";
-import { auth } from "@clerk/nextjs/server";
+import { checkRole } from "@/lib/utils/roles";
+import { getCurrentUser } from "@/lib/auth/server-auth";
 import { AppointmentAction } from "./appointment-action";
 
 export const ViewAppointment = async ({ id }: { id: string | undefined }) => {
   const { data } = await getAppointmentById(Number(id!));
-  const { userId } = await auth();
+  const user = await getCurrentUser();
+  const userId = user?.userId;
 
   if (!data) return null;
 

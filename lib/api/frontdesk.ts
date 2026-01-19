@@ -22,25 +22,44 @@ export const frontdeskApi = {
   },
 
   /**
-   * Get upcoming appointments
+   * Get upcoming appointments (future dates)
    */
   async getUpcomingAppointments(): Promise<ApiResponse<AppointmentResponseDto[]>> {
-    return apiClient.get<AppointmentResponseDto[]>('/appointments/upcoming');
+    return apiClient.get<AppointmentResponseDto[]>('/appointments?upcoming=true');
   },
 
   /**
    * Get appointments by date
+   * 
+   * @param date - Date to filter appointments (will filter for that specific day)
    */
   async getAppointmentsByDate(date: Date): Promise<ApiResponse<AppointmentResponseDto[]>> {
-    const dateStr = date.toISOString().split('T')[0];
-    return apiClient.get<AppointmentResponseDto[]>(`/appointments/date/${dateStr}`);
+    const dateStr = date.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+    return apiClient.get<AppointmentResponseDto[]>(`/appointments?date=${dateStr}`);
   },
 
   /**
    * Get appointments by status
+   * 
+   * @param status - Appointment status to filter by
    */
   async getAppointmentsByStatus(status: string): Promise<ApiResponse<AppointmentResponseDto[]>> {
-    return apiClient.get<AppointmentResponseDto[]>(`/appointments/status/${status}`);
+    return apiClient.get<AppointmentResponseDto[]>(`/appointments?status=${encodeURIComponent(status)}`);
+  },
+
+  /**
+   * Get appointments by date range
+   * 
+   * @param startDate - Start date (inclusive)
+   * @param endDate - End date (inclusive)
+   */
+  async getAppointmentsByDateRange(
+    startDate: Date,
+    endDate: Date
+  ): Promise<ApiResponse<AppointmentResponseDto[]>> {
+    const startStr = startDate.toISOString().split('T')[0];
+    const endStr = endDate.toISOString().split('T')[0];
+    return apiClient.get<AppointmentResponseDto[]>(`/appointments?startDate=${startStr}&endDate=${endStr}`);
   },
 
   /**
@@ -87,6 +106,17 @@ export const frontdeskApi = {
    */
   async getPendingConsultations(): Promise<ApiResponse<(AppointmentResponseDto & { daysSinceSubmission?: number })[]>> {
     return apiClient.get<(AppointmentResponseDto & { daysSinceSubmission?: number })[]>('/consultations/pending');
+  },
+
+  /**
+   * Get consultations by consultation request status
+   * 
+   * @param statuses - Array of consultation request statuses to filter by
+   */
+  async getConsultationsByStatus(statuses: string[]): Promise<ApiResponse<AppointmentResponseDto[]>> {
+    const queryParams = new URLSearchParams();
+    queryParams.append('consultationRequestStatus', statuses.join(','));
+    return apiClient.get<AppointmentResponseDto[]>(`/appointments?${queryParams.toString()}`);
   },
 
   /**

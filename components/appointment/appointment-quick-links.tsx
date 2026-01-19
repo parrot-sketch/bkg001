@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { checkRole } from "@/utils/roles";
+import { checkRole } from "@/lib/utils/roles";
 import { ReviewForm } from "../dialogs/review-form";
 
 const AppointmentQuickLinks = async ({ staffId }: { staffId: string }) => {

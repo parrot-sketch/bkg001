@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/hooks/patient/useAuth";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -50,7 +50,7 @@ export const ReviewForm = ({ staffId }: { staffId: string }) => {
   const form = useForm<ReviewFormValues>({
     resolver: zodResolver(reviewSchema),
     defaultValues: {
-      patient_id: user?.userId as string,
+      patient_id: user?.user?.id as string,
       staff_id: staffId,
       rating: 1,
       comment: "",

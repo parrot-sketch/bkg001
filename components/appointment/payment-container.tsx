@@ -3,7 +3,7 @@ import { Table } from "../tables/table";
 import { Payment } from "@prisma/client";
 import { format } from "date-fns";
 import { ViewAction } from "../action-options";
-import { checkRole } from "@/utils/roles";
+import { checkRole } from "@/lib/utils/roles";
 import { ActionDialog } from "../action-dialog";
 
 const columns = [
@@ -71,7 +71,7 @@ export const PaymentsContainer = async ({
 
         <td className="lowercase">{format(item?.bill_date, "MMM d, yyyy")}</td>
         <td className="hidden  items-center py-2  md:table-cell">
-          {format(item?.payment_date, "MMM d, yyyy")}
+          {item?.payment_date ? format(item.payment_date, "MMM d, yyyy") : "N/A"}
         </td>
         <td className="">{item?.total_amount.toFixed(2)}</td>
         <td className="hidden xl:table-cell">{item?.discount.toFixed(2)}</td>

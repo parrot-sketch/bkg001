@@ -11,6 +11,10 @@
 // Enums
 export * from './enums/Role';
 export * from './enums/AppointmentStatus';
+export * from './enums/ConsultationState';
+export * from './enums/ConsultationOutcomeType';
+export * from './enums/NoShowReason';
+export * from './enums/PatientDecision';
 export * from './enums/PaymentStatus';
 export * from './enums/PaymentMethod';
 export * from './enums/Gender';
@@ -18,6 +22,23 @@ export * from './enums/Status';
 export * from './enums/JobType';
 export * from './enums/ConsultationRequestStatus';
 export * from './enums/DoctorOnboardingStatus';
+export * from './enums/ConsultUrgency';
+export * from './enums/ConsultStatus';
+export * from './enums/ImageTimepoint';
+export * from './enums/ImageAngle';
+export * from './enums/CaseReadinessStatus';
+export * from './enums/TaskPriority';
+export * from './enums/TaskStatus';
+export * from './enums/OutcomeStatus';
+
+// Entities
+export * from './entities/Consultation';
+
+// Value Objects
+export * from './value-objects/CheckInInfo';
+export * from './value-objects/NoShowInfo';
+export * from './value-objects/ConsultationDuration';
+export * from './value-objects/ConsultationNotes';
 
 // Exceptions
 export * from './exceptions/DomainException';

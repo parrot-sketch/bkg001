@@ -31,6 +31,13 @@ export const doctorApi = {
   },
 
   /**
+   * Get doctor by user ID
+   */
+  async getDoctorByUserId(userId: string): Promise<ApiResponse<DoctorResponseDto & { workingDays?: any[] }>> {
+    return apiClient.get<DoctorResponseDto & { workingDays?: any[] }>(`/doctors/user/${userId}`);
+  },
+
+  /**
    * Get doctor's appointments (only SCHEDULED/CONFIRMED consultations by default)
    * 
    * @param doctorId - Doctor ID

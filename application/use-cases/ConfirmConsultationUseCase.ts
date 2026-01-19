@@ -78,15 +78,9 @@ export class ConfirmConsultationUseCase {
    * @throws DomainException if validation fails or permissions denied
    */
   async execute(dto: ConfirmConsultationDto, userId: string): Promise<AppointmentResponseDto> {
-    // Step 1: Validate patient is confirming their own consultation
-    if (dto.patientId !== userId) {
-      throw new DomainException('Patients can only confirm their own consultations', {
-        patientId: dto.patientId,
-        userId,
-      });
-    }
-
-    // Step 2: Validate patient exists
+    // Step 1: Validate patient exists
+    // Note: The API layer already validated that userId maps to patientId
+    // We rely on the appointment ownership check (Step 4) to ensure patient is confirming their own consultation
     const patient = await this.patientRepository.findById(dto.patientId);
     if (!patient) {
       throw new DomainException(`Patient with ID ${dto.patientId} not found`, {

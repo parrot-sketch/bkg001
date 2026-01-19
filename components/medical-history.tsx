@@ -1,13 +1,13 @@
-import { Diagnosis, LabTest, MedicalRecords, Patient } from "@prisma/client";
+import { Diagnosis, LabTest, MedicalRecord, Patient } from "@prisma/client";
 import { BriefcaseBusiness } from "lucide-react";
 import React from "react";
 import { Table } from "./tables/table";
 import { ProfileImage } from "./profile-image";
-import { formatDateTime } from "@/utils";
+import { formatDateTime } from "@/lib/utils";
 import { ViewAction } from "./action-options";
 import { MedicalHistoryDialog } from "./medical-history-dialog";
 
-export interface ExtendedMedicalHistory extends MedicalRecords {
+export interface ExtendedMedicalHistory extends MedicalRecord {
   patient?: Patient;
   diagnosis: Diagnosis[];
   lab_test: LabTest[];

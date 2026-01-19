@@ -5,14 +5,16 @@
  * 
  * Clean, elegant sidebar navigation for the Doctor Dashboard.
  * Reflects Nairobi Sculpt branding with minimal, professional design.
+ * Mobile-responsive with toggle functionality.
  */
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Calendar, FileText, Users, User, LogOut } from 'lucide-react';
+import { LayoutDashboard, Calendar, FileText, Users, User, LogOut, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/patient/useAuth';
+import { useEffect } from 'react';
 
 interface NavItem {
   name: string;
@@ -48,7 +50,12 @@ const navItems: NavItem[] = [
   },
 ];
 
-export function DoctorSidebar() {
+interface DoctorSidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export function DoctorSidebar({ isOpen, onClose }: DoctorSidebarProps) {
   const pathname = usePathname();
   const { logout, user } = useAuth();
 
@@ -60,65 +67,99 @@ export function DoctorSidebar() {
     }
   };
 
+  // Close sidebar when navigating on mobile
+  useEffect(() => {
+    if (isOpen) {
+      onClose();
+    }
+  }, [pathname]);
+
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-border bg-card transition-transform">
-      <div className="flex h-full flex-col">
-        {/* Logo/Brand */}
-        <div className="flex h-16 items-center border-b border-border px-6">
-          <Link href="/doctor/dashboard" className="flex items-center space-x-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg nairobi-gradient">
-              <span className="text-lg font-bold text-white">NS</span>
-            </div>
-            <span className="text-lg font-semibold text-foreground">Nairobi Sculpt</span>
-          </Link>
-        </div>
+    <>
+      {/* Mobile Overlay */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+          onClick={onClose}
+          aria-hidden="true"
+        ></div>
+      )}
 
-        {/* User Info */}
-        {user && (
-          <div className="border-b border-border px-6 py-4">
-            <p className="text-sm font-medium text-foreground">
-              Dr. {user.firstName || user.email}
-            </p>
-            <p className="text-xs text-muted-foreground">{user.email}</p>
-          </div>
+      <aside
+        className={cn(
+          "fixed left-0 top-0 z-40 h-screen w-64 border-r border-border bg-card transition-transform duration-300 ease-in-out",
+          isOpen ? "translate-x-0" : "-translate-x-full",
+          "lg:translate-x-0 lg:static" // Always visible on large screens
         )}
+      >
+        <div className="flex h-full flex-col">
+          {/* Logo/Brand */}
+          <div className="flex h-16 items-center justify-between border-b border-border px-6">
+            <Link href="/doctor/dashboard" className="flex items-center space-x-2" onClick={onClose}>
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg nairobi-gradient">
+                <span className="text-lg font-bold text-white">NS</span>
+              </div>
+              <span className="text-lg font-semibold text-foreground">Nairobi Sculpt</span>
+            </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden"
+              onClick={onClose}
+              aria-label="Close sidebar"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 space-y-1 px-3 py-4">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
+          {/* User Info */}
+          {user && (
+            <div className="border-b border-border px-6 py-4">
+              <p className="text-sm font-medium text-foreground">
+                Dr. {user.firstName || user.email}
+              </p>
+              <p className="text-xs text-muted-foreground">{user.email}</p>
+            </div>
+          )}
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  'flex items-center space-x-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                )}
-              >
-                <Icon className="h-5 w-5" />
-                <span>{item.name}</span>
-              </Link>
-            );
-          })}
-        </nav>
+          {/* Navigation */}
+          <nav className="flex-1 space-y-1 px-3 py-4">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
 
-        {/* Logout Button */}
-        <div className="border-t border-border p-4">
-          <Button
-            variant="ghost"
-            onClick={handleLogout}
-            className="w-full justify-start text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <LogOut className="mr-3 h-5 w-5" />
-            <span>Logout</span>
-          </Button>
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={onClose} // Close sidebar on navigation
+                  className={cn(
+                    'flex items-center space-x-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                  )}
+                >
+                  <Icon className="h-5 w-5" />
+                  <span>{item.name}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Logout Button */}
+          <div className="border-t border-border p-4">
+            <Button
+              variant="ghost"
+              onClick={handleLogout}
+              className="w-full justify-start text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <LogOut className="mr-3 h-5 w-5" />
+              <span>Logout</span>
+            </Button>
+          </div>
         </div>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }

@@ -3,9 +3,9 @@ import { CompleteConsultationUseCase } from '../application/use-cases/CompleteCo
 import { StartConsultationDto } from '../application/dtos/StartConsultationDto';
 import { CompleteConsultationDto } from '../application/dtos/CompleteConsultationDto';
 import { AppointmentResponseDto } from '../application/dtos/AppointmentResponseDto';
-import { ControllerRequest, ControllerResponse } from './types';
+import { ControllerRequest, ControllerResponse } from '../lib/auth/types';
 import { DomainException } from '../domain/exceptions/DomainException';
-import { RbacMiddleware } from './middleware/RbacMiddleware';
+import { RbacMiddleware } from '../lib/auth/rbac';
 
 /**
  * Controller: ConsultationController
@@ -73,8 +73,8 @@ export class ConsultationController {
       // 5. Execute start consultation use case
       const dto: StartConsultationDto = {
         appointmentId: parseInt(appointmentId, 10),
+        doctorId: req.auth.userId,
         doctorNotes: body?.doctorNotes,
-        consultationStartedByUserId: req.auth.userId,
       };
 
       const response: AppointmentResponseDto = await this.startConsultationUseCase.execute(dto);
@@ -162,7 +162,13 @@ export class ConsultationController {
       }
 
       // 4. Validate request body
-      const body = req.body as { outcome: string; followUpDate?: Date };
+      const body = req.body as { 
+        outcome: string;
+        outcomeType: string;
+        followUpDate?: Date; 
+        followUpTime?: string; 
+        followUpType?: string;
+      };
 
       if (!body || !body.outcome) {
         return {
@@ -174,12 +180,25 @@ export class ConsultationController {
         };
       }
 
+      if (!body.outcomeType) {
+        return {
+          status: 400,
+          body: {
+            success: false,
+            error: 'Outcome type is required',
+          },
+        };
+      }
+
       // 5. Execute complete consultation use case
       const dto: CompleteConsultationDto = {
         appointmentId: parseInt(appointmentId, 10),
+        doctorId: req.auth.userId,
         outcome: body.outcome,
+        outcomeType: body.outcomeType as any,
         followUpDate: body.followUpDate,
-        completedByUserId: req.auth.userId,
+        followUpTime: body.followUpTime,
+        followUpType: body.followUpType,
       };
 
       const response: AppointmentResponseDto = await this.completeConsultationUseCase.execute(dto);

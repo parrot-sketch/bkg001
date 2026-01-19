@@ -9,7 +9,7 @@
  * This is where User → Patient transition begins.
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { patientApi } from '@/lib/api/patient';
@@ -76,7 +76,7 @@ interface Doctor {
   profile_image?: string;
 }
 
-export default function BookConsultationPage() {
+function BookConsultationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -313,7 +313,7 @@ export default function BookConsultationPage() {
       case 2:
         return !!(formData.serviceId && formData.concernDescription);
       case 3:
-        return true; // Optional
+        return !!(formData.doctorId && formData.doctorId.trim().length > 0); // Required
       case 4:
         return !!(formData.preferredDate && formData.timePreference);
       case 5:
@@ -364,8 +364,10 @@ export default function BookConsultationPage() {
         // Preserve context - return to the page user came from, or default to dashboard
         const redirectTo = returnTo || '/patient/dashboard';
         router.push(redirectTo);
-      } else {
+      } else if (!response.success) {
         toast.error(response.error || 'Unable to submit your request. Please try again.');
+      } else {
+        toast.error('Unable to submit your request. Please try again.');
       }
     } catch (error) {
       console.error('Error submitting consultation:', error);
@@ -422,21 +424,24 @@ export default function BookConsultationPage() {
     <div className="min-h-screen bg-white">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header - Calm, Professional */}
-        <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900 mb-2">Book Your Consultation</h1>
-          <p className="text-sm text-gray-600">Let's begin your journey with Nairobi Sculpt</p>
+        <div className="mb-8 space-y-2">
+          <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight">Submit an Inquiry</h1>
+          <p className="text-sm text-gray-600 leading-relaxed">Share your preferences and we'll guide you through the next steps</p>
         </div>
 
-        {/* Progress - Subtle */}
+        {/* Progress - Subtle and calm */}
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-medium text-gray-600">
               Step {getEffectiveStep()} of {effectiveSteps}
             </span>
+            <span className="text-xs text-gray-400">
+              {Math.round(progressPercentage)}% complete
+            </span>
           </div>
-          <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
             <div
-              className="h-full bg-teal-500 transition-all duration-500 ease-out"
+              className="h-full bg-primary transition-all duration-500 ease-out rounded-full"
               style={{ width: `${progressPercentage}%` }}
             />
           </div>
@@ -444,37 +449,16 @@ export default function BookConsultationPage() {
 
         {/* Profile Information Banner - Show when profile is being used */}
         {isProfileComplete && (
-          <div className="mb-6 p-4 bg-teal-50 border border-teal-200 rounded-lg">
+          <div className="mb-6 p-4 bg-primary/5 border border-primary/20 rounded-xl">
             <div className="flex items-start gap-3">
-              <Info className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+              <Info className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-teal-900 mb-1">
+                <p className="text-sm font-medium text-slate-900 mb-1">
                   Using information from your profile
                 </p>
-                <p className="text-xs text-teal-700">
+                <p className="text-xs text-gray-600 leading-relaxed">
                   Your profile information (name, date of birth, gender) is being used. You can update it in your{' '}
-                  <a href="/patient/profile" className="underline font-medium hover:text-teal-900">
-                    Profile
-                  </a>{' '}
-                  page.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Profile Information Banner - Show when profile is being used */}
-        {isProfileComplete && (
-          <div className="mb-6 p-4 bg-teal-50 border border-teal-200 rounded-lg">
-            <div className="flex items-start gap-3">
-              <Info className="h-5 w-5 text-teal-600 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-teal-900 mb-1">
-                  Using information from your profile
-                </p>
-                <p className="text-xs text-teal-700">
-                  Your profile information (name, date of birth, gender) is being used. You can update it in your{' '}
-                  <a href="/patient/profile" className="underline font-medium hover:text-teal-900">
+                  <a href="/patient/profile" className="underline font-medium text-primary hover:text-primary/80 transition-colors">
                     Profile
                   </a>{' '}
                   page.
@@ -485,7 +469,7 @@ export default function BookConsultationPage() {
         )}
 
         {/* Step Content */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6 sm:p-8 mb-6 shadow-sm">
+        <div className="bg-white border border-gray-200 rounded-xl p-6 sm:p-8 mb-6 shadow-sm">
           {/* Step 1: Identity */}
           {currentStep === 1 && (
             <div className="space-y-6">
@@ -500,7 +484,7 @@ export default function BookConsultationPage() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div className="space-y-2">
                   <Label htmlFor="firstName" className="text-sm font-medium text-slate-900">First Name *</Label>
                   <Input
@@ -508,9 +492,7 @@ export default function BookConsultationPage() {
                     value={formData.firstName}
                     onChange={(e) => handleInputChange('firstName', e.target.value)}
                     disabled={hasProfile === true}
-                    className={`h-11 border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 ${
-                      hasProfile ? 'bg-gray-50 text-gray-600' : 'bg-white'
-                    }`}
+                    className={hasProfile ? 'bg-gray-50 text-gray-600' : ''}
                     required
                   />
                 </div>
@@ -521,9 +503,7 @@ export default function BookConsultationPage() {
                     value={formData.lastName}
                     onChange={(e) => handleInputChange('lastName', e.target.value)}
                     disabled={hasProfile === true}
-                    className={`h-11 border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 ${
-                      hasProfile ? 'bg-gray-50 text-gray-600' : 'bg-white'
-                    }`}
+                    className={hasProfile ? 'bg-gray-50 text-gray-600' : ''}
                     required
                   />
                 </div>
@@ -536,7 +516,7 @@ export default function BookConsultationPage() {
                   type="email"
                   value={formData.email}
                   disabled
-                  className="h-11 bg-gray-50 border-gray-200 text-gray-600"
+                  className="bg-gray-50 text-gray-600"
                 />
               </div>
 
@@ -547,12 +527,11 @@ export default function BookConsultationPage() {
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => handleInputChange('phone', e.target.value)}
-                  className="h-11 bg-white border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
                   required
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div className="space-y-2">
                   <Label htmlFor="dateOfBirth" className="text-sm font-medium text-slate-900">Date of Birth *</Label>
                   <Input
@@ -561,9 +540,7 @@ export default function BookConsultationPage() {
                     value={formData.dateOfBirth}
                     onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
                     disabled={hasProfile === true}
-                    className={`h-11 border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 ${
-                      hasProfile ? 'bg-gray-50 text-gray-600' : 'bg-white'
-                    }`}
+                    className={hasProfile ? 'bg-gray-50 text-gray-600' : ''}
                     required
                     max={format(new Date(), 'yyyy-MM-dd')}
                   />
@@ -577,9 +554,7 @@ export default function BookConsultationPage() {
                   >
                     <SelectTrigger 
                       id="gender" 
-                      className={`h-11 border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 ${
-                        hasProfile ? 'bg-gray-50 text-gray-600' : 'bg-white'
-                      }`}
+                      className={hasProfile ? 'bg-gray-50 text-gray-600' : ''}
                       disabled={hasProfile === true}
                     >
                       <SelectValue placeholder="Select" />
@@ -711,11 +686,10 @@ export default function BookConsultationPage() {
                   value={formData.concernDescription}
                   onChange={(e) => handleInputChange('concernDescription', e.target.value)}
                   placeholder="Share any concerns, goals, or questions you'd like to discuss..."
-                  rows={4}
-                  className="bg-white border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                  rows={5}
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">This helps our doctors prepare for your consultation</p>
+                <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">This helps our surgeons prepare for your consultation</p>
               </div>
             </div>
           )}
@@ -724,8 +698,8 @@ export default function BookConsultationPage() {
           {currentStep === 3 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-semibold text-slate-900 mb-2">Would you like to meet a specific doctor?</h2>
-                <p className="text-sm text-gray-600">This is optional. Our team can also help you choose.</p>
+                <h2 className="text-xl font-semibold text-slate-900 mb-2">Select a surgeon</h2>
+                <p className="text-sm text-gray-600">Please select a surgeon for your consultation. Our team will confirm availability and may suggest alternatives if needed.</p>
               </div>
 
               <div className="space-y-3">
@@ -764,30 +738,11 @@ export default function BookConsultationPage() {
                         </div>
                       </button>
                     ))}
-                    <button
-                      type="button"
-                      onClick={() => handleInputChange('doctorId', '')}
-                      className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
-                        formData.doctorId === ''
-                          ? 'border-teal-500 bg-teal-50'
-                          : 'border-gray-200 bg-white hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="font-medium text-slate-900">No preference</div>
-                      <div className="text-sm text-gray-600">Our team will help you choose</div>
-                    </button>
                   </>
                 ) : (
                   <div className="text-center py-8">
                     <p className="text-sm text-gray-500 mb-2">No doctors available at the moment.</p>
-                    <button
-                      type="button"
-                      onClick={() => handleInputChange('doctorId', '')}
-                      className="w-full p-4 rounded-lg border-2 border-gray-200 bg-white hover:border-gray-300 text-left transition-all"
-                    >
-                      <div className="font-medium text-slate-900">No preference</div>
-                      <div className="text-sm text-gray-600">Our team will help you choose</div>
-                    </button>
+                    <p className="text-xs text-gray-400">Please contact us directly to book your consultation.</p>
                   </div>
                 )}
               </div>
@@ -804,18 +759,18 @@ export default function BookConsultationPage() {
 
               {/* Show selected doctor if preselected (Step 3 was skipped) */}
               {formData.doctorId && (
-                <div className="p-4 bg-teal-50 border border-teal-200 rounded-lg">
+                <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center flex-shrink-0">
-                      <Users className="h-5 w-5 text-teal-600" />
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Users className="h-5 w-5 text-primary" />
                     </div>
-                    <div className="flex-1">
-                      <p className="text-xs font-medium text-teal-900 uppercase tracking-wide mb-1">Selected Doctor</p>
-                      <p className="text-sm font-semibold text-slate-900">
-                        {doctors.find((d) => d.id === formData.doctorId)?.name || 'Selected doctor'}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-slate-700 uppercase tracking-wide mb-1">Selected Surgeon</p>
+                      <p className="text-sm font-semibold text-slate-900 truncate">
+                        {doctors.find((d) => d.id === formData.doctorId)?.name || 'Selected surgeon'}
                       </p>
                       {doctors.find((d) => d.id === formData.doctorId)?.specialization && (
-                        <p className="text-xs text-gray-600 mt-0.5">
+                        <p className="text-xs text-gray-600 mt-0.5 line-clamp-1">
                           {doctors.find((d) => d.id === formData.doctorId)?.specialization}
                         </p>
                       )}
@@ -827,7 +782,7 @@ export default function BookConsultationPage() {
                         setCurrentStep(3);
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                       }}
-                      className="text-xs text-teal-600 hover:text-teal-700 hover:underline font-medium"
+                      className="text-xs text-primary hover:text-primary/80 hover:underline font-medium flex-shrink-0 transition-colors"
                     >
                       Change
                     </button>
@@ -835,7 +790,7 @@ export default function BookConsultationPage() {
                 </div>
               )}
 
-              <div className="space-y-4">
+              <div className="space-y-5">
                 <div className="space-y-2">
                   <Label htmlFor="preferredDate" className="text-sm font-medium text-slate-900">Preferred Date *</Label>
                   <Input
@@ -844,16 +799,16 @@ export default function BookConsultationPage() {
                     value={formData.preferredDate}
                     onChange={(e) => handleInputChange('preferredDate', e.target.value)}
                     min={minDate}
-                    className="h-11 bg-white border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
                     required
                   />
+                  <p className="text-xs text-gray-500 mt-1">We'll confirm the exact time after reviewing your inquiry</p>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="timePreference" className="text-sm font-medium text-slate-900">Time Preference *</Label>
                   <Select value={formData.timePreference} onValueChange={(value) => handleInputChange('timePreference', value)}>
-                    <SelectTrigger id="timePreference" className="h-11 bg-white border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500">
-                      <SelectValue placeholder="Select" />
+                    <SelectTrigger id="timePreference">
+                      <SelectValue placeholder="Select preferred time" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Morning">Morning (8 AM - 12 PM)</SelectItem>
@@ -870,8 +825,7 @@ export default function BookConsultationPage() {
                     value={formData.notes}
                     onChange={(e) => handleInputChange('notes', e.target.value)}
                     placeholder="Any special requests or information..."
-                    rows={3}
-                    className="bg-white border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                    rows={4}
                   />
                 </div>
               </div>
@@ -999,42 +953,42 @@ export default function BookConsultationPage() {
           {/* Step 7: Confirmation */}
           {currentStep === 7 && (
             <div className="space-y-6">
-              <div className="text-center py-4">
-                <div className="w-16 h-16 rounded-full bg-teal-50 flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle2 className="h-8 w-8 text-teal-600" />
+              <div className="text-center py-6">
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle2 className="h-8 w-8 text-primary" />
                 </div>
-                <h2 className="text-xl font-semibold text-slate-900 mb-2">Almost done</h2>
-                <p className="text-sm text-gray-600 mb-6">Please review your request below</p>
+                <h2 className="text-xl font-semibold text-slate-900 mb-2">Review Your Inquiry</h2>
+                <p className="text-sm text-gray-600 leading-relaxed">Please confirm the details below before sending</p>
               </div>
 
-              <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <div className="text-sm">
-                  <span className="font-medium text-gray-700">Name:</span>
-                  <span className="ml-2 text-slate-900">{formData.firstName} {formData.lastName}</span>
+              <div className="space-y-3 p-5 bg-gray-50/50 rounded-xl border border-gray-200">
+                <div className="flex justify-between items-start py-2 border-b border-gray-200 last:border-0">
+                  <span className="text-sm font-medium text-gray-600">Name</span>
+                  <span className="text-sm text-slate-900 text-right">{formData.firstName} {formData.lastName}</span>
                 </div>
-                <div className="text-sm">
-                  <span className="font-medium text-gray-700">Email:</span>
-                  <span className="ml-2 text-slate-900">{formData.email}</span>
+                <div className="flex justify-between items-start py-2 border-b border-gray-200 last:border-0">
+                  <span className="text-sm font-medium text-gray-600">Email</span>
+                  <span className="text-sm text-slate-900 text-right">{formData.email}</span>
                 </div>
-                <div className="text-sm">
-                  <span className="font-medium text-gray-700">Phone:</span>
-                  <span className="ml-2 text-slate-900">{formData.phone}</span>
+                <div className="flex justify-between items-start py-2 border-b border-gray-200 last:border-0">
+                  <span className="text-sm font-medium text-gray-600">Phone</span>
+                  <span className="text-sm text-slate-900 text-right">{formData.phone}</span>
                 </div>
                 {formData.preferredDate && (
-                  <div className="text-sm">
-                    <span className="font-medium text-gray-700">Preferred Date:</span>
-                    <span className="ml-2 text-slate-900">{format(new Date(formData.preferredDate), 'MMMM d, yyyy')}</span>
+                  <div className="flex justify-between items-start py-2">
+                    <span className="text-sm font-medium text-gray-600">Preferred Date</span>
+                    <span className="text-sm text-slate-900 text-right">{format(new Date(formData.preferredDate), 'MMMM d, yyyy')}</span>
                   </div>
                 )}
               </div>
 
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="p-5 bg-primary/5 border border-primary/20 rounded-xl">
                 <div className="flex items-start gap-3">
-                  <Clock className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <div className="text-sm text-blue-900">
-                    <div className="font-medium mb-1">What happens next?</div>
-                    <div className="text-blue-700">
-                      Our care team will contact you within 24 hours to confirm your appointment time and answer any questions you may have.
+                  <Clock className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
+                  <div className="text-sm">
+                    <div className="font-medium text-slate-900 mb-1.5">What happens next?</div>
+                    <div className="text-gray-600 leading-relaxed">
+                      Our care team will review your inquiry and contact you within 24 hours to confirm your consultation time and answer any questions.
                     </div>
                   </div>
                 </div>
@@ -1044,13 +998,13 @@ export default function BookConsultationPage() {
         </div>
 
         {/* Navigation */}
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center justify-between gap-4 pt-4 border-t border-gray-100">
           <Button
             type="button"
             variant="outline"
             onClick={prevStep}
             disabled={currentStep === 1 || isSubmitting}
-            className="h-11 px-6 border-gray-300 hover:bg-gray-50"
+            className="min-w-[120px]"
           >
             <ChevronLeft className="h-4 w-4 mr-2" />
             Previous
@@ -1061,7 +1015,7 @@ export default function BookConsultationPage() {
               type="button"
               onClick={nextStep}
               disabled={!canProceed() || isSubmitting}
-              className="h-11 px-6 bg-teal-500 hover:bg-teal-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              className="min-w-[120px]"
             >
               Continue
               <ChevronRight className="h-4 w-4 ml-2" />
@@ -1071,17 +1025,17 @@ export default function BookConsultationPage() {
               type="button"
               onClick={handleSubmit}
               disabled={!canProceed() || isSubmitting}
-              className="h-11 px-6 bg-teal-500 hover:bg-teal-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              className="min-w-[160px]"
             >
               {isSubmitting ? (
                 <>
                   <span className="mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Submitting...
+                  Sending...
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Submit Request
+                  Send Inquiry
                 </>
               )}
             </Button>
@@ -1089,5 +1043,20 @@ export default function BookConsultationPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function BookConsultationPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-sm text-gray-700">Loading...</p>
+        </div>
+      </div>
+    }>
+      <BookConsultationContent />
+    </Suspense>
   );
 }

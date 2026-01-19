@@ -4,6 +4,7 @@ import { IUserRepository } from '../../domain/interfaces/repositories/IUserRepos
 import { INotificationService } from '../../domain/interfaces/services/INotificationService';
 import { IAuditService } from '../../domain/interfaces/services/IAuditService';
 import { ITimeService } from '../../domain/interfaces/services/ITimeService';
+import db from '@/lib/db';
 import { Appointment } from '../../domain/entities/Appointment';
 import { AppointmentStatus } from '../../domain/enums/AppointmentStatus';
 import { ConsultationRequestStatus } from '../../domain/enums/ConsultationRequestStatus';
@@ -141,11 +142,22 @@ export class ReviewConsultationRequestUseCase {
     }
 
     // Step 5: Determine new consultation request status based on action
+    // Note: If approving with proposed time, we need to transition in two steps:
+    // 1. First to APPROVED (valid from SUBMITTED/PENDING_REVIEW)
+    // 2. Then to SCHEDULED (valid from APPROVED)
     let newConsultationStatus: ConsultationRequestStatus;
+    let requiresTwoStepTransition = false;
     
     switch (dto.action) {
       case 'approve':
-        newConsultationStatus = ConsultationRequestStatus.APPROVED;
+        // If approving with proposed date/time, we need to go through APPROVED first
+        // because SCHEDULED can only be reached from APPROVED
+        if (dto.proposedDate && dto.proposedTime) {
+          newConsultationStatus = ConsultationRequestStatus.APPROVED; // First step
+          requiresTwoStepTransition = true; // Then we'll transition to SCHEDULED
+        } else {
+          newConsultationStatus = ConsultationRequestStatus.APPROVED; // Just approve without time
+        }
         break;
       case 'needs_more_info':
         newConsultationStatus = ConsultationRequestStatus.NEEDS_MORE_INFO;
@@ -192,7 +204,7 @@ export class ReviewConsultationRequestUseCase {
         });
     }
 
-    // Step 6: Validate state transition
+    // Step 6: Validate state transition (first step if two-step required)
     const currentStatus = currentConsultationFields?.consultationRequestStatus ?? ConsultationRequestStatus.SUBMITTED;
     if (!isValidConsultationRequestTransition(currentStatus, newConsultationStatus)) {
       throw new DomainException('Invalid consultation request status transition', {
@@ -202,12 +214,27 @@ export class ReviewConsultationRequestUseCase {
       });
     }
 
-    // Step 7: Update appointment if approved (set proposed date/time)
+    // Step 6b: If two-step transition required (approve with time), validate second step
+    if (requiresTwoStepTransition) {
+      const finalStatus = ConsultationRequestStatus.SCHEDULED;
+      if (!isValidConsultationRequestTransition(newConsultationStatus, finalStatus)) {
+        throw new DomainException('Invalid consultation request status transition (second step)', {
+          appointmentId: dto.appointmentId,
+          from: newConsultationStatus,
+          to: finalStatus,
+        });
+      }
+      // Update to final status
+      newConsultationStatus = finalStatus;
+    }
+
+    // Step 7: Update appointment if approved with proposed date/time
     let updatedAppointment = appointment;
     if (dto.action === 'approve' && dto.proposedDate && dto.proposedTime) {
-      // Create new appointment entity with updated date/time
-      // Note: This is a workaround since Appointment is immutable
-      // In production, we might want to add a method to update date/time
+      // When frontdesk approves with a proposed time:
+      // - Update appointment date/time with proposed values
+      // - Change appointment status to SCHEDULED (so doctor can see it)
+      // - Consultation request status is already set to SCHEDULED above
       updatedAppointment = ApplicationAppointmentMapper.fromScheduleDto(
         {
           patientId: appointment.getPatientId(),
@@ -217,7 +244,7 @@ export class ReviewConsultationRequestUseCase {
           type: appointment.getType(),
           note: appointment.getNote(),
         },
-        AppointmentStatus.PENDING, // Still PENDING until patient confirms
+        AppointmentStatus.SCHEDULED, // SCHEDULED so doctor can see it (patient still needs to confirm)
         appointment.getId(),
       );
     }
@@ -240,16 +267,24 @@ export class ReviewConsultationRequestUseCase {
       throw new Error('Failed to retrieve updated appointment');
     }
 
-    // Step 10: Send notification to patient
+    // Step 10: Send notifications (patient and doctor)
     const patient = await this.patientRepository.findById(appointment.getPatientId());
+    
     if (patient) {
       try {
         let subject: string;
         let message: string;
 
         if (dto.action === 'approve') {
-          subject = 'Consultation Request Approved';
-          message = `Your consultation request has been approved and is ready to be scheduled. ${dto.proposedDate && dto.proposedTime ? `Proposed date: ${dto.proposedDate.toLocaleDateString()} at ${dto.proposedTime}.` : ''} Please confirm your availability.`;
+          if (dto.proposedDate && dto.proposedTime) {
+            // Approved with proposed time - patient needs to confirm
+            subject = 'Consultation Request - Session Proposed';
+            message = `Your consultation request has been approved! We have proposed the following session:\n\nDate: ${dto.proposedDate.toLocaleDateString()}\nTime: ${dto.proposedTime}\n\nPlease confirm if this time works for you.`;
+          } else {
+            // Approved without time - will be scheduled later
+            subject = 'Consultation Request Approved';
+            message = `Your consultation request has been approved and will be scheduled shortly. We will contact you with a proposed time.`;
+          }
         } else {
           subject = 'Consultation Request - Additional Information Needed';
           message = `We need additional information to proceed with your consultation request. ${dto.reviewNotes || 'Please contact our office for details.'}`;
@@ -258,6 +293,29 @@ export class ReviewConsultationRequestUseCase {
         await this.notificationService.sendEmail(patient.getEmail(), subject, message);
       } catch (error) {
         console.error('Failed to send review notification:', error);
+      }
+    }
+
+    // Step 10b: Send notification to doctor if appointment is scheduled
+    if (dto.action === 'approve' && dto.proposedDate && dto.proposedTime && savedAppointment.getDoctorId()) {
+      try {
+        // Get doctor information from database
+        const doctor = await db.doctor.findUnique({
+          where: { id: savedAppointment.getDoctorId() },
+          select: { email: true, name: true },
+        });
+
+        if (doctor && doctor.email) {
+          const patientName = patient ? `${patient.getFirstName()} ${patient.getLastName()}` : 'a patient';
+          await this.notificationService.sendEmail(
+            doctor.email as any, // Email type from domain, but doctor.email is string from DB
+            'New Consultation Scheduled for Your Review',
+            `A consultation has been scheduled for ${patientName}:\n\nDate: ${dto.proposedDate.toLocaleDateString()}\nTime: ${dto.proposedTime}\n\nPlease review the appointment details. The patient will confirm availability shortly.`,
+          );
+        }
+      } catch (error) {
+        console.error('Failed to send doctor notification:', error);
+        // Don't fail the use case if doctor notification fails
       }
     }
 

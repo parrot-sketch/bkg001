@@ -6,12 +6,14 @@ import SearchInput from "@/components/search-input";
 import { Table } from "@/components/tables/table";
 import { cn } from "@/lib/utils";
 import { SearchParamsProps } from "@/types";
-import { checkRole } from "@/utils/roles";
-import { DATA_LIMIT } from "@/utils/seetings";
+import { checkRole } from "@/lib/utils/roles";
+import { DATA_LIMIT } from "@/lib/utils/settings";
 import { getPaymentRecords } from "@/utils/services/payments";
 import { Patient, Payment } from "@prisma/client";
 import { format } from "date-fns";
 import { ReceiptText } from "lucide-react";
+
+export const dynamic = 'force-dynamic';
 
 const columns = [
   {

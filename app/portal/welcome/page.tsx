@@ -71,22 +71,22 @@ export default function PortalWelcomePage() {
           {/* Book Consultation - Primary Action */}
           <Link
             href="/portal/book-consultation"
-            className="group relative overflow-hidden rounded-xl border-2 border-teal-500/20 bg-gradient-to-br from-teal-50 to-white p-6 sm:p-8 hover:border-teal-500/40 transition-all duration-300 hover:shadow-lg"
+            className="group relative overflow-hidden rounded-xl border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-white p-6 sm:p-8 hover:border-primary/40 transition-all duration-300 hover:shadow-lg"
           >
             <div className="flex flex-col h-full">
               <div className="flex items-start justify-between mb-4">
-                <div className="h-12 w-12 rounded-lg bg-teal-500 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
+                <div className="h-12 w-12 rounded-lg bg-primary flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform duration-300">
                   <Calendar className="h-6 w-6 text-white" />
                 </div>
               </div>
               <h3 className="text-lg sm:text-xl font-semibold text-slate-900 mb-2">
-                Book Consultation
+                Submit an Inquiry
               </h3>
-              <p className="text-sm text-gray-600 mb-6 flex-grow">
-                Schedule your first consultation with our expert surgeons
+              <p className="text-sm text-gray-600 mb-6 flex-grow leading-relaxed">
+                Share your preferences for a consultation with our expert surgeons
               </p>
-              <div className="flex items-center text-teal-600 font-medium text-sm group-hover:gap-2 transition-all">
-                <span>Book Now</span>
+              <div className="flex items-center text-primary font-medium text-sm group-hover:gap-2 transition-all">
+                <span>Begin</span>
                 <svg
                   className="w-4 h-4 ml-1 transform group-hover:translate-x-1 transition-transform"
                   fill="none"
@@ -202,14 +202,14 @@ export default function PortalWelcomePage() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-sm text-gray-600">
               <a
                 href="mailto:info@nairobisculpt.co.ke"
-                className="text-teal-600 hover:text-teal-700 hover:underline transition-colors font-medium"
+                className="text-primary hover:text-primary/80 hover:underline transition-colors font-medium"
               >
                 info@nairobisculpt.co.ke
               </a>
               <span className="hidden sm:inline text-gray-400">•</span>
               <a
                 href="tel:+254759067388"
-                className="text-teal-600 hover:text-teal-700 hover:underline transition-colors font-medium"
+                className="text-primary hover:text-primary/80 hover:underline transition-colors font-medium"
               >
                 0759 067388
               </a>

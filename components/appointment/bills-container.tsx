@@ -1,9 +1,9 @@
 import db from "@/lib/db";
-import { calculateDiscount } from "@/utils";
-import { checkRole } from "@/utils/roles";
+import { calculateDiscount } from "@/lib/utils";
+import { checkRole } from "@/lib/utils/roles";
 import { ReceiptText } from "lucide-react";
 import { Table } from "../tables/table";
-import { PatientBills } from "@prisma/client";
+import { PatientBill } from "@prisma/client";
 import { format, formatDate } from "date-fns";
 import { ActionDialog } from "../action-dialog";
 import { Separator } from "../ui/separator";
@@ -47,7 +47,7 @@ const columns = [
   },
 ];
 
-interface ExtendedBillProps extends PatientBills {
+interface ExtendedBillProps extends PatientBill {
   service: {
     service_name: string;
     id: number;
@@ -58,7 +58,7 @@ export const BillsContainer = async ({ id }: { id: string }) => {
     db.payment.findFirst({
       where: { appointment_id: Number(id) },
       include: {
-        bills: {
+        bill_items: {
           include: {
             service: { select: { service_name: true, id: true } },
           },
@@ -67,12 +67,12 @@ export const BillsContainer = async ({ id }: { id: string }) => {
         },
       },
     }),
-    db.services.findMany(),
+    db.service.findMany(),
   ]);
 
   let totalBills = 0;
 
-  const billData = data?.bills || [];
+  const billData = data?.bill_items || [];
   const discount = data
     ? calculateDiscount({
         amount: data?.total_amount,
@@ -81,7 +81,7 @@ export const BillsContainer = async ({ id }: { id: string }) => {
     : null;
 
   if (billData) {
-    totalBills = billData.reduce((sum, acc) => sum + acc.total_cost, 0);
+    totalBills = billData.reduce((sum: number, acc: ExtendedBillProps) => sum + acc.total_cost, 0);
   }
 
   const renderRow = (item: ExtendedBillProps) => {

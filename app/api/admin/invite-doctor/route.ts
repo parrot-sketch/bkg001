@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { JwtMiddleware } from '@/controllers/middleware/JwtMiddleware';
+import { JwtMiddleware } from '@/lib/auth/middleware';
 import { InviteDoctorUseCase } from '@/application/use-cases/InviteDoctorUseCase';
 import { JwtAuthService } from '@/infrastructure/auth/JwtAuthService';
 import { PrismaUserRepository } from '@/infrastructure/database/repositories/PrismaUserRepository';

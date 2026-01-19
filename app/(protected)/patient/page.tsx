@@ -5,17 +5,17 @@ import { PatientRatingContainer } from "@/components/patient-rating-container";
 import { StatCard } from "@/components/stat-card";
 import { RecentAppointments } from "@/components/tables/recent-appointment";
 import { Button } from "@/components/ui/button";
-import { AvailableDoctorProps } from "@/types/data-types";
 import { getPatientDashboardStatistics } from "@/utils/services/patient";
-import { UserButton } from "@clerk/nextjs";
-import { currentUser } from "@clerk/nextjs/server";
+import { getCurrentUserFull } from "@/lib/auth/server-auth";
 import { Briefcase, BriefcaseBusiness, BriefcaseMedical } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import React from "react";
 
+export const dynamic = 'force-dynamic';
+
 const PatientDashboard = async () => {
-  const user = await currentUser();
+  const user = await getCurrentUserFull();
 
   const {
     data,
@@ -24,7 +24,7 @@ const PatientDashboard = async () => {
     totalAppointments,
     availableDoctor,
     monthlyData,
-  } = await getPatientDashboardStatistics(user?.id!);
+  } = await getPatientDashboardStatistics(user?.id || '');
 
   if (user && !data) {
     redirect("/patient/registration");
@@ -74,7 +74,7 @@ const PatientDashboard = async () => {
         <div className="bg-white rounded-xl p-4 mb-8">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-lg xl:text-2xl font-semibold">
-              Welcome {data?.first_name || user?.firstName}
+              Welcome {data?.first_name || user?.first_name}
             </h1>
 
             <div className="space-x-2">
@@ -107,7 +107,20 @@ const PatientDashboard = async () => {
           <StatSummary data={appointmentCounts} total={totalAppointments} />
         </div>
 
-        <AvailableDoctors data={availableDoctor as AvailableDoctorProps} />
+        <AvailableDoctors 
+          data={availableDoctor.map(doctor => ({
+            id: doctor.id,
+            name: doctor.name,
+            specialization: doctor.specialization,
+            img: doctor.img || undefined,
+            colorCode: doctor.colorCode || undefined,
+            working_days: doctor.working_days.map(day => ({
+              day: day.day,
+              start_time: day.start_time,
+              close_time: day.end_time,
+            })),
+          }))} 
+        />
 
         <PatientRatingContainer />
       </div>

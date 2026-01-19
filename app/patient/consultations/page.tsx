@@ -41,8 +41,10 @@ export default function PatientConsultationsPage() {
           (apt) => apt.status === AppointmentStatus.COMPLETED,
         );
         setConsultations(completed);
-      } else {
+      } else if (!response.success) {
         toast.error(response.error || 'Failed to load consultations');
+      } else {
+        toast.error('Failed to load consultations');
       }
     } catch (error) {
       toast.error('An error occurred while loading consultations');

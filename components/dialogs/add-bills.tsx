@@ -8,7 +8,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { PatientBillSchema } from "@/lib/schema";
-import { Services } from "@prisma/client";
+import { Service } from "@prisma/client";
 import { z } from "zod";
 
 import { Button } from "../ui/button";
@@ -26,7 +26,7 @@ import { addNewBill } from "@/app/actions/medical";
 interface DataProps {
   id?: string | number;
   appId?: string | number;
-  servicesData: Services[];
+  servicesData: Service[];
 }
 export const AddBills = ({ id, appId, servicesData }: DataProps) => {
   const [isLoading, setIsLoading] = useState(false);

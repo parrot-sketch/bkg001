@@ -11,16 +11,16 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '../../../../hooks/patient/useAuth';
-import { adminApi } from '../../../../lib/api/admin';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../components/ui/card';
-import { Button } from '../../../../components/ui/button';
-import { Input } from '../../../../components/ui/input';
+import { useAuth } from '@/hooks/patient/useAuth';
+import { adminApi } from '@/lib/api/admin';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Users, Search, CheckCircle, XCircle, UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
-import type { PatientResponseDto } from '../../../../application/dtos/PatientResponseDto';
-import { ApprovePatientDialog } from '../../../../components/admin/ApprovePatientDialog';
-import { AssignPatientDialog } from '../../../../components/admin/AssignPatientDialog';
+import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
+import { ApprovePatientDialog } from '@/components/admin/ApprovePatientDialog';
+import { AssignPatientDialog } from '@/components/admin/AssignPatientDialog';
 
 export default function AdminPatientsPage() {
   const { user, isAuthenticated } = useAuth();
@@ -64,8 +64,10 @@ export default function AdminPatientsPage() {
       if (response.success && response.data) {
         setPatients(response.data);
         setFilteredPatients(response.data);
-      } else {
+      } else if (!response.success) {
         toast.error(response.error || 'Failed to load patients');
+      } else {
+        toast.error('Failed to load patients');
       }
     } catch (error) {
       toast.error('An error occurred while loading patients');

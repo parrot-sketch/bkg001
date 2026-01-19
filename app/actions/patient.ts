@@ -2,7 +2,8 @@
 
 import db from "@/lib/db";
 import { PatientFormSchema } from "@/lib/schema";
-import { clerkClient } from "@clerk/nextjs/server";
+import { Role } from "@/domain/enums/Role";
+import { UserProfileService } from "@/lib/services/user-profile-service";
 
 export async function updatePatient(data: any, pid: string) {
   try {
@@ -18,10 +19,14 @@ export async function updatePatient(data: any, pid: string) {
 
     const patientData = validateData.data;
 
-    const client = await clerkClient();
-    await client.users.updateUser(pid, {
-      firstName: patientData.first_name,
-      lastName: patientData.last_name,
+    // Update user in database
+    await db.user.update({
+      where: { id: pid },
+      data: {
+        first_name: patientData.first_name,
+        last_name: patientData.last_name,
+        email: patientData.email,
+      },
     });
 
     await db.patient.update({
@@ -54,35 +59,74 @@ export async function createNewPatient(data: any, pid: string) {
     }
 
     const patientData = validateData.data;
-    let patient_id = pid;
 
-    const client = await clerkClient();
     if (pid === "new-patient") {
-      const user = await client.users.createUser({
-        emailAddress: [patientData.email],
-        password: patientData.phone,
+      // Create new user and patient profile
+      const userProfileService = new UserProfileService(db);
+      
+      // Use phone as default password if no password provided
+      // Password is not in PatientFormSchema, so get it from raw data
+      const password = (data as any).password || patientData.phone || 'defaultPassword123';
+
+      const { user, patient } = await userProfileService.createUserWithPatient({
+        email: patientData.email,
+        password,
         firstName: patientData.first_name,
         lastName: patientData.last_name,
-        publicMetadata: { role: "patient" },
+        phone: patientData.phone,
+        dateOfBirth: new Date(patientData.date_of_birth || (data as any).dob),
+        gender: patientData.gender || 'FEMALE',
+        address: patientData.address,
+        maritalStatus: patientData.marital_status,
+        emergencyContactName: patientData.emergency_contact_name,
+        emergencyContactNumber: patientData.emergency_contact_number,
+        relation: patientData.relation,
+        occupation: (data as any).occupation,
+        whatsappPhone: (data as any).whatsapp_phone,
+        bloodGroup: patientData.blood_group,
+        allergies: patientData.allergies,
+        medicalHistory: patientData.medical_history,
+        medicalConditions: patientData.medical_conditions,
+        insuranceProvider: patientData.insurance_provider,
+        insuranceNumber: patientData.insurance_number,
+        privacyConsent: patientData.privacy_consent,
+        serviceConsent: patientData.service_consent,
+        medicalConsent: patientData.medical_consent,
       });
 
-      patient_id = user?.id;
+      return { success: true, error: false, msg: "Patient created successfully" };
     } else {
-      await client.users.updateUser(pid, {
-        publicMetadata: { role: "patient" },
+      // Update existing patient (pid is patient ID, not user ID)
+      // First, check if patient exists and has a user_id
+      const existingPatient = await db.patient.findUnique({
+        where: { id: pid },
+        select: { user_id: true },
       });
+
+      if (existingPatient?.user_id) {
+        // Update user
+        await db.user.update({
+          where: { id: existingPatient.user_id },
+          data: {
+            first_name: patientData.first_name,
+            last_name: patientData.last_name,
+            email: patientData.email,
+            phone: patientData.phone,
+            role: Role.PATIENT, // Ensure role is PATIENT
+          },
+        });
+      }
+
+      // Update patient
+      await db.patient.update({
+        where: { id: pid },
+        data: patientData,
+      });
+
+      return { success: true, error: false, msg: "Patient updated successfully" };
     }
-
-    await db.patient.create({
-      data: {
-        ...patientData,
-        id: patient_id,
-      },
-    });
-
-    return { success: true, error: false, msg: "Patient created successfully" };
   } catch (error: any) {
-    console.error(error);
-    return { success: false, error: true, msg: error?.message };
+    console.error('Error creating/updating patient:', error);
+    return { success: false, error: true, msg: error?.message || "Internal server error" };
   }
 }

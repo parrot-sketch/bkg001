@@ -4,8 +4,8 @@
  * Tests workflows that span multiple dashboards
  */
 
-import { test, expect } from '../fixtures/auth.fixture';
-import { waitForToast } from '../helpers/test-helpers';
+import { test } from '../fixtures/auth.fixture';
+import { expect } from '@playwright/test';
 
 test.describe('Cross-Dashboard Integration', () => {
   test('patient appointment should appear in doctor dashboard', async ({ loginAsPatient, loginAsDoctor }) => {

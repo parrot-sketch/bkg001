@@ -1,0 +1,233 @@
+import { IConsultationRepository } from '../../../domain/interfaces/repositories/IConsultationRepository';
+import { Consultation } from '../../../domain/entities/Consultation';
+import { ConsultationState } from '../../../domain/enums/ConsultationState';
+import { ConsultationMapper } from '../../mappers/ConsultationMapper';
+import { PrismaClient, Prisma } from '@prisma/client';
+
+/**
+ * Repository: PrismaConsultationRepository
+ * 
+ * Prisma-based implementation of IConsultationRepository.
+ * This repository handles data persistence for Consultation entities using Prisma ORM.
+ * 
+ * Responsibilities:
+ * - Translate domain operations to Prisma operations
+ * - Map between Prisma models and domain entities
+ * - Handle database-specific concerns (transactions, errors)
+ * - NO business logic - only data access
+ * 
+ * Clean Architecture Rule: This class depends on domain interfaces and entities,
+ * not the other way around. Domain knows nothing about Prisma.
+ */
+export class PrismaConsultationRepository implements IConsultationRepository {
+  constructor(private readonly prisma: PrismaClient) {
+    if (!prisma) {
+      throw new Error('PrismaClient is required');
+    }
+  }
+
+  /**
+   * Finds a consultation by its unique identifier
+   * 
+   * @param id - The consultation's unique identifier (numeric ID)
+   * @returns Promise resolving to the Consultation entity if found, null otherwise
+   */
+  async findById(id: number): Promise<Consultation | null> {
+    try {
+      const prismaConsultation = await this.prisma.consultation.findUnique({
+        where: { id },
+      });
+
+      if (!prismaConsultation) {
+        return null;
+      }
+
+      return ConsultationMapper.fromPrisma(prismaConsultation);
+    } catch (error) {
+      // Wrap Prisma errors in a more generic error
+      throw new Error(
+        `Failed to find consultation by ID: ${id}. ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  /**
+   * Finds a consultation by appointment ID (1:1 relationship)
+   * 
+   * @param appointmentId - The appointment's unique identifier
+   * @returns Promise resolving to the Consultation entity if found, null otherwise
+   */
+  async findByAppointmentId(appointmentId: number): Promise<Consultation | null> {
+    try {
+      const prismaConsultation = await this.prisma.consultation.findUnique({
+        where: { appointment_id: appointmentId },
+      });
+
+      if (!prismaConsultation) {
+        return null;
+      }
+
+      return ConsultationMapper.fromPrisma(prismaConsultation);
+    } catch (error) {
+      // Wrap Prisma errors in a more generic error
+      throw new Error(
+        `Failed to find consultation by appointment ID: ${appointmentId}. ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  /**
+   * Finds all consultations for a specific doctor
+   * 
+   * @param doctorId - The doctor's unique identifier
+   * @param filters - Optional filters for state, date range, etc.
+   * @returns Promise resolving to an array of Consultation entities
+   *          Returns empty array if no consultations found
+   */
+  async findByDoctorId(
+    doctorId: string,
+    filters?: {
+      state?: ConsultationState;
+      startDate?: Date;
+      endDate?: Date;
+    }
+  ): Promise<Consultation[]> {
+    try {
+      const where: Prisma.ConsultationWhereInput = {
+        doctor_id: doctorId,
+      };
+
+      // Apply state filter (infer from started_at and completed_at until state field is added)
+      if (filters?.state) {
+        if (filters.state === ConsultationState.NOT_STARTED) {
+          where.started_at = null;
+        } else if (filters.state === ConsultationState.IN_PROGRESS) {
+          where.started_at = { not: null };
+          where.completed_at = null;
+        } else if (filters.state === ConsultationState.COMPLETED) {
+          where.completed_at = { not: null };
+        }
+      }
+
+      // Apply date range filter
+      if (filters?.startDate || filters?.endDate) {
+        where.started_at = {};
+        if (filters.startDate) {
+          where.started_at.gte = filters.startDate;
+        }
+        if (filters.endDate) {
+          where.started_at.lte = filters.endDate;
+        }
+      }
+
+      const prismaConsultations = await this.prisma.consultation.findMany({
+        where,
+        orderBy: { started_at: 'desc' },
+      });
+
+      return prismaConsultations.map((consultation) => ConsultationMapper.fromPrisma(consultation));
+    } catch (error) {
+      // Wrap Prisma errors in a more generic error
+      throw new Error(
+        `Failed to find consultations for doctor: ${doctorId}. ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  /**
+   * Saves a new consultation to the data store
+   * 
+   * This method handles creation of new consultations.
+   * The consultation ID will be generated by the database if it's 0.
+   * 
+   * @param consultation - The Consultation entity to save
+   * @returns Promise resolving to the saved Consultation entity (with generated ID if new)
+   * @throws Error if the save operation fails
+   */
+  async save(consultation: Consultation): Promise<Consultation> {
+    try {
+      const createInput = ConsultationMapper.toPrismaCreateInput(consultation);
+
+      const created = await this.prisma.consultation.create({
+        data: createInput,
+      });
+
+      // Return mapped entity with generated ID
+      return ConsultationMapper.fromPrisma(created);
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          // Unique constraint violation (appointment_id must be unique)
+          throw new Error(
+            `Consultation for appointment ${consultation.getAppointmentId()} already exists`
+          );
+        }
+        if (error.code === 'P2003') {
+          // Foreign key constraint violation
+          throw new Error(`Invalid appointment or doctor ID for consultation`);
+        }
+      }
+      // Wrap Prisma errors in a more generic error
+      throw new Error(
+        `Failed to save consultation. ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  /**
+   * Updates an existing consultation in the data store
+   * 
+   * The consultation must already exist in the data store.
+   * 
+   * @param consultation - The Consultation entity with updated information
+   * @returns Promise that resolves when the update operation completes
+   * @throws Error if the consultation does not exist or the update fails
+   */
+  async update(consultation: Consultation): Promise<void> {
+    try {
+      const updateInput = ConsultationMapper.toPrismaUpdateInput(consultation);
+
+      await this.prisma.consultation.update({
+        where: { id: consultation.getId() },
+        data: updateInput,
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2025') {
+          // Record not found
+          throw new Error(`Consultation with ID ${consultation.getId()} not found`);
+        }
+      }
+      // Wrap Prisma errors in a more generic error
+      throw new Error(
+        `Failed to update consultation: ${consultation.getId()}. ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  /**
+   * Deletes a consultation from the data store
+   * 
+   * @param id - The consultation's unique identifier
+   * @returns Promise that resolves when the delete operation completes
+   * @throws Error if the consultation does not exist or the delete fails
+   */
+  async delete(id: number): Promise<void> {
+    try {
+      await this.prisma.consultation.delete({
+        where: { id },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2025') {
+          // Record not found
+          throw new Error(`Consultation with ID ${id} not found`);
+        }
+      }
+      // Wrap Prisma errors in a more generic error
+      throw new Error(
+        `Failed to delete consultation: ${id}. ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+}

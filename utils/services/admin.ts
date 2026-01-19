@@ -1,5 +1,5 @@
 import db from "@/lib/db";
-import { daysOfWeek } from "..";
+import { daysOfWeek } from "@/lib/utils";
 import { processAppointments } from "./patient";
 
 export async function getAdminDashboardStats() {
@@ -78,7 +78,7 @@ export async function getAdminDashboardStats() {
 
 export async function getServices() {
   try {
-    const data = await db.services.findMany({
+    const data = await db.service.findMany({
       orderBy: { service_name: "asc" },
     });
 

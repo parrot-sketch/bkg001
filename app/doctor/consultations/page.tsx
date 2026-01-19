@@ -44,8 +44,10 @@ export default function DoctorConsultationsPage() {
             apt.status === AppointmentStatus.SCHEDULED,
         );
         setConsultations(consultationAppointments);
-      } else {
+      } else if (!response.success) {
         toast.error(response.error || 'Failed to load consultations');
+      } else {
+        toast.error('Failed to load consultations');
       }
     } catch (error) {
       toast.error('An error occurred while loading consultations');
@@ -61,7 +63,7 @@ export default function DoctorConsultationsPage() {
 
   const inProgressConsultations = consultations.filter(
     (apt) =>
-      apt.status === AppointmentStatus.SCHEDULED && apt.note && apt.status !== AppointmentStatus.COMPLETED,
+      apt.status === AppointmentStatus.SCHEDULED && apt.note,
   );
 
   if (!isAuthenticated || !user) {

@@ -29,9 +29,7 @@ export class Patient {
     private readonly gender: Gender,
     private readonly email: Email,
     private readonly phone: PhoneNumber,
-    private readonly whatsappPhone?: string, // Optional WhatsApp contact
     private readonly address: string,
-    private readonly occupation?: string, // Optional occupation
     private readonly maritalStatus: string,
     private readonly emergencyContactName: string,
     private readonly emergencyContactNumber: PhoneNumber,
@@ -40,6 +38,8 @@ export class Patient {
     private readonly serviceConsent: boolean,
     private readonly medicalConsent: boolean,
     // Optional fields
+    private readonly whatsappPhone?: string, // Optional WhatsApp contact
+    private readonly occupation?: string, // Optional occupation
     private readonly bloodGroup?: string,
     private readonly allergies?: string,
     private readonly medicalConditions?: string,
@@ -194,9 +194,7 @@ export class Patient {
       params.gender,
       email,
       phone,
-      params.whatsappPhone?.trim(),
       params.address.trim(),
-      params.occupation?.trim(),
       params.maritalStatus.trim(),
       params.emergencyContactName.trim(),
       emergencyContactNumber,
@@ -204,6 +202,8 @@ export class Patient {
       params.privacyConsent,
       params.serviceConsent,
       params.medicalConsent,
+      params.whatsappPhone?.trim(),
+      params.occupation?.trim(),
       params.bloodGroup?.trim(),
       params.allergies?.trim(),
       params.medicalConditions?.trim(),

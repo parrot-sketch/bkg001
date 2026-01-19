@@ -3,27 +3,23 @@
 /**
  * Review Consultation Dialog
  * 
- * Modal dialog for Frontdesk to review consultation requests.
- * Supports approve, request more info, or reject actions.
+ * Dialog for frontdesk to review consultation requests with three actions:
+ * - Accept for Scheduling (approve)
+ * - Request Clarification (needs_more_info)
+ * - Mark as Not Suitable (reject)
  */
 
 import { useState } from 'react';
-import { frontdeskApi } from '../../lib/api/frontdesk';
-import { Button } from '../../ui/button';
-import { Input } from '../../ui/input';
-import { Label } from '../../ui/label';
-import { Textarea } from '../../ui/textarea';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '../../ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { CheckCircle, AlertCircle, XCircle, Calendar, Clock } from 'lucide-react';
 import { toast } from 'sonner';
-import type { AppointmentResponseDto } from '../../application/dtos/AppointmentResponseDto';
-import { Calendar } from 'lucide-react';
+import { frontdeskApi } from '@/lib/api/frontdesk';
+import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import { ConsultationRequestStatus } from '@/domain/enums/ConsultationRequestStatus';
 import { format } from 'date-fns';
 
 interface ReviewConsultationDialogProps {
@@ -31,35 +27,54 @@ interface ReviewConsultationDialogProps {
   onClose: () => void;
   onSuccess: () => void;
   appointment: AppointmentResponseDto;
+  frontdeskUserId: string;
 }
+
+type ReviewAction = 'approve' | 'needs_more_info' | 'reject';
 
 export function ReviewConsultationDialog({
   open,
   onClose,
   onSuccess,
   appointment,
+  frontdeskUserId,
 }: ReviewConsultationDialogProps) {
-  const [action, setAction] = useState<'approve' | 'needs_more_info' | 'reject'>('approve');
+  const [selectedAction, setSelectedAction] = useState<ReviewAction | null>(null);
+  const [reviewNotes, setReviewNotes] = useState('');
   const [proposedDate, setProposedDate] = useState('');
   const [proposedTime, setProposedTime] = useState('');
-  const [reviewNotes, setReviewNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const canReview = appointment.consultationRequestStatus === ConsultationRequestStatus.SUBMITTED ||
+                   appointment.consultationRequestStatus === ConsultationRequestStatus.PENDING_REVIEW ||
+                   appointment.consultationRequestStatus === ConsultationRequestStatus.NEEDS_MORE_INFO;
+
   const handleSubmit = async () => {
-    // Validate required fields based on action
-    if (action === 'approve' && (!proposedDate || !proposedTime)) {
-      toast.error('Please provide proposed date and time when approving');
+    if (!selectedAction) {
+      toast.error('Please select a review action');
       return;
     }
 
-    if (action === 'needs_more_info' && !reviewNotes.trim()) {
-      toast.error('Please provide notes when requesting more information');
-      return;
+    // Validate action-specific requirements
+    if (selectedAction === 'approve') {
+      if (!proposedDate || !proposedTime) {
+        toast.error('Proposed date and time are required when accepting for scheduling');
+        return;
+      }
     }
 
-    if (action === 'reject' && !reviewNotes.trim()) {
-      toast.error('Please provide a reason when marking as not suitable');
-      return;
+    if (selectedAction === 'needs_more_info') {
+      if (!reviewNotes.trim()) {
+        toast.error('Review notes are required when requesting clarification');
+        return;
+      }
+    }
+
+    if (selectedAction === 'reject') {
+      if (!reviewNotes.trim()) {
+        toast.error('Please provide a reason for marking as not suitable');
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -67,7 +82,7 @@ export function ReviewConsultationDialog({
     try {
       const response = await frontdeskApi.reviewConsultation(
         appointment.id,
-        action,
+        selectedAction,
         {
           reviewNotes: reviewNotes.trim() || undefined,
           proposedDate: proposedDate ? new Date(proposedDate) : undefined,
@@ -75,148 +90,259 @@ export function ReviewConsultationDialog({
         }
       );
 
-      if (response.success && response.data) {
-        const actionMessages = {
-          approve: 'Consultation approved and scheduled successfully',
-          needs_more_info: 'Request for additional information sent successfully',
-          reject: 'Consultation marked as not suitable',
-        };
-        toast.success(actionMessages[action]);
+      if (response.success) {
+        toast.success(
+          selectedAction === 'approve'
+            ? 'Inquiry accepted for scheduling'
+            : selectedAction === 'needs_more_info'
+            ? 'Clarification requested from patient'
+            : 'Inquiry marked as not suitable'
+        );
         onSuccess();
         // Reset form
-        setAction('approve');
+        setSelectedAction(null);
+        setReviewNotes('');
         setProposedDate('');
         setProposedTime('');
-        setReviewNotes('');
       } else {
-        toast.error(response.error || 'Failed to review consultation');
+        toast.error(response.error || 'Failed to review consultation request');
       }
     } catch (error) {
-      toast.error('An error occurred while reviewing consultation');
+      toast.error('An error occurred while reviewing the consultation request');
       console.error('Error reviewing consultation:', error);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const getActionLabel = (action: ReviewAction): string => {
+    switch (action) {
+      case 'approve':
+        return 'Accept for Scheduling';
+      case 'needs_more_info':
+        return 'Request Clarification';
+      case 'reject':
+        return 'Mark as Not Suitable';
+    }
+  };
+
+  const getActionDescription = (action: ReviewAction): string => {
+    switch (action) {
+      case 'approve':
+        return 'Accept this inquiry and propose a session date and time. The patient will be notified to confirm.';
+      case 'needs_more_info':
+        return 'Request additional information from the patient before proceeding. They will receive a notification with your questions.';
+      case 'reject':
+        return 'Mark this inquiry as not suitable. The patient will be notified that they are not a suitable candidate for this procedure.';
+    }
+  };
+
+  const getActionIcon = (action: ReviewAction) => {
+    switch (action) {
+      case 'approve':
+        return <CheckCircle className="h-5 w-5 text-green-600" />;
+      case 'needs_more_info':
+        return <AlertCircle className="h-5 w-5 text-yellow-600" />;
+      case 'reject':
+        return <XCircle className="h-5 w-5 text-red-600" />;
+    }
+  };
+
+  if (!canReview) {
+    return null;
+  }
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Review Consultation Request</DialogTitle>
+          <DialogTitle>Review Consultation Inquiry</DialogTitle>
           <DialogDescription>
-            Review and take action on this consultation request
+            Review the consultation request and take appropriate action
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-4">
-          {/* Appointment Info */}
-          <div className="rounded-lg border border-border p-4 space-y-2">
-            <p className="text-sm font-medium">Request Details</p>
-            <div className="space-y-1 text-sm text-muted-foreground">
-              <p><span className="font-medium">Patient:</span> {appointment.patientId}</p>
-              <p><span className="font-medium">Service:</span> {appointment.type}</p>
-              {appointment.appointmentDate && (
+
+        <div className="space-y-6 py-4">
+          {/* Appointment Summary */}
+          <div className="rounded-lg border border-border p-4 bg-muted/50">
+            <h3 className="font-medium text-sm mb-2">Inquiry Details</h3>
+            <div className="space-y-1 text-sm">
+              <p>
+                <span className="text-muted-foreground">Patient ID:</span> {appointment.patientId}
+              </p>
+              <p>
+                <span className="text-muted-foreground">Procedure:</span> {appointment.type}
+              </p>
+              {appointment.note && (
                 <p>
-                  <span className="font-medium">Preferred:</span>{' '}
-                  {format(new Date(appointment.appointmentDate), 'MMM d, yyyy')} at {appointment.time}
+                  <span className="text-muted-foreground">Notes:</span> {appointment.note}
                 </p>
               )}
             </div>
           </div>
 
           {/* Action Selection */}
-          <div className="space-y-2">
-            <Label>Action</Label>
-            <div className="flex gap-2">
-              <Button
+          <div className="space-y-3">
+            <Label>Select Review Action</Label>
+            <div className="grid gap-3">
+              {/* Accept for Scheduling */}
+              <button
                 type="button"
-                variant={action === 'approve' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setAction('approve')}
+                onClick={() => setSelectedAction('approve')}
+                className={`flex items-start space-x-3 p-4 rounded-lg border-2 transition-colors text-left ${
+                  selectedAction === 'approve'
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-border hover:border-green-300 hover:bg-green-50/50'
+                }`}
               >
-                Approve & Schedule
-              </Button>
-              <Button
+                {getActionIcon('approve')}
+                <div className="flex-1">
+                  <p className="font-medium">{getActionLabel('approve')}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {getActionDescription('approve')}
+                  </p>
+                </div>
+              </button>
+
+              {/* Request Clarification */}
+              <button
                 type="button"
-                variant={action === 'needs_more_info' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setAction('needs_more_info')}
+                onClick={() => setSelectedAction('needs_more_info')}
+                className={`flex items-start space-x-3 p-4 rounded-lg border-2 transition-colors text-left ${
+                  selectedAction === 'needs_more_info'
+                    ? 'border-yellow-500 bg-yellow-50'
+                    : 'border-border hover:border-yellow-300 hover:bg-yellow-50/50'
+                }`}
               >
-                Request More Info
-              </Button>
-              <Button
+                {getActionIcon('needs_more_info')}
+                <div className="flex-1">
+                  <p className="font-medium">{getActionLabel('needs_more_info')}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {getActionDescription('needs_more_info')}
+                  </p>
+                </div>
+              </button>
+
+              {/* Mark as Not Suitable */}
+              <button
                 type="button"
-                variant={action === 'reject' ? 'destructive' : 'outline'}
-                size="sm"
-                onClick={() => setAction('reject')}
+                onClick={() => setSelectedAction('reject')}
+                className={`flex items-start space-x-3 p-4 rounded-lg border-2 transition-colors text-left ${
+                  selectedAction === 'reject'
+                    ? 'border-red-500 bg-red-50'
+                    : 'border-border hover:border-red-300 hover:bg-red-50/50'
+                }`}
               >
-                Not Suitable
-              </Button>
+                {getActionIcon('reject')}
+                <div className="flex-1">
+                  <p className="font-medium">{getActionLabel('reject')}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {getActionDescription('reject')}
+                  </p>
+                </div>
+              </button>
             </div>
           </div>
 
-          {/* Approve: Date & Time */}
-          {action === 'approve' && (
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="proposed-date">Proposed Date *</Label>
-                <Input
-                  id="proposed-date"
-                  type="date"
-                  value={proposedDate}
-                  onChange={(e) => setProposedDate(e.target.value)}
-                  disabled={isSubmitting}
-                  min={new Date().toISOString().split('T')[0]}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="proposed-time">Proposed Time *</Label>
-                <Input
-                  id="proposed-time"
-                  type="time"
-                  value={proposedTime}
-                  onChange={(e) => setProposedTime(e.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
-          )}
+          {/* Action-Specific Fields */}
+          {selectedAction && (
+            <div className="space-y-4 border-t border-border pt-4">
+              {/* Proposed Date & Time (for approve) */}
+              {selectedAction === 'approve' && (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="proposedDate">
+                      <Calendar className="inline mr-2 h-4 w-4" />
+                      Proposed Date *
+                    </Label>
+                    <Input
+                      id="proposedDate"
+                      type="date"
+                      value={proposedDate}
+                      onChange={(e) => setProposedDate(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                      required
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="proposedTime">
+                      <Clock className="inline mr-2 h-4 w-4" />
+                      Proposed Time *
+                    </Label>
+                    <Input
+                      id="proposedTime"
+                      type="time"
+                      value={proposedTime}
+                      onChange={(e) => setProposedTime(e.target.value)}
+                      required
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </div>
+              )}
 
-          {/* Notes for needs_more_info or reject */}
-          {(action === 'needs_more_info' || action === 'reject') && (
-            <div className="space-y-2">
-              <Label htmlFor="review-notes">
-                {action === 'needs_more_info' ? 'Information Request *' : 'Reason *'}
-              </Label>
-              <Textarea
-                id="review-notes"
-                placeholder={
-                  action === 'needs_more_info'
-                    ? 'Please specify what additional information is needed (e.g., "Please upload reference photos of the area")'
-                    : 'Please provide a patient-friendly reason (e.g., "We recommend scheduling a general consultation first")'
-                }
-                value={reviewNotes}
-                onChange={(e) => setReviewNotes(e.target.value)}
-                rows={4}
-                disabled={isSubmitting}
-                className="resize-none"
-              />
-              {action === 'reject' && (
-                <p className="text-xs text-muted-foreground">
-                  Use gentle, professional language. Example: "Not suitable at this time"
-                </p>
+              {/* Review Notes (for needs_more_info and reject) */}
+              {(selectedAction === 'needs_more_info' || selectedAction === 'reject') && (
+                <div className="space-y-2">
+                  <Label htmlFor="reviewNotes">
+                    {selectedAction === 'needs_more_info' ? 'Questions for Patient' : 'Reason for Unsuitability'} *
+                  </Label>
+                  <Textarea
+                    id="reviewNotes"
+                    value={reviewNotes}
+                    onChange={(e) => setReviewNotes(e.target.value)}
+                    placeholder={
+                      selectedAction === 'needs_more_info'
+                        ? 'What information do you need from the patient?'
+                        : 'Why is this patient not a suitable candidate?'
+                    }
+                    rows={4}
+                    required
+                    disabled={isSubmitting}
+                  />
+                </div>
+              )}
+
+              {/* Optional Notes (for approve) */}
+              {selectedAction === 'approve' && (
+                <div className="space-y-2">
+                  <Label htmlFor="reviewNotes">Additional Notes (Optional)</Label>
+                  <Textarea
+                    id="reviewNotes"
+                    value={reviewNotes}
+                    onChange={(e) => setReviewNotes(e.target.value)}
+                    placeholder="Any additional notes for the patient..."
+                    rows={3}
+                    disabled={isSubmitting}
+                  />
+                </div>
               )}
             </div>
           )}
+
+          {/* Action Buttons */}
+          <div className="flex justify-end space-x-2 pt-4 border-t border-border">
+            <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting || !selectedAction}
+              className={
+                selectedAction === 'approve'
+                  ? 'bg-green-600 hover:bg-green-700'
+                  : selectedAction === 'needs_more_info'
+                  ? 'bg-yellow-600 hover:bg-yellow-700'
+                  : selectedAction === 'reject'
+                  ? 'bg-red-600 hover:bg-red-700'
+                  : ''
+              }
+            >
+              {isSubmitting ? 'Processing...' : `Confirm ${getActionLabel(selectedAction!)}`}
+            </Button>
+          </div>
         </div>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? 'Processing...' : 'Submit Review'}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

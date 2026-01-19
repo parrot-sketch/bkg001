@@ -47,8 +47,10 @@ export function ConfirmConsultationDialog({
       if (response.success && response.data) {
         toast.success('Consultation confirmed successfully');
         onSuccess();
-      } else {
+      } else if (!response.success) {
         toast.error(response.error || 'Failed to confirm consultation');
+      } else {
+        toast.error('Failed to confirm consultation');
       }
     } catch (error) {
       toast.error('An error occurred while confirming consultation');

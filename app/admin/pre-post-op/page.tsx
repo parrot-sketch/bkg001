@@ -7,12 +7,12 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '../../../../hooks/patient/useAuth';
-import { adminApi } from '../../../../lib/api/admin';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../components/ui/card';
+import { useAuth } from '@/hooks/patient/useAuth';
+import { adminApi } from '@/lib/api/admin';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Activity, FileText, Calendar, Clock } from 'lucide-react';
 import { toast } from 'sonner';
-import type { AppointmentResponseDto } from '../../../../application/dtos/AppointmentResponseDto';
+import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { format } from 'date-fns';
 
 export default function AdminPrePostOpPage() {
@@ -37,14 +37,18 @@ export default function AdminPrePostOpPage() {
 
       if (preOpResponse.success && preOpResponse.data) {
         setPreOpPatients(preOpResponse.data);
-      } else {
+      } else if (!preOpResponse.success) {
         toast.error(preOpResponse.error || 'Failed to load pre-op patients');
+      } else {
+        toast.error('Failed to load pre-op patients');
       }
 
       if (postOpResponse.success && postOpResponse.data) {
         setPostOpPatients(postOpResponse.data);
-      } else {
+      } else if (!postOpResponse.success) {
         toast.error(postOpResponse.error || 'Failed to load post-op patients');
+      } else {
+        toast.error('Failed to load post-op patients');
       }
     } catch (error) {
       toast.error('An error occurred while loading pre/post-op data');

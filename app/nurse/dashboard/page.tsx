@@ -11,15 +11,15 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '../../../../hooks/patient/useAuth';
-import { nurseApi } from '../../../../lib/api/nurse';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../components/ui/card';
-import { Button } from '../../../../components/ui/button';
+import { useAuth } from '@/hooks/patient/useAuth';
+import { nurseApi } from '@/lib/api/nurse';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Users, Activity, FileText, Bell, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
-import type { AppointmentResponseDto } from '../../../../application/dtos/AppointmentResponseDto';
-import { AppointmentStatus } from '../../../../domain/enums/AppointmentStatus';
+import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { format } from 'date-fns';
 
 export default function NurseDashboardPage() {
@@ -46,20 +46,26 @@ export default function NurseDashboardPage() {
 
       if (checkedInResponse.success && checkedInResponse.data) {
         setCheckedInPatients(checkedInResponse.data);
-      } else {
+      } else if (!checkedInResponse.success) {
         toast.error(checkedInResponse.error || 'Failed to load checked-in patients');
+      } else {
+        toast.error('Failed to load checked-in patients');
       }
 
       if (preOpResponse.success && preOpResponse.data) {
         setPreOpPatients(preOpResponse.data);
-      } else {
+      } else if (!preOpResponse.success) {
         toast.error(preOpResponse.error || 'Failed to load pre-op patients');
+      } else {
+        toast.error('Failed to load pre-op patients');
       }
 
       if (postOpResponse.success && postOpResponse.data) {
         setPostOpPatients(postOpResponse.data);
-      } else {
+      } else if (!postOpResponse.success) {
         toast.error(postOpResponse.error || 'Failed to load post-op patients');
+      } else {
+        toast.error('Failed to load post-op patients');
       }
     } catch (error) {
       toast.error('An error occurred while loading dashboard data');

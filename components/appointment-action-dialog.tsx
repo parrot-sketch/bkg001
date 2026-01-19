@@ -43,8 +43,8 @@ export const AppointmentActionDialog = ({
       setIsLoading(true);
       const newReason =
         reason ||
-        `Appointment has ben ${
-          type === "approve" ? "scheduled" : "cancelled"
+        `Inquiry has been ${
+          type === "approve" ? "accepted for scheduling" : "marked as not suitable"
         } on ${new Date()}`;
 
       const resp = await appointmentAction(
@@ -73,7 +73,7 @@ export const AppointmentActionDialog = ({
       <DialogTrigger asChild disabled={!disabled}>
         {type === "approve" ? (
           <Button size="sm" variant="ghost" className="w-full justify-start">
-            <Check size={16} /> Approve
+            <Check size={16} /> Accept for Scheduling
           </Button>
         ) : (
           <Button
@@ -81,7 +81,7 @@ export const AppointmentActionDialog = ({
             variant="outline"
             className="w-full flex items-center justify-start gap-2 rounded-full text-red-500 disabled:cursor-not-allowed"
           >
-            <Ban size={16} /> Cancel
+            <Ban size={16} /> Not Suitable Candidate
           </Button>
         )}
       </DialogTrigger>
@@ -101,20 +101,19 @@ export const AppointmentActionDialog = ({
           </DialogTitle>
 
           <span className="text-xl text-black">
-            Appointment
-            {type === "approve" ? " Confirmation" : " Cancellation"}
+            {type === "approve" ? "Accept for Scheduling" : "Not Suitable Candidate"}
           </span>
           <p className="text-sm text-center text-gray-500">
             {type === "approve"
-              ? "You're about to confirmed this appointment. Yes to approve or No to cancel."
-              : "Are you sure you want to cancel this appointment?"}
+              ? "Accept this inquiry and proceed to scheduling a session."
+              : "Mark this inquiry as not suitable. This action cannot be undone."}
           </p>
 
           {type == "cancel" && (
             <Textarea
               disabled={isLoading}
               className="mt-4"
-              placeholder="Cancellation reason...."
+              placeholder="Reason for marking as not suitable..."
               onChange={(e) => setReason(e.target.value)}
             ></Textarea>
           )}
@@ -131,7 +130,7 @@ export const AppointmentActionDialog = ({
                   : "bg-destructive hover:bg-destructive"
               )}
             >
-              Yes, {type === "approve" ? "Approve" : "Delete"}
+              Yes, {type === "approve" ? "Accept" : "Confirm"}
             </Button>
             <DialogClose asChild>
               <Button

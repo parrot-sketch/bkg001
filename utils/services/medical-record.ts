@@ -16,7 +16,7 @@ export async function getMedicalRecords({
 
     const SKIP = (PAGE_NUMBER - 1) * LIMIT;
 
-    const where: Prisma.MedicalRecordsWhereInput = {
+    const where: Prisma.MedicalRecordWhereInput = {
       OR: [
         {
           patient: {
@@ -33,7 +33,7 @@ export async function getMedicalRecords({
     };
 
     const [data, totalRecords] = await Promise.all([
-      db.medicalRecords.findMany({
+      db.medicalRecord.findMany({
         where: where,
         include: {
           patient: {
@@ -47,7 +47,7 @@ export async function getMedicalRecords({
             },
           },
 
-          diagnosis: {
+          diagnoses: {
             include: {
               doctor: {
                 select: {
@@ -59,13 +59,13 @@ export async function getMedicalRecords({
               },
             },
           },
-          lab_test: true,
+          lab_tests: true,
         },
         skip: SKIP,
         take: LIMIT,
         orderBy: { created_at: "desc" },
       }),
-      db.medicalRecords.count({
+      db.medicalRecord.count({
         where,
       }),
     ]);

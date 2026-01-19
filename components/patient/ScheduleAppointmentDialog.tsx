@@ -1,16 +1,17 @@
 'use client';
 
 /**
- * Schedule Appointment Dialog
+ * Submit Inquiry Dialog
  * 
- * Modal dialog for scheduling a new appointment.
+ * Modal dialog for submitting a consultation inquiry.
+ * Patients express interest in a procedure - this is not yet a booking.
  * Clean, professional form with validation.
- * Includes doctor selection with profiles.
+ * Includes surgeon selection with profiles.
  */
 
 import { useState, useEffect } from 'react';
-import { patientApi } from '../../lib/api/patient';
-import { doctorApi } from '../../lib/api/doctor';
+import { patientApi } from '@/lib/api/patient';
+import { doctorApi } from '@/lib/api/doctor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -24,10 +25,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import type { ScheduleAppointmentDto } from '../../application/dtos/ScheduleAppointmentDto';
-import type { DoctorResponseDto } from '../../application/dtos/DoctorResponseDto';
-import { DoctorSelect } from './DoctorSelect';
-import { DoctorProfileModal } from './DoctorProfileModal';
+import type { ScheduleAppointmentDto } from '@/application/dtos/ScheduleAppointmentDto';
+import type { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';
+import { DoctorSelect } from '@/components/patient/DoctorSelect';
+import { DoctorProfileModal } from '@/components/patient/DoctorProfileModal';
 
 interface ScheduleAppointmentDialogProps {
   open: boolean;
@@ -42,7 +43,14 @@ export function ScheduleAppointmentDialog({
   onSuccess,
   patientId,
 }: ScheduleAppointmentDialogProps) {
-  const [formData, setFormData] = useState<Partial<ScheduleAppointmentDto>>({
+  const [formData, setFormData] = useState<{
+    patientId: string;
+    doctorId: string;
+    appointmentDate: string; // Store as string for date input
+    time: string;
+    type: string;
+    note?: string;
+  }>({
     patientId,
     doctorId: '',
     appointmentDate: '',
@@ -69,8 +77,10 @@ export function ScheduleAppointmentDialog({
       const response = await patientApi.getAllDoctors();
       if (response.success && response.data) {
         setDoctors(response.data);
-      } else {
+      } else if (!response.success) {
         toast.error(response.error || 'Failed to load doctors');
+      } else {
+        toast.error('Failed to load doctors');
       }
     } catch (error) {
       console.error('Error loading doctors:', error);
@@ -86,8 +96,10 @@ export function ScheduleAppointmentDialog({
       if (response.success && response.data) {
         setSelectedDoctorProfile(response.data);
         setShowProfileModal(true);
-      } else {
+      } else if (!response.success) {
         toast.error(response.error || 'Failed to load doctor profile');
+      } else {
+        toast.error('Failed to load doctor profile');
       }
     } catch (error) {
       console.error('Error loading doctor profile:', error);
@@ -116,6 +128,7 @@ export function ScheduleAppointmentDialog({
       });
 
       if (response.success) {
+        toast.success('Your inquiry has been submitted. We will review it and contact you shortly.');
         onSuccess();
         // Reset form
         setFormData({
@@ -126,12 +139,14 @@ export function ScheduleAppointmentDialog({
           type: '',
           note: '',
         });
+      } else if (!response.success) {
+        toast.error(response.error || 'Failed to submit inquiry');
       } else {
-        toast.error(response.error || 'Failed to schedule appointment');
+        toast.error('Failed to submit inquiry');
       }
     } catch (error) {
-      toast.error('An error occurred while scheduling the appointment');
-      console.error('Error scheduling appointment:', error);
+      toast.error('An error occurred while submitting your inquiry');
+      console.error('Error submitting inquiry:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -141,8 +156,8 @@ export function ScheduleAppointmentDialog({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Schedule New Appointment</DialogTitle>
-          <DialogDescription>Fill in the details to schedule your appointment</DialogDescription>
+          <DialogTitle>Submit Consultation Inquiry</DialogTitle>
+          <DialogDescription>Share your interest in a procedure. Our team will review and contact you shortly.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
@@ -189,10 +204,10 @@ export function ScheduleAppointmentDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="type">Appointment Type *</Label>
+              <Label htmlFor="type">Procedure of Interest *</Label>
               <Input
                 id="type"
-                placeholder="e.g., Consultation, Follow-up"
+                placeholder="e.g., Rhinoplasty, BBL, Lipo, Breast Surgery"
                 value={formData.type}
                 onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                 required
@@ -201,10 +216,10 @@ export function ScheduleAppointmentDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="note">Notes (Optional)</Label>
+              <Label htmlFor="note">Additional Information (Optional)</Label>
               <Textarea
                 id="note"
-                placeholder="Any additional notes or special requests"
+                placeholder="Share any relevant information about your goals or concerns"
                 value={formData.note}
                 onChange={(e) => setFormData({ ...formData, note: e.target.value })}
                 disabled={isSubmitting}
@@ -217,7 +232,7 @@ export function ScheduleAppointmentDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Scheduling...' : 'Schedule Appointment'}
+              {isSubmitting ? 'Submitting...' : 'Submit Inquiry'}
             </Button>
           </DialogFooter>
         </form>

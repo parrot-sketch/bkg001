@@ -23,10 +23,15 @@ import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { format } from 'date-fns';
 import { AppointmentCard } from '@/components/patient/AppointmentCard';
 import { ConsultationCTA } from '@/components/portal/ConsultationCTA';
+import { ConsultationInquiryBanner } from '@/components/patient/ConsultationInquiryBanner';
+import { ConsultationRequestStatus } from '@/domain/enums/ConsultationRequestStatus';
+import { useRouter } from 'next/navigation';
 
 export default function PatientDashboardPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
   const [upcomingAppointments, setUpcomingAppointments] = useState<AppointmentResponseDto[]>([]);
+  const [allAppointments, setAllAppointments] = useState<AppointmentResponseDto[]>([]);
   const [loadingAppointments, setLoadingAppointments] = useState(true);
 
   // Load appointments on mount and when auth state changes
@@ -53,12 +58,28 @@ export default function PatientDashboardPage() {
 
     try {
       setLoadingAppointments(true);
-      const response = await patientApi.getUpcomingAppointments(user.id);
-
-      if (response.success && response.data) {
-        setUpcomingAppointments(response.data);
+      // Load all appointments to find consultation inquiries
+      const allResponse = await patientApi.getAppointments(user.id);
+      
+      if (allResponse.success && allResponse.data) {
+        setAllAppointments(allResponse.data);
+        
+        // Filter for upcoming appointments (for the appointments section)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const upcoming = allResponse.data.filter((apt) => {
+          const appointmentDate = new Date(apt.appointmentDate);
+          appointmentDate.setHours(0, 0, 0, 0);
+          const isUpcoming = appointmentDate >= today;
+          const isPendingOrScheduled = apt.status === 'PENDING' || apt.status === 'SCHEDULED';
+          return isUpcoming && isPendingOrScheduled;
+        });
+        
+        setUpcomingAppointments(upcoming);
+      } else if (!allResponse.success) {
+        toast.error(allResponse.error || 'Failed to load appointments');
       } else {
-        toast.error(response.error || 'Failed to load appointments');
+        toast.error('Failed to load appointments');
       }
     } catch (error) {
       toast.error('An error occurred while loading appointments');
@@ -66,6 +87,19 @@ export default function PatientDashboardPage() {
     } finally {
       setLoadingAppointments(false);
     }
+  };
+
+  // Filter consultation inquiries (appointments with consultation request status)
+  const consultationInquiries = allAppointments.filter((apt) => {
+    const hasConsultationStatus = apt.consultationRequestStatus !== undefined;
+    const isNotCompletedOrCancelled = 
+      apt.status !== AppointmentStatus.COMPLETED && 
+      apt.status !== AppointmentStatus.CANCELLED;
+    return hasConsultationStatus && isNotCompletedOrCancelled;
+  });
+
+  const handleInquiryAction = (appointment: AppointmentResponseDto) => {
+    router.push('/patient/appointments');
   };
 
   if (isLoading) {
@@ -93,8 +127,13 @@ export default function PatientDashboardPage() {
   }
 
   const upcomingCount = upcomingAppointments.length;
+  const consultationInquiryCount = consultationInquiries.length;
+  // Count appointments that need attention (pending, scheduled, or have consultation status)
   const pendingCount = upcomingAppointments.filter(
-    (apt) => apt.status === AppointmentStatus.PENDING || apt.status === AppointmentStatus.SCHEDULED,
+    (apt) => 
+      apt.status === AppointmentStatus.PENDING || 
+      apt.status === AppointmentStatus.SCHEDULED ||
+      apt.consultationRequestStatus !== undefined, // Include all consultation inquiries
   ).length;
 
   return (
@@ -108,6 +147,14 @@ export default function PatientDashboardPage() {
           Overview of your appointments and consultations
         </p>
       </div>
+
+      {/* Consultation Inquiry Priority Banner - Shows at top if there are inquiries */}
+      {consultationInquiries.length > 0 && (
+        <ConsultationInquiryBanner 
+          inquiries={consultationInquiries} 
+          onAction={handleInquiryAction}
+        />
+      )}
 
       {/* Quick Stats - Mobile Grid */}
       <div className="grid grid-cols-2 gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-4">
@@ -133,16 +180,21 @@ export default function PatientDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border border-border bg-white hover:border-accent/30 transition-colors shadow-sm">
+        <Card className={`border ${consultationInquiryCount > 0 ? 'border-primary/30 bg-primary/5' : 'border-border bg-white'} hover:border-accent/30 transition-colors shadow-sm`}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6">
-            <CardTitle className="text-xs sm:text-sm font-medium">Consultations</CardTitle>
-            <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+            <CardTitle className="text-xs sm:text-sm font-medium">Inquiries</CardTitle>
+            <FileText className={`h-3 w-3 sm:h-4 sm:w-4 ${consultationInquiryCount > 0 ? 'text-primary' : 'text-muted-foreground'}`} />
           </CardHeader>
           <CardContent className="p-3 sm:p-6 pt-0">
-            <div className="text-xl sm:text-2xl font-bold">-</div>
-            <p className="text-xs text-gray-600 mt-1">View history</p>
+            <div className={`text-xl sm:text-2xl font-bold ${consultationInquiryCount > 0 ? 'text-primary' : ''}`}>
+              {consultationInquiryCount > 0 ? consultationInquiryCount : '-'}
+            </div>
+            <p className="text-xs text-gray-600 mt-1">
+              {consultationInquiryCount > 0 ? 'Active inquiries' : 'No inquiries'}
+            </p>
           </CardContent>
         </Card>
+
 
         <Card className="border border-border bg-white hover:border-accent/30 transition-colors shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6">

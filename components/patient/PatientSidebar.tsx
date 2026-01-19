@@ -10,9 +10,9 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Calendar, FileText, User, LogOut } from 'lucide-react';
-import { Button } from '../ui/button';
-import { cn } from '../../lib/utils';
-import { useAuth } from '../../hooks/patient/useAuth';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/patient/useAuth';
 
 interface NavItem {
   name: string;

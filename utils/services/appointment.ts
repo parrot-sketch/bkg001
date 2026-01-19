@@ -1,6 +1,21 @@
 import db from "@/lib/db";
 import { Prisma } from "@prisma/client";
 
+export type AppointmentWithRelations = Prisma.AppointmentGetPayload<{
+  include: {
+    patient: true;
+    doctor: true;
+    payments: true;
+    medical_records: {
+      include: {
+        diagnoses: true;
+        lab_tests: true;
+        vital_signs: true;
+      };
+    };
+  };
+}>;
+
 export async function getAppointmentById(id: number) {
   try {
     if (!id) {
@@ -181,11 +196,17 @@ export async function getPatientAppointments({
   }
 }
 
-export async function getAppointmentWithMedicalRecordsById(id: number) {
+type AppointmentResult = 
+  | { success: true; data: AppointmentWithRelations; status: number }
+  | { success: false; message: string; status: number };
+
+export async function getAppointmentWithMedicalRecordsById(
+  id: number
+): Promise<AppointmentResult> {
   try {
     if (!id) {
       return {
-        success: false,
+        success: false as const,
         message: "Appointment id does not exist.",
         status: 404,
       };
@@ -196,11 +217,11 @@ export async function getAppointmentWithMedicalRecordsById(id: number) {
       include: {
         patient: true,
         doctor: true,
-        bills: true,
-        medical: {
+        payments: true,
+        medical_records: {
           include: {
-            diagnosis: true,
-            lab_test: true,
+            diagnoses: true,
+            lab_tests: true,
             vital_signs: true,
           },
         },
@@ -209,15 +230,24 @@ export async function getAppointmentWithMedicalRecordsById(id: number) {
 
     if (!data) {
       return {
-        success: false,
+        success: false as const,
         message: "Appointment data not found",
-        status: 200,
+        status: 404,
       };
     }
 
-    return { success: true, data, status: 200 };
+    // Type assertion ensures TypeScript understands the Prisma include structure
+    return { 
+      success: true as const, 
+      data: data as AppointmentWithRelations, 
+      status: 200 
+    };
   } catch (error) {
-    console.log(error);
-    return { success: false, message: "Internal Server Error", status: 500 };
+    console.error('Error fetching appointment with medical records:', error);
+    return { 
+      success: false as const, 
+      message: "Internal Server Error", 
+      status: 500 
+    };
   }
 }

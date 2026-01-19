@@ -8,16 +8,16 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '../../../../hooks/patient/useAuth';
-import { frontdeskApi } from '../../../../lib/api/frontdesk';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../components/ui/card';
-import { Button } from '../../../../components/ui/button';
+import { useAuth } from '@/hooks/patient/useAuth';
+import { frontdeskApi } from '@/lib/api/frontdesk';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Calendar, Clock, User, FileText, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import type { AppointmentResponseDto } from '../../../../application/dtos/AppointmentResponseDto';
-import { ConsultationRequestStatus } from '../../../../domain/enums/ConsultationRequestStatus';
+import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import { ConsultationRequestStatus } from '@/domain/enums/ConsultationRequestStatus';
 import { format, differenceInDays } from 'date-fns';
-import { ReviewConsultationDialog } from '../../../../components/frontdesk/ReviewConsultationDialog';
+import { ReviewConsultationDialog } from '@/components/frontdesk/ReviewConsultationDialog';
 
 type ConsultationRequestWithMetadata = AppointmentResponseDto & {
   daysSinceSubmission?: number;
@@ -29,7 +29,7 @@ export default function ConsultationRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<ConsultationRequestWithMetadata | null>(null);
   const [showReviewDialog, setShowReviewDialog] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<ConsultationRequestStatus | 'ALL'>('SUBMITTED');
+  const [statusFilter, setStatusFilter] = useState<ConsultationRequestStatus | 'ALL'>(ConsultationRequestStatus.SUBMITTED);
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -44,8 +44,10 @@ export default function ConsultationRequestsPage() {
 
       if (response.success && response.data) {
         setRequests(response.data);
-      } else {
+      } else if (!response.success) {
         toast.error(response.error || 'Failed to load consultation requests');
+      } else {
+        toast.error('Failed to load consultation requests');
       }
     } catch (error) {
       toast.error('An error occurred while loading consultation requests');
@@ -198,7 +200,7 @@ export default function ConsultationRequestsPage() {
       </Card>
 
       {/* Review Dialog */}
-      {showReviewDialog && selectedRequest && (
+      {showReviewDialog && selectedRequest && user && (
         <ReviewConsultationDialog
           open={showReviewDialog}
           onClose={() => {
@@ -207,6 +209,7 @@ export default function ConsultationRequestsPage() {
           }}
           onSuccess={handleReviewSuccess}
           appointment={selectedRequest}
+          frontdeskUserId={user.id}
         />
       )}
     </div>

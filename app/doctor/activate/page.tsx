@@ -7,7 +7,7 @@
  * Minimal, professional interface with clear states.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { doctorInviteApi } from '@/lib/api/doctor-invite';
 import { Card, CardContent } from '@/components/ui/card';
@@ -18,7 +18,7 @@ import { tokenStorage } from '@/lib/auth/token';
 
 type ActivationState = 'loading' | 'invalid' | 'form' | 'success';
 
-export default function ActivateDoctorPage() {
+function ActivateDoctorForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
@@ -77,12 +77,14 @@ export default function ActivateDoctorPage() {
         setTimeout(() => {
           router.push('/doctor/dashboard');
         }, 2000);
-      } else {
+      } else if (!response.success) {
         if (response.error?.includes('expired') || response.error?.includes('invalid')) {
           setState('invalid');
         } else {
           setErrors({ general: response.error || 'Failed to activate account' });
         }
+      } else {
+        setErrors({ general: 'Failed to activate account' });
       }
     } catch (error) {
       setErrors({ general: 'An error occurred while activating your account' });
@@ -191,5 +193,24 @@ export default function ActivateDoctorPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function ActivateDoctorPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+              <p className="text-sm text-gray-700">Loading...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <ActivateDoctorForm />
+    </Suspense>
   );
 }

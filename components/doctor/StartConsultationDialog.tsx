@@ -8,7 +8,7 @@
  */
 
 import { useState } from 'react';
-import { doctorApi } from '../../lib/api/doctor';
+import { doctorApi } from '@/lib/api/doctor';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,8 +21,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import type { AppointmentResponseDto } from '../../application/dtos/AppointmentResponseDto';
-import type { StartConsultationDto } from '../../application/dtos/StartConsultationDto';
+import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import type { StartConsultationDto } from '@/application/dtos/StartConsultationDto';
 
 interface StartConsultationDialogProps {
   open: boolean;

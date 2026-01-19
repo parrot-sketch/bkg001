@@ -5,7 +5,6 @@ import {
   reviewSchema,
 } from "@/components/dialogs/review-form";
 import db from "@/lib/db";
-import { clerkClient } from "@clerk/nextjs/server";
 
 export async function deleteDataById(
   id: string,
@@ -16,21 +15,28 @@ export async function deleteDataById(
     switch (deleteType) {
       case "doctor":
         await db.doctor.delete({ where: { id: id } });
+        // Also delete associated user if exists
+        await db.user.delete({ where: { id: id } }).catch(() => {
+          // User might not exist, ignore error
+        });
+        break;
       case "staff":
-        await db.staff.delete({ where: { id: id } });
+        // Staff members are Users with roles (NURSE, LAB_TECHNICIAN, CASHIER, FRONTDESK)
+        // No separate Staff model exists - just delete the User
+        await db.user.delete({ where: { id: id } }).catch(() => {
+          // User might not exist, ignore error
+        });
+        break;
       case "patient":
         await db.patient.delete({ where: { id: id } });
+        // Also delete associated user if exists
+        await db.user.delete({ where: { id: id } }).catch(() => {
+          // User might not exist, ignore error
+        });
+        break;
       case "payment":
         await db.payment.delete({ where: { id: Number(id) } });
-    }
-
-    if (
-      deleteType === "staff" ||
-      deleteType === "patient" ||
-      deleteType === "doctor"
-    ) {
-      const client = await clerkClient();
-      await client.users.deleteUser(id);
+        break;
     }
 
     return {
@@ -55,7 +61,10 @@ export async function createReview(values: ReviewFormValues) {
 
     await db.rating.create({
       data: {
-        ...validatedFields,
+        doctor_id: validatedFields.staff_id, // Rating model uses doctor_id, map staff_id to it
+        patient_id: validatedFields.patient_id,
+        rating: validatedFields.rating,
+        comment: validatedFields.comment,
       },
     });
 

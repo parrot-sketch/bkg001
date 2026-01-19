@@ -31,7 +31,7 @@ import { Label } from '@/components/ui/label';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { getPostAuthRedirect } from '@/lib/utils/patient';
+import { getPostAuthRedirect } from '@/lib/utils/auth-redirect';
 
 // Generic error message - prevents user enumeration
 const GENERIC_ERROR_MESSAGE = 'Invalid email or password. Please try again.';
@@ -110,14 +110,13 @@ export default function PatientLoginPage() {
     try {
       await login(email.trim(), password);
       
-      // Success - intelligent redirect based on PatientProfile
-      // If user has PatientProfile → /patient/dashboard (clinical)
-      // If user doesn't have PatientProfile → /portal/welcome (onboarding)
-      // Get user ID from stored auth state after login
+      // Success - intelligent redirect based on user role
+      // Get user ID and role from stored auth state after login
       const { tokenStorage } = await import('@/lib/auth/token');
       const storedUser = tokenStorage.getUser();
       const userId = storedUser?.id || email.trim(); // Fallback to email if user not found
-      const redirectPath = await getPostAuthRedirect(userId);
+      const userRole = storedUser?.role; // Get role from auth token
+      const redirectPath = await getPostAuthRedirect(userId, userRole);
       router.push(redirectPath);
     } catch (error) {
       // Determine if it's a network error vs auth error

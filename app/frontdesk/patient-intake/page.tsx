@@ -8,17 +8,17 @@
  */
 
 import { useState } from 'react';
-import { useAuth } from '../../../../hooks/patient/useAuth';
-import { frontdeskApi } from '../../../../lib/api/frontdesk';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../components/ui/card';
-import { Button } from '../../../../components/ui/button';
-import { Input } from '../../../../components/ui/input';
-import { Label } from '../../../../components/ui/label';
+import { useAuth } from '@/hooks/patient/useAuth';
+import { frontdeskApi } from '@/lib/api/frontdesk';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { UserPlus, Search, Users } from 'lucide-react';
 import { toast } from 'sonner';
-import { PatientRegistrationDialog } from '../../../../components/frontdesk/PatientRegistrationDialog';
-import type { PatientResponseDto } from '../../../../application/dtos/PatientResponseDto';
-import type { CreatePatientDto } from '../../../../application/dtos/CreatePatientDto';
+import { PatientRegistrationDialog } from '@/components/frontdesk/PatientRegistrationDialog';
+import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
+import type { CreatePatientDto } from '@/application/dtos/CreatePatientDto';
 
 export default function FrontdeskPatientIntakePage() {
   const { user, isAuthenticated } = useAuth();
@@ -42,8 +42,10 @@ export default function FrontdeskPatientIntakePage() {
         if (response.data.length === 0) {
           toast.info('No patients found. You can register a new patient.');
         }
-      } else {
+      } else if (!response.success) {
         toast.error(response.error || 'Failed to search patients');
+      } else {
+        toast.error('Failed to search patients');
       }
     } catch (error) {
       toast.error('An error occurred while searching patients');
@@ -148,7 +150,7 @@ export default function FrontdeskPatientIntakePage() {
                       </div>
                       {patient.dateOfBirth && (
                         <p className="text-xs text-muted-foreground">
-                          Age: {patient.age} years {patient.isMinor ? '(Minor)' : ''}
+                          Age: {patient.age} years {patient.age < 18 ? '(Minor)' : ''}
                         </p>
                       )}
                     </div>

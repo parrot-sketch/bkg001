@@ -11,10 +11,10 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '../../../../hooks/patient/useAuth';
-import { adminApi } from '../../../../lib/api/admin';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../components/ui/card';
-import { Button } from '../../../../components/ui/button';
+import { useAuth } from '@/hooks/patient/useAuth';
+import { adminApi } from '@/lib/api/admin';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import {
   Users,
   UserCheck,
@@ -63,8 +63,10 @@ export default function AdminDashboardPage() {
 
       if (statsResponse.success && statsResponse.data) {
         setStats(statsResponse.data);
-      } else {
+      } else if (!statsResponse.success) {
         toast.error(statsResponse.error || 'Failed to load dashboard stats');
+      } else {
+        toast.error('Failed to load dashboard stats');
       }
 
       if (trendsResponse.success && trendsResponse.data) {

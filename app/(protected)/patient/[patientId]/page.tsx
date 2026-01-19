@@ -3,10 +3,12 @@ import { PatientRatingContainer } from "@/components/patient-rating-container";
 import { ProfileImage } from "@/components/profile-image";
 import { Card } from "@/components/ui/card";
 import { getPatientFullDataById } from "@/utils/services/patient";
-import { auth } from "@clerk/nextjs/server";
+import { getCurrentUser } from "@/lib/auth/server-auth";
 import { format } from "date-fns";
 import Link from "next/link";
 import React from "react";
+
+export const dynamic = 'force-dynamic';
 
 interface ParamsProps {
   params: Promise<{ patientId: string }>;
@@ -22,8 +24,8 @@ const PatientProfile = async (props: ParamsProps) => {
   const cat = searchParams?.cat || "medical-history";
 
   if (patientId === "self") {
-    const { userId } = await auth();
-    id = userId!;
+    const authUser = await getCurrentUser();
+    id = authUser?.userId || '';
   } else id = patientId;
 
   const { data } = await getPatientFullDataById(id);

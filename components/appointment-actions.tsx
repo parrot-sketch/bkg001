@@ -1,5 +1,5 @@
-import { checkRole } from "@/utils/roles";
-import { auth } from "@clerk/nextjs/server";
+import { checkRole } from "@/lib/utils/roles";
+import { getCurrentUser } from "@/lib/auth/server-auth";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Button } from "./ui/button";
 import { EllipsisVertical, User } from "lucide-react";
@@ -21,7 +21,7 @@ export const AppointmentActionOptions = async ({
   status,
   appointmentId,
 }: ActionsProps) => {
-  const user = await auth();
+  const user = await getCurrentUser();
   const isAdmin = await checkRole("ADMIN");
 
   return (
@@ -53,7 +53,7 @@ export const AppointmentActionOptions = async ({
             <AppointmentActionDialog
               type="approve"
               id={appointmentId}
-              disabled={isAdmin || user.userId === doctorId}
+              disabled={isAdmin || (user?.userId === doctorId)}
             />
           )}
           <AppointmentActionDialog
@@ -61,7 +61,7 @@ export const AppointmentActionOptions = async ({
             id={appointmentId}
             disabled={
               status === "PENDING" &&
-              (isAdmin || user.userId === doctorId || user.userId === patientId)
+              (isAdmin || user?.userId === doctorId || user?.userId === patientId)
             }
           />
         </div>

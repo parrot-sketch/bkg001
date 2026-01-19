@@ -8,6 +8,23 @@ import { PaymentsContainer } from "@/components/appointment/payment-container";
 import { VitalSigns } from "@/components/appointment/vital-signs";
 import { MedicalHistoryContainer } from "@/components/medical-history-container";
 import { getAppointmentWithMedicalRecordsById } from "@/utils/services/appointment";
+import { Prisma } from "@prisma/client";
+
+// Type for appointment with all relations included
+type AppointmentWithRelations = Prisma.AppointmentGetPayload<{
+  include: {
+    patient: true;
+    doctor: true;
+    payments: true;
+    medical_records: {
+      include: {
+        diagnoses: true;
+        lab_tests: true;
+        vital_signs: true;
+      };
+    };
+  };
+}>;
 
 const AppointmentDetailsPage = async ({
   params,
@@ -20,49 +37,58 @@ const AppointmentDetailsPage = async ({
   const search = await searchParams;
   const cat = (search?.cat as string) || "charts";
 
-  const { data } = await getAppointmentWithMedicalRecordsById(Number(id));
+  const result = await getAppointmentWithMedicalRecordsById(Number(id));
+  
+  if (!result.success || !result.data) {
+    return <div>Appointment not found</div>;
+  }
+  
+  // Type guard: After checking result.success, we know result.data exists
+  // and has the AppointmentWithRelations structure
+  // Use type assertion since we've already validated success and data existence
+  const data = result.data as AppointmentWithRelations;
 
   return (
     <div className="flex p-6 flex-col-reverse lg:flex-row w-full min-h-screen gap-10">
       {/* LEFT */}
       <div className="w-full lg:w-[65%] flex flex-col gap-6">
-        {cat === "charts" && <ChartContainer id={data?.patient_id!} />}
+        {cat === "charts" && <ChartContainer id={data.patient_id} />}
         {cat === "appointments" && (
           <>
             <AppointmentDetails
-              id={data?.id!}
-              patient_id={data?.patient_id!}
-              appointment_date={data?.appointment_date!}
-              time={data?.time!}
-              notes={data?.note!}
+              id={data.id}
+              patient_id={data.patient_id}
+              appointment_date={data.appointment_date}
+              time={data.time}
+              notes={data.note || ""}
             />
 
             <VitalSigns
               id={id}
-              patientId={data?.patient_id!}
-              doctorId={data?.doctor_id!}
+              patientId={data.patient_id}
+              doctorId={data.doctor_id}
             />
           </>
         )}
         {cat === "diagnosis" && (
           <DiagnosisContainer
             id={id}
-            patientId={data?.patient_id!}
-            doctorId={data?.doctor_id!}
+            patientId={data.patient_id}
+            doctorId={data.doctor_id}
           />
         )}
         {cat === "medical-history" && (
-          <MedicalHistoryContainer id={id!} patientId={data?.patient_id!} />
+          <MedicalHistoryContainer id={id} patientId={data.patient_id} />
         )}
         {cat === "billing" && <BillsContainer id={id} />}
         {cat === "payments" && (
-          <PaymentsContainer patientId={data?.patient_id!} />
+          <PaymentsContainer patientId={data.patient_id} />
         )}
       </div>
       {/* RIGHT */}
       <div className="flex-1 space-y-6">
-        <AppointmentQuickLinks staffId={data?.doctor_id as string} />
-        <PatientDetailsCard data={data?.patient!} />
+        <AppointmentQuickLinks staffId={data.doctor_id} />
+        {data.patient && <PatientDetailsCard data={data.patient} />}
       </div>
     </div>
   );

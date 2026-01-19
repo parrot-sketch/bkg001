@@ -101,7 +101,7 @@ export default function PatientProfilePage() {
         setFormData(response.data);
         setIsCreating(false);
         setIsEditing(false);
-      } else {
+      } else if (!response.success) {
         // Check if it's a "not found" error (could be different formats)
         const isNotFound = response.error === 'Patient not found' || 
                           response.error?.toLowerCase().includes('not found') ||
@@ -129,7 +129,7 @@ export default function PatientProfilePage() {
             serviceConsent: false,
             medicalConsent: false,
           });
-        } else {
+        } else if (!response.success) {
           // Other error - show error but still allow create
           console.error('Error loading patient:', response.error);
           // Don't show toast for "not found" - it's expected if profile doesn't exist
@@ -217,7 +217,7 @@ export default function PatientProfilePage() {
           setIsCreating(false);
           setIsEditing(false);
           toast.success('Profile created successfully');
-        } else {
+        } else if (!response.success) {
           // If patient already exists error, reload patient data
           const emailExists = response.error?.toLowerCase().includes('email') && 
                              response.error?.toLowerCase().includes('already exists');
@@ -226,8 +226,10 @@ export default function PatientProfilePage() {
             toast.info('Profile already exists. Loading your profile...');
             // Reload patient data - it exists, we just couldn't find it before
             await loadPatient();
-          } else {
+          } else if (!response.success) {
             toast.error(response.error || 'Failed to create profile');
+          } else {
+            toast.error('Failed to create profile');
           }
         }
       } else {
@@ -237,8 +239,10 @@ export default function PatientProfilePage() {
           setPatient(response.data);
           setIsEditing(false);
           toast.success('Profile updated successfully');
-        } else {
+        } else if (!response.success) {
           toast.error(response.error || 'Failed to update profile');
+        } else {
+          toast.error('Failed to update profile');
         }
       }
     } catch (error) {
@@ -418,7 +422,7 @@ export default function PatientProfilePage() {
                       : (formData.dateOfBirth ? (typeof formData.dateOfBirth === 'string' ? formData.dateOfBirth : format(new Date(formData.dateOfBirth), 'yyyy-MM-dd')) : '')
                     }
                     onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                    disabled={!isEditing || (patient && !isCreating)}
+                    disabled={!isEditing || !!(patient && !isCreating)}
                     className={`pl-10 border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 ${
                       patient && !isCreating ? 'bg-gray-50 text-gray-600' : 'bg-white'
                     }`}
@@ -438,7 +442,7 @@ export default function PatientProfilePage() {
                 <Select 
                   value={patient && !isCreating ? patient.gender : (formData.gender || '')} 
                   onValueChange={(value) => setFormData({ ...formData, gender: value })}
-                  disabled={!isEditing || (patient && !isCreating)}
+                  disabled={!isEditing || !!(patient && !isCreating)}
                   required={isCreating}
                 >
                   <SelectTrigger 

@@ -25,13 +25,15 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
-    "test:e2e:report": "playwright show-report"
+    "test:e2e:report": "playwright show-report",
+    "validate:exports": "tsx scripts/validate-exports.ts",
+    "type-check": "tsc --noEmit --skipLibCheck",
+    "type-check:full": "bash scripts/type-check.sh"
   },
   "prisma": {
     "seed": "node prisma/seed.ts"
   },
   "dependencies": {
-    "@clerk/nextjs": "^6.9.3",
     "@faker-js/faker": "^9.3.0",
     "@hookform/resolvers": "^3.9.1",
     "@prisma/client": "^6.0.1",
@@ -44,11 +46,15 @@
     "@radix-ui/react-separator": "^1.1.2",
     "@radix-ui/react-slot": "^1.1.1",
     "@radix-ui/react-switch": "^1.1.2",
+    "@radix-ui/react-tabs": "^1.1.13",
+    "@tanstack/react-query": "^5.90.19",
+    "@types/lodash": "^4.17.23",
     "bcrypt": "^6.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "jsonwebtoken": "^9.0.3",
+    "lodash": "^4.17.21",
     "lucide-react": "^0.468.0",
     "next": "15.1.0",
     "prisma": "^6.0.1",
@@ -70,6 +76,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitest/coverage-v8": "^4.0.17",
+    "cloudinary": "^1.41.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.16",
     "tsx": "^4.21.0",

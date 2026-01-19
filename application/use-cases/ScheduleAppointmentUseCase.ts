@@ -70,6 +70,13 @@ export class ScheduleAppointmentUseCase {
    * @throws DomainException if validation fails or appointment conflicts exist
    */
   async execute(dto: ScheduleAppointmentDto, userId: string): Promise<AppointmentResponseDto> {
+    // Step 0: Validate required fields
+    if (!dto.doctorId || dto.doctorId.trim().length === 0) {
+      throw new DomainException('Doctor ID is required. Please select a surgeon.', {
+        doctorId: dto.doctorId,
+      });
+    }
+
     // Step 1: Validate patient exists
     const patient = await this.patientRepository.findById(dto.patientId);
     if (!patient) {

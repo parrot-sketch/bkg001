@@ -17,9 +17,10 @@ import { toast } from 'sonner';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { format } from 'date-fns';
-import { StartConsultationDialog } from '../../../../components/doctor/StartConsultationDialog';
-import { CompleteConsultationDialog } from '../../../../components/doctor/CompleteConsultationDialog';
+import { StartConsultationDialog } from '@/components/doctor/StartConsultationDialog';
+import { CompleteConsultationDialog } from '@/components/doctor/CompleteConsultationDialog';
 import { AppointmentCard } from '@/components/patient/AppointmentCard';
+import { DoctorAppointmentCardEnhanced } from '@/components/doctor/DoctorAppointmentCardEnhanced';
 
 export default function DoctorAppointmentsPage() {
   const { user, isAuthenticated } = useAuth();
@@ -46,8 +47,10 @@ export default function DoctorAppointmentsPage() {
 
       if (response.success && response.data) {
         setAppointments(response.data);
-      } else {
+      } else if (!response.success) {
         toast.error(response.error || 'Failed to load appointments');
+      } else {
+        toast.error('Failed to load appointments');
       }
     } catch (error) {
       toast.error('An error occurred while loading appointments');
@@ -66,8 +69,10 @@ export default function DoctorAppointmentsPage() {
       if (response.success) {
         toast.success('Patient checked in successfully');
         loadAppointments();
-      } else {
+      } else if (!response.success) {
         toast.error(response.error || 'Failed to check in patient');
+      } else {
+        toast.error('Failed to check in patient');
       }
     } catch (error) {
       toast.error('An error occurred while checking in patient');
@@ -137,7 +142,7 @@ export default function DoctorAppointmentsPage() {
           <CardContent>
             <div className="space-y-4">
               {todayAppointments.map((appointment) => (
-                <DoctorAppointmentCard
+                <DoctorAppointmentCardEnhanced
                   key={appointment.id}
                   appointment={appointment}
                   onCheckIn={handleCheckIn}
@@ -171,7 +176,7 @@ export default function DoctorAppointmentsPage() {
           ) : (
             <div className="space-y-4">
               {appointments.map((appointment) => (
-                <DoctorAppointmentCard
+                <DoctorAppointmentCardEnhanced
                   key={appointment.id}
                   appointment={appointment}
                   onCheckIn={handleCheckIn}

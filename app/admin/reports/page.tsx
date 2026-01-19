@@ -10,15 +10,15 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '../../../../hooks/patient/useAuth';
-import { adminApi } from '../../../../lib/api/admin';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../components/ui/card';
-import { Button } from '../../../../components/ui/button';
-import { Input } from '../../../../components/ui/input';
-import { Label } from '../../../../components/ui/label';
+import { useAuth } from '@/hooks/patient/useAuth';
+import { adminApi } from '@/lib/api/admin';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { BarChart3, FileText, Download, Calendar, Clock } from 'lucide-react';
 import { toast } from 'sonner';
-import type { GenerateReportDto } from '../../../../lib/api/admin';
+import type { GenerateReportDto } from '@/lib/api/admin';
 
 export default function AdminReportsPage() {
   const { user, isAuthenticated } = useAuth();
@@ -46,8 +46,10 @@ export default function AdminReportsPage() {
 
       if (response.success && response.data) {
         setAuditLogs(response.data);
-      } else {
+      } else if (!response.success) {
         toast.error(response.error || 'Failed to load audit logs');
+      } else {
+        toast.error('Failed to load audit logs');
       }
     } catch (error) {
       toast.error('An error occurred while loading audit logs');
@@ -76,8 +78,10 @@ export default function AdminReportsPage() {
         toast.success('Report generated successfully');
         // In a real app, this would download the report file
         console.log('Report data:', response.data);
-      } else {
+      } else if (!response.success) {
         toast.error(response.error || 'Failed to generate report');
+      } else {
+        toast.error('Failed to generate report');
       }
     } catch (error) {
       toast.error('An error occurred while generating report');

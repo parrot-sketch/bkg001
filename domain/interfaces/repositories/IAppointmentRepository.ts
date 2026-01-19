@@ -1,4 +1,5 @@
 import { Appointment } from '../../entities/Appointment';
+import { AppointmentStatus } from '../../enums/AppointmentStatus';
 
 /**
  * Repository Interface: IAppointmentRepository
@@ -34,10 +35,27 @@ export interface IAppointmentRepository {
    * Finds all appointments for a specific doctor
    * 
    * @param doctorId - The doctor's unique identifier
+   * @param filters - Optional filters for status, date range, etc.
    * @returns Promise resolving to an array of Appointment entities
    *          Returns empty array if no appointments found
    */
-  findByDoctor(doctorId: string): Promise<Appointment[]>;
+  findByDoctor(
+    doctorId: string,
+    filters?: {
+      status?: AppointmentStatus;
+      startDate?: Date;
+      endDate?: Date;
+    }
+  ): Promise<Appointment[]>;
+
+  /**
+   * Finds appointments that are potential no-shows
+   * 
+   * @param now - Current date/time
+   * @param windowMinutes - Minutes after appointment time to consider for no-show detection
+   * @returns Promise resolving to an array of Appointment entities that are potential no-shows
+   */
+  findPotentialNoShows(now: Date, windowMinutes: number): Promise<Appointment[]>;
 
   /**
    * Saves a new appointment to the data store

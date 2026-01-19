@@ -8,18 +8,26 @@ interface DataProps {
 }
 
 export const MedicalHistoryContainer = async ({ id, patientId }: DataProps) => {
-  const data = await db.medicalRecords.findMany({
+  const data = await db.medicalRecord.findMany({
     where: { patient_id: patientId },
     include: {
-      diagnosis: { include: { doctor: true } },
-      lab_test: true,
+      diagnoses: { include: { doctor: true } },
+      lab_tests: true,
     },
 
     orderBy: { created_at: "desc" },
   });
+  
+  // Transform data to match component's expected interface
+  const transformedData = data.map((record) => ({
+    ...record,
+    diagnosis: record.diagnoses,
+    lab_test: record.lab_tests,
+  }));
+  
   return (
     <>
-      <MedicalHistory data={data} isShowProfile={false} />
+      <MedicalHistory data={transformedData} isShowProfile={false} />
     </>
   );
 };

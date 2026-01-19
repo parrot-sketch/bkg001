@@ -91,7 +91,13 @@ const DoctorProfile = async (props: { params: Promise<{ id: string }> }) => {
               <IoTimeSharp className="size-5" />
               <div>
                 <h1 className="text-xl font-serif">
-                  {availableDays({ data: data.working_days })}
+                  {availableDays({ 
+                    data: data.working_days.map(day => ({
+                      day: day.day,
+                      start_time: day.start_time,
+                      close_time: day.end_time,
+                    }))
+                  })}
                 </h1>
                 <span className="text-sm text-gray-500">Working Hours</span>
               </div>

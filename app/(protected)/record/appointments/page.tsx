@@ -4,16 +4,18 @@ import { ProfileImage } from "@/components/profile-image";
 import SearchInput from "@/components/search-input";
 import { Table } from "@/components/tables/table";
 import { ViewAppointment } from "@/components/view-appointment";
-import { checkRole, getRole } from "@/utils/roles";
-import { DATA_LIMIT } from "@/utils/seetings";
+import { checkRole, getRole } from "@/lib/utils/roles";
+import { DATA_LIMIT } from "@/lib/utils/settings";
 import { getPatientAppointments } from "@/utils/services/appointment";
-import { auth } from "@clerk/nextjs/server";
+import { getCurrentUser } from "@/lib/auth/server-auth";
 import { Appointment, Doctor, Patient } from "@prisma/client";
 import { format } from "date-fns";
 import { BriefcaseBusiness } from "lucide-react";
 import React from "react";
 import { Pagination } from "@/components/pagination";
 import { AppointmentContainer } from "@/components/appointment-container";
+
+export const dynamic = 'force-dynamic';
 const columns = [
   {
     header: "Info",
@@ -54,7 +56,8 @@ const Appointments = async (props: {
 }) => {
   const searchParams = await props.searchParams;
   const userRole = await getRole();
-  const { userId } = await auth();
+  const authUser = await getCurrentUser();
+  const userId = authUser?.userId;
   const isPatient = await checkRole("PATIENT");
 
   const page = (searchParams?.p || "1") as string;

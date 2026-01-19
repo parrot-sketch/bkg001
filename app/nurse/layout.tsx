@@ -5,7 +5,7 @@
  * Includes sidebar navigation and content area.
  */
 
-import { NurseSidebar } from '../../components/nurse/NurseSidebar';
+import { NurseSidebar } from '@/components/nurse/NurseSidebar';
 import { ReactNode } from 'react';
 
 interface NurseLayoutProps {

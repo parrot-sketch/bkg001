@@ -61,9 +61,6 @@ export class ActivateDoctorInviteUseCase {
     // 1. Validate token - find invite token
     const inviteToken = await this.prisma.doctorInviteToken.findUnique({
       where: { token: dto.token },
-      include: {
-        // We'll get doctor via doctor_id if it exists
-      },
     });
 
     if (!inviteToken) {

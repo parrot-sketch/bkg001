@@ -220,7 +220,8 @@ export async function verifyAccessibility(page: Page): Promise<void> {
   for (let i = 0; i < Math.min(buttonCount, 10); i++) {
     const button = buttons.nth(i);
     const hasAriaLabel = await button.getAttribute('aria-label').then(val => !!val).catch(() => false);
-    const hasText = (await button.textContent().catch(() => '')).trim().length > 0;
+    const textContent = await button.textContent().catch(() => null);
+    const hasText = (textContent || '').trim().length > 0;
     
     if (hasAriaLabel || hasText) {
       accessibleCount++;

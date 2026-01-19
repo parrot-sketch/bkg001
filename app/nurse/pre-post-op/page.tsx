@@ -7,21 +7,21 @@
  * Record care notes, vitals, and treatment documentation.
  */
 
-import { useEffect, useState } from 'react';
-import { useAuth } from '../../../../hooks/patient/useAuth';
-import { nurseApi } from '../../../../lib/api/nurse';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../components/ui/card';
-import { Button } from '../../../../components/ui/button';
+import { useEffect, useState, Suspense } from 'react';
+import { useAuth } from '@/hooks/patient/useAuth';
+import { nurseApi } from '@/lib/api/nurse';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Activity, FileText, Calendar, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSearchParams } from 'next/navigation';
-import type { AppointmentResponseDto } from '../../../../application/dtos/AppointmentResponseDto';
+import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { format } from 'date-fns';
-import { RecordVitalsDialog } from '../../../../components/nurse/RecordVitalsDialog';
-import { AddCareNoteDialog } from '../../../../components/nurse/AddCareNoteDialog';
-import type { PatientResponseDto } from '../../../../application/dtos/PatientResponseDto';
+import { RecordVitalsDialog } from '@/components/nurse/RecordVitalsDialog';
+import { AddCareNoteDialog } from '@/components/nurse/AddCareNoteDialog';
+import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 
-export default function NursePrePostOpPage() {
+function NursePrePostOpContent() {
   const { user, isAuthenticated } = useAuth();
   const searchParams = useSearchParams();
   const [preOpPatients, setPreOpPatients] = useState<AppointmentResponseDto[]>([]);
@@ -60,14 +60,18 @@ export default function NursePrePostOpPage() {
 
       if (preOpResponse.success && preOpResponse.data) {
         setPreOpPatients(preOpResponse.data);
-      } else {
+      } else if (!preOpResponse.success) {
         toast.error(preOpResponse.error || 'Failed to load pre-op patients');
+      } else {
+        toast.error('Failed to load pre-op patients');
       }
 
       if (postOpResponse.success && postOpResponse.data) {
         setPostOpPatients(postOpResponse.data);
-      } else {
+      } else if (!postOpResponse.success) {
         toast.error(postOpResponse.error || 'Failed to load post-op patients');
+      } else {
+        toast.error('Failed to load post-op patients');
       }
     } catch (error) {
       toast.error('An error occurred while loading pre/post-op data');
@@ -301,5 +305,20 @@ export default function NursePrePostOpPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function NursePrePostOpPage() {
+  return (
+    <Suspense fallback={
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Pre/Post-op Care</h1>
+          <p className="mt-2 text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    }>
+      <NursePrePostOpContent />
+    </Suspense>
   );
 }

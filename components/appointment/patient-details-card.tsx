@@ -1,7 +1,7 @@
 import { Patient } from "@prisma/client";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import Image from "next/image";
-import { calculateAge } from "@/utils";
+import { calculateAge } from "@/lib/utils";
 import { Calendar, Home, Info, Mail, Phone } from "lucide-react";
 import { format } from "date-fns";
 

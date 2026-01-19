@@ -23,7 +23,7 @@ import { SystemTimeService } from '@/infrastructure/services/SystemTimeService';
 import db from '@/lib/db';
 import { ReviewConsultationRequestDto } from '@/application/dtos/ReviewConsultationRequestDto';
 import { DomainException } from '@/domain/exceptions/DomainException';
-import { JwtMiddleware } from '@/controllers/middleware/JwtMiddleware';
+import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import { ConsultationRequestStatus } from '@/domain/enums/ConsultationRequestStatus';
 
@@ -52,9 +52,11 @@ const reviewConsultationRequestUseCase = new ReviewConsultationRequestUseCase(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
+    const params = await context.params;
+    
     // 1. Authenticate request
     const authResult = await JwtMiddleware.authenticate(request);
     if (!authResult.success || !authResult.user) {
@@ -149,14 +151,14 @@ export async function POST(
     const dto: ReviewConsultationRequestDto = {
       appointmentId,
       action: body.action,
-      reviewerId: userId,
+      reviewedBy: userId,
       reviewNotes: body.reviewNotes,
       proposedDate,
       proposedTime: body.proposedTime,
     };
 
     // 9. Execute review consultation request use case
-    const response = await reviewConsultationRequestUseCase.execute(dto);
+    const response = await reviewConsultationRequestUseCase.execute(dto, userId);
 
     // 10. Return success response
     return NextResponse.json(

@@ -1,4 +1,4 @@
-import { getRole } from "@/utils/roles";
+import { getRole } from "@/lib/utils/roles";
 import {
   Bell,
   LayoutDashboard,

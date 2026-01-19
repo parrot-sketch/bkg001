@@ -7,7 +7,7 @@ import {
   PatientBillSchema,
   PaymentSchema,
 } from "@/lib/schema";
-import { checkRole } from "@/utils/roles";
+import { checkRole } from "@/lib/utils/roles";
 
 export const addDiagnosis = async (
   data: DiagnosisFormData,
@@ -19,7 +19,7 @@ export const addDiagnosis = async (
     let medicalRecord = null;
 
     if (!validatedData.medical_id) {
-      medicalRecord = await db.medicalRecords.create({
+      medicalRecord = await db.medicalRecord.create({
         data: {
           patient_id: validatedData.patient_id,
           doctor_id: validatedData.doctor_id,
@@ -31,8 +31,14 @@ export const addDiagnosis = async (
     const med_id = validatedData.medical_id || medicalRecord?.id;
     await db.diagnosis.create({
       data: {
-        ...validatedData,
-        medical_id: Number(med_id),
+        patient_id: validatedData.patient_id,
+        doctor_id: validatedData.doctor_id,
+        medical_record_id: Number(med_id),
+        symptoms: validatedData.symptoms,
+        diagnosis: validatedData.diagnosis,
+        notes: validatedData.notes,
+        prescribed_medications: validatedData.prescribed_medications,
+        follow_up_plan: validatedData.follow_up_plan,
       },
     });
 
@@ -72,15 +78,11 @@ export async function addNewBill(data: any) {
         select: {
           id: true,
           patient_id: true,
-          bills: {
-            where: {
-              appointment_id: Number(data?.appointment_id),
-            },
-          },
+          payments: true,
         },
       });
 
-      if (!info?.bills?.length) {
+      if (!info?.payments?.length) {
         bill_info = await db.payment.create({
           data: {
             appointment_id: Number(data?.appointment_id),
@@ -93,7 +95,7 @@ export async function addNewBill(data: any) {
           },
         });
       } else {
-        bill_info = info?.bills[0];
+        bill_info = info?.payments[0];
       }
     } else {
       bill_info = {
@@ -101,9 +103,9 @@ export async function addNewBill(data: any) {
       };
     }
 
-    await db.patientBills.create({
+    await db.patientBill.create({
       data: {
-        bill_id: Number(bill_info?.id),
+        payment_id: Number(bill_info?.id),
         service_id: Number(validatedData?.service_id),
         service_date: new Date(validatedData?.service_date!),
         quantity: Number(validatedData?.quantity),

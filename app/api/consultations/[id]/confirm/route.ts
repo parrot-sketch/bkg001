@@ -23,7 +23,7 @@ import { SystemTimeService } from '@/infrastructure/services/SystemTimeService';
 import db from '@/lib/db';
 import { ConfirmConsultationDto } from '@/application/dtos/ConfirmConsultationDto';
 import { DomainException } from '@/domain/exceptions/DomainException';
-import { JwtMiddleware } from '@/controllers/middleware/JwtMiddleware';
+import { JwtMiddleware } from '@/lib/auth/middleware';
 
 // Initialize dependencies (singleton pattern)
 const appointmentRepository = new PrismaAppointmentRepository(db);
@@ -50,9 +50,11 @@ const confirmConsultationUseCase = new ConfirmConsultationUseCase(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
+    const params = await context.params;
+    
     // 1. Authenticate request
     const authResult = await JwtMiddleware.authenticate(request);
     if (!authResult.success || !authResult.user) {
@@ -79,11 +81,24 @@ export async function POST(
       );
     }
 
-    // 3. Get patient ID from authenticated user
-    // Note: In a full implementation, we'd map userId to patientId
-    // For now, we'll use userId as patientId (assuming user ID is patient ID)
-    // TODO: Add user-to-patient mapping if user ID != patient ID
-    const patientId = userId;
+    // 3. Resolve Patient ID from User ID
+    // Patient records are linked to User accounts via user_id field
+    const patient = await db.patient.findUnique({
+      where: { user_id: userId },
+      select: { id: true },
+    });
+
+    if (!patient) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Patient profile not found. Please complete your profile first.',
+        },
+        { status: 404 }
+      );
+    }
+
+    const patientId = patient.id;
 
     // 4. Build DTO
     const dto: ConfirmConsultationDto = {
@@ -92,7 +107,7 @@ export async function POST(
     };
 
     // 5. Execute confirm consultation use case
-    const response = await confirmConsultationUseCase.execute(dto);
+    const response = await confirmConsultationUseCase.execute(dto, userId);
 
     // 6. Return success response
     return NextResponse.json(

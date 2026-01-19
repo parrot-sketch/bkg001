@@ -17,7 +17,7 @@ import { Button } from "../ui/button";
 import { Plus } from "lucide-react";
 import { Form } from "../ui/form";
 import { CustomInput, SwitchInput } from "../custom-input";
-import { SPECIALIZATION } from "@/utils/seetings";
+import { SPECIALIZATION } from "@/lib/utils/settings";
 import { Label } from "../ui/label";
 import { toast } from "sonner";
 import { createNewDoctor, createNewStaff } from "@/app/actions/admin";

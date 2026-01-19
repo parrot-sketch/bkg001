@@ -89,13 +89,9 @@ export class SubmitConsultationRequestUseCase {
       });
     }
 
-    // Step 3: Validate patient is submitting their own request (security check)
-    if (dto.patientId !== userId) {
-      throw new DomainException('Patients can only submit consultation requests for themselves', {
-        patientId: dto.patientId,
-        userId,
-      });
-    }
+    // Step 3: Security check is handled at API level
+    // The API endpoint ensures that patients can only submit requests for themselves
+    // by resolving Patient ID from User ID before calling this use case
 
     // Step 4: Determine appointment date (use preferred date or default to today + 1 day)
     const now = this.timeService.now();
@@ -115,14 +111,16 @@ export class SubmitConsultationRequestUseCase {
       .filter(Boolean)
       .join('\n');
 
-    // Step 7: Validate doctor ID (required for appointment creation)
-    // Note: For consultation requests without a doctor, we need a placeholder
-    // In the future, we could allow null doctor_id for consultation requests, but for now it's required
+    // Step 7: Validate doctor ID is provided
+    // Note: The API route should have assigned a default doctor if none was provided
+    // This validation ensures we always have a doctor ID for appointment creation
     if (!dto.doctorId || dto.doctorId.trim().length === 0) {
-      throw new DomainException('Doctor ID is required for consultation request. Please select a doctor or service provider.', {
+      throw new DomainException('Doctor ID is required. Please select a surgeon or our team will assign one for you.', {
         patientId: dto.patientId,
       });
     }
+    
+    const doctorId = dto.doctorId;
 
     // Step 8: Create appointment domain entity
     // Use PENDING status for appointment (not yet scheduled)
@@ -130,7 +128,7 @@ export class SubmitConsultationRequestUseCase {
     const appointment = ApplicationAppointmentMapper.fromScheduleDto(
       {
         patientId: dto.patientId,
-        doctorId: dto.doctorId,
+        doctorId: doctorId,
         appointmentDate,
         time: appointmentTime,
         type: 'Consultation Request',

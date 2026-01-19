@@ -7,10 +7,10 @@
  */
 
 import { useState, useEffect } from 'react';
-import { adminApi } from '../../lib/api/admin';
-import { Button } from '../../ui/button';
-import { Input } from '../../ui/input';
-import { Label } from '../../ui/label';
+import { adminApi } from '@/lib/api/admin';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -18,11 +18,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '../../ui/dialog';
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import type { UserResponseDto } from '../../application/dtos/UserResponseDto';
-import type { RegisterUserDto } from '../../application/dtos/RegisterUserDto';
-import { Role } from '../../domain/enums/Role';
+import type { UserResponseDto } from '@/application/dtos/UserResponseDto';
+import type { RegisterUserDto } from '@/application/dtos/RegisterUserDto';
+import { Role } from '@/domain/enums/Role';
 
 interface UpdateStaffDialogProps {
   open: boolean;
@@ -91,8 +91,10 @@ export function UpdateStaffDialog({
       if (response.success && response.data) {
         toast.success('Staff member updated successfully');
         onSuccess();
-      } else {
+      } else if (!response.success) {
         toast.error(response.error || 'Failed to update staff member');
+      } else {
+        toast.error('Failed to update staff member');
       }
     } catch (error) {
       toast.error('An error occurred while updating staff member');

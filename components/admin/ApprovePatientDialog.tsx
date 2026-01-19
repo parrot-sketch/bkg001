@@ -7,10 +7,10 @@
  */
 
 import { useState } from 'react';
-import { adminApi } from '../../lib/api/admin';
-import { Button } from '../../ui/button';
-import { Label } from '../../ui/label';
-import { Textarea } from '../../ui/textarea';
+import { adminApi } from '@/lib/api/admin';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -18,9 +18,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '../../ui/dialog';
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import type { PatientResponseDto } from '../../application/dtos/PatientResponseDto';
+import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 
 interface ApprovePatientDialogProps {
   open: boolean;
@@ -56,8 +56,10 @@ export function ApprovePatientDialog({
         toast.success('Patient approved successfully');
         onSuccess();
         setNotes('');
-      } else {
+      } else if (!response.success) {
         toast.error(response.error || 'Failed to approve patient');
+      } else {
+        toast.error('Failed to approve patient');
       }
     } catch (error) {
       toast.error('An error occurred while approving patient');

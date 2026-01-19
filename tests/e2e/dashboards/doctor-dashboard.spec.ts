@@ -9,7 +9,8 @@
  * - Patient profile viewing
  */
 
-import { test, expect } from '../fixtures/auth.fixture';
+import { test } from '../fixtures/auth.fixture';
+import { expect } from '@playwright/test';
 import {
   waitForToast,
   clickButtonByText,

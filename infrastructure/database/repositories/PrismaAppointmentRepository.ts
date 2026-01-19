@@ -1,5 +1,6 @@
 import { IAppointmentRepository } from '../../../domain/interfaces/repositories/IAppointmentRepository';
 import { Appointment } from '../../../domain/entities/Appointment';
+import { AppointmentStatus } from '../../../domain/enums/AppointmentStatus';
 import { AppointmentMapper } from '../../mappers/AppointmentMapper';
 import { ConsultationRequestFields, toPrismaCreateConsultationRequestFields, toPrismaConsultationRequestFields, extractConsultationRequestFields } from '../../mappers/ConsultationRequestMapper';
 import { PrismaClient, Prisma } from '@prisma/client';
@@ -74,20 +75,93 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
    * Finds all appointments for a specific doctor
    * 
    * @param doctorId - The doctor's unique identifier
+   * @param filters - Optional filters for status, date range, etc.
    * @returns Promise resolving to an array of Appointment entities
    *          Returns empty array if no appointments found
    */
-  async findByDoctor(doctorId: string): Promise<Appointment[]> {
+  async findByDoctor(
+    doctorId: string,
+    filters?: {
+      status?: AppointmentStatus;
+      startDate?: Date;
+      endDate?: Date;
+    }
+  ): Promise<Appointment[]> {
     try {
+      const where: Prisma.AppointmentWhereInput = {
+        doctor_id: doctorId,
+      };
+
+      if (filters?.status) {
+        where.status = filters.status as any;
+      }
+
+      if (filters?.startDate || filters?.endDate) {
+        where.appointment_date = {};
+        if (filters.startDate) {
+          where.appointment_date.gte = filters.startDate;
+        }
+        if (filters.endDate) {
+          where.appointment_date.lte = filters.endDate;
+        }
+      }
+
       const prismaAppointments = await this.prisma.appointment.findMany({
-        where: { doctor_id: doctorId },
+        where,
         orderBy: { appointment_date: 'desc' },
       });
 
       return prismaAppointments.map((appointment) => AppointmentMapper.fromPrisma(appointment));
     } catch (error) {
       // Wrap Prisma errors in a more generic error
-      throw new Error(`Failed to find appointments for doctor: ${doctorId}. ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to find appointments for doctor: ${doctorId}. ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  /**
+   * Finds appointments that are potential no-shows
+   * 
+   * Business Rules:
+   * - Appointment time must have passed
+   * - Must be at least windowMinutes after appointment time
+   * - Patient must not be checked in
+   * - Appointment must not already be marked as no-show
+   * - Appointment must be in PENDING, SCHEDULED, or CONFIRMED status
+   * 
+   * @param now - Current date/time
+   * @param windowMinutes - Minutes after appointment time to consider for no-show detection
+   * @returns Promise resolving to an array of Appointment entities that are potential no-shows
+   */
+  async findPotentialNoShows(now: Date, windowMinutes: number): Promise<Appointment[]> {
+    try {
+      const cutoffTime = new Date(now.getTime() - windowMinutes * 60 * 1000);
+
+      const prismaAppointments = await this.prisma.appointment.findMany({
+        where: {
+          // Appointment time has passed (at least windowMinutes ago)
+          appointment_date: {
+            lte: cutoffTime,
+          },
+          // Not checked in
+          checked_in_at: null,
+          // Not already marked as no-show
+          no_show: false,
+          // Status allows no-show detection
+          status: {
+            in: [AppointmentStatus.PENDING, AppointmentStatus.SCHEDULED] as any,
+          },
+        } as any,
+        orderBy: { appointment_date: 'asc' },
+      });
+
+      return prismaAppointments.map((appointment) => AppointmentMapper.fromPrisma(appointment));
+    } catch (error) {
+      // Wrap Prisma errors in a more generic error
+      throw new Error(
+        `Failed to find potential no-shows. ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 

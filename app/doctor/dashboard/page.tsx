@@ -1,14 +1,14 @@
 'use client';
 
 /**
- * Doctor Dashboard Overview
+ * Surgeon Dashboard
  * 
- * Main dashboard page showing:
- * - Welcome message
- * - Quick stats (appointments, consultations, patients)
- * - Today's schedule
- * - Upcoming appointments
- * - Pending check-ins
+ * Clean, minimal view showing only:
+ * - Today's confirmed sessions
+ * - Upcoming confirmed sessions
+ * - Patient notes and procedure information
+ * 
+ * No noise. No rejected inquiries. No drafts. No pending items.
  */
 
 import { useEffect, useState } from 'react';
@@ -23,6 +23,8 @@ import type { AppointmentResponseDto } from '@/application/dtos/AppointmentRespo
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { format, isToday, startOfDay, endOfDay } from 'date-fns';
 import { AppointmentCard } from '@/components/patient/AppointmentCard';
+import { TheatreScheduleView } from '@/components/doctor/TheatreScheduleView';
+import { PostOpDashboard } from '@/components/doctor/PostOpDashboard';
 
 export default function DoctorDashboardPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -46,19 +48,31 @@ export default function DoctorDashboardPage() {
         doctorApi.getUpcomingAppointments(user.id),
       ]);
 
+      // Filter to only show CONFIRMED and SCHEDULED sessions
+      // Surgeon never sees SUBMITTED, PENDING_REVIEW, NEEDS_MORE_INFO
       if (todayResponse.success && todayResponse.data) {
-        setTodayAppointments(todayResponse.data);
+        const confirmedToday = todayResponse.data.filter(
+          (apt) => apt.status === AppointmentStatus.SCHEDULED || apt.status === AppointmentStatus.CONFIRMED
+        );
+        setTodayAppointments(confirmedToday);
+      } else if (!todayResponse.success) {
+        toast.error(todayResponse.error || 'Failed to load today\'s sessions');
       } else {
-        toast.error(todayResponse.error || 'Failed to load today\'s appointments');
+        toast.error('Failed to load today\'s sessions');
       }
 
       if (upcomingResponse.success && upcomingResponse.data) {
-        setUpcomingAppointments(upcomingResponse.data);
+        const confirmedUpcoming = upcomingResponse.data.filter(
+          (apt) => apt.status === AppointmentStatus.SCHEDULED || apt.status === AppointmentStatus.CONFIRMED
+        );
+        setUpcomingAppointments(confirmedUpcoming);
+      } else if (!upcomingResponse.success) {
+        toast.error(upcomingResponse.error || 'Failed to load upcoming sessions');
       } else {
-        toast.error(upcomingResponse.error || 'Failed to load upcoming appointments');
+        toast.error('Failed to load upcoming sessions');
       }
     } catch (error) {
-      toast.error('An error occurred while loading dashboard data');
+      toast.error('An error occurred while loading schedule');
       console.error('Error loading dashboard data:', error);
     } finally {
       setLoading(false);
@@ -89,68 +103,53 @@ export default function DoctorDashboardPage() {
     );
   }
 
-  const pendingCheckIns = todayAppointments.filter(
-    (apt) => apt.status === AppointmentStatus.PENDING || apt.status === AppointmentStatus.SCHEDULED,
-  ).length;
-
   const upcomingCount = upcomingAppointments.length;
   const todayCount = todayAppointments.length;
 
   return (
-    <div className="space-y-8">
-      {/* Welcome Section */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">
-          Welcome, Dr. {user.firstName || user.email}
+    <div className="space-y-8 pb-8">
+      {/* Welcome Section - Minimal and calm */}
+      <div className="space-y-2">
+        <h1 className="text-3xl font-semibold text-foreground tracking-tight">
+          {user.firstName ? `Dr. ${user.firstName}` : user.email}
         </h1>
-        <p className="mt-2 text-muted-foreground">
-          Here's an overview of your schedule and appointments
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Your schedule for today and upcoming sessions
         </p>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Appointments</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+      {/* Quick Stats - Clean and minimal */}
+      <div className="grid gap-5 md:grid-cols-3">
+        <Card className="border-gray-200 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-medium text-slate-700">Today's Sessions</CardTitle>
+            <Calendar className="h-4 w-4 text-gray-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{todayCount}</div>
-            <p className="text-xs text-muted-foreground">Scheduled for today</p>
+            <div className="text-3xl font-semibold text-slate-900 mb-1">{todayCount}</div>
+            <p className="text-xs text-gray-500">Confirmed sessions</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Check-ins</CardTitle>
-            <Bell className="h-4 w-4 text-muted-foreground" />
+        <Card className="border-gray-200 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-medium text-slate-700">Upcoming</CardTitle>
+            <Clock className="h-4 w-4 text-gray-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{pendingCheckIns}</div>
-            <p className="text-xs text-muted-foreground">Awaiting patient arrival</p>
+            <div className="text-3xl font-semibold text-slate-900 mb-1">{upcomingCount}</div>
+            <p className="text-xs text-gray-500">Future sessions</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Upcoming</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{upcomingCount}</div>
-            <p className="text-xs text-muted-foreground">Future appointments</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Patients</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+        <Card className="border-gray-200 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <CardTitle className="text-sm font-medium text-slate-700">Clients</CardTitle>
+            <Users className="h-4 w-4 text-gray-400" />
           </CardHeader>
           <CardContent>
             <Link href="/doctor/patients">
-              <Button variant="ghost" size="sm" className="text-xs">
+              <Button variant="ghost" size="sm" className="text-xs -ml-2">
                 View All
               </Button>
             </Link>
@@ -163,8 +162,8 @@ export default function DoctorDashboardPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Today's Schedule</CardTitle>
-              <CardDescription>Your appointments for {format(new Date(), 'MMMM d, yyyy')}</CardDescription>
+              <CardTitle>Today's Sessions</CardTitle>
+              <CardDescription>Confirmed sessions for {format(new Date(), 'MMMM d, yyyy')}</CardDescription>
             </div>
             <Link href="/doctor/appointments">
               <Button variant="outline" size="sm">
@@ -180,9 +179,12 @@ export default function DoctorDashboardPage() {
               <p className="mt-4 text-sm text-muted-foreground">Loading schedule...</p>
             </div>
           ) : todayAppointments.length === 0 ? (
-            <div className="text-center py-8">
-              <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-sm text-muted-foreground">No appointments scheduled for today</p>
+            <div className="text-center py-12">
+              <div className="h-16 w-16 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-4">
+                <Calendar className="h-8 w-8 text-gray-400" />
+              </div>
+              <p className="text-sm font-medium text-gray-600 mb-1">No sessions scheduled for today</p>
+              <p className="text-xs text-gray-500">Your schedule is clear</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -194,13 +196,13 @@ export default function DoctorDashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Upcoming Appointments */}
+      {/* Upcoming Sessions */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Upcoming Appointments</CardTitle>
-              <CardDescription>Your future scheduled appointments</CardDescription>
+              <CardTitle>Upcoming Sessions</CardTitle>
+              <CardDescription>Your confirmed future sessions</CardDescription>
             </div>
             <Link href="/doctor/appointments">
               <Button variant="outline" size="sm">
@@ -213,12 +215,15 @@ export default function DoctorDashboardPage() {
           {loading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-4 text-sm text-muted-foreground">Loading appointments...</p>
+              <p className="mt-4 text-sm text-muted-foreground">Loading sessions...</p>
             </div>
           ) : upcomingAppointments.length === 0 ? (
-            <div className="text-center py-8">
-              <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-sm text-muted-foreground">No upcoming appointments</p>
+            <div className="text-center py-12">
+              <div className="h-16 w-16 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-4">
+                <Clock className="h-8 w-8 text-gray-400" />
+              </div>
+              <p className="text-sm font-medium text-gray-600 mb-1">No upcoming sessions</p>
+              <p className="text-xs text-gray-500">Check back later for scheduled sessions</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -229,6 +234,22 @@ export default function DoctorDashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Theatre Schedule View - Surgeon-Centric */}
+      <TheatreScheduleView
+        cases={todayAppointments.map((apt) => ({
+          appointment: apt,
+          patientName: `Patient ${apt.patientId}`, // TODO: Fetch patient name from API
+          procedure: apt.type || 'Consultation',
+          // TODO: Fetch case plan data from API
+          casePlan: undefined,
+        }))}
+        loading={loading}
+      />
+
+      {/* Post-Op Monitoring Dashboard */}
+      {/* TODO: Replace with real data from API */}
+      <PostOpDashboard cases={[]} loading={false} />
     </div>
   );
 }

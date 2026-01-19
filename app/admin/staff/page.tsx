@@ -11,18 +11,18 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '../../../../hooks/patient/useAuth';
-import { adminApi } from '../../../../lib/api/admin';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../components/ui/card';
-import { Button } from '../../../../components/ui/button';
-import { Input } from '../../../../components/ui/input';
+import { useAuth } from '@/hooks/patient/useAuth';
+import { adminApi } from '@/lib/api/admin';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { UserCheck, Search, Plus, UserX, UserCheck2 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { UserResponseDto } from '../../../../application/dtos/UserResponseDto';
-import { Role } from '../../domain/enums/Role';
-import { Status } from '../../domain/enums/Status';
-import { CreateStaffDialog } from '../../../../components/admin/CreateStaffDialog';
-import { UpdateStaffDialog } from '../../../../components/admin/UpdateStaffDialog';
+import type { UserResponseDto } from '@/application/dtos/UserResponseDto';
+import { Role } from '@/domain/enums/Role';
+import { Status } from '@/domain/enums/Status';
+import { CreateStaffDialog } from '@/components/admin/CreateStaffDialog';
+import { UpdateStaffDialog } from '@/components/admin/UpdateStaffDialog';
 
 export default function AdminStaffPage() {
   const { user, isAuthenticated } = useAuth();
@@ -72,8 +72,10 @@ export default function AdminStaffPage() {
       if (response.success && response.data) {
         setStaff(response.data);
         setFilteredStaff(response.data);
-      } else {
+      } else if (!response.success) {
         toast.error(response.error || 'Failed to load staff');
+      } else {
+        toast.error('Failed to load staff');
       }
     } catch (error) {
       toast.error('An error occurred while loading staff');
@@ -110,8 +112,10 @@ export default function AdminStaffPage() {
       if (response.success && response.data) {
         toast.success(`Staff member ${action}d successfully`);
         loadStaff();
-      } else {
+      } else if (!response.success) {
         toast.error(response.error || `Failed to ${action} staff member`);
+      } else {
+        toast.error(`Failed to ${action} staff member`);
       }
     } catch (error) {
       toast.error(`An error occurred while ${action}ing staff member`);

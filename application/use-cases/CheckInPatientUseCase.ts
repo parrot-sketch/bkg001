@@ -1,10 +1,12 @@
 import { IAppointmentRepository } from '../../domain/interfaces/repositories/IAppointmentRepository';
 import { IAuditService } from '../../domain/interfaces/services/IAuditService';
+import { ITimeService } from '../../domain/interfaces/services/ITimeService';
 import { AppointmentStatus } from '../../domain/enums/AppointmentStatus';
 import { CheckInPatientDto } from '../dtos/CheckInPatientDto';
 import { AppointmentResponseDto } from '../dtos/AppointmentResponseDto';
 import { AppointmentMapper as ApplicationAppointmentMapper } from '../mappers/AppointmentMapper';
 import { DomainException } from '../../domain/exceptions/DomainException';
+import db from '@/lib/db';
 
 /**
  * Use Case: CheckInPatientUseCase
@@ -33,12 +35,16 @@ export class CheckInPatientUseCase {
   constructor(
     private readonly appointmentRepository: IAppointmentRepository,
     private readonly auditService: IAuditService,
+    private readonly timeService: ITimeService,
   ) {
     if (!appointmentRepository) {
       throw new Error('AppointmentRepository is required');
     }
     if (!auditService) {
       throw new Error('AuditService is required');
+    }
+    if (!timeService) {
+      throw new Error('TimeService is required');
     }
   }
 
@@ -74,7 +80,18 @@ export class CheckInPatientUseCase {
       });
     }
 
-    // Step 3: Update appointment status to SCHEDULED (patient has checked in)
+    // Step 3: Calculate if patient is late
+    const now = this.timeService.now();
+    const appointmentDateTime = new Date(appointment.getAppointmentDate());
+    const [hours, minutes] = appointment.getTime().split(':').map(Number);
+    appointmentDateTime.setHours(hours, minutes, 0, 0);
+    
+    const isLate = now > appointmentDateTime;
+    const lateByMinutes = isLate 
+      ? Math.floor((now.getTime() - appointmentDateTime.getTime()) / (1000 * 60))
+      : null;
+
+    // Step 4: Update appointment status to SCHEDULED (patient has checked in)
     // If already SCHEDULED, no change needed (idempotent)
     let updatedAppointment = appointment;
     if (appointment.getStatus() === AppointmentStatus.PENDING) {
@@ -83,19 +100,55 @@ export class CheckInPatientUseCase {
         AppointmentStatus.SCHEDULED,
       );
 
-      // Step 4: Save updated appointment
+      // Step 5: Save updated appointment status
       await this.appointmentRepository.update(updatedAppointment);
 
-      // Step 5: Record audit event
+      // Step 6: Update check-in tracking fields directly via Prisma
+      // (These fields are not part of domain entity but needed for workflow)
+      await db.appointment.update({
+        where: { id: dto.appointmentId },
+        data: {
+          checked_in_at: now,
+          checked_in_by: dto.userId,
+          late_arrival: isLate,
+          late_by_minutes: lateByMinutes,
+          // Clear no-show flags if patient eventually checked in
+          no_show: false,
+          no_show_at: null,
+        } as any, // Type assertion needed - Prisma types may not be fully up to date
+      });
+
+      // Step 7: Record audit event
+      const lateMessage = isLate ? ` (${lateByMinutes} minutes late)` : '';
       await this.auditService.recordEvent({
         userId: dto.userId,
         recordId: updatedAppointment.getId().toString(),
         action: 'UPDATE',
         model: 'Appointment',
-        details: `Patient checked in for appointment ${dto.appointmentId}. Status changed from PENDING to SCHEDULED.`,
+        details: `Patient checked in for appointment ${dto.appointmentId}${lateMessage}. Status changed from PENDING to SCHEDULED.`,
       });
     } else {
-      // Already SCHEDULED, just record audit event
+      // Already SCHEDULED, but update check-in timestamp if not already set
+      const prismaAppointment = await db.appointment.findUnique({
+        where: { id: dto.appointmentId },
+        select: { checked_in_at: true },
+      });
+
+      if (!prismaAppointment?.checked_in_at) {
+        await db.appointment.update({
+          where: { id: dto.appointmentId },
+          data: {
+            checked_in_at: now,
+            checked_in_by: dto.userId,
+            late_arrival: isLate,
+            late_by_minutes: lateByMinutes,
+            no_show: false,
+            no_show_at: null,
+          } as any, // Type assertion needed - Prisma types may not be fully up to date
+        });
+      }
+
+      // Record audit event
       await this.auditService.recordEvent({
         userId: dto.userId,
         recordId: appointment.getId().toString(),

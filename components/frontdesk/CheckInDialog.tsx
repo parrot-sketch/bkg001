@@ -8,8 +8,8 @@
  */
 
 import { useState } from 'react';
-import { doctorApi } from '../../lib/api/doctor';
-import { Button } from '../../ui/button';
+import { doctorApi } from '@/lib/api/doctor';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -17,9 +17,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '../../ui/dialog';
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import type { AppointmentResponseDto } from '../../application/dtos/AppointmentResponseDto';
+import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { format } from 'date-fns';
 
 interface CheckInDialogProps {

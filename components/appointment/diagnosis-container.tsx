@@ -1,10 +1,10 @@
 import db from "@/lib/db";
-import { auth } from "@clerk/nextjs/server";
+import { getCurrentUser } from "@/lib/auth/server-auth";
 import { redirect } from "next/navigation";
 import { NoDataFound } from "../no-data-found";
 import { AddDiagnosis } from "../dialogs/add-diagnosis";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { checkRole } from "@/utils/roles";
+import { checkRole } from "@/lib/utils/roles";
 import { record } from "zod";
 import { MedicalHistoryCard } from "./medical-history-card";
 
@@ -17,14 +17,15 @@ export const DiagnosisContainer = async ({
   doctorId: string;
   id: string;
 }) => {
-  const { userId } = await auth();
+  const user = await getCurrentUser();
+  const userId = user?.userId;
 
-  if (!userId) redirect("/sign-in");
+  if (!userId) redirect("/patient/login");
 
-  const data = await db.medicalRecords.findFirst({
+  const data = await db.medicalRecord.findFirst({
     where: { appointment_id: Number(id) },
     include: {
-      diagnosis: {
+      diagnoses: {
         include: { doctor: true },
         orderBy: { created_at: "desc" },
       },
@@ -32,7 +33,7 @@ export const DiagnosisContainer = async ({
     orderBy: { created_at: "desc" },
   });
 
-  const diagnosis = data?.diagnosis || null;
+  const diagnosis = data?.diagnoses || null;
   const isPatient = await checkRole("PATIENT");
 
   return (
@@ -66,7 +67,7 @@ export const DiagnosisContainer = async ({
             </CardHeader>
 
             <CardContent className="space-y-8">
-              {diagnosis?.map((record, id) => (
+              {diagnosis?.map((record: any, id: number) => (
                 <div key={record.id}>
                   <MedicalHistoryCard record={record} index={id} />
                 </div>

@@ -1,12 +1,13 @@
 "use client";
 
-import { useAuth, UserButton } from "@clerk/nextjs";
+import { useAuth } from "@/hooks/patient/useAuth";
+// TODO: Replace UserButton with JWT-based user menu component
 import { Bell } from "lucide-react";
 import { usePathname } from "next/navigation";
 import React from "react";
 
 export const Navbar = () => {
-  const user = useAuth();
+  const { user } = useAuth();
 
   function formatPathName(): string {
     const pathname = usePathname();
@@ -39,7 +40,7 @@ export const Navbar = () => {
           </p>
         </div>
 
-        {user?.userId && <UserButton />}
+        {user && <span className="text-sm">{user.firstName} {user.lastName}</span>}
       </div>
     </div>
   );

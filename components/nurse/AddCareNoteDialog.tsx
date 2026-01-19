@@ -8,10 +8,10 @@
  */
 
 import { useState } from 'react';
-import { nurseApi } from '../../lib/api/nurse';
-import { Button } from '../../ui/button';
-import { Label } from '../../ui/label';
-import { Textarea } from '../../ui/textarea';
+import { nurseApi } from '@/lib/api/nurse';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -19,11 +19,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '../../ui/dialog';
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import type { PatientResponseDto } from '../../application/dtos/PatientResponseDto';
-import type { AppointmentResponseDto } from '../../application/dtos/AppointmentResponseDto';
-import type { AddCareNoteDto } from '../../lib/api/nurse';
+import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
+import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import type { AddCareNoteDto } from '@/lib/api/nurse';
 
 interface AddCareNoteDialogProps {
   open: boolean;

@@ -1,6 +1,6 @@
 import db from "@/lib/db";
-import { auth } from "@clerk/nextjs/server";
-import { daysOfWeek } from "..";
+import { getCurrentUser } from "@/lib/auth/server-auth";
+import { daysOfWeek } from "@/lib/utils";
 import { processAppointments } from "./patient";
 
 export async function getDoctors() {
@@ -15,7 +15,8 @@ export async function getDoctors() {
 }
 export async function getDoctorDashboardStats() {
   try {
-    const { userId } = await auth();
+    const user = await getCurrentUser();
+    const userId = user?.userId;
 
     const todayDate = new Date().getDay();
     const today = daysOfWeek[todayDate];
@@ -23,7 +24,7 @@ export async function getDoctorDashboardStats() {
     const [totalPatient, totalNurses, appointments, doctors] =
       await Promise.all([
         db.patient.count(),
-        db.staff.count({ where: { role: "NURSE" } }),
+        db.user.count({ where: { role: "NURSE" } }),
         db.appointment.findMany({
           where: { doctor_id: userId!, appointment_date: { lte: new Date() } },
           include: {
@@ -138,7 +139,7 @@ export async function getDoctorById(id: string) {
 export async function getRatingById(id: string) {
   try {
     const data = await db.rating.findMany({
-      where: { staff_id: id },
+      where: { doctor_id: id },
       include: {
         patient: { select: { last_name: true, first_name: true } },
       },

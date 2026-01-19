@@ -6,7 +6,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { JwtMiddleware } from '@/controllers/middleware/JwtMiddleware';
+import { JwtMiddleware } from '@/lib/auth/middleware';
 import { JwtAuthService } from '@/infrastructure/auth/JwtAuthService';
 import { PrismaUserRepository } from '@/infrastructure/database/repositories/PrismaUserRepository';
 import db from '@/lib/db';

@@ -14,6 +14,7 @@ export interface StoredUser {
   role: string;
   firstName?: string;
   lastName?: string;
+  phone?: string;
 }
 
 /**

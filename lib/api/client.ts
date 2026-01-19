@@ -79,7 +79,28 @@ class ApiClient {
         headers,
       });
 
-      const data = await response.json();
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      let data: any;
+      
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          // If JSON parsing fails, return error
+          return {
+            success: false,
+            error: `Invalid JSON response: ${response.status} ${response.statusText}`,
+          };
+        }
+      } else {
+        // Non-JSON response (e.g., 404 HTML page)
+        const text = await response.text();
+        return {
+          success: false,
+          error: `Unexpected response format: ${response.status} ${response.statusText}`,
+        };
+      }
 
       // Handle 401 Unauthorized - try to refresh token and retry
       if (response.status === 401 && this.refreshTokenFn && !endpoint.includes('/auth/refresh')) {
@@ -119,7 +140,26 @@ class ApiClient {
           },
         });
 
-        const retryData = await retryResponse.json();
+        // Check if retry response is JSON before parsing
+        const retryContentType = retryResponse.headers.get('content-type');
+        let retryData: any;
+        
+        if (retryContentType && retryContentType.includes('application/json')) {
+          try {
+            retryData = await retryResponse.json();
+          } catch (jsonError) {
+            return {
+              success: false,
+              error: `Invalid JSON response: ${retryResponse.status} ${retryResponse.statusText}`,
+            };
+          }
+        } else {
+          const text = await retryResponse.text();
+          return {
+            success: false,
+            error: `Unexpected response format: ${retryResponse.status} ${retryResponse.statusText}`,
+          };
+        }
 
         if (!retryResponse.ok) {
           return {

@@ -8,11 +8,13 @@ import SearchInput from "@/components/search-input";
 import { Table } from "@/components/tables/table";
 import { Button } from "@/components/ui/button";
 import { SearchParamsProps } from "@/types";
-import { checkRole } from "@/utils/roles";
-import { DATA_LIMIT } from "@/utils/seetings";
+import { checkRole } from "@/lib/utils/roles";
+import { DATA_LIMIT } from "@/lib/utils/settings";
 import { getAllStaff } from "@/utils/services/staff";
-import { Doctor, Staff } from "@prisma/client";
+import { Doctor } from "@prisma/client";
 import { format } from "date-fns";
+
+export const dynamic = 'force-dynamic';
 import { Users } from "lucide-react";
 import React from "react";
 
@@ -60,20 +62,20 @@ const StaffList = async (props: SearchParamsProps) => {
   if (!data) return null;
   const isAdmin = await checkRole("ADMIN");
 
-  const renderRow = (item: Staff) => (
+  const renderRow = (item: (typeof data)[0]) => (
     <tr
       key={item?.id}
       className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-slate-50"
     >
       <td className="flex items-center gap-4 p-4">
         <ProfileImage
-          url={item?.img!}
-          name={item?.name}
-          bgColor={item?.colorCode!}
+          url={undefined}
+          name={`${item?.first_name || ''} ${item?.last_name || ''}`.trim()}
+          bgColor={undefined}
           textClassName="text-black"
         />
         <div>
-          <h3 className="uppercase">{item?.name}</h3>
+          <h3 className="uppercase">{`${item?.first_name || ''} ${item?.last_name || ''}`.trim()}</h3>
           <span className="text-sm capitalize">{item?.phone}</span>
         </div>
       </td>

@@ -13,7 +13,7 @@ import { useAuth } from '@/hooks/patient/useAuth';
 import { patientApi } from '@/lib/api/patient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, Clock, FileText, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, FileText, AlertCircle, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
@@ -61,8 +61,10 @@ export default function PatientAppointmentsPage() {
 
       if (response.success && response.data) {
         setAppointments(response.data);
-      } else {
+      } else if (!response.success) {
         toast.error(response.error || 'Failed to load appointments');
+      } else {
+        toast.error('Failed to load appointments');
       }
     } catch (error) {
       toast.error('An error occurred while loading appointments');
@@ -94,11 +96,34 @@ export default function PatientAppointmentsPage() {
     setShowRespondDialog(true);
   };
 
-  const upcomingAppointments = appointments.filter(
-    (apt) =>
-      new Date(apt.appointmentDate) >= new Date() &&
-      (apt.status === AppointmentStatus.PENDING || apt.status === AppointmentStatus.SCHEDULED),
-  );
+  // Separate consultation inquiries from regular appointments
+  // Consultation inquiries get priority and are shown first
+  const consultationInquiries = appointments.filter((apt) => {
+    const hasConsultationStatus = apt.consultationRequestStatus !== undefined;
+    const isCancelledOrCompleted = 
+      apt.status === AppointmentStatus.CANCELLED || 
+      apt.status === AppointmentStatus.COMPLETED;
+    return hasConsultationStatus && !isCancelledOrCompleted;
+  });
+
+  // Regular upcoming appointments (without consultation status)
+  const regularUpcomingAppointments = appointments.filter((apt) => {
+    const isFuture = new Date(apt.appointmentDate) >= new Date();
+    const hasConsultationStatus = apt.consultationRequestStatus !== undefined;
+    const isActiveStatus = 
+      apt.status === AppointmentStatus.PENDING || 
+      apt.status === AppointmentStatus.SCHEDULED ||
+      apt.status === AppointmentStatus.CONFIRMED;
+    const isCancelledOrCompleted = 
+      apt.status === AppointmentStatus.CANCELLED || 
+      apt.status === AppointmentStatus.COMPLETED;
+    
+    // Include if: Future appointment with active status and no consultation status
+    return !hasConsultationStatus && isFuture && isActiveStatus && !isCancelledOrCompleted;
+  });
+
+  // Combine: inquiries first, then regular appointments
+  const upcomingAppointments = [...consultationInquiries, ...regularUpcomingAppointments];
 
   const pastAppointments = appointments.filter(
     (apt) =>
@@ -118,39 +143,32 @@ export default function PatientAppointmentsPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Appointments</h1>
-          <p className="mt-2 text-muted-foreground">Manage your appointments</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-semibold text-foreground tracking-tight">Your Inquiries</h1>
+          <p className="text-sm text-muted-foreground leading-relaxed">Track your consultation inquiries and sessions</p>
         </div>
         <ConsultationCTA variant="primary" />
       </div>
 
-      {/* Upcoming Appointments */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Upcoming Appointments</CardTitle>
-          <CardDescription>Your scheduled and pending appointments</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-4 text-sm text-muted-foreground">Loading...</p>
+      {/* Consultation Inquiries - Priority Section */}
+      {consultationInquiries.length > 0 && (
+        <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-primary/5 to-primary/10">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              <CardTitle className="text-xl">Consultation Inquiries</CardTitle>
+              <span className="ml-auto px-2 py-1 text-xs font-semibold bg-primary/20 text-primary rounded-full">
+                {consultationInquiries.length} {consultationInquiries.length === 1 ? 'inquiry' : 'inquiries'}
+              </span>
             </div>
-          ) : upcomingAppointments.length === 0 ? (
-            <div className="text-center py-8">
-              <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-sm text-muted-foreground">No upcoming appointments</p>
-              <div className="flex justify-center mt-4">
-                <ConsultationCTA variant="secondary" className="h-9 px-4 text-sm" />
-              </div>
-            </div>
-          ) : (
+            <CardDescription>Your consultation requests that need attention</CardDescription>
+          </CardHeader>
+          <CardContent>
             <div className="space-y-4">
-              {upcomingAppointments.map((appointment) => (
+              {consultationInquiries.map((appointment) => (
                 <PatientAppointmentCard
                   key={appointment.id}
                   appointment={appointment}
@@ -159,28 +177,70 @@ export default function PatientAppointmentsPage() {
                 />
               ))}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Regular Upcoming Sessions */}
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            {consultationInquiries.length > 0 ? 'Confirmed Sessions' : 'Upcoming Sessions'}
+          </CardTitle>
+          <CardDescription>
+            {consultationInquiries.length > 0 
+              ? 'Your confirmed and scheduled appointments'
+              : 'Your confirmed and scheduled sessions'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+                      {loading ? (
+                        <div className="text-center py-12">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                          <p className="text-sm text-muted-foreground">Loading sessions...</p>
+                        </div>
+                      ) : upcomingAppointments.length === 0 ? (
+                        <div className="text-center py-12">
+                          <div className="h-16 w-16 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-4">
+                            <Calendar className="h-8 w-8 text-gray-400" />
+                          </div>
+                          <p className="text-sm font-medium text-gray-600 mb-1">No upcoming sessions</p>
+                          <p className="text-xs text-gray-500 mb-6">Submit an inquiry to begin</p>
+                          <div className="flex justify-center">
+                            <ConsultationCTA variant="secondary" className="h-9 px-4 text-sm" />
+                          </div>
+                        </div>
+                      ) : (
+            <div className="space-y-4">
+              {regularUpcomingAppointments.map((appointment) => (
+                <AppointmentCard key={appointment.id} appointment={appointment} showDoctorInfo={true} />
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Past Appointments */}
+      {/* Session History */}
       <Card>
         <CardHeader>
-          <CardTitle>Appointment History</CardTitle>
-          <CardDescription>Your past appointments and consultations</CardDescription>
+          <CardTitle>Session History</CardTitle>
+          <CardDescription>Your completed sessions and consultations</CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-4 text-sm text-muted-foreground">Loading...</p>
-            </div>
-          ) : pastAppointments.length === 0 ? (
-            <div className="text-center py-8">
-              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-sm text-muted-foreground">No past appointments</p>
-            </div>
-          ) : (
+                      {loading ? (
+                        <div className="text-center py-12">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                          <p className="text-sm text-muted-foreground">Loading history...</p>
+                        </div>
+                      ) : pastAppointments.length === 0 ? (
+                        <div className="text-center py-12">
+                          <div className="h-16 w-16 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-4">
+                            <FileText className="h-8 w-8 text-gray-400" />
+                          </div>
+                          <p className="text-sm font-medium text-gray-600 mb-1">No completed sessions</p>
+                          <p className="text-xs text-gray-500">Your consultation history will appear here</p>
+                        </div>
+                      ) : (
             <div className="space-y-4">
               {pastAppointments.map((appointment) => (
                 <AppointmentCard key={appointment.id} appointment={appointment} showDoctorInfo={true} />
@@ -231,7 +291,8 @@ interface PatientAppointmentCardProps {
 function PatientAppointmentCard({ appointment, onConfirm, onRespond }: PatientAppointmentCardProps) {
   const consultationStatus = appointment.consultationRequestStatus;
   const needsAction = consultationStatus === ConsultationRequestStatus.NEEDS_MORE_INFO ||
-    consultationStatus === ConsultationRequestStatus.SCHEDULED;
+    consultationStatus === ConsultationRequestStatus.SCHEDULED ||
+    consultationStatus === ConsultationRequestStatus.APPROVED; // Show approved consultations too
 
   const getStatusColor = (status?: ConsultationRequestStatus) => {
     if (!status) return 'text-muted-foreground';
@@ -241,6 +302,8 @@ function PatientAppointmentCard({ appointment, onConfirm, onRespond }: PatientAp
         return 'text-yellow-600';
       case ConsultationRequestStatus.NEEDS_MORE_INFO:
         return 'text-orange-600';
+      case ConsultationRequestStatus.APPROVED:
+        return 'text-teal-600';
       case ConsultationRequestStatus.SCHEDULED:
         return 'text-blue-600';
       case ConsultationRequestStatus.CONFIRMED:
@@ -260,7 +323,7 @@ function PatientAppointmentCard({ appointment, onConfirm, onRespond }: PatientAp
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <AlertCircle className={`h-4 w-4 ${getStatusColor(consultationStatus)}`} />
-              <span className="text-sm font-medium">Consultation Status:</span>
+              <span className="text-sm font-medium">Inquiry Status:</span>
               <span className={`text-sm font-medium ${getStatusColor(consultationStatus)}`}>
                 {getConsultationRequestStatusLabel(consultationStatus)}
               </span>
@@ -280,8 +343,14 @@ function PatientAppointmentCard({ appointment, onConfirm, onRespond }: PatientAp
                   onClick={() => onRespond(appointment)}
                   className="w-full"
                 >
-                  Respond to Request
+                  Provide Clarification
                 </Button>
+              )}
+              {consultationStatus === ConsultationRequestStatus.APPROVED && (
+                <div className="text-xs text-muted-foreground p-2 bg-teal-50 rounded border border-teal-200">
+                  <p className="font-medium text-teal-800 mb-1">Accepted for Scheduling</p>
+                  <p className="text-teal-700">Our team will contact you shortly to schedule your session.</p>
+                </div>
               )}
               {consultationStatus === ConsultationRequestStatus.SCHEDULED && (
                 <Button
@@ -289,7 +358,7 @@ function PatientAppointmentCard({ appointment, onConfirm, onRespond }: PatientAp
                   onClick={() => onConfirm(appointment)}
                   className="w-full"
                 >
-                  Confirm Appointment
+                  Confirm Session
                 </Button>
               )}
             </div>

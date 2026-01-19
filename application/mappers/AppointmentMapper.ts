@@ -72,15 +72,14 @@ export class AppointmentMapper {
       reason: appointment.getReason(),
       createdAt: appointment.getCreatedAt(),
       updatedAt: appointment.getUpdatedAt(),
+      // Include consultation request fields if provided
+      ...(consultationRequestFields ? {
+        consultationRequestStatus: consultationRequestFields.consultationRequestStatus ?? undefined,
+        reviewedBy: consultationRequestFields.reviewedBy ?? undefined,
+        reviewedAt: consultationRequestFields.reviewedAt ?? undefined,
+        reviewNotes: consultationRequestFields.reviewNotes ?? undefined,
+      } : {}),
     };
-
-    // Include consultation request fields if provided
-    if (consultationRequestFields) {
-      dto.consultationRequestStatus = consultationRequestFields.consultationRequestStatus ?? undefined;
-      dto.reviewedBy = consultationRequestFields.reviewedBy ?? undefined;
-      dto.reviewedAt = consultationRequestFields.reviewedAt ?? undefined;
-      dto.reviewNotes = consultationRequestFields.reviewNotes ?? undefined;
-    }
 
     return dto;
   }

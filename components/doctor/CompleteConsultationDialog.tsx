@@ -8,7 +8,7 @@
  */
 
 import { useState } from 'react';
-import { doctorApi } from '../../lib/api/doctor';
+import { doctorApi } from '@/lib/api/doctor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,8 +22,17 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import type { AppointmentResponseDto } from '../../application/dtos/AppointmentResponseDto';
-import type { CompleteConsultationDto } from '../../application/dtos/CompleteConsultationDto';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { ConsultationOutcomeType } from '@/domain/enums/ConsultationOutcomeType';
+import { getConsultationOutcomeTypeLabel } from '@/domain/enums/ConsultationOutcomeType';
+import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import type { CompleteConsultationDto } from '@/application/dtos/CompleteConsultationDto';
 
 interface CompleteConsultationDialogProps {
   open: boolean;
@@ -40,6 +49,7 @@ export function CompleteConsultationDialog({
   appointment,
   doctorId,
 }: CompleteConsultationDialogProps) {
+  const [outcomeType, setOutcomeType] = useState<ConsultationOutcomeType | ''>('');
   const [outcome, setOutcome] = useState('');
   const [followUpDate, setFollowUpDate] = useState('');
   const [followUpTime, setFollowUpTime] = useState('');
@@ -48,6 +58,11 @@ export function CompleteConsultationDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!outcomeType) {
+      toast.error('Please select consultation outcome type');
+      return;
+    }
 
     if (!outcome.trim()) {
       toast.error('Please provide consultation outcome');
@@ -61,6 +76,7 @@ export function CompleteConsultationDialog({
         appointmentId: appointment.id,
         doctorId,
         outcome: outcome.trim(),
+        outcomeType: outcomeType as ConsultationOutcomeType,
         followUpDate: followUpDate ? new Date(followUpDate) : undefined,
         followUpTime: followUpTime || undefined,
         followUpType: followUpType || undefined,
@@ -71,6 +87,7 @@ export function CompleteConsultationDialog({
       if (response.success) {
         toast.success('Consultation completed successfully');
         onSuccess();
+        setOutcomeType('');
         setOutcome('');
         setFollowUpDate('');
         setFollowUpTime('');
@@ -97,8 +114,34 @@ export function CompleteConsultationDialog({
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4 py-4">
+            {/* Outcome Type - Required */}
             <div className="space-y-2">
-              <Label htmlFor="outcome">Consultation Outcome *</Label>
+              <Label htmlFor="outcome-type">
+                Consultation Outcome Type <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={outcomeType}
+                onValueChange={(value) => setOutcomeType(value as ConsultationOutcomeType)}
+                disabled={isSubmitting}
+              >
+                <SelectTrigger id="outcome-type">
+                  <SelectValue placeholder="Select outcome type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.values(ConsultationOutcomeType).map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {getConsultationOutcomeTypeLabel(type)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Consultation Summary - Required */}
+            <div className="space-y-2">
+              <Label htmlFor="outcome">
+                Consultation Summary <span className="text-destructive">*</span>
+              </Label>
               <Textarea
                 id="outcome"
                 placeholder="Enter consultation outcome, diagnosis, treatment plan..."

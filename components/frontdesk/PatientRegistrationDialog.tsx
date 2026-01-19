@@ -8,11 +8,11 @@
  */
 
 import { useState } from 'react';
-import { frontdeskApi } from '../../lib/api/frontdesk';
-import { Button } from '../../ui/button';
-import { Input } from '../../ui/input';
-import { Label } from '../../ui/label';
-import { Textarea } from '../../ui/textarea';
+import { frontdeskApi } from '@/lib/api/frontdesk';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -20,11 +20,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '../../ui/dialog';
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import type { PatientResponseDto } from '../../application/dtos/PatientResponseDto';
-import type { CreatePatientDto } from '../../application/dtos/CreatePatientDto';
-import { Gender } from '../../domain/enums/Gender';
+import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
+import type { CreatePatientDto } from '@/application/dtos/CreatePatientDto';
+import { Gender } from '@/domain/enums/Gender';
 
 interface PatientRegistrationDialogProps {
   open: boolean;
@@ -56,9 +56,9 @@ export function PatientRegistrationDialog({
     emergencyContactName: existingPatient?.emergencyContactName || '',
     emergencyContactNumber: existingPatient?.emergencyContactNumber || '',
     relation: existingPatient?.relation || '',
-    privacyConsent: existingPatient?.privacyConsent ?? false,
-    serviceConsent: existingPatient?.serviceConsent ?? false,
-    medicalConsent: existingPatient?.medicalConsent ?? false,
+    privacyConsent: existingPatient?.hasPrivacyConsent ?? false,
+    serviceConsent: existingPatient?.hasServiceConsent ?? false,
+    medicalConsent: existingPatient?.hasMedicalConsent ?? false,
     bloodGroup: existingPatient?.bloodGroup || '',
     allergies: existingPatient?.allergies || '',
     medicalConditions: existingPatient?.medicalConditions || '',
@@ -150,8 +150,10 @@ export function PatientRegistrationDialog({
           insuranceProvider: '',
           insuranceNumber: '',
         });
-      } else {
+      } else if (!response.success) {
         toast.error(response.error || 'Failed to register patient');
+      } else {
+        toast.error('Failed to register patient');
       }
     } catch (error) {
       toast.error('An error occurred while registering patient');
@@ -232,7 +234,7 @@ export function PatientRegistrationDialog({
                   <Input
                     id="dateOfBirth"
                     type="date"
-                    value={formData.dateOfBirth}
+                    value={typeof formData.dateOfBirth === 'string' ? formData.dateOfBirth : formData.dateOfBirth ? new Date(formData.dateOfBirth).toISOString().split('T')[0] : ''}
                     onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
                     required
                     disabled={isSubmitting}

@@ -7,12 +7,14 @@ import SearchInput from "@/components/search-input";
 import { Table } from "@/components/tables/table";
 import { Button } from "@/components/ui/button";
 import { SearchParamsProps } from "@/types";
-import { calculateAge } from "@/utils";
-import { checkRole } from "@/utils/roles";
-import { DATA_LIMIT } from "@/utils/seetings";
+import { calculateAge } from "@/lib/utils";
+import { checkRole } from "@/lib/utils/roles";
+import { DATA_LIMIT } from "@/lib/utils/settings";
 import { getAllPatients } from "@/utils/services/patient";
 import { Patient } from "@prisma/client";
 import { format } from "date-fns";
+
+export const dynamic = 'force-dynamic';
 import { UserPen, Users } from "lucide-react";
 
 const columns = [

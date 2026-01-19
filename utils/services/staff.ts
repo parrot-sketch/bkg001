@@ -16,19 +16,38 @@ export async function getAllStaff({
     const SKIP = (PAGE_NUMBER - 1) * LIMIT;
 
     const [staff, totalRecords] = await Promise.all([
-      db.staff.findMany({
+      db.user.findMany({
         where: {
-          OR: [
-            { name: { contains: search, mode: "insensitive" } },
-            { phone: { contains: search, mode: "insensitive" } },
-            { email: { contains: search, mode: "insensitive" } },
-          ],
+          role: {
+            not: "PATIENT",
+          },
+          ...(search && {
+            OR: [
+              { first_name: { contains: search, mode: "insensitive" } },
+              { last_name: { contains: search, mode: "insensitive" } },
+              { phone: { contains: search, mode: "insensitive" } },
+              { email: { contains: search, mode: "insensitive" } },
+            ],
+          }),
         },
-
         skip: SKIP,
         take: LIMIT,
       }),
-      db.staff.count(),
+      db.user.count({
+        where: {
+          role: {
+            not: "PATIENT",
+          },
+          ...(search && {
+            OR: [
+              { first_name: { contains: search, mode: "insensitive" } },
+              { last_name: { contains: search, mode: "insensitive" } },
+              { phone: { contains: search, mode: "insensitive" } },
+              { email: { contains: search, mode: "insensitive" } },
+            ],
+          }),
+        },
+      }),
     ]);
 
     const totalPages = Math.ceil(totalRecords / LIMIT);

@@ -14,7 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
-import { JwtMiddleware } from '@/controllers/middleware/JwtMiddleware';
+import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import { ConsultationRequestStatus } from '@/domain/enums/ConsultationRequestStatus';
 import { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';

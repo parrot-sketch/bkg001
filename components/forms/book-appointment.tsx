@@ -1,7 +1,7 @@
 "use client";
 
 import { AppointmentSchema } from "@/lib/schema";
-import { generateTimes } from "@/utils";
+import { generateTimes } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Doctor, Patient } from "@prisma/client";
 import { useRouter } from "next/navigation";
@@ -38,12 +38,12 @@ import { toast } from "sonner";
 import { createNewAppointment } from "@/app/actions/appointment";
 
 const TYPES = [
-  { label: "General Consultation", value: "General Consultation" },
-  { label: "General Check up", value: "General Check Up" },
-  { label: "Antenatal", value: "Antenatal" },
-  { label: "Maternity", value: "Maternity" },
-  { label: "Lab Test", value: "Lab Test" },
-  { label: "ANT", value: "ANT" },
+  { label: "Rhinoplasty", value: "Rhinoplasty" },
+  { label: "BBL (Brazilian Butt Lift)", value: "BBL" },
+  { label: "Liposuction", value: "Liposuction" },
+  { label: "Breast Surgery", value: "Breast Surgery" },
+  { label: "Skin Procedures", value: "Skin Procedures" },
+  { label: "Other", value: "Other" },
 ];
 
 export const BookAppointment = ({
@@ -85,10 +85,13 @@ export const BookAppointment = ({
       if (res.success) {
         form.reset({});
         router.refresh();
-        toast.success("Appointment created successfully");
+        toast.success("Your inquiry has been submitted. We will review it and contact you shortly.");
+      } else {
+        // Show specific error message from server
+        toast.error(res.msg || "Failed to submit appointment. Please try again.");
       }
     } catch (error) {
-      console.log(error);
+      console.error("Error creating appointment:", error);
       toast.error("Something went wrong. Try again later.");
     } finally {
       setIsSubmitting(false);
@@ -102,7 +105,7 @@ export const BookAppointment = ({
           variant="ghost"
           className="w-full flex items-center gap-2 justify-start text-sm font-light bg-blue-600 text-white"
         >
-          <UserPen size={16} /> Book Appointment
+          <UserPen size={16} /> Submit Inquiry
         </Button>
       </SheetTrigger>
 
@@ -114,7 +117,7 @@ export const BookAppointment = ({
         ) : (
           <div className="h-full overflow-y-auto p-4">
             <SheetHeader>
-              <SheetTitle>Book Appointment</SheetTitle>
+              <SheetTitle>Submit Consultation Inquiry</SheetTitle>
             </SheetHeader>
 
             <Form {...form}>
@@ -143,8 +146,8 @@ export const BookAppointment = ({
                   selectList={TYPES}
                   control={form.control}
                   name="type"
-                  label="Appointment Type"
-                  placeholder="Select a appointment type"
+                  label="Procedure of Interest"
+                  placeholder="Select a procedure"
                 />
 
                 <FormField
@@ -152,7 +155,7 @@ export const BookAppointment = ({
                   name="doctor_id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Physician</FormLabel>
+                      <FormLabel>Surgeon</FormLabel>
                       <Select
                         onValueChange={field.onChange}
                         defaultValue={field.value}
@@ -160,7 +163,7 @@ export const BookAppointment = ({
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select a physician" />
+                            <SelectValue placeholder="Select a surgeon" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent className="">

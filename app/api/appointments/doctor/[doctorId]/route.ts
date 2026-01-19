@@ -15,7 +15,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
-import { JwtMiddleware } from '@/controllers/middleware/JwtMiddleware';
+import { JwtMiddleware } from '@/lib/auth/middleware';
 import { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { extractConsultationRequestFields } from '@/infrastructure/mappers/ConsultationRequestMapper';
 import { ConsultationRequestStatus } from '@/domain/enums/ConsultationRequestStatus';
@@ -29,8 +29,9 @@ import { ConsultationRequestStatus } from '@/domain/enums/ConsultationRequestSta
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { doctorId: string } }
+  context: { params: Promise<{ doctorId: string }> }
 ): Promise<NextResponse> {
+  const params = await context.params;
   try {
     // 1. Authenticate request
     const authResult = await JwtMiddleware.authenticate(request);
@@ -46,7 +47,7 @@ export async function GET(
 
     const userId = authResult.user.userId;
     const userRole = authResult.user.role;
-    const doctorId = params.doctorId;
+    const doctorId = params?.doctorId;
 
     // 2. Validate doctor ID
     if (!doctorId) {

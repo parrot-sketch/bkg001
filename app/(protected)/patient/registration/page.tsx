@@ -1,12 +1,14 @@
 import { NewPatient } from "@/components/new-patient";
 import { getPatientById } from "@/utils/services/patient";
-import { auth } from "@clerk/nextjs/server";
+import { getCurrentUser } from "@/lib/auth/server-auth";
 import React from "react";
 
-const Registration = async () => {
-  const { userId } = await auth();
+export const dynamic = 'force-dynamic';
 
-  const { data } = await getPatientById(userId!);
+const Registration = async () => {
+  const authUser = await getCurrentUser();
+
+  const { data } = await getPatientById(authUser?.userId || '');
 
   return (
     <div className="w-full h-full flex justify-center">

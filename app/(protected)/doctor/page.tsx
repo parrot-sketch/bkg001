@@ -4,16 +4,18 @@ import { StatSummary } from "@/components/charts/stat-summary";
 import { StatCard } from "@/components/stat-card";
 import { RecentAppointments } from "@/components/tables/recent-appointment";
 import { Button } from "@/components/ui/button";
-import { checkRole, getRole } from "@/utils/roles";
+import { checkRole, getRole } from "@/lib/utils/roles";
 import { getDoctorDashboardStats } from "@/utils/services/doctor";
-import { currentUser } from "@clerk/nextjs/server";
+import { getCurrentUserFull } from "@/lib/auth/server-auth";
 import { BriefcaseBusiness, BriefcaseMedical, User, Users } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import React from "react";
 
+export const dynamic = 'force-dynamic';
+
 const DoctorDashboard = async () => {
-  const user = await currentUser();
+  const user = await getCurrentUserFull();
 
   const {
     totalPatient,
@@ -45,12 +47,12 @@ const DoctorDashboard = async () => {
       link: "",
     },
     {
-      title: "Appointments",
+      title: "Sessions",
       value: totalAppointment,
       icon: BriefcaseBusiness,
       className: "bg-yellow-600/15",
       iconClassName: "bg-yellow-600/25 text-yellow-600",
-      note: "Total appointments",
+      note: "Total sessions",
       link: "/record/appointments",
     },
     {
@@ -71,10 +73,10 @@ const DoctorDashboard = async () => {
         <div className="bg-white rounded-xl p-4 mb-8">
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-lg xl:text-2xl font-semibold">
-              Welcome, Dr. {user?.firstName}
+              Dr. {user?.first_name}
             </h1>
             <Button size="sm" variant="outline" asChild>
-              <Link href={`/record/doctors/${user?.id}`}>View profile</Link>
+              <Link href={`/record/doctors/${user?.id || ''}`}>View profile</Link>
             </Button>
           </div>
 

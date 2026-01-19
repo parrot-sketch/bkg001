@@ -8,18 +8,18 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '../../../../hooks/patient/useAuth';
-import { nurseApi } from '../../../../lib/api/nurse';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../components/ui/card';
-import { Button } from '../../../../components/ui/button';
-import { Input } from '../../../../components/ui/input';
+import { useAuth } from '@/hooks/patient/useAuth';
+import { nurseApi } from '@/lib/api/nurse';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Users, Search, Activity, FileText, Plus } from 'lucide-react';
 import { toast } from 'sonner';
-import type { PatientResponseDto } from '../../../../application/dtos/PatientResponseDto';
-import type { AppointmentResponseDto } from '../../../../application/dtos/AppointmentResponseDto';
-import { RecordVitalsDialog } from '../../../../components/nurse/RecordVitalsDialog';
-import { AddCareNoteDialog } from '../../../../components/nurse/AddCareNoteDialog';
-import { PatientCard } from '../../../../components/nurse/PatientCard';
+import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
+import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import { RecordVitalsDialog } from '@/components/nurse/RecordVitalsDialog';
+import { AddCareNoteDialog } from '@/components/nurse/AddCareNoteDialog';
+import { PatientCard } from '@/components/nurse/PatientCard';
 
 export default function NursePatientsPage() {
   const { user, isAuthenticated } = useAuth();
@@ -67,8 +67,10 @@ export default function NursePatientsPage() {
           .map((response) => response.data);
 
         setPatients(validPatients);
-      } else {
+      } else if (!appointmentsResponse.success) {
         toast.error(appointmentsResponse.error || 'Failed to load patients');
+      } else {
+        toast.error('Failed to load patients');
       }
     } catch (error) {
       toast.error('An error occurred while loading patients');

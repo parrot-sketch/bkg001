@@ -140,8 +140,8 @@ body {
   }
 }
 
-/* Fix browser autofill yellow background - restore clean UI control */
-/* Chrome, Safari, Edge */
+/* Premium Input Styling - Clean white backgrounds, no yellow autofill */
+/* Chrome, Safari, Edge - Override default yellow autofill */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
@@ -152,29 +152,43 @@ textarea:-webkit-autofill:focus,
 select:-webkit-autofill,
 select:-webkit-autofill:hover,
 select:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0 30px white inset !important;
-  -webkit-text-fill-color: inherit !important;
-  box-shadow: 0 0 0 30px white inset !important;
-  transition: background-color 5000s ease-in-out 0s;
-  caret-color: inherit;
+  -webkit-box-shadow: 0 0 0 1000px white inset !important;
+  -webkit-text-fill-color: hsl(var(--foreground)) !important;
+  box-shadow: 0 0 0 1000px white inset !important;
+  border-color: hsl(var(--border)) !important;
+  transition: background-color 5000s ease-in-out 0s, border-color 0.2s ease !important;
+  caret-color: hsl(var(--foreground)) !important;
 }
 
-/* Firefox */
+/* Firefox - Remove yellow autofill background */
 input:-moz-autofill,
 textarea:-moz-autofill,
 select:-moz-autofill {
   background-color: white !important;
-  color: inherit !important;
+  background-image: none !important;
+  color: hsl(var(--foreground)) !important;
 }
 
-/* Ensure consistent styling after autofill */
+/* Standard autofill - Ensure white background */
 input[type="text"]:autofill,
 input[type="email"]:autofill,
 input[type="tel"]:autofill,
 input[type="password"]:autofill,
 input[type="date"]:autofill,
+input[type="time"]:autofill,
+input[type="number"]:autofill,
 textarea:autofill,
 select:autofill {
   background-color: white !important;
-  color: inherit !important;
+  color: hsl(var(--foreground)) !important;
+  border-color: hsl(var(--border)) !important;
+}
+
+/* Focus states maintain clean appearance */
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill:focus {
+  border-color: hsl(var(--ring)) !important;
+  -webkit-box-shadow: 0 0 0 1000px white inset, 0 0 0 2px hsl(var(--ring) / 0.2) !important;
+  box-shadow: 0 0 0 1000px white inset, 0 0 0 2px hsl(var(--ring) / 0.2) !important;
 }

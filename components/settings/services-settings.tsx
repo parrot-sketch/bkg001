@@ -1,5 +1,5 @@
 import { getServices } from "@/utils/services/admin";
-import { Services } from "@prisma/client";
+import { Service } from "@prisma/client";
 import { AddService } from "../dialogs/add-service";
 import { Table } from "../tables/table";
 import {
@@ -39,7 +39,7 @@ const columns = [
 export const ServiceSettings = async () => {
   const { data } = await getServices();
 
-  const renderRow = (item: Services) => (
+  const renderRow = (item: Service) => (
     <tr
       key={item.id}
       className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-slate-50"

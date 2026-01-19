@@ -1,11 +1,11 @@
 import { AvailableDoctorProps } from "@/types/data-types";
-import { checkRole } from "@/utils/roles";
+import { checkRole } from "@/lib/utils/roles";
 import React from "react";
 import { Button } from "./ui/button";
 import Link from "next/link";
 import { Card } from "./ui/card";
 import { ProfileImage } from "./profile-image";
-import { daysOfWeek } from "@/utils";
+import { daysOfWeek } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 const getToday = () => {

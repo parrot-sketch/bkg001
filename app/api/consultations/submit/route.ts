@@ -22,7 +22,7 @@ import { SystemTimeService } from '@/infrastructure/services/SystemTimeService';
 import db from '@/lib/db';
 import { SubmitConsultationRequestDto } from '@/application/dtos/SubmitConsultationRequestDto';
 import { DomainException } from '@/domain/exceptions/DomainException';
-import { JwtMiddleware } from '@/controllers/middleware/JwtMiddleware';
+import { JwtMiddleware } from '@/lib/auth/middleware';
 
 // Initialize dependencies (singleton pattern)
 const appointmentRepository = new PrismaAppointmentRepository(db);
@@ -98,13 +98,70 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // 4. Convert preferredDate to Date object if it's a string
-    if (typeof body.preferredDate === 'string') {
-      body.preferredDate = new Date(body.preferredDate);
+    // 4. Resolve Patient ID from User ID if needed
+    // If patientId is a User ID (when patient is logged in), find the Patient record
+    let patientId = body.patientId;
+    
+    // Check if patientId is actually a User ID by trying to find a Patient by user_id
+    const patient = await db.patient.findUnique({
+      where: { user_id: body.patientId },
+      select: { id: true },
+    });
+    
+    if (patient) {
+      // Found patient by user_id - use the Patient ID
+      patientId = patient.id;
+    } else {
+      // Try to find patient by ID (might already be a Patient ID)
+      const patientById = await db.patient.findUnique({
+        where: { id: body.patientId },
+        select: { id: true },
+      });
+      
+      if (!patientById) {
+        // Patient not found - return error
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Patient profile not found. Please complete your profile first.',
+          },
+          { status: 404 }
+        );
+      }
+      
+      // patientId is already a Patient ID, use it as-is
+      patientId = body.patientId;
     }
 
-    // 5. Execute submit consultation request use case
-    const response = await submitConsultationRequestUseCase.execute(body, userId);
+    // 5. Validate doctor ID is provided
+    // For consultation requests, we require a doctor to be selected
+    // This ensures proper workflow management - frontdesk can reassign during review if needed
+    // If patient selected "No preference", we need to inform them to select a doctor
+    if (!body.doctorId || body.doctorId.trim().length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Please select a surgeon. Our team will confirm availability and may suggest alternatives during review.',
+        },
+        { status: 400 }
+      );
+    }
+    
+    const doctorId = body.doctorId;
+
+    // 6. Convert preferredDate to Date object if it's a string
+    const dto: SubmitConsultationRequestDto = {
+      ...body,
+      patientId: patientId, // Use resolved Patient ID
+      doctorId: doctorId, // Required - patient must select a doctor
+      preferredDate: typeof body.preferredDate === 'string' 
+        ? new Date(body.preferredDate) 
+        : body.preferredDate,
+    };
+
+    // 7. Execute submit consultation request use case
+    // Note: The use case expects patientId to be a Patient ID, not User ID
+    const response = await submitConsultationRequestUseCase.execute(dto, userId);
 
     // 6. Return success response
     return NextResponse.json(

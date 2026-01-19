@@ -59,8 +59,10 @@ export default function DoctorPatientsPage() {
           .map((response) => response.data);
 
         setPatients(validPatients);
-      } else {
+      } else if (!appointmentsResponse.success) {
         toast.error(appointmentsResponse.error || 'Failed to load patients');
+      } else {
+        toast.error('Failed to load patients');
       }
     } catch (error) {
       toast.error('An error occurred while loading patients');
@@ -161,7 +163,7 @@ export default function DoctorPatientsPage() {
                       </div>
                       {patient.dateOfBirth && (
                         <p className="text-xs text-muted-foreground">
-                          Age: {patient.age} years {patient.isMinor ? '(Minor)' : ''}
+                          Age: {patient.age} years {patient.age < 18 ? '(Minor)' : ''}
                         </p>
                       )}
                     </div>

@@ -63,8 +63,10 @@ export default function InviteDoctorPage() {
           licenseNumber: '',
           phone: '',
         });
-      } else {
+      } else if (!response.success) {
         setErrors({ email: response.error || 'Failed to send invitation' });
+      } else {
+        setErrors({ email: 'Failed to send invitation' });
       }
     } catch (error) {
       setErrors({ email: 'An error occurred while sending invitation' });

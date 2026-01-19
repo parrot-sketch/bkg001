@@ -66,9 +66,10 @@ export class PatientMapper {
   static toPrismaCreateInput(patient: Patient): Prisma.PatientCreateInput {
     // In this system, when a patient has an account, their patient id equals their Clerk user_id
     // This allows GET /api/patients/:id to find patients by user_id for authenticated users
+    const userId = patient.getId(); // Link to User - set to same as id when patient has account
     return {
       id: patient.getId(),
-      user_id: patient.getId(), // Link to User - set to same as id when patient has account
+      ...(userId ? { user: { connect: { id: userId } } } : {}), // Use relation syntax if user_id exists
       file_number: patient.getFileNumber(), // System-generated: NS001, NS002, etc.
       first_name: patient.getFirstName(),
       last_name: patient.getLastName(),

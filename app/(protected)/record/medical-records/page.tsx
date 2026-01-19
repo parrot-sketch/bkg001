@@ -4,12 +4,14 @@ import { ProfileImage } from "@/components/profile-image";
 import SearchInput from "@/components/search-input";
 import { Table } from "@/components/tables/table";
 import { SearchParamsProps } from "@/types";
-import { checkRole } from "@/utils/roles";
-import { DATA_LIMIT } from "@/utils/seetings";
+import { checkRole } from "@/lib/utils/roles";
+import { DATA_LIMIT } from "@/lib/utils/settings";
 import { getMedicalRecords } from "@/utils/services/medical-record";
-import { Diagnosis, LabTest, MedicalRecords, Patient } from "@prisma/client";
+import { Diagnosis, LabTest, MedicalRecord, Patient } from "@prisma/client";
 import { format } from "date-fns";
 import { BriefcaseBusiness } from "lucide-react";
+
+export const dynamic = 'force-dynamic';
 
 const columns = [
   {
@@ -47,7 +49,7 @@ const columns = [
   },
 ];
 
-interface ExtendedProps extends MedicalRecords {
+interface ExtendedProps extends MedicalRecord {
   patient: Patient;
   diagnosis: Diagnosis[];
   lab_test: LabTest[];
@@ -134,9 +136,9 @@ const MedicalRecordsPage = async (props: SearchParamsProps) => {
         <Table columns={columns} data={data} renderRow={renderRow} />
 
         <Pagination
-          totalPages={totalPages}
-          currentPage={currentPage}
-          totalRecords={totalRecords}
+          totalPages={totalPages || 1}
+          currentPage={currentPage || 1}
+          totalRecords={totalRecords || 0}
           limit={DATA_LIMIT}
         />
       </div>

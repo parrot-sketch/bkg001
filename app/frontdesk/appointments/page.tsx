@@ -8,18 +8,18 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useAuth } from '../../../../hooks/patient/useAuth';
-import { frontdeskApi } from '../../../../lib/api/frontdesk';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../../components/ui/card';
-import { Button } from '../../../../components/ui/button';
-import { Input } from '../../../../components/ui/input';
-import { Label } from '../../../../components/ui/label';
+import { useAuth } from '@/hooks/patient/useAuth';
+import { frontdeskApi } from '@/lib/api/frontdesk';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Calendar, CheckCircle, Clock, Filter, Search } from 'lucide-react';
 import { toast } from 'sonner';
-import type { AppointmentResponseDto } from '../../../../application/dtos/AppointmentResponseDto';
-import { AppointmentStatus } from '../../../../domain/enums/AppointmentStatus';
+import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { format } from 'date-fns';
-import { CheckInDialog } from '../../../../components/frontdesk/CheckInDialog';
+import { CheckInDialog } from '@/components/frontdesk/CheckInDialog';
 import { AppointmentCard } from '@/components/patient/AppointmentCard';
 
 export default function FrontdeskAppointmentsPage() {
@@ -50,8 +50,10 @@ export default function FrontdeskAppointmentsPage() {
       if (response.success && response.data) {
         setAppointments(response.data);
         setFilteredAppointments(response.data);
-      } else {
+      } else if (!response.success) {
         toast.error(response.error || 'Failed to load appointments');
+      } else {
+        toast.error('Failed to load appointments');
       }
     } catch (error) {
       toast.error('An error occurred while loading appointments');
@@ -221,15 +223,15 @@ export default function FrontdeskAppointmentsPage() {
           {loading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-4 text-sm text-muted-foreground">Loading appointments...</p>
+              <p className="mt-4 text-sm text-muted-foreground">Loading sessions...</p>
             </div>
           ) : filteredAppointments.length === 0 ? (
             <div className="text-center py-8">
               <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-sm text-muted-foreground">
                 {searchQuery || statusFilter !== 'ALL'
-                  ? 'No appointments match your filters'
-                  : 'No appointments found for this date'}
+                  ? 'No sessions match your filters'
+                  : 'No sessions found for this date'}
               </p>
             </div>
           ) : (

@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { getInitials } from "@/utils";
+import { getInitials } from "@/lib/utils";
 import Image from "next/image";
 
 export const ProfileImage = ({

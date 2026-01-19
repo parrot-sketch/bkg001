@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { authApi } from '../../lib/api/auth';
 import { tokenStorage, type StoredUser } from '../../lib/auth/token';
 import { apiClient } from '../../lib/api/client';
+import { Role } from '../../domain/enums/Role';
 
 interface UseAuthReturn {
   user: StoredUser | null;
@@ -19,9 +20,10 @@ interface UseAuthReturn {
     id: string;
     email: string;
     password: string;
-    role: string;
+    role: Role;
     firstName?: string;
     lastName?: string;
+    phone?: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
   refreshToken: () => Promise<void>;
@@ -117,9 +119,10 @@ export function useAuth(): UseAuthReturn {
       id: string;
       email: string;
       password: string;
-      role: string;
+      role: Role;
       firstName?: string;
       lastName?: string;
+      phone?: string;
     }) => {
       try {
         const response = await authApi.register(dto);

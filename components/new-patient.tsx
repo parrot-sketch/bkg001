@@ -1,6 +1,6 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
+import { useAuth } from "@/hooks/patient/useAuth";
 import { Patient } from "@prisma/client";
 import { Phone } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -28,7 +28,7 @@ interface DataProps {
   type: "create" | "update";
 }
 export const NewPatient = ({ data, type }: DataProps) => {
-  const { user } = useUser();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [imgURL, setImgURL] = useState<any>();
   const router = useRouter();
@@ -36,8 +36,8 @@ export const NewPatient = ({ data, type }: DataProps) => {
   const userData = {
     first_name: user?.firstName || "",
     last_name: user?.lastName || "",
-    email: user?.emailAddresses[0].emailAddress || "",
-    phone: user?.phoneNumbers?.toString() || "",
+    email: user?.email || "",
+    phone: user?.phone || "",
   };
 
   const userId = user?.id;

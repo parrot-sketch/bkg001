@@ -1,4 +1,6 @@
 import { AppointmentStatus } from '../enums/AppointmentStatus';
+import { CheckInInfo } from '../value-objects/CheckInInfo';
+import { NoShowInfo } from '../value-objects/NoShowInfo';
 import { DomainException } from '../exceptions/DomainException';
 
 /**
@@ -29,10 +31,19 @@ export class Appointment {
     private readonly type: string,
     private readonly note?: string,
     private readonly reason?: string,
+    private readonly checkInInfo?: CheckInInfo,
+    private readonly noShowInfo?: NoShowInfo,
+    private readonly rescheduledToAppointmentId?: number,
     private readonly createdAt?: Date,
     private readonly updatedAt?: Date,
   ) {
-    // Validation happens in factory method
+    // Invariant: Cannot be both checked in and no-show
+    if (this.checkInInfo && this.noShowInfo) {
+      throw new DomainException(
+        'Appointment cannot be both checked in and marked as no-show',
+        { appointmentId: this.id }
+      );
+    }
   }
 
   /**
@@ -52,6 +63,9 @@ export class Appointment {
     type: string;
     note?: string;
     reason?: string;
+    checkInInfo?: CheckInInfo;
+    noShowInfo?: NoShowInfo;
+    rescheduledToAppointmentId?: number;
     createdAt?: Date;
     updatedAt?: Date;
   }): Appointment {
@@ -103,8 +117,142 @@ export class Appointment {
       params.type.trim(),
       params.note?.trim(),
       params.reason?.trim(),
+      params.checkInInfo,
+      params.noShowInfo,
+      params.rescheduledToAppointmentId,
       params.createdAt,
       params.updatedAt,
+    );
+  }
+
+  /**
+   * Checks in the patient
+   * 
+   * Invariants:
+   * - Cannot check in if already checked in
+   * - Cannot check in if marked as no-show
+   * - Cannot check in if cancelled or completed
+   * - Updates status to SCHEDULED if was PENDING
+   * 
+   * @param checkInInfo - Check-in information
+   * @returns New Appointment entity with check-in applied
+   * @throws DomainException if check-in is not allowed
+   */
+  checkIn(checkInInfo: CheckInInfo): Appointment {
+    // Invariant: Cannot check in if already checked in
+    if (this.checkInInfo) {
+      throw new DomainException('Patient is already checked in', {
+        appointmentId: this.id,
+        existingCheckIn: this.checkInInfo.getCheckedInAt().toISOString(),
+      });
+    }
+
+    // Invariant: Cannot check in if marked as no-show
+    if (this.noShowInfo) {
+      throw new DomainException('Cannot check in a no-show appointment', {
+        appointmentId: this.id,
+        noShowReason: this.noShowInfo.getReason(),
+      });
+    }
+
+    // Invariant: Cannot check in if cancelled or completed
+    if (this.status === AppointmentStatus.CANCELLED) {
+      throw new DomainException('Cannot check in a cancelled appointment', {
+        appointmentId: this.id,
+        status: this.status,
+      });
+    }
+
+    if (this.status === AppointmentStatus.COMPLETED) {
+      throw new DomainException('Cannot check in a completed appointment', {
+        appointmentId: this.id,
+        status: this.status,
+      });
+    }
+
+    // Update status to SCHEDULED if was PENDING
+    const newStatus = this.status === AppointmentStatus.PENDING
+      ? AppointmentStatus.SCHEDULED
+      : this.status;
+
+    return new Appointment(
+      this.id,
+      this.patientId,
+      this.doctorId,
+      this.appointmentDate,
+      this.time,
+      newStatus,
+      this.type,
+      this.note,
+      this.reason,
+      checkInInfo,
+      undefined, // Clear no-show if it exists (shouldn't, but defensive)
+      this.rescheduledToAppointmentId,
+      this.createdAt,
+      new Date(),
+    );
+  }
+
+  /**
+   * Marks appointment as no-show
+   * 
+   * Invariants:
+   * - Cannot mark as no-show if already checked in
+   * - Cannot mark as no-show if already marked
+   * - Cannot mark as no-show if cancelled or completed
+   * - Sets status to NO_SHOW
+   * 
+   * @param noShowInfo - No-show information
+   * @returns New Appointment entity with no-show applied
+   * @throws DomainException if marking no-show is not allowed
+   */
+  markAsNoShow(noShowInfo: NoShowInfo): Appointment {
+    // Invariant: Cannot mark as no-show if already checked in
+    if (this.checkInInfo) {
+      throw new DomainException('Cannot mark checked-in appointment as no-show', {
+        appointmentId: this.id,
+        checkedInAt: this.checkInInfo.getCheckedInAt().toISOString(),
+      });
+    }
+
+    // Invariant: Cannot mark as no-show if already marked (idempotency)
+    if (this.noShowInfo) {
+      throw new DomainException('Appointment is already marked as no-show', {
+        appointmentId: this.id,
+        existingNoShow: this.noShowInfo.getNoShowAt().toISOString(),
+      });
+    }
+
+    // Invariant: Cannot mark as no-show if cancelled or completed
+    if (this.status === AppointmentStatus.CANCELLED) {
+      throw new DomainException('Cannot mark cancelled appointment as no-show', {
+        appointmentId: this.id,
+        status: this.status,
+      });
+    }
+
+    if (this.status === AppointmentStatus.COMPLETED) {
+      throw new DomainException('Cannot mark completed appointment as no-show', {
+        appointmentId: this.id,
+        status: this.status,
+      });
+    }
+
+    return new Appointment(
+      this.id,
+      this.patientId,
+      this.doctorId,
+      this.appointmentDate,
+      this.time,
+      AppointmentStatus.NO_SHOW,
+      this.type,
+      this.note,
+      this.reason,
+      undefined, // Clear check-in if it exists (shouldn't, but defensive)
+      noShowInfo,
+      this.rescheduledToAppointmentId,
+      this.createdAt,
+      new Date(),
     );
   }
 
@@ -152,6 +300,30 @@ export class Appointment {
 
   getUpdatedAt(): Date | undefined {
     return this.updatedAt ? new Date(this.updatedAt) : undefined;
+  }
+
+  getCheckInInfo(): CheckInInfo | undefined {
+    return this.checkInInfo;
+  }
+
+  getNoShowInfo(): NoShowInfo | undefined {
+    return this.noShowInfo;
+  }
+
+  getRescheduledToAppointmentId(): number | undefined {
+    return this.rescheduledToAppointmentId;
+  }
+
+  isCheckedIn(): boolean {
+    return this.checkInInfo !== undefined;
+  }
+
+  isNoShow(): boolean {
+    return this.noShowInfo !== undefined;
+  }
+
+  isLateArrival(): boolean {
+    return this.checkInInfo?.isLate() ?? false;
   }
 
   // Business logic methods

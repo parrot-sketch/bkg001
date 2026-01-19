@@ -5,7 +5,7 @@
  * Includes sidebar navigation and content area.
  */
 
-import { AdminSidebar } from '../../components/admin/AdminSidebar';
+import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { ReactNode } from 'react';
 
 interface AdminLayoutProps {

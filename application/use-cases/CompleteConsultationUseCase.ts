@@ -151,11 +151,13 @@ export class CompleteConsultationUseCase {
       const allPatientAppointments = await this.appointmentRepository.findByPatient(
         appointment.getPatientId(),
       );
+      // Store followUpDate in a const to ensure type narrowing works in filter
+      const followUpDate = dto.followUpDate;
       const savedFollowUp = allPatientAppointments
         .filter(
           (apt) =>
             apt.getDoctorId() === appointment.getDoctorId() &&
-            apt.getAppointmentDate().getTime() === dto.followUpDate.getTime() &&
+            apt.getAppointmentDate().getTime() === followUpDate.getTime() &&
             apt.getStatus() === AppointmentStatus.PENDING,
         )
         .sort(

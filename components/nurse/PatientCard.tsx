@@ -143,7 +143,7 @@ export function PatientCard({
             {/* Patient Age */}
             {patient.dateOfBirth && (
               <p className="text-xs text-muted-foreground">
-                Age: {patient.age} years {patient.isMinor ? '(Minor)' : ''}
+                Age: {patient.age} years {patient.age < 18 ? '(Minor)' : ''}
               </p>
             )}
           </div>

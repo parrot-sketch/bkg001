@@ -7,10 +7,10 @@
  */
 
 import { useState } from 'react';
-import { adminApi } from '../../lib/api/admin';
-import { Button } from '../../ui/button';
-import { Input } from '../../ui/input';
-import { Label } from '../../ui/label';
+import { adminApi } from '@/lib/api/admin';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -18,10 +18,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '../../ui/dialog';
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import type { RegisterUserDto } from '../../application/dtos/RegisterUserDto';
-import { Role } from '../../domain/enums/Role';
+import type { RegisterUserDto } from '@/application/dtos/RegisterUserDto';
+import { Role } from '@/domain/enums/Role';
 
 interface CreateStaffDialogProps {
   open: boolean;
@@ -77,8 +77,10 @@ export function CreateStaffDialog({ open, onClose, onSuccess }: CreateStaffDialo
           lastName: '',
           phone: '',
         });
-      } else {
+      } else if (!response.success) {
         toast.error(response.error || 'Failed to create staff member');
+      } else {
+        toast.error('Failed to create staff member');
       }
     } catch (error) {
       toast.error('An error occurred while creating staff member');
