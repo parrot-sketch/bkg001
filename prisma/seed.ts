@@ -108,7 +108,7 @@ async function main() {
       education: 'Board Certified in Plastic, Reconstructive, and Aesthetic Surgery',
       focus_areas: 'Cosmetic surgery, reconstructive procedures, wound care, patient-centered care',
       professional_affiliations: 'KSPRAS (Kenya Society of Plastic, Reconstructive & Aesthetic Surgeons), Kenya Association Of Women Surgeons, COSECSA, SHARE Programme',
-      profile_image: '/images/doctors/dr-mukami-gathariki.jpg',
+      profile_image: 'https://res.cloudinary.com/dcngzaxlv/image/upload/v1768807324/mukami_rqzk6k.png',
       clinic_location: 'Nairobi Sculpt Aesthetic Centre, Nairobi, Kenya',
     },
     {
@@ -124,7 +124,7 @@ async function main() {
       education: 'Medical degree in Plastic & Reconstructive Surgery',
       focus_areas: 'Aesthetic surgery, reconstructive procedures',
       professional_affiliations: 'KSPRAS',
-      profile_image: '/images/doctors/dr-ken-aluora.jpg',
+      profile_image: 'https://res.cloudinary.com/dcngzaxlv/image/upload/v1768807324/ken_kk287d.png',
       clinic_location: 'Nairobi Sculpt Aesthetic Centre, Nairobi, Kenya',
     },
     {
@@ -140,7 +140,7 @@ async function main() {
       education: 'Medical degree in Plastic & Reconstructive Surgery',
       focus_areas: 'Cosmetic surgery, reconstructive procedures',
       professional_affiliations: 'KSPRAS',
-      profile_image: '/images/doctors/dr-john-paul-ogalo.jpg',
+      profile_image: 'https://res.cloudinary.com/dcngzaxlv/image/upload/v1768807324/jp_ld51ku.png',
       clinic_location: 'Nairobi Sculpt Aesthetic Centre, Nairobi, Kenya',
     },
     {
@@ -156,7 +156,7 @@ async function main() {
       education: 'Medical degree in Plastic, Reconstructive & Aesthetic Surgery. Fellowships: BFIRST and SHARE (2023–2024)',
       focus_areas: 'Breast reduction surgery, pediatric plastic surgery, burn care, scar & wound management, clitoral restoration',
       professional_affiliations: 'BFIRST, SHARE, KSPRAS',
-      profile_image: '/images/doctors/dr-angela-muoki.jpg',
+      profile_image: 'https://res.cloudinary.com/dcngzaxlv/image/upload/v1768807325/angela_fq6fwb.png',
       clinic_location: 'Nairobi Sculpt Aesthetic Centre, Nairobi, Kenya',
     },
     {
@@ -172,7 +172,7 @@ async function main() {
       education: 'Medical degree in Plastic Surgery. Fellowship in Hand Surgery from Ganga Hospital, India',
       focus_areas: 'Hand surgery (trauma, congenital, nerve, wrist, brachial plexus), plastic surgery',
       professional_affiliations: 'KSPRAS',
-      profile_image: '/images/doctors/dr-dorsi-jowi.jpg',
+      profile_image: 'https://res.cloudinary.com/dcngzaxlv/image/upload/v1768807325/dorsi_c5e7ep.png',
       clinic_location: 'Nairobi Sculpt Aesthetic Centre, Nairobi, Kenya',
     },
   ];
