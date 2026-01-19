@@ -1,0 +1,65 @@
+import { Appointment } from '../../entities/Appointment';
+
+/**
+ * Repository Interface: IAppointmentRepository
+ * 
+ * Defines the contract for appointment data persistence operations.
+ * This interface represents the "port" in Ports and Adapters architecture.
+ * 
+ * Implementations of this interface will be provided by the infrastructure layer
+ * (e.g., PrismaAppointmentRepository using Prisma ORM).
+ * 
+ * Domain Layer Rule: This interface only depends on domain types.
+ * No framework, infrastructure, or external dependencies allowed.
+ */
+export interface IAppointmentRepository {
+  /**
+   * Finds an appointment by its unique identifier
+   * 
+   * @param id - The appointment's unique identifier (numeric ID)
+   * @returns Promise resolving to the Appointment entity if found, null otherwise
+   */
+  findById(id: number): Promise<Appointment | null>;
+
+  /**
+   * Finds all appointments for a specific patient
+   * 
+   * @param patientId - The patient's unique identifier
+   * @returns Promise resolving to an array of Appointment entities
+   *          Returns empty array if no appointments found
+   */
+  findByPatient(patientId: string): Promise<Appointment[]>;
+
+  /**
+   * Finds all appointments for a specific doctor
+   * 
+   * @param doctorId - The doctor's unique identifier
+   * @returns Promise resolving to an array of Appointment entities
+   *          Returns empty array if no appointments found
+   */
+  findByDoctor(doctorId: string): Promise<Appointment[]>;
+
+  /**
+   * Saves a new appointment to the data store
+   * 
+   * This method should handle creation of new appointments.
+   * If an appointment with the same ID already exists, the behavior
+   * is implementation-specific (may throw error or update).
+   * 
+   * @param appointment - The Appointment entity to save
+   * @returns Promise that resolves when the save operation completes
+   * @throws Error if the save operation fails
+   */
+  save(appointment: Appointment): Promise<void>;
+
+  /**
+   * Updates an existing appointment in the data store
+   * 
+   * The appointment must already exist in the data store.
+   * 
+   * @param appointment - The Appointment entity with updated information
+   * @returns Promise that resolves when the update operation completes
+   * @throws Error if the appointment does not exist or the update fails
+   */
+  update(appointment: Appointment): Promise<void>;
+}

@@ -164,14 +164,14 @@ export const Sidebar = async () => {
     <div className="w-full p-4 flex flex-col justify-between gap-4 bg-white overflow-y-scroll min-h-full">
       <div className="">
         <div className="flex items-center justify-center lg:justify-start gap-2">
-          <div className="p-1.5 rounded-md bg-blue-600 text-white">
+          <div className="p-1.5 rounded-md nairobi-gradient text-white">
             <SquareActivity size={22} />
           </div>
           <Link
             href={"/"}
-            className="hidden lg:flex text-base 2xl:text-xl font-bold"
+            className="hidden lg:flex text-base 2xl:text-xl font-bold font-playfair-display text-primary"
           >
-            Kinda HMS
+            Nairobi Sculpt
           </Link>
         </div>
 

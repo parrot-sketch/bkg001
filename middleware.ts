@@ -1,39 +1,22 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
-import { routeAccess } from "./lib/routes";
+import { NextRequest, NextResponse } from "next/server";
 
-const matchers = Object.keys(routeAccess).map((route) => ({
-  matcher: createRouteMatcher([route]),
-  allowedRoles: routeAccess[route],
-}));
-
-export default clerkMiddleware(async (auth, req) => {
-  const { userId, sessionClaims } = await auth();
-  const url = new URL(req.url);
-
-  const role =
-    userId && sessionClaims?.metadata?.role
-      ? sessionClaims.metadata.role
-      : userId
-      ? "patient"
-      : "sign-in";
-
-  const matchingRoute = matchers.find(({ matcher }) => matcher(req));
-
-  if (matchingRoute && !matchingRoute.allowedRoles.includes(role)) {
-    // Redirect unauthorized roles to their respective default pages
-    return NextResponse.redirect(new URL(`/${role}`, url.origin));
-  }
-
-  // Continue if the user is authorized
+/**
+ * JWT-based middleware
+ * 
+ * Note: API routes handle their own JWT authentication via JwtMiddleware.
+ * This middleware is simplified to avoid conflicts with Clerk (which is not used).
+ * Client-side routes handle authentication through useAuth hook and redirects.
+ */
+export default function middleware(request: NextRequest) {
+  // Allow all requests through - authentication is handled at:
+  // 1. API routes: Via JwtMiddleware in each route handler
+  // 2. Client routes: Via useAuth hook and redirects in components
   return NextResponse.next();
-});
+}
 
 export const config = {
   matcher: [
-    // Skip Next.js internals and all static files, unless found in search params
+    // Skip Next.js internals and all static files
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-    // Always run for API routes
-    "/(api|trpc)(.*)",
   ],
 };

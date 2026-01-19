@@ -1,0 +1,398 @@
+// ============================================================================
+// SCHEMA ADDITIONS - DOCTOR WORKFLOWS
+// ============================================================================
+// Add these to the existing schema.prisma file
+// These are MINIMAL, ADDITIVE tables only - no modifications to existing models
+// ============================================================================
+
+// ============================================================================
+// NEW ENUMS
+// ============================================================================
+
+enum DictationStatus {
+  RECORDING
+  PROCESSING
+  TRANSCRIBED
+  REVIEWED
+  ARCHIVED
+}
+
+enum DoctorConsultStatus {
+  REQUESTED
+  IN_REVIEW
+  RESPONDED
+  CLOSED
+  CANCELLED
+}
+
+enum DoctorConsultPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum SurgeryStatus {
+  SCHEDULED
+  IN_PREP
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  POSTPONED
+}
+
+enum SurgeryType {
+  ELECTIVE
+  URGENT
+  EMERGENCY
+}
+
+enum SurgeryTeamRole {
+  PRIMARY_SURGEON
+  ASSISTANT_SURGEON
+  SCRUB_NURSE
+  CIRCULATING_NURSE
+  ANESTHESIOLOGIST
+  SURGICAL_TECH
+  OBSERVER
+}
+
+enum SurgeryNoteType {
+  PRE_OP
+  INTRA_OP
+  POST_OP
+}
+
+enum ComplicationSeverity {
+  MINOR
+  MODERATE
+  SEVERE
+  CRITICAL
+}
+
+// ============================================================================
+// DOCTOR ONBOARDING
+// ============================================================================
+
+model DoctorOnboardingTask {
+  id                String   @id @default(uuid())
+  doctor_id         String
+  task_name         String
+  task_category     String?
+  description       String?
+  is_required       Boolean  @default(true)
+  is_completed      Boolean  @default(false)
+  completed_at      DateTime?
+  completed_by      String?
+  notes             String?
+  assigned_by       String?
+  due_date          DateTime?
+
+  doctor            Doctor   @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
+
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  @@index([doctor_id])
+  @@index([is_completed])
+  @@index([task_category])
+  @@index([doctor_id, is_completed])
+}
+
+model DoctorOnboardingDocument {
+  id                String   @id @default(uuid())
+  doctor_id         String
+  document_type     String
+  file_name         String
+  file_path         String
+  file_size         Int?
+  mime_type         String?
+  uploaded_by       String
+  verified          Boolean  @default(false)
+  verified_by       String?
+  verified_at       DateTime?
+  notes             String?
+
+  doctor            Doctor   @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
+
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  @@index([doctor_id])
+  @@index([document_type])
+  @@index([verified])
+  @@index([doctor_id, verified])
+}
+
+// ============================================================================
+// DICTATION
+// ============================================================================
+
+model Dictation {
+  id                String          @id @default(uuid())
+  doctor_id         String
+  patient_id         String?
+  appointment_id    Int?
+  consultation_id   Int?
+  medical_record_id Int?
+  
+  audio_file_path   String?
+  audio_file_size   Int?
+  duration_seconds  Int?
+  
+  transcription     String?         @db.Text
+  transcription_raw String?         @db.Text
+  transcription_service String?
+  
+  status            DictationStatus @default(RECORDING)
+  recorded_at       DateTime        @default(now())
+  transcribed_at    DateTime?
+  reviewed_at       DateTime?
+  reviewed_by       String?
+  
+  notes             String?         @db.Text
+  tags              String?
+  
+  doctor            Doctor          @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
+  patient           Patient?        @relation(fields: [patient_id], references: [id], onDelete: SetNull)
+  appointment       Appointment?     @relation(fields: [appointment_id], references: [id], onDelete: SetNull)
+  consultation      Consultation?   @relation(fields: [consultation_id], references: [id], onDelete: SetNull)
+  medical_record    MedicalRecord?  @relation(fields: [medical_record_id], references: [id], onDelete: SetNull)
+
+  created_at        DateTime        @default(now())
+  updated_at        DateTime        @updatedAt
+
+  @@index([doctor_id])
+  @@index([patient_id])
+  @@index([appointment_id])
+  @@index([consultation_id])
+  @@index([status])
+  @@index([recorded_at])
+  @@index([doctor_id, status])
+}
+
+// ============================================================================
+// DOCTOR-TO-DOCTOR CONSULTS
+// ============================================================================
+
+model DoctorConsult {
+  id                String              @id @default(uuid())
+  
+  requesting_doctor_id String
+  consulting_doctor_id  String
+  patient_id            String
+  
+  appointment_id       Int?
+  consultation_id      Int?
+  medical_record_id    Int?
+  
+  subject              String
+  question             String           @db.Text
+  clinical_context     String?          @db.Text
+  priority             DoctorConsultPriority @default(NORMAL)
+  
+  response             String?          @db.Text
+  recommendations      String?          @db.Text
+  responded_at         DateTime?
+  
+  status               DoctorConsultStatus @default(REQUESTED)
+  requested_at         DateTime         @default(now())
+  reviewed_at          DateTime?
+  closed_at            DateTime?
+  
+  notes                String?          @db.Text
+  attachments          String?
+  
+  requesting_doctor    Doctor           @relation("RequestingDoctorConsults", fields: [requesting_doctor_id], references: [id], onDelete: Cascade)
+  consulting_doctor     Doctor           @relation("ConsultingDoctorConsults", fields: [consulting_doctor_id], references: [id], onDelete: Cascade)
+  patient               Patient          @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+  appointment           Appointment?     @relation(fields: [appointment_id], references: [id], onDelete: SetNull)
+  consultation          Consultation?   @relation(fields: [consultation_id], references: [id], onDelete: SetNull)
+  medical_record        MedicalRecord?  @relation(fields: [medical_record_id], references: [id], onDelete: SetNull)
+
+  created_at           DateTime         @default(now())
+  updated_at           DateTime         @updatedAt
+
+  @@index([requesting_doctor_id])
+  @@index([consulting_doctor_id])
+  @@index([patient_id])
+  @@index([status])
+  @@index([priority])
+  @@index([requested_at])
+  @@index([requesting_doctor_id, status])
+  @@index([consulting_doctor_id, status])
+}
+
+// ============================================================================
+// SURGERY WORKFLOWS
+// ============================================================================
+
+model Surgery {
+  id                  String          @id @default(uuid())
+  patient_id          String
+  primary_doctor_id   String
+  appointment_id      Int?
+  
+  surgery_name        String
+  surgery_type        SurgeryType     @default(ELECTIVE)
+  description         String?         @db.Text
+  estimated_duration  Int?
+  
+  scheduled_date      DateTime
+  scheduled_time      String
+  actual_start_time   DateTime?
+  actual_end_time     DateTime?
+  
+  status              SurgeryStatus  @default(SCHEDULED)
+  scheduled_at         DateTime       @default(now())
+  completed_at        DateTime?
+  cancelled_at        DateTime?
+  cancellation_reason String?         @db.Text
+  
+  pre_op_notes        String?         @db.Text
+  pre_op_checklist_completed Boolean @default(false)
+  pre_op_completed_at DateTime?
+  
+  post_op_notes       String?         @db.Text
+  post_op_completed_at DateTime?
+  follow_up_required  Boolean         @default(true)
+  follow_up_date      DateTime?
+  
+  anesthesia_type     String?
+  anesthesiologist_id String?
+  
+  operating_room      String?
+  facility_location   String?
+  
+  patient             Patient         @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+  primary_doctor      Doctor          @relation("PrimarySurgeonSurgeries", fields: [primary_doctor_id], references: [id], onDelete: Cascade)
+  anesthesiologist    Doctor?         @relation("AnesthesiologistSurgeries", fields: [anesthesiologist_id], references: [id], onDelete: SetNull)
+  appointment         Appointment?    @relation(fields: [appointment_id], references: [id], onDelete: SetNull)
+  surgery_team        SurgeryTeamMember[]
+  surgery_notes       SurgeryNote[]
+  surgery_complications SurgeryComplication[]
+
+  created_at          DateTime        @default(now())
+  updated_at          DateTime        @updatedAt
+
+  @@index([patient_id])
+  @@index([primary_doctor_id])
+  @@index([scheduled_date])
+  @@index([status])
+  @@index([surgery_type])
+  @@index([scheduled_date, status])
+  @@index([primary_doctor_id, scheduled_date])
+}
+
+model SurgeryTeamMember {
+  id                  Int             @id @default(autoincrement())
+  surgery_id          String
+  user_id             String
+  role                SurgeryTeamRole
+  confirmed           Boolean         @default(false)
+  confirmed_at        DateTime?
+  notes               String?
+
+  surgery             Surgery         @relation(fields: [surgery_id], references: [id], onDelete: Cascade)
+  user                User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  created_at          DateTime        @default(now())
+  updated_at          DateTime        @updatedAt
+
+  @@unique([surgery_id, user_id])
+  @@index([surgery_id])
+  @@index([user_id])
+  @@index([role])
+}
+
+model SurgeryNote {
+  id                  Int             @id @default(autoincrement())
+  surgery_id          String
+  doctor_id            String
+  note_type           SurgeryNoteType
+  note                String          @db.Text
+  recorded_at          DateTime        @default(now())
+  is_final             Boolean         @default(false)
+
+  surgery             Surgery         @relation(fields: [surgery_id], references: [id], onDelete: Cascade)
+  doctor              Doctor          @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
+
+  created_at          DateTime        @default(now())
+  updated_at          DateTime        @updatedAt
+
+  @@index([surgery_id])
+  @@index([doctor_id])
+  @@index([note_type])
+  @@index([recorded_at])
+  @@index([surgery_id, note_type])
+}
+
+model SurgeryComplication {
+  id                  Int             @id @default(autoincrement())
+  surgery_id          String
+  complication_type   String
+  description         String          @db.Text
+  severity            ComplicationSeverity
+  occurred_at         DateTime
+  resolved_at         DateTime?
+  resolution_notes    String?         @db.Text
+  reported_by         String
+
+  surgery             Surgery         @relation(fields: [surgery_id], references: [id], onDelete: Cascade)
+
+  created_at          DateTime        @default(now())
+  updated_at          DateTime        @updatedAt
+
+  @@index([surgery_id])
+  @@index([severity])
+  @@index([occurred_at])
+  @@index([surgery_id, severity])
+}
+
+// ============================================================================
+// RELATIONS TO ADD TO EXISTING MODELS
+// ============================================================================
+// Add these relations to the existing models in schema.prisma:
+
+// model Doctor {
+//   // ... existing fields ...
+//   onboarding_tasks        DoctorOnboardingTask[]
+//   onboarding_documents     DoctorOnboardingDocument[]
+//   dictations              Dictation[]
+//   requesting_consults      DoctorConsult[] @relation("RequestingDoctorConsults")
+//   consulting_consults      DoctorConsult[] @relation("ConsultingDoctorConsults")
+//   primary_surgeries        Surgery[] @relation("PrimarySurgeonSurgeries")
+//   anesthesiologist_surgeries Surgery[] @relation("AnesthesiologistSurgeries")
+//   surgery_notes            SurgeryNote[]
+// }
+
+// model Patient {
+//   // ... existing fields ...
+//   dictations              Dictation[]
+//   doctor_consults         DoctorConsult[]
+//   surgeries               Surgery[]
+// }
+
+// model Appointment {
+//   // ... existing fields ...
+//   dictations              Dictation[]
+//   doctor_consults         DoctorConsult[]
+//   surgery                 Surgery?
+// }
+
+// model Consultation {
+//   // ... existing fields ...
+//   dictations              Dictation[]
+//   doctor_consults         DoctorConsult[]
+// }
+
+// model MedicalRecord {
+//   // ... existing fields ...
+//   dictations              Dictation[]
+//   doctor_consults         DoctorConsult[]
+// }
+
+// model User {
+//   // ... existing fields ...
+//   surgery_team_members    SurgeryTeamMember[]
+// }

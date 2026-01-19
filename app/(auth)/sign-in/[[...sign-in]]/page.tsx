@@ -1,5 +1,9 @@
-import { SignIn } from "@clerk/nextjs";
+import { redirect } from 'next/navigation';
 
-export default function Page() {
-  return <SignIn />;
+/**
+ * Legacy Clerk sign-in route redirect
+ * Redirects to custom patient login page using Next.js server-side redirect
+ */
+export default function SignInPage() {
+  redirect('/patient/login');
 }

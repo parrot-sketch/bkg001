@@ -1,0 +1,199 @@
+'use client';
+
+/**
+ * Update Staff Dialog
+ * 
+ * Modal dialog for updating staff member information.
+ */
+
+import { useState, useEffect } from 'react';
+import { adminApi } from '../../lib/api/admin';
+import { Button } from '../../ui/button';
+import { Input } from '../../ui/input';
+import { Label } from '../../ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../../ui/dialog';
+import { toast } from 'sonner';
+import type { UserResponseDto } from '../../application/dtos/UserResponseDto';
+import type { RegisterUserDto } from '../../application/dtos/RegisterUserDto';
+import { Role } from '../../domain/enums/Role';
+
+interface UpdateStaffDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+  staff: UserResponseDto;
+}
+
+export function UpdateStaffDialog({
+  open,
+  onClose,
+  onSuccess,
+  staff,
+}: UpdateStaffDialogProps) {
+  const [formData, setFormData] = useState<Partial<RegisterUserDto>>({
+    id: staff.id,
+    email: staff.email,
+    role: staff.role,
+    firstName: staff.firstName || '',
+    lastName: staff.lastName || '',
+    phone: staff.phone || '',
+    password: '', // Password not required for updates
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setFormData({
+        id: staff.id,
+        email: staff.email,
+        role: staff.role,
+        firstName: staff.firstName || '',
+        lastName: staff.lastName || '',
+        phone: staff.phone || '',
+        password: '',
+      });
+    }
+  }, [open, staff]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.email || !formData.role) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const updates: Partial<RegisterUserDto> = {
+        email: formData.email,
+        role: formData.role,
+        firstName: formData.firstName || undefined,
+        lastName: formData.lastName || undefined,
+        phone: formData.phone || undefined,
+      };
+
+      // Only include password if it's being changed
+      if (formData.password && formData.password.trim()) {
+        updates.password = formData.password;
+      }
+
+      const response = await adminApi.updateStaff(staff.id, updates);
+
+      if (response.success && response.data) {
+        toast.success('Staff member updated successfully');
+        onSuccess();
+      } else {
+        toast.error(response.error || 'Failed to update staff member');
+      }
+    } catch (error) {
+      toast.error('An error occurred while updating staff member');
+      console.error('Error updating staff member:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Update Staff Member</DialogTitle>
+          <DialogDescription>Update staff member information</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-4 py-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name</Label>
+                <Input
+                  id="firstName"
+                  value={formData.firstName || ''}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input
+                  id="lastName"
+                  value={formData.lastName || ''}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email *</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                required
+                disabled={isSubmitting}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">New Password (leave blank to keep current)</Label>
+              <Input
+                id="password"
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                disabled={isSubmitting}
+                placeholder="Enter new password or leave blank"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="role">Role *</Label>
+              <select
+                id="role"
+                value={formData.role}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value as Role })}
+                required
+                disabled={isSubmitting}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                <option value={Role.DOCTOR}>Doctor</option>
+                <option value={Role.NURSE}>Nurse</option>
+                <option value={Role.FRONTDESK}>Frontdesk</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone</Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={formData.phone || ''}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                disabled={isSubmitting}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Updating...' : 'Update Staff'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

@@ -70,16 +70,12 @@ export const daysOfWeek = [
 ];
 
 export function generateRandomColor(): string {
-  let hexColor = "";
-  do {
-    const randomInt = Math.floor(Math.random() * 16777216);
-
-    hexColor = `#${randomInt.toString(16).padStart(6, "0")}`;
-  } while (
-    hexColor.toLowerCase() === "#ffffff" ||
-    hexColor.toLowerCase() === "#000000"
-  ); // Ensure it’s not white or black
-  return hexColor;
+  const letters = "0123456789ABCDEF";
+  let color = "#";
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+  return color;
 }
 
 function formatTime(hour: number, minute: number): string {
