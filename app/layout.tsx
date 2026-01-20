@@ -30,6 +30,15 @@ const playfairDisplay = Playfair_Display({
 export const metadata: Metadata = {
   title: "Nairobi Sculpt - Aesthetic Surgery Management",
   description: "Premier Aesthetic Surgery & Clinical Management System",
+  icons: {
+    icon: "https://res.cloudinary.com/dcngzaxlv/image/upload/v1768807323/logo_tw2voz.png",
+    apple: "https://res.cloudinary.com/dcngzaxlv/image/upload/v1768807323/logo_tw2voz.png",
+  },
+  openGraph: {
+    title: "Nairobi Sculpt - Aesthetic Surgery Management",
+    description: "Premier Aesthetic Surgery & Clinical Management System",
+    images: ["https://res.cloudinary.com/dcngzaxlv/image/upload/v1768807323/logo_tw2voz.png"],
+  },
 };
 
 export default function RootLayout({
