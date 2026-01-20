@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import Image from "next/image";
 import { Calendar, Heart, Shield, Users, ArrowRight, CheckCircle, Activity } from "lucide-react";
 
 export default function Home() {
@@ -11,9 +12,14 @@ export default function Home() {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-3">
-              <div className="h-10 w-10 rounded-lg bg-teal-500 flex items-center justify-center">
-                <span className="text-white font-bold text-lg">NS</span>
-              </div>
+              <Image
+                src="https://res.cloudinary.com/dcngzaxlv/image/upload/v1768807323/logo_tw2voz.png"
+                alt="Nairobi Sculpt Logo"
+                width={40}
+                height={40}
+                className="h-10 w-auto object-contain"
+                priority
+              />
               <span className="font-playfair-display text-xl font-bold text-slate-900">Nairobi Sculpt</span>
             </div>
             <div className="hidden md:flex items-center space-x-6">
@@ -190,9 +196,13 @@ export default function Home() {
             {/* Logo & Description */}
             <div>
               <div className="flex items-center space-x-3 mb-4">
-                <div className="h-12 w-12 rounded-lg bg-teal-500 flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">NS</span>
-                </div>
+                <Image
+                  src="https://res.cloudinary.com/dcngzaxlv/image/upload/v1768807323/logo_tw2voz.png"
+                  alt="Nairobi Sculpt Logo"
+                  width={48}
+                  height={48}
+                  className="h-12 w-auto object-contain"
+                />
                 <div className="flex flex-col">
                   <span className="font-semibold text-white text-lg">NAIROBI SCULPT</span>
                   <span className="text-sm text-gray-400 italic">Aesthetic Centre</span>

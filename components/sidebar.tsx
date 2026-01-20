@@ -16,6 +16,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import React from "react";
 import { LogoutButton } from "./logout-button";
 
@@ -163,17 +164,21 @@ export const Sidebar = async () => {
   return (
     <div className="w-full p-4 flex flex-col justify-between gap-4 bg-white overflow-y-scroll min-h-full">
       <div className="">
-        <div className="flex items-center justify-center lg:justify-start gap-2">
-          <div className="p-1.5 rounded-md nairobi-gradient text-white">
-            <SquareActivity size={22} />
-          </div>
-          <Link
-            href={"/"}
-            className="hidden lg:flex text-base 2xl:text-xl font-bold font-playfair-display text-primary"
-          >
+        <Link
+          href={"/"}
+          className="flex items-center justify-center lg:justify-start gap-2"
+        >
+          <Image
+            src="https://res.cloudinary.com/dcngzaxlv/image/upload/v1768807323/logo_tw2voz.png"
+            alt="Nairobi Sculpt Logo"
+            width={32}
+            height={32}
+            className="h-8 w-auto object-contain"
+          />
+          <span className="hidden lg:flex text-base 2xl:text-xl font-bold font-playfair-display text-primary">
             Nairobi Sculpt
-          </Link>
-        </div>
+          </span>
+        </Link>
 
         <div className="mt-4 text-sm">
           {SIDEBAR_LINKS.map((el) => (
