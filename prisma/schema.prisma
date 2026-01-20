@@ -422,7 +422,6 @@ model Appointment {
   doctor            Doctor            @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
   payments          Payment[]
   medical_records   MedicalRecord[]
-  consultations     Consultation[]
   care_notes        CareNote[]
   nurse_assignments NurseAssignment[] @relation("NurseAssignmentAppointment")
   vital_signs       VitalSign[]       @relation("VitalSignAppointment")
@@ -431,7 +430,7 @@ model Appointment {
   patient_images       PatientImage[]
   clinical_tasks       ClinicalTask[]
   surgical_outcome     SurgicalOutcome?
-  consultation         Consultation?
+  consultation         Consultation? @relation("AppointmentConsultation")
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -467,7 +466,7 @@ model Consultation {
   follow_up_notes String?
 
   // Relations
-  appointment Appointment @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
+  appointment Appointment @relation("AppointmentConsultation", fields: [appointment_id], references: [id], onDelete: Cascade)
   doctor      Doctor      @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
   user        User?       @relation(fields: [user_id], references: [id], onDelete: SetNull)
 
