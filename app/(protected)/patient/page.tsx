@@ -108,7 +108,18 @@ const PatientDashboard = async () => {
         </div>
 
         <AvailableDoctors 
-          data={availableDoctor.map(doctor => ({
+          data={availableDoctor.map((doctor: {
+            id: string;
+            name: string;
+            specialization: string;
+            img: string | null;
+            colorCode: string | null;
+            working_days: Array<{
+              day: string;
+              start_time: string;
+              end_time: string;
+            }>;
+          }) => ({
             id: doctor.id,
             name: doctor.name,
             specialization: doctor.specialization,
