@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { UserPlus, Search, Users } from 'lucide-react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { PatientRegistrationDialog } from '@/components/frontdesk/PatientRegistrationDialog';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
@@ -78,9 +79,9 @@ export default function FrontdeskPatientIntakePage() {
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Patient Intake</h1>
-          <p className="mt-2 text-muted-foreground">Register new patients or search for existing ones</p>
+        <div className="space-y-2">
+          <h1 className="text-3xl font-semibold text-foreground tracking-tight">Patient Intake</h1>
+          <p className="text-sm text-muted-foreground">Register new patients or search for existing ones</p>
         </div>
         <Button onClick={() => setShowRegistrationDialog(true)}>
           <UserPlus className="mr-2 h-4 w-4" />
@@ -119,54 +120,93 @@ export default function FrontdeskPatientIntakePage() {
 
       {/* Search Results */}
       {searchResults.length > 0 && (
-        <Card>
+        <Card className="border-gray-200 shadow-sm">
           <CardHeader>
             <CardTitle>Search Results</CardTitle>
             <CardDescription>Found {searchResults.length} patient(s)</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {searchResults.map((patient) => (
-                <div
+                <Card
                   key={patient.id}
-                  className="flex items-center justify-between rounded-lg border border-border p-4 hover:bg-muted/50 transition-colors"
+                  className="border-gray-200 hover:border-brand-primary/50 hover:shadow-md transition-all duration-200"
                 >
-                  <div className="flex items-center space-x-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                      <Users className="h-6 w-6 text-primary" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="font-medium">
-                        {patient.firstName} {patient.lastName}
-                      </p>
-                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                        <span>{patient.email}</span>
+                  <CardContent className="p-6">
+                    <div className="space-y-4">
+                      {/* Header with Avatar and Name */}
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="h-12 w-12 rounded-full bg-gradient-to-br from-brand-primary to-brand-dusk flex items-center justify-center text-white font-semibold text-lg shadow-md">
+                            {patient.firstName.charAt(0)}{patient.lastName.charAt(0)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-foreground truncate">
+                              {patient.firstName} {patient.lastName}
+                            </h3>
+                            {patient.fileNumber && (
+                              <p className="text-xs font-mono text-brand-primary mt-0.5">
+                                {patient.fileNumber}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Patient Info */}
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <span className="font-medium min-w-[80px]">Email:</span>
+                          <span className="truncate">{patient.email}</span>
+                        </div>
                         {patient.phone && (
-                          <>
-                            <span>•</span>
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <span className="font-medium min-w-[80px]">Phone:</span>
                             <span>{patient.phone}</span>
-                          </>
+                          </div>
+                        )}
+                        {patient.address && (
+                          <div className="flex items-start gap-2 text-muted-foreground">
+                            <span className="font-medium min-w-[80px]">Address:</span>
+                            <span className="line-clamp-2">{patient.address}</span>
+                          </div>
+                        )}
+                        {patient.dateOfBirth && (
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <span className="font-medium min-w-[80px]">Age:</span>
+                            <span>
+                              {patient.age} years {patient.age < 18 && <span className="text-brand-secondary">(Minor)</span>}
+                            </span>
+                          </div>
+                        )}
+                        {patient.gender && (
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <span className="font-medium min-w-[80px]">Gender:</span>
+                            <span className="capitalize">{patient.gender.toLowerCase()}</span>
+                          </div>
                         )}
                       </div>
-                      {patient.dateOfBirth && (
-                        <p className="text-xs text-muted-foreground">
-                          Age: {patient.age} years {patient.age < 18 ? '(Minor)' : ''}
-                        </p>
-                      )}
+
+                      {/* Actions */}
+                      <div className="flex gap-2 pt-2 border-t border-border">
+                        <Link href={`/patient/${patient.id}`} className="flex-1">
+                          <Button variant="outline" size="sm" className="w-full">
+                            View Details
+                          </Button>
+                        </Link>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setShowRegistrationDialog(true);
+                          }}
+                        >
+                          Edit
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      // Pre-fill registration form with existing patient data
-                      setShowRegistrationDialog(true);
-                      // You could pass patient data to dialog here
-                    }}
-                  >
-                    Update Info
-                  </Button>
-                </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           </CardContent>

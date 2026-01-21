@@ -3,14 +3,18 @@
 /**
  * Patient Profile Page
  * 
- * Medical-grade patient profile management with:
- * - Structured, sectioned form layout
- * - Profile completeness tracking
- * - Neutral, calming design system
- * - Single source of truth for patient data
+ * Modern mobile-first clinical patient profile management.
+ * Designed for real patients using phones in clinical settings.
+ * 
+ * Design Principles:
+ * - Mobile-first: Optimized for touch, generous spacing, clear hierarchy
+ * - Clinical aesthetic: Calm, trustworthy, professional
+ * - Reduced cognitive load: Clear sections, progressive disclosure
+ * - Accessibility: Large touch targets, clear labels, sufficient contrast
  */
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { apiClient } from '@/lib/api/client';
 import { patientApi } from '@/lib/api/patient';
@@ -21,7 +25,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { User, Mail, Phone, MapPin, Calendar, AlertCircle, CheckCircle2, Info } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Calendar, AlertCircle, CheckCircle2, Info, Heart, Shield, FileText } from 'lucide-react';
+import { DatePicker } from '@/components/ui/date-picker';
 import { toast } from 'sonner';
 import { Gender } from '@/domain/enums/Gender';
 import { format } from 'date-fns';
@@ -70,7 +75,65 @@ function calculateCompleteness(patient: PatientResponseDto | null, formData: Par
   return { score, missingCritical, missingOptional };
 }
 
-export default function PatientProfilePage() {
+/**
+ * Section Header Component
+ * Provides consistent visual hierarchy for form sections
+ */
+function SectionHeader({ 
+  icon: Icon, 
+  title, 
+  description 
+}: { 
+  icon: any; 
+  title: string; 
+  description: string; 
+}) {
+  return (
+    <div className="flex items-start gap-3 pb-4 border-b border-gray-100">
+      <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center">
+        <Icon className="h-5 w-5 text-teal-600" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <h3 className="text-base font-semibold text-slate-900 leading-tight">{title}</h3>
+        <p className="text-sm text-gray-500 mt-0.5 leading-relaxed">{description}</p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Field Group Component
+ * Wraps related form fields with consistent spacing
+ */
+function FieldGroup({ children, columns = 1 }: { children: React.ReactNode; columns?: 1 | 2 }) {
+  return (
+    <div className={`grid gap-5 ${columns === 2 ? 'md:grid-cols-2' : ''}`}>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Form Field Component
+ * Standardized form field with consistent styling and spacing
+ */
+function FormField({ 
+  children, 
+  fullWidth = false 
+}: { 
+  children: React.ReactNode; 
+  fullWidth?: boolean; 
+}) {
+  return (
+    <div className={fullWidth ? 'md:col-span-2' : ''}>
+      {children}
+    </div>
+  );
+}
+
+function PatientProfilePageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isAuthenticated } = useAuth();
   const [patient, setPatient] = useState<PatientResponseDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -212,11 +275,23 @@ export default function PatientProfilePage() {
 
         const response = await patientApi.createPatient(createDto);
 
+        console.log('Profile creation response:', response);
+
         if (response.success && response.data) {
           setPatient(response.data);
           setIsCreating(false);
           setIsEditing(false);
           toast.success('Profile created successfully');
+          
+          // Redirect to dashboard after successful profile creation
+          // Use replace to avoid back button issues
+          try {
+            router.replace('/patient/dashboard');
+          } catch (error) {
+            console.error('Navigation error:', error);
+            // Fallback to window.location if router fails
+            window.location.href = '/patient/dashboard';
+          }
         } else if (!response.success) {
           // If patient already exists error, reload patient data
           const emailExists = response.error?.toLowerCase().includes('email') && 
@@ -239,6 +314,13 @@ export default function PatientProfilePage() {
           setPatient(response.data);
           setIsEditing(false);
           toast.success('Profile updated successfully');
+          
+          // Check for returnTo parameter
+          const returnTo = searchParams?.get('returnTo');
+          if (returnTo) {
+            router.push(returnTo);
+          }
+          // Otherwise stay on profile page (user can see updated info)
         } else if (!response.success) {
           toast.error(response.error || 'Failed to update profile');
         } else {
@@ -255,16 +337,63 @@ export default function PatientProfilePage() {
 
   const handleCancel = () => {
     if (patient) {
+      // Editing existing profile - check if changes were made
+      const hasChanges = JSON.stringify(formData) !== JSON.stringify(patient);
+      
+      if (hasChanges) {
+        // Show confirmation for unsaved changes
+        const confirmCancel = window.confirm(
+          'You have unsaved changes. Are you sure you want to cancel? All changes will be discarded.'
+        );
+
+        if (!confirmCancel) {
+          return; // User chose not to cancel
+        }
+      }
+
+      // Reset to original patient data and exit edit mode
       setFormData(patient);
       setIsEditing(false);
+      if (hasChanges) {
+        toast.info('Changes discarded');
+      }
     } else if (isCreating) {
-      loadPatient();
+      // Creating new profile - check if any data was entered
+      const hasData = 
+        (formData.firstName && formData.firstName.trim().length > 0) ||
+        (formData.lastName && formData.lastName.trim().length > 0) ||
+        (formData.phone && formData.phone.trim().length > 0) ||
+        (formData.dateOfBirth) ||
+        (formData.gender) ||
+        (formData.address && formData.address.trim().length > 0) ||
+        (formData.emergencyContactName && formData.emergencyContactName.trim().length > 0);
+
+      if (hasData) {
+        // Show confirmation if user has entered data
+        const confirmCancel = window.confirm(
+          'You have unsaved changes. Are you sure you want to cancel? Your progress will be lost.'
+        );
+
+        if (!confirmCancel) {
+          return; // User chose not to cancel
+        }
+      }
+
+      // Redirect appropriately
+      const returnTo = searchParams?.get('returnTo');
+      if (returnTo) {
+        // User came from another page, send them back
+        router.push(returnTo);
+      } else {
+        // No return path, send to dashboard
+        router.push('/patient/dashboard');
+      }
     }
   };
 
   if (!isAuthenticated || !user) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center min-h-screen px-4">
         <div className="text-center">
           <p className="text-gray-600">Please log in to view your profile</p>
         </div>
@@ -274,522 +403,568 @@ export default function PatientProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center min-h-screen px-4">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-500 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading profile...</p>
+          <p className="mt-4 text-sm text-gray-600">Loading profile...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header with Profile Completeness */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-        <div className="flex-1">
-          <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900 mb-1">
-            {isCreating ? 'Create Your Profile' : 'Profile'}
-          </h1>
-          <p className="text-sm text-gray-600">
-            {isCreating 
-              ? 'Complete your profile to get started'
-              : 'Manage your personal information'}
-          </p>
-        </div>
-        
-        {!isEditing && patient && (
-          <div className="flex items-center gap-3">
-            {/* Profile Completeness Indicator */}
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg">
-              <div className="relative w-10 h-10">
-                <svg className="w-10 h-10 transform -rotate-90" viewBox="0 0 36 36">
-                  <circle
-                    cx="18"
-                    cy="18"
-                    r="16"
-                    fill="none"
-                    stroke="#e5e7eb"
-                    strokeWidth="3"
-                  />
-                  <circle
-                    cx="18"
-                    cy="18"
-                    r="16"
-                    fill="none"
-                    stroke={completeness.score >= 80 ? '#10b981' : completeness.score >= 50 ? '#f59e0b' : '#ef4444'}
-                    strokeWidth="3"
-                    strokeDasharray={`${completeness.score}, 100`}
-                  />
-                </svg>
-                <span className="absolute inset-0 flex items-center justify-center text-xs font-medium text-slate-900">
-                  {completeness.score}%
-                </span>
-              </div>
-              <div className="text-sm">
-                <p className="font-medium text-slate-900">Profile Complete</p>
-                {completeness.score < 100 && (
-                  <p className="text-xs text-gray-500">
-                    {completeness.missingCritical.length > 0 
-                      ? `${completeness.missingCritical.length} required field${completeness.missingCritical.length > 1 ? 's' : ''} missing`
-                      : 'All required fields complete'}
-                  </p>
-                )}
-              </div>
+    <div className="min-h-screen bg-gray-50 pb-24 md:pb-8">
+      {/* Header - Sticky on mobile */}
+      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-4 md:px-6 md:py-6 md:static md:border-b-0 md:bg-transparent">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-2xl md:text-3xl font-semibold text-slate-900 mb-1.5 leading-tight">
+                {isCreating ? 'Create Your Profile' : 'My Profile'}
+              </h1>
+              <p className="text-sm md:text-base text-gray-600 leading-relaxed">
+                {isCreating 
+                  ? 'Complete your profile to get started with consultations'
+                  : 'Manage your personal and medical information'}
+              </p>
             </div>
             
-            <Button 
-              onClick={() => setIsEditing(true)}
-              className="bg-slate-900 hover:bg-slate-800 text-white"
-            >
-              Edit Profile
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {/* Profile Completeness Alert */}
-      {patient && completeness.score < 100 && completeness.missingCritical.length > 0 && !isEditing && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-amber-900 mb-1">
-                Complete your profile to book faster
-              </p>
-              <p className="text-xs text-amber-700">
-                Your profile is {completeness.score}% complete. Complete it once to avoid re-entering information during booking.
-              </p>
-            </div>
+            {!isEditing && patient && (
+              <div className="flex items-center gap-3 flex-shrink-0">
+                {/* Profile Completeness Indicator */}
+                <div className="flex items-center gap-2.5 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">
+                  <div className="relative w-9 h-9 flex-shrink-0">
+                    <svg className="w-9 h-9 transform -rotate-90" viewBox="0 0 36 36">
+                      <circle
+                        cx="18"
+                        cy="18"
+                        r="16"
+                        fill="none"
+                        stroke="#e5e7eb"
+                        strokeWidth="3"
+                      />
+                      <circle
+                        cx="18"
+                        cy="18"
+                        r="16"
+                        fill="none"
+                        stroke={completeness.score >= 80 ? '#10b981' : completeness.score >= 50 ? '#f59e0b' : '#ef4444'}
+                        strokeWidth="3"
+                        strokeDasharray={`${completeness.score}, 100`}
+                      />
+                    </svg>
+                    <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-slate-900">
+                      {completeness.score}%
+                    </span>
+                  </div>
+                  <div className="hidden sm:block text-xs min-w-0">
+                    <p className="font-medium text-slate-900 leading-tight">Complete</p>
+                    {completeness.score < 100 && (
+                      <p className="text-[10px] text-gray-500 mt-0.5 leading-tight truncate">
+                        {completeness.missingCritical.length > 0 
+                          ? `${completeness.missingCritical.length} required`
+                          : 'All required'}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                
+                <Button 
+                  onClick={() => setIsEditing(true)}
+                  className="bg-slate-900 hover:bg-slate-800 text-white h-10 px-4 text-sm font-medium"
+                >
+                  Edit
+                </Button>
+              </div>
+            )}
           </div>
         </div>
-      )}
-
-      {/* Form Sections */}
-      <div className="space-y-6">
-        {/* Section 1: Basic Identity */}
-        <Card className="border-gray-200 shadow-sm">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg font-semibold text-slate-900">Basic Identity</CardTitle>
-            <CardDescription className="text-sm text-gray-600">
-              Your core identifying information
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="firstName" className="text-sm font-medium text-slate-900">
-                  First Name <span className="text-red-500">*</span>
-                </Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="firstName"
-                    value={formData.firstName || ''}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    disabled={!isEditing}
-                    className="pl-10 bg-white border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="lastName" className="text-sm font-medium text-slate-900">
-                  Last Name <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="lastName"
-                  value={formData.lastName || ''}
-                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                  disabled={!isEditing}
-                  className="bg-white border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="dateOfBirth" className="text-sm font-medium text-slate-900">
-                  Date of Birth {isCreating && <span className="text-red-500">*</span>}
-                </Label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="dateOfBirth"
-                    type="date"
-                    value={patient && !isCreating 
-                      ? (patient.dateOfBirth ? format(new Date(patient.dateOfBirth), 'yyyy-MM-dd') : '')
-                      : (formData.dateOfBirth ? (typeof formData.dateOfBirth === 'string' ? formData.dateOfBirth : format(new Date(formData.dateOfBirth), 'yyyy-MM-dd')) : '')
-                    }
-                    onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                    disabled={!isEditing || !!(patient && !isCreating)}
-                    className={`pl-10 border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 ${
-                      patient && !isCreating ? 'bg-gray-50 text-gray-600' : 'bg-white'
-                    }`}
-                    required={isCreating}
-                    max={format(new Date(), 'yyyy-MM-dd')}
-                  />
-                </div>
-                {patient && !isCreating && (
-                  <p className="text-xs text-gray-500">Date of birth cannot be changed</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="gender" className="text-sm font-medium text-slate-900">
-                  Gender {isCreating && <span className="text-red-500">*</span>}
-                </Label>
-                <Select 
-                  value={patient && !isCreating ? patient.gender : (formData.gender || '')} 
-                  onValueChange={(value) => setFormData({ ...formData, gender: value })}
-                  disabled={!isEditing || !!(patient && !isCreating)}
-                  required={isCreating}
-                >
-                  <SelectTrigger 
-                    id="gender"
-                    className={`border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 ${
-                      patient && !isCreating ? 'bg-gray-50 text-gray-600' : 'bg-white'
-                    }`}
-                  >
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.values(Gender).map((g) => (
-                      <SelectItem key={g} value={g}>
-                        {g.charAt(0).toUpperCase() + g.slice(1).toLowerCase()}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {patient && !isCreating && (
-                  <p className="text-xs text-gray-500">Gender cannot be changed</p>
-                )}
-              </div>
-
-              {isCreating && (
-                <div className="space-y-2">
-                  <Label htmlFor="maritalStatus" className="text-sm font-medium text-slate-900">
-                    Marital Status <span className="text-red-500">*</span>
-                  </Label>
-                  <Select 
-                    value={formData.maritalStatus || ''} 
-                    onValueChange={(value) => setFormData({ ...formData, maritalStatus: value })}
-                    disabled={!isEditing}
-                    required
-                  >
-                    <SelectTrigger id="maritalStatus" className="bg-white border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500">
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Single">Single</SelectItem>
-                      <SelectItem value="Married">Married</SelectItem>
-                      <SelectItem value="Divorced">Divorced</SelectItem>
-                      <SelectItem value="Widowed">Widowed</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Section 2: Contact Information */}
-        <Card className="border-gray-200 shadow-sm">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg font-semibold text-slate-900">Contact Information</CardTitle>
-            <CardDescription className="text-sm text-gray-600">
-              How we can reach you
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium text-slate-900">
-                  Email <span className="text-red-500">*</span>
-                </Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email || ''}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    disabled={true}
-                    className="pl-10 bg-gray-50 border-gray-200 text-gray-600"
-                    required
-                  />
-                </div>
-                <p className="text-xs text-gray-500">Email is managed by your account</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="phone" className="text-sm font-medium text-slate-900">
-                  Phone <span className="text-red-500">*</span>
-                </Label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={formData.phone || ''}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    disabled={!isEditing}
-                    className="pl-10 bg-white border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="address" className="text-sm font-medium text-slate-900">
-                  Address {isCreating && <span className="text-red-500">*</span>}
-                </Label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                  <Input
-                    id="address"
-                    value={formData.address || ''}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    disabled={!isEditing}
-                    className="pl-10 bg-white border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
-                    required={isCreating}
-                  />
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Section 3: Emergency Contact (Only for creation) */}
-        {isCreating && (
-          <Card className="border-gray-200 shadow-sm">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg font-semibold text-slate-900">Emergency Contact</CardTitle>
-              <CardDescription className="text-sm text-gray-600">
-                Contact information for emergencies
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="emergencyContactName" className="text-sm font-medium text-slate-900">
-                    Emergency Contact Name <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="emergencyContactName"
-                    value={formData.emergencyContactName || ''}
-                    onChange={(e) => setFormData({ ...formData, emergencyContactName: e.target.value })}
-                    disabled={!isEditing}
-                    className="bg-white border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="emergencyContactNumber" className="text-sm font-medium text-slate-900">
-                    Emergency Contact Phone <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    id="emergencyContactNumber"
-                    type="tel"
-                    value={formData.emergencyContactNumber || ''}
-                    onChange={(e) => setFormData({ ...formData, emergencyContactNumber: e.target.value })}
-                    disabled={!isEditing}
-                    className="bg-white border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="relation" className="text-sm font-medium text-slate-900">
-                    Relationship <span className="text-red-500">*</span>
-                  </Label>
-                  <Select 
-                    value={formData.relation || ''} 
-                    onValueChange={(value) => setFormData({ ...formData, relation: value })}
-                    disabled={!isEditing}
-                    required
-                  >
-                    <SelectTrigger id="relation" className="bg-white border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500">
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Spouse">Spouse</SelectItem>
-                      <SelectItem value="Parent">Parent</SelectItem>
-                      <SelectItem value="Sibling">Sibling</SelectItem>
-                      <SelectItem value="Child">Child</SelectItem>
-                      <SelectItem value="Friend">Friend</SelectItem>
-                      <SelectItem value="Other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Section 4: Medical Metadata (Optional) */}
-        <Card className="border-gray-200 shadow-sm">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg font-semibold text-slate-900">Medical Information</CardTitle>
-            <CardDescription className="text-sm text-gray-600">
-              Optional medical details to help us provide better care
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="bloodGroup" className="text-sm font-medium text-slate-900">
-                  Blood Group
-                </Label>
-                <Select 
-                  value={formData.bloodGroup || ''} 
-                  onValueChange={(value) => setFormData({ ...formData, bloodGroup: value || undefined })}
-                  disabled={!isEditing}
-                >
-                  <SelectTrigger id="bloodGroup" className="bg-white border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500">
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="A+">A+</SelectItem>
-                    <SelectItem value="A-">A-</SelectItem>
-                    <SelectItem value="B+">B+</SelectItem>
-                    <SelectItem value="B-">B-</SelectItem>
-                    <SelectItem value="AB+">AB+</SelectItem>
-                    <SelectItem value="AB-">AB-</SelectItem>
-                    <SelectItem value="O+">O+</SelectItem>
-                    <SelectItem value="O-">O-</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="occupation" className="text-sm font-medium text-slate-900">
-                  Occupation
-                </Label>
-                <Input
-                  id="occupation"
-                  value={formData.occupation || ''}
-                  onChange={(e) => setFormData({ ...formData, occupation: e.target.value || undefined })}
-                  disabled={!isEditing}
-                  className="bg-white border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
-                />
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="allergies" className="text-sm font-medium text-slate-900">
-                  Allergies
-                </Label>
-                <Textarea
-                  id="allergies"
-                  value={formData.allergies || ''}
-                  onChange={(e) => setFormData({ ...formData, allergies: e.target.value || undefined })}
-                  disabled={!isEditing}
-                  rows={2}
-                  placeholder="List any known allergies"
-                  className="bg-white border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
-                />
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="medicalConditions" className="text-sm font-medium text-slate-900">
-                  Medical Conditions
-                </Label>
-                <Textarea
-                  id="medicalConditions"
-                  value={formData.medicalConditions || ''}
-                  onChange={(e) => setFormData({ ...formData, medicalConditions: e.target.value || undefined })}
-                  disabled={!isEditing}
-                  rows={2}
-                  placeholder="List any existing medical conditions"
-                  className="bg-white border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Section 5: Consent (Only for creation) */}
-        {isCreating && (
-          <Card className="border-gray-200 shadow-sm">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg font-semibold text-slate-900">Consent & Authorization</CardTitle>
-              <CardDescription className="text-sm text-gray-600">
-                Please review and provide consent for the following
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-4">
-                <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                  <Checkbox
-                    id="privacyConsent"
-                    checked={formData.privacyConsent || false}
-                    onCheckedChange={(checked) => setFormData({ ...formData, privacyConsent: !!checked })}
-                    disabled={!isEditing}
-                    className="mt-1"
-                  />
-                  <Label htmlFor="privacyConsent" className="text-sm cursor-pointer leading-relaxed flex-1">
-                    <span className="font-medium text-slate-900">Privacy Consent <span className="text-red-500">*</span></span>
-                    <p className="text-gray-600 mt-1">I consent to the collection and use of my personal information as outlined in the Privacy Policy.</p>
-                  </Label>
-                </div>
-
-                <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                  <Checkbox
-                    id="serviceConsent"
-                    checked={formData.serviceConsent || false}
-                    onCheckedChange={(checked) => setFormData({ ...formData, serviceConsent: !!checked })}
-                    disabled={!isEditing}
-                    className="mt-1"
-                  />
-                  <Label htmlFor="serviceConsent" className="text-sm cursor-pointer leading-relaxed flex-1">
-                    <span className="font-medium text-slate-900">Service Consent <span className="text-red-500">*</span></span>
-                    <p className="text-gray-600 mt-1">I consent to receiving healthcare services and treatment.</p>
-                  </Label>
-                </div>
-
-                <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
-                  <Checkbox
-                    id="medicalConsent"
-                    checked={formData.medicalConsent || false}
-                    onCheckedChange={(checked) => setFormData({ ...formData, medicalConsent: !!checked })}
-                    disabled={!isEditing}
-                    className="mt-1"
-                  />
-                  <Label htmlFor="medicalConsent" className="text-sm cursor-pointer leading-relaxed flex-1">
-                    <span className="font-medium text-slate-900">Medical Consent <span className="text-red-500">*</span></span>
-                    <p className="text-gray-600 mt-1">I consent to medical procedures and treatments as recommended by my healthcare provider.</p>
-                  </Label>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
 
-      {/* Action Buttons */}
+      {/* Main Content */}
+      <div className="max-w-4xl mx-auto px-4 py-6 md:px-6 md:py-8 space-y-6 md:space-y-8">
+        {/* Profile Completeness Alert */}
+        {patient && completeness.score < 100 && completeness.missingCritical.length > 0 && !isEditing && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 md:p-5">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-amber-900 mb-1 leading-tight">
+                  Complete your profile to streamline booking
+                </p>
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  Your profile is {completeness.score}% complete. Complete it once to avoid re-entering information during consultations.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Form Sections */}
+        <div className="space-y-6 md:space-y-8">
+          {/* Section 1: Basic Identity */}
+          <Card className="border-0 shadow-sm bg-white">
+            <CardHeader className="pb-6 pt-6 md:pt-8 px-5 md:px-6">
+              <SectionHeader
+                icon={User}
+                title="Basic Information"
+                description="Your core identifying details"
+              />
+            </CardHeader>
+            <CardContent className="px-5 md:px-6 pb-6 md:pb-8">
+              <FieldGroup columns={2}>
+                <FormField>
+                  <Label htmlFor="firstName" className="text-sm font-medium text-slate-900 mb-2 block">
+                    First Name <span className="text-red-500 ml-0.5">*</span>
+                  </Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                    <Input
+                      id="firstName"
+                      value={formData.firstName || ''}
+                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                      disabled={!isEditing}
+                      className="pl-10 h-11 bg-white border-gray-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-base"
+                      required
+                    />
+                  </div>
+                </FormField>
+
+                <FormField>
+                  <Label htmlFor="lastName" className="text-sm font-medium text-slate-900 mb-2 block">
+                    Last Name <span className="text-red-500 ml-0.5">*</span>
+                  </Label>
+                  <Input
+                    id="lastName"
+                    value={formData.lastName || ''}
+                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                    disabled={!isEditing}
+                    className="h-11 bg-white border-gray-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-base"
+                    required
+                  />
+                </FormField>
+
+                <FormField>
+                  <Label htmlFor="dateOfBirth" className="text-sm font-medium text-slate-900 mb-2 block">
+                    Date of Birth {isCreating && <span className="text-red-500 ml-0.5">*</span>}
+                  </Label>
+                  <DatePicker
+                    id="dateOfBirth"
+                    value={patient && !isCreating && patient.dateOfBirth
+                      ? new Date(patient.dateOfBirth)
+                      : formData.dateOfBirth
+                        ? (typeof formData.dateOfBirth === 'string' ? new Date(formData.dateOfBirth) : formData.dateOfBirth)
+                        : undefined
+                    }
+                    onChange={(date) => {
+                      setFormData({ ...formData, dateOfBirth: date || undefined });
+                    }}
+                    placeholder="Select date of birth"
+                    disabled={!isEditing || !!(patient && !isCreating)}
+                    maxDate={new Date()}
+                    required={isCreating}
+                    className={
+                      patient && !isCreating 
+                        ? 'bg-gray-50 text-gray-600 border-gray-300' 
+                        : 'bg-white border-gray-300'
+                    }
+                  />
+                  {patient && !isCreating && (
+                    <p className="text-xs text-gray-500 mt-1.5">Date of birth cannot be changed</p>
+                  )}
+                </FormField>
+
+                <FormField>
+                  <Label htmlFor="gender" className="text-sm font-medium text-slate-900 mb-2 block">
+                    Gender {isCreating && <span className="text-red-500 ml-0.5">*</span>}
+                  </Label>
+                  <Select 
+                    value={patient && !isCreating ? patient.gender : (formData.gender || '')} 
+                    onValueChange={(value) => setFormData({ ...formData, gender: value })}
+                    disabled={!isEditing || !!(patient && !isCreating)}
+                    required={isCreating}
+                  >
+                    <SelectTrigger 
+                      id="gender"
+                      className={`h-11 border-gray-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-base ${
+                        patient && !isCreating ? 'bg-gray-50 text-gray-600' : 'bg-white'
+                      }`}
+                    >
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.values(Gender).map((g) => (
+                        <SelectItem key={g} value={g}>
+                          {g.charAt(0).toUpperCase() + g.slice(1).toLowerCase()}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {patient && !isCreating && (
+                    <p className="text-xs text-gray-500 mt-1.5">Gender cannot be changed</p>
+                  )}
+                </FormField>
+
+                {isCreating && (
+                  <FormField>
+                    <Label htmlFor="maritalStatus" className="text-sm font-medium text-slate-900 mb-2 block">
+                      Marital Status <span className="text-red-500 ml-0.5">*</span>
+                    </Label>
+                    <Select 
+                      value={formData.maritalStatus || ''} 
+                      onValueChange={(value) => setFormData({ ...formData, maritalStatus: value })}
+                      disabled={!isEditing}
+                      required
+                    >
+                      <SelectTrigger id="maritalStatus" className="h-11 bg-white border-gray-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-base">
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Single">Single</SelectItem>
+                        <SelectItem value="Married">Married</SelectItem>
+                        <SelectItem value="Divorced">Divorced</SelectItem>
+                        <SelectItem value="Widowed">Widowed</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormField>
+                )}
+              </FieldGroup>
+            </CardContent>
+          </Card>
+
+          {/* Section 2: Contact Information */}
+          <Card className="border-0 shadow-sm bg-white">
+            <CardHeader className="pb-6 pt-6 md:pt-8 px-5 md:px-6">
+              <SectionHeader
+                icon={Phone}
+                title="Contact Information"
+                description="How we can reach you"
+              />
+            </CardHeader>
+            <CardContent className="px-5 md:px-6 pb-6 md:pb-8">
+              <FieldGroup columns={2}>
+                <FormField>
+                  <Label htmlFor="email" className="text-sm font-medium text-slate-900 mb-2 block">
+                    Email <span className="text-red-500 ml-0.5">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email || ''}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      disabled={true}
+                      className="pl-10 h-11 bg-gray-50 border-gray-200 text-gray-600 text-base"
+                      required
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1.5">Email is managed by your account</p>
+                </FormField>
+
+                <FormField>
+                  <Label htmlFor="phone" className="text-sm font-medium text-slate-900 mb-2 block">
+                    Phone <span className="text-red-500 ml-0.5">*</span>
+                  </Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={formData.phone || ''}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      disabled={!isEditing}
+                      className="pl-10 h-11 bg-white border-gray-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-base"
+                      required
+                    />
+                  </div>
+                </FormField>
+
+                <FormField fullWidth>
+                  <Label htmlFor="address" className="text-sm font-medium text-slate-900 mb-2 block">
+                    Address {isCreating && <span className="text-red-500 ml-0.5">*</span>}
+                  </Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                    <Input
+                      id="address"
+                      value={formData.address || ''}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      disabled={!isEditing}
+                      className="pl-10 h-11 bg-white border-gray-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-base"
+                      required={isCreating}
+                    />
+                  </div>
+                </FormField>
+              </FieldGroup>
+            </CardContent>
+          </Card>
+
+          {/* Section 3: Emergency Contact (Only for creation) */}
+          {isCreating && (
+            <Card className="border-0 shadow-sm bg-white">
+              <CardHeader className="pb-6 pt-6 md:pt-8 px-5 md:px-6">
+                <SectionHeader
+                  icon={AlertCircle}
+                  title="Emergency Contact"
+                  description="Contact information for emergencies"
+                />
+              </CardHeader>
+              <CardContent className="px-5 md:px-6 pb-6 md:pb-8">
+                <FieldGroup columns={2}>
+                  <FormField fullWidth>
+                    <Label htmlFor="emergencyContactName" className="text-sm font-medium text-slate-900 mb-2 block">
+                      Emergency Contact Name <span className="text-red-500 ml-0.5">*</span>
+                    </Label>
+                    <Input
+                      id="emergencyContactName"
+                      value={formData.emergencyContactName || ''}
+                      onChange={(e) => setFormData({ ...formData, emergencyContactName: e.target.value })}
+                      disabled={!isEditing}
+                      className="h-11 bg-white border-gray-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-base"
+                      required
+                    />
+                  </FormField>
+
+                  <FormField>
+                    <Label htmlFor="emergencyContactNumber" className="text-sm font-medium text-slate-900 mb-2 block">
+                      Emergency Contact Phone <span className="text-red-500 ml-0.5">*</span>
+                    </Label>
+                    <Input
+                      id="emergencyContactNumber"
+                      type="tel"
+                      value={formData.emergencyContactNumber || ''}
+                      onChange={(e) => setFormData({ ...formData, emergencyContactNumber: e.target.value })}
+                      disabled={!isEditing}
+                      className="h-11 bg-white border-gray-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-base"
+                      required
+                    />
+                  </FormField>
+
+                  <FormField>
+                    <Label htmlFor="relation" className="text-sm font-medium text-slate-900 mb-2 block">
+                      Relationship <span className="text-red-500 ml-0.5">*</span>
+                    </Label>
+                    <Select 
+                      value={formData.relation || ''} 
+                      onValueChange={(value) => setFormData({ ...formData, relation: value })}
+                      disabled={!isEditing}
+                      required
+                    >
+                      <SelectTrigger id="relation" className="h-11 bg-white border-gray-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-base">
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Spouse">Spouse</SelectItem>
+                        <SelectItem value="Parent">Parent</SelectItem>
+                        <SelectItem value="Sibling">Sibling</SelectItem>
+                        <SelectItem value="Child">Child</SelectItem>
+                        <SelectItem value="Friend">Friend</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormField>
+                </FieldGroup>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Section 4: Medical Information (Optional) */}
+          <Card className="border-0 shadow-sm bg-white">
+            <CardHeader className="pb-6 pt-6 md:pt-8 px-5 md:px-6">
+              <SectionHeader
+                icon={Heart}
+                title="Medical Information"
+                description="Optional details to help us provide better care"
+              />
+            </CardHeader>
+            <CardContent className="px-5 md:px-6 pb-6 md:pb-8">
+              <FieldGroup columns={2}>
+                <FormField>
+                  <Label htmlFor="bloodGroup" className="text-sm font-medium text-slate-900 mb-2 block">
+                    Blood Group
+                  </Label>
+                  <Select 
+                    value={formData.bloodGroup || ''} 
+                    onValueChange={(value) => setFormData({ ...formData, bloodGroup: value || undefined })}
+                    disabled={!isEditing}
+                  >
+                    <SelectTrigger id="bloodGroup" className="h-11 bg-white border-gray-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-base">
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="A+">A+</SelectItem>
+                      <SelectItem value="A-">A-</SelectItem>
+                      <SelectItem value="B+">B+</SelectItem>
+                      <SelectItem value="B-">B-</SelectItem>
+                      <SelectItem value="AB+">AB+</SelectItem>
+                      <SelectItem value="AB-">AB-</SelectItem>
+                      <SelectItem value="O+">O+</SelectItem>
+                      <SelectItem value="O-">O-</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormField>
+
+                <FormField>
+                  <Label htmlFor="occupation" className="text-sm font-medium text-slate-900 mb-2 block">
+                    Occupation
+                  </Label>
+                  <Input
+                    id="occupation"
+                    value={formData.occupation || ''}
+                    onChange={(e) => setFormData({ ...formData, occupation: e.target.value || undefined })}
+                    disabled={!isEditing}
+                    className="h-11 bg-white border-gray-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-base"
+                  />
+                </FormField>
+
+                <FormField fullWidth>
+                  <Label htmlFor="allergies" className="text-sm font-medium text-slate-900 mb-2 block">
+                    Allergies
+                  </Label>
+                  <Textarea
+                    id="allergies"
+                    value={formData.allergies || ''}
+                    onChange={(e) => setFormData({ ...formData, allergies: e.target.value || undefined })}
+                    disabled={!isEditing}
+                    rows={3}
+                    placeholder="List any known allergies"
+                    className="bg-white border-gray-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-base resize-none"
+                  />
+                </FormField>
+
+                <FormField fullWidth>
+                  <Label htmlFor="medicalConditions" className="text-sm font-medium text-slate-900 mb-2 block">
+                    Medical Conditions
+                  </Label>
+                  <Textarea
+                    id="medicalConditions"
+                    value={formData.medicalConditions || ''}
+                    onChange={(e) => setFormData({ ...formData, medicalConditions: e.target.value || undefined })}
+                    disabled={!isEditing}
+                    rows={3}
+                    placeholder="List any existing medical conditions"
+                    className="bg-white border-gray-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 text-base resize-none"
+                  />
+                </FormField>
+              </FieldGroup>
+            </CardContent>
+          </Card>
+
+          {/* Section 5: Consent (Only for creation) */}
+          {isCreating && (
+            <Card className="border-0 shadow-sm bg-white">
+              <CardHeader className="pb-6 pt-6 md:pt-8 px-5 md:px-6">
+                <SectionHeader
+                  icon={Shield}
+                  title="Consent & Authorization"
+                  description="Please review and provide consent for the following"
+                />
+              </CardHeader>
+              <CardContent className="px-5 md:px-6 pb-6 md:pb-8">
+                <div className="space-y-4">
+                  <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl border border-gray-200 hover:border-gray-300 transition-colors">
+                    <Checkbox
+                      id="privacyConsent"
+                      checked={formData.privacyConsent || false}
+                      onCheckedChange={(checked) => setFormData({ ...formData, privacyConsent: !!checked })}
+                      disabled={!isEditing}
+                      className="mt-0.5 h-5 w-5"
+                    />
+                    <Label htmlFor="privacyConsent" className="text-sm cursor-pointer leading-relaxed flex-1">
+                      <span className="font-medium text-slate-900 block mb-1">
+                        Privacy Consent <span className="text-red-500">*</span>
+                      </span>
+                      <p className="text-gray-600 leading-relaxed text-sm">
+                        I consent to the collection and use of my personal information as outlined in the Privacy Policy.
+                      </p>
+                    </Label>
+                  </div>
+
+                  <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl border border-gray-200 hover:border-gray-300 transition-colors">
+                    <Checkbox
+                      id="serviceConsent"
+                      checked={formData.serviceConsent || false}
+                      onCheckedChange={(checked) => setFormData({ ...formData, serviceConsent: !!checked })}
+                      disabled={!isEditing}
+                      className="mt-0.5 h-5 w-5"
+                    />
+                    <Label htmlFor="serviceConsent" className="text-sm cursor-pointer leading-relaxed flex-1">
+                      <span className="font-medium text-slate-900 block mb-1">
+                        Service Consent <span className="text-red-500">*</span>
+                      </span>
+                      <p className="text-gray-600 leading-relaxed text-sm">
+                        I consent to receiving healthcare services and treatment.
+                      </p>
+                    </Label>
+                  </div>
+
+                  <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-xl border border-gray-200 hover:border-gray-300 transition-colors">
+                    <Checkbox
+                      id="medicalConsent"
+                      checked={formData.medicalConsent || false}
+                      onCheckedChange={(checked) => setFormData({ ...formData, medicalConsent: !!checked })}
+                      disabled={!isEditing}
+                      className="mt-0.5 h-5 w-5"
+                    />
+                    <Label htmlFor="medicalConsent" className="text-sm cursor-pointer leading-relaxed flex-1">
+                      <span className="font-medium text-slate-900 block mb-1">
+                        Medical Consent <span className="text-red-500">*</span>
+                      </span>
+                      <p className="text-gray-600 leading-relaxed text-sm">
+                        I consent to medical procedures and treatments as recommended by my healthcare provider.
+                      </p>
+                    </Label>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      {/* Action Buttons - Sticky on mobile */}
       {isEditing && (
-        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-          <Button 
-            variant="outline" 
-            onClick={handleCancel} 
-            disabled={isSubmitting}
-            className="border-gray-300 text-gray-700 hover:bg-gray-50"
-          >
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleSave} 
-            disabled={isSubmitting}
-            className="bg-teal-600 hover:bg-teal-700 text-white"
-          >
-            {isSubmitting 
-              ? (isCreating ? 'Creating...' : 'Saving...') 
-              : (isCreating ? 'Create Profile' : 'Save Changes')}
-          </Button>
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg md:static md:border-t-0 md:shadow-none md:bg-transparent md:z-auto">
+          <div className="max-w-4xl mx-auto px-4 py-4 md:px-6 md:py-6">
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <Button 
+                variant="outline" 
+                onClick={handleCancel} 
+                disabled={isSubmitting}
+                className="h-12 sm:h-11 border-gray-300 text-gray-700 hover:bg-gray-50 text-base font-medium"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSave} 
+                disabled={isSubmitting}
+                className="h-12 sm:h-11 bg-teal-600 hover:bg-teal-700 text-white text-base font-medium shadow-sm"
+              >
+                {isSubmitting 
+                  ? (isCreating ? 'Creating...' : 'Saving...') 
+                  : (isCreating ? 'Create Profile' : 'Save Changes')}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
+  );
+}
+
+export default function PatientProfilePage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-teal-600 mx-auto mb-4" />
+          <p className="text-sm text-muted-foreground">Loading profile...</p>
+        </div>
+      </div>
+    }>
+      <PatientProfilePageContent />
+    </Suspense>
   );
 }

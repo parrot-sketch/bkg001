@@ -85,7 +85,7 @@ export const BookAppointment = ({
       if (res.success) {
         form.reset({});
         router.refresh();
-        toast.success("Your inquiry has been submitted. We will review it and contact you shortly.");
+        toast.success("Your consultation request has been submitted. Our clinical team will review it and contact you shortly.");
       } else {
         // Show specific error message from server
         toast.error(res.msg || "Failed to submit appointment. Please try again.");

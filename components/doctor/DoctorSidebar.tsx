@@ -9,6 +9,7 @@
  */
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Calendar, FileText, Users, User, LogOut, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -96,10 +97,15 @@ export function DoctorSidebar({ isOpen, onClose }: DoctorSidebarProps) {
           {/* Logo/Brand */}
           <div className="flex h-16 items-center justify-between border-b border-border px-6">
             <Link href="/doctor/dashboard" className="flex items-center space-x-2" onClick={onClose}>
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg nairobi-gradient">
-                <span className="text-lg font-bold text-white">NS</span>
-              </div>
-              <span className="text-lg font-semibold text-foreground">Nairobi Sculpt</span>
+              <Image
+                src="https://res.cloudinary.com/dcngzaxlv/image/upload/v1768807323/logo_tw2voz.png"
+                alt="Nairobi Sculpt Logo"
+                width={32}
+                height={32}
+                className="h-8 w-auto object-contain"
+                priority
+              />
+              <span className="text-lg font-semibold text-foreground font-playfair-display">Nairobi Sculpt</span>
             </Link>
             <Button
               variant="ghost"

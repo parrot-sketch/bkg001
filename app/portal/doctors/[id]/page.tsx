@@ -211,7 +211,7 @@ export default function DoctorProfilePage() {
           {/* Primary Action Button - Sticky on Mobile */}
           <div className="flex flex-col sm:flex-row gap-3">
             <Link
-              href={`/portal/book-consultation?doctorId=${doctor.id}`}
+              href={`/patient/consultations/request?doctorId=${doctor.id}`}
               className="flex-1 sm:flex-none"
             >
               <Button className="w-full sm:w-auto h-11 bg-teal-500 hover:bg-teal-600 text-white">
@@ -355,7 +355,7 @@ export default function DoctorProfilePage() {
         <div className="mt-12 pt-8 border-t border-gray-200">
           <div className="flex flex-col sm:flex-row gap-3">
             <Link
-              href={`/portal/book-consultation?doctorId=${doctor.id}`}
+              href={`/patient/consultations/request?doctorId=${doctor.id}`}
               className="flex-1"
             >
               <Button className="w-full h-11 bg-teal-500 hover:bg-teal-600 text-white">

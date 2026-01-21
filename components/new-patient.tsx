@@ -76,7 +76,7 @@ export const NewPatient = ({ data, type }: DataProps) => {
     if (res?.success) {
       toast.success(res.msg);
       form.reset();
-      router.push("/patient");
+      router.push("/patient/dashboard");
     } else {
       console.log(res);
       toast.error("Failed to create patient");

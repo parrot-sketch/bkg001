@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { CheckCircle, AlertCircle, XCircle, Calendar, Clock } from 'lucide-react';
+import { CheckCircle, AlertCircle, XCircle, Calendar, Clock, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { frontdeskApi } from '@/lib/api/frontdesk';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
@@ -304,18 +304,25 @@ export function ReviewConsultationDialog({
                 </div>
               )}
 
-              {/* Optional Notes (for approve) */}
+              {/* Assistant Brief (for approve) */}
               {selectedAction === 'approve' && (
                 <div className="space-y-2">
-                  <Label htmlFor="reviewNotes">Additional Notes (Optional)</Label>
+                  <Label htmlFor="reviewNotes" className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    Assistant Brief for Surgeon
+                    <span className="text-xs text-muted-foreground font-normal">(Optional but recommended)</span>
+                  </Label>
                   <Textarea
                     id="reviewNotes"
                     value={reviewNotes}
                     onChange={(e) => setReviewNotes(e.target.value)}
-                    placeholder="Any additional notes for the patient..."
-                    rows={3}
+                    placeholder="Add brief notes for the surgeon (e.g., patient concerns, previous consultations, special considerations)..."
+                    rows={4}
                     disabled={isSubmitting}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    This brief will be visible to the surgeon before consultation. Include any important context or observations.
+                  </p>
                 </div>
               )}
             </div>

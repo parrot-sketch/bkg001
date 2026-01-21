@@ -70,7 +70,7 @@ export default function PortalWelcomePage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-8">
           {/* Book Consultation - Primary Action */}
           <Link
-            href="/portal/book-consultation"
+            href="/patient/consultations/request"
             className="group relative overflow-hidden rounded-xl border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-white p-6 sm:p-8 hover:border-primary/40 transition-all duration-300 hover:shadow-lg"
           >
             <div className="flex flex-col h-full">
@@ -80,10 +80,10 @@ export default function PortalWelcomePage() {
                 </div>
               </div>
               <h3 className="text-lg sm:text-xl font-semibold text-slate-900 mb-2">
-                Submit an Inquiry
+                Request Consultation
               </h3>
               <p className="text-sm text-gray-600 mb-6 flex-grow leading-relaxed">
-                Share your preferences for a consultation with our expert surgeons
+                Submit a consultation request for review by our clinical team
               </p>
               <div className="flex items-center text-primary font-medium text-sm group-hover:gap-2 transition-all">
                 <span>Begin</span>

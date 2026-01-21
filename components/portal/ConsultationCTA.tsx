@@ -3,7 +3,7 @@
 /**
  * ConsultationCTA Component
  * 
- * Reusable component for consistent "Book Consultation" / "Request Consultation" CTAs
+ * Reusable component for consistent "Request Consultation" CTAs
  * across the portal. Ensures all booking actions use the same styling and routing.
  * 
  * Variants:
@@ -13,7 +13,7 @@
  * 
  * Features:
  * - Preserves context (doctorId, serviceId) in booking URL
- * - Consistent button labels based on context
+ * - Consistent "Request Consultation" label
  * - Mobile-optimized sizing
  */
 
@@ -40,7 +40,7 @@ export function ConsultationCTA({
 }: ConsultationCTAProps) {
   // Build booking URL with context
   const buildBookingUrl = () => {
-    const baseUrl = '/portal/book-consultation';
+    const baseUrl = '/patient/consultations/request';
     const params = new URLSearchParams();
     
     if (doctorId) {
@@ -65,15 +65,8 @@ export function ConsultationCTA({
 
   // Determine label based on context
   const getDefaultLabel = () => {
-    if (label) return label;
-    
-    // If doctor context exists, use "Request Consultation"
-    if (doctorId) {
-      return 'Request Consultation';
-    }
-    
-    // Otherwise use "Book Consultation"
-    return 'Book Consultation';
+    // Always use "Request Consultation" - consistent terminology
+    return label || 'Request Consultation';
   };
 
   const bookingUrl = buildBookingUrl();

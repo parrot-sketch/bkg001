@@ -1,7 +1,7 @@
 import { MedicalHistoryContainer } from "@/components/medical-history-container";
 import { PatientRatingContainer } from "@/components/patient-rating-container";
 import { ProfileImage } from "@/components/profile-image";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPatientFullDataById } from "@/utils/services/patient";
 import { getCurrentUser } from "@/lib/auth/server-auth";
 import { format } from "date-fns";
@@ -30,129 +30,186 @@ const PatientProfile = async (props: ParamsProps) => {
 
   const { data } = await getPatientFullDataById(id);
 
-  const SmallCard = ({ label, value }: { label: string; value: string }) => (
-    <div className="w-full md:w-1/3">
-      <span className="text-sm text-gray-500">{label}</span>
-      <p className="text-sm md:text-base capitalize">{value}</p>
-    </div>
-  );
 
   return (
-    <div className="bg-gray-100/60 h-full rounded-xl py-6 px-3 2xl:p-6 flex flex-col lg:flex-row gap-6">
-      <div className="w-full xl:w-3/4">
-        <div className="w-full flex flex-col lg:flex-row gap-4">
-          <Card className="bg-white rounded-xl p-4 w-full lg:w-[30%] border-none flex flex-col items-center">
-            <ProfileImage
-              url={data?.img!}
-              name={data?.first_name + " " + data?.last_name}
-              className="h-20 w-20 md:flex"
-              bgColor={data?.colorCode!}
-              textClassName="text-3xl"
-            />
-            <h1 className="font-semibold text-2xl mt-2">
-              {data?.first_name + " " + data?.last_name}
-            </h1>
-            <span className="text-sm text-gray-500">{data?.email}</span>
-
-            <div className="w-full flex items-center justify-center gap-2 mt-4">
-              <div className="w-1/2 space-y-1 text-center">
-                <p className="text-xl font-medium">{data?.totalAppointments}</p>
-                <span className="text-xs text-gray-500">Appointments</span>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="bg-white rounded-xl p-6 w-full lg:w-[70%] border-none space-y-6">
-            <div className="flex flex-col md:flex-row md:flex-wrap md:items-center xl:justify-between gap-y-4 md:gap-x-0">
-              <SmallCard
-                label={"Gender"}
-                value={data?.gender?.toLowerCase()!}
-              />
-              <SmallCard
-                label="Date of Birth"
-                value={format(data?.date_of_birth!, "yyyy-MM-dd")}
-              />
-              <SmallCard label={"Phone Number"} value={data?.phone!} />
-            </div>
-
-            <div className="flex flex-col md:flex-row md:flex-wrap md:items-center xl:justify-between gap-y-4 md:gap-x-0">
-              <SmallCard label="Marital Status" value={data?.marital_status!} />
-              <SmallCard label="Blood Group" value={data?.blood_group!} />
-              <SmallCard label="Address" value={data?.address!} />
-            </div>
-
-            <div className="flex flex-col md:flex-row md:flex-wrap md:items-center xl:justify-between gap-y-4 md:gap-x-0">
-              <SmallCard
-                label="Contact Person"
-                value={data?.emergency_contact_name!}
-              />
-              <SmallCard
-                label="Emergency Contact"
-                value={data?.emergency_contact_number!}
-              />
-              <SmallCard
-                label="Last Visit"
-                value={
-                  data?.lastVisit
-                    ? format(data?.lastVisit!, "yyyy-MM-dd")
-                    : "No last visit"
-                }
-              />
-            </div>
-          </Card>
+    <div className="min-h-screen bg-background">
+      <div className="space-y-8 p-6 lg:p-8">
+        {/* Header */}
+        <div className="space-y-2">
+          <h1 className="text-3xl font-semibold text-foreground tracking-tight">Patient Profile</h1>
+          <p className="text-sm text-muted-foreground">Complete patient information and medical history</p>
         </div>
 
-        <div className="mt-10">
-          {cat === "medical-history" && (
-            <MedicalHistoryContainer patientId={id} />
-          )}
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Profile Header Card */}
+            <Card className="border-gray-200 shadow-sm">
+              <CardContent className="p-6">
+                <div className="flex flex-col md:flex-row gap-6">
+                  {/* Profile Image */}
+                  <div className="flex-shrink-0">
+                    <ProfileImage
+                      url={data?.img!}
+                      name={data?.first_name + " " + data?.last_name}
+                      className="h-24 w-24 md:h-32 md:w-32"
+                      bgColor={data?.colorCode!}
+                      textClassName="text-4xl"
+                    />
+                  </div>
 
-          {/* {cat === "payments" && <Payments patientId={id!} />} */}
-        </div>
-      </div>
+                  {/* Patient Info */}
+                  <div className="flex-1 space-y-4">
+                    <div>
+                      <h2 className="text-2xl font-semibold text-foreground">
+                        {data?.first_name + " " + data?.last_name}
+                      </h2>
+                      {data?.file_number && (
+                        <p className="text-sm font-mono text-brand-primary mt-1">
+                          File: {data.file_number}
+                        </p>
+                      )}
+                      {!data?.file_number && data?.id && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          ID: {data.id.slice(0, 8)}...
+                        </p>
+                      )}
+                      <p className="text-sm text-muted-foreground mt-2">{data?.email}</p>
+                    </div>
 
-      <div className="w-full xl:w-1/3">
-        <div className="bg-white p-4 rounded-md mb-8">
-          <h1 className="text-xl font-semibold">Quick Links</h1>
+                    {/* Quick Stats */}
+                    <div className="flex gap-6 pt-4 border-t border-border">
+                      <div>
+                        <p className="text-2xl font-semibold text-foreground">{data?.totalAppointments || 0}</p>
+                        <p className="text-xs text-muted-foreground">Appointments</p>
+                      </div>
+                      {data?.lastVisit && (
+                        <div>
+                          <p className="text-sm font-medium text-foreground">
+                            {format(data.lastVisit, "MMM dd, yyyy")}
+                          </p>
+                          <p className="text-xs text-muted-foreground">Last Visit</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-          <div className="mt-4 flex gap-4 flex-wrap text-xs text-gray-500">
-            <Link
-              className="p-3 rounded-md bg-yellow-50 hover:underline"
-              href={`/record/appointments?id=${id}`}
-            >
-              Patient&apos;s Appointments
-            </Link>
-            <Link
-              className="p-3 rounded-md bg-purple-50 hover:underline"
-              href="?cat=medical-history"
-            >
-              Medical Records
-            </Link>
-            <Link
-              className="p-3 rounded-md bg-violet-100"
-              href={`?cat=payments`}
-            >
-              Medical Bills
-            </Link>
-            <Link className="p-3 rounded-md bg-pink-50" href={`/`}>
-              Dashboard
-            </Link>
+            {/* Personal Information */}
+            <Card className="border-gray-200 shadow-sm">
+              <CardHeader>
+                <CardTitle>Personal Information</CardTitle>
+                <CardDescription>Basic patient details and demographics</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <span className="text-sm font-medium text-muted-foreground">Gender</span>
+                    <p className="text-sm text-foreground capitalize">{data?.gender?.toLowerCase()}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-sm font-medium text-muted-foreground">Date of Birth</span>
+                    <p className="text-sm text-foreground">{format(data?.date_of_birth!, "MMMM dd, yyyy")}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-sm font-medium text-muted-foreground">Phone Number</span>
+                    <p className="text-sm text-foreground">{data?.phone || "Not provided"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-sm font-medium text-muted-foreground">Marital Status</span>
+                    <p className="text-sm text-foreground capitalize">{data?.marital_status || "Not provided"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-sm font-medium text-muted-foreground">Blood Group</span>
+                    <p className="text-sm text-foreground">{data?.blood_group || "Not provided"}</p>
+                  </div>
+                  <div className="space-y-1 md:col-span-2">
+                    <span className="text-sm font-medium text-muted-foreground">Address</span>
+                    <p className="text-sm text-foreground">{data?.address || "Not provided"}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-            <Link className="p-3 rounded-md bg-rose-100" href={`#`}>
-              Lab Test & Result
-            </Link>
-            {patientId === "self" && (
-              <Link
-                className="p-3 rounded-md bg-black/10"
-                href={`/patient/registration`}
-              >
-                Edit Information
-              </Link>
-            )}
+            {/* Emergency Contact */}
+            <Card className="border-gray-200 shadow-sm">
+              <CardHeader>
+                <CardTitle>Emergency Contact</CardTitle>
+                <CardDescription>Emergency contact information</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <span className="text-sm font-medium text-muted-foreground">Contact Person</span>
+                    <p className="text-sm text-foreground">{data?.emergency_contact_name || "Not provided"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-sm font-medium text-muted-foreground">Contact Number</span>
+                    <p className="text-sm text-foreground">{data?.emergency_contact_number || "Not provided"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-sm font-medium text-muted-foreground">Relationship</span>
+                    <p className="text-sm text-foreground capitalize">{data?.relation || "Not provided"}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Medical History Section */}
+            <div className="mt-6">
+              {cat === "medical-history" && (
+                <MedicalHistoryContainer patientId={id} />
+              )}
+            </div>
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Quick Links */}
+            <Card className="border-gray-200 shadow-sm">
+              <CardHeader>
+                <CardTitle>Quick Links</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Link
+                  href={`/record/appointments?id=${id}`}
+                  className="block w-full text-left p-3 rounded-lg border border-border hover:bg-muted/50 hover:border-brand-primary/50 transition-colors"
+                >
+                  <p className="text-sm font-medium text-foreground">Patient&apos;s Appointments</p>
+                  <p className="text-xs text-muted-foreground">View appointment history</p>
+                </Link>
+                <Link
+                  href="?cat=medical-history"
+                  className="block w-full text-left p-3 rounded-lg border border-border hover:bg-muted/50 hover:border-brand-primary/50 transition-colors"
+                >
+                  <p className="text-sm font-medium text-foreground">Medical Records</p>
+                  <p className="text-xs text-muted-foreground">View medical history</p>
+                </Link>
+                <Link
+                  href={`?cat=payments`}
+                  className="block w-full text-left p-3 rounded-lg border border-border hover:bg-muted/50 hover:border-brand-primary/50 transition-colors"
+                >
+                  <p className="text-sm font-medium text-foreground">Medical Bills</p>
+                  <p className="text-xs text-muted-foreground">View billing information</p>
+                </Link>
+                {patientId === "self" && (
+                  <Link
+                    href={`/patient/registration`}
+                    className="block w-full text-left p-3 rounded-lg border border-border hover:bg-muted/50 hover:border-brand-primary/50 transition-colors"
+                  >
+                    <p className="text-sm font-medium text-foreground">Edit Information</p>
+                    <p className="text-xs text-muted-foreground">Update your profile</p>
+                  </Link>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Patient Ratings */}
+            <PatientRatingContainer id={id!} />
           </div>
         </div>
-
-        <PatientRatingContainer id={id!} />
       </div>
     </div>
   );

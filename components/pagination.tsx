@@ -52,33 +52,29 @@ export const Pagination = ({
   if (totalRecords === 0) return null;
 
   return (
-    <div className="p-4 flex items-center justify-between text-gray600 mt-5">
+    <div className="flex items-center justify-between gap-4">
       <Button
         size={"sm"}
         variant={"outline"}
         disabled={currentPage === 1}
         onClick={handlePrevious}
-        className="py-2 px-4 rounded-md bg-slate-200 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
       >
-        Prev
+        Previous
       </Button>
-      {/* 10 - 9 = 11 - 20 of 20 */}
-      <div className="flex items-center gap-2 text-sm">
-        <span className="text-xs lg:text-sm">
-          Showing {currentPage * limit - (limit - 1)} to{" "}
-          {currentPage * limit <= totalRecords
-            ? currentPage * limit
-            : totalRecords}{" "}
-          of {totalRecords}
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <span className="font-medium">
+          Showing <span className="text-foreground font-semibold">{currentPage * limit - (limit - 1)}</span> to{" "}
+          <span className="text-foreground font-semibold">
+            {currentPage * limit <= totalRecords ? currentPage * limit : totalRecords}
+          </span>{" "}
+          of <span className="text-foreground font-semibold">{totalRecords.toLocaleString()}</span>
         </span>
       </div>
-
       <Button
         size={"sm"}
         variant={"outline"}
         disabled={currentPage === totalPages}
         onClick={handleNext}
-        className="py-2 px-4 rounded-md bg-slate-200 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
       >
         Next
       </Button>
