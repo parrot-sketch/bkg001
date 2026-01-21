@@ -245,7 +245,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 /**
  * POST /api/appointments
  * 
- * Creates a new appointment (consultation inquiry).
+ * Creates a new appointment (consultation request).
  * 
  * Request body: ScheduleAppointmentDto
  * - patientId: Patient ID (or User ID - will be resolved)

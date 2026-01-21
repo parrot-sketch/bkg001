@@ -151,11 +151,13 @@ export default function MeetOurDoctorsPage() {
                   {/* Doctor Image */}
                   <div className="mb-4">
                     {doctor.profile_image ? (
-                      <img
-                        src={doctor.profile_image}
-                        alt={doctor.name}
-                        className="w-24 h-24 rounded-full object-cover mx-auto border-2 border-gray-100"
-                      />
+                      <div className="relative w-24 h-24 mx-auto rounded-full overflow-hidden border-2 border-gray-100 bg-gradient-to-br from-gray-50 to-gray-100">
+                        <img
+                          src={doctor.profile_image}
+                          alt={doctor.name}
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
                     ) : (
                       <div className="w-24 h-24 rounded-full bg-gray-100 flex items-center justify-center mx-auto border-2 border-gray-200">
                         <Users className="h-12 w-12 text-gray-400" />

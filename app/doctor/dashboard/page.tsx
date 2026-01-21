@@ -241,7 +241,7 @@ export default function DoctorDashboardPage() {
           appointment: apt,
           patientName: `Patient ${apt.patientId}`, // TODO: Fetch patient name from API
           procedure: apt.type || 'Consultation',
-          // TODO: Fetch case plan data from API
+          // TODO: Fetch case plan data from API when endpoint is available
           casePlan: undefined,
         }))}
         loading={loading}

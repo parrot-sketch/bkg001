@@ -332,6 +332,9 @@ model Doctor {
   consultation_messages     ConsultationMessage[] @relation("ConsultationMessageSender")
   case_plans                CasePlan[]
   surgical_outcomes         SurgicalOutcome[]
+  availability_overrides    AvailabilityOverride[]
+  availability_breaks       AvailabilityBreak[]
+  slot_configuration        SlotConfiguration?
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -377,11 +380,72 @@ model WorkingDay {
   is_available Boolean @default(true)
 
   doctor Doctor @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
+  breaks AvailabilityBreak[] @relation("WorkingDayBreaks")
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
   @@unique([doctor_id, day])
+  @@index([doctor_id])
+}
+
+// ============================================================================
+// AVAILABILITY MANAGEMENT
+// ============================================================================
+
+// One-off availability blocks (holidays, leave, emergency unavailability)
+model AvailabilityOverride {
+  id         String   @id @default(uuid())
+  doctor_id  String
+  start_date DateTime
+  end_date   DateTime
+  reason     String?  // "Holiday", "Leave", "Emergency", etc.
+  is_blocked Boolean  @default(true) // true = unavailable, false = available override
+
+  doctor Doctor @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([doctor_id])
+  @@index([start_date, end_date])
+  @@index([doctor_id, start_date, end_date])
+}
+
+// Recurring breaks (lunch, admin time, etc.)
+model AvailabilityBreak {
+  id            String      @id @default(uuid())
+  doctor_id    String
+  working_day_id Int?       // If set, break applies to specific working day
+  day_of_week  String?      // If working_day_id is null, applies to this day of week (e.g., "Monday")
+  start_time   String       // HH:mm format
+  end_time     String       // HH:mm format
+  reason       String?      // "Lunch", "Break", "Admin Time", etc.
+
+  doctor       Doctor       @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
+  working_day  WorkingDay?  @relation("WorkingDayBreaks", fields: [working_day_id], references: [id], onDelete: Cascade)
+
+  created_at   DateTime     @default(now())
+  updated_at   DateTime     @updatedAt
+
+  @@index([doctor_id])
+  @@index([working_day_id])
+  @@index([doctor_id, day_of_week])
+}
+
+// Slot configuration per doctor (appointment duration, buffer time, slot intervals)
+model SlotConfiguration {
+  id              String  @id @default(uuid())
+  doctor_id       String  @unique
+  default_duration Int    @default(30) // minutes (e.g., 30 = 30-minute appointments)
+  buffer_time     Int     @default(0)  // minutes between appointments (e.g., 5 = 5min buffer)
+  slot_interval   Int     @default(15) // minutes (e.g., 15 = slots at 09:00, 09:15, 09:30, etc.)
+
+  doctor          Doctor  @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
+
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
   @@index([doctor_id])
 }
 
@@ -416,6 +480,10 @@ model Appointment {
   reviewed_by                 String? // User ID (Frontdesk who reviewed)
   reviewed_at                 DateTime?
   review_notes                String? // Notes from review (e.g., reason for needs_more_info)
+
+  // Slot tracking (for availability-based scheduling)
+  slot_start_time  String? // HH:mm format of slot start time
+  slot_duration    Int?    // minutes (e.g., 30 = 30-minute appointment)
 
   // Relations
   patient           Patient           @relation(fields: [patient_id], references: [id], onDelete: Cascade)

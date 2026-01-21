@@ -156,11 +156,13 @@ export default function DoctorProfilePage() {
             {/* Profile Image */}
             <div className="flex-shrink-0">
               {doctor.profile_image ? (
-                <img
-                  src={doctor.profile_image}
-                  alt={doctor.name}
-                  className="w-32 h-32 sm:w-40 sm:h-40 rounded-full object-cover border-4 border-gray-100 shadow-md"
-                />
+                <div className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-full overflow-hidden border-4 border-gray-100 shadow-md bg-gradient-to-br from-gray-50 to-gray-100">
+                  <img
+                    src={doctor.profile_image}
+                    alt={doctor.name}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
               ) : (
                 <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full bg-gray-100 flex items-center justify-center border-4 border-gray-200 shadow-md">
                   <Users className="h-16 w-16 sm:h-20 sm:w-20 text-gray-400" />

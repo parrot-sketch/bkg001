@@ -97,7 +97,27 @@ export async function GET(
     }
 
     // 4. Map Prisma model to domain entity, then to DTO
-    const domainPatient = InfrastructurePatientMapper.fromPrisma(patient);
+    let domainPatient;
+    try {
+      domainPatient = InfrastructurePatientMapper.fromPrisma(patient);
+    } catch (mapperError) {
+      // Handle mapping errors (e.g., invalid phone numbers, missing required fields)
+      console.error('[API] /api/patients/[id] - Mapping error:', mapperError);
+      const errorMessage = mapperError instanceof Error 
+        ? mapperError.message 
+        : 'Failed to process patient data';
+      
+      return NextResponse.json(
+        {
+          success: false,
+          error: errorMessage.includes('phone') 
+            ? 'Patient data contains invalid phone number format. Please contact support to update the patient record.'
+            : errorMessage,
+        },
+        { status: 422 } // 422 Unprocessable Entity - data is valid but cannot be processed
+      );
+    }
+    
     const patientDto: PatientResponseDto = ApplicationPatientMapper.toResponseDto(domainPatient);
 
     // 5. Return success response
@@ -115,7 +135,9 @@ export async function GET(
     return NextResponse.json(
       {
         success: false,
-        error: 'Internal server error',
+        error: error instanceof Error && error.message.includes('phone')
+          ? 'Patient data contains invalid phone number format. Please contact support.'
+          : 'Internal server error',
       },
       { status: 500 }
     );

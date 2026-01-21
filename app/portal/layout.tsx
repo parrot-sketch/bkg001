@@ -14,6 +14,7 @@
 
 import { ReactNode } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { Button } from '@/components/ui/button';
 import { LayoutDashboard } from 'lucide-react';
@@ -32,9 +33,14 @@ export default function PortalLayout({ children }: PortalLayoutProps) {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link href="/portal/welcome" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
-              <div className="h-10 w-10 rounded-lg bg-teal-500 flex items-center justify-center">
-                <span className="text-white font-bold text-lg">NS</span>
-              </div>
+              <Image
+                src="/logo.png"
+                alt="Nairobi Sculpt Logo"
+                width={40}
+                height={40}
+                className="h-10 w-auto object-contain"
+                priority
+              />
               <span className="font-playfair-display text-xl font-bold text-slate-900">
                 Nairobi Sculpt
               </span>

@@ -1,18 +1,18 @@
 'use client';
 
 /**
- * Step-by-Step Consultation Inquiry Workflow
+ * Step-by-Step Consultation Request Workflow
  * 
- * Premium 7-step inquiry submission process for aesthetic surgery clinic:
+ * Premium 7-step consultation request submission process for aesthetic surgery clinic:
  * Step 1: Select procedure of interest
  * Step 2: Select surgeon
  * Step 3: Preferred date selection
  * Step 4: Preferred time window
  * Step 5: Additional information
- * Step 6: Review inquiry
- * Step 7: Submit inquiry
+ * Step 6: Review request
+ * Step 7: Request consultation
  * 
- * This is NOT a direct booking - it's an inquiry that requires frontdesk review.
+ * This is NOT a direct booking - it's a consultation request that requires frontdesk review.
  */
 
 import { useState, useEffect } from 'react';
@@ -196,14 +196,16 @@ export function StepByStepBooking({ patientId, onSuccess, onCancel }: StepByStep
       });
 
       if (response.success) {
-        toast.success('Your inquiry has been submitted. We will review it and contact you shortly.');
+        toast.success('Your consultation request has been submitted. We will review it and contact you shortly.');
         onSuccess();
+      } else if (!response.success) {
+        toast.error(response.error || 'Failed to submit consultation request');
       } else {
-        toast.error(response.error || 'Failed to submit inquiry');
+        toast.error('Failed to submit consultation request');
       }
     } catch (error) {
-      toast.error('An error occurred while submitting your inquiry');
-      console.error('Error submitting inquiry:', error);
+      toast.error('An error occurred while submitting your consultation request');
+      console.error('Error submitting consultation request:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -450,7 +452,7 @@ export function StepByStepBooking({ patientId, onSuccess, onCancel }: StepByStep
           <div className="space-y-6">
             <div className="flex items-center space-x-2 mb-4">
               <Check className="h-5 w-5 text-primary" />
-              <h2 className="text-xl font-semibold text-foreground">Review Your Inquiry</h2>
+              <h2 className="text-xl font-semibold text-foreground">Review Your Request</h2>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
               Please review all information before submitting. You can go back to edit any step.
@@ -533,13 +535,13 @@ export function StepByStepBooking({ patientId, onSuccess, onCancel }: StepByStep
           <div className="space-y-6">
             <div className="flex items-center space-x-2 mb-4">
               <Check className="h-5 w-5 text-primary" />
-              <h2 className="text-xl font-semibold text-foreground">Submit Inquiry</h2>
+              <h2 className="text-xl font-semibold text-foreground">Request Consultation</h2>
             </div>
             <div className="space-y-4">
               <div className="rounded-lg border border-border bg-muted/30 p-4">
                 <p className="text-sm font-medium mb-2">What happens next?</p>
                 <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                  <li>Your inquiry will be reviewed by our surgical team</li>
+                  <li>Your consultation request will be reviewed by our surgical team</li>
                   <li>We'll contact you within 24-48 hours</li>
                   <li>If accepted, we'll propose a specific session time</li>
                   <li>You'll be able to confirm the session once proposed</li>
@@ -548,7 +550,7 @@ export function StepByStepBooking({ patientId, onSuccess, onCancel }: StepByStep
               {isSubmitting && (
                 <div className="text-center py-4">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
-                  <p className="mt-2 text-sm text-muted-foreground">Submitting your inquiry...</p>
+                  <p className="mt-2 text-sm text-muted-foreground">Submitting your consultation request...</p>
                 </div>
               )}
             </div>
@@ -618,7 +620,7 @@ export function StepByStepBooking({ patientId, onSuccess, onCancel }: StepByStep
               className="flex-1"
               aria-label="Confirm booking"
             >
-              {isSubmitting ? 'Submitting...' : 'Submit Inquiry'}
+              {isSubmitting ? 'Submitting...' : 'Request Consultation'}
             </Button>
           )}
         </div>

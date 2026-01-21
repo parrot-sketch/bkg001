@@ -15,19 +15,23 @@ export const ProfileImage = ({
   textClassName?: string;
   bgColor?: string;
 }) => {
-  if (url)
+  if (url) {
+    // Extract size from className for sizes attribute
+    const sizeMatch = className?.match(/(?:w-|h-|size-)(\d+)/);
+    const size = sizeMatch ? parseInt(sizeMatch[1]) : 40;
+    
     return (
-      <Image
-        src={url}
-        alt={name}
-        height={40}
-        width={40}
-        className={cn(
-          "flex md:hidden lg:block w-10 h-10 rounded-full object-cover",
-          className
-        )}
-      />
+      <div className={cn("relative rounded-full overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100", className)}>
+        <Image
+          src={url}
+          alt={name}
+          fill
+          className="object-contain"
+          sizes={`${size}px`}
+        />
+      </div>
     );
+  }
 
   if (name) {
     return (

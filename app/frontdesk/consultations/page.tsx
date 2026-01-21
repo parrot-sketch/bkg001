@@ -111,7 +111,7 @@ function FrontdeskConsultationsContent() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Consultation Inquiries</h1>
+        <h1 className="text-3xl font-bold text-foreground">Consultation Requests</h1>
         <p className="mt-2 text-muted-foreground">Review and manage consultation requests</p>
       </div>
 
@@ -128,7 +128,7 @@ function FrontdeskConsultationsContent() {
               onClick={() => router.push('/frontdesk/consultations?status=SUBMITTED,PENDING_REVIEW')}
             >
               <FileText className="mr-2 h-4 w-4" />
-              New Inquiries ({newInquiries})
+              New Requests ({newInquiries})
             </Button>
             <Button
               variant={statusParam.includes('NEEDS_MORE_INFO') ? 'default' : 'outline'}
@@ -151,7 +151,7 @@ function FrontdeskConsultationsContent() {
               size="sm"
               onClick={() => router.push('/frontdesk/consultations?status=ALL')}
             >
-              All Inquiries
+              All Requests
             </Button>
           </div>
         </CardContent>
@@ -162,23 +162,23 @@ function FrontdeskConsultationsContent() {
         <CardHeader>
           <CardTitle>
             {statusParam === 'ALL' 
-              ? 'All Consultation Inquiries' 
-              : `Inquiries: ${statuses.map(s => getConsultationRequestStatusLabel(s as ConsultationRequestStatus)).join(', ')}`}
+              ? 'All Consultation Requests' 
+              : `Requests: ${statuses.map(s => getConsultationRequestStatusLabel(s as ConsultationRequestStatus)).join(', ')}`}
           </CardTitle>
           <CardDescription>
-            {filteredAppointments.length} {filteredAppointments.length === 1 ? 'inquiry' : 'inquiries'} found
+            {filteredAppointments.length} {filteredAppointments.length === 1 ? 'request' : 'requests'} found
           </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-4 text-sm text-muted-foreground">Loading inquiries...</p>
+              <p className="mt-4 text-sm text-muted-foreground">Loading requests...</p>
             </div>
           ) : filteredAppointments.length === 0 ? (
             <div className="text-center py-8">
               <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-sm text-muted-foreground">No inquiries found for the selected status</p>
+              <p className="text-sm text-muted-foreground">No requests found for the selected status</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -237,7 +237,7 @@ function FrontdeskConsultationsContent() {
                               className="flex-1"
                             >
                               <FileText className="mr-2 h-4 w-4" />
-                              Review Inquiry
+                              Review Request
                             </Button>
                           )}
                           {canSchedule && (

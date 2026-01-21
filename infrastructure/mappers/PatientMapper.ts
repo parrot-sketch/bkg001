@@ -18,6 +18,52 @@ import { Prisma, Patient as PrismaPatient } from '@prisma/client';
  */
 export class PatientMapper {
   /**
+   * Sanitizes a phone number string by removing all non-digit characters except +
+   * This handles legacy data that may have formatting characters
+   * 
+   * @param phone - Phone number string (may contain formatting)
+   * @returns Sanitized phone number (digits only, with optional + prefix)
+   * @throws Error if phone number is invalid or contains no digits after sanitization
+   */
+  private static sanitizePhoneNumber(phone: string | null | undefined): string {
+    if (!phone || typeof phone !== 'string') {
+      throw new Error(`Invalid phone number: ${phone}. Phone number must be a non-empty string.`);
+    }
+    
+    const trimmed = phone.trim();
+    if (trimmed.length === 0) {
+      throw new Error('Phone number cannot be empty');
+    }
+    
+    // Remove all non-digit, non-plus characters
+    // Keep + only if it's at the start
+    const hasPlus = trimmed.startsWith('+');
+    let digitsOnly = trimmed.replace(/[^\d+]/g, '');
+    
+    // Remove any + that's not at the start
+    if (digitsOnly.includes('+') && !digitsOnly.startsWith('+')) {
+      digitsOnly = digitsOnly.replace(/\+/g, '');
+    }
+    
+    // Extract actual digits (remove + for counting)
+    let actualDigits = digitsOnly.replace(/\+/g, '');
+    
+    // Validate that we have digits after cleaning
+    if (actualDigits.length === 0) {
+      throw new Error(`Phone number contains no digits after sanitization. Original: "${phone}"`);
+    }
+    
+    // Reconstruct the phone number: if it had a + at the start, add it back
+    // But only if we have actual digits
+    if (hasPlus && actualDigits.length > 0) {
+      return '+' + actualDigits;
+    }
+    
+    // Return digits only (no + prefix)
+    return actualDigits;
+  }
+
+  /**
    * Maps a Prisma Patient model to a domain Patient entity
    * 
    * @param prismaPatient - Prisma Patient model from database
@@ -25,6 +71,98 @@ export class PatientMapper {
    * @throws Error if required fields are missing or invalid
    */
   static fromPrisma(prismaPatient: PrismaPatient): Patient {
+    // Sanitize phone numbers before creating PhoneNumber value objects
+    // This handles legacy data with formatting characters
+    let sanitizedPhone: string;
+    let sanitizedEmergencyPhone: string;
+    
+    try {
+      sanitizedPhone = this.sanitizePhoneNumber(prismaPatient.phone);
+    } catch (error) {
+      throw new Error(
+        `Failed to sanitize patient phone number for patient ${prismaPatient.id}. ` +
+        `Original value: "${prismaPatient.phone}". ` +
+        `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+    
+    // Emergency contact phone: if sanitization fails, use patient's phone as fallback
+    // This handles corrupted data like "+DR.KEN" or "+''''" in the database
+    try {
+      sanitizedEmergencyPhone = this.sanitizePhoneNumber(prismaPatient.emergency_contact_number);
+    } catch (error) {
+      // Log the issue but don't fail - use patient's phone as fallback
+      console.warn(
+        `[PatientMapper] Invalid emergency contact phone for patient ${prismaPatient.id}. ` +
+        `Original value: "${prismaPatient.emergency_contact_number}". ` +
+        `Using patient's phone as fallback: "${sanitizedPhone}"`
+      );
+      // Use patient's own phone number as emergency contact fallback
+      sanitizedEmergencyPhone = sanitizedPhone;
+    }
+    
+    // Validate and create email - handle invalid emails gracefully
+    let email: Email;
+    try {
+      email = Email.create(prismaPatient.email);
+    } catch (error) {
+      // If email is invalid, create a placeholder email
+      // Format: patient-{fileNumber}@invalid.local
+      const placeholderEmail = `patient-${prismaPatient.file_number.replace(/[^a-zA-Z0-9]/g, '')}@invalid.local`;
+      console.warn(
+        `[PatientMapper] Invalid email for patient ${prismaPatient.id}. ` +
+        `Original value: "${prismaPatient.email}". ` +
+        `Using placeholder: "${placeholderEmail}"`
+      );
+      email = Email.create(placeholderEmail);
+    }
+    
+    // Validate and create phone - handle short/invalid phones gracefully
+    let phone: PhoneNumber;
+    try {
+      phone = PhoneNumber.create(sanitizedPhone);
+    } catch (error) {
+      // If phone is too short or invalid, try to create a valid placeholder
+      // Use a default Kenyan phone format: +254700000000 (pad with zeros if needed)
+      const MIN_PHONE_LENGTH = 10;
+      let fallbackPhone: string;
+      
+      if (sanitizedPhone.startsWith('+')) {
+        // If it has country code, try to pad the local part
+        const countryCode = sanitizedPhone.substring(0, 4); // +254
+        const localPart = sanitizedPhone.substring(4).replace(/\D/g, '');
+        const paddedLocal = localPart.padEnd(MIN_PHONE_LENGTH, '0');
+        fallbackPhone = countryCode + paddedLocal;
+      } else {
+        // No country code, pad to minimum length
+        const padded = sanitizedPhone.replace(/\D/g, '').padEnd(MIN_PHONE_LENGTH, '0');
+        fallbackPhone = padded.length >= MIN_PHONE_LENGTH ? `+254${padded}` : `+254${padded.padEnd(MIN_PHONE_LENGTH, '0')}`;
+      }
+      
+      console.warn(
+        `[PatientMapper] Invalid or too short phone for patient ${prismaPatient.id}. ` +
+        `Original value: "${prismaPatient.phone}", sanitized: "${sanitizedPhone}". ` +
+        `Using fallback: "${fallbackPhone}"`
+      );
+      
+      try {
+        phone = PhoneNumber.create(fallbackPhone);
+        // Update sanitizedPhone for emergency contact fallback
+        sanitizedPhone = fallbackPhone;
+        sanitizedEmergencyPhone = fallbackPhone;
+      } catch (fallbackError) {
+        // Last resort: use a default valid phone number
+        const defaultPhone = '+254700000000';
+        console.error(
+          `[PatientMapper] Even fallback phone failed for patient ${prismaPatient.id}. ` +
+          `Using default: "${defaultPhone}"`
+        );
+        phone = PhoneNumber.create(defaultPhone);
+        sanitizedPhone = defaultPhone;
+        sanitizedEmergencyPhone = defaultPhone;
+      }
+    }
+    
     return Patient.create({
       id: prismaPatient.id,
       fileNumber: prismaPatient.file_number, // Required field
@@ -32,14 +170,36 @@ export class PatientMapper {
       lastName: prismaPatient.last_name,
       dateOfBirth: prismaPatient.date_of_birth,
       gender: prismaPatient.gender as Gender,
-      email: Email.create(prismaPatient.email),
-      phone: PhoneNumber.create(prismaPatient.phone),
-      whatsappPhone: prismaPatient.whatsapp_phone ?? undefined,
+      email: email,
+      phone: phone,
+      whatsappPhone: prismaPatient.whatsapp_phone ? (() => {
+        try {
+          return this.sanitizePhoneNumber(prismaPatient.whatsapp_phone);
+        } catch (error) {
+          // If WhatsApp phone is invalid, just skip it (it's optional)
+          console.warn(
+            `[PatientMapper] Invalid WhatsApp phone for patient ${prismaPatient.id}. ` +
+            `Original value: "${prismaPatient.whatsapp_phone}". Skipping.`
+          );
+          return undefined;
+        }
+      })() : undefined,
       address: prismaPatient.address,
       occupation: prismaPatient.occupation ?? undefined,
       maritalStatus: prismaPatient.marital_status,
       emergencyContactName: prismaPatient.emergency_contact_name,
-      emergencyContactNumber: PhoneNumber.create(prismaPatient.emergency_contact_number),
+      emergencyContactNumber: (() => {
+        try {
+          return PhoneNumber.create(sanitizedEmergencyPhone);
+        } catch (error) {
+          // If emergency contact phone is still invalid, use patient's phone
+          console.warn(
+            `[PatientMapper] Emergency contact phone validation failed for patient ${prismaPatient.id}. ` +
+            `Using patient's phone as fallback.`
+          );
+          return phone; // Use the validated patient phone
+        }
+      })(),
       relation: prismaPatient.relation,
       privacyConsent: prismaPatient.privacy_consent,
       serviceConsent: prismaPatient.service_consent,

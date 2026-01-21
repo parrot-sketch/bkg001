@@ -93,10 +93,10 @@ export function ReviewConsultationDialog({
       if (response.success) {
         toast.success(
           selectedAction === 'approve'
-            ? 'Inquiry accepted for scheduling'
+            ? 'Consultation request accepted for scheduling'
             : selectedAction === 'needs_more_info'
             ? 'Clarification requested from patient'
-            : 'Inquiry marked as not suitable'
+            : 'Consultation request marked as not suitable'
         );
         onSuccess();
         // Reset form
@@ -129,11 +129,11 @@ export function ReviewConsultationDialog({
   const getActionDescription = (action: ReviewAction): string => {
     switch (action) {
       case 'approve':
-        return 'Accept this inquiry and propose a session date and time. The patient will be notified to confirm.';
+        return 'Accept this consultation request and propose a session date and time. The patient will be notified to confirm.';
       case 'needs_more_info':
         return 'Request additional information from the patient before proceeding. They will receive a notification with your questions.';
       case 'reject':
-        return 'Mark this inquiry as not suitable. The patient will be notified that they are not a suitable candidate for this procedure.';
+        return 'Mark this consultation request as not suitable. The patient will be notified that they are not a suitable candidate for this procedure.';
     }
   };
 
@@ -156,7 +156,7 @@ export function ReviewConsultationDialog({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Review Consultation Inquiry</DialogTitle>
+          <DialogTitle>Review Consultation Request</DialogTitle>
           <DialogDescription>
             Review the consultation request and take appropriate action
           </DialogDescription>
@@ -165,7 +165,7 @@ export function ReviewConsultationDialog({
         <div className="space-y-6 py-4">
           {/* Appointment Summary */}
           <div className="rounded-lg border border-border p-4 bg-muted/50">
-            <h3 className="font-medium text-sm mb-2">Inquiry Details</h3>
+            <h3 className="font-medium text-sm mb-2">Consultation Request Details</h3>
             <div className="space-y-1 text-sm">
               <p>
                 <span className="text-muted-foreground">Patient ID:</span> {appointment.patientId}

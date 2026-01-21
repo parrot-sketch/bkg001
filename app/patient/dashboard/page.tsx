@@ -19,12 +19,16 @@ import { Calendar, Clock, FileText, User, ArrowRight, CheckCircle, AlertCircle }
 import Link from 'next/link';
 import { toast } from 'sonner';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { ConsultationRequestStatus } from '@/domain/enums/ConsultationRequestStatus';
 import { format, isToday, isTomorrow, differenceInDays } from 'date-fns';
 import { ConsultationInquiryBanner } from '@/components/patient/ConsultationInquiryBanner';
 import { ConsultationCTA } from '@/components/portal/ConsultationCTA';
 import { useRouter } from 'next/navigation';
+import { calculateProfileCompletion } from '@/utils/patient-profile';
+import { BookAppointmentDialog } from '@/components/patient/BookAppointmentDialog';
+import { RequestConsultationDialog } from '@/components/patient/RequestConsultationDialog';
 
 export default function PatientDashboardPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -32,13 +36,30 @@ export default function PatientDashboardPage() {
   const [upcomingAppointments, setUpcomingAppointments] = useState<AppointmentResponseDto[]>([]);
   const [allAppointments, setAllAppointments] = useState<AppointmentResponseDto[]>([]);
   const [loadingAppointments, setLoadingAppointments] = useState(true);
+  const [patient, setPatient] = useState<PatientResponseDto | null>(null);
+  const [loadingPatient, setLoadingPatient] = useState(true);
+  const [showRequestDialog, setShowRequestDialog] = useState(false);
+  const [showBookDialog, setShowBookDialog] = useState(false);
 
-  // Load appointments on mount and when auth state changes
+  // Load appointments and patient profile on mount and when auth state changes
   useEffect(() => {
     if (isAuthenticated && user) {
       loadUpcomingAppointments();
+      loadPatientProfile();
     }
   }, [isAuthenticated, user]);
+
+  // Refresh patient profile when window regains focus (after profile save)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (isAuthenticated && user && !loadingPatient) {
+        loadPatientProfile();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [isAuthenticated, user, loadingPatient]);
 
   // Refresh appointments when window regains focus
   useEffect(() => {
@@ -84,6 +105,30 @@ export default function PatientDashboardPage() {
     }
   };
 
+  const loadPatientProfile = async () => {
+    if (!user) return;
+
+    try {
+      setLoadingPatient(true);
+      const response = await patientApi.getPatient(user.id);
+      
+      if (response.success && response.data) {
+        setPatient(response.data);
+      } else if (!response.success) {
+        // Patient not found is OK - they may not have created profile yet
+        if (response.error && !response.error.toLowerCase().includes('not found')) {
+          console.error('Error loading patient profile:', response.error);
+        }
+        setPatient(null);
+      }
+    } catch (error) {
+      console.error('Error loading patient profile:', error);
+      setPatient(null);
+    } finally {
+      setLoadingPatient(false);
+    }
+  };
+
   // Filter consultation inquiries
   const consultationInquiries = useMemo(() => {
     return allAppointments.filter((apt) => {
@@ -94,6 +139,11 @@ export default function PatientDashboardPage() {
       return hasConsultationStatus && isNotCompletedOrCancelled;
     });
   }, [allAppointments]);
+
+  // Calculate profile completion
+  const profileCompletion = useMemo(() => {
+    return calculateProfileCompletion(patient);
+  }, [patient]);
 
   // Computed stats
   const stats = useMemo(() => {
@@ -147,7 +197,81 @@ export default function PatientDashboardPage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-12">
-      {/* Consultation Inquiry Priority Banner */}
+      {/* Profile Completion Alert */}
+      {!loadingPatient && !profileCompletion.isComplete && (
+        <div className="rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-amber-50/50 p-5">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0">
+              <div className="relative w-12 h-12">
+                <svg className="w-12 h-12 transform -rotate-90" viewBox="0 0 36 36">
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="16"
+                    fill="none"
+                    stroke="#fef3c7"
+                    strokeWidth="3"
+                  />
+                  <circle
+                    cx="18"
+                    cy="18"
+                    r="16"
+                    fill="none"
+                    stroke={profileCompletion.percentage >= 80 ? '#10b981' : profileCompletion.percentage >= 50 ? '#f59e0b' : '#ef4444'}
+                    strokeWidth="3"
+                    strokeDasharray={`${profileCompletion.percentage}, 100`}
+                  />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-slate-900">
+                  {profileCompletion.percentage}%
+                </span>
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+                <h3 className="text-base font-semibold text-slate-900">Complete Your Profile</h3>
+              </div>
+              <p className="text-sm text-slate-700 mb-3">
+                Your profile is {profileCompletion.percentage}% complete. Complete it to streamline consultation requests.
+              </p>
+              {(profileCompletion.missingFields.length > 0 || profileCompletion.missingConsents.length > 0) && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-slate-800">Missing required fields:</p>
+                  <ul className="text-xs text-slate-700 space-y-1">
+                    {profileCompletion.missingFields.slice(0, 3).map((field, idx) => (
+                      <li key={idx} className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
+                        {field}
+                      </li>
+                    ))}
+                    {profileCompletion.missingConsents.slice(0, 3).map((consent, idx) => (
+                      <li key={`consent-${idx}`} className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
+                        {consent}
+                      </li>
+                    ))}
+                    {(profileCompletion.missingFields.length + profileCompletion.missingConsents.length) > 3 && (
+                      <li className="text-slate-600 italic">
+                        + {(profileCompletion.missingFields.length + profileCompletion.missingConsents.length) - 3} more
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              )}
+              <div className="mt-4">
+                <Link href="/patient/profile">
+                  <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white">
+                    Complete Profile
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Consultation Request Priority Banner */}
       {consultationInquiries.length > 0 && (
         <div>
           <ConsultationInquiryBanner 
@@ -181,10 +305,11 @@ export default function PatientDashboardPage() {
         />
         <StatItem
           label="Profile"
-          value={null}
+          value={profileCompletion.percentage}
           icon={User}
-          actionLabel="Manage"
+          actionLabel={profileCompletion.isComplete ? "Complete" : `${profileCompletion.percentage}% complete`}
           href="/patient/profile"
+          highlight={!profileCompletion.isComplete}
         />
       </section>
 
@@ -194,24 +319,29 @@ export default function PatientDashboardPage() {
           <h2 className="text-2xl font-semibold text-slate-900">Quick Actions</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <ActionCard
-            title="Request Consultation"
-            description="Submit a consultation request for review"
-            icon={Calendar}
-            href="/patient/consultations/request"
-            primary
-          />
+          <div className="rounded-lg border border-border bg-card p-6 hover:shadow-md transition-shadow cursor-pointer" onClick={() => setShowRequestDialog(true)}>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="rounded-lg bg-primary/10 p-2">
+                <Calendar className="h-5 w-5 text-primary" />
+              </div>
+              <h3 className="font-semibold text-lg">Request Consultation</h3>
+            </div>
+            <p className="text-sm text-muted-foreground">Submit a consultation request for review</p>
+          </div>
+          <div className="rounded-lg border border-border bg-card p-6 hover:shadow-md transition-shadow cursor-pointer" onClick={() => setShowBookDialog(true)}>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="rounded-lg bg-teal-500/10 p-2">
+                <Calendar className="h-5 w-5 text-teal-600" />
+              </div>
+              <h3 className="font-semibold text-lg">Book Appointment</h3>
+            </div>
+            <p className="text-sm text-muted-foreground">See availability and book immediately</p>
+          </div>
           <ActionCard
             title="View Appointments"
             description="See all your scheduled appointments"
             icon={Clock}
             href="/patient/appointments"
-          />
-          <ActionCard
-            title="Consultation History"
-            description="Review past consultations and outcomes"
-            icon={FileText}
-            href="/patient/consultations"
           />
         </div>
       </section>
@@ -260,10 +390,39 @@ export default function PatientDashboardPage() {
               Ready to begin your aesthetic surgery journey? Book a consultation with our expert surgeons.
             </p>
           </div>
-          <div className="flex justify-center">
-            <ConsultationCTA />
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button onClick={() => setShowRequestDialog(true)} variant="outline" size="lg">
+              Request Consultation
+            </Button>
+            <Button onClick={() => setShowBookDialog(true)} size="lg" className="bg-teal-600 hover:bg-teal-700">
+              Book Appointment
+            </Button>
           </div>
         </section>
+      )}
+
+      {/* Dialogs */}
+      {user && (
+        <>
+          <RequestConsultationDialog
+            open={showRequestDialog}
+            onClose={() => setShowRequestDialog(false)}
+            onSuccess={() => {
+              setShowRequestDialog(false);
+              loadUpcomingAppointments();
+            }}
+            patientId={user.id}
+          />
+          <BookAppointmentDialog
+            open={showBookDialog}
+            onClose={() => setShowBookDialog(false)}
+            onSuccess={() => {
+              setShowBookDialog(false);
+              loadUpcomingAppointments();
+            }}
+            patientId={user.id}
+          />
+        </>
       )}
     </div>
   );
