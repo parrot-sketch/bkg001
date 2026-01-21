@@ -115,4 +115,49 @@ export const doctorApi = {
   async getPatientAppointments(patientId: string): Promise<ApiResponse<AppointmentResponseDto[]>> {
     return apiClient.get<AppointmentResponseDto[]>(`/patients/${patientId}/appointments`);
   },
+
+  /**
+   * Update doctor's own profile
+   */
+  async updateProfile(dto: {
+    bio?: string;
+    education?: string;
+    focusAreas?: string;
+    professionalAffiliations?: string;
+    profileImage?: string;
+    clinicLocation?: string;
+  }): Promise<ApiResponse<DoctorResponseDto>> {
+    return apiClient.put<DoctorResponseDto>('/doctors/me/profile', dto);
+  },
+
+  /**
+   * Get doctor's own availability
+   */
+  async getMyAvailability(): Promise<ApiResponse<any>> {
+    return apiClient.get('/doctors/me/availability');
+  },
+
+  /**
+   * Set doctor's own availability
+   */
+  async setMyAvailability(dto: {
+    workingDays: Array<{
+      day: string;
+      startTime: string;
+      endTime: string;
+      isAvailable: boolean;
+      breaks?: Array<{
+        startTime: string;
+        endTime: string;
+        reason?: string;
+      }>;
+    }>;
+    slotConfiguration?: {
+      defaultDuration: number;
+      bufferTime: number;
+      slotInterval: number;
+    };
+  }): Promise<ApiResponse<any>> {
+    return apiClient.put('/doctors/me/availability', dto);
+  },
 };

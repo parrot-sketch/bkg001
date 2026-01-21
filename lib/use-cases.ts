@@ -8,8 +8,9 @@
 import db from '@/lib/db';
 import { PrismaAppointmentRepository } from '@/infrastructure/database/repositories/PrismaAppointmentRepository';
 import { PrismaPatientRepository } from '@/infrastructure/database/repositories/PrismaPatientRepository';
+import { PrismaAvailabilityRepository } from '@/infrastructure/database/repositories/PrismaAvailabilityRepository';
 import { ConsoleAuditService } from '@/infrastructure/services/ConsoleAuditService';
-import { MockNotificationService } from '@/infrastructure/services/MockNotificationService';
+import { emailNotificationService } from '@/infrastructure/services/EmailNotificationService';
 import { SystemTimeService } from '@/infrastructure/services/SystemTimeService';
 import { CreatePatientUseCase } from '@/application/use-cases/CreatePatientUseCase';
 import { ScheduleAppointmentUseCase } from '@/application/use-cases/ScheduleAppointmentUseCase';
@@ -17,8 +18,9 @@ import { ScheduleAppointmentUseCase } from '@/application/use-cases/ScheduleAppo
 // Initialize infrastructure dependencies (singleton pattern)
 const appointmentRepository = new PrismaAppointmentRepository(db);
 const patientRepository = new PrismaPatientRepository(db);
+const availabilityRepository = new PrismaAvailabilityRepository(db);
 const auditService = new ConsoleAuditService();
-const notificationService = new MockNotificationService();
+const notificationService = emailNotificationService; // Real email service (with fallback to mock if not configured)
 const timeService = new SystemTimeService();
 
 /**
@@ -38,8 +40,10 @@ export function getScheduleAppointmentUseCase(): ScheduleAppointmentUseCase {
   return new ScheduleAppointmentUseCase(
     appointmentRepository,
     patientRepository,
+    availabilityRepository,
     notificationService,
     auditService,
     timeService,
+    db,
   );
 }

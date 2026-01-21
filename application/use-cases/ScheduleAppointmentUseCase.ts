@@ -1,5 +1,6 @@
 import { IAppointmentRepository } from '../../domain/interfaces/repositories/IAppointmentRepository';
 import { IPatientRepository } from '../../domain/interfaces/repositories/IPatientRepository';
+import { IAvailabilityRepository } from '../../domain/interfaces/repositories/IAvailabilityRepository';
 import { INotificationService } from '../../domain/interfaces/services/INotificationService';
 import { IAuditService } from '../../domain/interfaces/services/IAuditService';
 import { ITimeService } from '../../domain/interfaces/services/ITimeService';
@@ -8,7 +9,9 @@ import { AppointmentStatus } from '../../domain/enums/AppointmentStatus';
 import { ScheduleAppointmentDto } from '../dtos/ScheduleAppointmentDto';
 import { AppointmentResponseDto } from '../dtos/AppointmentResponseDto';
 import { AppointmentMapper as ApplicationAppointmentMapper } from '../mappers/AppointmentMapper';
+import { ValidateAppointmentAvailabilityUseCase } from './ValidateAppointmentAvailabilityUseCase';
 import { DomainException } from '../../domain/exceptions/DomainException';
+import { PrismaClient } from '@prisma/client';
 
 /**
  * Use Case: ScheduleAppointmentUseCase
@@ -37,18 +40,25 @@ import { DomainException } from '../../domain/exceptions/DomainException';
  * - Appointment starts with PENDING status
  */
 export class ScheduleAppointmentUseCase {
+  private readonly validateAvailabilityUseCase: ValidateAppointmentAvailabilityUseCase;
+
   constructor(
     private readonly appointmentRepository: IAppointmentRepository,
     private readonly patientRepository: IPatientRepository,
+    private readonly availabilityRepository: IAvailabilityRepository,
     private readonly notificationService: INotificationService,
     private readonly auditService: IAuditService,
     private readonly timeService: ITimeService,
+    private readonly prisma: PrismaClient,
   ) {
     if (!appointmentRepository) {
       throw new Error('AppointmentRepository is required');
     }
     if (!patientRepository) {
       throw new Error('PatientRepository is required');
+    }
+    if (!availabilityRepository) {
+      throw new Error('AvailabilityRepository is required');
     }
     if (!notificationService) {
       throw new Error('NotificationService is required');
@@ -59,6 +69,16 @@ export class ScheduleAppointmentUseCase {
     if (!timeService) {
       throw new Error('TimeService is required');
     }
+    if (!prisma) {
+      throw new Error('PrismaClient is required');
+    }
+
+    // Initialize availability validation use case
+    this.validateAvailabilityUseCase = new ValidateAppointmentAvailabilityUseCase(
+      availabilityRepository,
+      appointmentRepository,
+      prisma,
+    );
   }
 
   /**
@@ -95,6 +115,30 @@ export class ScheduleAppointmentUseCase {
         appointmentDate: dto.appointmentDate,
         currentDate: now,
       });
+    }
+
+    // Step 2.5: Validate availability (NEW - critical for clinic operations)
+    // Get slot configuration to determine duration
+    const slotConfig = await this.availabilityRepository.getSlotConfiguration(dto.doctorId);
+    const appointmentDuration = slotConfig?.defaultDuration || 30; // Default 30 minutes
+
+    const availabilityCheck = await this.validateAvailabilityUseCase.execute({
+      doctorId: dto.doctorId,
+      date: dto.appointmentDate,
+      time: dto.time,
+      duration: appointmentDuration,
+    });
+
+    if (!availabilityCheck.isAvailable) {
+      throw new DomainException(
+        `Appointment time is not available: ${availabilityCheck.reason}`,
+        {
+          doctorId: dto.doctorId,
+          date: dto.appointmentDate,
+          time: dto.time,
+          reason: availabilityCheck.reason,
+        }
+      );
     }
 
     // Step 3: Check for existing appointments (double booking check)
@@ -172,6 +216,21 @@ export class ScheduleAppointmentUseCase {
 
     if (!savedAppointment) {
       throw new Error('Failed to retrieve saved appointment');
+    }
+
+    // Step 6.5: Save slot information (slot_start_time and slot_duration)
+    // This is stored in the database but not yet part of the Appointment entity
+    try {
+      await this.prisma.appointment.update({
+        where: { id: savedAppointment.getId() },
+        data: {
+          slot_start_time: dto.time, // Store the slot start time
+          slot_duration: appointmentDuration, // Store the slot duration
+        },
+      });
+    } catch (error) {
+      // Log but don't fail - slot tracking is optional for now
+      console.warn('Failed to save slot information:', error);
     }
 
     // Step 7: Send notification to patient

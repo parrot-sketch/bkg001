@@ -43,7 +43,7 @@ export const AppointmentActionDialog = ({
       setIsLoading(true);
       const newReason =
         reason ||
-        `Inquiry has been ${
+        `Consultation request has been ${
           type === "approve" ? "accepted for scheduling" : "marked as not suitable"
         } on ${new Date()}`;
 
@@ -105,8 +105,8 @@ export const AppointmentActionDialog = ({
           </span>
           <p className="text-sm text-center text-gray-500">
             {type === "approve"
-              ? "Accept this inquiry and proceed to scheduling a session."
-              : "Mark this inquiry as not suitable. This action cannot be undone."}
+              ? "Accept this consultation request and proceed to scheduling a session."
+              : "Mark this consultation request as not suitable. This action cannot be undone."}
           </p>
 
           {type == "cancel" && (

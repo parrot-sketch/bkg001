@@ -24,6 +24,8 @@ import { AppointmentCard } from '@/components/patient/AppointmentCard';
 import { ConfirmConsultationDialog } from '@/components/patient/ConfirmConsultationDialog';
 import { RespondToInfoRequestDialog } from '@/components/patient/RespondToInfoRequestDialog';
 import { ConsultationCTA } from '@/components/portal/ConsultationCTA';
+import { BookAppointmentDialog } from '@/components/patient/BookAppointmentDialog';
+import { RequestConsultationDialog } from '@/components/patient/RequestConsultationDialog';
 
 export default function PatientAppointmentsPage() {
   const { user, isAuthenticated } = useAuth();
@@ -32,6 +34,8 @@ export default function PatientAppointmentsPage() {
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentResponseDto | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showRespondDialog, setShowRespondDialog] = useState(false);
+  const [showRequestDialog, setShowRequestDialog] = useState(false);
+  const [showBookDialog, setShowBookDialog] = useState(false);
 
   // Load appointments on mount and when auth state changes
   useEffect(() => {
@@ -147,10 +151,17 @@ export default function PatientAppointmentsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="space-y-2">
-          <h1 className="text-3xl font-semibold text-foreground tracking-tight">Your Inquiries</h1>
-          <p className="text-sm text-muted-foreground leading-relaxed">Track your consultation inquiries and sessions</p>
+          <h1 className="text-3xl font-semibold text-foreground tracking-tight">Consultation Requests</h1>
+          <p className="text-sm text-muted-foreground leading-relaxed">Track your consultation requests and sessions</p>
         </div>
-        <ConsultationCTA variant="primary" />
+        <div className="flex gap-2">
+          <Button onClick={() => setShowRequestDialog(true)} variant="outline">
+            Request Consultation
+          </Button>
+          <Button onClick={() => setShowBookDialog(true)} className="bg-teal-600 hover:bg-teal-700">
+            Book Appointment
+          </Button>
+        </div>
       </div>
 
       {/* Consultation Inquiries - Priority Section */}
@@ -159,9 +170,9 @@ export default function PatientAppointmentsPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
-              <CardTitle className="text-xl">Consultation Inquiries</CardTitle>
+              <CardTitle className="text-xl">Consultation Requests</CardTitle>
               <span className="ml-auto px-2 py-1 text-xs font-semibold bg-primary/20 text-primary rounded-full">
-                {consultationInquiries.length} {consultationInquiries.length === 1 ? 'inquiry' : 'inquiries'}
+                {consultationInquiries.length} {consultationInquiries.length === 1 ? 'request' : 'requests'}
               </span>
             </div>
             <CardDescription>Your consultation requests that need attention</CardDescription>
@@ -205,7 +216,7 @@ export default function PatientAppointmentsPage() {
                             <Calendar className="h-8 w-8 text-gray-400" />
                           </div>
                           <p className="text-sm font-medium text-gray-600 mb-1">No upcoming sessions</p>
-                          <p className="text-xs text-gray-500 mb-6">Submit an inquiry to begin</p>
+                          <p className="text-xs text-gray-500 mb-6">Request a consultation to begin</p>
                           <div className="flex justify-center">
                             <ConsultationCTA variant="secondary" className="h-9 px-4 text-sm" />
                           </div>
@@ -275,6 +286,30 @@ export default function PatientAppointmentsPage() {
           appointment={selectedAppointment}
         />
       )}
+
+      {/* Request and Book Dialogs */}
+      {user && (
+        <>
+          <RequestConsultationDialog
+            open={showRequestDialog}
+            onClose={() => setShowRequestDialog(false)}
+            onSuccess={() => {
+              setShowRequestDialog(false);
+              loadAppointments();
+            }}
+            patientId={user.id}
+          />
+          <BookAppointmentDialog
+            open={showBookDialog}
+            onClose={() => setShowBookDialog(false)}
+            onSuccess={() => {
+              setShowBookDialog(false);
+              loadAppointments();
+            }}
+            patientId={user.id}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -323,7 +358,7 @@ function PatientAppointmentCard({ appointment, onConfirm, onRespond }: PatientAp
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <AlertCircle className={`h-4 w-4 ${getStatusColor(consultationStatus)}`} />
-              <span className="text-sm font-medium">Inquiry Status:</span>
+              <span className="text-sm font-medium">Request Status:</span>
               <span className={`text-sm font-medium ${getStatusColor(consultationStatus)}`}>
                 {getConsultationRequestStatusLabel(consultationStatus)}
               </span>

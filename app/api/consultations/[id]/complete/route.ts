@@ -16,7 +16,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { CompleteConsultationUseCase } from '@/application/use-cases/CompleteConsultationUseCase';
 import { PrismaAppointmentRepository } from '@/infrastructure/database/repositories/PrismaAppointmentRepository';
 import { PrismaPatientRepository } from '@/infrastructure/database/repositories/PrismaPatientRepository';
-import { MockNotificationService } from '@/infrastructure/services/MockNotificationService';
+import { emailNotificationService } from '@/infrastructure/services/EmailNotificationService';
 import { ConsoleAuditService } from '@/infrastructure/services/ConsoleAuditService';
 import db from '@/lib/db';
 import { CompleteConsultationDto } from '@/application/dtos/CompleteConsultationDto';
@@ -27,7 +27,7 @@ import { Role } from '@/domain/enums/Role';
 // Initialize dependencies (singleton pattern)
 const appointmentRepository = new PrismaAppointmentRepository(db);
 const patientRepository = new PrismaPatientRepository(db);
-const notificationService = new MockNotificationService();
+const notificationService = emailNotificationService;
 const auditService = new ConsoleAuditService();
 
 // Initialize use case

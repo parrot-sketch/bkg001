@@ -101,3 +101,32 @@ export function getProfileIncompleteMessage(
 
   return `Please complete your profile. ${allMissing.length} required fields are missing.`;
 }
+
+/**
+ * Calculate profile completion percentage
+ * 
+ * @param patient - Patient profile data (null if profile doesn't exist)
+ * @returns Completion percentage (0-100) and missing fields
+ */
+export function calculateProfileCompletion(
+  patient: PatientResponseDto | null
+): {
+  percentage: number;
+  missingFields: string[];
+  missingConsents: string[];
+  isComplete: boolean;
+} {
+  const { isComplete, missingFields, missingConsents } = checkProfileCompletenessForBooking(patient);
+  
+  // Total required fields: 11 fields + 3 consents = 14 total
+  const totalRequired = 14;
+  const completed = totalRequired - missingFields.length - missingConsents.length;
+  const percentage = Math.round((completed / totalRequired) * 100);
+  
+  return {
+    percentage,
+    missingFields,
+    missingConsents,
+    isComplete,
+  };
+}

@@ -806,7 +806,7 @@ function BookConsultationContent() {
                     min={minDate}
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-1">We'll confirm the exact time after reviewing your inquiry</p>
+                  <p className="text-xs text-gray-500 mt-1">We'll confirm the exact time after reviewing your consultation request</p>
                 </div>
 
                 <div className="space-y-2">

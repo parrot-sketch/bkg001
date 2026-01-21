@@ -19,16 +19,21 @@ import { Input } from '@/components/ui/input';
 import { Users, Search, CheckCircle, XCircle, UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
+
+// Extended DTO for admin view (includes approval status)
+interface AdminPatientDto extends PatientResponseDto {
+  approved?: boolean;
+}
 import { ApprovePatientDialog } from '@/components/admin/ApprovePatientDialog';
 import { AssignPatientDialog } from '@/components/admin/AssignPatientDialog';
 
 export default function AdminPatientsPage() {
   const { user, isAuthenticated } = useAuth();
-  const [patients, setPatients] = useState<PatientResponseDto[]>([]);
-  const [filteredPatients, setFilteredPatients] = useState<PatientResponseDto[]>([]);
+  const [patients, setPatients] = useState<AdminPatientDto[]>([]);
+  const [filteredPatients, setFilteredPatients] = useState<AdminPatientDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedPatient, setSelectedPatient] = useState<PatientResponseDto | null>(null);
+  const [selectedPatient, setSelectedPatient] = useState<AdminPatientDto | null>(null);
   const [showApproveDialog, setShowApproveDialog] = useState(false);
   const [showAssignDialog, setShowAssignDialog] = useState(false);
 
@@ -77,17 +82,17 @@ export default function AdminPatientsPage() {
     }
   };
 
-  const handleApprove = (patient: PatientResponseDto) => {
+  const handleApprove = (patient: AdminPatientDto) => {
     setSelectedPatient(patient);
     setShowApproveDialog(true);
   };
 
-  const handleAssign = (patient: PatientResponseDto) => {
+  const handleAssign = (patient: AdminPatientDto) => {
     setSelectedPatient(patient);
     setShowAssignDialog(true);
   };
 
-  const handleReject = async (patient: PatientResponseDto) => {
+  const handleReject = async (patient: AdminPatientDto) => {
     if (!confirm(`Are you sure you want to reject patient ${patient.firstName} ${patient.lastName}?`)) {
       return;
     }
@@ -173,70 +178,108 @@ export default function AdminPatientsPage() {
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {filteredPatients.map((patient) => (
                 <div
                   key={patient.id}
-                  className="flex items-center justify-between rounded-lg border border-border p-4 hover:bg-muted/50 transition-colors"
+                  className="group rounded-lg border border-border bg-card p-4 hover:border-primary/50 hover:shadow-sm transition-all"
                 >
-                  <div className="flex items-center space-x-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                      <Users className="h-6 w-6 text-primary" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="font-medium">
-                        {patient.firstName} {patient.lastName}
-                      </p>
-                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                        <span>ID: {patient.id}</span>
-                        <span>•</span>
-                        <span>{patient.email}</span>
-                        {patient.phone && (
-                          <>
-                            <span>•</span>
-                            <span>{patient.phone}</span>
-                          </>
-                        )}
+                  <div className="flex items-start justify-between gap-4">
+                    {/* Patient Info */}
+                    <div className="flex items-start gap-4 flex-1 min-w-0">
+                      {/* Avatar */}
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Users className="h-6 w-6" />
                       </div>
-                      {patient.dateOfBirth && (
-                        <p className="text-xs text-muted-foreground">
-                          Age: {patient.age} years • Gender: {patient.gender}
-                        </p>
-                      )}
-                      {patient.createdAt && (
-                        <p className="text-xs text-muted-foreground">
-                          Registered: {new Date(patient.createdAt).toLocaleDateString()}
-                        </p>
-                      )}
+
+                      {/* Details */}
+                      <div className="flex-1 min-w-0 space-y-2">
+                        {/* Name and File Number */}
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <h3 className="font-semibold text-base text-foreground">
+                            {patient.firstName} {patient.lastName}
+                          </h3>
+                          {patient.fileNumber && (
+                            <span className="text-xs font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                              {patient.fileNumber}
+                            </span>
+                          )}
+                          {patient.approved === false && (
+                            <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                              Pending Approval
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Contact Info */}
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                          {patient.email && (
+                            <span className="truncate max-w-[200px]" title={patient.email}>
+                              {patient.email}
+                            </span>
+                          )}
+                          {patient.phone && (
+                            <span className="font-mono">{patient.phone}</span>
+                          )}
+                        </div>
+
+                        {/* Demographics */}
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                          {patient.dateOfBirth && (
+                            <span>
+                              Age: {patient.age} years
+                            </span>
+                          )}
+                          {patient.gender && (
+                            <span>• Gender: {patient.gender}</span>
+                          )}
+                          {patient.createdAt && (
+                            <span>
+                              • Registered: {new Date(patient.createdAt).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleApprove(patient)}
-                      className="text-success hover:text-success"
-                    >
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      Approve
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleReject(patient)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <XCircle className="mr-2 h-4 w-4" />
-                      Reject
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleAssign(patient)}
-                    >
-                      <UserCheck className="mr-2 h-4 w-4" />
-                      Assign
-                    </Button>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {patient.approved === false && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleApprove(patient)}
+                            className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
+                          >
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            Approve
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleReject(patient)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                          >
+                            <XCircle className="mr-2 h-4 w-4" />
+                            Reject
+                          </Button>
+                        </>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleAssign(patient)}
+                        className="hover:bg-muted"
+                      >
+                        <UserCheck className="mr-2 h-4 w-4" />
+                        Assign
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}

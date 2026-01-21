@@ -24,6 +24,7 @@ import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { ConsultationRequestStatus } from '@/domain/enums/ConsultationRequestStatus';
 import { format, isToday, startOfDay } from 'date-fns';
 import { AppointmentCard } from '@/components/patient/AppointmentCard';
+import { AvailableDoctorsPanel } from '@/components/frontdesk/AvailableDoctorsPanel';
 
 export default function FrontdeskDashboardPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -194,9 +195,9 @@ export default function FrontdeskDashboardPage() {
                     <div className="flex items-center space-x-3">
                       <AlertCircle className="h-5 w-5 text-primary" />
                       <div>
-                        <p className="font-medium text-foreground">New Inquiries</p>
+                        <p className="font-medium text-foreground">New Requests</p>
                         <p className="text-sm text-muted-foreground">
-                          {newInquiries} {newInquiries === 1 ? 'inquiry' : 'inquiries'} awaiting review
+                          {newInquiries} {newInquiries === 1 ? 'request' : 'requests'} awaiting review
                         </p>
                       </div>
                     </div>
@@ -216,7 +217,7 @@ export default function FrontdeskDashboardPage() {
                       <div>
                         <p className="font-medium text-foreground">Awaiting Clarification</p>
                         <p className="text-sm text-muted-foreground">
-                          {awaitingClarification} {awaitingClarification === 1 ? 'inquiry' : 'inquiries'} waiting for patient response
+                          {awaitingClarification} {awaitingClarification === 1 ? 'request' : 'requests'} waiting for patient response
                         </p>
                       </div>
                     </div>
@@ -236,7 +237,7 @@ export default function FrontdeskDashboardPage() {
                       <div>
                         <p className="font-medium text-foreground">Awaiting Scheduling</p>
                         <p className="text-sm text-muted-foreground">
-                          {awaitingScheduling} {awaitingScheduling === 1 ? 'inquiry' : 'inquiries'} accepted, ready to schedule
+                          {awaitingScheduling} {awaitingScheduling === 1 ? 'request' : 'requests'} accepted, ready to schedule
                         </p>
                       </div>
                     </div>
@@ -250,6 +251,9 @@ export default function FrontdeskDashboardPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Available Doctors */}
+      <AvailableDoctorsPanel />
 
       {/* Today's Sessions */}
       <Card>

@@ -24,6 +24,7 @@ export interface DoctorResponseDto {
   readonly education?: string;
   readonly focusAreas?: string;
   readonly professionalAffiliations?: string;
+  readonly colorCode?: string;
   readonly createdAt?: Date;
   readonly updatedAt?: Date;
 }

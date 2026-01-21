@@ -9,6 +9,7 @@ import type { AppointmentResponseDto } from '../../application/dtos/AppointmentR
 import type { PatientResponseDto } from '../../application/dtos/PatientResponseDto';
 import type { CreatePatientDto } from '../../application/dtos/CreatePatientDto';
 import type { CheckInPatientDto } from '../../application/dtos/CheckInPatientDto';
+import type { DoctorAvailabilityResponseDto } from '../../application/dtos/DoctorAvailabilityResponseDto';
 
 /**
  * Frontdesk API client
@@ -137,5 +138,30 @@ export const frontdeskApi = {
       proposedDate: options?.proposedDate,
       proposedTime: options?.proposedTime,
     });
+  },
+
+  /**
+   * Get all doctors' availability for a date range
+   * Used by front desk to view availability when scheduling appointments
+   * 
+   * @param startDate - Start date (inclusive)
+   * @param endDate - End date (inclusive)
+   * @param specialization - Optional specialization filter
+   */
+  async getDoctorsAvailability(
+    startDate: Date,
+    endDate: Date,
+    specialization?: string
+  ): Promise<ApiResponse<DoctorAvailabilityResponseDto[]>> {
+    const startStr = startDate.toISOString().split('T')[0];
+    const endStr = endDate.toISOString().split('T')[0];
+    const params = new URLSearchParams({
+      startDate: startStr,
+      endDate: endStr,
+    });
+    if (specialization) {
+      params.append('specialization', specialization);
+    }
+    return apiClient.get<DoctorAvailabilityResponseDto[]>(`/doctors/availability?${params.toString()}`);
   },
 };

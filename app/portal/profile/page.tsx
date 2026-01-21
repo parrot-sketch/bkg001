@@ -23,6 +23,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { User } from 'lucide-react';
+import { apiClient } from '@/lib/api/client';
+import { hasPatientProfile } from '@/lib/utils/patient';
+import type { UserResponseDto } from '@/application/dtos/UserResponseDto';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -72,12 +75,50 @@ export default function ProfilePage() {
     setIsSubmitting(true);
 
     try {
-      // TODO: Implement profile update API call
-      // For now, just show success message
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      // Update user profile via API
+      const response = await apiClient.put<UserResponseDto>('/users/me', {
+        firstName: formData.firstName || undefined,
+        lastName: formData.lastName || undefined,
+        phone: formData.phone || undefined,
+      });
+
+      if (!response.success) {
+        toast.error(response.error || 'Failed to update profile');
+        return;
+      }
+
       toast.success('Profile updated successfully');
+
+      // Update stored user data with new profile information
+      if (response.data && typeof window !== 'undefined') {
+        const { tokenStorage } = await import('@/lib/auth/token');
+        const currentUser = tokenStorage.getUser();
+        if (currentUser) {
+          tokenStorage.setUser({
+            ...currentUser,
+            firstName: response.data.firstName || currentUser.firstName,
+            lastName: response.data.lastName || currentUser.lastName,
+            phone: response.data.phone || currentUser.phone,
+          });
+        }
+      }
+      
+      // Check if user now has a patient profile and redirect accordingly
+      if (user?.id) {
+        const hasProfile = await hasPatientProfile(user.id);
+        if (hasProfile) {
+          // User has patient profile → redirect to patient dashboard
+          router.push('/patient/dashboard');
+        } else {
+          // User doesn't have patient profile yet → redirect back to welcome page
+          router.push('/portal/welcome');
+        }
+      } else {
+        // Fallback: redirect to welcome page
+        router.push('/portal/welcome');
+      }
     } catch (error) {
+      console.error('Error updating profile:', error);
       toast.error('Failed to update profile. Please try again.');
     } finally {
       setIsSubmitting(false);

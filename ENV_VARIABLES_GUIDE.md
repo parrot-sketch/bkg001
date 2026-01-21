@@ -23,7 +23,10 @@ These variables have defaults but should be set for production:
 These are only needed if using specific features:
 
 1. **Cloudinary variables** - Only if uploading images programmatically
-2. **SMTP variables** - Only if implementing email notifications
+2. **Email notification variables** - Required for production email notifications
+   - `RESEND_API_KEY` - Resend API key (recommended)
+   - `EMAIL_FROM` or `RESEND_FROM_EMAIL` - Sender email address
+   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` - SMTP fallback (if not using Resend)
 3. **Docker variables** - Only if using Docker Compose locally
 
 ---
@@ -329,7 +332,9 @@ The app will fail to start if JWT secrets are missing or invalid.
 | `NEXT_PUBLIC_API_URL` | ❌ No | `/api` | API base URL |
 | `NODE_ENV` | ❌ No | `development` | Environment mode |
 | `CLOUDINARY_*` | ❌ No | - | Image hosting (optional) |
-| `SMTP_*` | ❌ No | - | Email (optional, future) |
+| `RESEND_API_KEY` | ❌ No | - | Email via Resend (recommended) |
+| `EMAIL_FROM` | ❌ No | `noreply@nairobi-sculpt.com` | Sender email address |
+| `SMTP_*` | ❌ No | - | Email via SMTP (fallback) |
 
 ---
 

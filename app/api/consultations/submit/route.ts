@@ -16,7 +16,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SubmitConsultationRequestUseCase } from '@/application/use-cases/SubmitConsultationRequestUseCase';
 import { PrismaAppointmentRepository } from '@/infrastructure/database/repositories/PrismaAppointmentRepository';
 import { PrismaPatientRepository } from '@/infrastructure/database/repositories/PrismaPatientRepository';
-import { MockNotificationService } from '@/infrastructure/services/MockNotificationService';
+import { emailNotificationService } from '@/infrastructure/services/EmailNotificationService';
 import { ConsoleAuditService } from '@/infrastructure/services/ConsoleAuditService';
 import { SystemTimeService } from '@/infrastructure/services/SystemTimeService';
 import db from '@/lib/db';
@@ -27,7 +27,7 @@ import { JwtMiddleware } from '@/lib/auth/middleware';
 // Initialize dependencies (singleton pattern)
 const appointmentRepository = new PrismaAppointmentRepository(db);
 const patientRepository = new PrismaPatientRepository(db);
-const notificationService = new MockNotificationService();
+const notificationService = emailNotificationService; // Real email service (with fallback to mock if not configured)
 const auditService = new ConsoleAuditService();
 const timeService = new SystemTimeService();
 

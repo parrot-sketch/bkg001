@@ -5,6 +5,7 @@
  * 
  * Clean, elegant sidebar navigation for the Admin Dashboard.
  * Reflects Nairobi Sculpt branding with minimal, professional design.
+ * Mobile-responsive with toggle functionality.
  */
 
 import Link from 'next/link';
@@ -19,10 +20,12 @@ import {
   BarChart3,
   User,
   LogOut,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/patient/useAuth';
+import { useEffect } from 'react';
 
 interface NavItem {
   name: string;
@@ -68,9 +71,21 @@ const navItems: NavItem[] = [
   },
 ];
 
-export function AdminSidebar() {
+interface AdminSidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
   const pathname = usePathname();
   const { logout, user } = useAuth();
+
+  // Close sidebar when navigating on mobile
+  useEffect(() => {
+    if (isOpen) {
+      onClose();
+    }
+  }, [pathname]);
 
   const handleLogout = async () => {
     try {
@@ -81,22 +96,47 @@ export function AdminSidebar() {
   };
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-border bg-card transition-transform">
-      <div className="flex h-full flex-col">
-        {/* Logo/Brand */}
-        <div className="flex h-16 items-center border-b border-border px-6">
-          <Link href="/admin/dashboard" className="flex items-center space-x-2">
-            <Image
-              src="https://res.cloudinary.com/dcngzaxlv/image/upload/v1768807323/logo_tw2voz.png"
-              alt="Nairobi Sculpt Logo"
-              width={32}
-              height={32}
-              className="h-8 w-auto object-contain"
-              priority
-            />
-            <span className="text-lg font-semibold text-foreground font-playfair-display">Nairobi Sculpt</span>
-          </Link>
-        </div>
+    <>
+      {/* Mobile Overlay */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={cn(
+          'fixed left-0 top-0 z-50 h-screen w-64 border-r border-border bg-card transition-transform duration-300 ease-in-out',
+          isOpen ? 'translate-x-0' : '-translate-x-full',
+          'lg:translate-x-0', // Always visible on desktop
+        )}
+      >
+        <div className="flex h-full flex-col">
+          {/* Logo/Brand */}
+          <div className="flex h-16 items-center justify-between border-b border-border px-6">
+            <Link href="/admin/dashboard" className="flex items-center space-x-2" onClick={onClose}>
+              <Image
+                src="/logo.png"
+                alt="Nairobi Sculpt Logo"
+                width={32}
+                height={32}
+                className="h-8 w-auto object-contain"
+                priority
+              />
+              <span className="text-lg font-semibold text-foreground font-playfair-display">Nairobi Sculpt</span>
+            </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden"
+              onClick={onClose}
+              aria-label="Close sidebar"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
 
         {/* User Info */}
         {user && (
@@ -116,6 +156,7 @@ export function AdminSidebar() {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={onClose} // Close sidebar on navigation
                 className={cn(
                   'flex items-center space-x-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                   isActive
@@ -143,5 +184,6 @@ export function AdminSidebar() {
         </div>
       </div>
     </aside>
+    </>
   );
 }

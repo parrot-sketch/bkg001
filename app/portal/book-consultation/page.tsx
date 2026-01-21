@@ -805,7 +805,7 @@ function BookConsultationContent() {
                     min={minDate}
                     required
                   />
-                  <p className="text-xs text-gray-500 mt-1">We'll confirm the exact time after reviewing your inquiry</p>
+                  <p className="text-xs text-gray-500 mt-1">We'll confirm the exact time after reviewing your consultation request</p>
                 </div>
 
                 <div className="space-y-2">
@@ -1039,7 +1039,7 @@ function BookConsultationContent() {
               ) : (
                 <>
                   <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Send Inquiry
+                  Request Consultation
                 </>
               )}
             </Button>

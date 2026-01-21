@@ -37,8 +37,23 @@ export class PhoneNumber {
       });
     }
 
-    // Remove common formatting characters (spaces, dashes, parentheses)
-    const cleaned = phoneNumber.replace(/[\s\-\(\)\.]/g, '');
+    // Remove ALL non-digit, non-plus characters (handles any formatting)
+    // This is more aggressive than the original to handle legacy data
+    let cleaned = phoneNumber.trim();
+    
+    // Preserve + if at the start
+    const hasPlus = cleaned.startsWith('+');
+    cleaned = cleaned.replace(/[^\d+]/g, ''); // Remove everything except digits and +
+    
+    // If + was at start but got removed, add it back
+    if (hasPlus && !cleaned.startsWith('+')) {
+      cleaned = '+' + cleaned;
+    }
+    
+    // Remove any + that's not at the start (shouldn't happen, but safety check)
+    if (cleaned.includes('+') && !cleaned.startsWith('+')) {
+      cleaned = cleaned.replace(/\+/g, '');
+    }
 
     // Check if starts with + (international format)
     const isInternational = cleaned.startsWith('+');
