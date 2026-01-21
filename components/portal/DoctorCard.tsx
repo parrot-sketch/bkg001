@@ -98,7 +98,7 @@ export function DoctorCard({ doctor, variant = 'compact', showCTA = true, classN
               View Profile
             </Button>
           </Link>
-          <Link href={`/portal/book-consultation?doctorId=${doctor.id}`} className="block">
+          <Link href={`/patient/consultations/request?doctorId=${doctor.id}`} className="block">
             <Button className="w-full h-11 bg-teal-500 hover:bg-teal-600 text-white">
               Request Consultation
               <ArrowRight className="h-4 w-4 ml-2" />

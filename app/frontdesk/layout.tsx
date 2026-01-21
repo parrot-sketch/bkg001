@@ -37,7 +37,7 @@ export default function FrontdeskLayout({ children }: FrontdeskLayoutProps) {
 
       {/* Main Content - Offset by sidebar width on desktop only */}
       <main className="flex-1 lg:ml-64 overflow-y-auto">
-        <div className="container mx-auto px-4 py-8 lg:px-8 max-w-7xl">
+        <div className="w-full px-4 py-8 lg:px-6 xl:px-8 2xl:px-12">
           {children}
         </div>
       </main>

@@ -8,7 +8,7 @@ const SearchInput = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const [searchValue, setSearchValue] = useState("");
+  const [searchValue, setSearchValue] = useState(searchParams?.get("q") || "");
 
   const createQueryString = useCallback(
     (name: string, value: string) => {
@@ -27,12 +27,13 @@ const SearchInput = () => {
   };
 
   return (
-    <form onSubmit={handleSearch}>
-      <div className="hidden xl:flex items-center border border-gray-300 px-2 py-2 rounded-md focus-within:ring-2 focus-within:ring-blue-300 focus-within:border-blue-300">
-        <Search size={18} className="text-gray-400" />
+    <form onSubmit={handleSearch} className="w-full">
+      <div className="flex items-center border border-gray-200 bg-white px-4 py-3 rounded-lg focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all duration-200 shadow-sm hover:shadow-md">
+        <Search size={18} className="text-muted-foreground flex-shrink-0" />
         <input
-          className="outline-none px-2 text-sm"
-          placeholder="Search..."
+          className="outline-none px-3 text-sm w-full text-foreground placeholder:text-muted-foreground"
+          placeholder="Search by name, email, phone, or file number..."
+          value={searchValue}
           onChange={(e) => setSearchValue(e.target.value)}
         />
       </div>

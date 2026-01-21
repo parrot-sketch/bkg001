@@ -276,31 +276,44 @@ function ConsultationRequestCard({
             )}
           </div>
 
-          {request.reason && (
-            <div className="rounded bg-muted/50 p-3 mt-2">
-              <p className="text-xs font-medium mb-1">Concern Description:</p>
-              <p className="text-xs text-muted-foreground line-clamp-2">{request.reason}</p>
-            </div>
-          )}
         </div>
       </div>
+
+      {/* Clinical Summary Section */}
+      {request.reason && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div className="flex items-center gap-2 mb-1.5">
+            <FileText className="h-4 w-4 text-blue-600" />
+            <span className="text-xs font-semibold text-foreground">Primary Concern</span>
+          </div>
+          <p className="text-xs text-muted-foreground line-clamp-2">{request.reason}</p>
+        </div>
+      )}
+
+      {/* Prepared by Indicator (if reviewed) */}
+      {request.reviewedBy && request.reviewedAt && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <User className="h-3 w-3" />
+          <span>Prepared by assistant • {format(new Date(request.reviewedAt), 'MMM d, yyyy')}</span>
+        </div>
+      )}
 
       {/* Quick Actions */}
       <div className="flex items-center space-x-2 pt-2 border-t border-border">
         <Button
           size="sm"
           onClick={onApprove}
-          className="flex-1"
+          className="flex-1 bg-green-600 hover:bg-green-700"
         >
-          Approve
+          Accept for Consultation
         </Button>
         <Button
           size="sm"
           variant="outline"
           onClick={onRequestInfo}
-          className="flex-1"
+          className="flex-1 border-yellow-300 text-yellow-700 hover:bg-yellow-50"
         >
-          Request Info
+          Request Clarification
         </Button>
         <Button
           size="sm"

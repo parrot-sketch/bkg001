@@ -186,7 +186,7 @@ export default function MeetOurDoctorsPage() {
                       </Button>
                     </Link>
                     <Link
-                      href={`/portal/book-consultation?doctorId=${doctor.id}`}
+                      href={`/patient/consultations/request?doctorId=${doctor.id}`}
                       className="block"
                     >
                       <Button className="w-full h-11 bg-teal-500 hover:bg-teal-600 text-white">

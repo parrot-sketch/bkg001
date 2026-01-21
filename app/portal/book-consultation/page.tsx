@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 import { Gender } from '@/domain/enums/Gender';
 import { Calendar, ChevronLeft, ChevronRight, CheckCircle2, Sparkles, Users, Clock, Shield, FileText, Info } from 'lucide-react';
 import { format, addDays } from 'date-fns';
+import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 
 const TOTAL_STEPS = 7;
 
@@ -84,6 +85,7 @@ function BookConsultationContent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasProfile, setHasProfile] = useState<boolean | null>(null);
   const [loadingPatientProfile, setLoadingPatientProfile] = useState(false);
+  const [patient, setPatient] = useState<PatientResponseDto | null>(null);
   
   // Get context from URL query
   const preselectedDoctorId = searchParams?.get('doctorId');
@@ -161,12 +163,15 @@ function BookConsultationContent() {
 
         if (profileExists && response.data) {
           // Pre-fill date of birth and gender from existing profile
-          const patient = response.data;
+          const patientData = response.data;
+          setPatient(patientData);
           setFormData((prev) => ({
             ...prev,
-            dateOfBirth: patient.dateOfBirth ? format(new Date(patient.dateOfBirth), 'yyyy-MM-dd') : '',
-            gender: patient.gender || '',
+            dateOfBirth: patientData.dateOfBirth ? format(new Date(patientData.dateOfBirth), 'yyyy-MM-dd') : '',
+            gender: patientData.gender || '',
           }));
+        } else {
+          setPatient(null);
         }
       } catch (error) {
         console.error('Error loading patient profile:', error);
@@ -359,11 +364,10 @@ function BookConsultationContent() {
       const response = await patientApi.submitConsultationRequest(consultationRequestDto);
 
       if (response.success && response.data) {
-        toast.success('Your consultation request has been received. Our care team will contact you shortly.');
+        toast.success('Your consultation request has been submitted. Our clinical team will review it and contact you shortly.');
         
-        // Preserve context - return to the page user came from, or default to dashboard
-        const redirectTo = returnTo || '/patient/dashboard';
-        router.push(redirectTo);
+        // Always redirect to consultation requests list
+        router.push('/patient/consultations');
       } else if (!response.success) {
         toast.error(response.error || 'Unable to submit your request. Please try again.');
       } else {
@@ -425,8 +429,8 @@ function BookConsultationContent() {
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header - Calm, Professional */}
         <div className="mb-8 space-y-2">
-          <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight">Submit an Inquiry</h1>
-          <p className="text-sm text-gray-600 leading-relaxed">Share your preferences and we'll guide you through the next steps</p>
+          <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight">Request a Consultation</h1>
+          <p className="text-sm text-gray-600 leading-relaxed">Tell us what you'd like to discuss with our surgical team</p>
         </div>
 
         {/* Progress - Subtle and calm */}
@@ -576,8 +580,8 @@ function BookConsultationContent() {
           {currentStep === 2 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-semibold text-slate-900 mb-2">What brings you in?</h2>
-                <p className="text-sm text-gray-600">Select a service below or browse all options</p>
+                <h2 className="text-xl font-semibold text-slate-900 mb-2">What would you like to discuss?</h2>
+                <p className="text-sm text-gray-600">Tell us about your primary concern or area of interest</p>
               </div>
 
               {/* Category Filter - Matches website structure */}
@@ -689,7 +693,7 @@ function BookConsultationContent() {
                   rows={5}
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">This helps our surgeons prepare for your consultation</p>
+                <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">This information helps our surgical team prepare for your consultation</p>
               </div>
             </div>
           )}
@@ -753,8 +757,8 @@ function BookConsultationContent() {
           {currentStep === 4 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-semibold text-slate-900 mb-2">When would you like to visit?</h2>
-                <p className="text-sm text-gray-600">Our team will confirm your appointment shortly</p>
+                <h2 className="text-xl font-semibold text-slate-900 mb-2">Preferred Consultation Date</h2>
+                <p className="text-sm text-gray-600">We will confirm the exact time after reviewing your request</p>
               </div>
 
               {/* Show selected doctor if preselected (Step 3 was skipped) */}
@@ -836,8 +840,8 @@ function BookConsultationContent() {
           {currentStep === 5 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-semibold text-slate-900 mb-2">A few safety questions</h2>
-                <p className="text-sm text-gray-600">This helps our doctors prepare safely for your consultation</p>
+                <h2 className="text-xl font-semibold text-slate-900 mb-2">Medical Screening</h2>
+                <p className="text-sm text-gray-600">Basic safety information to help our team prepare</p>
               </div>
 
               <div className="space-y-4">
@@ -902,8 +906,8 @@ function BookConsultationContent() {
           {currentStep === 6 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-semibold text-slate-900 mb-2">Final details</h2>
-                <p className="text-sm text-gray-600">Please review and confirm the following</p>
+                <h2 className="text-xl font-semibold text-slate-900 mb-2">Consent & Acknowledgment</h2>
+                <p className="text-sm text-gray-600">Please review and confirm the following important information</p>
               </div>
 
               <div className="space-y-4">
@@ -957,8 +961,8 @@ function BookConsultationContent() {
                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                   <CheckCircle2 className="h-8 w-8 text-primary" />
                 </div>
-                <h2 className="text-xl font-semibold text-slate-900 mb-2">Review Your Inquiry</h2>
-                <p className="text-sm text-gray-600 leading-relaxed">Please confirm the details below before sending</p>
+                <h2 className="text-xl font-semibold text-slate-900 mb-2">Review Your Consultation Request</h2>
+                <p className="text-sm text-gray-600 leading-relaxed">Please confirm the details below before submitting</p>
               </div>
 
               <div className="space-y-3 p-5 bg-gray-50/50 rounded-xl border border-gray-200">
@@ -988,7 +992,7 @@ function BookConsultationContent() {
                   <div className="text-sm">
                     <div className="font-medium text-slate-900 mb-1.5">What happens next?</div>
                     <div className="text-gray-600 leading-relaxed">
-                      Our care team will review your inquiry and contact you within 24 hours to confirm your consultation time and answer any questions.
+                      Our clinical team will review your consultation request and contact you within 24 hours to discuss scheduling and answer any questions.
                     </div>
                   </div>
                 </div>

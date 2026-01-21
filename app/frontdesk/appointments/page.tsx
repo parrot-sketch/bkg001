@@ -115,9 +115,9 @@ export default function FrontdeskAppointmentsPage() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Appointments</h1>
-        <p className="mt-2 text-muted-foreground">Manage appointments and check-in patients</p>
+      <div className="space-y-2">
+        <h1 className="text-3xl font-semibold text-foreground tracking-tight">Appointments</h1>
+        <p className="text-sm text-muted-foreground">Manage appointments and check-in patients</p>
       </div>
 
       {/* Filters */}
@@ -183,7 +183,7 @@ export default function FrontdeskAppointmentsPage() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{appointments.length}</div>
+            <div className="text-3xl font-semibold text-foreground mb-1">{appointments.length}</div>
             <p className="text-xs text-muted-foreground">For selected date</p>
           </CardContent>
         </Card>

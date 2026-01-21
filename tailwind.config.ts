@@ -10,6 +10,15 @@ export default {
   theme: {
   	extend: {
   		colors: {
+			// Nairobi Sculpt Brand Colors (from branding guide)
+			brand: {
+				primary: '#1E3A5F',     // Space Cadet - Dark navy blue
+				secondary: '#bea032',   // Lion - Warm golden-brown
+				isabelline: '#F4F1E8',  // Very light creamy off-white
+				almond: '#E8DCC6',      // Light beige/tan
+				powder: '#B0D4E8',      // Powder Blue - Light muted blue
+				dusk: '#6B8FA3',         // Dusk - Medium muted blue
+			},
   			// Semantic colors (using CSS variables)
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',

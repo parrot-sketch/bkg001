@@ -1,150 +1,180 @@
 'use client';
 
 /**
- * Patient Consultation History Page
+ * Patient Consultation Requests Page
  * 
- * View past consultations and their outcomes.
- * Shows consultation notes, follow-ups, and treatment plans.
+ * Lists all consultation requests submitted by the patient.
+ * Shows request status and allows viewing details.
  */
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { patientApi } from '@/lib/api/patient';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { FileText, Calendar } from 'lucide-react';
-import { toast } from 'sonner';
-import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
-import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
+import { Calendar, Clock, FileText, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
+import Link from 'next/link';
+import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import { ConsultationRequestStatus } from '@/domain/enums/ConsultationRequestStatus';
+import { getConsultationRequestStatusLabel } from '@/domain/enums/ConsultationRequestStatus';
 
 export default function PatientConsultationsPage() {
   const { user, isAuthenticated } = useAuth();
-  const [consultations, setConsultations] = useState<AppointmentResponseDto[]>([]);
+  const [requests, setRequests] = useState<AppointmentResponseDto[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      loadConsultations();
+      loadConsultationRequests();
     }
   }, [isAuthenticated, user]);
 
-  const loadConsultations = async () => {
+  const loadConsultationRequests = async () => {
     if (!user) return;
 
     try {
       setLoading(true);
-      const response = await patientApi.getAppointmentHistory(user.id);
+      const response = await patientApi.getAppointments(user.id);
 
       if (response.success && response.data) {
-        // Filter for completed consultations
-        const completed = response.data.filter(
-          (apt) => apt.status === AppointmentStatus.COMPLETED,
+        // Filter for consultation requests (have consultation_request_status)
+        const consultationRequests = response.data.filter(
+          (apt) => apt.consultationRequestStatus !== undefined && apt.consultationRequestStatus !== null
         );
-        setConsultations(completed);
-      } else if (!response.success) {
-        toast.error(response.error || 'Failed to load consultations');
-      } else {
-        toast.error('Failed to load consultations');
+        setRequests(consultationRequests);
       }
     } catch (error) {
-      toast.error('An error occurred while loading consultations');
-      console.error('Error loading consultations:', error);
+      console.error('Error loading consultation requests:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const getStatusConfig = (status: ConsultationRequestStatus | undefined) => {
+    if (!status) return null;
+
+    const configs: Record<ConsultationRequestStatus, { className: string; icon: any }> = {
+      [ConsultationRequestStatus.SUBMITTED]: {
+        className: 'bg-blue-50 text-blue-700 border border-blue-200',
+        icon: FileText,
+      },
+      [ConsultationRequestStatus.PENDING_REVIEW]: {
+        className: 'bg-amber-50 text-amber-700 border border-amber-200',
+        icon: Clock,
+      },
+      [ConsultationRequestStatus.NEEDS_MORE_INFO]: {
+        className: 'bg-orange-50 text-orange-700 border border-orange-200',
+        icon: AlertCircle,
+      },
+      [ConsultationRequestStatus.APPROVED]: {
+        className: 'bg-green-50 text-green-700 border border-green-200',
+        icon: CheckCircle2,
+      },
+      [ConsultationRequestStatus.SCHEDULED]: {
+        className: 'bg-teal-50 text-teal-700 border border-teal-200',
+        icon: Calendar,
+      },
+      [ConsultationRequestStatus.CONFIRMED]: {
+        className: 'bg-green-100 text-green-800 border border-green-300',
+        icon: CheckCircle2,
+      },
+    };
+
+    return configs[status];
   };
 
   if (!isAuthenticated || !user) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
-          <p className="text-muted-foreground">Please log in to view consultations</p>
+          <p className="text-gray-600">Please log in to view your consultation requests</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading consultation requests...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Consultation History</h1>
-        <p className="mt-2 text-muted-foreground">View your past consultations and outcomes</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900">My Consultation Requests</h1>
+          <p className="text-sm text-gray-600 mt-1">View and track your consultation requests</p>
+        </div>
+        <Link href="/patient/consultations/request">
+          <Button className="bg-teal-600 hover:bg-teal-700">
+            <Calendar className="h-4 w-4 mr-2" />
+            Request Consultation
+          </Button>
+        </Link>
       </div>
 
-      {/* Consultations List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Completed Consultations</CardTitle>
-          <CardDescription>Your consultation history and outcomes</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-4 text-sm text-muted-foreground">Loading consultations...</p>
-            </div>
-          ) : consultations.length === 0 ? (
-            <div className="text-center py-8">
-              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-sm text-muted-foreground">No completed consultations yet</p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Your consultation history will appear here after appointments are completed
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {consultations.map((consultation) => (
-                <div
-                  key={consultation.id}
-                  className="rounded-lg border border-border p-6 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-success/10">
-                        <FileText className="h-6 w-6 text-success" />
+      {/* Requests List */}
+      {requests.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">No consultation requests</h3>
+            <p className="text-sm text-gray-600 mb-6">You haven't submitted any consultation requests yet.</p>
+            <Link href="/patient/consultations/request">
+              <Button className="bg-teal-600 hover:bg-teal-700">
+                Request Consultation
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {requests.map((request) => {
+            const statusConfig = getStatusConfig(request.consultationRequestStatus);
+            const StatusIcon = statusConfig?.icon;
+
+            return (
+              <Card key={request.id} className="hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="text-lg">{request.type}</CardTitle>
+                      <CardDescription className="mt-1">
+                        {request.appointmentDate && format(new Date(request.appointmentDate), 'MMMM d, yyyy')} at {request.time}
+                      </CardDescription>
+                    </div>
+                    {statusConfig && request.consultationRequestStatus && (
+                      <div className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 ${statusConfig.className}`}>
+                        {StatusIcon && <StatusIcon className="h-3 w-3" />}
+                        {getConsultationRequestStatusLabel(request.consultationRequestStatus)}
                       </div>
-                      <div>
-                        <h3 className="font-semibold text-lg">
-                          {format(new Date(consultation.appointmentDate), 'MMMM d, yyyy')}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          {consultation.time} • {consultation.type}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="rounded-full bg-success/10 px-3 py-1 text-xs font-medium text-success">
-                      {consultation.status}
-                    </div>
+                    )}
                   </div>
-
-                  {consultation.note && (
-                    <div className="mb-4 rounded-lg bg-muted p-4">
-                      <h4 className="mb-2 text-sm font-medium text-foreground">Consultation Notes</h4>
-                      <p className="text-sm text-muted-foreground">{consultation.note}</p>
-                    </div>
+                </CardHeader>
+                <CardContent>
+                  {request.note && (
+                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">{request.note}</p>
                   )}
-
-                  {consultation.reason && (
-                    <div className="rounded-lg border border-border p-4">
-                      <h4 className="mb-2 text-sm font-medium text-foreground">Outcome</h4>
-                      <p className="text-sm text-muted-foreground">{consultation.reason}</p>
-                    </div>
-                  )}
-
-                  <div className="mt-4 flex items-center text-xs text-muted-foreground">
-                    <Calendar className="mr-2 h-4 w-4" />
-                    Completed on{' '}
-                    {consultation.updatedAt
-                      ? format(new Date(consultation.updatedAt), 'MMMM d, yyyy')
-                      : format(new Date(consultation.appointmentDate), 'MMMM d, yyyy')}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  <Link href={`/patient/appointments/${request.id}`}>
+                    <Button variant="outline" size="sm">
+                      View Details
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

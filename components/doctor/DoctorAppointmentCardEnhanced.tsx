@@ -166,13 +166,25 @@ export function DoctorAppointmentCardEnhanced({
                 {/* Assistant Brief (if available) */}
                 {appointment.reviewNotes && (
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <AlertCircle className="h-4 w-4 text-amber-600" />
-                      <span className="text-sm font-semibold text-foreground">Assistant Brief</span>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 text-amber-600" />
+                        <span className="text-sm font-semibold text-foreground">Assistant Brief</span>
+                      </div>
+                      {appointment.reviewedBy && (
+                        <span className="text-xs text-muted-foreground">
+                          Prepared by Assistant
+                        </span>
+                      )}
                     </div>
-                    <p className="text-sm text-muted-foreground ml-6 line-clamp-2">
+                    <p className="text-sm text-muted-foreground ml-6 line-clamp-3">
                       {appointment.reviewNotes}
                     </p>
+                    {appointment.reviewedAt && (
+                      <p className="text-xs text-muted-foreground ml-6 mt-1">
+                        {format(new Date(appointment.reviewedAt), 'MMM d, yyyy')}
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -206,11 +218,12 @@ export function DoctorAppointmentCardEnhanced({
             {canStartConsultation && (
               <Button
                 size="sm"
-                onClick={() => router.push(`/doctor/consultations/${appointment.id}/session`)}
-                className={isReady ? '' : 'bg-amber-600 hover:bg-amber-700'}
+                onClick={() => onStartConsultation(appointment)}
+                className={isReady ? 'bg-green-600 hover:bg-green-700' : 'bg-amber-600 hover:bg-amber-700'}
+                title={!isReady ? 'Patient file not fully prepared. Review readiness indicators above.' : ''}
               >
                 <FileText className="mr-2 h-4 w-4" />
-                {isReady ? 'Start Consultation' : 'Start Consultation (Review File)'}
+                {isReady ? 'Begin Consultation' : 'Begin Consultation (Review File First)'}
               </Button>
             )}
             {canCompleteConsultation && onCompleteConsultation && (
