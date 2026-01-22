@@ -4,8 +4,9 @@ import db from "@/lib/db";
 import { PatientFormSchema } from "@/lib/schema";
 import { Role } from "@/domain/enums/Role";
 import { UserProfileService } from "@/lib/services/user-profile-service";
+import type { UpdatePatientRequest, CreatePatientRequest } from '@/types/api-requests';
 
-export async function updatePatient(data: any, pid: string) {
+export async function updatePatient(data: UpdatePatientRequest, pid: string) {
   try {
     const validateData = PatientFormSchema.safeParse(data);
 
@@ -46,7 +47,7 @@ export async function updatePatient(data: any, pid: string) {
     return { success: false, error: true, msg: error?.message };
   }
 }
-export async function createNewPatient(data: any, pid: string) {
+export async function createNewPatient(data: CreatePatientRequest, pid: string) {
   try {
     const validateData = PatientFormSchema.safeParse(data);
 

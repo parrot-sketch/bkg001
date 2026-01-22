@@ -4,6 +4,7 @@ import { AppointmentStatus } from '../../../domain/enums/AppointmentStatus';
 import { AppointmentMapper } from '../../mappers/AppointmentMapper';
 import { ConsultationRequestFields, toPrismaCreateConsultationRequestFields, toPrismaConsultationRequestFields, extractConsultationRequestFields } from '../../mappers/ConsultationRequestMapper';
 import { PrismaClient, Prisma } from '@prisma/client';
+import { subMonths, subDays } from 'date-fns';
 
 /**
  * Repository: PrismaAppointmentRepository
@@ -53,15 +54,30 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
   /**
    * Finds all appointments for a specific patient
    * 
+   * REFACTORED: Added date range filter (last 12 months) and take limit (100)
+   * This prevents unbounded queries that could return thousands of historical appointments.
+   * Clinical workflow preserved: Recent appointments are sufficient for conflict detection
+   * and consultation history. Historical data beyond 12 months should be accessed via
+   * paginated endpoints if needed.
+   * 
    * @param patientId - The patient's unique identifier
    * @returns Promise resolving to an array of Appointment entities
    *          Returns empty array if no appointments found
    */
   async findByPatient(patientId: string): Promise<Appointment[]> {
     try {
+      // REFACTORED: Default to last 12 months (reasonable for clinical workflows)
+      // This bounds the query and prevents fetching thousands of historical records
+      const since = subMonths(new Date(), 12);
+      const DEFAULT_LIMIT = 100; // Reasonable limit for conflict detection and history
+      
       const prismaAppointments = await this.prisma.appointment.findMany({
-        where: { patient_id: patientId },
+        where: {
+          patient_id: patientId,
+          appointment_date: { gte: since }, // REFACTORED: Date filter for safety
+        },
         orderBy: { appointment_date: 'desc' },
+        take: DEFAULT_LIMIT, // REFACTORED: Bounded query
       });
 
       return prismaAppointments.map((appointment) => AppointmentMapper.fromPrisma(appointment));
@@ -73,6 +89,11 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
 
   /**
    * Finds all appointments for a specific doctor
+   * 
+   * REFACTORED: Added default date range filter (last 12 months) and take limit (100)
+   * If filters provide date range, uses that. Otherwise defaults to last 12 months.
+   * This prevents unbounded queries when filters are not provided.
+   * Clinical workflow preserved: Recent appointments sufficient for availability checks.
    * 
    * @param doctorId - The doctor's unique identifier
    * @param filters - Optional filters for status, date range, etc.
@@ -96,6 +117,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         where.status = filters.status as any;
       }
 
+      // REFACTORED: Apply date filter - use provided filters or default to last 12 months
       if (filters?.startDate || filters?.endDate) {
         where.appointment_date = {};
         if (filters.startDate) {
@@ -104,11 +126,18 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         if (filters.endDate) {
           where.appointment_date.lte = filters.endDate;
         }
+      } else {
+        // REFACTORED: Default date range if no filters provided (prevents unbounded query)
+        const since = subMonths(new Date(), 12);
+        where.appointment_date = { gte: since };
       }
 
+      const DEFAULT_LIMIT = 100; // REFACTORED: Bounded query for safety
+      
       const prismaAppointments = await this.prisma.appointment.findMany({
         where,
         orderBy: { appointment_date: 'desc' },
+        take: DEFAULT_LIMIT, // REFACTORED: Bounded query
       });
 
       return prismaAppointments.map((appointment) => AppointmentMapper.fromPrisma(appointment));
@@ -122,6 +151,10 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
 
   /**
    * Finds appointments that are potential no-shows
+   * 
+   * REFACTORED: Added take limit (50) as safety measure
+   * No-show detection typically processes recent appointments, so limit is reasonable.
+   * Clinical workflow preserved: System processes no-shows in batches.
    * 
    * Business Rules:
    * - Appointment time must have passed
@@ -137,6 +170,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
   async findPotentialNoShows(now: Date, windowMinutes: number): Promise<Appointment[]> {
     try {
       const cutoffTime = new Date(now.getTime() - windowMinutes * 60 * 1000);
+      const MAX_NO_SHOWS = 50; // REFACTORED: Safety limit for batch processing
 
       const prismaAppointments = await this.prisma.appointment.findMany({
         where: {
@@ -154,6 +188,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
           },
         } as any,
         orderBy: { appointment_date: 'asc' },
+        take: MAX_NO_SHOWS, // REFACTORED: Bounded query
       });
 
       return prismaAppointments.map((appointment) => AppointmentMapper.fromPrisma(appointment));
@@ -166,6 +201,47 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
   }
 
   /**
+   * Checks for appointment conflicts (double booking)
+   * 
+   * This method performs a database-level conflict check to prevent double booking.
+   * It checks for existing non-cancelled appointments with the same doctor, date, and time.
+   * 
+   * @param doctorId - The doctor's unique identifier
+   * @param appointmentDate - The appointment date
+   * @param time - The appointment time (HH:mm format)
+   * @param txClient - Optional transaction client for use within transactions
+   * @returns Promise resolving to true if conflict exists, false otherwise
+   */
+  async hasConflict(
+    doctorId: string,
+    appointmentDate: Date,
+    time: string,
+    txClient?: PrismaClient
+  ): Promise<boolean> {
+    try {
+      const client = txClient || this.prisma;
+      const appointmentDateTime = new Date(appointmentDate);
+      appointmentDateTime.setHours(0, 0, 0, 0);
+      
+      const conflict = await client.appointment.findFirst({
+        where: {
+          doctor_id: doctorId,
+          appointment_date: appointmentDateTime,
+          time: time,
+          status: {
+            not: AppointmentStatus.CANCELLED as any,
+          },
+        },
+      });
+
+      return conflict !== null;
+    } catch (error) {
+      // Wrap Prisma errors in a more generic error
+      throw new Error(`Failed to check appointment conflict. ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
    * Saves a new appointment to the data store
    * 
    * This method handles creation of new appointments.
@@ -173,11 +249,17 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
    * 
    * @param appointment - The Appointment entity to save
    * @param consultationRequestFields - Optional consultation request workflow fields
+   * @param txClient - Optional transaction client for use within transactions
    * @returns Promise that resolves when the save operation completes
    * @throws Error if the save operation fails
    */
-  async save(appointment: Appointment, consultationRequestFields?: ConsultationRequestFields): Promise<void> {
+  async save(
+    appointment: Appointment,
+    consultationRequestFields?: ConsultationRequestFields,
+    txClient?: PrismaClient
+  ): Promise<void> {
     try {
+      const client = txClient || this.prisma;
       const createInput = AppointmentMapper.toPrismaCreateInput(appointment);
       
       // Merge consultation request fields if provided
@@ -186,13 +268,18 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         Object.assign(createInput, consultationFields);
       }
 
-      await this.prisma.appointment.create({
+      await client.appointment.create({
         data: createInput,
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2002') {
-          // Unique constraint violation
+          // Unique constraint violation (including our double booking constraint)
+          const target = error.meta?.target;
+          const targetArray = Array.isArray(target) ? target : (typeof target === 'string' ? [target] : []);
+          if (targetArray.some(t => String(t).includes('appointment_no_double_booking'))) {
+            throw new Error(`Double booking detected: Doctor already has an appointment at this time`);
+          }
           throw new Error(`Appointment with ID ${appointment.getId()} already exists`);
         }
         if (error.code === 'P2003') {

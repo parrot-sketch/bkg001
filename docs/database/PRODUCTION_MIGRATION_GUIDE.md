@@ -24,7 +24,7 @@ Prisma reads `DATABASE_URL` in this order:
 
 ```bash
 # Set DATABASE_URL inline for this command only
-DATABASE_URL="postgresql://avnadmin:PASSWORD@host:port/db?sslmode=require" \
+DATABASE_URL="postgresql://avnadmin:YOUR_PASSWORD@your-host.aivencloud.com:PORT/defaultdb?sslmode=require" \
   npx prisma migrate deploy
 ```
 

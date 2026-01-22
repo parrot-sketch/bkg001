@@ -3,6 +3,7 @@ import { CheckInPatientUseCase } from '../../../../application/use-cases/CheckIn
 import { CheckInPatientDto } from '../../../../application/dtos/CheckInPatientDto';
 import type { IAppointmentRepository } from '../../../../domain/interfaces/repositories/IAppointmentRepository';
 import type { IAuditService } from '../../../../domain/interfaces/services/IAuditService';
+import type { ITimeService } from '../../../../domain/interfaces/services/ITimeService';
 import { Appointment } from '../../../../domain/entities/Appointment';
 import { AppointmentStatus } from '../../../../domain/enums/AppointmentStatus';
 import { DomainException } from '../../../../domain/exceptions/DomainException';
@@ -16,6 +17,10 @@ describe('CheckInPatientUseCase', () => {
   };
   let mockAuditService: {
     recordEvent: Mock;
+  };
+  let mockTimeService: {
+    now: Mock;
+    today: Mock;
   };
   let useCase: CheckInPatientUseCase;
 
@@ -36,9 +41,15 @@ describe('CheckInPatientUseCase', () => {
       recordEvent: vi.fn().mockResolvedValue(undefined),
     };
 
+    mockTimeService = {
+      now: vi.fn().mockReturnValue(new Date()),
+      today: vi.fn().mockReturnValue(new Date()),
+    };
+
     useCase = new CheckInPatientUseCase(
       mockAppointmentRepository as unknown as IAppointmentRepository,
       mockAuditService as unknown as IAuditService,
+      mockTimeService as unknown as ITimeService,
     );
   });
 

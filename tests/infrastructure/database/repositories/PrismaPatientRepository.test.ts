@@ -149,6 +149,7 @@ describe('PrismaPatientRepository', () => {
     it('should save a new patient successfully', async () => {
       const patient = Patient.create({
         id: 'patient-1',
+        fileNumber: 'NS001',
         firstName: 'John',
         lastName: 'Doe',
         dateOfBirth: new Date('1990-01-01'),
@@ -179,6 +180,7 @@ describe('PrismaPatientRepository', () => {
     it('should throw error when patient with same ID already exists', async () => {
       const patient = Patient.create({
         id: 'patient-1',
+        fileNumber: 'NS001',
         firstName: 'John',
         lastName: 'Doe',
         dateOfBirth: new Date('1990-01-01'),
@@ -212,6 +214,7 @@ describe('PrismaPatientRepository', () => {
     it('should update an existing patient successfully', async () => {
       const patient = Patient.create({
         id: 'patient-1',
+        fileNumber: 'NS001',
         firstName: 'John',
         lastName: 'Updated',
         dateOfBirth: new Date('1990-01-01'),
@@ -244,6 +247,7 @@ describe('PrismaPatientRepository', () => {
     it('should throw error when patient does not exist', async () => {
       const patient = Patient.create({
         id: 'non-existent',
+        fileNumber: 'NS999',
         firstName: 'John',
         lastName: 'Doe',
         dateOfBirth: new Date('1990-01-01'),

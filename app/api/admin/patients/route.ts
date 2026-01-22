@@ -19,7 +19,11 @@ import { PatientMapper as ApplicationPatientMapper } from '@/application/mappers
 /**
  * GET /api/admin/patients
  * 
- * Returns all patients
+ * Returns paginated list of patients
+ * 
+ * Query params:
+ * - page: Page number (default: 1)
+ * - limit: Items per page (default: 20, max: 100)
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
@@ -46,12 +50,37 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // 3. Fetch all patients
-    const patients = await db.patient.findMany({
-      orderBy: {
-        created_at: 'desc',
-      },
-    });
+    // 3. Parse and validate pagination parameters
+    // REFACTORED: Added pagination to prevent unbounded queries
+    // With 100k+ patients, fetching all would cause memory exhaustion and connection pool issues
+    const { searchParams } = new URL(request.url);
+    const pageParam = searchParams.get('page');
+    const limitParam = searchParams.get('limit');
+    
+    const MAX_LIMIT = 100; // CRITICAL: Enforce maximum to prevent abuse
+    const DEFAULT_LIMIT = 20;
+    const DEFAULT_PAGE = 1;
+    
+    const page = Math.max(1, parseInt(pageParam || String(DEFAULT_PAGE), 10));
+    const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(limitParam || String(DEFAULT_LIMIT), 10)));
+    const skip = (page - 1) * limit;
+
+    // 4. Fetch patients with pagination
+    // REFACTORED: Added take and skip for pagination
+    // Note: Not using select here because PatientMapper.fromPrisma requires full PrismaPatient type
+    // The optimization is avoiding unnecessary relations (appointments, medical_records, etc.)
+    const [patients, totalCount] = await Promise.all([
+      db.patient.findMany({
+        // Explicitly exclude relations to avoid N+1 queries
+        // The mapper only needs the base patient fields
+        orderBy: {
+          created_at: 'desc',
+        },
+        take: limit, // REFACTORED: Bounded query
+        skip: skip,  // REFACTORED: Pagination offset
+      }),
+      db.patient.count(), // Total count for pagination metadata
+    ]);
 
     // 4. Map to DTOs
     const patientDtos = patients.map((patient) => {
@@ -92,11 +121,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     });
 
-    // 5. Return patients
+    // 5. Calculate pagination metadata
+    const totalPages = Math.ceil(totalCount / limit);
+
+    // 6. Return paginated patients
     return NextResponse.json(
       {
         success: true,
         data: patientDtos,
+        meta: {
+          total: totalCount,
+          page,
+          limit,
+          totalPages,
+          hasMore: page < totalPages,
+        },
       },
       { status: 200 }
     );

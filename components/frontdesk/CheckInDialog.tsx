@@ -61,7 +61,7 @@ export function CheckInDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Check In Patient</DialogTitle>
           <DialogDescription>Confirm patient arrival for this appointment</DialogDescription>

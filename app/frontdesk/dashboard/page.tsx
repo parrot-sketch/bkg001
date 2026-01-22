@@ -11,7 +11,7 @@
  * - Today's confirmed sessions
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { frontdeskApi } from '@/lib/api/frontdesk';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,13 +32,8 @@ export default function FrontdeskDashboardPage() {
   const [pendingConsultations, setPendingConsultations] = useState<AppointmentResponseDto[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      loadDashboardData();
-    }
-  }, [isAuthenticated, user]);
-
-  const loadDashboardData = async () => {
+  // REFACTORED: Memoized loadDashboardData to prevent unnecessary re-renders
+  const loadDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -65,8 +60,60 @@ export default function FrontdeskDashboardPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAuthenticated, user]);
 
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      loadDashboardData();
+    }
+  }, [isAuthenticated, user, loadDashboardData]);
+
+  // CRITICAL FIX: Move useMemo BEFORE any conditional returns
+  // All hooks must be called in the same order on every render
+  // REFACTORED: Use useMemo to prevent recalculating stats on every render
+  // Note: Backend should ideally return pre-calculated counts, but for now we memoize client-side calculations
+  // This is safe because backend limits results (200 appointments max, 100 consultations max)
+  const stats = useMemo(() => {
+    const expectedPatients = todayAppointments.length;
+    const checkedInPatients = todayAppointments.filter(
+      (apt) => apt.status === AppointmentStatus.SCHEDULED,
+    ).length;
+    const pendingCheckIns = todayAppointments.filter(
+      (apt) => apt.status === AppointmentStatus.PENDING,
+    ).length;
+
+    // Consultation request stats
+    const newInquiries = pendingConsultations.filter(
+      (apt) => apt.consultationRequestStatus === ConsultationRequestStatus.SUBMITTED ||
+               apt.consultationRequestStatus === ConsultationRequestStatus.PENDING_REVIEW,
+    ).length;
+    const awaitingClarification = pendingConsultations.filter(
+      (apt) => apt.consultationRequestStatus === ConsultationRequestStatus.NEEDS_MORE_INFO,
+    ).length;
+    const awaitingScheduling = pendingConsultations.filter(
+      (apt) => apt.consultationRequestStatus === ConsultationRequestStatus.APPROVED,
+    ).length;
+
+    return {
+      expectedPatients,
+      checkedInPatients,
+      pendingCheckIns,
+      newInquiries,
+      awaitingClarification,
+      awaitingScheduling,
+    };
+  }, [todayAppointments, pendingConsultations]);
+
+  const {
+    expectedPatients,
+    checkedInPatients,
+    pendingCheckIns,
+    newInquiries,
+    awaitingClarification,
+    awaitingScheduling,
+  } = stats;
+
+  // Early returns AFTER all hooks are called
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -91,48 +138,18 @@ export default function FrontdeskDashboardPage() {
     );
   }
 
-  const expectedPatients = todayAppointments.length;
-  const checkedInPatients = todayAppointments.filter(
-    (apt) => apt.status === AppointmentStatus.SCHEDULED,
-  ).length;
-  const pendingCheckIns = todayAppointments.filter(
-    (apt) => apt.status === AppointmentStatus.PENDING,
-  ).length;
-
-  // Consultation request stats
-  const newInquiries = pendingConsultations.filter(
-    (apt) => apt.consultationRequestStatus === ConsultationRequestStatus.SUBMITTED ||
-             apt.consultationRequestStatus === ConsultationRequestStatus.PENDING_REVIEW,
-  ).length;
-  const awaitingClarification = pendingConsultations.filter(
-    (apt) => apt.consultationRequestStatus === ConsultationRequestStatus.NEEDS_MORE_INFO,
-  ).length;
-  const awaitingScheduling = pendingConsultations.filter(
-    (apt) => apt.consultationRequestStatus === ConsultationRequestStatus.APPROVED,
-  ).length;
-
   return (
-    <div className="space-y-8 pb-8">
-      {/* Welcome Section */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold text-foreground tracking-tight">
-          Assistant Console
-        </h1>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          Today's priorities and inquiries requiring attention
-        </p>
-      </div>
-
+    <div className="space-y-4 sm:space-y-6 pb-4 sm:pb-6">
+      {/* REFACTORED: Removed titles/subtitles - UI is function-driven */}
       {/* Quick Stats */}
-      <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="border-gray-200 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-sm font-medium text-slate-700">Today's Sessions</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-700">Sessions</CardTitle>
             <Calendar className="h-4 w-4 text-gray-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-semibold text-slate-900 mb-1">{expectedPatients}</div>
-            <p className="text-xs text-gray-500">Confirmed sessions</p>
+            <div className="text-3xl font-semibold text-slate-900">{expectedPatients}</div>
           </CardContent>
         </Card>
 
@@ -142,43 +159,37 @@ export default function FrontdeskDashboardPage() {
             <CheckCircle className="h-4 w-4 text-gray-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-semibold text-slate-900 mb-1">{checkedInPatients}</div>
-            <p className="text-xs text-gray-500">Clients checked in</p>
+            <div className="text-3xl font-semibold text-slate-900">{checkedInPatients}</div>
           </CardContent>
         </Card>
 
         <Card className="border-gray-200 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-sm font-medium text-slate-700">Awaiting Arrival</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-700">Pending</CardTitle>
             <Bell className="h-4 w-4 text-gray-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-semibold text-slate-900 mb-1">{pendingCheckIns}</div>
-            <p className="text-xs text-gray-500">Expected today</p>
+            <div className="text-3xl font-semibold text-slate-900">{pendingCheckIns}</div>
           </CardContent>
         </Card>
 
         <Card className="border-gray-200 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-sm font-medium text-slate-700">Inquiries for Review</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-700">Inquiries</CardTitle>
             <FileText className="h-4 w-4 text-gray-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-semibold text-slate-900 mb-1">{newInquiries}</div>
-            <p className="text-xs text-gray-500">New consultation inquiries</p>
+            <div className="text-3xl font-semibold text-slate-900">{newInquiries}</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Pending Consultation Requests */}
+      {/* Pending Consultation Requests - REFACTORED: Removed descriptive text */}
       {(newInquiries > 0 || awaitingClarification > 0 || awaitingScheduling > 0) && (
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Inquiries Requiring Attention</CardTitle>
-                <CardDescription>Consultation requests that need your review or action</CardDescription>
-              </div>
+              <CardTitle>Inquiries</CardTitle>
               <Link href="/frontdesk/appointments?status=PENDING">
                 <Button variant="outline" size="sm">
                   View All
@@ -190,19 +201,16 @@ export default function FrontdeskDashboardPage() {
             <div className="space-y-4">
               {/* New Inquiries */}
               {newInquiries > 0 && (
-                <div className="rounded-lg border border-border bg-muted/50 p-4">
-                  <div className="flex items-center justify-between">
+                <div className="rounded-lg border border-border bg-muted/50 p-3 sm:p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="flex items-center space-x-3">
-                      <AlertCircle className="h-5 w-5 text-primary" />
-                      <div>
-                        <p className="font-medium text-foreground">New Requests</p>
-                        <p className="text-sm text-muted-foreground">
-                          {newInquiries} {newInquiries === 1 ? 'request' : 'requests'} awaiting review
-                        </p>
+                      <AlertCircle className="h-5 w-5 text-primary flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-foreground">New ({newInquiries})</p>
                       </div>
                     </div>
-                    <Link href="/frontdesk/consultations?status=SUBMITTED,PENDING_REVIEW">
-                      <Button size="sm">Review</Button>
+                    <Link href="/frontdesk/consultations?status=SUBMITTED,PENDING_REVIEW" className="w-full sm:w-auto">
+                      <Button size="sm" className="w-full sm:w-auto min-h-[44px]">Review</Button>
                     </Link>
                   </div>
                 </div>
@@ -210,19 +218,16 @@ export default function FrontdeskDashboardPage() {
 
               {/* Awaiting Clarification */}
               {awaitingClarification > 0 && (
-                <div className="rounded-lg border border-border bg-muted/50 p-4">
-                  <div className="flex items-center justify-between">
+                <div className="rounded-lg border border-border bg-muted/50 p-3 sm:p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="flex items-center space-x-3">
-                      <Clock className="h-5 w-5 text-amber-600" />
-                      <div>
-                        <p className="font-medium text-foreground">Awaiting Clarification</p>
-                        <p className="text-sm text-muted-foreground">
-                          {awaitingClarification} {awaitingClarification === 1 ? 'request' : 'requests'} waiting for patient response
-                        </p>
+                      <Clock className="h-5 w-5 text-amber-600 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-foreground">Clarification ({awaitingClarification})</p>
                       </div>
                     </div>
-                    <Link href="/frontdesk/consultations?status=NEEDS_MORE_INFO">
-                      <Button variant="outline" size="sm">View</Button>
+                    <Link href="/frontdesk/consultations?status=NEEDS_MORE_INFO" className="w-full sm:w-auto">
+                      <Button variant="outline" size="sm" className="w-full sm:w-auto min-h-[44px]">View</Button>
                     </Link>
                   </div>
                 </div>
@@ -230,19 +235,16 @@ export default function FrontdeskDashboardPage() {
 
               {/* Awaiting Scheduling */}
               {awaitingScheduling > 0 && (
-                <div className="rounded-lg border border-border bg-muted/50 p-4">
-                  <div className="flex items-center justify-between">
+                <div className="rounded-lg border border-border bg-muted/50 p-3 sm:p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="flex items-center space-x-3">
-                      <Calendar className="h-5 w-5 text-teal-600" />
-                      <div>
-                        <p className="font-medium text-foreground">Awaiting Scheduling</p>
-                        <p className="text-sm text-muted-foreground">
-                          {awaitingScheduling} {awaitingScheduling === 1 ? 'request' : 'requests'} accepted, ready to schedule
-                        </p>
+                      <Calendar className="h-5 w-5 text-teal-600 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-foreground">Schedule ({awaitingScheduling})</p>
                       </div>
                     </div>
-                    <Link href="/frontdesk/consultations?status=APPROVED">
-                      <Button variant="outline" size="sm">Schedule</Button>
+                    <Link href="/frontdesk/consultations?status=APPROVED" className="w-full sm:w-auto">
+                      <Button variant="outline" size="sm" className="w-full sm:w-auto min-h-[44px]">Schedule</Button>
                     </Link>
                   </div>
                 </div>
@@ -255,14 +257,11 @@ export default function FrontdeskDashboardPage() {
       {/* Available Doctors */}
       <AvailableDoctorsPanel />
 
-      {/* Today's Sessions */}
+      {/* Today's Sessions - REFACTORED: Removed descriptive text */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Today's Sessions</CardTitle>
-              <CardDescription>Confirmed sessions for {format(new Date(), 'MMMM d, yyyy')}</CardDescription>
-            </div>
+            <CardTitle>Sessions</CardTitle>
             <Link href="/frontdesk/appointments">
               <Button variant="outline" size="sm">
                 View All
@@ -281,14 +280,27 @@ export default function FrontdeskDashboardPage() {
               <div className="h-16 w-16 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-4">
                 <Calendar className="h-8 w-8 text-gray-400" />
               </div>
-              <p className="text-sm font-medium text-gray-600 mb-1">No sessions scheduled for today</p>
-              <p className="text-xs text-gray-500">Check upcoming sessions or review new inquiries</p>
+              <p className="text-sm font-medium text-gray-600">No sessions today</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
+              {/* REFACTORED: Limit displayed appointments for performance (backend already limits to 200) */}
               {todayAppointments.slice(0, 10).map((appointment) => (
-                <AppointmentCard key={appointment.id} appointment={appointment} showDoctorInfo={true} />
+                <AppointmentCard 
+                  key={appointment.id} 
+                  appointment={appointment} 
+                  showDoctorInfo={true} 
+                />
               ))}
+              {todayAppointments.length > 10 && (
+                <div className="text-center pt-2">
+                  <Link href="/frontdesk/appointments">
+                    <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                      View All {todayAppointments.length} Appointments
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </div>
           )}
         </CardContent>

@@ -12,7 +12,10 @@ export async function getPaymentRecords({
 }) {
   try {
     const PAGE_NUMBER = Number(page) <= 0 ? 1 : Number(page);
-    const LIMIT = Number(limit) || 10;
+    // CRITICAL: Enforce maximum limit to prevent unbounded queries
+    // Protects against malicious abuse, accidental heavy fetches, memory pressure, and connection hogging
+    const MAX_LIMIT = 100;
+    const LIMIT = Math.min(Number(limit) || 10, MAX_LIMIT);
 
     const SKIP = (PAGE_NUMBER - 1) * LIMIT;
 
@@ -32,10 +35,22 @@ export async function getPaymentRecords({
       ],
     };
 
+    // REFACTORED: Use select instead of include for better performance
+    // Only fetch fields actually used by the UI
     const [data, totalRecords] = await Promise.all([
       db.payment.findMany({
         where: where,
-        include: {
+        select: {
+          id: true,
+          patient_id: true,
+          appointment_id: true,
+          total_amount: true,
+          amount_paid: true,
+          discount: true,
+          payment_method: true,
+          status: true,
+          created_at: true,
+          updated_at: true,
           patient: {
             select: {
               first_name: true,

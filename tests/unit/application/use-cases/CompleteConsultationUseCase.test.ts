@@ -9,6 +9,7 @@ import { Appointment } from '../../../../domain/entities/Appointment';
 import { Patient } from '../../../../domain/entities/Patient';
 import { AppointmentStatus } from '../../../../domain/enums/AppointmentStatus';
 import { Gender } from '../../../../domain/enums/Gender';
+import { ConsultationOutcomeType } from '../../../../domain/enums/ConsultationOutcomeType';
 import { DomainException } from '../../../../domain/exceptions/DomainException';
 
 describe('CompleteConsultationUseCase', () => {
@@ -37,10 +38,12 @@ describe('CompleteConsultationUseCase', () => {
     appointmentId: 1,
     doctorId: 'doctor-1',
     outcome: 'Patient diagnosed with migraine. Prescribed medication.',
+    outcomeType: ConsultationOutcomeType.CONSULTATION_ONLY,
   };
 
   const mockPatient = Patient.create({
     id: 'patient-1',
+    fileNumber: 'NS001',
     firstName: 'John',
     lastName: 'Doe',
     dateOfBirth: new Date('1990-01-01'),

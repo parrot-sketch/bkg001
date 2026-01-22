@@ -24,7 +24,12 @@ import * as bcrypt from 'bcrypt';
 /**
  * GET /api/admin/staff
  * 
- * Returns all staff members
+ * Returns paginated list of staff members
+ * 
+ * Query params:
+ * - role: Filter by role (optional)
+ * - page: Page number (default: 1)
+ * - limit: Items per page (default: 50, max: 100)
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
@@ -54,8 +59,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // 3. Parse query parameters
     const { searchParams } = new URL(request.url);
     const roleParam = searchParams.get('role');
+    const pageParam = searchParams.get('page');
+    const limitParam = searchParams.get('limit');
 
-    // 4. Build where clause
+    // 4. Parse and validate pagination parameters
+    // REFACTORED: Added pagination to prevent unbounded queries
+    // As staff grows, fetching all would cause performance issues
+    const MAX_LIMIT = 100; // CRITICAL: Enforce maximum to prevent abuse
+    const DEFAULT_LIMIT = 50;
+    const DEFAULT_PAGE = 1;
+    
+    const page = Math.max(1, parseInt(pageParam || String(DEFAULT_PAGE), 10));
+    const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(limitParam || String(DEFAULT_LIMIT), 10)));
+    const skip = (page - 1) * limit;
+
+    // 5. Build where clause
     const where: any = {
       role: {
         in: [Role.DOCTOR, Role.NURSE, Role.FRONTDESK],
@@ -66,24 +84,30 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       where.role = roleParam as Role;
     }
 
-    // 5. Fetch staff
-    const staff = await db.user.findMany({
-      where,
-      orderBy: {
-        created_at: 'desc',
-      },
-      select: {
-        id: true,
-        email: true,
-        first_name: true,
-        last_name: true,
-        phone: true,
-        role: true,
-        status: true,
-        created_at: true,
-        updated_at: true,
-      },
-    });
+    // 6. Fetch staff with pagination
+    // REFACTORED: Added take and skip for pagination
+    const [staff, totalCount] = await Promise.all([
+      db.user.findMany({
+        where,
+        orderBy: {
+          created_at: 'desc',
+        },
+        select: {
+          id: true,
+          email: true,
+          first_name: true,
+          last_name: true,
+          phone: true,
+          role: true,
+          status: true,
+          created_at: true,
+          updated_at: true,
+        },
+        take: limit, // REFACTORED: Bounded query
+        skip: skip,  // REFACTORED: Pagination offset
+      }),
+      db.user.count({ where }), // Total count for pagination metadata
+    ]);
 
     // 6. Map to response format
     const staffDtos = staff.map((user) => ({
@@ -98,11 +122,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       updatedAt: user.updated_at,
     }));
 
-    // 7. Return staff
+    // 7. Calculate pagination metadata
+    const totalPages = Math.ceil(totalCount / limit);
+
+    // 8. Return paginated staff
     return NextResponse.json(
       {
         success: true,
         data: staffDtos,
+        meta: {
+          total: totalCount,
+          page,
+          limit,
+          totalPages,
+          hasMore: page < totalPages,
+        },
       },
       { status: 200 }
     );

@@ -3,6 +3,8 @@ import { ServiceSettings } from "@/components/settings/services-settings";
 import { Card } from "@/components/ui/card";
 import { SearchParamsProps } from "@/types";
 
+export const dynamic = 'force-dynamic';
+
 const SystemSettingPage = async (props: SearchParamsProps) => {
   const searchParams = await props.searchParams;
   const cat = (searchParams?.cat || "services") as String;

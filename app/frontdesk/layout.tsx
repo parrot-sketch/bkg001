@@ -23,10 +23,10 @@ export default function FrontdeskLayout({ children }: FrontdeskLayoutProps) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {/* Mobile Menu Button */}
+      {/* Mobile Menu Button - REFACTORED: Better positioning to avoid overlaying content */}
       <button
         onClick={() => setSidebarOpen(true)}
-        className="fixed top-4 left-4 z-30 lg:hidden p-2 rounded-lg bg-card border border-border shadow-md hover:bg-muted transition-colors"
+        className="fixed top-3 right-3 z-50 lg:hidden p-2.5 rounded-lg bg-card border border-border shadow-lg hover:bg-muted transition-colors"
         aria-label="Open sidebar"
       >
         <Menu className="h-5 w-5 text-foreground" />
@@ -36,8 +36,9 @@ export default function FrontdeskLayout({ children }: FrontdeskLayoutProps) {
       <FrontdeskSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Main Content - Offset by sidebar width on desktop only */}
+      {/* REFACTORED: Improved mobile padding for better space utilization */}
       <main className="flex-1 lg:ml-64 overflow-y-auto">
-        <div className="w-full px-4 py-8 lg:px-6 xl:px-8 2xl:px-12">
+        <div className="w-full px-3 sm:px-4 py-3 sm:py-4 lg:px-6 lg:py-8 xl:px-8 2xl:px-12">
           {children}
         </div>
       </main>

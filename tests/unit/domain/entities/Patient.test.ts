@@ -13,6 +13,7 @@ describe('Patient Entity', () => {
 
   const basePatientParams = {
     id: 'patient-123',
+    fileNumber: 'NS001',
     firstName: 'John',
     lastName: 'Doe',
     dateOfBirth: validDateOfBirth,

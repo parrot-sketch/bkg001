@@ -91,6 +91,7 @@ describe('CreatePatientUseCase', () => {
       // Arrange
       const existingPatient = Patient.create({
         id: 'existing-patient',
+        fileNumber: 'NS002',
         firstName: 'Jane',
         lastName: 'Doe',
         dateOfBirth: new Date('1985-01-01'),

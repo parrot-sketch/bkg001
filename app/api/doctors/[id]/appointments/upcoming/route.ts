@@ -135,8 +135,11 @@ export async function GET(
     };
 
     // 7. Fetch upcoming appointments
+    // REFACTORED: Added take limit to prevent unbounded query and connection exhaustion
+    // Limits to 200 upcoming appointments (reasonable for dashboard view)
     const appointments = await db.appointment.findMany({
       where,
+      take: 200, // REFACTORED: Bounded query to prevent connection pool exhaustion
       include: {
         patient: {
           select: {

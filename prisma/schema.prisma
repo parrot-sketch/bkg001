@@ -282,6 +282,9 @@ model Patient {
   @@index([approved])
   @@index([created_at])
   @@index([file_number])
+  @@index([phone])
+  @@index([last_name])
+  @@index([first_name, last_name])
 }
 
 // ============================================================================
@@ -345,6 +348,8 @@ model Doctor {
   @@index([specialization])
   @@index([onboarding_status])
   @@index([invited_by])
+  @@index([phone])
+  @@index([name])
 }
 
 // ============================================================================
@@ -511,6 +516,8 @@ model Appointment {
   @@index([doctor_id, appointment_date, time])
   @@index([consultation_request_status])
   @@index([reviewed_by])
+  @@index([created_at])
+  @@index([updated_at])
 }
 
 // ============================================================================
@@ -545,6 +552,7 @@ model Consultation {
   @@index([doctor_id])
   @@index([started_at])
   @@index([completed_at])
+  @@index([user_id])
 }
 
 // ============================================================================
@@ -654,6 +662,7 @@ model MedicalRecord {
   @@index([patient_id])
   @@index([appointment_id])
   @@index([doctor_id])
+  @@index([created_at])
 }
 
 model Diagnosis {
@@ -729,6 +738,8 @@ model Payment {
   @@index([appointment_id])
   @@index([status])
   @@index([payment_date])
+  @@index([bill_date])
+  @@index([created_at])
 }
 
 model PatientBill {

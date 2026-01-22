@@ -52,8 +52,10 @@ describe('IPatientRepository Interface', () => {
 
   // Test data
   const createTestPatient = (id: string, email: string): Patient => {
+    const fileNumberIndex = parseInt(id.replace('patient-', '')) || 1;
     return Patient.create({
       id,
+      fileNumber: `NS${String(fileNumberIndex).padStart(3, '0')}`,
       firstName: 'John',
       lastName: 'Doe',
       dateOfBirth: new Date('1990-01-01'),

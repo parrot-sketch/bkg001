@@ -4,6 +4,8 @@ import { format } from "date-fns";
 import { BriefcaseBusiness } from "lucide-react";
 import React from "react";
 
+export const dynamic = 'force-dynamic';
+
 const columns = [
   {
     header: "user ID",
