@@ -3,9 +3,11 @@ import { ScheduleAppointmentUseCase } from '../../../../application/use-cases/Sc
 import { ScheduleAppointmentDto } from '../../../../application/dtos/ScheduleAppointmentDto';
 import type { IAppointmentRepository } from '../../../../domain/interfaces/repositories/IAppointmentRepository';
 import type { IPatientRepository } from '../../../../domain/interfaces/repositories/IPatientRepository';
+import type { IAvailabilityRepository } from '../../../../domain/interfaces/repositories/IAvailabilityRepository';
 import type { INotificationService } from '../../../../domain/interfaces/services/INotificationService';
 import type { IAuditService } from '../../../../domain/interfaces/services/IAuditService';
 import type { ITimeService } from '../../../../domain/interfaces/services/ITimeService';
+import { PrismaClient } from '@prisma/client';
 import { Patient } from '../../../../domain/entities/Patient';
 import { Appointment } from '../../../../domain/entities/Appointment';
 import { AppointmentStatus } from '../../../../domain/enums/AppointmentStatus';
@@ -37,6 +39,20 @@ describe('ScheduleAppointmentUseCase', () => {
     now: Mock;
     today: Mock;
   };
+  let mockAvailabilityRepository: {
+    getDoctorAvailability: Mock;
+    getWorkingDays: Mock;
+    saveWorkingDays: Mock;
+    getOverrides: Mock;
+    createOverride: Mock;
+    deleteOverride: Mock;
+    getBreaks: Mock;
+    createBreak: Mock;
+    deleteBreak: Mock;
+    getSlotConfiguration: Mock;
+    saveSlotConfiguration: Mock;
+  };
+  let mockPrisma: PrismaClient;
   let useCase: ScheduleAppointmentUseCase;
 
   const validDto: ScheduleAppointmentDto = {
@@ -49,6 +65,7 @@ describe('ScheduleAppointmentUseCase', () => {
 
   const mockPatient = Patient.create({
     id: 'patient-1',
+    fileNumber: 'NS001',
     firstName: 'John',
     lastName: 'Doe',
     dateOfBirth: new Date('1990-01-01'),
@@ -95,12 +112,31 @@ describe('ScheduleAppointmentUseCase', () => {
       today: vi.fn().mockReturnValue(new Date('2025-01-01')),
     };
 
+    mockAvailabilityRepository = {
+      getDoctorAvailability: vi.fn().mockResolvedValue(null),
+      getWorkingDays: vi.fn().mockResolvedValue([]),
+      saveWorkingDays: vi.fn().mockResolvedValue(undefined),
+      getOverrides: vi.fn().mockResolvedValue([]),
+      createOverride: vi.fn(),
+      deleteOverride: vi.fn().mockResolvedValue(undefined),
+      getBreaks: vi.fn().mockResolvedValue([]),
+      createBreak: vi.fn(),
+      deleteBreak: vi.fn().mockResolvedValue(undefined),
+      getSlotConfiguration: vi.fn().mockResolvedValue(null),
+      saveSlotConfiguration: vi.fn(),
+    };
+
+    // Create a mock PrismaClient - in real tests, you'd use a test database
+    mockPrisma = {} as PrismaClient;
+
     useCase = new ScheduleAppointmentUseCase(
       mockAppointmentRepository as unknown as IAppointmentRepository,
       mockPatientRepository as unknown as IPatientRepository,
+      mockAvailabilityRepository as unknown as IAvailabilityRepository,
       mockNotificationService as unknown as INotificationService,
       mockAuditService as unknown as IAuditService,
       mockTimeService as unknown as ITimeService,
+      mockPrisma,
     );
   });
 

@@ -58,6 +58,25 @@ export interface IAppointmentRepository {
   findPotentialNoShows(now: Date, windowMinutes: number): Promise<Appointment[]>;
 
   /**
+   * Checks for appointment conflicts (double booking)
+   * 
+   * This method performs a database-level conflict check to prevent double booking.
+   * It checks for existing non-cancelled appointments with the same doctor, date, and time.
+   * 
+   * @param doctorId - The doctor's unique identifier
+   * @param appointmentDate - The appointment date
+   * @param time - The appointment time (HH:mm format)
+   * @param txClient - Optional transaction client for use within transactions (implementation-specific)
+   * @returns Promise resolving to true if conflict exists, false otherwise
+   */
+  hasConflict(
+    doctorId: string,
+    appointmentDate: Date,
+    time: string,
+    txClient?: unknown
+  ): Promise<boolean>;
+
+  /**
    * Saves a new appointment to the data store
    * 
    * This method should handle creation of new appointments.
@@ -65,10 +84,16 @@ export interface IAppointmentRepository {
    * is implementation-specific (may throw error or update).
    * 
    * @param appointment - The Appointment entity to save
+   * @param consultationRequestFields - Optional consultation request workflow fields (implementation-specific)
+   * @param txClient - Optional transaction client for use within transactions (implementation-specific)
    * @returns Promise that resolves when the save operation completes
    * @throws Error if the save operation fails
    */
-  save(appointment: Appointment): Promise<void>;
+  save(
+    appointment: Appointment,
+    consultationRequestFields?: unknown,
+    txClient?: unknown
+  ): Promise<void>;
 
   /**
    * Updates an existing appointment in the data store
@@ -76,8 +101,23 @@ export interface IAppointmentRepository {
    * The appointment must already exist in the data store.
    * 
    * @param appointment - The Appointment entity with updated information
+   * @param consultationRequestFields - Optional consultation request workflow fields (implementation-specific)
    * @returns Promise that resolves when the update operation completes
    * @throws Error if the appointment does not exist or the update fails
    */
-  update(appointment: Appointment): Promise<void>;
+  update(
+    appointment: Appointment,
+    consultationRequestFields?: unknown
+  ): Promise<void>;
+
+  /**
+   * Gets consultation request fields for an appointment
+   * 
+   * This method retrieves consultation workflow fields that are stored with the appointment
+   * but managed separately from the core appointment entity.
+   * 
+   * @param appointmentId - The appointment ID
+   * @returns Promise resolving to consultation request fields or null if not found (implementation-specific type)
+   */
+  getConsultationRequestFields(appointmentId: number): Promise<unknown | null>;
 }

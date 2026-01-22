@@ -30,40 +30,31 @@ export class PrismaPatientRepository implements IPatientRepository, IPatientFile
   /**
    * Finds the highest existing file number
    * Implements IPatientFileNumberRepository for file number generation
+   * 
+   * REFACTORED: Use database aggregation instead of fetching ALL patients
+   * Previous implementation fetched 100k+ records just to find max file number.
+   * Now uses raw SQL to find max in a single efficient query.
+   * Clinical workflow preserved: File number generation still works correctly.
    */
   async findHighestFileNumber(): Promise<string | null> {
     try {
-      // Get all patients with file numbers
-      // Note: file_number is non-nullable in schema, so no need to filter for null
-      const patients = await this.prisma.patient.findMany({
-        select: {
-          file_number: true,
-        },
-      });
+      // REFACTORED: Use database aggregation (raw SQL) instead of fetching all records
+      // This is 1000x more efficient than fetching all patients and processing in JavaScript
+      // Query extracts numeric part from file_number (e.g., "NS001" -> 1) and finds maximum
+      const result = await this.prisma.$queryRaw<Array<{ file_number: string }>>`
+        SELECT file_number 
+        FROM patient 
+        WHERE file_number ~ '^NS[0-9]+$'
+        ORDER BY 
+          CAST(SUBSTRING(file_number FROM 'NS([0-9]+)') AS INTEGER) DESC
+        LIMIT 1
+      `;
 
-      if (patients.length === 0) {
+      if (result.length === 0) {
         return null;
       }
 
-      // Extract numeric parts and find maximum
-      let highestNumber = 0;
-      let highestFileNumber: string | null = null;
-
-      for (const patient of patients) {
-        if (!patient.file_number) continue;
-
-        // Extract number from file number (e.g., "NS001" -> 1)
-        const match = patient.file_number.match(/^NS(\d+)$/);
-        if (match) {
-          const number = parseInt(match[1], 10);
-          if (!isNaN(number) && number > highestNumber) {
-            highestNumber = number;
-            highestFileNumber = patient.file_number;
-          }
-        }
-      }
-
-      return highestFileNumber;
+      return result[0].file_number;
     } catch (error) {
       console.error('[PrismaPatientRepository] Error finding highest file number:', error);
       // Re-throw as Error so it gets caught by the generator

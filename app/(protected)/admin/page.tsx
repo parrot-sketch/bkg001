@@ -8,6 +8,8 @@ import { getAdminDashboardStats } from "@/utils/services/admin";
 import { BriefcaseBusiness, BriefcaseMedical, User, Users } from "lucide-react";
 import React from "react";
 
+export const dynamic = 'force-dynamic';
+
 const AdminDashboard = async () => {
   const {
     availableDoctors,

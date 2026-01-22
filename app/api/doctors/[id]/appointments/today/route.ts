@@ -136,8 +136,11 @@ export async function GET(
     };
 
     // 7. Fetch today's appointments
+    // REFACTORED: Added take limit to prevent unbounded query and connection exhaustion
+    // Limits to 100 appointments per day (reasonable for a single doctor's daily schedule)
     const appointments = await db.appointment.findMany({
       where,
+      take: 100, // REFACTORED: Bounded query to prevent connection pool exhaustion
       include: {
         patient: {
           select: {

@@ -19,6 +19,8 @@ import { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDt
 import { extractConsultationRequestFields } from '@/infrastructure/mappers/ConsultationRequestMapper';
 import { ConsultationRequestStatus } from '@/domain/enums/ConsultationRequestStatus';
 import { DomainException } from '@/domain/exceptions/DomainException';
+import { subDays } from 'date-fns';
+import type { CreateAppointmentRequest } from '@/types/api-requests';
 
 /**
  * GET /api/appointments
@@ -54,9 +56,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const startDateParam = searchParams.get('startDate'); // ISO date string
     const endDateParam = searchParams.get('endDate'); // ISO date string
     const upcomingParam = searchParams.get('upcoming'); // 'true' to get future appointments
+    const limitParam = searchParams.get('limit'); // Optional limit (default: 100)
 
     // 3. Build where clause
     const where: any = {};
+    
+    // REFACTORED: Default date range filter for safety (last 90 days)
+    // Prevents unbounded queries that could return thousands of records
+    // Users can override with explicit date parameters
+    const DEFAULT_DATE_RANGE_DAYS = 90;
+    let hasExplicitDateFilter = false;
 
     // Patient ID filtering
     if (userRole === 'PATIENT') {
@@ -112,6 +121,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           gte: startOfDay,
           lte: endOfDay,
         };
+        hasExplicitDateFilter = true;
       } catch (error) {
         return NextResponse.json(
           {
@@ -159,6 +169,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       
       if (Object.keys(dateRange).length > 0) {
         where.appointment_date = dateRange;
+        hasExplicitDateFilter = true;
       }
     } else if (upcomingParam === 'true') {
       // Filter for upcoming appointments (future dates)
@@ -167,12 +178,46 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       where.appointment_date = {
         gte: now,
       };
+      hasExplicitDateFilter = true;
+    } else {
+      // REFACTORED: Apply default date range filter if no explicit date filter provided
+      // This prevents unbounded queries that could return thousands of historical records
+      // Default: last 90 days (reasonable for most use cases)
+      const defaultSince = subDays(new Date(), DEFAULT_DATE_RANGE_DAYS);
+      where.appointment_date = {
+        gte: defaultSince,
+      };
     }
 
     // 4. Fetch appointments
+    // REFACTORED: Added take limit to prevent unbounded queries
+    // Default limit: 100 records (reasonable for API responses)
+    // Users can override with ?limit parameter (max 500 for safety)
+    const DEFAULT_LIMIT = 100;
+    const MAX_LIMIT = 500;
+    const requestedLimit = limitParam ? Number(limitParam) : DEFAULT_LIMIT;
+    const finalLimit = Math.min(Math.max(1, requestedLimit), MAX_LIMIT); // Clamp between 1 and MAX_LIMIT
+    
+    // REFACTORED: Use select instead of include for better performance
+    // Only fetch fields actually used by the API response
     const appointments = await db.appointment.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        patient_id: true,
+        doctor_id: true,
+        appointment_date: true,
+        time: true,
+        status: true,
+        type: true,
+        note: true,
+        reason: true,
+        consultation_request_status: true,
+        reviewed_by: true,
+        reviewed_at: true,
+        review_notes: true,
+        created_at: true,
+        updated_at: true,
         patient: {
           select: {
             id: true,
@@ -195,6 +240,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       orderBy: {
         appointment_date: 'desc',
       },
+      take: finalLimit, // REFACTORED: Bounded query - prevents memory issues
     });
 
     // 5. Map to DTO format
@@ -278,9 +324,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const userRole = authResult.user.role;
 
     // 2. Parse request body
-    let body: any;
+    let body: CreateAppointmentRequest;
     try {
-      body = await request.json();
+      body = await request.json() as CreateAppointmentRequest;
     } catch (error) {
       return NextResponse.json(
         {

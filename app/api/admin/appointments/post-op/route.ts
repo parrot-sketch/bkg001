@@ -48,11 +48,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // 3. Fetch post-op appointments (completed appointments from last 30 days)
+    // REFACTORED: Added take limit to prevent unbounded query
+    // Last 30 days could have hundreds of completed appointments
     const today = new Date();
     today.setHours(23, 59, 59, 999);
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     thirtyDaysAgo.setHours(0, 0, 0, 0);
+    const MAX_POST_OP_APPOINTMENTS = 200; // Reasonable limit for admin view
 
     const appointments = await db.appointment.findMany({
       where: {
@@ -65,6 +68,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       orderBy: {
         appointment_date: 'desc',
       },
+      take: MAX_POST_OP_APPOINTMENTS, // REFACTORED: Bounded query
       include: {
         patient: {
           select: {

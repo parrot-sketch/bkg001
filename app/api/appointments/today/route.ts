@@ -46,8 +46,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     todayEnd.setHours(23, 59, 59, 999);
 
     // 3. Fetch today's appointments
-    // Note: Prisma automatically includes all Appointment fields, including consultation_request_status, 
-    // reviewed_by, reviewed_at, and review_notes, so we don't need to explicitly select them
+    // REFACTORED: Added take limit as safety measure (even though bounded by today's date)
+    // Large clinics may have 200+ appointments in a single day
+    // REFACTORED: Use select instead of include for better performance
+    const MAX_TODAY_APPOINTMENTS = 200; // Safety limit for very busy days
+    
     const appointments = await db.appointment.findMany({
       where: {
         appointment_date: {
@@ -55,7 +58,22 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           lte: todayEnd,
         },
       },
-      include: {
+      select: {
+        id: true,
+        patient_id: true,
+        doctor_id: true,
+        appointment_date: true,
+        time: true,
+        status: true,
+        type: true,
+        note: true,
+        reason: true,
+        consultation_request_status: true,
+        reviewed_by: true,
+        reviewed_at: true,
+        review_notes: true,
+        created_at: true,
+        updated_at: true,
         patient: {
           select: {
             id: true,
@@ -83,6 +101,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           time: 'asc',
         },
       ],
+      take: MAX_TODAY_APPOINTMENTS, // REFACTORED: Safety limit
     });
 
     // 4. Map to DTO format

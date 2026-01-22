@@ -75,61 +75,60 @@ export function AppointmentCard({ appointment, showDoctorInfo = true }: Appointm
 
   return (
     <>
-      <div className="flex items-center justify-between rounded-lg border border-border p-4 hover:bg-muted/50 transition-colors">
-        <div className="flex items-start space-x-4 flex-1">
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 flex-shrink-0">
-            <Calendar className="h-6 w-6 text-primary" />
-          </div>
-          <div className="flex-1 space-y-2">
-            <div>
-              <p className="font-medium text-slate-900">
-                {format(new Date(appointment.appointmentDate), 'EEEE, MMMM d, yyyy')}
-              </p>
-              <div className="flex items-center space-x-4 text-sm text-gray-700 mt-1">
-                <span className="flex items-center">
-                  <Clock className="mr-1 h-4 w-4" />
-                  {appointment.time}
-                </span>
-                <span>•</span>
-                <span>{appointment.type}</span>
-              </div>
+      <div className="flex items-start space-x-3 sm:space-x-4 flex-1 min-w-0">
+        <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-lg bg-primary/10 flex-shrink-0">
+          <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+        </div>
+        <div className="flex-1 space-y-1.5 sm:space-y-2 min-w-0">
+          <div>
+            <p className="font-medium text-slate-900 text-sm sm:text-base">
+              {format(new Date(appointment.appointmentDate), 'EEEE, MMMM d, yyyy')}
+            </p>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-700 mt-1">
+              <span className="flex items-center">
+                <Clock className="mr-1 h-3 w-3 sm:h-4 sm:w-4" />
+                {appointment.time}
+              </span>
+              <span className="hidden sm:inline">•</span>
+              <span className="truncate">{appointment.type}</span>
             </div>
+          </div>
 
             {/* Doctor Information */}
             {showDoctorInfo && appointment.doctorId && (
               <div className="flex items-center space-x-2 pt-2 border-t border-border/50">
                 {loadingDoctor ? (
-                  <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <div className="flex items-center space-x-2 text-xs sm:text-sm text-gray-600">
                     <div className="animate-spin rounded-full h-3 w-3 border-b border-primary"></div>
                     <span>Loading doctor information...</span>
                   </div>
                 ) : doctor ? (
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 min-w-0">
                     {doctor.profileImage ? (
-                      <Link href={`/portal/doctors/${doctor.id}`}>
+                      <Link href={`/portal/doctors/${doctor.id}`} className="flex-shrink-0">
                         <img
                           src={doctor.profileImage}
                           alt={doctor.name}
-                          className="w-8 h-8 rounded-full object-cover border border-accent/30 cursor-pointer hover:border-accent transition-colors"
+                          className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-accent/30 cursor-pointer hover:border-accent transition-colors"
                         />
                       </Link>
                     ) : (
-                      <Link href={`/portal/doctors/${doctor.id}`}>
-                        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center border border-accent/30 cursor-pointer hover:border-accent transition-colors">
-                          <User className="h-4 w-4 text-primary-foreground" />
+                      <Link href={`/portal/doctors/${doctor.id}`} className="flex-shrink-0">
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-primary flex items-center justify-center border border-accent/30 cursor-pointer hover:border-accent transition-colors">
+                          <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary-foreground" />
                         </div>
                       </Link>
                     )}
                     <div className="flex-1 min-w-0">
                       <Link
                         href={`/portal/doctors/${doctor.id}`}
-                        className="text-sm font-medium text-primary hover:underline text-left"
+                        className="text-xs sm:text-sm font-medium text-primary hover:underline text-left block truncate"
                       >
                         {doctor.title} {doctor.firstName} {doctor.lastName}
                       </Link>
                       {doctor.clinicLocation && (
                         <div className="flex items-center text-xs text-gray-600 mt-0.5">
-                          <MapPin className="h-3 w-3 mr-1" />
+                          <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
                           <span className="truncate">{doctor.clinicLocation}</span>
                         </div>
                       )}
@@ -149,12 +148,10 @@ export function AppointmentCard({ appointment, showDoctorInfo = true }: Appointm
               <span className={`font-medium ${statusColorClass}`}>{appointment.status}</span>
             </p>
             {appointment.reason && (
-              <p className="text-xs text-gray-600">{appointment.reason}</p>
+              <p className="text-xs text-gray-600 line-clamp-2">{appointment.reason}</p>
             )}
           </div>
-        </div>
       </div>
-
     </>
   );
 }

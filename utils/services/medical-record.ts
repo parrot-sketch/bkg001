@@ -12,7 +12,10 @@ export async function getMedicalRecords({
 }) {
   try {
     const PAGE_NUMBER = Number(page) <= 0 ? 1 : Number(page);
-    const LIMIT = Number(limit) || 10;
+    // CRITICAL: Enforce maximum limit to prevent unbounded queries
+    // Protects against malicious abuse, accidental heavy fetches, memory pressure, and connection hogging
+    const MAX_LIMIT = 100;
+    const LIMIT = Math.min(Number(limit) || 10, MAX_LIMIT);
 
     const SKIP = (PAGE_NUMBER - 1) * LIMIT;
 
@@ -32,10 +35,16 @@ export async function getMedicalRecords({
       ],
     };
 
+    // REFACTORED: Use select instead of include for better performance
+    // Only fetch fields actually used by the UI
     const [data, totalRecords] = await Promise.all([
       db.medicalRecord.findMany({
         where: where,
-        include: {
+        select: {
+          id: true,
+          patient_id: true,
+          created_at: true,
+          updated_at: true,
           patient: {
             select: {
               first_name: true,
@@ -46,9 +55,12 @@ export async function getMedicalRecords({
               gender: true,
             },
           },
-
           diagnoses: {
-            include: {
+            select: {
+              id: true,
+              diagnosis: true,
+              doctor_id: true,
+              created_at: true,
               doctor: {
                 select: {
                   name: true,
@@ -59,7 +71,20 @@ export async function getMedicalRecords({
               },
             },
           },
-          lab_tests: true,
+          lab_tests: {
+            select: {
+              id: true,
+              result: true,
+              test_date: true,
+              status: true,
+              created_at: true,
+              service: {
+                select: {
+                  service_name: true,
+                },
+              },
+            },
+          },
         },
         skip: SKIP,
         take: LIMIT,

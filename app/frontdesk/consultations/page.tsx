@@ -108,17 +108,13 @@ function FrontdeskConsultationsContent() {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Consultation Requests</h1>
-        <p className="mt-2 text-muted-foreground">Review and manage consultation requests</p>
-      </div>
+    <div className="space-y-4 sm:space-y-6">
+      {/* REFACTORED: Removed titles/subtitles - function-driven UI */}
 
       {/* Status Filter Tabs */}
       <Card>
         <CardHeader>
-          <CardTitle>Filter by Status</CardTitle>
+          <CardTitle>Status</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
@@ -162,12 +158,9 @@ function FrontdeskConsultationsContent() {
         <CardHeader>
           <CardTitle>
             {statusParam === 'ALL' 
-              ? 'All Consultation Requests' 
-              : `Requests: ${statuses.map(s => getConsultationRequestStatusLabel(s as ConsultationRequestStatus)).join(', ')}`}
+              ? 'Consultations' 
+              : statuses.map(s => getConsultationRequestStatusLabel(s as ConsultationRequestStatus)).join(', ')}
           </CardTitle>
-          <CardDescription>
-            {filteredAppointments.length} {filteredAppointments.length === 1 ? 'request' : 'requests'} found
-          </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -301,10 +294,9 @@ function FrontdeskConsultationsContent() {
 export default function FrontdeskConsultationsPage() {
   return (
     <Suspense fallback={
-      <div className="space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Consultation Inquiries</h1>
-          <p className="mt-2 text-muted-foreground">Loading...</p>
+      <div className="space-y-4 sm:space-y-6">
+        <div className="flex items-center justify-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       </div>
     }>

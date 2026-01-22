@@ -48,8 +48,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // 3. Fetch pre-op appointments (scheduled/confirmed upcoming appointments)
+    // REFACTORED: Added take limit to prevent unbounded query
+    // Pre-op appointments are future appointments, could be thousands without limit
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const MAX_PRE_OP_APPOINTMENTS = 200; // Reasonable limit for admin view
 
     const appointments = await db.appointment.findMany({
       where: {
@@ -63,6 +66,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       orderBy: {
         appointment_date: 'asc',
       },
+      take: MAX_PRE_OP_APPOINTMENTS, // REFACTORED: Bounded query
       include: {
         patient: {
           select: {

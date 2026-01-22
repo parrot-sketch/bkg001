@@ -113,21 +113,15 @@ export default function FrontdeskAppointmentsPage() {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold text-foreground tracking-tight">Appointments</h1>
-        <p className="text-sm text-muted-foreground">Manage appointments and check-in patients</p>
-      </div>
-
+    <div className="space-y-4 sm:space-y-6 px-2 sm:px-0 pb-4 sm:pb-6 max-w-full overflow-x-hidden">
+      {/* REFACTORED: Removed titles/subtitles - function-driven UI */}
       {/* Filters */}
       <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-          <CardDescription>Filter appointments by date, status, or search</CardDescription>
+        <CardHeader className="px-3 sm:px-6">
+          <CardTitle className="text-base sm:text-lg">Filters</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
+        <CardContent className="px-3 sm:px-6">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="date">Date</Label>
               <div className="relative">
@@ -176,50 +170,47 @@ export default function FrontdeskAppointmentsPage() {
       </Card>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Appointments</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 sm:px-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">Total</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-semibold text-foreground mb-1">{appointments.length}</div>
-            <p className="text-xs text-muted-foreground">For selected date</p>
+          <CardContent className="px-3 sm:px-6">
+            <div className="text-2xl sm:text-3xl font-semibold text-foreground">{appointments.length}</div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Check-in</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 sm:px-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">Pending</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-3 sm:px-6">
             <div className="text-2xl font-bold">{pendingCheckIns}</div>
-            <p className="text-xs text-muted-foreground">Awaiting arrival</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Checked In</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-3 sm:px-6">
+            <CardTitle className="text-xs sm:text-sm font-medium">Checked In</CardTitle>
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-3 sm:px-6">
             <div className="text-2xl font-bold">{checkedIn}</div>
-            <p className="text-xs text-muted-foreground">Patients arrived</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Appointments List */}
       <Card>
-        <CardHeader>
-          <CardTitle>Appointments List</CardTitle>
-          <CardDescription>
+        <CardHeader className="px-3 sm:px-6">
+          <CardTitle className="text-base sm:text-lg">Appointments List</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">
             Appointments for {format(new Date(selectedDate), 'MMMM d, yyyy')}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-3 sm:px-6">
           {loading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
@@ -235,24 +226,30 @@ export default function FrontdeskAppointmentsPage() {
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               {filteredAppointments.map((appointment) => (
                 <div
                   key={appointment.id}
-                  className="flex items-center justify-between rounded-lg border border-border p-4 hover:bg-muted/50 transition-colors"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 rounded-lg border border-border p-3 sm:p-4 hover:bg-muted/50 transition-colors"
                 >
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <AppointmentCard appointment={appointment} showDoctorInfo={true} />
                   </div>
-                  <div className="flex items-center space-x-2 flex-shrink-0 ml-4">
+                  <div className="flex items-center justify-end sm:justify-start space-x-2 flex-shrink-0 sm:ml-4">
                     {appointment.status === AppointmentStatus.PENDING && (
-                      <Button size="sm" onClick={() => handleCheckIn(appointment)}>
+                      <Button 
+                        size="sm" 
+                        onClick={() => handleCheckIn(appointment)}
+                        className="w-full sm:w-auto min-h-[44px]"
+                      >
                         <CheckCircle className="mr-2 h-4 w-4" />
                         Check In
                       </Button>
                     )}
                     {appointment.status === AppointmentStatus.SCHEDULED && (
-                      <span className="text-xs font-medium text-green-600">Checked In</span>
+                      <span className="text-xs sm:text-sm font-medium text-green-600 whitespace-nowrap">
+                        Checked In
+                      </span>
                     )}
                   </div>
                 </div>

@@ -7,8 +7,11 @@ import { getCurrentUser } from "@/lib/auth/server-auth";
 import { AppointmentStatus } from "@prisma/client";
 import { getScheduleAppointmentUseCase } from "@/lib/use-cases";
 import { DomainException } from "@/domain/exceptions/DomainException";
+import { normalizeAppointmentRequest, isAppointmentRequestLike } from "@/lib/normalize-api-requests";
 
-export async function createNewAppointment(data: any) {
+import type { CreateAppointmentRequest } from '@/types/api-requests';
+
+export async function createNewAppointment(data: CreateAppointmentRequest | Record<string, unknown>) {
   try {
     // Get current user for audit trail
     const user = await getCurrentUser();
@@ -16,8 +19,22 @@ export async function createNewAppointment(data: any) {
       return { success: false, msg: "Unauthorized" };
     }
 
-    // Validate input data
-    const validatedData = AppointmentSchema.safeParse(data);
+    // Normalize request data (handles both snake_case and camelCase)
+    // This ensures type safety while maintaining backward compatibility
+    // Always normalize to handle both formats safely
+    const normalized = normalizeAppointmentRequest(data as Record<string, unknown>);
+
+    // Validate input data using Zod schema (expects snake_case)
+    // Convert normalized camelCase back to snake_case for validation
+    const validationInput = {
+      doctor_id: normalized.doctorId,
+      appointment_date: normalized.appointmentDate,
+      time: normalized.time,
+      type: normalized.type,
+      note: normalized.note,
+    };
+
+    const validatedData = AppointmentSchema.safeParse(validationInput);
     if (!validatedData.success) {
       // Return more specific validation errors
       const errors = validatedData.error.errors.map(e => e.message).join(', ');
@@ -32,10 +49,10 @@ export async function createNewAppointment(data: any) {
     }
 
     // Resolve Patient ID from User ID if needed
-    // If patient_id is a User ID (when patient is logged in), find the Patient record
-    let patientId = data.patient_id;
+    // If patientId is a User ID (when patient is logged in), find the Patient record
+    let patientId = normalized.patientId;
     
-    // Check if patient_id is actually a User ID by trying to find a Patient by user_id
+    // Check if patientId is actually a User ID by trying to find a Patient by user_id
     // If user role is PATIENT, we should use their User ID to find their Patient record
     if (user.role === 'PATIENT') {
       const patient = await db.patient.findUnique({
@@ -46,13 +63,13 @@ export async function createNewAppointment(data: any) {
       if (patient) {
         patientId = patient.id;
       } else {
-        // If no patient record found, try using the provided patient_id as-is
+        // If no patient record found, try using the provided patientId as-is
         // It might already be a Patient ID
-        patientId = data.patient_id;
+        patientId = normalized.patientId;
       }
     } else {
-      // For non-patient users (frontdesk, admin), patient_id should already be a Patient ID
-      patientId = data.patient_id;
+      // For non-patient users (frontdesk, admin), patientId should already be a Patient ID
+      patientId = normalized.patientId;
     }
 
     // Use ScheduleAppointmentUseCase instead of direct Prisma

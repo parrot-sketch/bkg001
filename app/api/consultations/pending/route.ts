@@ -19,6 +19,7 @@ import { Role } from '@/domain/enums/Role';
 import { ConsultationRequestStatus } from '@/domain/enums/ConsultationRequestStatus';
 import { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { extractConsultationRequestFields } from '@/infrastructure/mappers/ConsultationRequestMapper';
+import { subDays } from 'date-fns';
 
 /**
  * GET /api/consultations/pending
@@ -53,6 +54,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // 3. Fetch pending consultation requests
+    // REFACTORED: Added date filter (last 90 days) and take limit
+    // Prevents fetching thousands of old pending requests
+    // REFACTORED: Use select instead of include for better performance
+    const since = subDays(new Date(), 90); // Last 90 days
+    const MAX_PENDING_REQUESTS = 100; // Reasonable limit for frontdesk review
+    
     const pendingRequests = await db.appointment.findMany({
       where: {
         consultation_request_status: {
@@ -61,8 +68,26 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             ConsultationRequestStatus.PENDING_REVIEW,
           ],
         },
+        created_at: {
+          gte: since, // REFACTORED: Only recent requests (last 90 days)
+        },
       },
-      include: {
+      select: {
+        id: true,
+        patient_id: true,
+        doctor_id: true,
+        appointment_date: true,
+        time: true,
+        status: true,
+        type: true,
+        note: true,
+        reason: true,
+        consultation_request_status: true,
+        reviewed_by: true,
+        reviewed_at: true,
+        review_notes: true,
+        created_at: true,
+        updated_at: true,
         patient: {
           select: {
             id: true,
@@ -87,6 +112,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       orderBy: {
         created_at: 'asc', // Oldest first
       },
+      take: MAX_PENDING_REQUESTS, // REFACTORED: Bounded query
     });
 
     // 4. Map Prisma models to DTO format

@@ -53,18 +53,27 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const limitParam = searchParams.get('limit');
     const offsetParam = searchParams.get('offset');
 
-    const limit = limitParam ? parseInt(limitParam, 10) : 50;
+    // REFACTORED: Enforce MAX_LIMIT to prevent unbounded queries
+    // 1000 records is too large, reduces to 100 for safety
+    const MAX_LIMIT = 100; // CRITICAL: Maximum limit to prevent abuse
+    const DEFAULT_LIMIT = 50;
+    
+    const limit = limitParam ? parseInt(limitParam, 10) : DEFAULT_LIMIT;
     const offset = offsetParam ? parseInt(offsetParam, 10) : 0;
 
-    if (isNaN(limit) || limit < 1 || limit > 1000) {
+    // Validate and enforce maximum limit
+    if (isNaN(limit) || limit < 1) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Invalid limit parameter. Must be between 1 and 1000',
+          error: `Invalid limit parameter. Must be between 1 and ${MAX_LIMIT}`,
         },
         { status: 400 }
       );
     }
+
+    // Enforce maximum limit
+    const safeLimit = Math.min(limit, MAX_LIMIT);
 
     if (isNaN(offset) || offset < 0) {
       return NextResponse.json(
@@ -76,9 +85,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // 4. Fetch audit logs
+    // 4. Fetch audit logs with enforced limit
     const auditLogs = await db.auditLog.findMany({
-      take: limit,
+      take: safeLimit, // REFACTORED: Use enforced limit
       skip: offset,
       orderBy: {
         created_at: 'desc',
@@ -128,7 +137,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         data: logs,
         meta: {
           total: totalCount,
-          limit,
+          limit: safeLimit, // REFACTORED: Return enforced limit
           offset,
         },
       },
