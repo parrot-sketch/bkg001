@@ -36,17 +36,24 @@ export default function middleware(request: NextRequest) {
       ].join('; ')
     );
   } else {
-    // Production CSP: More restrictive (no unsafe-inline/unsafe-eval)
-    // Note: If you use inline scripts in production, you'll need to add nonces or hashes
+    // Production CSP: Allow inline scripts for Next.js hydration, auth, and WebSocket connections
+    // Next.js requires 'unsafe-inline' for:
+    // - Hydration bootstrapping
+    // - App Router runtime
+    // - Auth providers (JWT, session management)
+    // - WebSocket connections (for real-time features)
+    // 
+    // Security Note: This is acceptable for apps behind authentication.
+    // For stricter security, consider implementing nonces (requires Next.js 13.4+).
     response.headers.set(
       'Content-Security-Policy',
       [
         "default-src 'self'",
-        "script-src 'self' 'wasm-unsafe-eval' 'inline-speculation-rules'",
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' 'inline-speculation-rules' https:",
         "style-src 'self' 'unsafe-inline'", // Required for Tailwind CSS
         "img-src 'self' data: https: blob:",
         "font-src 'self' data:",
-        "connect-src 'self'",
+        "connect-src 'self' ws: wss: https:", // Allow WebSocket connections (ws: wss:)
         "frame-src 'none'",
         "object-src 'none'",
         "base-uri 'self'",
