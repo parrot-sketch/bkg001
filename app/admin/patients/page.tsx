@@ -8,19 +8,26 @@
  * - Approve/reject registrations
  * - Assign patients to staff
  * - View patient history
+ * 
+ * REFACTORED: Replaced manual useState/useEffect fetch with React Query hook
+ * REASON: Eliminates manual loading state, error handling, and fetch logic.
+ * Provides automatic caching, retries, and background refetching.
  */
 
-import { useEffect, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
+import { useAllPatients } from '@/hooks/patients/usePatients';
+import { useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/admin';
+import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Users, Search, CheckCircle, XCircle, UserCheck } from 'lucide-react';
-import { toast } from 'sonner';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 
 // Extended DTO for admin view (includes approval status)
+// Note: approved field may come from API response but isn't in base PatientResponseDto
 interface AdminPatientDto extends PatientResponseDto {
   approved?: boolean;
 }
@@ -29,58 +36,39 @@ import { AssignPatientDialog } from '@/components/admin/AssignPatientDialog';
 
 export default function AdminPatientsPage() {
   const { user, isAuthenticated } = useAuth();
-  const [patients, setPatients] = useState<AdminPatientDto[]>([]);
-  const [filteredPatients, setFilteredPatients] = useState<AdminPatientDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  
+  // REFACTORED: Replaced manual useState/useEffect with React Query
+  // React Query handles: loading, error, retries, caching, deduplication automatically
+  const { 
+    data: patientsData = [], 
+    isLoading: loading 
+  } = useAllPatients(isAuthenticated && !!user);
+  
+  // Type assertion: API may return approved field even though it's not in base DTO
+  const patients = patientsData as AdminPatientDto[];
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<AdminPatientDto | null>(null);
   const [showApproveDialog, setShowApproveDialog] = useState(false);
   const [showAssignDialog, setShowAssignDialog] = useState(false);
 
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      loadPatients();
+  // REFACTORED: Use useMemo for filtering instead of useEffect + useState
+  // More efficient and follows React best practices
+  const filteredPatients = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return patients;
     }
-  }, [isAuthenticated, user]);
-
-  useEffect(() => {
-    let filtered = patients;
-
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (patient) =>
-          patient.firstName?.toLowerCase().includes(query) ||
-          patient.lastName?.toLowerCase().includes(query) ||
-          patient.email?.toLowerCase().includes(query) ||
-          patient.phone?.toLowerCase().includes(query) ||
-          patient.id.toLowerCase().includes(query),
-      );
-    }
-
-    setFilteredPatients(filtered);
+    const query = searchQuery.toLowerCase();
+    return patients.filter(
+      (patient) =>
+        patient.firstName?.toLowerCase().includes(query) ||
+        patient.lastName?.toLowerCase().includes(query) ||
+        patient.email?.toLowerCase().includes(query) ||
+        patient.phone?.toLowerCase().includes(query) ||
+        patient.id.toLowerCase().includes(query),
+    );
   }, [patients, searchQuery]);
-
-  const loadPatients = async () => {
-    try {
-      setLoading(true);
-      const response = await adminApi.getAllPatients();
-
-      if (response.success && response.data) {
-        setPatients(response.data);
-        setFilteredPatients(response.data);
-      } else if (!response.success) {
-        toast.error(response.error || 'Failed to load patients');
-      } else {
-        toast.error('Failed to load patients');
-      }
-    } catch (error) {
-      toast.error('An error occurred while loading patients');
-      console.error('Error loading patients:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleApprove = (patient: AdminPatientDto) => {
     setSelectedPatient(patient);
@@ -104,7 +92,8 @@ export default function AdminPatientsPage() {
       const response = await adminApi.rejectPatient(patient.id, reason, user!.id);
       if (response.success) {
         toast.success('Patient registration rejected');
-        loadPatients();
+        // REFACTORED: Invalidate query cache to refetch updated data
+        queryClient.invalidateQueries({ queryKey: ['patients', 'all'] });
       } else {
         toast.error(response.error || 'Failed to reject patient');
       }
@@ -118,7 +107,8 @@ export default function AdminPatientsPage() {
     setShowApproveDialog(false);
     setShowAssignDialog(false);
     setSelectedPatient(null);
-    loadPatients();
+    // REFACTORED: Invalidate query cache to refetch updated data
+    queryClient.invalidateQueries({ queryKey: ['patients', 'all'] });
   };
 
   if (!isAuthenticated || !user) {

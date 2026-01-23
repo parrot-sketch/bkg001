@@ -5,17 +5,22 @@
  * 
  * View and manage appointments with check-in functionality.
  * Filter by date or status, check-in patients when they arrive.
+ * 
+ * REFACTORED: Replaced manual useState/useEffect fetch with React Query hook
+ * REASON: Eliminates manual loading state, error handling, and fetch logic.
+ * Provides automatic caching, retries, and background refetching.
  */
 
-import { useEffect, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
-import { frontdeskApi } from '@/lib/api/frontdesk';
+import { useAppointmentsByDate } from '@/hooks/appointments/useAppointments';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Calendar, CheckCircle, Clock, Filter, Search } from 'lucide-react';
-import { toast } from 'sonner';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { format } from 'date-fns';
@@ -24,9 +29,7 @@ import { AppointmentCard } from '@/components/patient/AppointmentCard';
 
 export default function FrontdeskAppointmentsPage() {
   const { user, isAuthenticated } = useAuth();
-  const [appointments, setAppointments] = useState<AppointmentResponseDto[]>([]);
-  const [filteredAppointments, setFilteredAppointments] = useState<AppointmentResponseDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split('T')[0],
   );
@@ -35,54 +38,38 @@ export default function FrontdeskAppointmentsPage() {
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentResponseDto | null>(null);
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
 
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      loadAppointments();
-    }
-  }, [isAuthenticated, user, selectedDate]);
+  // REFACTORED: Replaced manual useState/useEffect with React Query
+  // Using existing useAppointmentsByDate hook from hooks/appointments/useAppointments.ts
+  const { 
+    data: appointments = [], 
+    isLoading: loading 
+  } = useAppointmentsByDate(
+    new Date(selectedDate), 
+    isAuthenticated && !!user
+  );
 
-  const loadAppointments = async () => {
-    try {
-      setLoading(true);
-      const date = new Date(selectedDate);
-      const response = await frontdeskApi.getAppointmentsByDate(date);
-
-      if (response.success && response.data) {
-        setAppointments(response.data);
-        setFilteredAppointments(response.data);
-      } else if (!response.success) {
-        toast.error(response.error || 'Failed to load appointments');
-      } else {
-        toast.error('Failed to load appointments');
-      }
-    } catch (error) {
-      toast.error('An error occurred while loading appointments');
-      console.error('Error loading appointments:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
+  // REFACTORED: Use useMemo for filtering instead of useEffect + useState
+  // More efficient and follows React best practices
+  // Note: AppointmentResponseDto has patientId and doctorId, not nested patient/doctor objects
+  const filteredAppointments = useMemo(() => {
     let filtered = appointments;
 
-    // Filter by status
     if (statusFilter !== 'ALL') {
       filtered = filtered.filter((apt) => apt.status === statusFilter);
     }
 
-    // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (apt) =>
-          apt.patientId.toLowerCase().includes(query) ||
-          apt.type.toLowerCase().includes(query) ||
-          apt.time.toLowerCase().includes(query),
+          apt.patientId?.toLowerCase().includes(query) ||
+          apt.doctorId?.toLowerCase().includes(query) ||
+          apt.type?.toLowerCase().includes(query) ||
+          apt.time?.toLowerCase().includes(query),
       );
     }
 
-    setFilteredAppointments(filtered);
+    return filtered;
   }, [appointments, statusFilter, searchQuery]);
 
   const handleCheckIn = (appointment: AppointmentResponseDto) => {
@@ -93,7 +80,8 @@ export default function FrontdeskAppointmentsPage() {
   const handleCheckInSuccess = () => {
     setShowCheckInDialog(false);
     setSelectedAppointment(null);
-    loadAppointments();
+    // REFACTORED: Invalidate query cache to refetch updated data
+    queryClient.invalidateQueries({ queryKey: ['appointments', 'date', selectedDate] });
     toast.success('Patient checked in successfully');
   };
 

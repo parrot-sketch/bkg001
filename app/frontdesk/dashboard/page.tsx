@@ -9,17 +9,19 @@
  * - Inquiries awaiting clarification
  * - Sessions awaiting scheduling
  * - Today's confirmed sessions
+ * 
+ * REFACTORED: Replaced manual useState/useEffect fetch with React Query hooks
+ * REASON: Eliminates manual loading state, error handling, and fetch logic.
+ * Provides automatic caching, retries, and background refetching.
  */
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useMemo } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
-import { frontdeskApi } from '@/lib/api/frontdesk';
+import { useTodayAppointments, usePendingConsultations } from '@/hooks/appointments/useAppointments';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar, Users, CheckCircle, Clock, Bell, FileText, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
 import Link from 'next/link';
-import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { ConsultationRequestStatus } from '@/domain/enums/ConsultationRequestStatus';
 import { format, isToday, startOfDay } from 'date-fns';
@@ -28,45 +30,20 @@ import { AvailableDoctorsPanel } from '@/components/frontdesk/AvailableDoctorsPa
 
 export default function FrontdeskDashboardPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
-  const [todayAppointments, setTodayAppointments] = useState<AppointmentResponseDto[]>([]);
-  const [pendingConsultations, setPendingConsultations] = useState<AppointmentResponseDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // REFACTORED: Replaced manual useState/useEffect with React Query
+  // React Query handles: loading, error, retries, caching, deduplication automatically
+  const { 
+    data: todayAppointments = [], 
+    isLoading: loadingAppointments 
+  } = useTodayAppointments(isAuthenticated && !!user);
+  
+  const { 
+    data: pendingConsultations = [], 
+    isLoading: loadingConsultations 
+  } = usePendingConsultations(isAuthenticated && !!user);
 
-  // REFACTORED: Memoized loadDashboardData to prevent unnecessary re-renders
-  const loadDashboardData = useCallback(async () => {
-    try {
-      setLoading(true);
-      
-      // Load today's appointments and pending consultations in parallel
-      const [todayResponse, pendingResponse] = await Promise.all([
-        frontdeskApi.getTodayAppointments(),
-        frontdeskApi.getPendingConsultations(),
-      ]);
-
-      if (todayResponse.success && todayResponse.data) {
-        setTodayAppointments(todayResponse.data);
-      } else if (!todayResponse.success) {
-        console.error('Failed to load today\'s appointments:', todayResponse.error);
-      }
-
-      if (pendingResponse.success && pendingResponse.data) {
-        setPendingConsultations(pendingResponse.data);
-      } else if (!pendingResponse.success) {
-        console.error('Failed to load pending consultations:', pendingResponse.error);
-      }
-    } catch (error) {
-      toast.error('An error occurred while loading dashboard data');
-      console.error('Error loading dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [isAuthenticated, user]);
-
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      loadDashboardData();
-    }
-  }, [isAuthenticated, user, loadDashboardData]);
+  const loading = loadingAppointments || loadingConsultations;
 
   // CRITICAL FIX: Move useMemo BEFORE any conditional returns
   // All hooks must be called in the same order on every render

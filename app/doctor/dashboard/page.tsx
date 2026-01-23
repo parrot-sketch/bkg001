@@ -9,18 +9,18 @@
  * - Patient notes and procedure information
  * 
  * No noise. No rejected inquiries. No drafts. No pending items.
+ * 
+ * REFACTORED: Replaced manual useState/useEffect fetch with React Query hooks
+ * REASON: Eliminates manual loading state, error handling, and fetch logic.
+ * Provides automatic caching, retries, and background refetching.
  */
 
-import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
-import { doctorApi } from '@/lib/api/doctor';
+import { useDoctorTodayAppointments, useDoctorUpcomingAppointments } from '@/hooks/doctor/useDoctorDashboard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar, Clock, Users, FileText, Bell } from 'lucide-react';
-import { toast } from 'sonner';
 import Link from 'next/link';
-import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
-import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { format, isToday, startOfDay, endOfDay } from 'date-fns';
 import { AppointmentCard } from '@/components/patient/AppointmentCard';
 import { TheatreScheduleView } from '@/components/doctor/TheatreScheduleView';
@@ -28,56 +28,20 @@ import { PostOpDashboard } from '@/components/doctor/PostOpDashboard';
 
 export default function DoctorDashboardPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
-  const [todayAppointments, setTodayAppointments] = useState<AppointmentResponseDto[]>([]);
-  const [upcomingAppointments, setUpcomingAppointments] = useState<AppointmentResponseDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // REFACTORED: Replaced manual useState/useEffect with React Query
+  // React Query handles: loading, error, retries, caching, deduplication automatically
+  const { 
+    data: todayAppointments = [], 
+    isLoading: loadingToday 
+  } = useDoctorTodayAppointments(user?.id, isAuthenticated && !!user);
+  
+  const { 
+    data: upcomingAppointments = [], 
+    isLoading: loadingUpcoming 
+  } = useDoctorUpcomingAppointments(user?.id, isAuthenticated && !!user);
 
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      loadDashboardData();
-    }
-  }, [isAuthenticated, user]);
-
-  const loadDashboardData = async () => {
-    if (!user) return;
-
-    try {
-      setLoading(true);
-      const [todayResponse, upcomingResponse] = await Promise.all([
-        doctorApi.getTodayAppointments(user.id),
-        doctorApi.getUpcomingAppointments(user.id),
-      ]);
-
-      // Filter to only show CONFIRMED and SCHEDULED sessions
-      // Surgeon never sees SUBMITTED, PENDING_REVIEW, NEEDS_MORE_INFO
-      if (todayResponse.success && todayResponse.data) {
-        const confirmedToday = todayResponse.data.filter(
-          (apt) => apt.status === AppointmentStatus.SCHEDULED || apt.status === AppointmentStatus.CONFIRMED
-        );
-        setTodayAppointments(confirmedToday);
-      } else if (!todayResponse.success) {
-        toast.error(todayResponse.error || 'Failed to load today\'s sessions');
-      } else {
-        toast.error('Failed to load today\'s sessions');
-      }
-
-      if (upcomingResponse.success && upcomingResponse.data) {
-        const confirmedUpcoming = upcomingResponse.data.filter(
-          (apt) => apt.status === AppointmentStatus.SCHEDULED || apt.status === AppointmentStatus.CONFIRMED
-        );
-        setUpcomingAppointments(confirmedUpcoming);
-      } else if (!upcomingResponse.success) {
-        toast.error(upcomingResponse.error || 'Failed to load upcoming sessions');
-      } else {
-        toast.error('Failed to load upcoming sessions');
-      }
-    } catch (error) {
-      toast.error('An error occurred while loading schedule');
-      console.error('Error loading dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loading = loadingToday || loadingUpcoming;
 
   if (isLoading) {
     return (

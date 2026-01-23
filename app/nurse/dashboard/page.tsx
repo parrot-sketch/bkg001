@@ -8,72 +8,42 @@
  * - Quick stats (patients to care for, pre/post-op, pending follow-ups)
  * - Today's checked-in patients
  * - Pending actions
+ * 
+ * REFACTORED: Replaced manual useState/useEffect fetch with React Query hooks
+ * REASON: Eliminates manual loading state, error handling, and fetch logic.
+ * Provides automatic caching, retries, and background refetching.
  */
 
-import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
-import { nurseApi } from '@/lib/api/nurse';
+import { useTodayCheckedInPatients, usePreOpPatients, usePostOpPatients } from '@/hooks/nurse/useNurseDashboard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, Activity, FileText, Bell, Clock } from 'lucide-react';
-import { toast } from 'sonner';
 import Link from 'next/link';
-import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { format } from 'date-fns';
 
 export default function NurseDashboardPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
-  const [checkedInPatients, setCheckedInPatients] = useState<AppointmentResponseDto[]>([]);
-  const [preOpPatients, setPreOpPatients] = useState<AppointmentResponseDto[]>([]);
-  const [postOpPatients, setPostOpPatients] = useState<AppointmentResponseDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // REFACTORED: Replaced manual useState/useEffect with React Query
+  // React Query handles: loading, error, retries, caching, deduplication automatically
+  const { 
+    data: checkedInPatients = [], 
+    isLoading: loadingCheckedIn 
+  } = useTodayCheckedInPatients(isAuthenticated && !!user);
+  
+  const { 
+    data: preOpPatients = [], 
+    isLoading: loadingPreOp 
+  } = usePreOpPatients(isAuthenticated && !!user);
+  
+  const { 
+    data: postOpPatients = [], 
+    isLoading: loadingPostOp 
+  } = usePostOpPatients(isAuthenticated && !!user);
 
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      loadDashboardData();
-    }
-  }, [isAuthenticated, user]);
-
-  const loadDashboardData = async () => {
-    try {
-      setLoading(true);
-      const [checkedInResponse, preOpResponse, postOpResponse] = await Promise.all([
-        nurseApi.getTodayCheckedInPatients(),
-        nurseApi.getPreOpPatients(),
-        nurseApi.getPostOpPatients(),
-      ]);
-
-      if (checkedInResponse.success && checkedInResponse.data) {
-        setCheckedInPatients(checkedInResponse.data);
-      } else if (!checkedInResponse.success) {
-        toast.error(checkedInResponse.error || 'Failed to load checked-in patients');
-      } else {
-        toast.error('Failed to load checked-in patients');
-      }
-
-      if (preOpResponse.success && preOpResponse.data) {
-        setPreOpPatients(preOpResponse.data);
-      } else if (!preOpResponse.success) {
-        toast.error(preOpResponse.error || 'Failed to load pre-op patients');
-      } else {
-        toast.error('Failed to load pre-op patients');
-      }
-
-      if (postOpResponse.success && postOpResponse.data) {
-        setPostOpPatients(postOpResponse.data);
-      } else if (!postOpResponse.success) {
-        toast.error(postOpResponse.error || 'Failed to load post-op patients');
-      } else {
-        toast.error('Failed to load post-op patients');
-      }
-    } catch (error) {
-      toast.error('An error occurred while loading dashboard data');
-      console.error('Error loading dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loading = loadingCheckedIn || loadingPreOp || loadingPostOp;
 
   if (isLoading) {
     return (
