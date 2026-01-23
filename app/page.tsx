@@ -40,10 +40,20 @@ export default function Home() {
           abortController.abort();
         }, 10000); // 10 second timeout
 
-        const response = await fetch('/api/doctors', {
+        // Use cache: 'no-store' to prevent disk cache issues in production
+        // Add timestamp to prevent aggressive caching
+        // Use 'reload' cache mode to bypass cache entirely
+        const cacheBuster = `?t=${Date.now()}&_=${Math.random()}`;
+        const response = await fetch(`/api/doctors${cacheBuster}`, {
+          method: 'GET',
           signal: abortController.signal,
+          cache: 'no-store', // Prevent all caching
+          credentials: 'same-origin',
           headers: {
             'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'X-Requested-With': 'XMLHttpRequest', // Helps identify AJAX requests
           },
         });
 
@@ -60,15 +70,61 @@ export default function Home() {
           throw new Error('Invalid response format from server');
         }
 
-        const result = await response.json();
+        // Read response body
+        // Note: If response comes from disk cache, body might be already consumed
+        // We prevent this with cache: 'no-store' above
+        let result;
+        try {
+          const text = await response.text();
+          
+          // Check if we got an empty response (can happen with cached responses)
+          if (!text || text.trim().length === 0) {
+            throw new Error('Empty response from server');
+          }
+          
+          result = JSON.parse(text);
+        } catch (parseError: any) {
+          // Handle connection closed or parsing errors
+          if (parseError.message?.includes('Connection closed') || 
+              parseError.message?.includes('body stream already read') ||
+              parseError.message?.includes('Unexpected end of JSON')) {
+            // This usually means response was from cache and body was consumed
+            // Retry with forced no-cache
+            console.warn('Response parsing failed (possibly cached), retrying...');
+            
+            const retryResponse = await fetch(`/api/doctors?t=${Date.now()}&retry=1`, {
+              method: 'GET',
+              cache: 'reload', // Force reload, bypass cache
+              headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+              },
+            });
+            
+            if (!retryResponse.ok) {
+              throw new Error(`Failed to fetch doctors: ${retryResponse.status}`);
+            }
+            
+            const retryText = await retryResponse.text();
+            if (!retryText || retryText.trim().length === 0) {
+              throw new Error('Empty response on retry');
+            }
+            
+            result = JSON.parse(retryText);
+          } else {
+            console.error('Failed to parse JSON response:', parseError);
+            throw new Error('Invalid JSON response from server');
+          }
+        }
 
         if (!isMounted) return;
 
-        if (result.success && result.data) {
+        if (result && result.success && result.data) {
           setDoctors(Array.isArray(result.data) ? result.data : []);
         } else {
           setDoctors([]);
-          setDoctorsError(result.error || 'Failed to load doctors');
+          setDoctorsError(result?.error || 'Failed to load doctors');
         }
       } catch (error: any) {
         if (!isMounted) return;
@@ -77,6 +133,10 @@ export default function Home() {
         if (error.name === 'AbortError') {
           console.warn('Doctors fetch aborted');
           setDoctorsError('Request timed out. Please refresh the page.');
+        } else if (error.message?.includes('Connection closed') || error.message?.includes('Failed to fetch')) {
+          // Handle connection closed errors (often from cached responses)
+          console.error('Connection error fetching doctors:', error);
+          setDoctorsError('Connection error. Please refresh the page.');
         } else {
           console.error('Error fetching doctors:', error);
           setDoctorsError(error.message || 'Failed to load doctors. Please try again later.');
