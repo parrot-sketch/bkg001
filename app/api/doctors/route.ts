@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import db from '@/lib/db';
+import db, { withRetry } from '@/lib/db';
 
 /**
  * Route segment config
@@ -20,33 +20,35 @@ export const runtime = 'nodejs'; // Use Node.js runtime
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-    // Fetch all doctors from database
-    const doctors = await db.doctor.findMany({
-      where: {
-        availability_status: {
-          not: 'UNAVAILABLE',
+    // Fetch all doctors from database with retry logic for connection errors
+    const doctors = await withRetry(async () => {
+      return await db.doctor.findMany({
+        where: {
+          availability_status: {
+            not: 'UNAVAILABLE',
+          },
         },
-      },
-      orderBy: {
-        name: 'asc',
-      },
-      select: {
-        id: true,
-        name: true,
-        title: true,
-        specialization: true,
-        profile_image: true,
-        bio: true,
-        education: true,
-        focus_areas: true,
-        professional_affiliations: true,
-        clinic_location: true,
-        // REFACTORED: Removed sensitive fields (email, phone) from public API
-        // These should only be available to authenticated staff
-        // email: true,
-        // phone: true,
-      },
-      take: 100, // Limit results to prevent unbounded queries
+        orderBy: {
+          name: 'asc',
+        },
+        select: {
+          id: true,
+          name: true,
+          title: true,
+          specialization: true,
+          profile_image: true,
+          bio: true,
+          education: true,
+          focus_areas: true,
+          professional_affiliations: true,
+          clinic_location: true,
+          // REFACTORED: Removed sensitive fields (email, phone) from public API
+          // These should only be available to authenticated staff
+          // email: true,
+          // phone: true,
+        },
+        take: 100, // Limit results to prevent unbounded queries
+      });
     });
 
     // Ensure we always return a valid array
@@ -79,8 +81,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const isProduction = process.env.NODE_ENV === 'production' || 
                          process.env.VERCEL_ENV === 'production';
     
+    // Check if it's a connection error
+    const isConnectionError = 
+      error?.message?.includes('Connection closed') ||
+      error?.message?.includes('Connection terminated') ||
+      error?.message?.includes('Connection refused') ||
+      error?.code === 'P1001' || // Prisma connection error
+      error?.code === 'P1008' || // Prisma operation timeout
+      error?.code === 'P1017';   // Prisma server closed connection
+    
     console.error('[API] /api/doctors - Error:', {
       message: error?.message,
+      code: error?.code,
+      isConnectionError,
       stack: isProduction ? undefined : error?.stack, // Don't log stack in production
       name: error?.name,
     });

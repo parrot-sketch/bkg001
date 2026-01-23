@@ -13,7 +13,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import db from '@/lib/db';
+import db, { withRetry } from '@/lib/db';
 import { LoginDto } from '@/application/dtos/LoginDto';
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { AuthFactory } from '@/infrastructure/auth/AuthFactory';
@@ -53,10 +53,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Execute login use case
-    const response = await loginUseCase.execute({
-      email: body.email,
-      password: body.password,
+    // Execute login use case with retry logic for connection errors
+    const response = await withRetry(async () => {
+      return await loginUseCase.execute({
+        email: body.email,
+        password: body.password,
+      });
     });
 
     // Return success response
