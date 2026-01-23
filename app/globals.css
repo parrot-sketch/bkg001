@@ -98,6 +98,58 @@ body {
   }
 }
 
+/* Global mobile input compatibility - CRITICAL for mobile responsiveness */
+@layer base {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  input[type="number"],
+  input[type="date"],
+  input[type="time"],
+  input[type="search"],
+  textarea,
+  select {
+    /* Remove iOS Safari default styling */
+    -webkit-appearance: none;
+    appearance: none;
+    
+    /* Allow proper touch handling */
+    touch-action: manipulation;
+    
+    /* Allow text selection */
+    user-select: text;
+    -webkit-user-select: text;
+    
+    /* Disable tap highlight */
+    -webkit-tap-highlight-color: transparent;
+    
+    /* Ensure inputs are focusable */
+    pointer-events: auto;
+    
+    /* Prevent zoom on focus (iOS Safari) */
+    font-size: 16px; /* Minimum 16px prevents zoom on iOS */
+  }
+  
+  /* Ensure form inputs are always interactive */
+  form input,
+  form textarea,
+  form select {
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+  }
+  
+  /* Fix for iOS Safari input focus issues */
+  @supports (-webkit-touch-callout: none) {
+    input:focus,
+    textarea:focus,
+    select:focus {
+      transform: translateZ(0); /* Force hardware acceleration */
+      -webkit-transform: translateZ(0);
+    }
+  }
+}
+
 /* Mobile splash screen animations */
 @keyframes fade-in {
   from {

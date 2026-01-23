@@ -30,6 +30,22 @@ export default function Home() {
     let isMounted = true;
     const abortController = new AbortController();
 
+    // Safety timeout to ensure loading state never gets stuck
+    // This is a fallback in case the fetch fails silently
+    const safetyTimeout = setTimeout(() => {
+      if (isMounted) {
+        console.warn('Doctors fetch safety timeout - clearing loading state');
+        setLoadingDoctors(false);
+        setDoctorsError((prevError) => {
+          // Only set error if there's no existing error
+          if (!prevError) {
+            return 'Loading is taking longer than expected. Please refresh the page.';
+          }
+          return prevError;
+        });
+      }
+    }, 15000); // 15 seconds absolute maximum
+
     const fetchDoctors = async () => {
       try {
         setLoadingDoctors(true);
@@ -71,34 +87,44 @@ export default function Home() {
         }
 
         // Read response body
-        // Note: If response comes from disk cache, body might be already consumed
-        // We prevent this with cache: 'no-store' above
+        // Use clone() to handle potential cached responses that may have consumed body
         let result;
         try {
-          const text = await response.text();
+          // Clone the response before reading to avoid "Connection closed" errors
+          // This is safe even if the original response is from cache
+          const clonedResponse = response.clone();
           
-          // Check if we got an empty response (can happen with cached responses)
-          if (!text || text.trim().length === 0) {
-            throw new Error('Empty response from server');
+          // Try to read the original response first
+          try {
+            result = await response.json();
+          } catch (firstError: any) {
+            // If original fails (e.g., connection closed), try cloned response
+            if (firstError.message?.includes('Connection closed') || 
+                firstError.message?.includes('body stream already read') ||
+                firstError.message?.includes('Unexpected end of JSON')) {
+              console.warn('Original response failed, trying cloned response...');
+              result = await clonedResponse.json();
+            } else {
+              throw firstError;
+            }
           }
-          
-          result = JSON.parse(text);
         } catch (parseError: any) {
-          // Handle connection closed or parsing errors
+          // If both original and cloned fail, retry with a fresh request
           if (parseError.message?.includes('Connection closed') || 
               parseError.message?.includes('body stream already read') ||
               parseError.message?.includes('Unexpected end of JSON')) {
-            // This usually means response was from cache and body was consumed
-            // Retry with forced no-cache
-            console.warn('Response parsing failed (possibly cached), retrying...');
+            console.warn('Response parsing failed (possibly cached), retrying with fresh request...');
             
-            const retryResponse = await fetch(`/api/doctors?t=${Date.now()}&retry=1`, {
+            // Retry with a completely fresh request, bypassing all caches
+            const retryResponse = await fetch(`/api/doctors?t=${Date.now()}&retry=1&_=${Math.random()}`, {
               method: 'GET',
-              cache: 'reload', // Force reload, bypass cache
+              cache: 'reload', // Force reload, bypass all caches
+              credentials: 'same-origin',
               headers: {
                 'Content-Type': 'application/json',
-                'Cache-Control': 'no-cache',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
                 'Pragma': 'no-cache',
+                'X-Requested-With': 'XMLHttpRequest',
               },
             });
             
@@ -106,12 +132,12 @@ export default function Home() {
               throw new Error(`Failed to fetch doctors: ${retryResponse.status}`);
             }
             
-            const retryText = await retryResponse.text();
-            if (!retryText || retryText.trim().length === 0) {
-              throw new Error('Empty response on retry');
+            const retryContentType = retryResponse.headers.get('content-type');
+            if (!retryContentType || !retryContentType.includes('application/json')) {
+              throw new Error('Invalid response format on retry');
             }
             
-            result = JSON.parse(retryText);
+            result = await retryResponse.json();
           } else {
             console.error('Failed to parse JSON response:', parseError);
             throw new Error('Invalid JSON response from server');
@@ -122,11 +148,16 @@ export default function Home() {
 
         if (result && result.success && result.data) {
           setDoctors(Array.isArray(result.data) ? result.data : []);
+          setDoctorsError(null); // Clear any previous errors
         } else {
           setDoctors([]);
           setDoctorsError(result?.error || 'Failed to load doctors');
         }
       } catch (error: any) {
+        // Always clear loading state, even if component unmounted
+        // This prevents stuck loading states
+        setLoadingDoctors(false);
+        
         if (!isMounted) return;
 
         // Ignore abort errors (timeout/user cancellation)
@@ -143,9 +174,8 @@ export default function Home() {
         }
         setDoctors([]);
       } finally {
-        if (isMounted) {
-          setLoadingDoctors(false);
-        }
+        // Ensure loading is always cleared, regardless of mount state
+        setLoadingDoctors(false);
       }
     };
 
@@ -154,7 +184,10 @@ export default function Home() {
     // Cleanup function
     return () => {
       isMounted = false;
+      clearTimeout(safetyTimeout);
       abortController.abort();
+      // Ensure loading is cleared on unmount
+      setLoadingDoctors(false);
     };
   }, []);
 

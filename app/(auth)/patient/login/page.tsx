@@ -76,17 +76,22 @@ export default function PatientLoginPage() {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
       if (mobile) {
-        // Show splash for 1.5 seconds on mobile
+        // Show splash for 1 second on mobile (reduced from 1.5s for better UX)
         const timer = setTimeout(() => {
           setShowSplash(false);
           // Ensure inputs are focusable after splash screen disappears
-          // Small delay to ensure DOM is updated
-          setTimeout(() => {
-            emailInputRef.current?.focus();
-            // Blur immediately so user can tap to focus
-            emailInputRef.current?.blur();
-          }, 100);
-        }, 1500);
+          // Use requestAnimationFrame to ensure DOM is fully updated
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              // Don't auto-focus - let user tap to focus naturally
+              // Auto-focus can interfere with mobile touch interactions
+              if (emailInputRef.current) {
+                emailInputRef.current.focus();
+                emailInputRef.current.blur();
+              }
+            });
+          });
+        }, 1000);
         return () => clearTimeout(timer);
       } else {
         setShowSplash(false);
@@ -194,7 +199,10 @@ export default function PatientLoginPage() {
     return (
       <div 
         className="fixed inset-0 bg-gradient-to-br from-brand-primary via-brand-dusk to-brand-primary flex items-center justify-center z-50"
-        style={{ pointerEvents: 'auto' }}
+        style={{ 
+          pointerEvents: 'auto',
+          touchAction: 'none', // Prevent touch interactions during splash
+        }}
       >
         <div className="flex flex-col items-center space-y-6 animate-fade-in">
           <div className="relative w-32 h-32 md:w-40 md:h-40">
@@ -255,7 +263,10 @@ export default function PatientLoginPage() {
         onSubmit={handleSubmit} 
         className="space-y-6" 
         noValidate
-        style={{ touchAction: 'manipulation' }}
+        style={{ 
+          touchAction: 'manipulation',
+          WebkitTapHighlightColor: 'transparent',
+        }}
       >
         {/* Email Field */}
         <div className="space-y-2">
@@ -277,15 +288,26 @@ export default function PatientLoginPage() {
               'focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20',
               'transition-colors',
               'touch-manipulation select-text',
+              '[-webkit-tap-highlight-color:transparent]',
               formError && !networkError && 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
             )}
             style={{
               WebkitAppearance: 'none',
               appearance: 'none',
               touchAction: 'manipulation',
+              WebkitTapHighlightColor: 'transparent',
+              userSelect: 'text',
+              WebkitUserSelect: 'text',
             }}
             aria-invalid={!!formError}
             aria-describedby={formError ? 'form-error' : undefined}
+            onFocus={(e) => {
+              // Ensure input is properly focused on mobile
+              e.target.setAttribute('data-focused', 'true');
+            }}
+            onBlur={(e) => {
+              e.target.removeAttribute('data-focused');
+            }}
           />
         </div>
 
@@ -317,15 +339,26 @@ export default function PatientLoginPage() {
               'focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20',
               'transition-colors',
               'touch-manipulation select-text',
+              '[-webkit-tap-highlight-color:transparent]',
               formError && !networkError && 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
             )}
             style={{
               WebkitAppearance: 'none',
               appearance: 'none',
               touchAction: 'manipulation',
+              WebkitTapHighlightColor: 'transparent',
+              userSelect: 'text',
+              WebkitUserSelect: 'text',
             }}
             aria-invalid={!!formError}
             aria-describedby={formError ? 'form-error' : undefined}
+            onFocus={(e) => {
+              // Ensure input is properly focused on mobile
+              e.target.setAttribute('data-focused', 'true');
+            }}
+            onBlur={(e) => {
+              e.target.removeAttribute('data-focused');
+            }}
           />
         </div>
 

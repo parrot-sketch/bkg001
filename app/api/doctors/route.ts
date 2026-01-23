@@ -14,6 +14,9 @@ export const runtime = 'nodejs'; // Use Node.js runtime
  * 
  * Returns all doctors for consultation booking
  * Public endpoint - no authentication required
+ * 
+ * IMPORTANT: This endpoint must not be cached to prevent "Connection closed" errors
+ * in production when responses are served from disk cache.
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
@@ -44,34 +47,47 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       take: 100, // Limit results to prevent unbounded queries
     });
 
-    return NextResponse.json(
+    // Ensure we always return a valid array
+    const doctorsArray = Array.isArray(doctors) ? doctors : [];
+
+    // Create response with explicit headers to prevent caching
+    const response = NextResponse.json(
       {
         success: true,
-        data: doctors || [], // Ensure array is never null
+        data: doctorsArray,
       },
       {
         status: 200,
         headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+          'Content-Type': 'application/json; charset=utf-8',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0, private',
           'Pragma': 'no-cache',
           'Expires': '0',
+          'X-Content-Type-Options': 'nosniff',
+          // Prevent Vercel edge caching
+          'CDN-Cache-Control': 'no-store',
+          'Vercel-CDN-Cache-Control': 'no-store',
         },
       }
     );
+
+    return response;
   } catch (error: any) {
-    // Log full error for debugging
+    // Log full error for debugging (but don't expose details in production)
+    const isProduction = process.env.NODE_ENV === 'production' || 
+                         process.env.VERCEL_ENV === 'production';
+    
     console.error('[API] /api/doctors - Error:', {
       message: error?.message,
-      stack: error?.stack,
+      stack: isProduction ? undefined : error?.stack, // Don't log stack in production
       name: error?.name,
     });
 
-    // Return proper error response
+    // Return proper error response with no-cache headers
     return NextResponse.json(
       {
         success: false,
-        error: process.env.NODE_ENV === 'production' 
+        error: isProduction
           ? 'Failed to fetch doctors. Please try again later.'
           : error?.message || 'Failed to fetch doctors',
         data: [], // Always return array to prevent frontend errors
@@ -79,7 +95,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       {
         status: 500,
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json; charset=utf-8',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0',
         },
       }
     );
