@@ -41,8 +41,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         focus_areas: true,
         professional_affiliations: true,
         clinic_location: true,
-        email: true,
-        phone: true,
+        // REFACTORED: Removed sensitive fields (email, phone) from public API
+        // These should only be available to authenticated staff
+        // email: true,
+        // phone: true,
       },
       take: 100, // Limit results to prevent unbounded queries
     });
