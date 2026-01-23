@@ -9,17 +9,20 @@
  * - Proper typography and spacing
  * - Responsive and optimized
  * - Proper branding integration
+ * 
+ * REFACTORED: Replaced manual useState/useEffect fetch with React Query hooks
+ * REASON: Eliminates manual loading state, error handling, and fetch logic.
+ * Provides automatic caching, retries, and background refetching.
  */
 
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
-import { patientApi } from '@/lib/api/patient';
+import { usePatient, usePatientUpcomingAppointments, usePatientAppointments } from '@/hooks/patients/usePatients';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Calendar, Clock, FileText, User, ArrowRight, CheckCircle, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
-import { toast } from 'sonner';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
-import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { ConsultationRequestStatus } from '@/domain/enums/ConsultationRequestStatus';
 import { format, isToday, isTomorrow, differenceInDays } from 'date-fns';
@@ -33,101 +36,30 @@ import { RequestConsultationDialog } from '@/components/patient/RequestConsultat
 export default function PatientDashboardPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
-  const [upcomingAppointments, setUpcomingAppointments] = useState<AppointmentResponseDto[]>([]);
-  const [allAppointments, setAllAppointments] = useState<AppointmentResponseDto[]>([]);
-  const [loadingAppointments, setLoadingAppointments] = useState(true);
-  const [patient, setPatient] = useState<PatientResponseDto | null>(null);
-  const [loadingPatient, setLoadingPatient] = useState(true);
+  const queryClient = useQueryClient();
   const [showRequestDialog, setShowRequestDialog] = useState(false);
   const [showBookDialog, setShowBookDialog] = useState(false);
 
-  // Load appointments and patient profile on mount and when auth state changes
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      loadUpcomingAppointments();
-      loadPatientProfile();
-    }
-  }, [isAuthenticated, user]);
+  // REFACTORED: Replaced manual useState/useEffect with React Query
+  // React Query handles: loading, error, retries, caching, deduplication automatically
+  // Also handles automatic refetch on window focus (replaces manual focus listeners)
+  const { 
+    data: patient, 
+    isLoading: loadingPatient 
+  } = usePatient(user?.id, isAuthenticated && !!user);
+  
+  // Handle undefined patient (may not exist yet)
+  const patientData = patient ?? null;
+  
+  const { 
+    data: upcomingAppointments = [], 
+    isLoading: loadingAppointments 
+  } = usePatientUpcomingAppointments(user?.id, isAuthenticated && !!user);
 
-  // Refresh patient profile when window regains focus (after profile save)
-  useEffect(() => {
-    const handleFocus = () => {
-      if (isAuthenticated && user && !loadingPatient) {
-        loadPatientProfile();
-      }
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [isAuthenticated, user, loadingPatient]);
-
-  // Refresh appointments when window regains focus
-  useEffect(() => {
-    const handleFocus = () => {
-      if (isAuthenticated && user && !loadingAppointments) {
-        loadUpcomingAppointments();
-      }
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [isAuthenticated, user, loadingAppointments]);
-
-  const loadUpcomingAppointments = async () => {
-    if (!user) return;
-
-    try {
-      setLoadingAppointments(true);
-      const allResponse = await patientApi.getAppointments(user.id);
-      
-      if (allResponse.success && allResponse.data) {
-        setAllAppointments(allResponse.data);
-        
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const upcoming = allResponse.data.filter((apt) => {
-          const appointmentDate = new Date(apt.appointmentDate);
-          appointmentDate.setHours(0, 0, 0, 0);
-          const isUpcoming = appointmentDate >= today;
-          const isPendingOrScheduled = apt.status === 'PENDING' || apt.status === 'SCHEDULED';
-          return isUpcoming && isPendingOrScheduled;
-        });
-        
-        setUpcomingAppointments(upcoming);
-      } else if (!allResponse.success) {
-        toast.error(allResponse.error || 'Failed to load appointments');
-      }
-    } catch (error) {
-      toast.error('An error occurred while loading appointments');
-      console.error('Error loading appointments:', error);
-    } finally {
-      setLoadingAppointments(false);
-    }
-  };
-
-  const loadPatientProfile = async () => {
-    if (!user) return;
-
-    try {
-      setLoadingPatient(true);
-      const response = await patientApi.getPatient(user.id);
-      
-      if (response.success && response.data) {
-        setPatient(response.data);
-      } else if (!response.success) {
-        // Patient not found is OK - they may not have created profile yet
-        if (response.error && !response.error.toLowerCase().includes('not found')) {
-          console.error('Error loading patient profile:', response.error);
-        }
-        setPatient(null);
-      }
-    } catch (error) {
-      console.error('Error loading patient profile:', error);
-      setPatient(null);
-    } finally {
-      setLoadingPatient(false);
-    }
-  };
+  // Get all appointments for compatibility with existing code
+  const { 
+    data: allAppointments = []
+  } = usePatientAppointments(user?.id, isAuthenticated && !!user);
 
   // Filter consultation inquiries
   const consultationInquiries = useMemo(() => {
@@ -142,8 +74,8 @@ export default function PatientDashboardPage() {
 
   // Calculate profile completion
   const profileCompletion = useMemo(() => {
-    return calculateProfileCompletion(patient);
-  }, [patient]);
+    return calculateProfileCompletion(patientData);
+  }, [patientData]);
 
   // Computed stats
   const stats = useMemo(() => {
@@ -239,13 +171,13 @@ export default function PatientDashboardPage() {
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-slate-800">Missing required fields:</p>
                   <ul className="text-xs text-slate-700 space-y-1">
-                    {profileCompletion.missingFields.slice(0, 3).map((field, idx) => (
+                    {profileCompletion.missingFields.slice(0, 3).map((field: string, idx: number) => (
                       <li key={idx} className="flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
                         {field}
                       </li>
                     ))}
-                    {profileCompletion.missingConsents.slice(0, 3).map((consent, idx) => (
+                    {profileCompletion.missingConsents.slice(0, 3).map((consent: string, idx: number) => (
                       <li key={`consent-${idx}`} className="flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-600"></span>
                         {consent}
@@ -409,7 +341,8 @@ export default function PatientDashboardPage() {
             onClose={() => setShowRequestDialog(false)}
             onSuccess={() => {
               setShowRequestDialog(false);
-              loadUpcomingAppointments();
+              // REFACTORED: Invalidate query cache to refetch updated data
+              queryClient.invalidateQueries({ queryKey: ['patients', user.id, 'appointments'] });
             }}
             patientId={user.id}
           />
@@ -418,7 +351,8 @@ export default function PatientDashboardPage() {
             onClose={() => setShowBookDialog(false)}
             onSuccess={() => {
               setShowBookDialog(false);
-              loadUpcomingAppointments();
+              // REFACTORED: Invalidate query cache to refetch updated data
+              queryClient.invalidateQueries({ queryKey: ['patients', user.id, 'appointments'] });
             }}
             patientId={user.id}
           />
