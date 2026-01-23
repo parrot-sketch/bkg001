@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { INotificationService } from '@domain/interfaces/services/INotificationService';
 import { Email } from '@domain/value-objects/Email';
 import { PhoneNumber } from '@domain/value-objects/PhoneNumber';

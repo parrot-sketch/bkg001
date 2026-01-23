@@ -20,7 +20,7 @@ export const DiagnosisContainer = async ({
   const user = await getCurrentUser();
   const userId = user?.userId;
 
-  if (!userId) redirect("/patient/login");
+  if (!userId) redirect("/login");
 
   const data = await db.medicalRecord.findFirst({
     where: { appointment_id: Number(id) },

@@ -137,7 +137,7 @@ export function useAuth(): UseAuthReturn {
     } finally {
       tokenStorage.clear();
       setUser(null);
-      router.push('/patient/login');
+      router.push('/login');
     }
   }, [router]);
 

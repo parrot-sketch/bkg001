@@ -304,7 +304,7 @@ export default function PatientRegisterPage() {
         <p className="text-sm text-gray-600">
           Already have an account?{' '}
           <Link
-            href="/patient/login"
+            href="/login"
             className="font-medium text-teal-600 hover:text-teal-700 hover:underline transition-colors"
           >
             Sign in

@@ -51,7 +51,7 @@ export default function PlanCasePage() {
 
   useEffect(() => {
     if (!isAuthenticated || !user) {
-      router.push('/patient/login');
+      router.push('/login');
       return;
     }
 

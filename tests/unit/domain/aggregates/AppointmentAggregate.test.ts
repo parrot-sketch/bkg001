@@ -104,8 +104,13 @@ describe('AppointmentAggregate', () => {
 
     it('should throw if appointment is cancelled', () => {
       const cancelledAppointment = Appointment.create({
-        ...baseAppointment,
+        id: baseAppointment.getId(),
+        patientId: baseAppointment.getPatientId(),
+        doctorId: baseAppointment.getDoctorId(),
+        appointmentDate: baseAppointment.getAppointmentDate(),
+        time: baseAppointment.getTime(),
         status: AppointmentStatus.CANCELLED,
+        type: baseAppointment.getType(),
       });
       const aggregate = AppointmentAggregate.create(cancelledAppointment);
 
@@ -194,8 +199,13 @@ describe('AppointmentAggregate', () => {
 
     it('should throw if appointment is cancelled', () => {
       const cancelledAppointment = Appointment.create({
-        ...baseAppointment,
+        id: baseAppointment.getId(),
+        patientId: baseAppointment.getPatientId(),
+        doctorId: baseAppointment.getDoctorId(),
+        appointmentDate: baseAppointment.getAppointmentDate(),
+        time: baseAppointment.getTime(),
         status: AppointmentStatus.CANCELLED,
+        type: baseAppointment.getType(),
       });
       const aggregate = AppointmentAggregate.create(cancelledAppointment);
 

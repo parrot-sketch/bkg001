@@ -66,7 +66,7 @@ export default function ProfilePage() {
   }
 
   if (!isAuthenticated || !user) {
-    router.replace('/patient/login');
+    router.replace('/login');
     return null;
   }
 

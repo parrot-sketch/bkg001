@@ -24,7 +24,7 @@ test.describe('JWT Authentication - Login Flow', () => {
 
   test.describe('Role-Specific Login', () => {
     test('should login as PATIENT and store JWT tokens', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       // Mock successful login
       await page.route('**/api/auth/login', (route) => {
@@ -69,7 +69,7 @@ test.describe('JWT Authentication - Login Flow', () => {
     });
 
     test('should login as DOCTOR and redirect to doctor dashboard', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       await page.route('**/api/auth/login', (route) => {
         route.fulfill({
@@ -105,7 +105,7 @@ test.describe('JWT Authentication - Login Flow', () => {
     });
 
     test('should login as ADMIN and redirect to admin dashboard', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       await page.route('**/api/auth/login', (route) => {
         route.fulfill({
@@ -138,7 +138,7 @@ test.describe('JWT Authentication - Login Flow', () => {
     });
 
     test('should login as NURSE and redirect to nurse dashboard', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       await page.route('**/api/auth/login', (route) => {
         route.fulfill({
@@ -171,7 +171,7 @@ test.describe('JWT Authentication - Login Flow', () => {
     });
 
     test('should login as FRONTDESK and redirect to frontdesk dashboard', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       await page.route('**/api/auth/login', (route) => {
         route.fulfill({
@@ -206,7 +206,7 @@ test.describe('JWT Authentication - Login Flow', () => {
 
   test.describe('Invalid Credentials', () => {
     test('should show error for invalid email', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       await page.route('**/api/auth/login', (route) => {
         route.fulfill({
@@ -235,7 +235,7 @@ test.describe('JWT Authentication - Login Flow', () => {
     });
 
     test('should show error for invalid password', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       await page.route('**/api/auth/login', (route) => {
         route.fulfill({
@@ -257,7 +257,7 @@ test.describe('JWT Authentication - Login Flow', () => {
     });
 
     test('should show error for missing credentials', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       // Try to submit without filling fields
       const submitButton = page.locator('button[type="submit"]').first();
@@ -272,7 +272,7 @@ test.describe('JWT Authentication - Login Flow', () => {
 
   test.describe('User Context Updates', () => {
     test('should update useAuth hook state after login', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       await page.route('**/api/auth/login', (route) => {
         route.fulfill({
@@ -315,7 +315,7 @@ test.describe('JWT Authentication - Login Flow', () => {
 
     test('should persist user context across page reloads', async ({ page }) => {
       // Login first
-      await page.goto('/patient/login');
+      await page.goto('/login');
       
       await page.route('**/api/auth/login', (route) => {
         route.fulfill({
@@ -363,7 +363,7 @@ test.describe('JWT Authentication - Login Flow', () => {
 
   test.describe('JWT Token Validation', () => {
     test('should verify JWT token contains correct role', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       await page.route('**/api/auth/login', (route) => {
         route.fulfill({

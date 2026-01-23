@@ -46,7 +46,7 @@ export default function PortalWelcomePage() {
   }
 
   if (!isAuthenticated || !user) {
-    router.replace('/patient/login');
+    router.replace('/login');
     return null;
   }
 

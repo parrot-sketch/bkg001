@@ -119,7 +119,7 @@ export default function PatientDashboardPage() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center max-w-md">
           <p className="text-muted-foreground mb-4">Please log in to access your dashboard</p>
-          <Link href="/patient/login">
+          <Link href="/login">
             <Button>Go to Login</Button>
           </Link>
         </div>
