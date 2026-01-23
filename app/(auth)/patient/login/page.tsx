@@ -4,7 +4,7 @@
  * Unified Login Page
  * 
  * Enterprise-grade authentication page with security-focused design.
- * Mobile-optimized with splash screen for app-like experience.
+ * Mobile-optimized for responsive interactions.
  * 
  * Security Features:
  * - Generic error messages (no user enumeration)
@@ -13,7 +13,6 @@
  * - Proper session handling
  * 
  * UX Features:
- * - Mobile splash screen with logo
  * - Clear input labels (not placeholders only)
  * - Strong focus states and keyboard navigation
  * - Loading states preventing double submits
@@ -23,10 +22,9 @@
  * - High contrast for accessibility (WCAG-friendly)
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -63,45 +61,10 @@ export default function PatientLoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [networkError, setNetworkError] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
   const emailInputRef = useRef<HTMLInputElement>(null);
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
   const isDisabled = isSubmitting || isLoading;
-
-  // Detect mobile and handle splash screen
-  useEffect(() => {
-    const checkMobile = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-      if (mobile) {
-        // Show splash for 1 second on mobile (reduced from 1.5s for better UX)
-        const timer = setTimeout(() => {
-          setShowSplash(false);
-          // Ensure inputs are focusable after splash screen disappears
-          // Use requestAnimationFrame to ensure DOM is fully updated
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              // Don't auto-focus - let user tap to focus naturally
-              // Auto-focus can interfere with mobile touch interactions
-              if (emailInputRef.current) {
-                emailInputRef.current.focus();
-                emailInputRef.current.blur();
-              }
-            });
-          });
-        }, 1000);
-        return () => clearTimeout(timer);
-      } else {
-        setShowSplash(false);
-      }
-    };
-
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
 
   // Client-side validation (does not expose information)
   const validateForm = (): boolean => {
@@ -194,62 +157,10 @@ export default function PatientLoginPage() {
     }
   };
 
-  // Mobile Splash Screen
-  if (showSplash && isMobile) {
-    return (
-      <div 
-        className="fixed inset-0 bg-gradient-to-br from-brand-primary via-brand-dusk to-brand-primary flex items-center justify-center z-50"
-        style={{ 
-          pointerEvents: 'auto',
-          touchAction: 'none', // Prevent touch interactions during splash
-        }}
-      >
-        <div className="flex flex-col items-center space-y-6 animate-fade-in">
-          <div className="relative w-32 h-32 md:w-40 md:h-40">
-            <div className="absolute inset-0 bg-white rounded-2xl p-4 shadow-2xl flex items-center justify-center">
-              <Image
-                src="https://res.cloudinary.com/dcngzaxlv/image/upload/v1768807323/logo_tw2voz.png"
-                alt="Nairobi Sculpt Logo"
-                width={120}
-                height={120}
-                className="w-full h-full object-contain"
-                priority
-              />
-            </div>
-          </div>
-          <div className="text-center space-y-2">
-            <h2 className="text-2xl font-semibold text-white font-playfair-display">Nairobi Sculpt</h2>
-            <p className="text-sm text-white/80">Aesthetic Centre</p>
-          </div>
-          <div className="w-12 h-1 bg-white/30 rounded-full overflow-hidden">
-            <div className="h-full bg-white rounded-full animate-loading-bar" style={{ width: '60%' }}></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header - Fixed height to prevent layout shifts */}
       <div className="text-center space-y-2" style={{ minHeight: '80px' }}>
-        {/* Logo for mobile */}
-        {isMobile && (
-          <div className="mb-4 flex justify-center">
-            <div className="relative w-20 h-20">
-              <div className="absolute inset-0 bg-white rounded-xl p-3 shadow-lg flex items-center justify-center">
-                <Image
-                  src="https://res.cloudinary.com/dcngzaxlv/image/upload/v1768807323/logo_tw2voz.png"
-                  alt="Nairobi Sculpt Logo"
-                  width={64}
-                  height={64}
-                  className="w-full h-full object-contain"
-                  priority
-                />
-              </div>
-            </div>
-          </div>
-        )}
         <h1 className="text-3xl font-semibold text-slate-900 tracking-tight">
           Sign In
         </h1>
