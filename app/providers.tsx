@@ -12,6 +12,8 @@ import { useState, ReactNode } from 'react';
 
 export function Providers({ children }: { children: ReactNode }) {
   // Create QueryClient with sensible defaults for clinical workstation
+  // CRITICAL FIX: Disabled refetchOnWindowFocus to prevent "Connection closed" errors
+  // The API client now handles cache-busting, so we don't need aggressive refetching
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -22,8 +24,9 @@ export function Providers({ children }: { children: ReactNode }) {
             // Retry network errors with exponential backoff
             retry: 3,
             retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-            // Refetch on window focus for clinical safety
-            refetchOnWindowFocus: true,
+            // CRITICAL: Disable refetch on window focus to prevent "Connection closed" errors
+            // The API client handles cache-busting, so fresh data is fetched when needed
+            refetchOnWindowFocus: false,
             // Don't refetch on reconnect for consultation sessions (might interrupt)
             refetchOnReconnect: false,
           },

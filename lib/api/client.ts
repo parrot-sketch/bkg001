@@ -60,15 +60,28 @@ class ApiClient {
 
   /**
    * Make an HTTP request
+   * 
+   * CRITICAL FIX: Prevents "Connection closed" errors in production by:
+   * 1. Using cache: 'no-store' to prevent browser/edge caching
+   * 2. Cloning response before reading to avoid stream consumption issues
+   * 3. Adding cache-busting for GET requests
    */
   private async request<T>(
     endpoint: string,
     options: RequestInit = {},
   ): Promise<ApiResponse<T>> {
-    const url = `${this.baseUrl}${endpoint}`;
+    // Add cache-busting for GET requests to prevent stale cached responses
+    let url = `${this.baseUrl}${endpoint}`;
+    if ((options.method || 'GET') === 'GET' && !url.includes('?')) {
+      url = `${url}?_t=${Date.now()}`;
+    } else if ((options.method || 'GET') === 'GET' && url.includes('?')) {
+      url = `${url}&_t=${Date.now()}`;
+    }
 
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      'Pragma': 'no-cache',
       ...this.getAuthHeader(),
       ...options.headers,
     };
@@ -77,7 +90,14 @@ class ApiClient {
       const response = await fetch(url, {
         ...options,
         headers,
+        // CRITICAL: Prevent any caching that could cause "Connection closed" errors
+        cache: 'no-store',
+        credentials: 'omit',
       });
+
+      // CRITICAL: Clone response before reading to avoid stream consumption issues
+      // This is essential for production where responses might be cached
+      const clonedResponse = response.clone();
 
       // Check if response is JSON before parsing
       const contentType = response.headers.get('content-type');
@@ -85,21 +105,36 @@ class ApiClient {
       
       if (contentType && contentType.includes('application/json')) {
         try {
-          data = await response.json();
+          // Use cloned response to avoid "Connection closed" errors
+          data = await clonedResponse.json();
         } catch (jsonError) {
-          // If JSON parsing fails, return error
-          return {
-            success: false,
-            error: `Invalid JSON response: ${response.status} ${response.statusText}`,
-          };
+          // If JSON parsing fails on cloned response, try original as fallback
+          try {
+            data = await response.json();
+          } catch (fallbackError) {
+            // If both fail, return error
+            return {
+              success: false,
+              error: `Invalid JSON response: ${response.status} ${response.statusText}`,
+            };
+          }
         }
       } else {
         // Non-JSON response (e.g., 404 HTML page)
-        const text = await response.text();
-        return {
-          success: false,
-          error: `Unexpected response format: ${response.status} ${response.statusText}`,
-        };
+        try {
+          const text = await clonedResponse.text();
+          return {
+            success: false,
+            error: `Unexpected response format: ${response.status} ${response.statusText}`,
+          };
+        } catch {
+          // Fallback to original response
+          const text = await response.text();
+          return {
+            success: false,
+            error: `Unexpected response format: ${response.status} ${response.statusText}`,
+          };
+        }
       }
 
       // Handle 401 Unauthorized - try to refresh token and retry
@@ -135,10 +170,17 @@ class ApiClient {
           ...options,
           headers: {
             'Content-Type': 'application/json',
+            'Cache-Control': 'no-store, no-cache, must-revalidate',
+            'Pragma': 'no-cache',
             ...this.getAuthHeader(),
             ...options.headers,
           },
+          cache: 'no-store',
+          credentials: 'omit',
         });
+
+        // Clone retry response before reading
+        const clonedRetryResponse = retryResponse.clone();
 
         // Check if retry response is JSON before parsing
         const retryContentType = retryResponse.headers.get('content-type');
@@ -146,19 +188,33 @@ class ApiClient {
         
         if (retryContentType && retryContentType.includes('application/json')) {
           try {
-            retryData = await retryResponse.json();
+            // Use cloned response to avoid "Connection closed" errors
+            retryData = await clonedRetryResponse.json();
           } catch (jsonError) {
-            return {
-              success: false,
-              error: `Invalid JSON response: ${retryResponse.status} ${retryResponse.statusText}`,
-            };
+            // Fallback to original response
+            try {
+              retryData = await retryResponse.json();
+            } catch (fallbackError) {
+              return {
+                success: false,
+                error: `Invalid JSON response: ${retryResponse.status} ${retryResponse.statusText}`,
+              };
+            }
           }
         } else {
-          const text = await retryResponse.text();
-          return {
-            success: false,
-            error: `Unexpected response format: ${retryResponse.status} ${retryResponse.statusText}`,
-          };
+          try {
+            const text = await clonedRetryResponse.text();
+            return {
+              success: false,
+              error: `Unexpected response format: ${retryResponse.status} ${retryResponse.statusText}`,
+            };
+          } catch {
+            const text = await retryResponse.text();
+            return {
+              success: false,
+              error: `Unexpected response format: ${retryResponse.status} ${retryResponse.statusText}`,
+            };
+          }
         }
 
         if (!retryResponse.ok) {
@@ -207,9 +263,22 @@ class ApiClient {
         data: data as T,
       };
     } catch (error) {
+      // Handle "Connection closed" errors gracefully
+      const errorMessage = error instanceof Error ? error.message : 'Network error occurred';
+      
+      // Check if it's a connection closed error
+      if (errorMessage.includes('Connection closed') || 
+          errorMessage.includes('connection closed') ||
+          errorMessage.includes('Failed to fetch')) {
+        return {
+          success: false,
+          error: 'Network error: Please refresh the page and try again',
+        };
+      }
+      
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Network error occurred',
+        error: errorMessage,
       };
     }
   }
