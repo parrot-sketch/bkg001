@@ -14,7 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GetAllDoctorsAvailabilityUseCase } from '@/application/use-cases/GetAllDoctorsAvailabilityUseCase';
 import { PrismaAvailabilityRepository } from '@/infrastructure/database/repositories/PrismaAvailabilityRepository';
-import db from '@/lib/db';
+import db, { withRetry } from '@/lib/db';
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
@@ -99,11 +99,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // 5. Execute get all doctors availability use case
-    const response = await getAllDoctorsAvailabilityUseCase.execute({
-      startDate,
-      endDate,
-      specialization: specializationParam || undefined,
+    // 5. Execute get all doctors availability use case with retry logic
+    // This handles connection initialization errors and transient connection failures
+    const response = await withRetry(async () => {
+      return await getAllDoctorsAvailabilityUseCase.execute({
+        startDate,
+        endDate,
+        specialization: specializationParam || undefined,
+      });
     });
 
     // 6. Return success response
@@ -126,14 +129,31 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Unexpected error
-    console.error('[API] /api/doctors/availability GET - Error:', error);
+    // Unexpected error - check if it's a connection error
+    const isConnectionError = 
+      error instanceof Error && (
+        error.message?.includes('Can\'t reach database server') ||
+        error.message?.includes('Connection closed') ||
+        error.message?.includes('Connection terminated') ||
+        error.message?.includes('Connection refused') ||
+        error.name === 'PrismaClientInitializationError'
+      );
+    
+    console.error('[API] /api/doctors/availability GET - Error:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      name: error instanceof Error ? error.name : undefined,
+      isConnectionError,
+      stack: process.env.NODE_ENV === 'development' && error instanceof Error ? error.stack : undefined,
+    });
+    
     return NextResponse.json(
       {
         success: false,
-        error: 'Failed to fetch doctors availability',
+        error: isConnectionError
+          ? 'Database connection error. Please try again in a moment.'
+          : 'Failed to fetch doctors availability',
       },
-      { status: 500 }
+      { status: isConnectionError ? 503 : 500 } // 503 Service Unavailable for connection errors
     );
   }
 }

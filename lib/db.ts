@@ -121,10 +121,12 @@ export async function withRetry<T>(
       
       // Check if it's a connection error
       const isConnectionError = 
+        error?.name === 'PrismaClientInitializationError' || // Prisma client initialization failure
         error?.message?.includes('Connection closed') ||
         error?.message?.includes('Connection terminated') ||
         error?.message?.includes('Connection refused') ||
         error?.message?.includes('Can\'t reach database server') ||
+        error?.message?.includes('Can\'t reach database') ||
         error?.code === 'P1001' || // Prisma connection error
         error?.code === 'P1008' || // Prisma operation timeout
         error?.code === 'P1017' || // Prisma server closed connection

@@ -12,7 +12,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import db from '@/lib/db';
+import db, { withRetry } from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth/jwt-helper';
 import { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { extractConsultationRequestFields } from '@/infrastructure/mappers/ConsultationRequestMapper';
@@ -45,13 +45,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const todayEnd = new Date(today);
     todayEnd.setHours(23, 59, 59, 999);
 
-    // 3. Fetch today's appointments
+    // 3. Fetch today's appointments with retry logic for connection resilience
     // REFACTORED: Added take limit as safety measure (even though bounded by today's date)
     // Large clinics may have 200+ appointments in a single day
     // REFACTORED: Use select instead of include for better performance
     const MAX_TODAY_APPOINTMENTS = 200; // Safety limit for very busy days
     
-    const appointments = await db.appointment.findMany({
+    const appointments = await withRetry(async () => {
+      return await db.appointment.findMany({
       where: {
         appointment_date: {
           gte: todayStart,
@@ -102,6 +103,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         },
       ],
       take: MAX_TODAY_APPOINTMENTS, // REFACTORED: Safety limit
+      });
     });
 
     // 4. Map to DTO format
