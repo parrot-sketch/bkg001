@@ -17,36 +17,14 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { RegisterPublicUserUseCase } from '@/application/use-cases/RegisterPublicUserUseCase';
-import { JwtAuthService } from '@/infrastructure/auth/JwtAuthService';
-import { PrismaUserRepository } from '@/infrastructure/database/repositories/PrismaUserRepository';
-import { ConsoleAuditService } from '@/infrastructure/services/ConsoleAuditService';
 import db from '@/lib/db';
 import { PublicRegisterUserDto } from '@/application/dtos/PublicRegisterUserDto';
 import { ControllerRequest, ControllerResponse } from '@/lib/auth/types';
 import { DomainException } from '@/domain/exceptions/DomainException';
+import { AuthFactory } from '@/infrastructure/auth/AuthFactory';
 
-// Initialize dependencies (singleton pattern)
-const userRepository = new PrismaUserRepository(db);
-const auditService = new ConsoleAuditService();
-
-// JWT Auth Service configuration
-const authConfig = {
-  jwtSecret: process.env.JWT_SECRET || 'dev-secret-change-in-production',
-  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret-change-in-production',
-  accessTokenExpiresIn: 15 * 60, // 15 minutes
-  refreshTokenExpiresIn: 7 * 24 * 60 * 60, // 7 days
-  saltRounds: 10,
-};
-
-const authService = new JwtAuthService(userRepository, db, authConfig);
-
-// Initialize use case
-const registerPublicUserUseCase = new RegisterPublicUserUseCase(
-  authService,
-  userRepository,
-  auditService,
-);
+// Initialize authentication use cases using factory
+const { registerPublicUserUseCase } = AuthFactory.create(db);
 
 /**
  * POST /api/auth/register/public

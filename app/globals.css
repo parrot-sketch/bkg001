@@ -140,6 +140,32 @@ body {
   background: #f5f5f5;
 }
 
+/* Mobile input fixes - ensure inputs are interactive on mobile */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="url"],
+input[type="search"],
+textarea,
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Ensure inputs can receive focus on mobile */
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
 *::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 10px;
