@@ -24,24 +24,78 @@ interface Doctor {
 export default function Home() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loadingDoctors, setLoadingDoctors] = useState(true);
+  const [doctorsError, setDoctorsError] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+    const abortController = new AbortController();
+
     const fetchDoctors = async () => {
       try {
         setLoadingDoctors(true);
-        const response = await fetch('/api/doctors');
-        const result = await response.json();
-        if (result.success && result.data) {
-          setDoctors(result.data);
+        setDoctorsError(null);
+
+        // Add timeout to prevent hanging
+        const timeoutId = setTimeout(() => {
+          abortController.abort();
+        }, 10000); // 10 second timeout
+
+        const response = await fetch('/api/doctors', {
+          signal: abortController.signal,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        clearTimeout(timeoutId);
+
+        // Check if response is ok before parsing
+        if (!response.ok) {
+          throw new Error(`Failed to fetch doctors: ${response.status} ${response.statusText}`);
         }
-      } catch (error) {
-        console.error('Error fetching doctors:', error);
+
+        // Check content type before parsing
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          throw new Error('Invalid response format from server');
+        }
+
+        const result = await response.json();
+
+        if (!isMounted) return;
+
+        if (result.success && result.data) {
+          setDoctors(Array.isArray(result.data) ? result.data : []);
+        } else {
+          setDoctors([]);
+          setDoctorsError(result.error || 'Failed to load doctors');
+        }
+      } catch (error: any) {
+        if (!isMounted) return;
+
+        // Ignore abort errors (timeout/user cancellation)
+        if (error.name === 'AbortError') {
+          console.warn('Doctors fetch aborted');
+          setDoctorsError('Request timed out. Please refresh the page.');
+        } else {
+          console.error('Error fetching doctors:', error);
+          setDoctorsError(error.message || 'Failed to load doctors. Please try again later.');
+        }
+        setDoctors([]);
       } finally {
-        setLoadingDoctors(false);
+        if (isMounted) {
+          setLoadingDoctors(false);
+        }
       }
     };
 
     fetchDoctors();
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, []);
 
   // Get unique specializations for filtering
@@ -367,6 +421,17 @@ export default function Home() {
                 <div className="h-8 w-8 border-2 border-brand-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
                 <p className="text-sm text-gray-600">Loading our team...</p>
               </div>
+            </div>
+          ) : doctorsError ? (
+            <div className="text-center py-12">
+              <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-600 mb-2">{doctorsError}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="text-sm text-brand-primary hover:underline"
+              >
+                Refresh page
+              </button>
             </div>
           ) : doctors.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
