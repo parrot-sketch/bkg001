@@ -79,6 +79,13 @@ export default function PatientLoginPage() {
         // Show splash for 1.5 seconds on mobile
         const timer = setTimeout(() => {
           setShowSplash(false);
+          // Ensure inputs are focusable after splash screen disappears
+          // Small delay to ensure DOM is updated
+          setTimeout(() => {
+            emailInputRef.current?.focus();
+            // Blur immediately so user can tap to focus
+            emailInputRef.current?.blur();
+          }, 100);
         }, 1500);
         return () => clearTimeout(timer);
       } else {
@@ -185,7 +192,10 @@ export default function PatientLoginPage() {
   // Mobile Splash Screen
   if (showSplash && isMobile) {
     return (
-      <div className="fixed inset-0 bg-gradient-to-br from-brand-primary via-brand-dusk to-brand-primary flex items-center justify-center z-50">
+      <div 
+        className="fixed inset-0 bg-gradient-to-br from-brand-primary via-brand-dusk to-brand-primary flex items-center justify-center z-50"
+        style={{ pointerEvents: 'auto' }}
+      >
         <div className="flex flex-col items-center space-y-6 animate-fade-in">
           <div className="relative w-32 h-32 md:w-40 md:h-40">
             <div className="absolute inset-0 bg-white rounded-2xl p-4 shadow-2xl flex items-center justify-center">
@@ -241,7 +251,12 @@ export default function PatientLoginPage() {
       </div>
 
       {/* Login Form */}
-      <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+      <form 
+        onSubmit={handleSubmit} 
+        className="space-y-6" 
+        noValidate
+        style={{ touchAction: 'manipulation' }}
+      >
         {/* Email Field */}
         <div className="space-y-2">
           <Label htmlFor="email" className="text-sm font-medium text-slate-900">
@@ -261,8 +276,14 @@ export default function PatientLoginPage() {
               'h-11 bg-transparent border-gray-300',
               'focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20',
               'transition-colors',
+              'touch-manipulation select-text',
               formError && !networkError && 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
             )}
+            style={{
+              WebkitAppearance: 'none',
+              appearance: 'none',
+              touchAction: 'manipulation',
+            }}
             aria-invalid={!!formError}
             aria-describedby={formError ? 'form-error' : undefined}
           />
@@ -295,8 +316,14 @@ export default function PatientLoginPage() {
               'h-11 bg-transparent border-gray-300',
               'focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20',
               'transition-colors',
+              'touch-manipulation select-text',
               formError && !networkError && 'border-red-300 focus:border-red-500 focus:ring-red-500/20'
             )}
+            style={{
+              WebkitAppearance: 'none',
+              appearance: 'none',
+              touchAction: 'manipulation',
+            }}
             aria-invalid={!!formError}
             aria-describedby={formError ? 'form-error' : undefined}
           />

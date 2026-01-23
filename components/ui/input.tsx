@@ -13,9 +13,19 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary",
           "disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-50",
           "file:border-0 file:bg-transparent file:text-sm file:font-medium",
+          // Mobile-specific fixes for touch interaction
+          "touch-manipulation",
+          "[-webkit-appearance:none] [appearance:none]",
+          "select-text",
           className
         )}
         ref={ref}
+        style={{
+          WebkitAppearance: 'none',
+          appearance: 'none',
+          touchAction: 'manipulation',
+          ...props.style,
+        }}
         {...props}
       />
     )

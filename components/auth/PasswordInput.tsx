@@ -68,8 +68,14 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
           {...props}
           ref={inputRef}
           type={showPassword ? 'text' : 'password'}
-          className={cn('pr-10', className)}
+          className={cn('pr-10 touch-manipulation select-text', className)}
           aria-label={props['aria-label'] || 'Password'}
+          style={{
+            WebkitAppearance: 'none',
+            appearance: 'none',
+            touchAction: 'manipulation',
+            ...props.style,
+          }}
         />
         
         {/* Password Visibility Toggle */}

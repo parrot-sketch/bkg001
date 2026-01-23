@@ -397,8 +397,19 @@ export default function Home() {
                   {/* Doctor Info */}
                   <div className="text-center mb-6 flex-grow">
                     <h3 className="text-xl font-semibold font-playfair-display text-slate-900 mb-2">
-                      {doctor.title && `${doctor.title} `}
-                      {doctor.name}
+                      {(() => {
+                        // Only add title prefix if name doesn't already start with it
+                        if (doctor.title && doctor.name) {
+                          const titleLower = doctor.title.toLowerCase().trim();
+                          const nameLower = doctor.name.toLowerCase().trim();
+                          // Check if name already starts with the title (e.g., "Dr." or "Dr ")
+                          if (nameLower.startsWith(titleLower) || nameLower.startsWith(`${titleLower} `)) {
+                            return doctor.name;
+                          }
+                          return `${doctor.title} ${doctor.name}`;
+                        }
+                        return doctor.name;
+                      })()}
                     </h3>
                     <p className="text-brand-primary font-medium mb-4">{doctor.specialization}</p>
                     {doctor.bio && (
