@@ -28,7 +28,7 @@ test.describe('Login Page UX & Authentication', () => {
 
   test.describe('Login Page Branding', () => {
     test('should display Nairobi Sculpt branding', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       // Check for logo/branding
       const logo = page.locator('text="NS", text="Nairobi Sculpt"').first();
@@ -40,7 +40,7 @@ test.describe('Login Page UX & Authentication', () => {
     });
 
     test('should use correct brand colors', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       // Check primary color (Deep Navy #1a1a2e)
       const heading = page.locator('h1').first();
@@ -56,7 +56,7 @@ test.describe('Login Page UX & Authentication', () => {
     });
 
     test('should use correct typography', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       // Check heading uses Playfair Display
       const heading = page.locator('h1').first();
@@ -70,7 +70,7 @@ test.describe('Login Page UX & Authentication', () => {
 
     test('should be responsive on mobile', async ({ page }) => {
       await page.setViewportSize({ width: 375, height: 667 });
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       // Form should be visible and usable
       const form = page.locator('form').first();
@@ -84,7 +84,7 @@ test.describe('Login Page UX & Authentication', () => {
 
   test.describe('Login Form Functionality', () => {
     test('should display login form with required fields', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       // Check for email input
       const emailInput = page.locator('input[type="email"], input[name="email"]').first();
@@ -102,7 +102,7 @@ test.describe('Login Page UX & Authentication', () => {
     });
 
     test('should validate email format', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       const emailInput = page.locator('input[type="email"]').first();
       await emailInput.fill('invalid-email');
@@ -117,7 +117,7 @@ test.describe('Login Page UX & Authentication', () => {
     });
 
     test('should show loading state during authentication', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       const emailInput = page.locator('input[type="email"]').first();
       const passwordInput = page.locator('input[type="password"]').first();
@@ -137,7 +137,7 @@ test.describe('Login Page UX & Authentication', () => {
     });
 
     test('should display error message for invalid credentials', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       // Mock API to return error
       await page.route('**/api/auth/login', (route) => {
@@ -166,7 +166,7 @@ test.describe('Login Page UX & Authentication', () => {
 
   test.describe('Authentication Flow', () => {
     test('should successfully login and store tokens', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       // Mock successful login
       await page.route('**/api/auth/login', (route) => {
@@ -220,7 +220,7 @@ test.describe('Login Page UX & Authentication', () => {
 
     test('should redirect to correct dashboard based on role', async ({ page }) => {
       // Test Patient role
-      await page.goto('/patient/login');
+      await page.goto('/login');
       
       await page.route('**/api/auth/login', (route) => {
         route.fulfill({
@@ -256,7 +256,7 @@ test.describe('Login Page UX & Authentication', () => {
 
     test('should enforce role-based route access', async ({ page }) => {
       // Login as patient
-      await page.goto('/patient/login');
+      await page.goto('/login');
       
       await page.route('**/api/auth/login', (route) => {
         route.fulfill({
@@ -291,7 +291,7 @@ test.describe('Login Page UX & Authentication', () => {
   test.describe('User Context Management', () => {
     test('should persist user context across page reloads', async ({ page }) => {
       // Login first
-      await page.goto('/patient/login');
+      await page.goto('/login');
       
       await page.route('**/api/auth/login', (route) => {
         route.fulfill({
@@ -347,7 +347,7 @@ test.describe('Login Page UX & Authentication', () => {
 
   test.describe('Accessibility', () => {
     test('should be keyboard navigable', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       // Tab through form elements
       await page.keyboard.press('Tab');
@@ -358,7 +358,7 @@ test.describe('Login Page UX & Authentication', () => {
     });
 
     test('should have proper ARIA labels', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       // Check for labels associated with inputs
       const emailInput = page.locator('input[type="email"]').first();

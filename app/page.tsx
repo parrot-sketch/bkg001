@@ -54,7 +54,7 @@ export default function Home() {
               <Link href="#about" className="text-sm text-gray-600 hover:text-brand-primary transition-colors">
                 About
               </Link>
-              <Link href="/patient/login">
+              <Link href="/login">
                 <Button variant="ghost" size="sm" className="text-slate-900 hover:text-brand-primary">Login</Button>
               </Link>
               <Link href="/patient/register">
@@ -90,7 +90,7 @@ export default function Home() {
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
-              <Link href="/patient/login">
+              <Link href="/login">
                 <Button variant="outline" size="lg" className="w-full sm:w-auto px-8 border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white">
                   Login
                 </Button>
@@ -471,7 +471,7 @@ export default function Home() {
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
-              <Link href="/patient/login">
+              <Link href="/login">
                 <Button size="lg" variant="outline" className="px-8 border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white">
                   Login
                 </Button>
@@ -513,7 +513,7 @@ export default function Home() {
               <h4 className="font-semibold text-white mb-4 text-base">Quick Links</h4>
               <ul className="space-y-2">
                 <li>
-                  <Link href="/patient/login" className="text-sm text-gray-400 hover:text-brand-secondary transition-colors">
+                  <Link href="/login" className="text-sm text-gray-400 hover:text-brand-secondary transition-colors">
                     Login
                   </Link>
                 </li>

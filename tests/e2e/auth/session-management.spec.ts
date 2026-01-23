@@ -63,7 +63,7 @@ test.describe('Session & Token Management', () => {
       // This test verifies that after token refresh, the original API call is retried
       // Implementation depends on API client retry logic
       
-      await page.goto('/patient/login');
+      await page.goto('/login');
       
       await page.route('**/api/auth/login', (route) => {
         route.fulfill({
@@ -131,7 +131,7 @@ test.describe('Session & Token Management', () => {
     });
 
     test('should call logout API endpoint', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
       
       // Mock login
       await page.route('**/api/auth/login', (route) => {
@@ -176,7 +176,7 @@ test.describe('Session & Token Management', () => {
 
   test.describe('Session Persistence', () => {
     test('should persist session across page reloads', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
       
       await page.route('**/api/auth/login', (route) => {
         route.fulfill({
@@ -237,7 +237,7 @@ test.describe('Session & Token Management', () => {
   test.describe('Multi-Tab Behavior', () => {
     test('should share authentication state across tabs', async ({ context, page }) => {
       // Login in first tab
-      await page.goto('/patient/login');
+      await page.goto('/login');
       
       await page.route('**/api/auth/login', (route) => {
         route.fulfill({

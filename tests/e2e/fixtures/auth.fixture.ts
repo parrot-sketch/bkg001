@@ -8,6 +8,9 @@
 import { test as base, expect, type Page } from '@playwright/test';
 import type { Role } from '../../../domain/enums/Role';
 
+// Re-export expect for use in test files
+export { expect };
+
 /**
  * Test user credentials for each role
  */
@@ -131,7 +134,7 @@ export const test = base.extend<AuthFixtures>({
  * Perform login via UI
  */
 export async function login(page: Page, email: string, password: string): Promise<void> {
-  await page.goto('/patient/login');
+  await page.goto('/login');
   
   // Wait for login form
   await expect(page.locator('input[type="email"], input[name="email"]')).toBeVisible();

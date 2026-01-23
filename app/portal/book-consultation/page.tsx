@@ -138,7 +138,7 @@ function BookConsultationContent() {
     if (isLoading) return;
 
     if (!isAuthenticated || !user) {
-      router.replace('/patient/login');
+      router.replace('/login');
       return;
     }
 

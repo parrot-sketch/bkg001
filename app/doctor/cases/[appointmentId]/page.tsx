@@ -37,7 +37,7 @@ export default function ViewCasePage() {
 
   useEffect(() => {
     if (!isAuthenticated || !user) {
-      router.push('/patient/login');
+      router.push('/login');
       return;
     }
 

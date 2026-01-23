@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { IPatientRepository } from '@domain/interfaces/repositories/IPatientRepository';
 import { Patient } from '@domain/entities/Patient';
 import { Email } from '@domain/value-objects/Email';

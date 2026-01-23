@@ -111,7 +111,7 @@ export default function DoctorProfilePage() {
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
           <p className="text-muted-foreground">Please log in to view your profile</p>
-          <Link href="/patient/login">
+          <Link href="/login">
             <Button className="mt-4">Go to Login</Button>
           </Link>
         </div>

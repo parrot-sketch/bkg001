@@ -143,7 +143,7 @@ test.describe('Error Handling & Edge Cases', () => {
 
   test.describe('Error Messages & Notifications', () => {
     test('should show clear error message for invalid credentials', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       await page.route('**/api/auth/login', (route) => {
         route.fulfill({
@@ -168,7 +168,7 @@ test.describe('Error Handling & Edge Cases', () => {
     });
 
     test('should show error for server errors', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       await page.route('**/api/auth/login', (route) => {
         route.fulfill({
@@ -190,7 +190,7 @@ test.describe('Error Handling & Edge Cases', () => {
     });
 
     test('should show error for network failures', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       // Block network requests
       await page.route('**/api/auth/login', (route) => {
@@ -212,7 +212,7 @@ test.describe('Error Handling & Edge Cases', () => {
 
   test.describe('Security Edge Cases', () => {
     test('should prevent XSS in error messages', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       await page.route('**/api/auth/login', (route) => {
         route.fulfill({
@@ -237,7 +237,7 @@ test.describe('Error Handling & Edge Cases', () => {
     });
 
     test('should not expose sensitive information in errors', async ({ page }) => {
-      await page.goto('/patient/login');
+      await page.goto('/login');
 
       await page.route('**/api/auth/login', (route) => {
         route.fulfill({

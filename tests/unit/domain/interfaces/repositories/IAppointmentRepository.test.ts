@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { IAppointmentRepository } from '@domain/interfaces/repositories/IAppointmentRepository';
 import { Appointment } from '@domain/entities/Appointment';
 import { AppointmentStatus } from '@domain/enums/AppointmentStatus';
@@ -20,6 +20,7 @@ describe('IAppointmentRepository Interface', () => {
   class MockAppointmentRepository implements IAppointmentRepository {
     private appointments: Map<number, Appointment> = new Map();
     private appointmentsByPatient: Map<string, Appointment[]> = new Map();
+    private appointmentsByDoctor: Map<string, Appointment[]> = new Map();
 
     async findById(id: number): Promise<Appointment | null> {
       return this.appointments.get(id) || null;
@@ -29,7 +30,56 @@ describe('IAppointmentRepository Interface', () => {
       return this.appointmentsByPatient.get(patientId) || [];
     }
 
-    async save(appointment: Appointment): Promise<void> {
+    async findByDoctor(
+      doctorId: string,
+      filters?: {
+        status?: AppointmentStatus;
+        startDate?: Date;
+        endDate?: Date;
+      }
+    ): Promise<Appointment[]> {
+      const doctorAppointments = this.appointmentsByDoctor.get(doctorId) || [];
+      if (!filters) {
+        return doctorAppointments;
+      }
+      return doctorAppointments.filter((apt) => {
+        if (filters.status && apt.getStatus() !== filters.status) return false;
+        if (filters.startDate && apt.getAppointmentDate() < filters.startDate) return false;
+        if (filters.endDate && apt.getAppointmentDate() > filters.endDate) return false;
+        return true;
+      });
+    }
+
+    async findPotentialNoShows(now: Date, windowMinutes: number): Promise<Appointment[]> {
+      const allAppointments = Array.from(this.appointments.values());
+      return allAppointments.filter((apt) => {
+        const aptDate = apt.getAppointmentDate();
+        const timeDiff = now.getTime() - aptDate.getTime();
+        return timeDiff > 0 && timeDiff <= windowMinutes * 60 * 1000;
+      });
+    }
+
+    async hasConflict(
+      doctorId: string,
+      appointmentDate: Date,
+      time: string,
+      txClient?: unknown
+    ): Promise<boolean> {
+      const doctorAppointments = this.appointmentsByDoctor.get(doctorId) || [];
+      return doctorAppointments.some((apt) => {
+        const aptDate = apt.getAppointmentDate();
+        const sameDate = aptDate.toDateString() === appointmentDate.toDateString();
+        const sameTime = apt.getTime() === time;
+        const notCancelled = apt.getStatus() !== AppointmentStatus.CANCELLED;
+        return sameDate && sameTime && notCancelled;
+      });
+    }
+
+    async save(
+      appointment: Appointment,
+      consultationRequestFields?: unknown,
+      txClient?: unknown
+    ): Promise<void> {
       if (this.appointments.has(appointment.getId())) {
         throw new Error('Appointment already exists');
       }
@@ -40,6 +90,40 @@ describe('IAppointmentRepository Interface', () => {
       const patientAppointments = this.appointmentsByPatient.get(patientId) || [];
       patientAppointments.push(appointment);
       this.appointmentsByPatient.set(patientId, patientAppointments);
+
+      // Maintain index by doctor
+      const doctorId = appointment.getDoctorId();
+      const doctorAppointments = this.appointmentsByDoctor.get(doctorId) || [];
+      doctorAppointments.push(appointment);
+      this.appointmentsByDoctor.set(doctorId, doctorAppointments);
+    }
+
+    async update(
+      appointment: Appointment,
+      consultationRequestFields?: unknown
+    ): Promise<void> {
+      if (!this.appointments.has(appointment.getId())) {
+        throw new Error('Appointment does not exist');
+      }
+      this.appointments.set(appointment.getId(), appointment);
+      // Update indices
+      const patientId = appointment.getPatientId();
+      const doctorId = appointment.getDoctorId();
+      // Remove from old indices and re-add
+      const patientAppointments = this.appointmentsByPatient.get(patientId) || [];
+      const patientIndex = patientAppointments.findIndex((a) => a.getId() === appointment.getId());
+      if (patientIndex >= 0) {
+        patientAppointments[patientIndex] = appointment;
+      }
+      const doctorAppointments = this.appointmentsByDoctor.get(doctorId) || [];
+      const doctorIndex = doctorAppointments.findIndex((a) => a.getId() === appointment.getId());
+      if (doctorIndex >= 0) {
+        doctorAppointments[doctorIndex] = appointment;
+      }
+    }
+
+    async getConsultationRequestFields(appointmentId: number): Promise<unknown | null> {
+      return null; // Mock implementation
     }
   }
 
@@ -203,7 +287,12 @@ describe('IAppointmentRepository Interface', () => {
       const mockRepository: IAppointmentRepository = {
         findById: vi.fn().mockResolvedValue(null),
         findByPatient: vi.fn().mockResolvedValue([]),
+        findByDoctor: vi.fn().mockResolvedValue([]),
+        findPotentialNoShows: vi.fn().mockResolvedValue([]),
+        hasConflict: vi.fn().mockResolvedValue(false),
         save: vi.fn().mockResolvedValue(undefined),
+        update: vi.fn().mockResolvedValue(undefined),
+        getConsultationRequestFields: vi.fn().mockResolvedValue(null),
       };
 
       expect(mockRepository.findById).toBeDefined();
@@ -216,7 +305,12 @@ describe('IAppointmentRepository Interface', () => {
       const mockRepository: IAppointmentRepository = {
         findById: vi.fn().mockResolvedValue(appointment),
         findByPatient: vi.fn().mockResolvedValue([appointment]),
+        findByDoctor: vi.fn().mockResolvedValue([appointment]),
+        findPotentialNoShows: vi.fn().mockResolvedValue([]),
+        hasConflict: vi.fn().mockResolvedValue(false),
         save: vi.fn().mockResolvedValue(undefined),
+        update: vi.fn().mockResolvedValue(undefined),
+        getConsultationRequestFields: vi.fn().mockResolvedValue(null),
       };
 
       const result = await mockRepository.findById(1);
