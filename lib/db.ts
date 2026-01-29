@@ -168,3 +168,5 @@ export async function withRetry<T>(
 }
 
 export default db;
+export { db };
+

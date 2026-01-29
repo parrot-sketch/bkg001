@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { MockNotificationService } from '../../../../infrastructure/services/MockNotificationService';
-import { Email } from '../../../../domain/value-objects/Email';
-import { PhoneNumber } from '../../../../domain/value-objects/PhoneNumber';
+import { MockNotificationService } from '@/infrastructure/services/MockNotificationService';
+import { Email } from '@/domain/value-objects/Email';
+import { PhoneNumber } from '@/domain/value-objects/PhoneNumber';
 
 describe('MockNotificationService', () => {
   let service: MockNotificationService;
@@ -10,10 +10,10 @@ describe('MockNotificationService', () => {
 
   beforeEach(() => {
     service = new MockNotificationService();
-    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => { });
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
     // Set NODE_ENV to test to avoid production logging format
-    process.env.NODE_ENV = 'test';
+    vi.stubEnv('NODE_ENV', 'test');
   });
 
   afterEach(() => {
@@ -31,7 +31,7 @@ describe('MockNotificationService', () => {
       expect(consoleLogSpy).toHaveBeenCalled();
       const logCall = consoleLogSpy.mock.calls[0][0];
       const parsedLog = JSON.parse(logCall);
-      
+
       expect(parsedLog.type).toBe('email');
       expect(parsedLog.to).toBe('test@example.com');
       expect(parsedLog.subject).toBe('Test Subject');
@@ -49,7 +49,7 @@ describe('MockNotificationService', () => {
       expect(consoleLogSpy).toHaveBeenCalled();
       const logCall = consoleLogSpy.mock.calls[0][0];
       const parsedLog = JSON.parse(logCall);
-      
+
       expect(parsedLog.body.length).toBeLessThanOrEqual(103); // 100 chars + "..."
       expect(parsedLog.body.endsWith('...')).toBe(true);
     });
@@ -67,7 +67,7 @@ describe('MockNotificationService', () => {
       await expect(service.sendEmail(email, subject, body)).rejects.toThrow(
         'Failed to log email notification'
       );
-      
+
       expect(consoleErrorSpy).toHaveBeenCalled();
     });
 
@@ -82,10 +82,10 @@ describe('MockNotificationService', () => {
 
       const logCall = consoleLogSpy.mock.calls[0][0];
       const parsedLog = JSON.parse(logCall);
-      
+
       expect(parsedLog.timestamp).toBeDefined();
-      expect(parsedLog.timestamp).toBeGreaterThanOrEqual(beforeTime);
-      expect(parsedLog.timestamp).toBeLessThanOrEqual(afterTime);
+      expect(new Date(parsedLog.timestamp).getTime()).toBeGreaterThanOrEqual(new Date(beforeTime).getTime());
+      expect(new Date(parsedLog.timestamp).getTime()).toBeLessThanOrEqual(new Date(afterTime).getTime());
     });
   });
 
@@ -99,7 +99,7 @@ describe('MockNotificationService', () => {
       expect(consoleLogSpy).toHaveBeenCalled();
       const logCall = consoleLogSpy.mock.calls[0][0];
       const parsedLog = JSON.parse(logCall);
-      
+
       expect(parsedLog.type).toBe('sms');
       expect(parsedLog.to).toBe('1234567890');
       expect(parsedLog.message).toBe('Test SMS message');
@@ -115,7 +115,7 @@ describe('MockNotificationService', () => {
       expect(consoleLogSpy).toHaveBeenCalled();
       const logCall = consoleLogSpy.mock.calls[0][0];
       const parsedLog = JSON.parse(logCall);
-      
+
       expect(parsedLog.message.length).toBeLessThanOrEqual(163); // 160 chars + "..."
       expect(parsedLog.message.endsWith('...')).toBe(true);
     });
@@ -132,7 +132,7 @@ describe('MockNotificationService', () => {
       await expect(service.sendSMS(phone, message)).rejects.toThrow(
         'Failed to log SMS notification'
       );
-      
+
       expect(consoleErrorSpy).toHaveBeenCalled();
     });
 
@@ -146,10 +146,10 @@ describe('MockNotificationService', () => {
 
       const logCall = consoleLogSpy.mock.calls[0][0];
       const parsedLog = JSON.parse(logCall);
-      
+
       expect(parsedLog.timestamp).toBeDefined();
-      expect(parsedLog.timestamp).toBeGreaterThanOrEqual(beforeTime);
-      expect(parsedLog.timestamp).toBeLessThanOrEqual(afterTime);
+      expect(new Date(parsedLog.timestamp).getTime()).toBeGreaterThanOrEqual(new Date(beforeTime).getTime());
+      expect(new Date(parsedLog.timestamp).getTime()).toBeLessThanOrEqual(new Date(afterTime).getTime());
     });
   });
 });

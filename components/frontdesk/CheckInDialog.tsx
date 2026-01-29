@@ -8,7 +8,7 @@
  */
 
 import { useState } from 'react';
-import { doctorApi } from '@/lib/api/doctor';
+import { frontdeskApi } from '@/lib/api/frontdesk';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -43,7 +43,7 @@ export function CheckInDialog({
     setIsSubmitting(true);
 
     try {
-      const response = await doctorApi.checkInPatient(appointment.id, frontdeskUserId);
+      const response = await frontdeskApi.checkInPatient(appointment.id, frontdeskUserId);
 
       if (response.success) {
         toast.success('Patient checked in successfully');
@@ -80,7 +80,14 @@ export function CheckInDialog({
                 <span className="font-medium">Time:</span> {appointment.time}
               </p>
               <p>
-                <span className="font-medium">Patient:</span> {appointment.patientId}
+                <span className="font-medium">Patient:</span>{' '}
+                {appointment.patient
+                  ? `${appointment.patient.firstName} ${appointment.patient.lastName}`
+                  : appointment.patientId || 'N/A'}
+              </p>
+              <p>
+                <span className="font-medium">Doctor:</span>{' '}
+                {appointment.doctor?.name || 'Unassigned'}
               </p>
               <p>
                 <span className="font-medium">Type:</span> {appointment.type}

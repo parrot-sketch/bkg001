@@ -25,7 +25,7 @@ import type { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';
 import type { DoctorAvailabilityResponseDto } from '@/application/dtos/DoctorAvailabilityResponseDto';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { EditDoctorProfileDialog } from '@/components/doctor/EditDoctorProfileDialog';
-import { ManageAvailabilityDialog } from '@/components/doctor/ManageAvailabilityDialog';
+import { EnhancedScheduleManager } from '@/components/doctor/EnhancedScheduleManager';
 import { DoctorIdentityCard } from '@/components/doctor/DoctorIdentityCard';
 import { ProfileActionsPanel } from '@/components/doctor/ProfileActionsPanel';
 import { WeeklyAvailabilityGrid } from '@/components/doctor/WeeklyAvailabilityGrid';
@@ -272,7 +272,7 @@ export default function DoctorProfilePage() {
 
       {/* Manage Availability Dialog */}
       {doctorData && (
-        <ManageAvailabilityDialog
+        <EnhancedScheduleManager
           open={showAvailabilityDialog}
           onClose={() => setShowAvailabilityDialog(false)}
           onSuccess={() => {

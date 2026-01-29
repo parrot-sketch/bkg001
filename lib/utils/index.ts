@@ -38,17 +38,25 @@ export function formatDateTime(isoDate: string): string {
   return date.toLocaleString("en-US", options);
 }
 
-export function calculateAge(dob: Date): string {
+export function calculateAge(dob: Date | string): string {
+  // Handle both Date objects and date strings (from JSON)
+  const dobDate = typeof dob === 'string' ? new Date(dob) : dob;
+  
+  // Validate date
+  if (isNaN(dobDate.getTime())) {
+    return 'N/A';
+  }
+  
   const today = new Date();
-  let years = today.getFullYear() - dob.getFullYear();
-  let months = today.getMonth() - dob.getMonth();
+  let years = today.getFullYear() - dobDate.getFullYear();
+  let months = today.getMonth() - dobDate.getMonth();
 
   if (months < 0) {
     years--;
     months += 12;
   }
 
-  if (months === 0 && today.getDate() < dob.getDate()) {
+  if (months === 0 && today.getDate() < dobDate.getDate()) {
     years--;
     months = 11;
   }

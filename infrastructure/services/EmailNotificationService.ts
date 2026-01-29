@@ -33,7 +33,7 @@ import {
 } from './email-templates';
 
 interface NotificationLog {
-  type: 'email' | 'sms';
+  type: 'email' | 'sms' | 'in-app';
   timestamp: string;
   to: string;
   subject?: string;
@@ -52,7 +52,7 @@ class EmailNotificationService implements INotificationService {
   constructor() {
     // Determine email provider based on environment variables
     this.emailFrom = process.env.EMAIL_FROM || process.env.RESEND_FROM_EMAIL || 'noreply@nairobi-sculpt.com';
-    
+
     if (process.env.RESEND_API_KEY) {
       this.provider = 'resend';
     } else if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
@@ -140,11 +140,35 @@ class EmailNotificationService implements INotificationService {
   async sendSMS(to: PhoneNumber, message: string): Promise<void> {
     // SMS not implemented yet - use mock for now
     await this.mockService.sendSMS(to, message);
-    
+
     this.logNotification({
       type: 'sms',
       timestamp: new Date().toISOString(),
       to: to.getValue(),
+      message: message.substring(0, 160) + (message.length > 160 ? '...' : ''),
+      success: true,
+      provider: 'mock',
+    });
+  }
+
+  /**
+   * Sends an in-app notification
+   * 
+   * @param userId - Recipient user ID
+   * @param title - Notification title
+   * @param message - Notification message content
+   * @param type - Notification type (info, success, warning, error)
+   * @returns Promise that resolves when the notification is successfully created
+   */
+  async sendInApp(userId: string, title: string, message: string, type: 'info' | 'success' | 'warning' | 'error'): Promise<void> {
+    // In-app notifications not implemented in this service - delegate to mock/other service
+    await this.mockService.sendInApp(userId, title, message, type);
+
+    this.logNotification({
+      type: 'in-app',
+      timestamp: new Date().toISOString(),
+      to: userId,
+      subject: title,
       message: message.substring(0, 160) + (message.length > 160 ? '...' : ''),
       success: true,
       provider: 'mock',
@@ -200,7 +224,7 @@ class EmailNotificationService implements INotificationService {
     // For now, use nodemailer would be ideal, but to avoid adding dependencies,
     // we'll use a simple fetch-based SMTP approach or fall back to mock
     // In production, you'd use nodemailer here
-    
+
     // For Day 3, we'll implement a basic version that can be enhanced later
     // This is a placeholder - in real production, use nodemailer
     throw new Error('SMTP implementation requires nodemailer package. Please use Resend or install nodemailer.');

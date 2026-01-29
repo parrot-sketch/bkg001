@@ -11,9 +11,14 @@ export interface StartConsultationDto {
   readonly appointmentId: number;
 
   /**
-   * Doctor's user ID starting the consultation
+   * Doctor's ID (from Doctor table)
    */
   readonly doctorId: string;
+
+  /**
+   * User ID of the doctor starting the consultation (from User table)
+   */
+  readonly userId: string;
 
   /**
    * Optional: Initial notes from the doctor

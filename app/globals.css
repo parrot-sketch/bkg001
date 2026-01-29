@@ -14,73 +14,96 @@ body {
   :root {
     /* New Color Palette - Healthcare Theme */
     /* Colors are in HSL format: hue saturation lightness (space-separated) */
-    --background: 0 0% 98%; /* #fafafa - light background */
-    --foreground: 196 100% 16%; /* #003b53 - yale blue for text */
-    
+    --background: 0 0% 98%;
+    /* #fafafa - light background */
+    --foreground: 196 100% 16%;
+    /* #003b53 - yale blue for text */
+
     --card: 0 0% 100%;
-    --card-foreground: 196 100% 16%; /* yale blue */
-    
+    --card-foreground: 196 100% 16%;
+    /* yale blue */
+
     --popover: 0 0% 100%;
     --popover-foreground: 196 100% 16%;
-    
-    --primary: 196 100% 16%; /* #003b53 - yale blue */
+
+    --primary: 196 100% 16%;
+    /* #003b53 - yale blue */
     --primary-foreground: 0 0% 100%;
-    
-    --secondary: 192 100% 23%; /* #005f73 - dark teal */
+
+    --secondary: 192 100% 23%;
+    /* #005f73 - dark teal */
     --secondary-foreground: 0 0% 100%;
-    
+
     --muted: 0 0% 96%;
     --muted-foreground: 220 13% 46%;
-    
-    --accent: 36 100% 47%; /* #ee9b00 - golden orange */
+
+    --accent: 36 100% 47%;
+    /* #ee9b00 - golden orange */
     --accent-foreground: 0 0% 100%;
-    
-    --destructive: 358 64% 37%; /* #9b2226 - brown red */
+
+    --destructive: 358 64% 37%;
+    /* #9b2226 - brown red */
     --destructive-foreground: 0 0% 100%;
-    
+
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 196 100% 16%; /* yale blue */
-    
+    --ring: 196 100% 16%;
+    /* yale blue */
+
     --radius: 0.5rem;
-    
+
     /* Chart colors from new palette */
-    --chart-1: 36 100% 47%; /* golden orange */
-    --chart-2: 161 41% 71%; /* pearl aqua */
-    --chart-3: 182 88% 31%; /* dark cyan */
-    --chart-4: 358 64% 37%; /* brown red */
-    --chart-5: 192 100% 23%; /* dark teal */
+    --chart-1: 36 100% 47%;
+    /* golden orange */
+    --chart-2: 161 41% 71%;
+    /* pearl aqua */
+    --chart-3: 182 88% 31%;
+    /* dark cyan */
+    --chart-4: 358 64% 37%;
+    /* brown red */
+    --chart-5: 192 100% 23%;
+    /* dark teal */
   }
-  
+
   .dark {
     /* Dark mode using new palette */
-    --background: 196 100% 4%; /* yale blue 100 - very dark */
+    --background: 196 100% 4%;
+    /* yale blue 100 - very dark */
     --foreground: 0 0% 98%;
-    
-    --card: 196 100% 8%; /* yale blue 200 */
+
+    --card: 196 100% 8%;
+    /* yale blue 200 */
     --card-foreground: 0 0% 98%;
-    
+
     --popover: 196 100% 8%;
     --popover-foreground: 0 0% 98%;
-    
-    --primary: 36 100% 47%; /* golden orange - warm in dark mode */
+
+    --primary: 36 100% 47%;
+    /* golden orange - warm in dark mode */
     --primary-foreground: 196 100% 16%;
-    
-    --secondary: 192 100% 23%; /* dark teal */
+
+    --secondary: 192 100% 23%;
+    /* dark teal */
     --secondary-foreground: 0 0% 98%;
-    
-    --muted: 196 100% 12%; /* yale blue 300 */
-    --muted-foreground: 196 100% 65%; /* yale blue 700 */
-    
-    --accent: 36 100% 47%; /* golden orange */
+
+    --muted: 196 100% 12%;
+    /* yale blue 300 */
+    --muted-foreground: 196 100% 65%;
+    /* yale blue 700 */
+
+    --accent: 36 100% 47%;
+    /* golden orange */
     --accent-foreground: 196 100% 16%;
-    
-    --destructive: 358 64% 37%; /* brown red */
+
+    --destructive: 358 64% 37%;
+    /* brown red */
     --destructive-foreground: 0 0% 98%;
-    
-    --border: 196 100% 18%; /* yale blue 400 */
+
+    --border: 196 100% 18%;
+    /* yale blue 400 */
     --input: 196 100% 18%;
-    --ring: 36 100% 47%; /* golden orange */
+    --ring: 36 100% 47%;
+    /* golden orange */
   }
 }
 
@@ -88,11 +111,17 @@ body {
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-white text-foreground;
   }
-  
-  h1, h2, h3, h4, h5, h6 {
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-playfair), serif;
     @apply font-semibold;
   }
@@ -100,6 +129,7 @@ body {
 
 /* Global mobile input compatibility - CRITICAL for mobile responsiveness */
 @layer base {
+
   input[type="text"],
   input[type="email"],
   input[type="password"],
@@ -113,24 +143,25 @@ body {
     /* Remove iOS Safari default styling */
     -webkit-appearance: none;
     appearance: none;
-    
+
     /* Allow proper touch handling */
     touch-action: manipulation;
-    
+
     /* Allow text selection */
     user-select: text;
     -webkit-user-select: text;
-    
+
     /* Disable tap highlight */
     -webkit-tap-highlight-color: transparent;
-    
+
     /* Ensure inputs are focusable */
     pointer-events: auto;
-    
+
     /* Prevent zoom on focus (iOS Safari) */
-    font-size: 16px; /* Minimum 16px prevents zoom on iOS */
+    font-size: 16px;
+    /* Minimum 16px prevents zoom on iOS */
   }
-  
+
   /* Ensure form inputs are always interactive */
   form input,
   form textarea,
@@ -138,13 +169,15 @@ body {
     pointer-events: auto !important;
     touch-action: manipulation !important;
   }
-  
+
   /* Fix for iOS Safari input focus issues */
   @supports (-webkit-touch-callout: none) {
+
     input:focus,
     textarea:focus,
     select:focus {
-      transform: translateZ(0); /* Force hardware acceleration */
+      transform: translateZ(0);
+      /* Force hardware acceleration */
       -webkit-transform: translateZ(0);
     }
   }
@@ -156,6 +189,7 @@ body {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -166,9 +200,11 @@ body {
   0% {
     transform: translateX(-100%);
   }
+
   50% {
     transform: translateX(0%);
   }
+
   100% {
     transform: translateX(100%);
   }
@@ -236,32 +272,45 @@ select:focus {
   .text-balance {
     text-wrap: balance;
   }
-  
+
   /* Nairobi Sculpt utility classes - using extracted brand colors */
   .nairobi-gradient {
     background: linear-gradient(135deg, #143232 0%, #0a3232 100%);
   }
-  
+
   .nairobi-brand-primary {
     background-color: #143232;
     color: white;
   }
-  
+
   .nairobi-brand-secondary {
     background-color: #bea032;
     color: white;
   }
-  
+
   .nairobi-accent-border {
     border-color: #bea032;
   }
-  
+
   .nairobi-text-brand-primary {
     color: #143232;
   }
-  
+
   .nairobi-text-brand-secondary {
     color: #bea032;
+  }
+
+  /* Hide scrollbar while maintaining scroll functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+    /* Chrome, Safari and Opera */
   }
 }
 

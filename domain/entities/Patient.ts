@@ -106,10 +106,10 @@ export class Patient {
       });
     }
 
-    // Validate file number format: NS followed by digits
-    const fileNumberPattern = /^NS\d+$/;
+    // Validate file number format: NS followed by digits (or TEST for test patients)
+    const fileNumberPattern = /^(NS|TEST)\d+$/;
     if (!fileNumberPattern.test(params.fileNumber)) {
-      throw new DomainException(`Invalid file number format: ${params.fileNumber}. Expected format: NS001, NS002, etc.`, {
+      throw new DomainException(`Invalid file number format: ${params.fileNumber}. Expected format: NS001, NS002, TEST001, etc.`, {
         providedValue: params.fileNumber,
       });
     }

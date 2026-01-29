@@ -39,8 +39,8 @@ export class PatientMapper {
 
     // Convert dateOfBirth to Date if it's a string (happens when deserializing JSON)
     // JSON.parse() returns date strings, not Date objects
-    const dateOfBirth = dto.dateOfBirth instanceof Date 
-      ? dto.dateOfBirth 
+    const dateOfBirth = dto.dateOfBirth instanceof Date
+      ? dto.dateOfBirth
       : new Date(dto.dateOfBirth);
 
     // Validate the date conversion succeeded
@@ -120,6 +120,8 @@ export class PatientMapper {
       insuranceNumber: patient.getInsuranceNumber(),
       createdAt: patient.getCreatedAt(),
       updatedAt: patient.getUpdatedAt(),
+      profileImage: patient.getImg(),
+      colorCode: patient.getColorCode(),
     };
   }
 }

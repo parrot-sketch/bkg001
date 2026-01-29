@@ -26,11 +26,12 @@ import type { AppointmentResponseDto } from '@/application/dtos/AppointmentRespo
 import type { StartConsultationDto } from '@/application/dtos/StartConsultationDto';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import { ConsultationReadinessIndicator, computeReadiness } from '@/components/consultation/ConsultationReadinessIndicator';
+import { useAuth } from '@/hooks/patient/useAuth';
 
 interface StartConsultationDialogProps {
   open: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (appointmentId: number) => void;
   appointment: AppointmentResponseDto;
   doctorId: string;
 }
@@ -42,6 +43,7 @@ export function StartConsultationDialog({
   appointment,
   doctorId,
 }: StartConsultationDialogProps) {
+  const { user } = useAuth();
   const [doctorNotes, setDoctorNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [patient, setPatient] = useState<PatientResponseDto | null>(null);
@@ -74,9 +76,9 @@ export function StartConsultationDialog({
   const readiness = patient ? computeReadiness(patient, appointment, photoCount) : null;
   const isReady = readiness
     ? readiness.intakeComplete &&
-      readiness.photosUploaded &&
-      readiness.medicalHistoryComplete &&
-      readiness.consentAcknowledged
+    readiness.photosUploaded &&
+    readiness.medicalHistoryComplete &&
+    readiness.consentAcknowledged
     : false;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -88,6 +90,7 @@ export function StartConsultationDialog({
       const dto: StartConsultationDto = {
         appointmentId: appointment.id,
         doctorId,
+        userId: user?.id || doctorId, // Fallback to doctorId if user not available
         doctorNotes: doctorNotes.trim() || undefined,
       };
 
@@ -95,8 +98,9 @@ export function StartConsultationDialog({
 
       if (response.success) {
         toast.success('Consultation started successfully');
-        onSuccess();
         setDoctorNotes('');
+        // Trigger navigation callback immediately (it will handle dialog closing)
+        onSuccess(appointment.id); // Pass appointmentId for navigation
       } else {
         toast.error(response.error || 'Failed to start consultation');
       }
@@ -129,13 +133,17 @@ export function StartConsultationDialog({
               <div className="space-y-3">
                 <ConsultationReadinessIndicator readiness={readiness} compact={false} />
                 {!isReady && (
-                  <div className="rounded-lg border border-red-200 bg-red-50 p-3">
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                     <div className="flex items-start gap-2">
-                      <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
-                      <p className="text-sm text-red-800">
-                        Patient file is not fully prepared. Review missing items above before starting consultation.
-                        You can proceed, but it's recommended to ensure all required items are complete.
-                      </p>
+                      <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-amber-900 mb-1">
+                          Some items are missing from patient file
+                        </p>
+                        <p className="text-xs text-amber-800">
+                          You can proceed with the consultation. Missing items can be added during or after the session.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -169,17 +177,20 @@ export function StartConsultationDialog({
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="doctorNotes">Initial Clinical Notes (Optional)</Label>
+              <Label htmlFor="doctorNotes">
+                Pre-Consultation Notes <span className="text-muted-foreground font-normal">(Optional)</span>
+              </Label>
               <Textarea
                 id="doctorNotes"
-                placeholder="Enter any initial observations, concerns, or notes for this consultation..."
+                placeholder="Add any pre-consultation observations, concerns, or notes. These will be saved and available during the consultation session..."
                 value={doctorNotes}
                 onChange={(e) => setDoctorNotes(e.target.value)}
                 disabled={isSubmitting}
-                rows={6}
+                rows={4}
+                className="resize-none"
               />
               <p className="text-xs text-muted-foreground">
-                You can add detailed clinical notes when completing the consultation
+                These notes will be saved and you can add more detailed clinical notes during the consultation session.
               </p>
             </div>
           </div>
@@ -187,12 +198,12 @@ export function StartConsultationDialog({
             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={isSubmitting}
-              className={isReady ? 'bg-green-600 hover:bg-green-700' : 'bg-amber-600 hover:bg-amber-700'}
+              className="bg-primary hover:bg-primary/90"
             >
-              {isSubmitting ? 'Starting...' : isReady ? 'Begin Consultation' : 'Begin Consultation (Review File)'}
+              {isSubmitting ? 'Starting...' : 'Begin Consultation'}
             </Button>
           </DialogFooter>
         </form>

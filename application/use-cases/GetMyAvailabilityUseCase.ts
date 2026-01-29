@@ -70,6 +70,7 @@ export class GetMyAvailabilityUseCase {
         specialization: doctor.specialization,
         workingDays: [],
         overrides: [],
+        sessions: [],
       };
     }
 
@@ -79,7 +80,21 @@ export class GetMyAvailabilityUseCase {
     endDate.setDate(endDate.getDate() + 90);
     const overrides = await this.availabilityRepository.getOverrides(doctorId, startDate, endDate);
 
-    // Step 4: Map to response DTO
+    // Step 4: Map sessions to include day name for easier frontend mapping
+    const sessionsWithDay = availability.sessions.map((session) => {
+      const workingDay = availability.workingDays.find((wd) => wd.id === session.workingDayId);
+      return {
+        workingDayId: session.workingDayId,
+        day: workingDay?.day || '',
+        startTime: session.startTime,
+        endTime: session.endTime,
+        sessionType: session.sessionType,
+        maxPatients: session.maxPatients,
+        notes: session.notes,
+      };
+    });
+
+    // Step 5: Map to response DTO
     return {
       doctorId: availability.doctorId,
       doctorName: doctor.name,
@@ -102,6 +117,7 @@ export class GetMyAvailabilityUseCase {
         reason: ov.reason,
         isBlocked: ov.isBlocked,
       })),
+      sessions: sessionsWithDay,
     };
   }
 }

@@ -21,6 +21,8 @@ import {
   User,
   LogOut,
   X,
+  Building2,
+  Syringe,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -63,6 +65,16 @@ const navItems: NavItem[] = [
     name: 'Reports',
     href: '/admin/reports',
     icon: BarChart3,
+  },
+  {
+    name: 'Clinic Settings',
+    href: '/admin/clinic',
+    icon: Building2,
+  },
+  {
+    name: 'Theaters',
+    href: '/admin/theaters',
+    icon: Syringe,
   },
   {
     name: 'Profile',
@@ -138,52 +150,52 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
             </Button>
           </div>
 
-        {/* User Info */}
-        {user && (
-          <div className="border-b border-border px-6 py-4">
-            <p className="text-sm font-medium text-foreground">Admin {user.firstName || user.email}</p>
-            <p className="text-xs text-muted-foreground">{user.email}</p>
+          {/* User Info */}
+          {user && (
+            <div className="border-b border-border px-6 py-4">
+              <p className="text-sm font-medium text-foreground">Admin {user.firstName || user.email}</p>
+              <p className="text-xs text-muted-foreground">{user.email}</p>
+            </div>
+          )}
+
+          {/* Navigation */}
+          <nav className="flex-1 space-y-1 px-3 py-4">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={onClose} // Close sidebar on navigation
+                  className={cn(
+                    'flex items-center space-x-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                  )}
+                >
+                  <Icon className="h-5 w-5" />
+                  <span>{item.name}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Logout Button */}
+          <div className="border-t border-border p-4">
+            <Button
+              variant="ghost"
+              onClick={handleLogout}
+              className="w-full justify-start text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <LogOut className="mr-3 h-5 w-5" />
+              <span>Logout</span>
+            </Button>
           </div>
-        )}
-
-        {/* Navigation */}
-        <nav className="flex-1 space-y-1 px-3 py-4">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href || pathname?.startsWith(item.href + '/');
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onClose} // Close sidebar on navigation
-                className={cn(
-                  'flex items-center space-x-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                )}
-              >
-                <Icon className="h-5 w-5" />
-                <span>{item.name}</span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Logout Button */}
-        <div className="border-t border-border p-4">
-          <Button
-            variant="ghost"
-            onClick={handleLogout}
-            className="w-full justify-start text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <LogOut className="mr-3 h-5 w-5" />
-            <span>Logout</span>
-          </Button>
         </div>
-      </div>
-    </aside>
+      </aside>
     </>
   );
 }

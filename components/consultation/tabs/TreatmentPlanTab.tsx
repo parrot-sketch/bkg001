@@ -7,27 +7,46 @@
  * Links to case planning workflow if procedure recommended.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Calendar, CheckCircle2, ExternalLink } from 'lucide-react';
+import { Calendar, CheckCircle2, ExternalLink, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { RichTextEditor } from '@/components/consultation/RichTextEditor';
 import type { ConsultationResponseDto } from '@/application/dtos/ConsultationResponseDto';
 
 interface TreatmentPlanTabProps {
   consultation: ConsultationResponseDto | null;
   hasCasePlan: boolean;
+  onPlanChange?: (plan: string) => void;
+  onSave?: () => void;
+  isSaving?: boolean;
   isReadOnly?: boolean;
 }
 
 export function TreatmentPlanTab({
   consultation,
   hasCasePlan,
+  onPlanChange,
+  onSave,
+  isSaving = false,
   isReadOnly = false,
 }: TreatmentPlanTabProps) {
-  const [nextSteps, setNextSteps] = useState('');
+  const [nextSteps, setNextSteps] = useState(
+    consultation?.notes?.structured?.plan || ''
+  );
+
+  useEffect(() => {
+    if (consultation?.notes?.structured?.plan) {
+      setNextSteps(consultation.notes.structured.plan);
+    }
+  }, [consultation]);
+
+  const handleChange = (value: string) => {
+    setNextSteps(value);
+    onPlanChange?.(value);
+  };
 
   return (
     <div className="space-y-4">
@@ -62,16 +81,29 @@ export function TreatmentPlanTab({
         <p className="text-xs text-muted-foreground mt-1 mb-3">
           Document next steps, timeline, and patient instructions.
         </p>
-        <Textarea
-          id="next-steps"
+        <RichTextEditor
+          content={nextSteps}
+          onChange={handleChange}
           placeholder="Next steps, timeline, pre-op requirements, patient instructions..."
-          value={nextSteps}
-          onChange={(e) => setNextSteps(e.target.value)}
-          disabled={isReadOnly}
-          rows={12}
-          className="font-mono text-sm resize-none"
+          readOnly={isReadOnly}
+          minHeight="400px"
         />
       </div>
+
+      {/* Save Button */}
+      {!isReadOnly && onSave && (
+        <div className="flex justify-end pt-4 border-t">
+          <Button
+            onClick={onSave}
+            disabled={isSaving || !nextSteps.trim()}
+            size="sm"
+            className="bg-primary hover:bg-primary/90"
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {isSaving ? 'Saving...' : 'Save Treatment Plan'}
+          </Button>
+        </div>
+      )}
 
       {consultation?.followUp && (
         <Card>

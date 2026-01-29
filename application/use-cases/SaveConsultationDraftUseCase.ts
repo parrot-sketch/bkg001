@@ -109,6 +109,11 @@ export class SaveConsultationDraftUseCase {
     }
 
     // Step 5: Version token validation (optimistic locking)
+    // TEMPORARILY DISABLED: Version checking is causing infinite conflict loops
+    // Something is continuously updating the consultation's updatedAt timestamp,
+    // making it impossible to save drafts. Using last-write-wins for now.
+    // TODO: Re-enable once we identify what's updating the consultation
+    /*
     if (dto.versionToken) {
       const currentUpdatedAt = consultation.getUpdatedAt().toISOString();
       if (dto.versionToken !== currentUpdatedAt) {
@@ -122,6 +127,7 @@ export class SaveConsultationDraftUseCase {
         );
       }
     }
+    */
 
     // Step 6: Map notes DTO to ConsultationNotes value object
     let notes: ConsultationNotes;

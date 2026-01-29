@@ -13,6 +13,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import db, { withRetry } from '@/lib/db';
 import { LoginDto } from '@/application/dtos/LoginDto';
 import { DomainException } from '@/domain/exceptions/DomainException';
@@ -61,15 +62,28 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       });
     });
 
-    // Return success response
-    return NextResponse.json(
+    // Create response with JSON data
+    const nextResponse = NextResponse.json(
       {
         success: true,
         data: response,
       },
       { status: 200 }
     );
-  } catch (error) {
+
+    // Set access token cookie on the response
+    const safeExpiresIn = typeof response.expiresIn === 'number' ? response.expiresIn : 900;
+
+    nextResponse.cookies.set('accessToken', response.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: safeExpiresIn,
+    });
+
+    return nextResponse;
+  } catch (error: any) {
     // Handle domain exceptions (e.g., invalid credentials)
     if (error instanceof DomainException) {
       // Generic error message - prevents user enumeration

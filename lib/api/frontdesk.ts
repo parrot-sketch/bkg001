@@ -10,6 +10,7 @@ import type { PatientResponseDto } from '../../application/dtos/PatientResponseD
 import type { CreatePatientDto } from '../../application/dtos/CreatePatientDto';
 import type { CheckInPatientDto } from '../../application/dtos/CheckInPatientDto';
 import type { DoctorAvailabilityResponseDto } from '../../application/dtos/DoctorAvailabilityResponseDto';
+import type { CreateConsultationFromFrontdeskDto } from '../../application/dtos/CreateConsultationFromFrontdeskDto';
 
 /**
  * Frontdesk API client
@@ -163,5 +164,19 @@ export const frontdeskApi = {
       params.append('specialization', specialization);
     }
     return apiClient.get<DoctorAvailabilityResponseDto[]>(`/doctors/availability?${params.toString()}`);
+  },
+
+  /**
+   * Schedule an appointment (for self or on behalf of patient)
+   */
+  async scheduleAppointment(dto: import('../../application/dtos/ScheduleAppointmentDto').ScheduleAppointmentDto): Promise<ApiResponse<AppointmentResponseDto>> {
+    return apiClient.post<AppointmentResponseDto>('/appointments', dto);
+  },
+
+  /**
+   * Create a consultation request (Frontdesk only)
+   */
+  async createConsultation(dto: CreateConsultationFromFrontdeskDto): Promise<ApiResponse<AppointmentResponseDto>> {
+    return apiClient.post<AppointmentResponseDto>('/consultations/frontdesk/create', dto);
   },
 };

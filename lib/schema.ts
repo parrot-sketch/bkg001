@@ -191,3 +191,153 @@ export const ServicesSchema = z.object({
   price: z.string({ message: "Service price is required" }),
   description: z.string({ message: "Service description is required" }),
 });
+
+// ============================================================================
+// PATIENT INTAKE FORM SCHEMA
+// ============================================================================
+
+export const PatientIntakeFormSchema = z.object({
+  // Personal Information
+  firstName: z
+    .string()
+    .trim()
+    .min(2, "First name must be at least 2 characters")
+    .max(50, "First name must be at most 50 characters"),
+
+  lastName: z
+    .string()
+    .trim()
+    .min(2, "Last name must be at least 2 characters")
+    .max(50, "Last name must be at most 50 characters"),
+
+  dateOfBirth: z
+    .string()
+    .pipe(z.coerce.date())
+    .refine((date) => date <= new Date(), {
+      message: "Date of birth cannot be in the future",
+    })
+    .refine((date) => {
+      const age = new Date().getFullYear() - date.getFullYear();
+      return age >= 16;
+    }, {
+      message: "Patient must be at least 16 years old",
+    }),
+
+  gender: z.enum(["MALE", "FEMALE"], {
+    errorMap: () => ({ message: "Please select a valid gender" }),
+  }),
+
+  // Contact Information
+  email: z
+    .string()
+    .email("Invalid email address")
+    .toLowerCase(),
+
+  phone: z
+    .string()
+    .regex(/^\d{10}$/, "Phone must be exactly 10 digits"),
+
+  whatsappPhone: z
+    .string()
+    .regex(/^\d{10}$/, "WhatsApp phone must be exactly 10 digits")
+    .optional()
+    .or(z.literal("")),
+
+  address: z
+    .string()
+    .trim()
+    .min(10, "Address must be at least 10 characters")
+    .max(500, "Address must be at most 500 characters"),
+
+  maritalStatus: z.enum(["SINGLE", "MARRIED", "DIVORCED", "WIDOWED"], {
+    errorMap: () => ({ message: "Please select a valid marital status" }),
+  }),
+
+  occupation: z
+    .string()
+    .trim()
+    .max(100, "Occupation must be at most 100 characters")
+    .optional()
+    .or(z.literal("")),
+
+  // Emergency Contact
+  emergencyContactName: z
+    .string()
+    .trim()
+    .min(2, "Emergency contact name must be at least 2 characters")
+    .max(50, "Emergency contact name must be at most 50 characters"),
+
+  emergencyContactNumber: z
+    .string()
+    .regex(/^\d{10}$/, "Emergency contact phone must be exactly 10 digits"),
+
+  emergencyContactRelation: z.enum(
+    ["SPOUSE", "PARENT", "CHILD", "SIBLING", "FRIEND", "OTHER"],
+    {
+      errorMap: () => ({ message: "Please select a valid relationship" }),
+    }
+  ),
+
+  // Medical Information (Optional)
+  bloodGroup: z
+    .enum(["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"])
+    .optional()
+    .or(z.literal("")),
+
+  allergies: z
+    .string()
+    .trim()
+    .max(500, "Allergies description must be at most 500 characters")
+    .optional()
+    .or(z.literal("")),
+
+  medicalConditions: z
+    .string()
+    .trim()
+    .max(500, "Medical conditions must be at most 500 characters")
+    .optional()
+    .or(z.literal("")),
+
+  medicalHistory: z
+    .string()
+    .trim()
+    .max(1000, "Medical history must be at most 1000 characters")
+    .optional()
+    .or(z.literal("")),
+
+  // Insurance (Optional)
+  insuranceProvider: z
+    .string()
+    .trim()
+    .max(100, "Insurance provider must be at most 100 characters")
+    .optional()
+    .or(z.literal("")),
+
+  insuranceNumber: z
+    .string()
+    .trim()
+    .max(100, "Insurance number must be at most 100 characters")
+    .optional()
+    .or(z.literal("")),
+
+  // Consent (Required)
+  privacyConsent: z
+    .boolean()
+    .refine((val) => val === true, {
+      message: "You must agree to the privacy policy",
+    }),
+
+  serviceConsent: z
+    .boolean()
+    .refine((val) => val === true, {
+      message: "You must agree to the service terms",
+    }),
+
+  medicalConsent: z
+    .boolean()
+    .refine((val) => val === true, {
+      message: "You must consent to medical information processing",
+    }),
+});
+
+export type PatientIntakeFormData = z.infer<typeof PatientIntakeFormSchema>;

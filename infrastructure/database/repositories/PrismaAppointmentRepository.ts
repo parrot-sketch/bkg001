@@ -257,7 +257,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     appointment: Appointment,
     consultationRequestFields?: ConsultationRequestFields,
     txClient?: PrismaClient
-  ): Promise<void> {
+  ): Promise<number> {
     try {
       const client = txClient || this.prisma;
       const createInput = AppointmentMapper.toPrismaCreateInput(appointment);
@@ -268,9 +268,12 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
         Object.assign(createInput, consultationFields);
       }
 
-      await client.appointment.create({
+      const created = await client.appointment.create({
         data: createInput,
       });
+      
+      // Return the database-generated ID
+      return created.id;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2002') {

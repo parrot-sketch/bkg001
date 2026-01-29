@@ -13,6 +13,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import db from '@/lib/db';
 import { RefreshTokenDto } from '@/application/dtos/RefreshTokenDto';
 import { DomainException } from '@/domain/exceptions/DomainException';
@@ -58,14 +59,27 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       refreshToken: body.refreshToken,
     });
 
-    // Return success response
-    return NextResponse.json(
+    // Create response with JSON data
+    const nextResponse = NextResponse.json(
       {
         success: true,
         data: response,
       },
       { status: 200 }
     );
+
+    // Set access token cookie on the response
+    const safeExpiresIn = typeof response.expiresIn === 'number' ? response.expiresIn : 900;
+
+    nextResponse.cookies.set('accessToken', response.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: safeExpiresIn,
+    });
+
+    return nextResponse;
   } catch (error) {
     // Handle domain exceptions (e.g., invalid or expired refresh token)
     if (error instanceof DomainException) {

@@ -20,6 +20,7 @@ import { toast } from 'sonner';
 import { frontdeskApi } from '@/lib/api/frontdesk';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { ConsultationRequestStatus } from '@/domain/enums/ConsultationRequestStatus';
+import { ConsultationRequestWorkflow } from '@/domain/workflows/ConsultationRequestWorkflow';
 import { format } from 'date-fns';
 
 interface ReviewConsultationDialogProps {
@@ -45,9 +46,10 @@ export function ReviewConsultationDialog({
   const [proposedTime, setProposedTime] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const canReview = appointment.consultationRequestStatus === ConsultationRequestStatus.SUBMITTED ||
-                   appointment.consultationRequestStatus === ConsultationRequestStatus.PENDING_REVIEW ||
-                   appointment.consultationRequestStatus === ConsultationRequestStatus.NEEDS_MORE_INFO;
+  // REFACTORED: Use workflow to determine if consultation can be reviewed
+  const canReview = appointment.consultationRequestStatus
+    ? ConsultationRequestWorkflow.canReview(appointment.consultationRequestStatus)
+    : false;
 
   const handleSubmit = async () => {
     if (!selectedAction) {
@@ -55,24 +57,23 @@ export function ReviewConsultationDialog({
       return;
     }
 
-    // Validate action-specific requirements
+    // REFACTORED: Use workflow validation methods instead of inline validation
     if (selectedAction === 'approve') {
-      if (!proposedDate || !proposedTime) {
-        toast.error('Proposed date and time are required when accepting for scheduling');
+      const validation = ConsultationRequestWorkflow.validateApproval(proposedDate, proposedTime);
+      if (!validation.valid) {
+        toast.error(validation.error || 'Validation failed');
         return;
       }
-    }
-
-    if (selectedAction === 'needs_more_info') {
-      if (!reviewNotes.trim()) {
-        toast.error('Review notes are required when requesting clarification');
+    } else if (selectedAction === 'needs_more_info') {
+      const validation = ConsultationRequestWorkflow.validateClarificationRequest(reviewNotes);
+      if (!validation.valid) {
+        toast.error(validation.error || 'Validation failed');
         return;
       }
-    }
-
-    if (selectedAction === 'reject') {
-      if (!reviewNotes.trim()) {
-        toast.error('Please provide a reason for marking as not suitable');
+    } else if (selectedAction === 'reject') {
+      const validation = ConsultationRequestWorkflow.validateRejection(reviewNotes);
+      if (!validation.valid) {
+        toast.error(validation.error || 'Validation failed');
         return;
       }
     }
@@ -116,25 +117,11 @@ export function ReviewConsultationDialog({
   };
 
   const getActionLabel = (action: ReviewAction): string => {
-    switch (action) {
-      case 'approve':
-        return 'Accept for Scheduling';
-      case 'needs_more_info':
-        return 'Request Clarification';
-      case 'reject':
-        return 'Mark as Not Suitable';
-    }
+    return ConsultationRequestWorkflow.getActionLabel(action);
   };
 
   const getActionDescription = (action: ReviewAction): string => {
-    switch (action) {
-      case 'approve':
-        return 'Accept this consultation request and propose a session date and time. The patient will be notified to confirm.';
-      case 'needs_more_info':
-        return 'Request additional information from the patient before proceeding. They will receive a notification with your questions.';
-      case 'reject':
-        return 'Mark this consultation request as not suitable. The patient will be notified that they are not a suitable candidate for this procedure.';
-    }
+    return ConsultationRequestWorkflow.getActionDescription(action);
   };
 
   const getActionIcon = (action: ReviewAction) => {

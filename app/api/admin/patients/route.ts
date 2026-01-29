@@ -11,7 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import db from '@/lib/db';
+import db, { withRetry } from '@/lib/db';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { PatientMapper as InfrastructurePatientMapper } from '@/infrastructure/mappers/PatientMapper';
 import { PatientMapper as ApplicationPatientMapper } from '@/application/mappers/PatientMapper';
@@ -69,17 +69,22 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // REFACTORED: Added take and skip for pagination
     // Note: Not using select here because PatientMapper.fromPrisma requires full PrismaPatient type
     // The optimization is avoiding unnecessary relations (appointments, medical_records, etc.)
+    // Wrapped in withRetry for connection resilience
     const [patients, totalCount] = await Promise.all([
-      db.patient.findMany({
-        // Explicitly exclude relations to avoid N+1 queries
-        // The mapper only needs the base patient fields
-        orderBy: {
-          created_at: 'desc',
-        },
-        take: limit, // REFACTORED: Bounded query
-        skip: skip,  // REFACTORED: Pagination offset
+      withRetry(async () => {
+        return await db.patient.findMany({
+          // Explicitly exclude relations to avoid N+1 queries
+          // The mapper only needs the base patient fields
+          orderBy: {
+            created_at: 'desc',
+          },
+          take: limit, // REFACTORED: Bounded query
+          skip: skip,  // REFACTORED: Pagination offset
+        });
       }),
-      db.patient.count(), // Total count for pagination metadata
+      withRetry(async () => {
+        return await db.patient.count(); // Total count for pagination metadata
+      }),
     ]);
 
     // 4. Map to DTOs

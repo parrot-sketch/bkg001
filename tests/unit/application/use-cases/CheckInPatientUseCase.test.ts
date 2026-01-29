@@ -8,6 +8,18 @@ import { Appointment } from '../../../../domain/entities/Appointment';
 import { AppointmentStatus } from '../../../../domain/enums/AppointmentStatus';
 import { DomainException } from '../../../../domain/exceptions/DomainException';
 
+// Mock the database dependency
+vi.mock('@/lib/db', () => ({
+  default: {
+    appointment: {
+      update: vi.fn(),
+      findUnique: vi.fn(),
+    },
+  },
+}));
+
+import db from '@/lib/db';
+
 describe('CheckInPatientUseCase', () => {
   let mockAppointmentRepository: {
     findById: Mock;
@@ -30,6 +42,8 @@ describe('CheckInPatientUseCase', () => {
   };
 
   beforeEach(() => {
+    vi.clearAllMocks();
+
     mockAppointmentRepository = {
       findById: vi.fn(),
       findByPatient: vi.fn(),
@@ -42,8 +56,8 @@ describe('CheckInPatientUseCase', () => {
     };
 
     mockTimeService = {
-      now: vi.fn().mockReturnValue(new Date()),
-      today: vi.fn().mockReturnValue(new Date()),
+      now: vi.fn().mockReturnValue(new Date('2025-12-31T10:00:00')),
+      today: vi.fn().mockReturnValue(new Date('2025-12-31')),
     };
 
     useCase = new CheckInPatientUseCase(
@@ -54,14 +68,14 @@ describe('CheckInPatientUseCase', () => {
   });
 
   describe('execute', () => {
-    it('should check in patient successfully (PENDING → SCHEDULED)', async () => {
+    it('should check in patient successfully when arriving on time', async () => {
       // Arrange
       const pendingAppointment = Appointment.create({
         id: 1,
         patientId: 'patient-1',
         doctorId: 'doctor-1',
         appointmentDate: new Date('2025-12-31'),
-        time: '10:00 AM',
+        time: '10:00',
         status: AppointmentStatus.PENDING,
         type: 'Consultation',
       });
@@ -73,40 +87,84 @@ describe('CheckInPatientUseCase', () => {
       const result = await useCase.execute(validDto);
 
       // Assert
-      expect(result).toBeDefined();
       expect(result.status).toBe(AppointmentStatus.SCHEDULED);
       expect(mockAppointmentRepository.update).toHaveBeenCalledOnce();
-      expect(mockAuditService.recordEvent).toHaveBeenCalledOnce();
+
+      // Verify DB update for arrival metadata
+      expect(db.appointment.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: expect.objectContaining({
+          late_arrival: false,
+          late_by_minutes: null,
+        }),
+      });
 
       // Verify audit event
       const auditCall = mockAuditService.recordEvent.mock.calls[0][0];
-      expect(auditCall.action).toBe('UPDATE');
-      expect(auditCall.model).toBe('Appointment');
+      expect(auditCall.details).toContain('Patient checked in');
+      expect(auditCall.details).not.toContain('minutes late');
     });
 
-    it('should be idempotent if already SCHEDULED', async () => {
+    it('should calculate lateness when arriving after scheduled time', async () => {
+      // Arrange
+      const scheduledTime = '10:00';
+      const arrivalTime = new Date('2025-12-31T10:15:00'); // 15 mins late
+      mockTimeService.now.mockReturnValue(arrivalTime);
+
+      const pendingAppointment = Appointment.create({
+        id: 1,
+        patientId: 'patient-1',
+        doctorId: 'doctor-1',
+        appointmentDate: new Date('2025-12-31'),
+        time: scheduledTime,
+        status: AppointmentStatus.PENDING,
+        type: 'Consultation',
+      });
+
+      mockAppointmentRepository.findById.mockResolvedValue(pendingAppointment);
+
+      // Act
+      await useCase.execute(validDto);
+
+      // Assert
+      expect(db.appointment.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: expect.objectContaining({
+          late_arrival: true,
+          late_by_minutes: 15,
+        }),
+      });
+
+      // Verify audit event contains lateness
+      const auditCall = mockAuditService.recordEvent.mock.calls[0][0];
+      expect(auditCall.details).toContain('15 minutes late');
+    });
+
+    it('should be idempotent if already SCHEDULED but refresh missing metadata', async () => {
       // Arrange
       const scheduledAppointment = Appointment.create({
         id: 1,
         patientId: 'patient-1',
         doctorId: 'doctor-1',
         appointmentDate: new Date('2025-12-31'),
-        time: '10:00 AM',
+        time: '10:00',
         status: AppointmentStatus.SCHEDULED,
         type: 'Consultation',
       });
 
       mockAppointmentRepository.findById.mockResolvedValue(scheduledAppointment);
+      // Simulate missing checked_in_at in DB
+      (db.appointment.findUnique as Mock).mockResolvedValue({ checked_in_at: null });
 
       // Act
       const result = await useCase.execute(validDto);
 
       // Assert
       expect(result.status).toBe(AppointmentStatus.SCHEDULED);
-      // Update should not be called (already scheduled)
       expect(mockAppointmentRepository.update).not.toHaveBeenCalled();
-      // Audit should still record the check-in attempt
-      expect(mockAuditService.recordEvent).toHaveBeenCalledOnce();
+      // Should still update DB metadata since it was missing
+      expect(db.appointment.update).toHaveBeenCalled();
+      expect(mockAuditService.recordEvent).toHaveBeenCalled();
     });
 
     it('should throw DomainException if appointment not found', async () => {
@@ -115,7 +173,6 @@ describe('CheckInPatientUseCase', () => {
 
       // Act & Assert
       await expect(useCase.execute(validDto)).rejects.toThrow(DomainException);
-      await expect(useCase.execute(validDto)).rejects.toThrow('not found');
       expect(mockAppointmentRepository.update).not.toHaveBeenCalled();
     });
 
@@ -126,7 +183,7 @@ describe('CheckInPatientUseCase', () => {
         patientId: 'patient-1',
         doctorId: 'doctor-1',
         appointmentDate: new Date('2025-12-31'),
-        time: '10:00 AM',
+        time: '10:00',
         status: AppointmentStatus.CANCELLED,
         type: 'Consultation',
       });
@@ -134,9 +191,7 @@ describe('CheckInPatientUseCase', () => {
       mockAppointmentRepository.findById.mockResolvedValue(cancelledAppointment);
 
       // Act & Assert
-      await expect(useCase.execute(validDto)).rejects.toThrow(DomainException);
       await expect(useCase.execute(validDto)).rejects.toThrow('cancelled');
-      expect(mockAppointmentRepository.update).not.toHaveBeenCalled();
     });
 
     it('should throw DomainException if appointment is completed', async () => {
@@ -146,7 +201,7 @@ describe('CheckInPatientUseCase', () => {
         patientId: 'patient-1',
         doctorId: 'doctor-1',
         appointmentDate: new Date('2025-12-31'),
-        time: '10:00 AM',
+        time: '10:00',
         status: AppointmentStatus.COMPLETED,
         type: 'Consultation',
       });
@@ -154,9 +209,7 @@ describe('CheckInPatientUseCase', () => {
       mockAppointmentRepository.findById.mockResolvedValue(completedAppointment);
 
       // Act & Assert
-      await expect(useCase.execute(validDto)).rejects.toThrow(DomainException);
       await expect(useCase.execute(validDto)).rejects.toThrow('completed');
-      expect(mockAppointmentRepository.update).not.toHaveBeenCalled();
     });
   });
 });

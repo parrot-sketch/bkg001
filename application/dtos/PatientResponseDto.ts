@@ -36,4 +36,6 @@ export interface PatientResponseDto {
   readonly insuranceNumber?: string;
   readonly createdAt?: Date;
   readonly updatedAt?: Date;
+  readonly profileImage?: string;
+  readonly colorCode?: string;
 }

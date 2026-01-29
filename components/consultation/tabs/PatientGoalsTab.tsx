@@ -8,19 +8,25 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Save } from 'lucide-react';
+import { RichTextEditor } from '@/components/consultation/RichTextEditor';
 
 interface PatientGoalsTabProps {
   initialValue?: string;
   onChange: (value: string) => void;
+  onSave?: () => void;
+  isSaving?: boolean;
   isReadOnly?: boolean;
 }
 
 export function PatientGoalsTab({
   initialValue = '',
   onChange,
+  onSave,
+  isSaving = false,
   isReadOnly = false,
 }: PatientGoalsTabProps) {
   const [goals, setGoals] = useState(initialValue);
@@ -43,14 +49,12 @@ export function PatientGoalsTab({
         <p className="text-xs text-muted-foreground mt-1 mb-3">
           What brings the patient in today? Document the primary concern and aesthetic goals.
         </p>
-        <Textarea
-          id="chief-complaint"
+        <RichTextEditor
+          content={goals}
+          onChange={handleChange}
           placeholder="Document the patient's primary concern, aesthetic goals, and expectations..."
-          value={goals}
-          onChange={(e) => handleChange(e.target.value)}
-          disabled={isReadOnly}
-          rows={12}
-          className="font-mono text-sm resize-none"
+          readOnly={isReadOnly}
+          minHeight="400px"
         />
       </div>
 
@@ -87,6 +91,21 @@ export function PatientGoalsTab({
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Save Button */}
+      {!isReadOnly && onSave && (
+        <div className="flex justify-end pt-4 border-t">
+          <Button
+            onClick={onSave}
+            disabled={isSaving || !goals.trim()}
+            size="sm"
+            className="bg-primary hover:bg-primary/90"
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {isSaving ? 'Saving...' : 'Save Chief Complaint'}
+          </Button>
+        </div>
       )}
     </div>
   );

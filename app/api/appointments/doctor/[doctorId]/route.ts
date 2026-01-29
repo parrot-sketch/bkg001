@@ -47,10 +47,10 @@ export async function GET(
 
     const userId = authResult.user.userId;
     const userRole = authResult.user.role;
-    const doctorId = params?.doctorId;
+    const doctorIdParam = params?.doctorId;
 
-    // 2. Validate doctor ID
-    if (!doctorId) {
+    // 2. Validate doctor ID parameter
+    if (!doctorIdParam) {
       return NextResponse.json(
         {
           success: false,
@@ -60,24 +60,68 @@ export async function GET(
       );
     }
 
-    // 3. Check permissions: Doctors can only query their own appointments
-    if (userRole === 'DOCTOR' && userId !== doctorId) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Access denied: Doctors can only view their own appointments',
-        },
-        { status: 403 }
-      );
+    // 3. If user is a doctor, verify they're querying their own appointments
+    // and look up their doctor record to get the actual doctor_id
+    let actualDoctorId = doctorIdParam;
+    
+    if (userRole === 'DOCTOR') {
+      if (userId !== doctorIdParam) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Access denied: Doctors can only view their own appointments',
+          },
+          { status: 403 }
+        );
+      }
+      
+      // Look up doctor record by user_id to get the actual doctor.id
+      const doctor = await db.doctor.findUnique({
+        where: { user_id: userId },
+        select: { id: true },
+      });
+      
+      if (!doctor) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Doctor profile not found',
+          },
+          { status: 404 }
+        );
+      }
+      
+      actualDoctorId = doctor.id;
+    } else {
+      // For non-doctors (admin, frontdesk), the doctorIdParam should be the actual doctor.id
+      // Verify the doctor exists
+      const doctor = await db.doctor.findUnique({
+        where: { id: doctorIdParam },
+        select: { id: true },
+      });
+      
+      if (!doctor) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Doctor not found',
+          },
+          { status: 404 }
+        );
+      }
+      
+      actualDoctorId = doctorIdParam;
     }
 
     // 4. Parse query parameters
     const { searchParams } = new URL(request.url);
     const statusParam = searchParams.get('status');
+    const includeAll = searchParams.get('includeAll') === 'true'; // New parameter to include all appointments
 
     // 5. Determine consultation request status filter
     // Default: Only show SCHEDULED and CONFIRMED (approved consultations)
     // This ensures doctors never see unreviewed requests
+    // BUT: If includeAll=true, show all appointments regardless of consultation_request_status
     let consultationRequestStatuses: ConsultationRequestStatus[] = [
       ConsultationRequestStatus.SCHEDULED,
       ConsultationRequestStatus.CONFIRMED,
@@ -91,11 +135,24 @@ export async function GET(
 
     // 6. Build where clause
     const where: any = {
-      doctor_id: doctorId,
-      consultation_request_status: {
-        in: consultationRequestStatuses,
-      },
+      doctor_id: actualDoctorId,
     };
+
+    // Only filter by consultation_request_status if includeAll is not true
+    // This allows showing all appointments (including those without consultation_request_status set)
+    if (!includeAll) {
+      // Include appointments with the specified statuses OR NULL (appointments without consultation_request_status)
+      where.OR = [
+        {
+          consultation_request_status: {
+            in: consultationRequestStatuses,
+          },
+        },
+        {
+          consultation_request_status: null,
+        },
+      ];
+    }
 
     // 7. Fetch appointments
     const appointments = await db.appointment.findMany({
@@ -125,8 +182,10 @@ export async function GET(
       },
     });
 
-    // 8. Map to DTO format
-    const mappedAppointments: AppointmentResponseDto[] = appointments.map((appointment) => {
+    // 8. Map to DTO format with patient information
+    const mappedAppointments: (AppointmentResponseDto & { 
+      patient?: { id: string; firstName: string; lastName: string; email?: string; phone?: string; img?: string | null } 
+    })[] = appointments.map((appointment) => {
       const consultationFields = extractConsultationRequestFields(appointment);
 
       return {
@@ -145,6 +204,15 @@ export async function GET(
         reviewNotes: consultationFields.reviewNotes ?? undefined,
         createdAt: appointment.created_at,
         updatedAt: appointment.updated_at,
+        // Include patient information for display
+        patient: appointment.patient ? {
+          id: appointment.patient.id,
+          firstName: appointment.patient.first_name,
+          lastName: appointment.patient.last_name,
+          email: appointment.patient.email,
+          phone: appointment.patient.phone,
+          img: appointment.patient.img,
+        } : undefined,
       };
     });
 

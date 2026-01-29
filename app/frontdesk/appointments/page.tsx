@@ -25,7 +25,7 @@ import type { AppointmentResponseDto } from '@/application/dtos/AppointmentRespo
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { format } from 'date-fns';
 import { CheckInDialog } from '@/components/frontdesk/CheckInDialog';
-import { AppointmentCard } from '@/components/patient/AppointmentCard';
+import { FrontdeskAppointmentCard } from '@/components/frontdesk/FrontdeskAppointmentCard';
 
 export default function FrontdeskAppointmentsPage() {
   const { user, isAuthenticated } = useAuth();
@@ -40,11 +40,11 @@ export default function FrontdeskAppointmentsPage() {
 
   // REFACTORED: Replaced manual useState/useEffect with React Query
   // Using existing useAppointmentsByDate hook from hooks/appointments/useAppointments.ts
-  const { 
-    data: appointments = [], 
-    isLoading: loading 
+  const {
+    data: appointments = [],
+    isLoading: loading
   } = useAppointmentsByDate(
-    new Date(selectedDate), 
+    new Date(selectedDate),
     isAuthenticated && !!user
   );
 
@@ -214,33 +214,13 @@ export default function FrontdeskAppointmentsPage() {
               </p>
             </div>
           ) : (
-            <div className="space-y-3 sm:space-y-4">
+            <div className="space-y-3">
               {filteredAppointments.map((appointment) => (
-                <div
+                <FrontdeskAppointmentCard
                   key={appointment.id}
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 rounded-lg border border-border p-3 sm:p-4 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <AppointmentCard appointment={appointment} showDoctorInfo={true} />
-                  </div>
-                  <div className="flex items-center justify-end sm:justify-start space-x-2 flex-shrink-0 sm:ml-4">
-                    {appointment.status === AppointmentStatus.PENDING && (
-                      <Button 
-                        size="sm" 
-                        onClick={() => handleCheckIn(appointment)}
-                        className="w-full sm:w-auto min-h-[44px]"
-                      >
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        Check In
-                      </Button>
-                    )}
-                    {appointment.status === AppointmentStatus.SCHEDULED && (
-                      <span className="text-xs sm:text-sm font-medium text-green-600 whitespace-nowrap">
-                        Checked In
-                      </span>
-                    )}
-                  </div>
-                </div>
+                  appointment={appointment}
+                  onCheckIn={handleCheckIn}
+                />
               ))}
             </div>
           )}

@@ -68,7 +68,7 @@ export function DoctorSelect({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center space-x-2">
                       <p className="font-medium text-sm text-foreground truncate">
-                        {doctor.title} {doctor.firstName} {doctor.lastName}
+                        {doctor.name || `${doctor.title || ''} ${doctor.firstName || ''} ${doctor.lastName || ''}`.trim() || 'Doctor'}
                       </p>
                     </div>
                     <p className="text-xs text-muted-foreground truncate">{doctor.specialization}</p>

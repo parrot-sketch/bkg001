@@ -7,26 +7,48 @@
  * Critical for aesthetic surgery: tracks patient decision journey.
  */
 
-import { useState } from 'react';
-import { Textarea } from '@/components/ui/textarea';
+import { useState, useEffect } from 'react';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Save } from 'lucide-react';
+import { RichTextEditor } from '@/components/consultation/RichTextEditor';
 import type { ConsultationResponseDto } from '@/application/dtos/ConsultationResponseDto';
 import { PatientDecision } from '@/domain/enums/PatientDecision';
 
 interface ProcedureDiscussionTabProps {
   consultation: ConsultationResponseDto | null;
+  discussionContent?: string;
+  onDiscussionChange?: (content: string) => void;
+  onPatientDecisionChange?: (decision: PatientDecision) => void;
+  onSave?: () => void;
+  isSaving?: boolean;
   isReadOnly?: boolean;
 }
 
 export function ProcedureDiscussionTab({
   consultation,
+  discussionContent = '',
+  onDiscussionChange,
+  onPatientDecisionChange,
+  onSave,
+  isSaving = false,
   isReadOnly = false,
 }: ProcedureDiscussionTabProps) {
-  const [discussion, setDiscussion] = useState('');
   const [patientDecision, setPatientDecision] = useState<PatientDecision | ''>(
     consultation?.patientDecision || ''
   );
+
+  useEffect(() => {
+    if (consultation?.patientDecision) {
+      setPatientDecision(consultation.patientDecision);
+    }
+  }, [consultation]);
+
+  const handleDecisionChange = (value: PatientDecision) => {
+    setPatientDecision(value);
+    onPatientDecisionChange?.(value);
+  };
 
   return (
     <div className="space-y-4">
@@ -37,14 +59,12 @@ export function ProcedureDiscussionTab({
         <p className="text-xs text-muted-foreground mt-1 mb-3">
           Document procedures discussed, options presented, and patient questions.
         </p>
-        <Textarea
-          id="procedure-discussion"
+        <RichTextEditor
+          content={discussionContent}
+          onChange={(content) => onDiscussionChange?.(content)}
           placeholder="Procedures discussed, options presented, risks explained, patient questions..."
-          value={discussion}
-          onChange={(e) => setDiscussion(e.target.value)}
-          disabled={isReadOnly}
-          rows={12}
-          className="font-mono text-sm resize-none"
+          readOnly={isReadOnly}
+          minHeight="400px"
         />
       </div>
 
@@ -55,7 +75,7 @@ export function ProcedureDiscussionTab({
           </Label>
           <Select
             value={patientDecision}
-            onValueChange={(value) => setPatientDecision(value as PatientDecision)}
+            onValueChange={(value) => handleDecisionChange(value as PatientDecision)}
             disabled={isReadOnly}
           >
             <SelectTrigger id="patient-decision" className="mt-2">
@@ -67,6 +87,21 @@ export function ProcedureDiscussionTab({
               <SelectItem value={PatientDecision.PENDING}>Pending - Needs Time</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+      )}
+
+      {/* Save Button */}
+      {!isReadOnly && onSave && (
+        <div className="flex justify-end pt-4 border-t">
+          <Button
+            onClick={onSave}
+            disabled={isSaving}
+            size="sm"
+            className="bg-primary hover:bg-primary/90"
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {isSaving ? 'Saving...' : 'Save Discussion'}
+          </Button>
         </div>
       )}
     </div>

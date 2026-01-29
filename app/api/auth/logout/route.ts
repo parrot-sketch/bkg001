@@ -13,6 +13,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import db from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth/jwt-helper';
 import { AuthFactory } from '@/infrastructure/auth/AuthFactory';
@@ -49,14 +50,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // - Record audit event
     await logoutUseCase.execute(userId);
 
-    // 3. Return success response
-    return NextResponse.json(
+    // Create response
+    const nextResponse = NextResponse.json(
       {
         success: true,
         message: 'Logged out successfully',
       },
       { status: 200 }
     );
+
+    // Clear access token cookie
+    nextResponse.cookies.delete('accessToken');
+
+    return nextResponse;
   } catch (error) {
     // Unexpected error - log and return generic error
     console.error('[API] /api/auth/logout - Unexpected error:', error);

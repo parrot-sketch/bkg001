@@ -25,7 +25,7 @@ import { IAvailabilityRepository } from '../../domain/interfaces/repositories/IA
 import { IAppointmentRepository } from '../../domain/interfaces/repositories/IAppointmentRepository';
 import { GetAvailableSlotsDto } from '../dtos/GetAvailableSlotsDto';
 import { AvailableSlotResponseDto } from '../dtos/AvailableSlotResponseDto';
-import { AvailabilitySlotService } from '../../domain/services/AvailabilitySlotService';
+import { AvailabilityService } from '../../domain/services/AvailabilityService';
 import { DomainException } from '../../domain/exceptions/DomainException';
 import { PrismaClient } from '@prisma/client';
 
@@ -98,45 +98,70 @@ export class GetAvailableSlotsForDateUseCase {
       slotConfig.defaultDuration = dto.duration;
     }
 
-    // Step 5: Get existing appointments for the date
-    const doctorAppointments = await this.appointmentRepository.findByDoctor(dto.doctorId);
+    // Step 5: Get existing appointments for the date (optimized: fetch only for this date)
+    // Use date range filter to fetch only appointments for the specific date
+    const startOfRequestDate = new Date(requestDate);
+    startOfRequestDate.setHours(0, 0, 0, 0);
+    const endOfRequestDate = new Date(requestDate);
+    endOfRequestDate.setHours(23, 59, 59, 999);
+    
+    const doctorAppointments = await this.appointmentRepository.findByDoctor(dto.doctorId, {
+      startDate: startOfRequestDate,
+      endDate: endOfRequestDate,
+    });
+    
+    // Filter to only active appointments that occupy time slots for the exact date
+    // Exclude: CANCELLED, COMPLETED (these don't block slots)
+    // Include: PENDING, SCHEDULED (these block slots)
+    // Note: Prisma enum only has PENDING, SCHEDULED, CANCELLED, COMPLETED (no NO_SHOW or CONFIRMED)
+    const excludedStatuses = ['CANCELLED', 'COMPLETED'];
     const dateAppointments = doctorAppointments.filter((apt) => {
       const aptDate = new Date(apt.getAppointmentDate());
       aptDate.setHours(0, 0, 0, 0);
-      return aptDate.getTime() === requestDate.getTime() &&
-        apt.getStatus() !== 'CANCELLED';
+      const requestDateNormalized = new Date(requestDate);
+      requestDateNormalized.setHours(0, 0, 0, 0);
+      return aptDate.getTime() === requestDateNormalized.getTime() &&
+        !excludedStatuses.includes(apt.getStatus() as string);
     });
 
-    // Step 6: Get overrides for the date
+    // Step 6: Get overrides and blocks for the date
     const startOfDay = new Date(requestDate);
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(requestDate);
     endOfDay.setHours(23, 59, 59, 999);
-    const overrides = await this.availabilityRepository.getOverrides(
-      dto.doctorId,
-      startOfDay,
-      endOfDay
-    );
+    const [overrides, blocks] = await Promise.all([
+      this.availabilityRepository.getOverrides(
+        dto.doctorId,
+        startOfDay,
+        endOfDay
+      ),
+      this.availabilityRepository.getBlocks(
+        dto.doctorId,
+        startOfDay,
+        endOfDay
+      ),
+    ]);
 
-    // Step 7: Generate slots
-    const slots = AvailabilitySlotService.generateSlotsForDate(
+    // Step 7: Use AvailabilityService to get available slots (enterprise scheduling with layered resolution)
+    // This service handles: Blocks > Overrides > Sessions > Breaks
+    const slots = AvailabilityService.getAvailableSlots(
       requestDate,
       availability.workingDays,
+      availability.sessions,
       overrides,
+      blocks,
       availability.breaks,
       dateAppointments,
       slotConfig
     );
 
-    // Step 8: Filter to only available slots and map to DTOs
-    return slots
-      .filter((slot) => slot.isAvailable)
-      .map((slot) => ({
-        startTime: this.formatTime(slot.startTime),
-        endTime: this.formatTime(slot.endTime),
-        duration: slot.duration,
-        isAvailable: true,
-      }));
+    // Step 8: Map to DTOs (preserving isAvailable flag from AvailabilityService)
+    return slots.map((slot) => ({
+      startTime: this.formatTime(slot.startTime),
+      endTime: this.formatTime(slot.endTime),
+      duration: slot.duration,
+      isAvailable: slot.isAvailable,
+    }));
   }
 
   private formatTime(date: Date): string {

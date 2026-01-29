@@ -79,7 +79,7 @@ describe('IAppointmentRepository Interface', () => {
       appointment: Appointment,
       consultationRequestFields?: unknown,
       txClient?: unknown
-    ): Promise<void> {
+    ): Promise<number> {
       if (this.appointments.has(appointment.getId())) {
         throw new Error('Appointment already exists');
       }
@@ -96,6 +96,8 @@ describe('IAppointmentRepository Interface', () => {
       const doctorAppointments = this.appointmentsByDoctor.get(doctorId) || [];
       doctorAppointments.push(appointment);
       this.appointmentsByDoctor.set(doctorId, doctorAppointments);
+
+      return appointment.getId();
     }
 
     async update(
@@ -277,7 +279,7 @@ describe('IAppointmentRepository Interface', () => {
       const appointment = createTestAppointment(1, 'patient-1', 'doctor-1');
 
       // This should compile without errors
-      const savePromise: Promise<void> = repository.save(appointment);
+      const savePromise: Promise<number> = repository.save(appointment);
       expect(savePromise).toBeInstanceOf(Promise);
     });
   });

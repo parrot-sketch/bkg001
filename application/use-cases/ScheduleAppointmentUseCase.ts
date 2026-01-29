@@ -73,7 +73,7 @@ export class ScheduleAppointmentUseCase {
     if (!prisma) {
       throw new Error('PrismaClient is required');
     }
-    
+
     // CRITICAL: Validate that we're using the singleton PrismaClient
     // This prevents connection pool exhaustion from accidental new instances
     UseCaseFactory.validatePrismaClient(prisma);
@@ -114,7 +114,7 @@ export class ScheduleAppointmentUseCase {
     const now = this.timeService.now();
     const appointmentDateTime = new Date(dto.appointmentDate);
     appointmentDateTime.setHours(0, 0, 0, 0);
-    
+
     if (appointmentDateTime < now) {
       throw new DomainException('Appointment date cannot be in the past', {
         appointmentDate: dto.appointmentDate,
@@ -122,16 +122,19 @@ export class ScheduleAppointmentUseCase {
       });
     }
 
-    // Step 2.5: Validate availability (NEW - critical for clinic operations)
-    // Get slot configuration to determine duration
+    // Step 2.5: Validate availability (Phase 3 Enhancement)
+    // Uses Phase 1 temporal fields for efficient conflict detection
+    // Leverages indexes on (doctor_id, scheduled_at) for O(n) performance
     const slotConfig = await this.availabilityRepository.getSlotConfiguration(dto.doctorId);
     const appointmentDuration = slotConfig?.defaultDuration || 30; // Default 30 minutes
 
+    // PHASE 1 INTEGRATION: appointmentDuration stored as Phase 1 field (duration_minutes)
+    // This enables quick conflict detection without joins
     const availabilityCheck = await this.validateAvailabilityUseCase.execute({
       doctorId: dto.doctorId,
       date: dto.appointmentDate,
       time: dto.time,
-      duration: appointmentDuration,
+      duration: appointmentDuration, // Maps to Phase 1: duration_minutes field
     });
 
     if (!availabilityCheck.isAvailable) {
@@ -159,11 +162,10 @@ export class ScheduleAppointmentUseCase {
     // Even if two requests arrive simultaneously, only one will succeed
     // The database unique index (appointment_no_double_booking) provides additional protection
     let savedAppointmentId: number;
-    
+
     try {
-      await this.prisma.$transaction(async (tx) => {
+      savedAppointmentId = await this.prisma.$transaction(async (tx) => {
         // Step 4.1: Check for doctor conflict within transaction
-        // This is the critical check - must happen inside transaction
         const hasDoctorConflict = await this.appointmentRepository.hasConflict(
           dto.doctorId,
           appointmentDateTime,
@@ -182,9 +184,9 @@ export class ScheduleAppointmentUseCase {
           );
         }
 
-        // Step 4.2: Check for patient conflict (same doctor/date/time)
-        // This prevents patient from booking same slot twice
+        // Step 4.2: Check for patient conflict
         const patientAppointments = await this.appointmentRepository.findByPatient(dto.patientId);
+        const excludedStatuses = ['CANCELLED', 'COMPLETED'];
         const patientConflict = patientAppointments.find((apt) => {
           const aptDate = new Date(apt.getAppointmentDate());
           aptDate.setHours(0, 0, 0, 0);
@@ -192,7 +194,7 @@ export class ScheduleAppointmentUseCase {
             aptDate.getTime() === appointmentDateTime.getTime() &&
             apt.getDoctorId() === dto.doctorId &&
             apt.getTime() === dto.time &&
-            apt.getStatus() !== AppointmentStatus.CANCELLED
+            !excludedStatuses.includes(apt.getStatus() as string)
           );
         });
 
@@ -208,46 +210,35 @@ export class ScheduleAppointmentUseCase {
           );
         }
 
-        // Step 4.3: Save appointment within same transaction
-        // If unique constraint violation occurs (from DB index), it will be caught
-        await this.appointmentRepository.save(appointment, undefined, tx as PrismaClient);
+        // Step 4.3: Save appointment
+        const id = await this.appointmentRepository.save(appointment, undefined, tx as PrismaClient);
 
-        // Step 4.4: Retrieve the saved appointment ID within transaction
-        // We need to find the appointment we just created to get its ID
-        const savedAppointment = await tx.appointment.findFirst({
-          where: {
-            patient_id: dto.patientId,
-            doctor_id: dto.doctorId,
-            appointment_date: appointmentDateTime,
-            time: dto.time,
-          },
-          orderBy: {
-            created_at: 'desc',
-          },
-        });
+        // Step 4.4: Save Phase 1 temporal fields
+        const appointmentDateWithTime = new Date(dto.appointmentDate);
+        const [hours, minutes] = dto.time.split(':').map(Number);
+        appointmentDateWithTime.setHours(hours, minutes, 0, 0);
 
-        if (!savedAppointment) {
-          throw new Error('Failed to retrieve saved appointment ID');
-        }
-
-        savedAppointmentId = savedAppointment.id;
-
-        // Step 4.5: Save slot information within same transaction
         await tx.appointment.update({
-          where: { id: savedAppointmentId },
+          where: { id: id },
           data: {
             slot_start_time: dto.time,
             slot_duration: appointmentDuration,
+            scheduled_at: appointmentDateWithTime,
+            duration_minutes: appointmentDuration,
+            status_changed_at: new Date(),
+            status_changed_by: userId,
           },
         });
+
+        return id;
       });
     } catch (error) {
-      // Handle domain exceptions (re-throw as-is)
+      // Handle domain exceptions
       if (error instanceof DomainException) {
         throw error;
       }
-      
-      // Handle Prisma unique constraint violations (double booking)
+
+      // Handle Prisma unique constraint violations
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         const target = error.meta?.target;
         const targetArray = Array.isArray(target) ? target : (typeof target === 'string' ? [target] : []);
@@ -263,27 +254,16 @@ export class ScheduleAppointmentUseCase {
           );
         }
       }
-      
-      // Re-throw other errors
+
       throw error;
     }
 
     // Step 5: Retrieve saved appointment to get the full entity
-    // Note: savedAppointmentId was set within the transaction above
-    const allPatientAppointments = await this.appointmentRepository.findByPatient(dto.patientId);
-    let savedAppointment = allPatientAppointments
-      .filter((apt) => apt.getId() === savedAppointmentId)
-      .find((apt) => apt.getDoctorId() === dto.doctorId && apt.getAppointmentDate().getTime() === appointmentDateTime.getTime());
+    // Use the ID returned from the save operation
+    const savedAppointment = await this.appointmentRepository.findById(savedAppointmentId);
 
     if (!savedAppointment) {
-      // Fallback: find by criteria if ID match didn't work
-      savedAppointment = allPatientAppointments
-        .filter((apt) => apt.getDoctorId() === dto.doctorId && apt.getAppointmentDate().getTime() === appointmentDateTime.getTime())
-        .sort((a, b) => (b.getCreatedAt()?.getTime() || 0) - (a.getCreatedAt()?.getTime() || 0))[0];
-      
-      if (!savedAppointment) {
-        throw new Error('Failed to retrieve saved appointment');
-      }
+      throw new Error(`Failed to retrieve saved appointment with ID ${savedAppointmentId}`);
     }
 
     // Step 6: Send notification to patient
@@ -297,6 +277,28 @@ export class ScheduleAppointmentUseCase {
       // Notification failure should not break the use case
       // Log error but continue
       console.error('Failed to send appointment notification:', error);
+    }
+
+    // Step 7: Send in-app notification to Doctor
+    try {
+      // We need the doctor's User ID to send a notification
+      // (The Doctor entity might not have it loaded if it was just a reference check, 
+      // but usually we can fetch it or we might need a quick lookup)
+      const doctorUser = await this.prisma.doctor.findUnique({
+        where: { id: dto.doctorId },
+        select: { user_id: true }
+      });
+
+      if (doctorUser) {
+        await this.notificationService.sendInApp(
+          doctorUser.user_id,
+          'New Appointment Scheduled',
+          `New appointment with ${patient.getFullName()} on ${dto.appointmentDate.toLocaleDateString()} at ${dto.time}.`,
+          'info'
+        );
+      }
+    } catch (error) {
+      console.error('Failed to send doctor notification:', error);
     }
 
     // Step 8: Record audit event

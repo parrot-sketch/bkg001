@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { doctorApi } from '@/lib/api/doctor';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,18 +17,18 @@ import { Calendar, Clock, CheckCircle, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
+import { ClinicalDashboardShell } from '@/components/layouts/ClinicalDashboardShell';
+import { Activity } from 'lucide-react';
 import { format } from 'date-fns';
-import { StartConsultationDialog } from '@/components/doctor/StartConsultationDialog';
 import { CompleteConsultationDialog } from '@/components/doctor/CompleteConsultationDialog';
-import { AppointmentCard } from '@/components/patient/AppointmentCard';
 import { DoctorAppointmentCardEnhanced } from '@/components/doctor/DoctorAppointmentCardEnhanced';
 
 export default function DoctorAppointmentsPage() {
+  const router = useRouter();
   const { user, isAuthenticated } = useAuth();
   const [appointments, setAppointments] = useState<AppointmentResponseDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentResponseDto | null>(null);
-  const [showStartConsultation, setShowStartConsultation] = useState(false);
   const [showCompleteConsultation, setShowCompleteConsultation] = useState(false);
 
   useEffect(() => {
@@ -80,9 +81,31 @@ export default function DoctorAppointmentsPage() {
     }
   };
 
-  const handleStartConsultation = (appointment: AppointmentResponseDto) => {
-    setSelectedAppointment(appointment);
-    setShowStartConsultation(true);
+  const handleStartConsultation = async (appointment: AppointmentResponseDto) => {
+    if (!user) return;
+
+    const promise = async () => {
+      const response = await doctorApi.startConsultation({
+        appointmentId: appointment.id,
+        doctorId: user.id,
+        userId: user.id
+      });
+
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to start consultation');
+      }
+
+      return response.data;
+    };
+
+    toast.promise(promise(), {
+      loading: 'Preparing clinical workspace...',
+      success: (data) => {
+        window.location.href = `/doctor/consultations/${appointment.id}/session`;
+        return 'Consultation started';
+      },
+      error: (err) => err.message || 'Failed to start consultation',
+    });
   };
 
   const handleCompleteConsultation = (appointment: AppointmentResponseDto) => {
@@ -91,27 +114,26 @@ export default function DoctorAppointmentsPage() {
   };
 
   const handleConsultationSuccess = () => {
-    setShowStartConsultation(false);
     setShowCompleteConsultation(false);
     setSelectedAppointment(null);
     loadAppointments();
   };
 
-  const upcomingAppointments = appointments.filter(
-    (apt) =>
-      new Date(apt.appointmentDate) >= new Date() &&
-      (apt.status === AppointmentStatus.PENDING ||
-        apt.status === AppointmentStatus.SCHEDULED),
-  );
-
   const todayAppointments = appointments.filter((apt) => {
     const aptDate = new Date(apt.appointmentDate);
     const today = new Date();
-    return (
-      aptDate.getDate() === today.getDate() &&
-      aptDate.getMonth() === today.getMonth() &&
-      aptDate.getFullYear() === today.getFullYear()
-    );
+    today.setHours(0, 0, 0, 0);
+    aptDate.setHours(0, 0, 0, 0);
+
+    return aptDate.getTime() === today.getTime();
+  });
+
+  const relevantAppointments = appointments.filter((apt) => {
+    const aptDate = new Date(apt.appointmentDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return aptDate >= today;
   });
 
   if (!isAuthenticated || !user) {
@@ -125,181 +147,100 @@ export default function DoctorAppointmentsPage() {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Appointments</h1>
-        <p className="mt-2 text-muted-foreground">Manage your appointments and consultations</p>
-      </div>
+    <ClinicalDashboardShell>
+      <div className="space-y-10 animate-in fade-in duration-500">
+        {/* Header Section */}
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-slate-100/60 mb-2">
+          <div className="space-y-4">
+            <div className="flex items-center gap-5">
+              <div className="h-14 w-14 bg-slate-900 rounded-2xl flex items-center justify-center shadow-2xl shadow-slate-900/10 transition-transform hover:scale-105 duration-300">
+                <Calendar className="h-7 w-7 text-white" />
+              </div>
+              <div>
+                <h1 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-none mb-2">
+                  Clinical Appointments
+                </h1>
+                <p className="text-slate-500 font-bold flex items-center gap-3">
+                  <span className="h-1 w-1 rounded-full bg-slate-300" />
+                  Nairobi Sculpt • {format(new Date(), 'EEEE, MMMM d')}
+                </p>
+              </div>
+            </div>
+          </div>
+        </header>
 
-      {/* Today's Appointments */}
-      {todayAppointments.length > 0 && (
+        {/* Today's Appointments */}
+        {todayAppointments.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Today's Appointments</CardTitle>
+              <CardDescription>Appointments scheduled for today</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {todayAppointments.map((appointment) => (
+                  <DoctorAppointmentCardEnhanced
+                    key={appointment.id}
+                    appointment={appointment}
+                    onCheckIn={handleCheckIn}
+                    onStartConsultation={handleStartConsultation}
+                    onCompleteConsultation={handleCompleteConsultation}
+                    doctorId={user.id}
+                  />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* All Appointments - Filtered for relevance */}
         <Card>
           <CardHeader>
-            <CardTitle>Today's Appointments</CardTitle>
-            <CardDescription>Appointments scheduled for today</CardDescription>
+            <CardTitle>Upcoming Schedule</CardTitle>
+            <CardDescription>Your upcoming session list ({relevantAppointments.length} total)</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {todayAppointments.map((appointment) => (
-                <DoctorAppointmentCardEnhanced
-                  key={appointment.id}
-                  appointment={appointment}
-                  onCheckIn={handleCheckIn}
-                  onStartConsultation={handleStartConsultation}
-                  onCompleteConsultation={handleCompleteConsultation}
-                  doctorId={user.id}
-                />
-              ))}
-            </div>
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                <p className="mt-4 text-sm text-muted-foreground">Loading appointments...</p>
+              </div>
+            ) : relevantAppointments.length === 0 ? (
+              <div className="text-center py-8">
+                <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-sm text-muted-foreground">No upcoming appointments found</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {relevantAppointments.map((appointment) => (
+                  <DoctorAppointmentCardEnhanced
+                    key={appointment.id}
+                    appointment={appointment}
+                    onCheckIn={handleCheckIn}
+                    onStartConsultation={handleStartConsultation}
+                    onCompleteConsultation={handleCompleteConsultation}
+                    doctorId={user.id}
+                  />
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
-      )}
 
-      {/* All Appointments */}
-      <Card>
-        <CardHeader>
-          <CardTitle>All Appointments</CardTitle>
-          <CardDescription>Your complete appointment list</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-4 text-sm text-muted-foreground">Loading appointments...</p>
-            </div>
-          ) : appointments.length === 0 ? (
-            <div className="text-center py-8">
-              <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-sm text-muted-foreground">No appointments found</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {appointments.map((appointment) => (
-                <DoctorAppointmentCardEnhanced
-                  key={appointment.id}
-                  appointment={appointment}
-                  onCheckIn={handleCheckIn}
-                  onStartConsultation={handleStartConsultation}
-                  onCompleteConsultation={handleCompleteConsultation}
-                  doctorId={user.id}
-                />
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Start Consultation Dialog */}
-      {showStartConsultation && selectedAppointment && (
-        <StartConsultationDialog
-          open={showStartConsultation}
-          onClose={() => {
-            setShowStartConsultation(false);
-            setSelectedAppointment(null);
-          }}
-          onSuccess={handleConsultationSuccess}
-          appointment={selectedAppointment}
-          doctorId={user.id}
-        />
-      )}
-
-      {/* Complete Consultation Dialog */}
-      {showCompleteConsultation && selectedAppointment && (
-        <CompleteConsultationDialog
-          open={showCompleteConsultation}
-          onClose={() => {
-            setShowCompleteConsultation(false);
-            setSelectedAppointment(null);
-          }}
-          onSuccess={handleConsultationSuccess}
-          appointment={selectedAppointment}
-          doctorId={user.id}
-        />
-      )}
-    </div>
-  );
-}
-
-interface DoctorAppointmentCardProps {
-  appointment: AppointmentResponseDto;
-  onCheckIn: (appointmentId: number) => void;
-  onStartConsultation: (appointment: AppointmentResponseDto) => void;
-  onCompleteConsultation: (appointment: AppointmentResponseDto) => void;
-  doctorId: string;
-}
-
-function DoctorAppointmentCard({
-  appointment,
-  onCheckIn,
-  onStartConsultation,
-  onCompleteConsultation,
-  doctorId,
-}: DoctorAppointmentCardProps) {
-  const canCheckIn =
-    appointment.status === AppointmentStatus.PENDING ||
-    appointment.status === AppointmentStatus.SCHEDULED;
-  const canStartConsultation = appointment.status === AppointmentStatus.SCHEDULED;
-  const canCompleteConsultation =
-    appointment.status === AppointmentStatus.SCHEDULED && appointment.note; // Assuming if note exists, consultation started
-
-  return (
-    <div className="flex items-center justify-between rounded-lg border border-border p-4 hover:bg-muted/50 transition-colors">
-      <div className="flex items-center space-x-4 flex-1">
-        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 flex-shrink-0">
-          <Calendar className="h-6 w-6 text-primary" />
-        </div>
-        <div className="flex-1 space-y-1">
-          <p className="font-medium">
-            {format(new Date(appointment.appointmentDate), 'EEEE, MMMM d, yyyy')}
-          </p>
-          <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-            <span className="flex items-center">
-              <Clock className="mr-1 h-4 w-4" />
-              {appointment.time}
-            </span>
-            <span>•</span>
-            <span>Patient: {appointment.patientId}</span>
-            <span>•</span>
-            <span>{appointment.type}</span>
-          </div>
-          <p className="text-xs">
-            Status:{' '}
-            <span
-              className={`font-medium ${
-                appointment.status === AppointmentStatus.SCHEDULED
-                  ? 'text-green-600'
-                  : appointment.status === AppointmentStatus.PENDING
-                    ? 'text-yellow-600'
-                    : appointment.status === AppointmentStatus.COMPLETED
-                      ? 'text-blue-600'
-                      : 'text-red-600'
-              }`}
-            >
-              {appointment.status}
-            </span>
-          </p>
-        </div>
-      </div>
-      <div className="flex items-center space-x-2 flex-shrink-0">
-        {canCheckIn && (
-          <Button variant="outline" size="sm" onClick={() => onCheckIn(appointment.id)}>
-            <CheckCircle className="mr-2 h-4 w-4" />
-            Check In
-          </Button>
-        )}
-        {canStartConsultation && (
-          <Button variant="outline" size="sm" onClick={() => onStartConsultation(appointment)}>
-            <FileText className="mr-2 h-4 w-4" />
-            Start Consultation
-          </Button>
-        )}
-        {canCompleteConsultation && (
-          <Button size="sm" onClick={() => onCompleteConsultation(appointment)}>
-            Complete Consultation
-          </Button>
+        {/* Complete Consultation Dialog */}
+        {showCompleteConsultation && selectedAppointment && (
+          <CompleteConsultationDialog
+            open={showCompleteConsultation}
+            onClose={() => {
+              setShowCompleteConsultation(false);
+              setSelectedAppointment(null);
+            }}
+            onSuccess={handleConsultationSuccess}
+            appointment={selectedAppointment}
+            doctorId={user.id}
+          />
         )}
       </div>
-    </div>
+    </ClinicalDashboardShell>
   );
 }

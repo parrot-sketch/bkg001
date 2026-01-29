@@ -37,10 +37,38 @@ export function useDoctorTodayAppointments(doctorId: string | undefined, enabled
         throw new Error(response.error || 'Failed to load today\'s appointments');
       }
       // Filter to only show CONFIRMED and SCHEDULED sessions
-      // Surgeon never sees SUBMITTED, PENDING_REVIEW, NEEDS_MORE_INFO
-      return response.data.filter(
-        (apt) => apt.status === AppointmentStatus.SCHEDULED || apt.status === AppointmentStatus.CONFIRMED
-      );
+      // AND filter out passed appointments (60-minute grace period)
+      const now = new Date();
+      const currentHours = now.getHours();
+      const currentMinutes = now.getMinutes();
+
+      return response.data.filter((apt) => {
+        // Basic status filter
+        const isActionableStatus =
+          apt.status === AppointmentStatus.SCHEDULED ||
+          apt.status === AppointmentStatus.CONFIRMED;
+
+        if (!isActionableStatus) return false;
+
+        // Time-based relevance filter
+        try {
+          // Time format is typically HH:mm
+          const [aptHours, aptMinutes] = apt.time.split(':').map(Number);
+
+          if (!isNaN(aptHours) && !isNaN(aptMinutes)) {
+            const aptTotalMinutes = aptHours * 60 + aptMinutes;
+            const nowTotalMinutes = currentHours * 60 + currentMinutes;
+
+            // Allow 60 minutes grace period for late starts
+            // If it started more than 60 mins ago, it's likely done or missed for the dashboard view
+            return (aptTotalMinutes + 60) > nowTotalMinutes;
+          }
+        } catch (e) {
+          console.error('Error parsing appointment time:', apt.time);
+        }
+
+        return true;
+      });
     },
     staleTime: 1000 * 30, // 30 seconds - moderate freshness for clinical workflows
     gcTime: 1000 * 60 * 5, // 5 minutes

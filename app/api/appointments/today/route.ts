@@ -41,7 +41,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const today = new Date();
     const todayStart = new Date(today);
     todayStart.setHours(0, 0, 0, 0);
-    
+
     const todayEnd = new Date(today);
     todayEnd.setHours(23, 59, 59, 999);
 
@@ -50,59 +50,59 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Large clinics may have 200+ appointments in a single day
     // REFACTORED: Use select instead of include for better performance
     const MAX_TODAY_APPOINTMENTS = 200; // Safety limit for very busy days
-    
+
     const appointments = await withRetry(async () => {
       return await db.appointment.findMany({
-      where: {
-        appointment_date: {
-          gte: todayStart,
-          lte: todayEnd,
-        },
-      },
-      select: {
-        id: true,
-        patient_id: true,
-        doctor_id: true,
-        appointment_date: true,
-        time: true,
-        status: true,
-        type: true,
-        note: true,
-        reason: true,
-        consultation_request_status: true,
-        reviewed_by: true,
-        reviewed_at: true,
-        review_notes: true,
-        created_at: true,
-        updated_at: true,
-        patient: {
-          select: {
-            id: true,
-            first_name: true,
-            last_name: true,
-            email: true,
-            phone: true,
-            img: true,
+        where: {
+          appointment_date: {
+            gte: todayStart,
+            lte: todayEnd,
           },
         },
-        doctor: {
-          select: {
-            id: true,
-            name: true,
-            specialization: true,
-            img: true,
+        select: {
+          id: true,
+          patient_id: true,
+          doctor_id: true,
+          appointment_date: true,
+          time: true,
+          status: true,
+          type: true,
+          note: true,
+          reason: true,
+          consultation_request_status: true,
+          reviewed_by: true,
+          reviewed_at: true,
+          review_notes: true,
+          created_at: true,
+          updated_at: true,
+          patient: {
+            select: {
+              id: true,
+              first_name: true,
+              last_name: true,
+              email: true,
+              phone: true,
+              img: true,
+            },
+          },
+          doctor: {
+            select: {
+              id: true,
+              name: true,
+              specialization: true,
+              img: true,
+            },
           },
         },
-      },
-      orderBy: [
-        {
-          appointment_date: 'asc',
-        },
-        {
-          time: 'asc',
-        },
-      ],
-      take: MAX_TODAY_APPOINTMENTS, // REFACTORED: Safety limit
+        orderBy: [
+          {
+            appointment_date: 'asc',
+          },
+          {
+            time: 'asc',
+          },
+        ],
+        take: MAX_TODAY_APPOINTMENTS, // REFACTORED: Safety limit
       });
     });
 
@@ -128,6 +128,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         reviewNotes: consultationFields.reviewNotes ?? undefined,
         createdAt: appointment.created_at,
         updatedAt: appointment.updated_at,
+        patient: appointment.patient ? {
+          id: appointment.patient.id,
+          firstName: appointment.patient.first_name,
+          lastName: appointment.patient.last_name,
+          email: appointment.patient.email,
+          phone: appointment.patient.phone,
+          img: appointment.patient.img,
+        } : undefined,
+        doctor: appointment.doctor ? {
+          id: appointment.doctor.id,
+          name: appointment.doctor.name,
+          specialization: appointment.doctor.specialization,
+        } : undefined,
       };
     });
 
@@ -143,11 +156,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   } catch (error) {
     // Log detailed error information for debugging
     console.error('[API] GET /api/appointments/today - Unexpected error:', error);
-    
+
     // Provide more detailed error information in development
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : undefined;
-    
+
     // In development, include more details
     if (process.env.NODE_ENV === 'development') {
       console.error('[API] Error details:', {
@@ -156,12 +169,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         error,
       });
     }
-    
+
     return NextResponse.json(
       {
         success: false,
-        error: process.env.NODE_ENV === 'development' 
-          ? `Internal server error: ${errorMessage}` 
+        error: process.env.NODE_ENV === 'development'
+          ? `Internal server error: ${errorMessage}`
           : 'Internal server error',
       },
       { status: 500 }

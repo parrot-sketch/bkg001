@@ -88,4 +88,26 @@ export class MockNotificationService implements INotificationService {
       throw new Error(`Failed to log SMS notification: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
+
+  /**
+   * Logs an in-app notification attempt without actually creating it
+   */
+  async sendInApp(userId: string, title: string, message: string, type: 'info' | 'success' | 'warning' | 'error'): Promise<void> {
+    try {
+      const notificationLog = {
+        type: 'in-app',
+        timestamp: new Date().toISOString(),
+        userId,
+        title,
+        message,
+        level: type
+      };
+      console.log(JSON.stringify(notificationLog));
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[NOTIFICATION] In-App to ${userId}: [${type.toUpperCase()}] ${title} - ${message}`);
+      }
+    } catch (error) {
+      console.error('Failed to log in-app notification:', error);
+    }
+  }
 }

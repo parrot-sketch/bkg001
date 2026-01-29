@@ -40,7 +40,7 @@ import type { CompleteConsultationDto } from '@/application/dtos/CompleteConsult
 interface CompleteConsultationDialogProps {
   open: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (redirectPath?: string) => void;
   consultation: ConsultationResponseDto;
   appointment: AppointmentResponseDto;
   doctorId: string;
@@ -64,6 +64,11 @@ export function CompleteConsultationDialog({
   const requiresPatientDecision = outcomeType === ConsultationOutcomeType.PROCEDURE_RECOMMENDED;
   const isValidWithDecision = isValid && (!requiresPatientDecision || patientDecision !== '');
 
+  const isFollowUp = outcomeType === ConsultationOutcomeType.FOLLOW_UP_CONSULTATION_NEEDED;
+  const isProcedure = outcomeType === ConsultationOutcomeType.PROCEDURE_RECOMMENDED;
+
+  const [actionChoice, setActionChoice] = useState<'complete' | 'plan' | null>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -86,8 +91,25 @@ export function CompleteConsultationDialog({
       const response = await doctorApi.completeConsultation(dto);
 
       if (response.success) {
-        toast.success('Consultation completed successfully');
-        onSuccess();
+        if (isProcedure) {
+          // Show success but ask for next step
+          toast.success('Consultation completed. Patient added to surgery waiting list.');
+
+          if (actionChoice === 'plan') {
+            const operativeUrl = `/doctor/operative/plan/${appointment.id}/new`;
+            onSuccess(operativeUrl);
+          } else {
+            onSuccess(); // Just close, return to dashboard
+          }
+        }
+        else if (isFollowUp) {
+          toast.success('Consultation completed. Redirecting to schedule follow-up...');
+          const bookingUrl = `/doctor/appointments/new?patientId=${appointment.patientId}&type=Follow-up`;
+          onSuccess(bookingUrl);
+        } else {
+          toast.success('Consultation completed successfully');
+          onSuccess();
+        }
       } else {
         toast.error(response.error || 'Failed to complete consultation');
       }
@@ -201,13 +223,34 @@ export function CompleteConsultationDialog({
             <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={!isValidWithDecision || isSubmitting}
-              className="bg-primary text-primary-foreground"
-            >
-              {isSubmitting ? 'Completing...' : 'Complete Consultation'}
-            </Button>
+            {isProcedure ? (
+              <div className="flex gap-2">
+                <Button
+                  type="submit"
+                  disabled={!isValidWithDecision || isSubmitting}
+                  onClick={() => setActionChoice('complete')}
+                  className="bg-slate-800 text-white min-w-[120px]"
+                >
+                  {isSubmitting && actionChoice === 'complete' ? 'Completing...' : 'Finish & Exit'}
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={!isValidWithDecision || isSubmitting}
+                  onClick={() => setActionChoice('plan')}
+                  className="bg-primary text-primary-foreground min-w-[120px] gap-2"
+                >
+                  {isSubmitting && actionChoice === 'plan' ? 'Redirecting...' : 'Plan Surgery Now'}
+                </Button>
+              </div>
+            ) : (
+              <Button
+                type="submit"
+                disabled={!isValidWithDecision || isSubmitting}
+                className="bg-primary text-primary-foreground min-w-[120px]"
+              >
+                {isSubmitting ? 'Completing...' : (isFollowUp ? 'Complete & Schedule' : 'Complete Consultation')}
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>

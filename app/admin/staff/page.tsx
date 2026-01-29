@@ -212,6 +212,7 @@ export default function AdminStaffPage() {
                 <option value={Role.DOCTOR}>Doctor</option>
                 <option value={Role.NURSE}>Nurse</option>
                 <option value={Role.FRONTDESK}>Frontdesk</option>
+                <option value={Role.ADMIN}>Admin</option>
               </select>
             </div>
 
@@ -262,9 +263,8 @@ export default function AdminStaffPage() {
                 >
                   <div className="flex items-center space-x-4">
                     <div
-                      className={`flex h-12 w-12 items-center justify-center rounded-lg ${
-                        staffMember.status === Status.ACTIVE ? 'bg-success/10' : 'bg-muted'
-                      }`}
+                      className={`flex h-12 w-12 items-center justify-center rounded-lg ${staffMember.status === Status.ACTIVE ? 'bg-success/10' : 'bg-muted'
+                        }`}
                     >
                       {staffMember.status === Status.ACTIVE ? (
                         <UserCheck2 className="h-6 w-6 text-success" />

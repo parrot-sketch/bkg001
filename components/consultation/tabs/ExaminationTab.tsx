@@ -8,18 +8,24 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Save } from 'lucide-react';
+import { RichTextEditor } from '@/components/consultation/RichTextEditor';
 
 interface ExaminationTabProps {
   initialValue?: string;
   onChange: (value: string) => void;
+  onSave?: () => void;
+  isSaving?: boolean;
   isReadOnly?: boolean;
 }
 
 export function ExaminationTab({
   initialValue = '',
   onChange,
+  onSave,
+  isSaving = false,
   isReadOnly = false,
 }: ExaminationTabProps) {
   const [examination, setExamination] = useState(initialValue);
@@ -42,16 +48,29 @@ export function ExaminationTab({
         <p className="text-xs text-muted-foreground mt-1 mb-3">
           Document examination findings, measurements, and observations.
         </p>
-        <Textarea
-          id="examination"
+        <RichTextEditor
+          content={examination}
+          onChange={handleChange}
           placeholder="Examination findings, measurements, body areas examined..."
-          value={examination}
-          onChange={(e) => handleChange(e.target.value)}
-          disabled={isReadOnly}
-          rows={16}
-          className="font-mono text-sm resize-none"
+          readOnly={isReadOnly}
+          minHeight="500px"
         />
       </div>
+
+      {/* Save Button */}
+      {!isReadOnly && onSave && (
+        <div className="flex justify-end pt-4 border-t">
+          <Button
+            onClick={onSave}
+            disabled={isSaving || !examination.trim()}
+            size="sm"
+            className="bg-primary hover:bg-primary/90"
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {isSaving ? 'Saving...' : 'Save Examination'}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

@@ -92,7 +92,7 @@ class ApiClient {
         headers,
         // CRITICAL: Prevent any caching that could cause "Connection closed" errors
         cache: 'no-store',
-        credentials: 'omit',
+        credentials: 'same-origin',
       });
 
       // CRITICAL: Clone response before reading to avoid stream consumption issues
@@ -102,7 +102,7 @@ class ApiClient {
       // Check if response is JSON before parsing
       const contentType = response.headers.get('content-type');
       let data: any;
-      
+
       if (contentType && contentType.includes('application/json')) {
         try {
           // Use cloned response to avoid "Connection closed" errors
@@ -176,7 +176,7 @@ class ApiClient {
             ...options.headers,
           },
           cache: 'no-store',
-          credentials: 'omit',
+          credentials: 'same-origin',
         });
 
         // Clone retry response before reading
@@ -185,7 +185,7 @@ class ApiClient {
         // Check if retry response is JSON before parsing
         const retryContentType = retryResponse.headers.get('content-type');
         let retryData: any;
-        
+
         if (retryContentType && retryContentType.includes('application/json')) {
           try {
             // Use cloned response to avoid "Connection closed" errors
@@ -265,17 +265,17 @@ class ApiClient {
     } catch (error) {
       // Handle "Connection closed" errors gracefully
       const errorMessage = error instanceof Error ? error.message : 'Network error occurred';
-      
+
       // Check if it's a connection closed error
-      if (errorMessage.includes('Connection closed') || 
-          errorMessage.includes('connection closed') ||
-          errorMessage.includes('Failed to fetch')) {
+      if (errorMessage.includes('Connection closed') ||
+        errorMessage.includes('connection closed') ||
+        errorMessage.includes('Failed to fetch')) {
         return {
           success: false,
           error: 'Network error: Please refresh the page and try again',
         };
       }
-      
+
       return {
         success: false,
         error: errorMessage,

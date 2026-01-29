@@ -8,7 +8,8 @@
  * 
  * Security:
  * - Requires authentication
- * - FRONTDESK, ADMIN, and DOCTOR (own slots) can access
+ * - FRONTDESK, ADMIN, DOCTOR (own slots), and PATIENT can access
+ * - Patients can view slots for booking consultations
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -73,7 +74,7 @@ export async function GET(
       );
     }
 
-    // 3. Check permissions (FRONTDESK, ADMIN, or DOCTOR viewing own slots)
+    // 3. Check permissions (FRONTDESK, ADMIN, DOCTOR viewing own slots, or PATIENT for booking)
     if (userRole === Role.DOCTOR) {
       // Doctor can only view their own slots
       const doctor = await db.doctor.findUnique({
@@ -90,11 +91,11 @@ export async function GET(
           { status: 403 }
         );
       }
-    } else if (userRole !== Role.FRONTDESK && userRole !== Role.ADMIN) {
+    } else if (userRole !== Role.FRONTDESK && userRole !== Role.ADMIN && userRole !== Role.PATIENT) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Access denied: Only front desk, admin, and doctors can view slots',
+          error: 'Access denied: Only front desk, admin, doctors, and patients can view slots',
         },
         { status: 403 }
       );
