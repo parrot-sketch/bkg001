@@ -84,6 +84,11 @@ export interface IAvailabilityRepository {
   getDoctorAvailability(doctorId: string): Promise<DoctorAvailability | null>;
 
   /**
+   * Get complete availability for multiple doctors (optimization for N+1 problem)
+   */
+  getDoctorsAvailability(doctorIds: string[]): Promise<DoctorAvailability[]>;
+
+  /**
    * Get working days for a doctor
    */
   getWorkingDays(doctorId: string): Promise<WorkingDay[]>;

@@ -85,31 +85,42 @@ export class GetAllDoctorsAvailabilityUseCase {
       },
     });
 
-    // Step 3: Get availability for each doctor
-    const availabilityPromises = doctors.map(async (doctor) => {
-      const availability = await this.availabilityRepository.getDoctorAvailability(doctor.id);
-      const overrides = await this.availabilityRepository.getOverrides(
-        doctor.id,
-        dto.startDate,
-        dto.endDate
+    if (doctors.length === 0) {
+      return [];
+    }
+
+    const doctorIds = doctors.map(d => d.id);
+    const doctorsMap = new Map(doctors.map(d => [d.id, d]));
+
+    // Step 3: Bulk fetch availability for all doctors
+    // This replaces the N+1 query pattern with a single efficient bulk fetch
+    const allAvailability = await this.availabilityRepository.getDoctorsAvailability(doctorIds);
+
+    // Step 4: Map results and filter locally
+    const results: DoctorAvailabilityResponseDto[] = allAvailability.map(availability => {
+      const doctor = doctorsMap.get(availability.doctorId);
+
+      // Filter overrides by date range locally
+      const relevantOverrides = availability.overrides.filter(ov =>
+        (ov.startDate <= dto.endDate && ov.endDate >= dto.startDate)
       );
 
       return {
-        doctorId: doctor.id,
-        doctorName: doctor.name,
-        specialization: doctor.specialization,
-        workingDays: availability?.workingDays.map((wd) => ({
+        doctorId: availability.doctorId,
+        doctorName: doctor?.name || 'Unknown Doctor',
+        specialization: doctor?.specialization || 'General',
+        workingDays: availability.workingDays.map((wd) => ({
           day: wd.day,
           startTime: wd.startTime,
           endTime: wd.endTime,
           isAvailable: wd.isAvailable,
-        })) || [],
-        slotConfiguration: availability?.slotConfiguration ? {
+        })),
+        slotConfiguration: availability.slotConfiguration ? {
           defaultDuration: availability.slotConfiguration.defaultDuration,
           bufferTime: availability.slotConfiguration.bufferTime,
           slotInterval: availability.slotConfiguration.slotInterval,
         } : undefined,
-        overrides: overrides.map((ov) => ({
+        overrides: relevantOverrides.map((ov) => ({
           id: ov.id,
           startDate: ov.startDate,
           endDate: ov.endDate,
@@ -119,6 +130,25 @@ export class GetAllDoctorsAvailabilityUseCase {
       };
     });
 
-    return Promise.all(availabilityPromises);
+    // Ensure we return results for all queried doctors (even if they have no availability set up)
+    // The repository might only return records for doctors who have *some* data
+    const existingAvailabilityDoctorIds = new Set(results.map(r => r.doctorId));
+
+    // Add empty availability for doctors missing from the result
+    for (const doctor of doctors) {
+      if (!existingAvailabilityDoctorIds.has(doctor.id)) {
+        results.push({
+          doctorId: doctor.id,
+          doctorName: doctor.name,
+          specialization: doctor.specialization,
+          workingDays: [],
+          slotConfiguration: undefined,
+          overrides: [],
+        });
+      }
+    }
+
+    // Sort by doctor name to match original order
+    return results.sort((a, b) => a.doctorName.localeCompare(b.doctorName));
   }
 }

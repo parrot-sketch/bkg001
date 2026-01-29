@@ -51,6 +51,158 @@ export class PrismaAvailabilityRepository implements IAvailabilityRepository {
     };
   }
 
+  async getDoctorsAvailability(doctorIds: string[]): Promise<DoctorAvailability[]> {
+    // 1. Bulk fetch all primary entities
+    const [workingDays, overrides, blocks, breaks, slotConfigs] = await Promise.all([
+      this.prisma.workingDay.findMany({
+        where: { doctor_id: { in: doctorIds } },
+        orderBy: { day: 'asc' },
+      }),
+      // Fetch all overrides/blocks same as getDoctorAvailability
+      this.prisma.availabilityOverride.findMany({
+        where: { doctor_id: { in: doctorIds } },
+        orderBy: { start_date: 'asc' },
+      }),
+      this.prisma.scheduleBlock.findMany({
+        where: { doctor_id: { in: doctorIds } },
+        orderBy: { start_date: 'asc' },
+      }),
+      this.prisma.availabilityBreak.findMany({
+        where: { doctor_id: { in: doctorIds } },
+        orderBy: { start_time: 'asc' },
+      }),
+      this.prisma.slotConfiguration.findMany({
+        where: { doctor_id: { in: doctorIds } },
+      }),
+    ]);
+
+    // 2. Bulk fetch sessions for all working days found
+    const workingDayIds = workingDays.map(wd => wd.id);
+    const sessions = await this.prisma.scheduleSession.findMany({
+      where: { working_day_id: { in: workingDayIds } },
+      orderBy: { start_time: 'asc' },
+    });
+
+    // 3. Group data by doctorId
+    const resultMap = new Map<string, DoctorAvailability>();
+
+    // Initialize map
+    for (const doctorId of doctorIds) {
+      resultMap.set(doctorId, {
+        doctorId,
+        workingDays: [],
+        sessions: [],
+        overrides: [],
+        blocks: [],
+        breaks: [],
+        slotConfiguration: undefined,
+      });
+    }
+
+    // Populate working days
+    const workingDayIdToDoctorId = new Map<number, string>();
+    for (const wd of workingDays) {
+      const doc = resultMap.get(wd.doctor_id);
+      if (doc) {
+        doc.workingDays.push({
+          id: wd.id,
+          doctorId: wd.doctor_id,
+          day: wd.day,
+          startTime: wd.start_time,
+          endTime: wd.end_time,
+          isAvailable: wd.is_available,
+        });
+        workingDayIdToDoctorId.set(wd.id, wd.doctor_id);
+      }
+    }
+
+    // Populate sessions
+    for (const s of sessions) {
+      const doctorId = workingDayIdToDoctorId.get(s.working_day_id);
+      if (doctorId) {
+        const doc = resultMap.get(doctorId);
+        if (doc) {
+          doc.sessions.push({
+            id: s.id,
+            workingDayId: s.working_day_id,
+            startTime: s.start_time,
+            endTime: s.end_time,
+            sessionType: s.session_type || undefined,
+            maxPatients: s.max_patients || undefined,
+            notes: s.notes || undefined,
+          });
+        }
+      }
+    }
+
+    // Populate overrides
+    for (const ov of overrides) {
+      const doc = resultMap.get(ov.doctor_id);
+      if (doc) {
+        doc.overrides.push({
+          id: ov.id,
+          doctorId: ov.doctor_id,
+          startDate: ov.start_date,
+          endDate: ov.end_date,
+          reason: ov.reason || undefined,
+          isBlocked: ov.is_blocked,
+          startTime: (ov as any).start_time || undefined,
+          endTime: (ov as any).end_time || undefined,
+        });
+      }
+    }
+
+    // Populate blocks
+    for (const b of blocks) {
+      const doc = resultMap.get(b.doctor_id);
+      if (doc) {
+        doc.blocks.push({
+          id: b.id,
+          doctorId: b.doctor_id,
+          startDate: b.start_date,
+          endDate: b.end_date,
+          startTime: b.start_time || undefined,
+          endTime: b.end_time || undefined,
+          blockType: b.block_type,
+          reason: b.reason || undefined,
+          createdBy: b.created_by,
+        });
+      }
+    }
+
+    // Populate breaks
+    for (const br of breaks) {
+      const doc = resultMap.get(br.doctor_id);
+      if (doc) {
+        doc.breaks.push({
+          id: br.id,
+          doctorId: br.doctor_id,
+          workingDayId: br.working_day_id || undefined,
+          dayOfWeek: br.day_of_week || undefined,
+          startTime: br.start_time,
+          endTime: br.end_time,
+          reason: br.reason || undefined,
+        });
+      }
+    }
+
+    // Populate slot configs
+    for (const sc of slotConfigs) {
+      const doc = resultMap.get(sc.doctor_id);
+      if (doc) {
+        doc.slotConfiguration = {
+          id: sc.id,
+          doctorId: sc.doctor_id,
+          defaultDuration: sc.default_duration,
+          bufferTime: sc.buffer_time,
+          slotInterval: sc.slot_interval,
+        };
+      }
+    }
+
+    return Array.from(resultMap.values());
+  }
+
   async getWorkingDays(doctorId: string): Promise<WorkingDay[]> {
     const workingDays = await this.prisma.workingDay.findMany({
       where: { doctor_id: doctorId },
@@ -79,7 +231,7 @@ export class PrismaAvailabilityRepository implements IAvailabilityRepository {
     // Update or create each working day
     for (const wd of workingDays) {
       const existing = existingMap.get(wd.day);
-      
+
       if (existing) {
         // Update existing working day (preserves ID and associated sessions)
         await this.prisma.workingDay.update({
