@@ -83,7 +83,7 @@ DATABASE_URL="postgresql://avnadmin:YOUR_PASSWORD@pg-25182a71-mbuguamuiruri12-d7
 
 ```bash
 # Set your DATABASE_URL
-export DATABASE_URL="postgresql://avnadmin:YOUR_PASSWORD@pg-25182a71-mbuguamuiruri12-d78e.k.aivencloud.com:22630/defaultdb?sslmode=require"
+export DATABASE_URL="postgres://avnadmin:YOUR_PASSWORD_HERE@pg-25182a71-mbuguamuiruri12-d78e.k.aivencloud.com:22630/defaultdb?sslmode=require&connection_limit=3&pool_timeout=10"
 
 # Generate Prisma Client
 npx prisma generate
@@ -113,7 +113,7 @@ The seed script includes:
 
 ```bash
 # Make sure DATABASE_URL is set
-export DATABASE_URL="postgresql://avnadmin:YOUR_PASSWORD@pg-25182a71-mbuguamuiruri12-d78e.k.aivencloud.com:22630/defaultdb?sslmode=require"
+export DATABASE_URL="postgresql://avnadmin:YOUR_PASSWORD@pg-25182a71-mbuguamuiruri12-d78e.k.aivencloud.com:22630/defaultdb?sslmode=require&connection_limit=3&pool_timeout=10"
 
 # Run seed
 npm run db:seed

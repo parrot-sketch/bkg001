@@ -8,7 +8,7 @@ Your production database needs migrations and seed data. Here's how to set it up
 
 ```bash
 # Set your production DATABASE_URL from Vercel/Aiven
-export DATABASE_URL="postgresql://avnadmin:YOUR_PASSWORD@pg-25182a71-mbuguamuiruri12-d78e.k.aivencloud.com:22630/defaultdb?sslmode=require"
+export DATABASE_URL="postgres://avnadmin:YOUR_PASSWORD_HERE@pg-25182a71-mbuguamuiruri12-d78e.k.aivencloud.com:22630/defaultdb?sslmode=require&connection_limit=3&pool_timeout=10"
 
 # Run the setup script
 ./scripts/setup-production-db.sh
@@ -18,7 +18,7 @@ export DATABASE_URL="postgresql://avnadmin:YOUR_PASSWORD@pg-25182a71-mbuguamuiru
 
 ```bash
 # 1. Set DATABASE_URL
-export DATABASE_URL="postgres://avnadmin:YOUR_PASSWORD_HERE@pg-25182a71-mbuguamuiruri12-d78e.k.aivencloud.com:22630/defaultdb?sslmode=require"
+export DATABASE_URL="postgres://avnadmin:YOUR_PASSWORD_HERE@pg-25182a71-mbuguamuiruri12-d78e.k.aivencloud.com:22630/defaultdb?sslmode=require&connection_limit=3&pool_timeout=10"
 
 # 2. Generate Prisma Client
 npx prisma generate
