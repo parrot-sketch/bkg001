@@ -1,6 +1,9 @@
 import { AppointmentStatus } from '../enums/AppointmentStatus';
 import { CheckInInfo } from '../value-objects/CheckInInfo';
 import { NoShowInfo } from '../value-objects/NoShowInfo';
+import { SlotWindow } from '../value-objects/SlotWindow';
+import { DoctorConfirmation } from '../value-objects/DoctorConfirmation';
+import { AppointmentRejection } from '../value-objects/AppointmentRejection';
 import { DomainException } from '../exceptions/DomainException';
 
 /**
@@ -9,16 +12,28 @@ import { DomainException } from '../exceptions/DomainException';
  * Represents an appointment between a patient and a doctor.
  * This is a rich domain entity with business logic encapsulated.
  * 
+ * Phase 1 Enhancements (Database Foundation):
+ * - Added temporal tracking: scheduled_at, status_changed_at, status_changed_by
+ * - Added confirmation tracking: doctor_confirmed_at, doctor_confirmed_by, doctor_rejection_reason
+ * - Added no-show tracking: marked_no_show_at
+ * - Added duration_minutes for time conflict detection
+ * 
+ * Phase 2 Enhancements (Domain Layer):
+ * - Integrated SlotWindow value object for time slot management
+ * - Integrated DoctorConfirmation and AppointmentRejection value objects
+ * - Implemented state machine methods for appointment lifecycle
+ * - Added advanced business logic methods
+ * 
  * Business Rules:
  * - Appointment must have a valid ID (immutable once set)
  * - Appointment must have a patient ID and doctor ID
- * - Appointment must have a valid date and time
+ * - Appointment must have a valid date and time (scheduled_at from Phase 1)
  * - Appointment status must be valid
- * - Appointment date cannot be in the past for new appointments
+ * - Cannot transition through invalid states (enforced by state machine)
+ * - Cannot be both checked in and marked as no-show
  * 
- * Note: This is a minimal domain entity for Phase 2.
- * It will be expanded in later phases with more business logic.
  * This entity does not depend on Prisma or any framework.
+ * It is pure domain logic with full testability.
  */
 export class Appointment {
   private constructor(
@@ -29,10 +44,22 @@ export class Appointment {
     private readonly time: string,
     private readonly status: AppointmentStatus,
     private readonly type: string,
+    // Phase 1: Temporal Tracking Fields
+    private readonly scheduledAt?: Date,
+    private readonly statusChangedAt?: Date,
+    private readonly statusChangedBy?: string,
+    private readonly doctorConfirmedAt?: Date,
+    private readonly doctorConfirmedBy?: string,
+    private readonly doctorRejectionReason?: string,
+    private readonly markedNoShowAt?: Date,
+    private readonly durationMinutes?: number,
+    // Other fields
     private readonly note?: string,
     private readonly reason?: string,
     private readonly checkInInfo?: CheckInInfo,
     private readonly noShowInfo?: NoShowInfo,
+    private readonly doctorConfirmation?: DoctorConfirmation,
+    private readonly doctorRejection?: AppointmentRejection,
     private readonly rescheduledToAppointmentId?: number,
     private readonly createdAt?: Date,
     private readonly updatedAt?: Date,
@@ -41,6 +68,14 @@ export class Appointment {
     if (this.checkInInfo && this.noShowInfo) {
       throw new DomainException(
         'Appointment cannot be both checked in and marked as no-show',
+        { appointmentId: this.id }
+      );
+    }
+
+    // Invariant: Cannot have both confirmation and rejection
+    if (this.doctorConfirmation && this.doctorRejection) {
+      throw new DomainException(
+        'Appointment cannot have both confirmation and rejection',
         { appointmentId: this.id }
       );
     }
@@ -61,10 +96,22 @@ export class Appointment {
     time: string;
     status: AppointmentStatus;
     type: string;
+    // Phase 1 Temporal Fields
+    scheduledAt?: Date;
+    statusChangedAt?: Date;
+    statusChangedBy?: string;
+    doctorConfirmedAt?: Date;
+    doctorConfirmedBy?: string;
+    doctorRejectionReason?: string;
+    markedNoShowAt?: Date;
+    durationMinutes?: number;
+    // Other fields
     note?: string;
     reason?: string;
     checkInInfo?: CheckInInfo;
     noShowInfo?: NoShowInfo;
+    doctorConfirmation?: DoctorConfirmation;
+    doctorRejection?: AppointmentRejection;
     rescheduledToAppointmentId?: number;
     createdAt?: Date;
     updatedAt?: Date;
@@ -107,6 +154,15 @@ export class Appointment {
       });
     }
 
+    // Validate Phase 1 temporal fields if provided
+    if (params.durationMinutes !== undefined) {
+      if (!Number.isInteger(params.durationMinutes) || params.durationMinutes <= 0) {
+        throw new DomainException('Duration minutes must be a positive integer', {
+          providedValue: params.durationMinutes,
+        });
+      }
+    }
+
     return new Appointment(
       params.id,
       params.patientId.trim(),
@@ -115,10 +171,20 @@ export class Appointment {
       params.time.trim(),
       params.status,
       params.type.trim(),
+      params.scheduledAt,
+      params.statusChangedAt,
+      params.statusChangedBy?.trim(),
+      params.doctorConfirmedAt,
+      params.doctorConfirmedBy?.trim(),
+      params.doctorRejectionReason?.trim(),
+      params.markedNoShowAt,
+      params.durationMinutes,
       params.note?.trim(),
       params.reason?.trim(),
       params.checkInInfo,
       params.noShowInfo,
+      params.doctorConfirmation,
+      params.doctorRejection,
       params.rescheduledToAppointmentId,
       params.createdAt,
       params.updatedAt,
@@ -183,10 +249,20 @@ export class Appointment {
       this.time,
       newStatus,
       this.type,
+      this.scheduledAt,
+      new Date(), // Update status_changed_at
+      this.statusChangedBy,
+      this.doctorConfirmedAt,
+      this.doctorConfirmedBy,
+      this.doctorRejectionReason,
+      this.markedNoShowAt,
+      this.durationMinutes,
       this.note,
       this.reason,
       checkInInfo,
       undefined, // Clear no-show if it exists (shouldn't, but defensive)
+      this.doctorConfirmation,
+      this.doctorRejection,
       this.rescheduledToAppointmentId,
       this.createdAt,
       new Date(),
@@ -246,14 +322,157 @@ export class Appointment {
       this.time,
       AppointmentStatus.NO_SHOW,
       this.type,
+      this.scheduledAt,
+      new Date(), // Update status_changed_at
+      this.statusChangedBy,
+      this.doctorConfirmedAt,
+      this.doctorConfirmedBy,
+      this.doctorRejectionReason,
+      new Date(), // Set marked_no_show_at
+      this.durationMinutes,
       this.note,
       this.reason,
       undefined, // Clear check-in if it exists (shouldn't, but defensive)
       noShowInfo,
+      this.doctorConfirmation,
+      this.doctorRejection,
       this.rescheduledToAppointmentId,
       this.createdAt,
       new Date(),
     );
+  }
+
+  /**
+   * Confirms appointment (doctor confirmation)
+   * 
+   * @param confirmation - DoctorConfirmation details
+   * @returns New Appointment entity with confirmation applied
+   * @throws DomainException if confirmation is not allowed
+   */
+  confirmWithDoctor(confirmation: DoctorConfirmation): Appointment {
+    // Can only confirm if pending confirmation
+    if (this.status !== AppointmentStatus.PENDING &&
+        this.status !== AppointmentStatus.PENDING_DOCTOR_CONFIRMATION) {
+      throw new DomainException(
+        `Cannot confirm appointment in ${this.status} status`,
+        { appointmentId: this.id, currentStatus: this.status }
+      );
+    }
+
+    // Cannot confirm if already rejected
+    if (this.doctorRejection) {
+      throw new DomainException('Cannot confirm a rejected appointment', {
+        appointmentId: this.id,
+        rejectedAt: this.doctorRejection.getRejectedAt().toISOString(),
+      });
+    }
+
+    return new Appointment(
+      this.id,
+      this.patientId,
+      this.doctorId,
+      this.appointmentDate,
+      this.time,
+      AppointmentStatus.SCHEDULED,
+      this.type,
+      this.scheduledAt,
+      new Date(), // Update status_changed_at
+      this.statusChangedBy,
+      confirmation.getConfirmedAt(),
+      confirmation.getConfirmedBy(),
+      this.doctorRejectionReason,
+      this.markedNoShowAt,
+      this.durationMinutes,
+      this.note,
+      this.reason,
+      this.checkInInfo,
+      this.noShowInfo,
+      this.doctorConfirmation,
+      this.doctorRejection,
+      this.rescheduledToAppointmentId,
+      this.createdAt,
+      new Date(),
+    );
+  }
+
+  /**
+   * Rejects appointment (doctor rejection)
+   * 
+   * @param rejection - AppointmentRejection details
+   * @returns New Appointment entity with rejection applied
+   * @throws DomainException if rejection is not allowed
+   */
+  rejectByDoctor(rejection: AppointmentRejection): Appointment {
+    // Can only reject if pending confirmation
+    if (this.status !== AppointmentStatus.PENDING &&
+        this.status !== AppointmentStatus.PENDING_DOCTOR_CONFIRMATION) {
+      throw new DomainException(
+        `Cannot reject appointment in ${this.status} status`,
+        { appointmentId: this.id, currentStatus: this.status }
+      );
+    }
+
+    // Cannot reject if already confirmed
+    if (this.doctorConfirmation) {
+      throw new DomainException('Cannot reject a confirmed appointment', {
+        appointmentId: this.id,
+        confirmedAt: this.doctorConfirmation.getConfirmedAt().toISOString(),
+      });
+    }
+
+    return new Appointment(
+      this.id,
+      this.patientId,
+      this.doctorId,
+      this.appointmentDate,
+      this.time,
+      AppointmentStatus.CANCELLED,
+      this.type,
+      this.scheduledAt,
+      new Date(), // Update status_changed_at
+      this.statusChangedBy,
+      this.doctorConfirmedAt,
+      this.doctorConfirmedBy,
+      rejection.getReasonDetails(),
+      this.markedNoShowAt,
+      this.durationMinutes,
+      this.note,
+      this.reason,
+      this.checkInInfo,
+      this.noShowInfo,
+      this.doctorConfirmation,
+      this.doctorRejection,
+      this.rescheduledToAppointmentId,
+      this.createdAt,
+      new Date(),
+    );
+  }
+
+  /**
+   * Gets the appointment as a SlotWindow for conflict detection
+   * Uses Phase 1 scheduled_at and duration_minutes fields
+   * 
+   * @returns SlotWindow representing this appointment's time slot
+   */
+  getSlotWindow(): SlotWindow {
+    const startTime = this.scheduledAt || this.appointmentDate;
+    const duration = this.durationMinutes || 30; // Default to 30 minutes if not set
+
+    return SlotWindow.fromStartAndDuration({
+      startTime,
+      durationMinutes: duration,
+    });
+  }
+
+  /**
+   * Checks if appointment overlaps with a given time slot
+   * Uses the new SlotWindow value object
+   * 
+   * @param otherSlot - Another SlotWindow to check against
+   * @returns true if appointments conflict
+   */
+  conflictsWith(otherSlot: SlotWindow): boolean {
+    return this.getSlotWindow().overlapsWithSlot(otherSlot);
   }
 
   // Getters
@@ -308,6 +527,48 @@ export class Appointment {
 
   getNoShowInfo(): NoShowInfo | undefined {
     return this.noShowInfo;
+  }
+
+  // Phase 1 Temporal Field Getters
+  getScheduledAt(): Date | undefined {
+    return this.scheduledAt ? new Date(this.scheduledAt) : undefined;
+  }
+
+  getStatusChangedAt(): Date | undefined {
+    return this.statusChangedAt ? new Date(this.statusChangedAt) : undefined;
+  }
+
+  getStatusChangedBy(): string | undefined {
+    return this.statusChangedBy;
+  }
+
+  getDoctorConfirmedAt(): Date | undefined {
+    return this.doctorConfirmedAt ? new Date(this.doctorConfirmedAt) : undefined;
+  }
+
+  getDoctorConfirmedBy(): string | undefined {
+    return this.doctorConfirmedBy;
+  }
+
+  getDoctorRejectionReason(): string | undefined {
+    return this.doctorRejectionReason;
+  }
+
+  getMarkedNoShowAt(): Date | undefined {
+    return this.markedNoShowAt ? new Date(this.markedNoShowAt) : undefined;
+  }
+
+  getDurationMinutes(): number | undefined {
+    return this.durationMinutes;
+  }
+
+  // Phase 2 Value Object Getters
+  getDoctorConfirmation(): DoctorConfirmation | undefined {
+    return this.doctorConfirmation;
+  }
+
+  getDoctorRejection(): AppointmentRejection | undefined {
+    return this.doctorRejection;
   }
 
   getRescheduledToAppointmentId(): number | undefined {

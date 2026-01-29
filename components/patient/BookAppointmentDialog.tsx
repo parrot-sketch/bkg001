@@ -32,7 +32,8 @@ import { DoctorProfileModal } from '@/components/patient/DoctorProfileModal';
 import { AppointmentBookingConfirmationDialog } from '@/components/patient/AppointmentBookingConfirmationDialog';
 import { useAvailableSlots } from '@/hooks/useAvailableSlots';
 import { useAppointmentConflicts } from '@/hooks/useAppointmentConflicts';
-import { format } from 'date-fns';
+import { useDoctorAvailableDates } from '@/hooks/useDoctorAvailableDates';
+import { format, addMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 
@@ -71,6 +72,21 @@ export function BookAppointmentDialog({
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [submittedAppointment, setSubmittedAppointment] = useState<AppointmentResponseDto | null>(null);
+
+  // Fetch available dates when doctor is selected (for calendar highlighting)
+  const today = new Date();
+  const dateRangeStart = today; // Start from today, not start of month
+  const dateRangeEnd = endOfMonth(addMonths(today, 2)); // Show 3 months ahead
+  
+  const { data: availableDates = [], isLoading: loadingAvailableDates } = useDoctorAvailableDates({
+    doctorId: formData.doctorId || null,
+    startDate: dateRangeStart,
+    endDate: dateRangeEnd,
+    enabled: !!formData.doctorId && open,
+  });
+
+  // Convert available dates to Set for O(1) lookup
+  const availableDatesSet = new Set(availableDates);
 
   // Fetch available slots when doctor and date are selected
   const selectedDate = formData.appointmentDate ? new Date(formData.appointmentDate) : null;
@@ -159,8 +175,9 @@ export function BookAppointmentDialog({
       const [hours, minutes] = formData.selectedSlot.split(':');
       appointmentDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
 
-      // Format time as "HH:MM AM/PM" for the API
-      const timeStr = format(appointmentDate, 'h:mm a');
+      // Use 24-hour format (HH:mm) to match database format and validation logic
+      // formData.selectedSlot is already in HH:mm format from the slots API
+      const timeStr = formData.selectedSlot; // e.g., "09:00", "14:30"
 
       const dto: ScheduleAppointmentDto = {
         patientId: formData.patientId,
@@ -274,17 +291,45 @@ export function BookAppointmentDialog({
 
             <div className="space-y-2">
               <Label htmlFor="appointmentDate">Appointment Date *</Label>
+              {loadingAvailableDates && formData.doctorId ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                  <span>Loading available dates...</span>
+                </div>
+              ) : null}
               <Input
                 id="appointmentDate"
                 type="date"
                 value={formData.appointmentDate}
-                onChange={(e) => setFormData({ ...formData, appointmentDate: e.target.value, selectedSlot: null })}
+                onChange={(e) => {
+                  const selectedDateStr = e.target.value;
+                  // Only allow selection if date is in available dates set
+                  if (!formData.doctorId || availableDatesSet.has(selectedDateStr)) {
+                    setFormData({ ...formData, appointmentDate: selectedDateStr, selectedSlot: null });
+                  } else {
+                    toast.error('This date has no available slots. Please select a highlighted date.');
+                  }
+                }}
                 required
-                disabled={isSubmitting || !formData.doctorId}
+                disabled={isSubmitting || !formData.doctorId || loadingAvailableDates}
                 min={new Date().toISOString().split('T')[0]}
+                max={dateRangeEnd.toISOString().split('T')[0]}
+                className={formData.appointmentDate && !availableDatesSet.has(formData.appointmentDate) 
+                  ? 'border-destructive' 
+                  : ''}
               />
               {!formData.doctorId && (
                 <p className="text-xs text-muted-foreground">Please select a doctor first</p>
+              )}
+              {formData.doctorId && !loadingAvailableDates && availableDates.length === 0 && (
+                <div className="rounded-md bg-muted p-3 text-sm text-muted-foreground">
+                  No available dates found for this doctor in the next 3 months. Please contact the clinic directly.
+                </div>
+              )}
+              {formData.doctorId && !loadingAvailableDates && availableDates.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {availableDates.length} date{availableDates.length !== 1 ? 's' : ''} with available slots in the next 3 months
+                </p>
               )}
             </div>
 

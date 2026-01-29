@@ -35,6 +35,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           id: true,
           name: true,
           title: true,
+          first_name: true, // Include for name construction if needed
+          last_name: true,  // Include for name construction if needed
           specialization: true,
           profile_image: true,
           bio: true,
@@ -54,11 +56,28 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Ensure we always return a valid array
     const doctorsArray = Array.isArray(doctors) ? doctors : [];
 
+    // Ensure name is properly formatted (construct from title + first_name + last_name if name is missing or incomplete)
+    const formattedDoctors = doctorsArray.map((doctor: any) => {
+      // If name is missing, empty, or only contains title, construct from title + first_name + last_name
+      if (!doctor.name || doctor.name.trim() === '' || (doctor.title && doctor.name === doctor.title)) {
+        const firstName = doctor.first_name || '';
+        const lastName = doctor.last_name || '';
+        const title = doctor.title || '';
+        const constructedName = `${title} ${firstName} ${lastName}`.trim();
+        
+        return {
+          ...doctor,
+          name: constructedName || 'Doctor',
+        };
+      }
+      return doctor;
+    });
+
     // Create response with explicit headers to prevent caching
     const response = NextResponse.json(
       {
         success: true,
-        data: doctorsArray,
+        data: formattedDoctors,
       },
       {
         status: 200,

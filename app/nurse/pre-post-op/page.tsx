@@ -173,7 +173,14 @@ function NursePrePostOpContent() {
                       <Activity className="h-6 w-6 text-warning" />
                     </div>
                     <div className="space-y-1">
-                      <p className="font-medium">Patient: {appointment.patientId}</p>
+                      <p className="font-medium">
+                        {appointment.patient 
+                          ? `${appointment.patient.firstName} ${appointment.patient.lastName}` 
+                          : `Patient ID: ${appointment.patientId}`}
+                      </p>
+                      {appointment.patient?.fileNumber && (
+                        <p className="text-xs text-muted-foreground">File: {appointment.patient.fileNumber}</p>
+                      )}
                       <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                         <span className="flex items-center">
                           <Calendar className="mr-1 h-4 w-4" />
@@ -237,7 +244,14 @@ function NursePrePostOpContent() {
                       <FileText className="h-6 w-6 text-success" />
                     </div>
                     <div className="space-y-1">
-                      <p className="font-medium">Patient: {appointment.patientId}</p>
+                      <p className="font-medium">
+                        {appointment.patient 
+                          ? `${appointment.patient.firstName} ${appointment.patient.lastName}` 
+                          : `Patient ID: ${appointment.patientId}`}
+                      </p>
+                      {appointment.patient?.fileNumber && (
+                        <p className="text-xs text-muted-foreground">File: {appointment.patient.fileNumber}</p>
+                      )}
                       <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                         <span className="flex items-center">
                           <Calendar className="mr-1 h-4 w-4" />

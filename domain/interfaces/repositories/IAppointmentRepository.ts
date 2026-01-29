@@ -86,14 +86,14 @@ export interface IAppointmentRepository {
    * @param appointment - The Appointment entity to save
    * @param consultationRequestFields - Optional consultation request workflow fields (implementation-specific)
    * @param txClient - Optional transaction client for use within transactions (implementation-specific)
-   * @returns Promise that resolves when the save operation completes
+   * @returns Promise that resolves with the database-generated appointment ID
    * @throws Error if the save operation fails
    */
   save(
     appointment: Appointment,
     consultationRequestFields?: unknown,
     txClient?: unknown
-  ): Promise<void>;
+  ): Promise<number>;
 
   /**
    * Updates an existing appointment in the data store

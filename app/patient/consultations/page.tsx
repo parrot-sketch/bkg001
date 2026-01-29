@@ -12,7 +12,7 @@ import { useAuth } from '@/hooks/patient/useAuth';
 import { patientApi } from '@/lib/api/patient';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, Clock, FileText, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Calendar, Clock, FileText, AlertCircle, CheckCircle2, ArrowRight, X } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
@@ -78,6 +78,14 @@ export default function PatientConsultationsPage() {
       [ConsultationRequestStatus.CONFIRMED]: {
         className: 'bg-green-100 text-green-800 border border-green-300',
         icon: CheckCircle2,
+      },
+      [ConsultationRequestStatus.COMPLETED]: {
+        className: 'bg-slate-50 text-slate-700 border border-slate-200',
+        icon: CheckCircle2,
+      },
+      [ConsultationRequestStatus.CANCELLED]: {
+        className: 'bg-red-50 text-red-700 border border-red-200',
+        icon: X,
       },
     };
 

@@ -31,6 +31,10 @@ describe('INotificationService Interface', () => {
         throw new Error('Invalid SMS parameters');
       }
     }
+
+    async sendInApp(userId: string, title: string, message: string, type: 'info' | 'success' | 'warning' | 'error'): Promise<void> {
+      // Mock implementation
+    }
   }
 
   describe('Interface Contract', () => {
@@ -50,6 +54,12 @@ describe('INotificationService Interface', () => {
       expect(typeof service.sendSMS).toBe('function');
       expect(service.sendSMS.length).toBe(2); // Takes 2 parameters
     });
+
+    it('should have sendInApp method with correct signature', () => {
+      const service: INotificationService = new MockNotificationService();
+      expect(typeof service.sendInApp).toBe('function');
+      expect(service.sendInApp.length).toBe(4); // Takes 4 parameters
+    });
   });
 
   describe('Mock Implementation Behavior', () => {
@@ -67,6 +77,10 @@ describe('INotificationService Interface', () => {
     it('should send SMS successfully', async () => {
       const phone = PhoneNumber.create('1234567890');
       await expect(service.sendSMS(phone, 'Message')).resolves.not.toThrow();
+    });
+
+    it('should send in-app notification successfully', async () => {
+      await expect(service.sendInApp('user-1', 'Title', 'Message', 'info')).resolves.not.toThrow();
     });
   });
 
@@ -111,10 +125,12 @@ describe('INotificationService Interface', () => {
       const mockService: INotificationService = {
         sendEmail: vi.fn().mockResolvedValue(undefined),
         sendSMS: vi.fn().mockResolvedValue(undefined),
+        sendInApp: vi.fn().mockResolvedValue(undefined),
       };
 
       expect(mockService.sendEmail).toBeDefined();
       expect(mockService.sendSMS).toBeDefined();
+      expect(mockService.sendInApp).toBeDefined();
     });
 
     it('should allow setting mock return values', async () => {
@@ -123,6 +139,7 @@ describe('INotificationService Interface', () => {
       const mockService: INotificationService = {
         sendEmail: vi.fn().mockResolvedValue(undefined),
         sendSMS: vi.fn().mockResolvedValue(undefined),
+        sendInApp: vi.fn().mockResolvedValue(undefined),
       };
 
       await mockService.sendEmail(email, 'Subject', 'Body');
@@ -138,6 +155,7 @@ describe('INotificationService Interface', () => {
       const mockService: INotificationService = {
         sendEmail: vi.fn().mockRejectedValue(new Error('Email send failed')),
         sendSMS: vi.fn().mockRejectedValue(new Error('SMS send failed')),
+        sendInApp: vi.fn().mockRejectedValue(new Error('In-app send failed')),
       };
 
       await expect(mockService.sendEmail(email, 'Subject', 'Body')).rejects.toThrow();

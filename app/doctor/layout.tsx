@@ -10,9 +10,9 @@
 
 import { useState } from 'react';
 import { DoctorSidebar } from '@/components/doctor/DoctorSidebar';
-import { Button } from '@/components/ui/button';
 import { Menu } from 'lucide-react';
 import { ReactNode } from 'react';
+import { ClinicalDashboardShell } from '@/components/layouts/ClinicalDashboardShell';
 
 interface DoctorLayoutProps {
   children: ReactNode;
@@ -22,11 +22,11 @@ export default function DoctorLayout({ children }: DoctorLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex min-h-screen bg-background">
       {/* Mobile Menu Button */}
       <button
         onClick={() => setSidebarOpen(true)}
-        className="fixed top-4 left-4 z-30 lg:hidden p-2 rounded-lg bg-card border border-border shadow-md hover:bg-muted transition-colors"
+        className="fixed top-4 left-4 z-50 lg:hidden p-2.5 rounded-lg bg-card border border-border shadow-lg hover:bg-muted transition-colors"
         aria-label="Open sidebar"
       >
         <Menu className="h-5 w-5 text-foreground" />
@@ -35,12 +35,12 @@ export default function DoctorLayout({ children }: DoctorLayoutProps) {
       {/* Sidebar - Fixed position */}
       <DoctorSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      {/* Main Content - Offset by sidebar width on desktop only */}
-      <main className="flex-1 lg:ml-64 overflow-y-auto">
-        <div className="container mx-auto px-4 py-8 lg:px-8 max-w-7xl">
+      {/* Content Area - Using the shared ClinicalDashboardShell */}
+      <div className="flex-1 lg:ml-64 flex flex-col min-w-0">
+        <ClinicalDashboardShell>
           {children}
-        </div>
-      </main>
+        </ClinicalDashboardShell>
+      </div>
     </div>
   );
 }

@@ -10,9 +10,9 @@
 
 import { useState } from 'react';
 import { FrontdeskSidebar } from '@/components/frontdesk/FrontdeskSidebar';
-import { Button } from '@/components/ui/button';
 import { Menu } from 'lucide-react';
 import { ReactNode } from 'react';
+import { ClinicalDashboardShell } from '@/components/layouts/ClinicalDashboardShell';
 
 interface FrontdeskLayoutProps {
   children: ReactNode;
@@ -22,7 +22,7 @@ export default function FrontdeskLayout({ children }: FrontdeskLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex min-h-screen bg-background">
       {/* Mobile Menu Button - REFACTORED: Better positioning to avoid overlaying content */}
       <button
         onClick={() => setSidebarOpen(true)}
@@ -35,13 +35,12 @@ export default function FrontdeskLayout({ children }: FrontdeskLayoutProps) {
       {/* Sidebar - Fixed position */}
       <FrontdeskSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      {/* Main Content - Offset by sidebar width on desktop only */}
-      {/* REFACTORED: Improved mobile padding for better space utilization */}
-      <main className="flex-1 lg:ml-64 overflow-y-auto">
-        <div className="w-full px-3 sm:px-4 py-3 sm:py-4 lg:px-6 lg:py-8 xl:px-8 2xl:px-12">
+      {/* Content Area - Using the shared ClinicalDashboardShell */}
+      <div className="flex-1 lg:ml-64 flex flex-col min-w-0">
+        <ClinicalDashboardShell>
           {children}
-        </div>
-      </main>
+        </ClinicalDashboardShell>
+      </div>
     </div>
   );
 }

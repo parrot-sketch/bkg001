@@ -11,9 +11,31 @@ export interface WorkingDay {
   id: number;
   doctorId: string;
   day: string; // Monday, Tuesday, etc.
+  startTime: string; // HH:mm (backward compatibility: used if no sessions exist)
+  endTime: string;   // HH:mm (backward compatibility: used if no sessions exist)
+  isAvailable: boolean;
+}
+
+export interface ScheduleSession {
+  id: string;
+  workingDayId: number;
   startTime: string; // HH:mm
   endTime: string;   // HH:mm
-  isAvailable: boolean;
+  sessionType?: string; // "Clinic", "Ward Rounds", "Teleconsult", "Surgery", etc.
+  maxPatients?: number; // Optional: maximum appointments per session
+  notes?: string;
+}
+
+export interface ScheduleBlock {
+  id: string;
+  doctorId: string;
+  startDate: Date;
+  endDate: Date;
+  startTime?: string; // HH:mm - if undefined, entire day blocked
+  endTime?: string;   // HH:mm - if undefined, entire day blocked
+  blockType: string; // "LEAVE", "SURGERY", "ADMIN", "EMERGENCY", "CONFERENCE", "BURNOUT_PROTECTION", etc.
+  reason?: string;
+  createdBy: string; // User ID who created the block
 }
 
 export interface AvailabilityOverride {
@@ -23,6 +45,8 @@ export interface AvailabilityOverride {
   endDate: Date;
   reason?: string;
   isBlocked: boolean;
+  startTime?: string; // HH:mm format - custom start time (only for single-day overrides)
+  endTime?: string;   // HH:mm format - custom end time (only for single-day overrides)
 }
 
 export interface AvailabilityBreak {
@@ -46,7 +70,9 @@ export interface SlotConfiguration {
 export interface DoctorAvailability {
   doctorId: string;
   workingDays: WorkingDay[];
+  sessions: ScheduleSession[]; // All sessions for all working days
   overrides: AvailabilityOverride[];
+  blocks: ScheduleBlock[]; // Explicit blocked periods
   breaks: AvailabilityBreak[];
   slotConfiguration?: SlotConfiguration;
 }
@@ -106,4 +132,34 @@ export interface IAvailabilityRepository {
    * Save slot configuration (creates or updates)
    */
   saveSlotConfiguration(config: SlotConfiguration): Promise<SlotConfiguration>;
+
+  /**
+   * Get schedule sessions for a working day
+   */
+  getSessionsForWorkingDay(workingDayId: number): Promise<ScheduleSession[]>;
+
+  /**
+   * Save schedule sessions for a working day (replaces existing)
+   */
+  saveSessionsForWorkingDay(workingDayId: number, sessions: Omit<ScheduleSession, 'id' | 'workingDayId'>[]): Promise<ScheduleSession[]>;
+
+  /**
+   * Delete schedule session
+   */
+  deleteSession(sessionId: string): Promise<void>;
+
+  /**
+   * Get schedule blocks for a doctor within date range
+   */
+  getBlocks(doctorId: string, startDate: Date, endDate: Date): Promise<ScheduleBlock[]>;
+
+  /**
+   * Create schedule block
+   */
+  createBlock(block: Omit<ScheduleBlock, 'id'>): Promise<ScheduleBlock>;
+
+  /**
+   * Delete schedule block
+   */
+  deleteBlock(blockId: string): Promise<void>;
 }

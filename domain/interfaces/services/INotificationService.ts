@@ -34,4 +34,15 @@ export interface INotificationService {
    * @throws Error if the SMS cannot be sent
    */
   sendSMS(to: PhoneNumber, message: string): Promise<void>;
+
+  /**
+   * Sends an in-app notification
+   * 
+   * @param userId - Recipient user ID
+   * @param title - Notification title
+   * @param message - Notification message content
+   * @param type - Notification type (info, success, warning, error)
+   * @returns Promise that resolves when the notification is successfully created
+   */
+  sendInApp(userId: string, title: string, message: string, type: 'info' | 'success' | 'warning' | 'error'): Promise<void>;
 }

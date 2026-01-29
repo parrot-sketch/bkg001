@@ -1,4 +1,4 @@
-import db from "@/lib/db";
+import db, { withRetry } from "@/lib/db";
 import { getMonth, format, startOfYear, endOfMonth, isToday, subMonths } from "date-fns";
 import { daysOfWeek } from "@/lib/utils";
 
@@ -396,46 +396,51 @@ export async function getAllPatients({
       : {};
 
     // Optimized query with select to fetch only needed fields
+    // Wrapped in withRetry for connection resilience
     const [patients, totalRecords] = await Promise.all([
-      db.patient.findMany({
-        where: whereClause,
-        select: {
-          id: true,
-          file_number: true,
-          first_name: true,
-          last_name: true,
-          email: true,
-          phone: true,
-          date_of_birth: true,
-          gender: true,
-          address: true,
-          img: true,
-          colorCode: true,
-          created_at: true,
-          updated_at: true,
-          // Only fetch the latest appointment with its latest medical record
-          appointments: {
-            select: {
-              medical_records: {
-                select: { 
-                  created_at: true, 
-                  treatment_plan: true 
+      withRetry(async () => {
+        return await db.patient.findMany({
+          where: whereClause,
+          select: {
+            id: true,
+            file_number: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+            phone: true,
+            date_of_birth: true,
+            gender: true,
+            address: true,
+            img: true,
+            colorCode: true,
+            created_at: true,
+            updated_at: true,
+            // Only fetch the latest appointment with its latest medical record
+            appointments: {
+              select: {
+                medical_records: {
+                  select: { 
+                    created_at: true, 
+                    treatment_plan: true 
+                  },
+                  orderBy: { created_at: "desc" as const },
+                  take: 1,
                 },
-                orderBy: { created_at: "desc" as const },
-                take: 1,
               },
+              orderBy: { appointment_date: "desc" as const },
+              take: 1,
             },
-            orderBy: { appointment_date: "desc" as const },
-            take: 1,
           },
-        },
-        skip: SKIP,
-        take: LIMIT,
-        orderBy: { first_name: "asc" as const },
+          skip: SKIP,
+          take: LIMIT,
+          orderBy: { first_name: "asc" as const },
+        });
       }),
-      // Count query must use the same WHERE clause
-      db.patient.count({
-        where: whereClause,
+      withRetry(async () => {
+        // Count query must use the same WHERE clause
+        return await db.patient.count({
+          where: whereClause,
+        });
       }),
     ]);
 

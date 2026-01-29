@@ -17,6 +17,8 @@ export enum ConsultationRequestStatus {
   APPROVED = 'APPROVED',
   SCHEDULED = 'SCHEDULED',
   CONFIRMED = 'CONFIRMED',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
 }
 
 /**
@@ -43,6 +45,8 @@ export function isConsultationRequestModifiable(status: ConsultationRequestStatu
 export function isConsultationRequestFinal(status: ConsultationRequestStatus): boolean {
   return [
     ConsultationRequestStatus.CONFIRMED,
+    ConsultationRequestStatus.COMPLETED,
+    ConsultationRequestStatus.CANCELLED,
   ].includes(status);
 }
 
@@ -103,9 +107,11 @@ export function isValidConsultationRequestTransition(
       ConsultationRequestStatus.CONFIRMED,
     ],
     [ConsultationRequestStatus.CONFIRMED]: [
-      // No transitions from CONFIRMED - it's a final state
-      // Further changes use AppointmentStatus (COMPLETED, etc.)
+      ConsultationRequestStatus.COMPLETED,
+      ConsultationRequestStatus.CANCELLED,
     ],
+    [ConsultationRequestStatus.COMPLETED]: [],
+    [ConsultationRequestStatus.CANCELLED]: [],
   };
 
   return validTransitions[from]?.includes(to) ?? false;
@@ -123,6 +129,8 @@ export function getConsultationRequestStatusLabel(status: ConsultationRequestSta
     [ConsultationRequestStatus.APPROVED]: 'Accepted for Scheduling',
     [ConsultationRequestStatus.SCHEDULED]: 'Session Proposed',
     [ConsultationRequestStatus.CONFIRMED]: 'Confirmed',
+    [ConsultationRequestStatus.COMPLETED]: 'Completed',
+    [ConsultationRequestStatus.CANCELLED]: 'Withdrawn/Not Suitable',
   };
 
   return labels[status];
@@ -140,6 +148,8 @@ export function getConsultationRequestStatusDescription(status: ConsultationRequ
     [ConsultationRequestStatus.APPROVED]: 'Your inquiry has been accepted. We will contact you shortly to schedule your session.',
     [ConsultationRequestStatus.SCHEDULED]: 'A session time has been proposed. Please confirm if this works for you.',
     [ConsultationRequestStatus.CONFIRMED]: 'Your session has been confirmed. We look forward to meeting with you.',
+    [ConsultationRequestStatus.COMPLETED]: 'This consultation process has been successfully completed.',
+    [ConsultationRequestStatus.CANCELLED]: 'This inquiry has been withdrawn or marked as not suitable at this time.',
   };
 
   return descriptions[status];

@@ -34,19 +34,37 @@ export class AvailabilitySlotService {
       return []; // Doctor doesn't work on this day
     }
 
-    // Check if date is blocked by override
-    const isBlocked = overrides.some((ov) => {
+    // Check for date-specific override (single-day override with custom hours or blocking)
+    const checkDate = new Date(date);
+    checkDate.setHours(0, 0, 0, 0);
+    
+    const dateOverride = overrides.find((ov) => {
       const ovStart = new Date(ov.startDate);
       ovStart.setHours(0, 0, 0, 0);
       const ovEnd = new Date(ov.endDate);
       ovEnd.setHours(23, 59, 59, 999);
-      const checkDate = new Date(date);
-      checkDate.setHours(0, 0, 0, 0);
-      return ov.isBlocked && checkDate >= ovStart && checkDate <= ovEnd;
+      return checkDate >= ovStart && checkDate <= ovEnd;
     });
 
-    if (isBlocked) {
+    // If override blocks this date, return empty slots
+    if (dateOverride?.isBlocked) {
       return []; // Date is blocked
+    }
+
+    // Determine working hours: use override custom hours if available, otherwise use working day hours
+    let startHour: number;
+    let startMinute: number;
+    let endHour: number;
+    let endMinute: number;
+
+    if (dateOverride && !dateOverride.isBlocked && dateOverride.startTime && dateOverride.endTime) {
+      // Use custom hours from override
+      [startHour, startMinute] = dateOverride.startTime.split(':').map(Number);
+      [endHour, endMinute] = dateOverride.endTime.split(':').map(Number);
+    } else {
+      // Use working day hours (fallback)
+      [startHour, startMinute] = workingDay.startTime.split(':').map(Number);
+      [endHour, endMinute] = workingDay.endTime.split(':').map(Number);
     }
 
     // Get breaks for this day
@@ -59,9 +77,6 @@ export class AvailabilitySlotService {
 
     // Generate slots
     const slots: AvailableSlot[] = [];
-    const [startHour, startMinute] = workingDay.startTime.split(':').map(Number);
-    const [endHour, endMinute] = workingDay.endTime.split(':').map(Number);
-
     const startTime = new Date(date);
     startTime.setHours(startHour, startMinute, 0, 0);
 
@@ -97,8 +112,42 @@ export class AvailabilitySlotService {
       // Check if slot conflicts with existing appointments
       const conflictsWithAppointment = existingAppointments.some((apt) => {
         const aptDate = new Date(apt.getAppointmentDate());
-        const aptTime = apt.getTime(); // HH:mm format
-        const [aptHour, aptMin] = aptTime.split(':').map(Number);
+        const aptTime = apt.getTime(); // Could be "HH:mm" or "h:mm a" format
+        
+        // Parse time - handle both "HH:mm" (24-hour) and "h:mm a" (12-hour) formats
+        let aptHour: number;
+        let aptMin: number;
+        
+        if (aptTime.includes('AM') || aptTime.includes('PM')) {
+          // 12-hour format: "10:30 AM" or "2:15 PM"
+          const timeMatch = aptTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
+          if (timeMatch) {
+            aptHour = parseInt(timeMatch[1], 10);
+            aptMin = parseInt(timeMatch[2], 10);
+            const period = timeMatch[3].toUpperCase();
+            if (period === 'PM' && aptHour !== 12) {
+              aptHour += 12;
+            } else if (period === 'AM' && aptHour === 12) {
+              aptHour = 0;
+            }
+          } else {
+            return false; // Invalid format, skip this appointment
+          }
+        } else {
+          // 24-hour format: "10:30" or "14:15"
+          const timeParts = aptTime.split(':');
+          if (timeParts.length !== 2) {
+            return false; // Invalid format, skip this appointment
+          }
+          aptHour = parseInt(timeParts[0], 10);
+          aptMin = parseInt(timeParts[1], 10);
+        }
+        
+        // Validate parsed time
+        if (isNaN(aptHour) || isNaN(aptMin) || aptHour < 0 || aptHour > 23 || aptMin < 0 || aptMin > 59) {
+          return false; // Invalid time, skip this appointment
+        }
+        
         aptDate.setHours(aptHour, aptMin, 0, 0);
 
         const aptEnd = new Date(aptDate);

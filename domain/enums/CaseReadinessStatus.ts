@@ -5,6 +5,7 @@
  */
 export enum CaseReadinessStatus {
   NOT_STARTED = 'NOT_STARTED',
+  IN_PROGRESS = 'IN_PROGRESS',
   PENDING_LABS = 'PENDING_LABS',
   PENDING_CONSENT = 'PENDING_CONSENT',
   PENDING_REVIEW = 'PENDING_REVIEW',
@@ -19,6 +20,7 @@ export function isCaseReadinessStatus(value: string): value is CaseReadinessStat
 export function getCaseReadinessStatusLabel(status: CaseReadinessStatus): string {
   const labels: Record<CaseReadinessStatus, string> = {
     [CaseReadinessStatus.NOT_STARTED]: 'Not Started',
+    [CaseReadinessStatus.IN_PROGRESS]: 'In Progress',
     [CaseReadinessStatus.PENDING_LABS]: 'Pending Labs',
     [CaseReadinessStatus.PENDING_CONSENT]: 'Pending Consent',
     [CaseReadinessStatus.PENDING_REVIEW]: 'Pending Review',

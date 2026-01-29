@@ -14,14 +14,26 @@
  * Surgeon should know instantly: "Am I ready to operate on this patient?"
  */
 
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Clock, AlertCircle, XCircle, FileText, User, Calendar } from 'lucide-react';
+import {
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  XCircle,
+  FileText,
+  User,
+  Calendar,
+  ChevronDown,
+  Activity
+} from 'lucide-react';
 import { format } from 'date-fns';
 import { CaseReadinessStatus, getCaseReadinessStatusLabel } from '@/domain/enums/CaseReadinessStatus';
 import Link from 'next/link';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import { cn } from '@/lib/utils';
 
 interface CasePlan {
   id: number;
@@ -73,6 +85,7 @@ export function TheatreScheduleView({ cases, loading = false }: TheatreScheduleV
       [CaseReadinessStatus.PENDING_CONSENT]: 'bg-orange-100 text-orange-800 hover:bg-orange-200',
       [CaseReadinessStatus.PENDING_REVIEW]: 'bg-blue-100 text-blue-800 hover:bg-blue-200',
       [CaseReadinessStatus.ON_HOLD]: 'bg-red-100 text-red-800 hover:bg-red-200',
+      [CaseReadinessStatus.IN_PROGRESS]: 'bg-purple-100 text-purple-800 hover:bg-purple-200',
       [CaseReadinessStatus.READY]: 'bg-green-100 text-green-800 hover:bg-green-200',
       [CaseReadinessStatus.NOT_STARTED]: 'bg-gray-100 text-gray-800 hover:bg-gray-200',
     };
@@ -82,6 +95,7 @@ export function TheatreScheduleView({ cases, loading = false }: TheatreScheduleV
       [CaseReadinessStatus.PENDING_CONSENT]: <FileText className="h-3 w-3 mr-1" />,
       [CaseReadinessStatus.PENDING_REVIEW]: <Clock className="h-3 w-3 mr-1" />,
       [CaseReadinessStatus.ON_HOLD]: <XCircle className="h-3 w-3 mr-1" />,
+      [CaseReadinessStatus.IN_PROGRESS]: <Activity className="h-3 w-3 mr-1" />,
       [CaseReadinessStatus.READY]: <CheckCircle2 className="h-3 w-3 mr-1" />,
       [CaseReadinessStatus.NOT_STARTED]: <Clock className="h-3 w-3 mr-1" />,
     };
@@ -198,83 +212,119 @@ function TheatreCaseCard({
   theatreCase: TheatreCase;
   getReadinessBadge: (status: CaseReadinessStatus | undefined, ready: boolean) => React.ReactNode;
 }) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const { appointment, casePlan, patientName, procedure, duration, teamAssigned } = theatreCase;
 
   return (
-    <div className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-2">
-            <h4 className="font-semibold text-lg">{patientName}</h4>
-            {getReadinessBadge(casePlan?.readiness_status, casePlan?.ready_for_surgery ?? false)}
-          </div>
+    <div className="border border-slate-200 rounded-2xl bg-white overflow-hidden transition-all duration-300 hover:border-slate-400 hover:shadow-lg hover:shadow-slate-100">
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-4">
+          {/* Main Info Area */}
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-3 mb-2.5">
+              <h4 className="font-extrabold text-slate-900 text-lg tracking-tight truncate">{patientName}</h4>
+              <div className="scale-95 origin-left">
+                {getReadinessBadge(casePlan?.readiness_status, casePlan?.ready_for_surgery ?? false)}
+              </div>
+            </div>
 
-          <div className="space-y-2 text-sm text-gray-600">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1.5">
-                <Calendar className="h-4 w-4 text-gray-400" />
-                <span>
-                  {format(new Date(appointment.appointmentDate), 'MMM d, yyyy')} at {appointment.time}
-                </span>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-500 font-medium">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-indigo-500/70" />
+                <span className="text-slate-900 font-bold">{appointment.time}</span>
               </div>
               {procedure && (
-                <div className="flex items-center gap-1.5">
-                  <FileText className="h-4 w-4 text-gray-400" />
-                  <span className="font-medium">{procedure}</span>
-                </div>
-              )}
-              {duration && (
-                <div className="flex items-center gap-1.5">
-                  <Clock className="h-4 w-4 text-gray-400" />
-                  <span>{duration}</span>
+                <div className="flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-emerald-500/70" />
+                  <span className="truncate text-slate-700 font-semibold">{procedure}</span>
                 </div>
               )}
             </div>
+          </div>
 
-            {teamAssigned && teamAssigned.length > 0 && (
-              <div className="flex items-center gap-1.5">
-                <User className="h-4 w-4 text-gray-400" />
-                <span>Team: {teamAssigned.join(', ')}</span>
-              </div>
-            )}
-
-            {casePlan?.procedure_plan && (
-              <div className="mt-2 p-2 bg-blue-50 rounded text-xs">
-                <span className="font-medium">Plan:</span> {casePlan.procedure_plan.substring(0, 150)}
-                {casePlan.procedure_plan.length > 150 && '...'}
-              </div>
-            )}
-
-            {casePlan?.risk_factors && (
-              <div className="mt-2 text-xs text-orange-700">
-                <span className="font-medium">Risk Factors:</span> {casePlan.risk_factors}
-              </div>
-            )}
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 flex-shrink-0 pt-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "h-10 w-10 rounded-xl transition-all hover:bg-slate-100",
+                isExpanded && "bg-slate-100 rotate-180"
+              )}
+              onClick={() => setIsExpanded(!isExpanded)}
+              title="View Case Logistics"
+            >
+              <ChevronDown className="h-5 w-5 text-slate-400" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 px-4 text-xs font-black uppercase tracking-wider border-slate-200 shadow-sm hover:bg-slate-50 rounded-xl"
+              asChild
+            >
+              <Link href={`/doctor/cases/${appointment.id}`}>
+                Review
+              </Link>
+            </Button>
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 ml-4">
-          <Button
-            variant="outline"
-            size="sm"
-            asChild
-          >
-            <Link href={`/doctor/cases/${appointment.id}`}>
-              View Case
-            </Link>
-          </Button>
-          {!casePlan?.ready_for_surgery && (
-            <Button
-              variant="default"
-              size="sm"
-              asChild
-            >
-              <Link href={`/doctor/cases/${appointment.id}/plan`}>
-                Plan Case
-              </Link>
-            </Button>
-          )}
-        </div>
+        {/* Expandable Details Area */}
+        {isExpanded && (
+          <div className="mt-5 pt-5 border-t border-slate-100 space-y-5 animate-in fade-in slide-in-from-top-4 duration-300">
+            {/* Clinical Metadata */}
+            <div className="grid grid-cols-2 gap-6 bg-slate-50/50 p-4 rounded-xl">
+              <div className="space-y-1.5 text-center sm:text-left">
+                <span className="text-[10px] uppercase tracking-widest font-black text-slate-400">Est. Duration</span>
+                <p className="text-sm font-bold text-slate-900">{duration || '60-90 min'}</p>
+              </div>
+              <div className="space-y-1.5 text-center sm:text-left">
+                <span className="text-[10px] uppercase tracking-widest font-black text-slate-400">Clinical Team</span>
+                <p className="text-sm font-bold text-slate-900 truncate">{teamAssigned?.join(', ') || 'Lead Surgeon + Scrub Nurse'}</p>
+              </div>
+            </div>
+
+            {/* Technical Plans */}
+            {casePlan?.procedure_plan && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                  <span className="text-[10px] uppercase tracking-widest font-black text-slate-400">Surgical Strategy</span>
+                </div>
+                <p className="text-xs leading-relaxed text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100 italic">
+                  {casePlan.procedure_plan}
+                </p>
+              </div>
+            )}
+
+            {/* Risk Management */}
+            {casePlan?.risk_factors && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                  <span className="text-[10px] uppercase tracking-widest font-black text-amber-600">Risk Factors</span>
+                </div>
+                <div className="p-3 bg-amber-50/30 rounded-xl border border-amber-100/50">
+                  <p className="text-xs leading-relaxed text-amber-900 font-medium">
+                    {casePlan.risk_factors}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end">
+              <Button
+                variant="link"
+                className="h-auto p-0 text-xs font-black text-indigo-600 hover:text-indigo-700 decoration-indigo-200"
+                asChild
+              >
+                <Link href={`/doctor/operative/plan/${appointment.id}/new`}>
+                  {casePlan?.ready_for_surgery ? "MODIFY CLINICAL PLAN" : "COMPLETE CASE PLANNING"} →
+                </Link>
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

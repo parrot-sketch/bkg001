@@ -2,6 +2,7 @@ import { Pagination } from "@/components/pagination";
 import { ProfileImage } from "@/components/profile-image";
 import SearchInput from "@/components/search-input";
 import { Button } from "@/components/ui/button";
+import { PatientTable } from "@/components/patient/PatientTable";
 import { SearchParamsProps } from "@/types";
 import { calculateAge } from "@/lib/utils";
 import { DATA_LIMIT } from "@/lib/utils/settings";
@@ -11,6 +12,8 @@ import { format } from "date-fns";
 import { Users, Calendar, Eye, Search, UserPlus, Phone, Mail, MapPin, Clock } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { PatientMapper as ApplicationPatientMapper } from "@/application/mappers/PatientMapper";
+import { PatientMapper as InfrastructurePatientMapper } from "@/infrastructure/mappers/PatientMapper";
 
 export const dynamic = 'force-dynamic';
 

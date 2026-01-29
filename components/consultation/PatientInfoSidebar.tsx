@@ -154,8 +154,8 @@ export function PatientInfoSidebar({
         </Card>
       )}
 
-      {/* Readiness Indicator - Prominent if not ready */}
-      {readiness && !readiness.intakeComplete && !readiness.photosUploaded && !readiness.medicalHistoryComplete && !readiness.consentAcknowledged && (
+      {/* Readiness Indicator - Always visible when available */}
+      {readiness && (
         <ConsultationReadinessIndicator readiness={readiness} />
       )}
 

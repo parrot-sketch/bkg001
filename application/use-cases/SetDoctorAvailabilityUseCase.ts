@@ -27,6 +27,7 @@ import { DoctorAvailabilityResponseDto } from '../dtos/DoctorAvailabilityRespons
 import { DomainException } from '../../domain/exceptions/DomainException';
 import { PrismaClient } from '@prisma/client';
 import { IAuditService } from '../../domain/interfaces/services/IAuditService';
+import { validateSessionsNoOverlap } from '../validators/ScheduleValidationHelpers';
 
 export class SetDoctorAvailabilityUseCase {
   constructor(
@@ -166,7 +167,16 @@ export class SetDoctorAvailabilityUseCase {
       }
     }
 
-    // Step 4: Save working days
+    // Step 4: Clean up orphaned sessions first
+    // This fixes any sessions that reference deleted working days from previous buggy saves
+    await this.prisma.$executeRaw`
+      DELETE FROM "ScheduleSession" 
+      WHERE working_day_id NOT IN (
+        SELECT id FROM "WorkingDay"
+      )
+    `;
+
+    // Step 4a: Save working days
     const workingDays = dto.workingDays.map((wd) => ({
       id: 0, // Will be assigned by repository
       doctorId: dto.doctorId,
@@ -177,6 +187,64 @@ export class SetDoctorAvailabilityUseCase {
     }));
 
     await this.availabilityRepository.saveWorkingDays(dto.doctorId, workingDays);
+
+    // Step 4b: Save sessions for each working day (enterprise feature)
+    // Get saved working days to get their IDs
+    const savedWorkingDays = await this.availabilityRepository.getWorkingDays(dto.doctorId);
+    const workingDaysMap = new Map(savedWorkingDays.map((wd) => [wd.day, wd]));
+
+    for (const wdDto of dto.workingDays) {
+      const savedWorkingDay = workingDaysMap.get(wdDto.day);
+      if (savedWorkingDay && wdDto.sessions && wdDto.sessions.length > 0) {
+        // Validate sessions
+        for (const session of wdDto.sessions) {
+          if (!timeRegex.test(session.startTime) || !timeRegex.test(session.endTime)) {
+            throw new DomainException(`Invalid session time format. Must be HH:mm`, {
+              day: wdDto.day,
+              session,
+            });
+          }
+
+          const [sessionStartHours, sessionStartMinutes] = session.startTime.split(':').map(Number);
+          const [sessionEndHours, sessionEndMinutes] = session.endTime.split(':').map(Number);
+          const sessionStartTotal = sessionStartHours * 60 + sessionStartMinutes;
+          const sessionEndTotal = sessionEndHours * 60 + sessionEndMinutes;
+
+          if (sessionEndTotal <= sessionStartTotal) {
+            throw new DomainException(`Session end time must be after start time for ${wdDto.day}`, {
+              day: wdDto.day,
+              session,
+            });
+          }
+        }
+
+        // Validate sessions don't overlap (Rule 1: No overlapping sessions on same day)
+        try {
+          validateSessionsNoOverlap(wdDto.sessions, wdDto.day);
+        } catch (error) {
+          throw new DomainException(
+            error instanceof Error ? error.message : 'Sessions cannot overlap on the same day',
+            {
+              day: wdDto.day,
+              sessions: wdDto.sessions,
+            }
+          );
+        }
+
+        // Save sessions (replaces existing)
+        await this.availabilityRepository.saveSessionsForWorkingDay(
+          savedWorkingDay.id,
+          wdDto.sessions.map((s) => ({
+            startTime: s.startTime,
+            endTime: s.endTime,
+            sessionType: s.sessionType,
+            maxPatients: s.maxPatients,
+            notes: s.notes,
+          }))
+        );
+      }
+      // If no sessions provided, backward compatibility: system will use startTime/endTime
+    }
 
     // Step 5: Save breaks (delete existing and create new)
     const existingBreaks = await this.availabilityRepository.getBreaks(dto.doctorId);

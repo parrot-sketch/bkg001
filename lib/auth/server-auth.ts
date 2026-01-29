@@ -37,13 +37,22 @@ export async function getCurrentUser(): Promise<AuthContext | null> {
   try {
     const cookieStore = await cookies();
     const accessToken = cookieStore.get('accessToken')?.value;
-    
+
+    // DEBUG: Log cookie presence (will remove after debugging)
     if (!accessToken) {
+      console.log('[DEBUG] getCurrentUser: NoaccessToken cookie found');
+      // Also check headers for debugging?
       return null;
     }
+    console.log('[DEBUG] getCurrentUser: Found accessToken cookie');
 
     // Verify token and get user
     const user = await jwtMiddleware.authenticate(`Bearer ${accessToken}`);
+    if (!user) {
+      console.log('[DEBUG] getCurrentUser: Token verification failed');
+    } else {
+      console.log(`[DEBUG] getCurrentUser: Authenticated user ${user.userId}`);
+    }
     return user || null;
   } catch (error) {
     console.error('Error getting current user:', error);

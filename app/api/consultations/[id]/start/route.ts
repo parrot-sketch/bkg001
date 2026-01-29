@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { StartConsultationUseCase } from '@/application/use-cases/StartConsultationUseCase';
 import { PrismaAppointmentRepository } from '@/infrastructure/database/repositories/PrismaAppointmentRepository';
+import { PrismaConsultationRepository } from '@/infrastructure/database/repositories/PrismaConsultationRepository';
 import { ConsoleAuditService } from '@/infrastructure/services/ConsoleAuditService';
 import db from '@/lib/db';
 import { StartConsultationDto } from '@/application/dtos/StartConsultationDto';
@@ -24,11 +25,13 @@ import { Role } from '@/domain/enums/Role';
 
 // Initialize dependencies (singleton pattern)
 const appointmentRepository = new PrismaAppointmentRepository(db);
+const consultationRepository = new PrismaConsultationRepository(db);
 const auditService = new ConsoleAuditService();
 
 // Initialize use case
 const startConsultationUseCase = new StartConsultationUseCase(
   appointmentRepository,
+  consultationRepository,
   auditService,
 );
 
@@ -85,7 +88,7 @@ export async function POST(
     // 4. Get doctor ID from user
     const doctor = await db.doctor.findUnique({
       where: { user_id: userId },
-      select: { id: true },
+      select: { id: true, user_id: true },
     });
 
     if (!doctor) {
@@ -99,6 +102,7 @@ export async function POST(
     }
 
     const doctorId = doctor.id;
+    const doctorUserId = doctor.user_id; // User ID for consultation tracking
 
     // 5. Parse request body
     let body: any;
@@ -118,6 +122,7 @@ export async function POST(
     const dto: StartConsultationDto = {
       appointmentId,
       doctorId,
+      userId: doctorUserId, // User ID for consultation tracking
       doctorNotes: body.doctorNotes || undefined,
     };
 

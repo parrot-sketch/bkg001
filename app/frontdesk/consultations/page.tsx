@@ -7,65 +7,42 @@
  * Filter by consultation request status and take review actions.
  */
 
-import { useEffect, useState, Suspense } from 'react';
+import { Suspense } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
-import { frontdeskApi } from '@/lib/api/frontdesk';
+import { useConsultationsByStatus } from '@/hooks/consultations/useConsultations';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { FileText, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useState } from 'react';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { ConsultationRequestStatus, getConsultationRequestStatusLabel, getConsultationRequestStatusDescription } from '@/domain/enums/ConsultationRequestStatus';
 import { AppointmentCard } from '@/components/patient/AppointmentCard';
 import { ReviewConsultationDialog } from '@/components/frontdesk/ReviewConsultationDialog';
+import { ConsultationStats } from '@/utils/consultation-filters';
+import { CONSULTATION_CONFIG } from '@/lib/constants/frontdesk';
 
 function FrontdeskConsultationsContent() {
   const { user, isAuthenticated } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const statusParam = searchParams.get('status') || 'SUBMITTED,PENDING_REVIEW';
+  const statusParam = searchParams.get('status') || CONSULTATION_CONFIG.DEFAULT_STATUS_FILTER;
   
-  const [appointments, setAppointments] = useState<AppointmentResponseDto[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentResponseDto | null>(null);
   const [showReviewDialog, setShowReviewDialog] = useState(false);
 
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      loadConsultations();
-    }
-  }, [isAuthenticated, user, statusParam]);
+  // REFACTORED: Replaced manual useState/useEffect with React Query hook
+  // Benefits: Automatic caching, retries, background refetching, loading state management
+  const statuses: string[] = statusParam === CONSULTATION_CONFIG.ALL_STATUSES_FILTER
+    ? Array.from(CONSULTATION_CONFIG.ALL_STATUSES_ARRAY)
+    : statusParam.split(CONSULTATION_CONFIG.STATUS_FILTER_SEPARATOR).map(s => s.trim());
 
-  const loadConsultations = async () => {
-    try {
-      setLoading(true);
-      // Parse status filter (comma-separated)
-      const statuses = statusParam === 'ALL' 
-        ? ['SUBMITTED', 'PENDING_REVIEW', 'NEEDS_MORE_INFO', 'APPROVED', 'SCHEDULED', 'CONFIRMED']
-        : statusParam.split(',').map(s => s.trim());
-      
-      // Use the frontdesk API method which handles authentication automatically
-      const response = await frontdeskApi.getConsultationsByStatus(statuses);
-      
-      if (response.success && response.data) {
-        // Filter by the requested statuses (API may return all, so filter client-side for safety)
-        const filtered = response.data.filter(apt => 
-          apt.consultationRequestStatus && statuses.includes(apt.consultationRequestStatus)
-        );
-        setAppointments(filtered);
-      } else {
-        toast.error('Failed to load consultations');
-        setAppointments([]);
-      }
-    } catch (error) {
-      toast.error('An error occurred while loading consultations');
-      console.error('Error loading consultations:', error);
-      setAppointments([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { 
+    data: appointments = [], 
+    isLoading,
+    refetch 
+  } = useConsultationsByStatus(statuses, isAuthenticated && !!user);
 
   const handleReview = (appointment: AppointmentResponseDto) => {
     setSelectedAppointment(appointment);
@@ -75,27 +52,20 @@ function FrontdeskConsultationsContent() {
   const handleReviewSuccess = () => {
     setShowReviewDialog(false);
     setSelectedAppointment(null);
-    loadConsultations();
+    refetch(); // Refetch consultations after review
     toast.success('Consultation request reviewed successfully');
   };
 
   // Filter appointments by status
-  const statuses = statusParam.split(',').map(s => s.trim());
   const filteredAppointments = appointments.filter(apt => 
     apt.consultationRequestStatus && statuses.includes(apt.consultationRequestStatus)
   );
 
-  // Count by status
-  const newInquiries = filteredAppointments.filter(
-    apt => apt.consultationRequestStatus === ConsultationRequestStatus.SUBMITTED || 
-           apt.consultationRequestStatus === ConsultationRequestStatus.PENDING_REVIEW
-  ).length;
-  const awaitingClarification = filteredAppointments.filter(
-    apt => apt.consultationRequestStatus === ConsultationRequestStatus.NEEDS_MORE_INFO
-  ).length;
-  const awaitingScheduling = filteredAppointments.filter(
-    apt => apt.consultationRequestStatus === ConsultationRequestStatus.APPROVED
-  ).length;
+  // REFACTORED: Use extracted utility functions instead of inline filter logic
+  // This eliminates duplication across dashboard and consultations pages
+  const newInquiries = ConsultationStats.countNewInquiries(filteredAppointments);
+  const awaitingClarification = ConsultationStats.countAwaitingClarification(filteredAppointments);
+  const awaitingScheduling = ConsultationStats.countAwaitingScheduling(filteredAppointments);
 
   if (!isAuthenticated || !user) {
     return (
@@ -163,7 +133,7 @@ function FrontdeskConsultationsContent() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {isLoading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
               <p className="mt-4 text-sm text-muted-foreground">Loading requests...</p>

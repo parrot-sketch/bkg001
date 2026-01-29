@@ -60,7 +60,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // 3. Build where clause
     const where: any = {};
-    
+
     // REFACTORED: Default date range filter for safety (last 90 days)
     // Prevents unbounded queries that could return thousands of records
     // Users can override with explicit date parameters
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         where: { user_id: userId },
         select: { id: true },
       });
-      
+
       if (patient) {
         where.patient_id = patient.id;
       } else {
@@ -116,7 +116,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         startOfDay.setHours(0, 0, 0, 0);
         const endOfDay = new Date(targetDate);
         endOfDay.setHours(23, 59, 59, 999);
-        
+
         where.appointment_date = {
           gte: startOfDay,
           lte: endOfDay,
@@ -134,7 +134,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     } else if (startDateParam || endDateParam) {
       // Filter by date range
       const dateRange: any = {};
-      
+
       if (startDateParam) {
         try {
           const startDate = new Date(startDateParam);
@@ -150,7 +150,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           );
         }
       }
-      
+
       if (endDateParam) {
         try {
           const endDate = new Date(endDateParam);
@@ -166,7 +166,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           );
         }
       }
-      
+
       if (Object.keys(dateRange).length > 0) {
         where.appointment_date = dateRange;
         hasExplicitDateFilter = true;
@@ -197,7 +197,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const MAX_LIMIT = 500;
     const requestedLimit = limitParam ? Number(limitParam) : DEFAULT_LIMIT;
     const finalLimit = Math.min(Math.max(1, requestedLimit), MAX_LIMIT); // Clamp between 1 and MAX_LIMIT
-    
+
     // REFACTORED: Use select instead of include for better performance
     // Only fetch fields actually used by the API response
     const appointments = await db.appointment.findMany({
@@ -263,6 +263,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         reviewNotes: consultationFields.reviewNotes ?? undefined,
         createdAt: appointment.created_at,
         updatedAt: appointment.updated_at,
+        patient: appointment.patient ? {
+          id: appointment.patient.id,
+          firstName: appointment.patient.first_name,
+          lastName: appointment.patient.last_name,
+          email: appointment.patient.email,
+          phone: appointment.patient.phone,
+          img: appointment.patient.img,
+        } : undefined,
+        doctor: appointment.doctor ? {
+          id: appointment.doctor.id,
+          name: appointment.doctor.name,
+          specialization: appointment.doctor.specialization,
+        } : undefined,
       };
     });
 
@@ -351,14 +364,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // 4. Resolve Patient ID from User ID if needed
     // If user role is PATIENT, find their Patient record by user_id
     let patientId = body.patientId;
-    
+
     if (userRole === 'PATIENT') {
       // For patients, ensure they're creating appointment for themselves
       const patient = await db.patient.findUnique({
         where: { user_id: userId },
         select: { id: true },
       });
-      
+
       if (patient) {
         patientId = patient.id;
       } else {
@@ -378,7 +391,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         where: { id: body.patientId },
         select: { id: true },
       });
-      
+
       if (!patient) {
         return NextResponse.json(
           {
@@ -393,12 +406,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // 5. Use ScheduleAppointmentUseCase to create appointment
     const { getScheduleAppointmentUseCase } = await import('@/lib/use-cases');
     const scheduleAppointmentUseCase = getScheduleAppointmentUseCase();
-    
+
     const result = await scheduleAppointmentUseCase.execute({
       patientId: patientId,
       doctorId: body.doctorId,
-      appointmentDate: typeof body.appointmentDate === 'string' 
-        ? new Date(body.appointmentDate) 
+      appointmentDate: typeof body.appointmentDate === 'string'
+        ? new Date(body.appointmentDate)
         : body.appointmentDate,
       time: body.time,
       type: body.type,

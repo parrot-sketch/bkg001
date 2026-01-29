@@ -26,7 +26,7 @@ export class ConsultationController {
   constructor(
     private readonly startConsultationUseCase: StartConsultationUseCase,
     private readonly completeConsultationUseCase: CompleteConsultationUseCase,
-  ) {}
+  ) { }
 
   /**
    * Handles consultation start request
@@ -74,6 +74,7 @@ export class ConsultationController {
       const dto: StartConsultationDto = {
         appointmentId: parseInt(appointmentId, 10),
         doctorId: req.auth.userId,
+        userId: req.auth.userId,
         doctorNotes: body?.doctorNotes,
       };
 
@@ -162,11 +163,11 @@ export class ConsultationController {
       }
 
       // 4. Validate request body
-      const body = req.body as { 
+      const body = req.body as {
         outcome: string;
         outcomeType: string;
-        followUpDate?: Date; 
-        followUpTime?: string; 
+        followUpDate?: Date;
+        followUpTime?: string;
         followUpType?: string;
       };
 

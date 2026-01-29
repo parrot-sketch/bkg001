@@ -22,7 +22,7 @@ export function useConsultation(appointmentId: number | null) {
     queryKey: ['consultation', appointmentId],
     queryFn: async () => {
       if (!appointmentId) return null;
-      
+
       const response = await consultationApi.getConsultation(appointmentId);
       if (!response.success) {
         throw new Error(response.error || 'Failed to fetch consultation');
@@ -31,13 +31,14 @@ export function useConsultation(appointmentId: number | null) {
     },
     enabled: !!appointmentId,
     staleTime: 0, // Always fresh during active consultation
-    refetchInterval: (query) => {
-      // Poll every 30s if consultation is active
-      const consultation = query.state.data;
-      const isActive = consultation?.state === ConsultationState.IN_PROGRESS;
-      return isActive ? 30000 : false;
-    },
-    refetchIntervalInBackground: true,
+    // DISABLED: This was causing version conflicts by resetting the version token every 30s
+    // refetchInterval: (query) => {
+    //   // Poll every 30s if consultation is active
+    //   const consultation = query.state.data;
+    //   const isActive = consultation?.state === ConsultationState.IN_PROGRESS;
+    //   return isActive ? 30000 : false;
+    // },
+    // refetchIntervalInBackground: true,
     retry: 3,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });

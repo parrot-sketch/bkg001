@@ -11,6 +11,7 @@ import type { StartConsultationDto } from '../../application/dtos/StartConsultat
 import type { CompleteConsultationDto } from '../../application/dtos/CompleteConsultationDto';
 import type { CheckInPatientDto } from '../../application/dtos/CheckInPatientDto';
 import type { DoctorResponseDto } from '../../application/dtos/DoctorResponseDto';
+import type { ConfirmAppointmentDto } from '../../application/dtos/ConfirmAppointmentDto';
 
 /**
  * Doctor API client
@@ -46,11 +47,13 @@ export const doctorApi = {
    */
   async getAppointments(
     doctorId: string,
-    statusFilter?: string
+    statusFilter?: string,
+    includeAll?: boolean
   ): Promise<ApiResponse<AppointmentResponseDto[]>> {
     const statusParam = statusFilter || 'SCHEDULED,CONFIRMED';
+    const includeAllParam = includeAll ? '&includeAll=true' : '';
     return apiClient.get<AppointmentResponseDto[]>(
-      `/appointments/doctor/${doctorId}?status=${statusParam}`
+      `/appointments/doctor/${doctorId}?status=${statusParam}${includeAllParam}`
     );
   },
 
@@ -151,6 +154,13 @@ export const doctorApi = {
         endTime: string;
         reason?: string;
       }>;
+      sessions?: Array<{
+        startTime: string;
+        endTime: string;
+        sessionType?: string;
+        maxPatients?: number;
+        notes?: string;
+      }>;
     }>;
     slotConfiguration?: {
       defaultDuration: number;
@@ -159,5 +169,104 @@ export const doctorApi = {
     };
   }): Promise<ApiResponse<any>> {
     return apiClient.put('/doctors/me/availability', dto);
+  },
+
+  /**
+   * Create availability override (block date or set custom hours)
+   */
+  async createOverride(dto: {
+    startDate: Date;
+    endDate: Date;
+    isBlocked: boolean;
+    reason?: string;
+    startTime?: string; // HH:mm - custom start time (only for single-day overrides)
+    endTime?: string;   // HH:mm - custom end time (only for single-day overrides)
+  }): Promise<ApiResponse<any>> {
+    return apiClient.post('/doctors/me/availability/overrides', dto);
+  },
+
+  /**
+   * Delete availability override
+   */
+  async deleteOverride(overrideId: string): Promise<ApiResponse<void>> {
+    return apiClient.delete(`/doctors/me/availability/overrides/${overrideId}`);
+  },
+
+  /**
+   * Get schedule blocks
+   */
+  async getScheduleBlocks(startDate?: Date, endDate?: Date): Promise<ApiResponse<any[]>> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate.toISOString().split('T')[0]);
+    if (endDate) params.append('endDate', endDate.toISOString().split('T')[0]);
+    const query = params.toString();
+    return apiClient.get<any[]>(`/doctors/me/schedule/blocks${query ? `?${query}` : ''}`);
+  },
+
+  /**
+   * Create schedule block
+   */
+  async createScheduleBlock(dto: {
+    startDate: Date;
+    endDate: Date;
+    startTime?: string;
+    endTime?: string;
+    blockType: string;
+    reason?: string;
+  }): Promise<ApiResponse<any>> {
+    return apiClient.post('/doctors/me/schedule/block', dto);
+  },
+
+  /**
+   * Delete schedule block
+   */
+  async deleteScheduleBlock(blockId: string): Promise<ApiResponse<void>> {
+    return apiClient.delete(`/doctors/me/schedule/block/${blockId}`);
+  },
+
+  /**
+   * Get theater schedule with CasePlan data
+   */
+  async getTheatreSchedule(startDate?: Date, endDate?: Date): Promise<ApiResponse<any[]>> {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate.toISOString().split('T')[0]);
+    if (endDate) params.append('endDate', endDate.toISOString().split('T')[0]);
+    const query = params.toString();
+    return apiClient.get<any[]>(`/doctors/me/theatre-schedule${query ? `?${query}` : ''}`);
+  },
+
+  /**
+   * Confirm or reject an appointment pending doctor confirmation
+   * 
+   * Doctor calls this to confirm (accept) or reject (cancel) an appointment
+   * that was scheduled by frontdesk and is awaiting doctor confirmation.
+   * 
+   * @param appointmentId - Appointment ID to confirm/reject
+   * @param action - 'confirm' to accept, 'reject' to cancel
+   * @param rejectionReason - Required if action is 'reject'
+   * @param notes - Optional notes from doctor
+   */
+  async confirmAppointment(
+    appointmentId: number,
+    action: 'confirm' | 'reject',
+    options?: {
+      rejectionReason?: string;
+      notes?: string;
+    }
+  ): Promise<ApiResponse<AppointmentResponseDto>> {
+    const dto: ConfirmAppointmentDto = {
+      appointmentId,
+      action,
+      rejectionReason: options?.rejectionReason,
+      notes: options?.notes,
+    };
+    return apiClient.post<AppointmentResponseDto>(`/appointments/${appointmentId}/confirm`, dto);
+  },
+
+  /**
+   * Schedule an appointment
+   */
+  async scheduleAppointment(dto: import('../../application/dtos/ScheduleAppointmentDto').ScheduleAppointmentDto): Promise<ApiResponse<AppointmentResponseDto>> {
+    return apiClient.post<AppointmentResponseDto>('/appointments', dto);
   },
 };

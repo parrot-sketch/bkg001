@@ -12,6 +12,7 @@
  * Designed for surgeon efficiency - minimal clutter, maximum information density.
  */
 
+import { useState, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { Clock, Save, Camera, History, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -45,9 +46,22 @@ export function ConsultationSessionHeader({
   const isActive = consultation?.state === ConsultationState.IN_PROGRESS;
   const isCompleted = consultation?.state === ConsultationState.COMPLETED;
   const startedAt = consultation?.startedAt;
-  
+
   // Role-aware: Only doctors can complete consultations
   const canCompleteConsultation = userRole === Role.DOCTOR;
+
+  // Real-time timer update
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    if (!startedAt) return;
+
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 30000); // Update every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [startedAt]);
 
   // Calculate elapsed time
   const elapsedTime = startedAt

@@ -116,7 +116,6 @@ export class ConsultationMapper {
       doctor: {
         connect: { id: consultation.getDoctorId() },
       },
-      user_id: consultation.getUserId() ?? null,
       started_at: consultation.getStartedAt() ?? null,
       completed_at: consultation.getCompletedAt() ?? null,
       duration_minutes: duration?.getMinutes() ?? null,
@@ -127,6 +126,13 @@ export class ConsultationMapper {
       follow_up_type: consultation.getFollowUpType() ?? null,
       follow_up_notes: consultation.getFollowUpNotes() ?? null,
     };
+
+    // Use relation for user_id (Prisma requires relation, not direct field)
+    if (consultation.getUserId()) {
+      input.user = {
+        connect: { id: consultation.getUserId()! },
+      };
+    }
 
     // Add fields that may not exist in schema yet (for future compatibility)
     if ((Prisma as any).ConsultationCreateInput?.state !== undefined) {
@@ -176,9 +182,18 @@ export class ConsultationMapper {
       follow_up_notes: consultation.getFollowUpNotes() ?? null,
     };
 
-    // Only update user_id if it's set
+    // Update user relation if userId is set (Prisma requires relation, not direct field)
     if (consultation.getUserId() !== undefined) {
-      updateInput.user_id = consultation.getUserId() ?? null;
+      if (consultation.getUserId()) {
+        updateInput.user = {
+          connect: { id: consultation.getUserId()! },
+        };
+      } else {
+        // Disconnect user if userId is null
+        updateInput.user = {
+          disconnect: true,
+        };
+      }
     }
 
     // Add fields that may not exist in schema yet (for future compatibility)

@@ -9,6 +9,8 @@ import { PrismaClient } from '@prisma/client';
 import {
   IAvailabilityRepository,
   WorkingDay,
+  ScheduleSession,
+  ScheduleBlock,
   AvailabilityOverride,
   AvailabilityBreak,
   SlotConfiguration,
@@ -23,17 +25,27 @@ export class PrismaAvailabilityRepository implements IAvailabilityRepository {
   }
 
   async getDoctorAvailability(doctorId: string): Promise<DoctorAvailability | null> {
-    const [workingDays, overrides, breaks, slotConfig] = await Promise.all([
+    const [workingDays, overrides, blocks, breaks, slotConfig] = await Promise.all([
       this.getWorkingDays(doctorId),
       this.getOverrides(doctorId, new Date(0), new Date('2099-12-31')), // Get all overrides
+      this.getBlocks(doctorId, new Date(0), new Date('2099-12-31')), // Get all blocks
       this.getBreaks(doctorId),
       this.getSlotConfiguration(doctorId),
     ]);
 
+    // Get all sessions for all working days
+    const sessions: ScheduleSession[] = [];
+    for (const workingDay of workingDays) {
+      const daySessions = await this.getSessionsForWorkingDay(workingDay.id);
+      sessions.push(...daySessions);
+    }
+
     return {
       doctorId,
       workingDays,
+      sessions,
       overrides,
+      blocks,
       breaks,
       slotConfiguration: slotConfig || undefined,
     };
@@ -56,21 +68,50 @@ export class PrismaAvailabilityRepository implements IAvailabilityRepository {
   }
 
   async saveWorkingDays(doctorId: string, workingDays: WorkingDay[]): Promise<void> {
-    // Delete existing working days
-    await this.prisma.workingDay.deleteMany({
+    // Get existing working days
+    const existingWorkingDays = await this.prisma.workingDay.findMany({
       where: { doctor_id: doctorId },
     });
 
-    // Create new working days
-    await this.prisma.workingDay.createMany({
-      data: workingDays.map((wd) => ({
-        doctor_id: doctorId,
-        day: wd.day,
-        start_time: wd.startTime,
-        end_time: wd.endTime,
-        is_available: wd.isAvailable,
-      })),
-    });
+    // Create a map of existing working days by day name
+    const existingMap = new Map(existingWorkingDays.map(wd => [wd.day, wd]));
+
+    // Update or create each working day
+    for (const wd of workingDays) {
+      const existing = existingMap.get(wd.day);
+      
+      if (existing) {
+        // Update existing working day (preserves ID and associated sessions)
+        await this.prisma.workingDay.update({
+          where: { id: existing.id },
+          data: {
+            start_time: wd.startTime,
+            end_time: wd.endTime,
+            is_available: wd.isAvailable,
+          },
+        });
+        existingMap.delete(wd.day); // Mark as processed
+      } else {
+        // Create new working day
+        await this.prisma.workingDay.create({
+          data: {
+            doctor_id: doctorId,
+            day: wd.day,
+            start_time: wd.startTime,
+            end_time: wd.endTime,
+            is_available: wd.isAvailable,
+          },
+        });
+      }
+    }
+
+    // Delete working days that are no longer needed
+    // (days that were in DB but not in the new workingDays array)
+    for (const [day, existing] of existingMap.entries()) {
+      await this.prisma.workingDay.delete({
+        where: { id: existing.id },
+      });
+    }
   }
 
   async getOverrides(doctorId: string, startDate: Date, endDate: Date): Promise<AvailabilityOverride[]> {
@@ -101,6 +142,10 @@ export class PrismaAvailabilityRepository implements IAvailabilityRepository {
       endDate: ov.end_date,
       reason: ov.reason || undefined,
       isBlocked: ov.is_blocked,
+      // Type assertion needed because Prisma client may not have been regenerated
+      // These fields exist in the schema but may not be in the generated types yet
+      startTime: (ov as any).start_time || undefined,
+      endTime: (ov as any).end_time || undefined,
     }));
   }
 
@@ -116,7 +161,11 @@ export class PrismaAvailabilityRepository implements IAvailabilityRepository {
         end_date: override.endDate,
         reason: override.reason,
         is_blocked: override.isBlocked,
-      },
+        // Type assertion needed because Prisma client may not have been regenerated
+        // These fields exist in the schema but may not be in the generated types yet
+        start_time: override.startTime || null,
+        end_time: override.endTime || null,
+      } as any,
     });
 
     return {
@@ -126,6 +175,9 @@ export class PrismaAvailabilityRepository implements IAvailabilityRepository {
       endDate: created.end_date,
       reason: created.reason || undefined,
       isBlocked: created.is_blocked,
+      // Type assertion needed because Prisma client may not have been regenerated
+      startTime: (created as any).start_time || undefined,
+      endTime: (created as any).end_time || undefined,
     };
   }
 
@@ -241,5 +293,113 @@ export class PrismaAvailabilityRepository implements IAvailabilityRepository {
       bufferTime: saved.buffer_time,
       slotInterval: saved.slot_interval,
     };
+  }
+
+  async getSessionsForWorkingDay(workingDayId: number): Promise<ScheduleSession[]> {
+    const sessions = await this.prisma.scheduleSession.findMany({
+      where: { working_day_id: workingDayId },
+      orderBy: { start_time: 'asc' },
+    });
+
+    return sessions.map((s) => ({
+      id: s.id,
+      workingDayId: s.working_day_id,
+      startTime: s.start_time,
+      endTime: s.end_time,
+      sessionType: s.session_type || undefined,
+      maxPatients: s.max_patients || undefined,
+      notes: s.notes || undefined,
+    }));
+  }
+
+  async saveSessionsForWorkingDay(
+    workingDayId: number,
+    sessions: Omit<ScheduleSession, 'id' | 'workingDayId'>[]
+  ): Promise<ScheduleSession[]> {
+    // Delete existing sessions
+    await this.prisma.scheduleSession.deleteMany({
+      where: { working_day_id: workingDayId },
+    });
+
+    // Create new sessions
+    await this.prisma.scheduleSession.createMany({
+      data: sessions.map((s) => ({
+        working_day_id: workingDayId,
+        start_time: s.startTime,
+        end_time: s.endTime,
+        session_type: s.sessionType || null,
+        max_patients: s.maxPatients || null,
+        notes: s.notes || null,
+      })),
+    });
+
+    // Return created sessions
+    return this.getSessionsForWorkingDay(workingDayId);
+  }
+
+  async deleteSession(sessionId: string): Promise<void> {
+    await this.prisma.scheduleSession.delete({
+      where: { id: sessionId },
+    });
+  }
+
+  async getBlocks(doctorId: string, startDate: Date, endDate: Date): Promise<ScheduleBlock[]> {
+    const blocks = await this.prisma.scheduleBlock.findMany({
+      where: {
+        doctor_id: doctorId,
+        OR: [
+          {
+            start_date: { lte: endDate },
+            end_date: { gte: startDate },
+          },
+        ],
+      },
+      orderBy: { start_date: 'asc' },
+    });
+
+    return blocks.map((b) => ({
+      id: b.id,
+      doctorId: b.doctor_id,
+      startDate: b.start_date,
+      endDate: b.end_date,
+      startTime: b.start_time || undefined,
+      endTime: b.end_time || undefined,
+      blockType: b.block_type,
+      reason: b.reason || undefined,
+      createdBy: b.created_by,
+    }));
+  }
+
+  async createBlock(block: Omit<ScheduleBlock, 'id'>): Promise<ScheduleBlock> {
+    const created = await this.prisma.scheduleBlock.create({
+      data: {
+        doctor_id: block.doctorId,
+        start_date: block.startDate,
+        end_date: block.endDate,
+        start_time: block.startTime || null,
+        end_time: block.endTime || null,
+        block_type: block.blockType,
+        reason: block.reason || null,
+        created_by: block.createdBy,
+      },
+    });
+
+    return {
+      id: created.id,
+      doctorId: created.doctor_id,
+      startDate: created.start_date,
+      endDate: created.end_date,
+      startTime: created.start_time || undefined,
+      endTime: created.end_time || undefined,
+      blockType: created.block_type,
+      reason: created.reason || undefined,
+      createdBy: created.created_by,
+    };
+  }
+
+  async deleteBlock(blockId: string): Promise<void> {
+    await this.prisma.scheduleBlock.delete({
+      where: { id: blockId },
+    });
   }
 }

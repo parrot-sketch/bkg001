@@ -78,8 +78,8 @@ export function PostOpDashboard({ cases, loading = false }: PostOpDashboardProps
 
   return (
     <div className="space-y-6">
-      {/* Stats Overview */}
-      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+      {/* Stats Overview - Refactored for better viewport distribution */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-3 gap-3">
         <StatCard
           title="Recent Surgeries"
           value={stats.recent}

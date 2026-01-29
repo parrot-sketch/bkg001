@@ -1,0 +1,16 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Prisma DB Push",
+			"type": "shell",
+			"command": "cd /home/bkg/fullstack-healthcare && npx prisma db push"
+		},
+		{
+			"label": "Start Dev Server",
+			"type": "shell",
+			"command": "cd /home/bkg/fullstack-healthcare && npm run dev",
+			"isBackground": true
+		}
+	]
+}

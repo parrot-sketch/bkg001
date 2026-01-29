@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { ConsoleAuditService } from '../../../../infrastructure/services/ConsoleAuditService';
-import type { AuditEvent } from '../../../../domain/interfaces/services/IAuditService';
+import { ConsoleAuditService } from '@/infrastructure/services/ConsoleAuditService';
+import type { AuditEvent } from '@/domain/interfaces/services/IAuditService';
 
 describe('ConsoleAuditService', () => {
   let service: ConsoleAuditService;
@@ -9,10 +9,10 @@ describe('ConsoleAuditService', () => {
 
   beforeEach(() => {
     service = new ConsoleAuditService();
-    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => { });
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
     // Set NODE_ENV to test to avoid production logging format
-    process.env.NODE_ENV = 'test';
+    vi.stubEnv('NODE_ENV', 'test');
   });
 
   afterEach(() => {
@@ -36,7 +36,7 @@ describe('ConsoleAuditService', () => {
       expect(consoleLogSpy).toHaveBeenCalled();
       const logCall = consoleLogSpy.mock.calls[0][0];
       const parsedLog = JSON.parse(logCall);
-      
+
       expect(parsedLog.userId).toBe('user-1');
       expect(parsedLog.recordId).toBe('record-1');
       expect(parsedLog.action).toBe('CREATE');
@@ -60,7 +60,7 @@ describe('ConsoleAuditService', () => {
       expect(consoleLogSpy).toHaveBeenCalled();
       const logCall = consoleLogSpy.mock.calls[0][0];
       const parsedLog = JSON.parse(logCall);
-      
+
       expect(parsedLog.details).toBeNull();
       expect(parsedLog.ipAddress).toBeNull();
       expect(parsedLog.sessionId).toBeNull();
@@ -82,7 +82,7 @@ describe('ConsoleAuditService', () => {
       await expect(service.recordEvent(event)).rejects.toThrow(
         'Failed to record audit event'
       );
-      
+
       expect(consoleErrorSpy).toHaveBeenCalled();
     });
 
@@ -100,10 +100,10 @@ describe('ConsoleAuditService', () => {
 
       const logCall = consoleLogSpy.mock.calls[0][0];
       const parsedLog = JSON.parse(logCall);
-      
+
       expect(parsedLog.timestamp).toBeDefined();
-      expect(parsedLog.timestamp).toBeGreaterThanOrEqual(beforeTime);
-      expect(parsedLog.timestamp).toBeLessThanOrEqual(afterTime);
+      expect(new Date(parsedLog.timestamp).getTime()).toBeGreaterThanOrEqual(new Date(beforeTime).getTime());
+      expect(new Date(parsedLog.timestamp).getTime()).toBeLessThanOrEqual(new Date(afterTime).getTime());
     });
   });
 });
