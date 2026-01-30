@@ -52,17 +52,31 @@ export class PrismaAvailabilityRepository implements IAvailabilityRepository {
       }),
     ]);
 
-    // Get all sessions for all working days
-    const sessions: ScheduleSession[] = [];
-    for (const workingDay of workingDays) {
-      const daySessions = await this.getSessionsForWorkingDay(workingDay.id);
-      sessions.push(...daySessions);
-    }
+    // Optimize: Fetch sessions for all working days in one query
+    const workingDayIds = workingDays.map(w => w.id);
+    const rawSessions = await this.prisma.scheduleSession.findMany({
+      where: { working_day_id: { in: workingDayIds } },
+      orderBy: { start_time: 'asc' },
+    });
 
     return {
       doctorId,
-      workingDays,
-      sessions,
+      workingDays: workingDays.map(wd => ({
+        id: wd.id,
+        doctorId: wd.doctor_id,
+        day: wd.day,
+        startTime: wd.start_time,
+        endTime: wd.end_time,
+        isAvailable: wd.is_available,
+      })),
+      sessions: rawSessions.map(s => ({
+        id: s.id,
+        workingDayId: s.working_day_id,
+        startTime: s.start_time,
+        endTime: s.end_time,
+        capacity: s.max_patients || undefined,
+        sessionType: s.session_type || undefined,
+      })),
       overrides: overrides.map((ov) => ({
         id: ov.id,
         doctorId: ov.doctor_id,
@@ -93,7 +107,13 @@ export class PrismaAvailabilityRepository implements IAvailabilityRepository {
         endTime: br.end_time,
         reason: br.reason || undefined,
       })),
-      slotConfiguration: slotConfig || undefined,
+      slotConfiguration: slotConfig ? {
+        id: slotConfig.id,
+        doctorId: slotConfig.doctor_id,
+        defaultDuration: slotConfig.default_duration,
+        bufferTime: slotConfig.buffer_time,
+        slotInterval: slotConfig.slot_interval,
+      } : undefined,
     };
   }
 
