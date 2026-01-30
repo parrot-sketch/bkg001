@@ -294,7 +294,11 @@ export class ScheduleAppointmentUseCase {
           doctorUser.user_id,
           'New Appointment Scheduled',
           `New appointment with ${patient.getFullName()} on ${dto.appointmentDate.toLocaleDateString()} at ${dto.time}.`,
-          'info'
+          'info',
+          {
+            resourceType: 'appointment',
+            resourceId: savedAppointmentId
+          }
         );
       }
     } catch (error) {

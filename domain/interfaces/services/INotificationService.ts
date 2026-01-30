@@ -44,5 +44,5 @@ export interface INotificationService {
    * @param type - Notification type (info, success, warning, error)
    * @returns Promise that resolves when the notification is successfully created
    */
-  sendInApp(userId: string, title: string, message: string, type: 'info' | 'success' | 'warning' | 'error'): Promise<void>;
+  sendInApp(userId: string, title: string, message: string, type: 'info' | 'success' | 'warning' | 'error', metadata?: Record<string, any>): Promise<void>;
 }

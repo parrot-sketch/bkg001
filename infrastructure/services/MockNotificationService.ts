@@ -92,7 +92,7 @@ export class MockNotificationService implements INotificationService {
   /**
    * Logs an in-app notification attempt without actually creating it
    */
-  async sendInApp(userId: string, title: string, message: string, type: 'info' | 'success' | 'warning' | 'error'): Promise<void> {
+  async sendInApp(userId: string, title: string, message: string, type: 'info' | 'success' | 'warning' | 'error', metadata?: Record<string, any>): Promise<void> {
     try {
       const notificationLog = {
         type: 'in-app',
@@ -100,7 +100,8 @@ export class MockNotificationService implements INotificationService {
         userId,
         title,
         message,
-        level: type
+        level: type,
+        metadata
       };
       console.log(JSON.stringify(notificationLog));
       if (process.env.NODE_ENV !== 'production') {
