@@ -1,6 +1,8 @@
 'use client';
 
 import { Bell, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import {
     Popover,
     PopoverContent,
@@ -13,9 +15,44 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 export function NotificationBell() {
     const { notifications, unreadCount, loading, markAsRead } = useNotifications();
+    const [isOpen, setIsOpen] = useState(false);
+    const router = useRouter();
+    const pathname = usePathname();
+
+    const handleNotificationClick = (notification: any) => {
+        setIsOpen(false);
+
+        if (notification.status !== 'READ') {
+            markAsRead(notification.id);
+        }
+
+        // Parse metadata if string
+        let metadata = notification.metadata;
+        if (typeof metadata === 'string') {
+            try {
+                metadata = JSON.parse(metadata);
+            } catch (e) {
+                console.error('Failed to parse notification metadata', e);
+                metadata = {};
+            }
+        }
+
+        // Determine context from current path
+        // Default to /doctor if indeterminate, as that's the primary use case for now
+        let rolePrefix = '/doctor';
+        if (pathname.startsWith('/patient')) rolePrefix = '/patient';
+        else if (pathname.startsWith('/admin')) rolePrefix = '/admin';
+        else if (pathname.startsWith('/frontdesk')) rolePrefix = '/frontdesk';
+        else if (pathname.startsWith('/nurse')) rolePrefix = '/nurse';
+
+        // Navigate based on resource type
+        if (metadata?.resourceType === 'appointment' && metadata?.resourceId) {
+            router.push(`${rolePrefix}/appointments/${metadata.resourceId}`);
+        }
+    };
 
     return (
-        <Popover>
+        <Popover open={isOpen} onOpenChange={setIsOpen}>
             <PopoverTrigger asChild>
                 <Button variant="ghost" size="icon" className="relative">
                     <Bell className="h-5 w-5 text-muted-foreground" />
@@ -51,7 +88,7 @@ export function NotificationBell() {
                                 <NotificationItem
                                     key={notification.id}
                                     notification={notification}
-                                    onClick={(id) => markAsRead(id)}
+                                    onClick={() => handleNotificationClick(notification)}
                                 />
                             ))}
                         </div>

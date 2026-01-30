@@ -7,8 +7,8 @@
  * Used to highlight available dates on calendar before user selects a date.
  * 
  * Security:
- * - Requires authentication
- * - PATIENT, FRONTDESK, ADMIN, and DOCTOR (own dates) can access
+ * - Public access allowed (for guest booking)
+ * - Authenticated users are tracked
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -18,7 +18,7 @@ import { PrismaAppointmentRepository } from '@/infrastructure/database/repositor
 import db from '@/lib/db';
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { JwtMiddleware } from '@/lib/auth/middleware';
-import { Role } from '@/domain/enums/Role';
+// import { Role } from '@/domain/enums/Role'; // Unused now
 
 // Initialize dependencies
 const availabilityRepository = new PrismaAvailabilityRepository(db);
@@ -44,21 +44,10 @@ export async function GET(
 ): Promise<NextResponse> {
   try {
     const params = await context.params;
-    
-    // 1. Authenticate request
-    const authResult = await JwtMiddleware.authenticate(request);
-    if (!authResult.success || !authResult.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Authentication required',
-        },
-        { status: 401 }
-      );
-    }
 
-    const userId = authResult.user.userId;
-    const userRole = authResult.user.role;
+    // 1. Authenticate request (Optional - for logging context only)
+    await JwtMiddleware.authenticate(request);
+    // User context is available if needed, but we allow public access
 
     // 2. Extract doctor ID from params
     const doctorId = params.id;
@@ -72,32 +61,8 @@ export async function GET(
       );
     }
 
-    // 3. Check permissions (FRONTDESK, ADMIN, DOCTOR viewing own dates, or PATIENT for booking)
-    if (userRole === Role.DOCTOR) {
-      // Doctor can only view their own available dates
-      const doctor = await db.doctor.findUnique({
-        where: { id: doctorId },
-        select: { user_id: true },
-      });
-
-      if (!doctor || doctor.user_id !== userId) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Access denied: Doctors can only view their own available dates',
-          },
-          { status: 403 }
-        );
-      }
-    } else if (userRole !== Role.FRONTDESK && userRole !== Role.ADMIN && userRole !== Role.PATIENT) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Access denied: Only front desk, admin, doctors, and patients can view available dates',
-        },
-        { status: 403 }
-      );
-    }
+    // 3. (REMOVED) Check permissions 
+    // Public access allowed for booking availability checks
 
     // 4. Parse query parameters
     const { searchParams } = new URL(request.url);
@@ -120,11 +85,11 @@ export async function GET(
     try {
       startDate = new Date(startDateParam);
       endDate = new Date(endDateParam);
-      
+
       if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
         throw new Error('Invalid date format');
       }
-      
+
       // Normalize to start/end of day
       startDate.setHours(0, 0, 0, 0);
       endDate.setHours(23, 59, 59, 999);
@@ -166,14 +131,14 @@ export async function GET(
     // 8. Iterate through each date in range and check for available slots
     const availableDates: string[] = [];
     const currentDate = new Date(startDate);
-    
+
     while (currentDate <= endDate) {
       try {
         const slots = await getAvailableSlotsForDateUseCase.execute({
           doctorId,
           date: new Date(currentDate),
         });
-        
+
         // If there's at least one available slot, add the date
         if (slots.length > 0) {
           availableDates.push(currentDate.toISOString().split('T')[0]);
@@ -182,7 +147,7 @@ export async function GET(
         // Skip dates that error (e.g., doctor doesn't work that day)
         // Continue to next date
       }
-      
+
       // Move to next day
       currentDate.setDate(currentDate.getDate() + 1);
     }

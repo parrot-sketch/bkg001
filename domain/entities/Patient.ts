@@ -144,7 +144,10 @@ export class Patient {
       });
     }
 
-    // Validate date of birth is reasonable (not more than 150 years ago)
+    // Validate date of birth is reasonable
+    // REMOVED: 150-year limit caused production issues with legacy data. 
+    // We implicitly trust stored DOBs unless they are in the future.
+    /*
     const minDate = new Date();
     minDate.setFullYear(minDate.getFullYear() - 150);
     if (dob < minDate) {
@@ -152,6 +155,7 @@ export class Patient {
         providedValue: params.dateOfBirth,
       });
     }
+    */
 
     if (!params.address || typeof params.address !== 'string' || params.address.trim().length === 0) {
       throw new DomainException('Patient address cannot be empty', {

@@ -26,10 +26,13 @@ export class PrismaNotificationService implements INotificationService {
         console.log(`[PrismaNotificationService] Simulating SMS to ${to.getValue()}: ${message}`);
     }
 
-    async sendInApp(userId: string, title: string, message: string, type: 'info' | 'success' | 'warning' | 'error'): Promise<void> {
+    async sendInApp(userId: string, title: string, message: string, type: 'info' | 'success' | 'warning' | 'error', metadata?: Record<string, any>): Promise<void> {
         try {
-            // Map 'info'|'success' etc to our generic IN_APP type
-            // We'll store the specific level in metadata or just use the generic type
+            // Combine type info with provided metadata
+            const finalMetadata = {
+                level: type,
+                ...metadata
+            };
 
             await this.prisma.notification.create({
                 data: {
@@ -38,7 +41,7 @@ export class PrismaNotificationService implements INotificationService {
                     status: 'PENDING',
                     subject: title,
                     message: message,
-                    metadata: JSON.stringify({ level: type }),
+                    metadata: JSON.stringify(finalMetadata),
                     sent_at: new Date(),
                 },
             });
