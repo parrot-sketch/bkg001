@@ -85,8 +85,9 @@ export interface IAvailabilityRepository {
 
   /**
    * Get complete availability for multiple doctors (optimization for N+1 problem)
+   * Only fetches overrides and blocks within the specified date range.
    */
-  getDoctorsAvailability(doctorIds: string[]): Promise<DoctorAvailability[]>;
+  getDoctorsAvailability(doctorIds: string[], startDate: Date, endDate: Date): Promise<DoctorAvailability[]>;
 
   /**
    * Get working days for a doctor
