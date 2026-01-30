@@ -346,6 +346,12 @@ model Patient {
   @@index([phone])
   @@index([last_name])
   @@index([first_name, last_name])
+  // OPTIMIZATION: GIN Indexes for efficient text search
+  // Note: Requires "postgresqlExtensions" preview feature and "pg_trgm" extension in DB
+  @@index([first_name], map: "idx_patient_firstname_search")
+  @@index([last_name], map: "idx_patient_lastname_search")
+  @@index([email], map: "idx_patient_email_search")
+  @@index([phone], map: "idx_patient_phone_search")
 }
 
 // ============================================================================

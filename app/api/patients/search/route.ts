@@ -21,16 +21,20 @@ export async function GET(request: NextRequest) {
         }
 
         // 2. Search patients using Prisma
-        // We'll search by firstName, lastName, email, phone, or fileNumber
+        // Enhanced search logic: Split query into terms to handle "First Last" searches
+        const terms = query.trim().split(/\s+/).filter(t => t.length > 0);
+
         const patients = await db.patient.findMany({
             where: {
-                OR: [
-                    { first_name: { contains: query, mode: 'insensitive' } },
-                    { last_name: { contains: query, mode: 'insensitive' } },
-                    { email: { contains: query, mode: 'insensitive' } },
-                    { phone: { contains: query, mode: 'insensitive' } },
-                    { file_number: { contains: query, mode: 'insensitive' } },
-                ],
+                AND: terms.map(term => ({
+                    OR: [
+                        { first_name: { contains: term, mode: 'insensitive' } },
+                        { last_name: { contains: term, mode: 'insensitive' } },
+                        { email: { contains: term, mode: 'insensitive' } },
+                        { phone: { contains: term, mode: 'insensitive' } },
+                        { file_number: { contains: term, mode: 'insensitive' } },
+                    ],
+                })),
             },
             take: 20, // Limit results
             orderBy: { created_at: 'desc' },
