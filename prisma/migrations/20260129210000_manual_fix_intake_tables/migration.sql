@@ -1,5 +1,5 @@
 -- CreateTable
-CREATE TABLE "intake_session" (
+CREATE TABLE IF NOT EXISTS "intake_session" (
     "id" TEXT NOT NULL,
     "session_id" TEXT NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'ACTIVE',
@@ -11,7 +11,7 @@ CREATE TABLE "intake_session" (
 );
 
 -- CreateTable
-CREATE TABLE "intake_submission" (
+CREATE TABLE IF NOT EXISTS "intake_submission" (
     "id" TEXT NOT NULL,
     "submission_id" TEXT NOT NULL,
     "session_id" TEXT NOT NULL,
@@ -51,34 +51,39 @@ CREATE TABLE "intake_submission" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "intake_session_session_id_key" ON "intake_session"("session_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "intake_session_session_id_key" ON "intake_session"("session_id");
 
 -- CreateIndex
-CREATE INDEX "intake_session_session_id_idx" ON "intake_session"("session_id");
+CREATE INDEX IF NOT EXISTS "intake_session_session_id_idx" ON "intake_session"("session_id");
 
 -- CreateIndex
-CREATE INDEX "intake_session_expires_at_idx" ON "intake_session"("expires_at");
+CREATE INDEX IF NOT EXISTS "intake_session_expires_at_idx" ON "intake_session"("expires_at");
 
 -- CreateIndex
-CREATE INDEX "intake_session_status_idx" ON "intake_session"("status");
+CREATE INDEX IF NOT EXISTS "intake_session_status_idx" ON "intake_session"("status");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "intake_submission_submission_id_key" ON "intake_submission"("submission_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "intake_submission_submission_id_key" ON "intake_submission"("submission_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "intake_submission_session_id_key" ON "intake_submission"("session_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "intake_submission_session_id_key" ON "intake_submission"("session_id");
 
 -- CreateIndex
-CREATE INDEX "intake_submission_session_id_idx" ON "intake_submission"("session_id");
+CREATE INDEX IF NOT EXISTS "intake_submission_session_id_idx" ON "intake_submission"("session_id");
 
 -- CreateIndex
-CREATE INDEX "intake_submission_status_idx" ON "intake_submission"("status");
+CREATE INDEX IF NOT EXISTS "intake_submission_status_idx" ON "intake_submission"("status");
 
 -- CreateIndex
-CREATE INDEX "intake_submission_submitted_at_idx" ON "intake_submission"("submitted_at");
+CREATE INDEX IF NOT EXISTS "intake_submission_submitted_at_idx" ON "intake_submission"("submitted_at");
 
 -- CreateIndex
-CREATE INDEX "intake_submission_created_patient_id_idx" ON "intake_submission"("created_patient_id");
+CREATE INDEX IF NOT EXISTS "intake_submission_created_patient_id_idx" ON "intake_submission"("created_patient_id");
 
 -- AddForeignKey
-ALTER TABLE "intake_submission" ADD CONSTRAINT "intake_submission_session_id_fkey" FOREIGN KEY ("session_id") REFERENCES "intake_session"("session_id") ON DELETE CASCADE ON UPDATE CASCADE;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'intake_submission_session_id_fkey') THEN
+        ALTER TABLE "intake_submission" ADD CONSTRAINT "intake_submission_session_id_fkey" FOREIGN KEY ("session_id") REFERENCES "intake_session"("session_id") ON DELETE CASCADE ON UPDATE CASCADE;
+    END IF;
+END $$;

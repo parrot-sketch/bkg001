@@ -21,21 +21,41 @@ export async function GET(request: NextRequest) {
         }
 
         // 2. Search patients using Prisma
-        // Enhanced search logic: Split query into terms to handle "First Last" searches
+        // Enhanced search logic: Prioritize exact File Number match
         const terms = query.trim().split(/\s+/).filter(t => t.length > 0);
 
+        // Check if the query looks like a file number (e.g., "NS001" or just "NS")
+        const cleanQuery = query.trim().toUpperCase();
+        const isFileNumberPattern = cleanQuery.startsWith('NS');
+
+        const whereClause: any = {
+            OR: [
+                // 1. Exact/Prefix match on File Number (Highest priority - uses index)
+                isFileNumberPattern ? {
+                    file_number: {
+                        contains: cleanQuery, // Use contains for partials like "NS0"
+                        mode: 'insensitive'
+                    }
+                } : undefined,
+
+                // 2. General fuzzy search on other fields
+                {
+                    AND: terms.map(term => ({
+                        OR: [
+                            { first_name: { contains: term, mode: 'insensitive' } },
+                            { last_name: { contains: term, mode: 'insensitive' } },
+                            { email: { contains: term, mode: 'insensitive' } },
+                            { phone: { contains: term, mode: 'insensitive' } },
+                            // Fallback file number search for non-standard queries
+                            { file_number: { contains: term, mode: 'insensitive' } },
+                        ],
+                    })),
+                }
+            ].filter(Boolean) // Remove undefined
+        };
+
         const patients = await db.patient.findMany({
-            where: {
-                AND: terms.map(term => ({
-                    OR: [
-                        { first_name: { contains: term, mode: 'insensitive' } },
-                        { last_name: { contains: term, mode: 'insensitive' } },
-                        { email: { contains: term, mode: 'insensitive' } },
-                        { phone: { contains: term, mode: 'insensitive' } },
-                        { file_number: { contains: term, mode: 'insensitive' } },
-                    ],
-                })),
-            },
+            where: whereClause,
             take: 20, // Limit results
             orderBy: { created_at: 'desc' },
         });
