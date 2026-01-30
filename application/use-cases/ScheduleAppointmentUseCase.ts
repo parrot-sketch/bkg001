@@ -185,7 +185,7 @@ export class ScheduleAppointmentUseCase {
         }
 
         // Step 4.2: Check for patient conflict
-        const patientAppointments = await this.appointmentRepository.findByPatient(dto.patientId);
+        const patientAppointments = await this.appointmentRepository.findByPatient(dto.patientId, tx);
         const excludedStatuses = ['CANCELLED', 'COMPLETED'];
         const patientConflict = patientAppointments.find((apt) => {
           const aptDate = new Date(apt.getAppointmentDate());
@@ -231,7 +231,7 @@ export class ScheduleAppointmentUseCase {
         });
 
         return id;
-      });
+      }, { timeout: 15000 });
     } catch (error) {
       // Handle domain exceptions
       if (error instanceof DomainException) {
