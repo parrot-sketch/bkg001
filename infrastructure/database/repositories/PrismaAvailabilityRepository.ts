@@ -52,8 +52,9 @@ export class PrismaAvailabilityRepository implements IAvailabilityRepository {
   }
 
   async getDoctorsAvailability(doctorIds: string[], startDate: Date, endDate: Date): Promise<DoctorAvailability[]> {
-    // 1. Bulk fetch all primary entities
-    const [workingDays, overrides, blocks, breaks, slotConfigs] = await Promise.all([
+    // 1. Bulk fetch all primary entities using a transaction
+    // This ensures consistency and uses a SINGLE database connection instead of up to 5 parallel connections
+    const [workingDays, overrides, blocks, breaks, slotConfigs] = await this.prisma.$transaction([
       this.prisma.workingDay.findMany({
         where: { doctor_id: { in: doctorIds } },
         orderBy: { day: 'asc' },
