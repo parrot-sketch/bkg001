@@ -51,20 +51,37 @@ export class PrismaAvailabilityRepository implements IAvailabilityRepository {
     };
   }
 
-  async getDoctorsAvailability(doctorIds: string[]): Promise<DoctorAvailability[]> {
+  async getDoctorsAvailability(doctorIds: string[], startDate: Date, endDate: Date): Promise<DoctorAvailability[]> {
     // 1. Bulk fetch all primary entities
     const [workingDays, overrides, blocks, breaks, slotConfigs] = await Promise.all([
       this.prisma.workingDay.findMany({
         where: { doctor_id: { in: doctorIds } },
         orderBy: { day: 'asc' },
       }),
-      // Fetch all overrides/blocks same as getDoctorAvailability
+      // Fetch only RELEVANT overrides for the date range
       this.prisma.availabilityOverride.findMany({
-        where: { doctor_id: { in: doctorIds } },
+        where: {
+          doctor_id: { in: doctorIds },
+          OR: [
+            {
+              start_date: { lte: endDate },
+              end_date: { gte: startDate },
+            },
+          ],
+        },
         orderBy: { start_date: 'asc' },
       }),
+      // Fetch only RELEVANT blocks for the date range
       this.prisma.scheduleBlock.findMany({
-        where: { doctor_id: { in: doctorIds } },
+        where: {
+          doctor_id: { in: doctorIds },
+          OR: [
+            {
+              start_date: { lte: endDate },
+              end_date: { gte: startDate },
+            },
+          ],
+        },
         orderBy: { start_date: 'asc' },
       }),
       this.prisma.availabilityBreak.findMany({

@@ -94,7 +94,12 @@ export class GetAllDoctorsAvailabilityUseCase {
 
     // Step 3: Bulk fetch availability for all doctors
     // This replaces the N+1 query pattern with a single efficient bulk fetch
-    const allAvailability = await this.availabilityRepository.getDoctorsAvailability(doctorIds);
+    // Optimized: Only fetch overrides and blocks within the requested date range
+    const allAvailability = await this.availabilityRepository.getDoctorsAvailability(
+      doctorIds,
+      dto.startDate,
+      dto.endDate
+    );
 
     // Step 4: Map results and filter locally
     const results: DoctorAvailabilityResponseDto[] = allAvailability.map(availability => {
