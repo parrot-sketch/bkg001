@@ -120,4 +120,6 @@ export interface IAppointmentRepository {
    * @returns Promise resolving to consultation request fields or null if not found (implementation-specific type)
    */
   getConsultationRequestFields(appointmentId: number): Promise<unknown | null>;
+
+
 }

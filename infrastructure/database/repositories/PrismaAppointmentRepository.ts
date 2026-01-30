@@ -1,4 +1,5 @@
 import { IAppointmentRepository } from '../../../domain/interfaces/repositories/IAppointmentRepository';
+import { IDoctorStatsRepository } from '../../../domain/interfaces/repositories/IDoctorStatsRepository';
 import { Appointment } from '../../../domain/entities/Appointment';
 import { AppointmentStatus } from '../../../domain/enums/AppointmentStatus';
 import { AppointmentMapper } from '../../mappers/AppointmentMapper';
@@ -9,7 +10,7 @@ import { subMonths, subDays } from 'date-fns';
 /**
  * Repository: PrismaAppointmentRepository
  * 
- * Prisma-based implementation of IAppointmentRepository.
+ * Prisma-based implementation of IAppointmentRepository and IDoctorStatsRepository.
  * This repository handles data persistence for Appointment entities using Prisma ORM.
  * 
  * Responsibilities:
@@ -21,7 +22,7 @@ import { subMonths, subDays } from 'date-fns';
  * Clean Architecture Rule: This class depends on domain interfaces and entities,
  * not the other way around. Domain knows nothing about Prisma.
  */
-export class PrismaAppointmentRepository implements IAppointmentRepository {
+export class PrismaAppointmentRepository implements IAppointmentRepository, IDoctorStatsRepository {
   constructor(private readonly prisma: PrismaClient) {
     if (!prisma) {
       throw new Error('PrismaClient is required');
@@ -70,7 +71,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       // This bounds the query and prevents fetching thousands of historical records
       const since = subMonths(new Date(), 12);
       const DEFAULT_LIMIT = 100; // Reasonable limit for conflict detection and history
-      
+
       const prismaAppointments = await this.prisma.appointment.findMany({
         where: {
           patient_id: patientId,
@@ -133,7 +134,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       }
 
       const DEFAULT_LIMIT = 100; // REFACTORED: Bounded query for safety
-      
+
       const prismaAppointments = await this.prisma.appointment.findMany({
         where,
         orderBy: { appointment_date: 'desc' },
@@ -222,7 +223,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       const client = txClient || this.prisma;
       const appointmentDateTime = new Date(appointmentDate);
       appointmentDateTime.setHours(0, 0, 0, 0);
-      
+
       const conflict = await client.appointment.findFirst({
         where: {
           doctor_id: doctorId,
@@ -261,7 +262,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
     try {
       const client = txClient || this.prisma;
       const createInput = AppointmentMapper.toPrismaCreateInput(appointment);
-      
+
       // Merge consultation request fields if provided
       if (consultationRequestFields) {
         const consultationFields = toPrismaCreateConsultationRequestFields(consultationRequestFields);
@@ -271,7 +272,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       const created = await client.appointment.create({
         data: createInput,
       });
-      
+
       // Return the database-generated ID
       return created.id;
     } catch (error) {
@@ -308,7 +309,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
   async update(appointment: Appointment, consultationRequestFields?: ConsultationRequestFields): Promise<void> {
     try {
       const updateInput = AppointmentMapper.toPrismaUpdateInput(appointment);
-      
+
       // Merge consultation request fields if provided
       if (consultationRequestFields) {
         const consultationFields = toPrismaConsultationRequestFields(consultationRequestFields);
@@ -356,6 +357,113 @@ export class PrismaAppointmentRepository implements IAppointmentRepository {
       return extractConsultationRequestFields(prismaAppointment);
     } catch (error) {
       throw new Error(`Failed to get consultation request fields for appointment ${appointmentId}. ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+  /**
+   * Gets aggregated dashboard statistics for a doctor
+   * 
+   * REFACTORED: O(1) complexity implementation
+   * Replaces previous N+1 logic that fetched all appointments and looped through them.
+   * Uses 4 parallel aggregation queries:
+   * 1. Count today's appointments
+   * 2. Count pending check-ins
+   * 3. Count upcoming appointments
+   * 4. Count pending consultation requests
+   * 
+   * @param doctorId - The doctor's unique identifier
+   * @returns Promise resolving to DoctorDashboardStatsDto
+   */
+  async getDoctorStats(doctorId: string): Promise<{
+    todayAppointmentsCount: number;
+    pendingConsultationRequestsCount: number;
+    pendingCheckInsCount: number;
+    upcomingAppointmentsCount: number;
+  }> {
+    try {
+      const now = new Date();
+      const today = new Date(now);
+      today.setHours(0, 0, 0, 0);
+
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const nextWeek = new Date(today);
+      nextWeek.setDate(nextWeek.getDate() + 5);
+
+      // Execute counts in parallel for optimal performance
+      const [
+        todayAppointmentsCount,
+        pendingCheckInsCount,
+        upcomingAppointmentsCount,
+        pendingConsultationRequestsCount
+      ] = await Promise.all([
+        // 1. Today's appointments (exclude cancelled)
+        this.prisma.appointment.count({
+          where: {
+            doctor_id: doctorId,
+            appointment_date: {
+              gte: today,
+              lt: tomorrow,
+            },
+            status: {
+              not: AppointmentStatus.CANCELLED as any,
+            },
+          },
+        }),
+
+        // 2. Pending check-ins (Today's appointments that are SCHEDULED/PINGING but not checked in)
+        // Simplified check: SCHEDULED appointments for today
+        this.prisma.appointment.count({
+          where: {
+            doctor_id: doctorId,
+            appointment_date: {
+              gte: today,
+              lt: tomorrow,
+            },
+            status: {
+              in: [AppointmentStatus.SCHEDULED, AppointmentStatus.PENDING] as any,
+            },
+            checked_in_at: null,
+          } as any,
+        }),
+
+        // 3. Upcoming appointments (Tomorrow to +5 days)
+        this.prisma.appointment.count({
+          where: {
+            doctor_id: doctorId,
+            appointment_date: {
+              gte: tomorrow,
+              lte: nextWeek,
+            },
+            status: {
+              not: AppointmentStatus.CANCELLED as any,
+            },
+          },
+        }),
+
+        // 4. Pending Consultation Requests
+        // This queries based on the consultation status fields directly
+        this.prisma.appointment.count({
+          where: {
+            doctor_id: doctorId,
+            consultation_request_status: {
+              in: ['PENDING_REVIEW', 'APPROVED'], // Matching values from ConsultationRequestStatus enum
+            } as any,
+            status: {
+              not: AppointmentStatus.CANCELLED as any,
+            },
+          } as any, // Cast needed because consultation fields are optional in schema
+        }),
+      ]);
+
+      return {
+        todayAppointmentsCount,
+        pendingCheckInsCount,
+        upcomingAppointmentsCount,
+        pendingConsultationRequestsCount,
+      };
+    } catch (error) {
+      throw new Error(`Failed to get doctor stats: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }
