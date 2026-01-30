@@ -36,7 +36,9 @@ const prismaClientSingleton = () => {
     // This overrides/appends to the env var without changing the .env file
     datasources: {
       db: {
-        url: (process.env.DATABASE_URL || '') + (process.env.DATABASE_URL?.includes('?') ? '&' : '?') + 'connection_limit=1&pool_timeout=5',
+        // Increase connection limit to 10 to support parallel dashboard queries
+        // User reports DB supports 15 connections.
+        url: (process.env.DATABASE_URL || '') + (process.env.DATABASE_URL?.includes('?') ? '&' : '?') + 'connection_limit=10&pool_timeout=10',
       },
     },
   });
