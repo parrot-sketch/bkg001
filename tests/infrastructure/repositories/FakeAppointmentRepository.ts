@@ -2,7 +2,8 @@
  * Fake Appointment Repository - In-Memory Implementation
  * 
  * Used for testing without database dependencies.
- * Implements IAppointmentRepository interface with in-memory storage.
+ * Implements IAppointmentRepository interface for transactional operations.
+ * Does NOT implement IDoctorStatsRepository (use FakeDoctorStatsRepository if needed).
  */
 
 import { Appointment } from '@domain/entities/Appointment';

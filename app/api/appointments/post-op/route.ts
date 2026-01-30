@@ -76,6 +76,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             id: true,
             first_name: true,
             last_name: true,
+            date_of_birth: true,
+            gender: true,
             email: true,
             phone: true,
             file_number: true,
@@ -92,7 +94,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           select: {
             id: true,
             outcome_status: true,
-            revision_required: true, // Note: schema uses revision_required, not follow_up_required
+            revision_required: true,
           },
         },
         care_notes: {
@@ -108,6 +110,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       orderBy: {
         appointment_date: 'desc',
       },
+      take: 50, // Pagination limit to prevent unbounded growth
     });
 
     // 4. Filter appointments that need post-op care
@@ -152,20 +155,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         updatedAt: domainAppointment.getUpdatedAt(),
         patient: apt.patient
           ? {
-              id: apt.patient.id,
-              firstName: apt.patient.first_name,
-              lastName: apt.patient.last_name,
-              email: apt.patient.email,
-              phone: apt.patient.phone || '',
-              fileNumber: apt.patient.file_number,
-            }
+            id: apt.patient.id,
+            firstName: apt.patient.first_name,
+            lastName: apt.patient.last_name,
+            email: apt.patient.email,
+            phone: apt.patient.phone || '',
+            fileNumber: apt.patient.file_number,
+          }
           : undefined,
         doctor: apt.doctor
           ? {
-              id: apt.doctor.id,
-              name: apt.doctor.name,
-              specialization: apt.doctor.specialization || '',
-            }
+            id: apt.doctor.id,
+            name: apt.doctor.name,
+            specialization: apt.doctor.specialization || '',
+          }
           : undefined,
       };
     });

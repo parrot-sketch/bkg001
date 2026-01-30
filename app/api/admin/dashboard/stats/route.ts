@@ -55,6 +55,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     // Get counts in parallel
+    // Get all counts in parallel
     const [
       totalPatients,
       totalDoctors,
@@ -63,6 +64,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       appointmentsToday,
       appointmentsUpcoming,
       pendingApprovals,
+      pendingPreOp,
+      pendingPostOp,
     ] = await Promise.all([
       // Total patients
       db.patient.count({
@@ -95,8 +98,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }),
 
       // Today's appointments
-      // Note: AppointmentStatus enum only has: PENDING, SCHEDULED, CANCELLED, COMPLETED
-      // There is no CONFIRMED status - using SCHEDULED and PENDING instead
       db.appointment.count({
         where: {
           appointment_date: {
@@ -127,33 +128,29 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           approved: false,
         },
       }),
+
+      // Pending Pre-op
+      db.appointment.count({
+        where: {
+          appointment_date: {
+            gte: today,
+          },
+          status: {
+            in: [AppointmentStatus.SCHEDULED, AppointmentStatus.PENDING],
+          },
+        },
+      }),
+
+      // Pending Post-op
+      db.appointment.count({
+        where: {
+          status: AppointmentStatus.COMPLETED,
+          appointment_date: {
+            gte: new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
+          },
+        },
+      }),
     ]);
-
-    // Calculate pre-op and post-op pending tasks
-    // Pre-op: Appointments with status SCHEDULED or PENDING that are upcoming
-    const pendingPreOp = await db.appointment.count({
-      where: {
-        appointment_date: {
-          gte: today,
-        },
-        status: {
-          in: [AppointmentStatus.SCHEDULED, AppointmentStatus.PENDING],
-        },
-        // Check if there's a pre-op care note
-        // This is a simplified check - you may want to join with care_notes table
-      },
-    });
-
-    // Post-op: Completed appointments that might need follow-up
-    // This is a simplified check - you may want to check for post-op care notes
-    const pendingPostOp = await db.appointment.count({
-      where: {
-        status: AppointmentStatus.COMPLETED,
-        appointment_date: {
-          gte: new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
-        },
-      },
-    });
 
     // 4. Return statistics
     return NextResponse.json(

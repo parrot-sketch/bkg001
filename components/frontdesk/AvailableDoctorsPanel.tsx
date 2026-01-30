@@ -14,7 +14,8 @@
  * - Mobile optimized without shrinking
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -36,18 +37,16 @@ const DAY_ABBREVIATIONS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 export function AvailableDoctorsPanel({ selectedDate }: AvailableDoctorsPanelProps) {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
-  const [doctorsAvailability, setDoctorsAvailability] = useState<DoctorAvailabilityResponseDto[]>([]);
-  const [loading, setLoading] = useState(true);
   const [viewDate, setViewDate] = useState(selectedDate || new Date());
 
-  const loadDoctorsAvailability = useCallback(async () => {
-    // Don't load if not authenticated
-    if (!isAuthenticated || !user || authLoading) {
-      return;
-    }
-
-    try {
-      setLoading(true);
+  // React Query integration
+  const {
+    data: doctorsAvailability = [],
+    isLoading: loading,
+    refetch
+  } = useQuery({
+    queryKey: ['doctors', 'availability', viewDate.toISOString().split('T')[0]],
+    queryFn: async () => {
       // Get availability for the week containing the selected date
       const startOfWeek = new Date(viewDate);
       startOfWeek.setDate(viewDate.getDate() - viewDate.getDay() + 1); // Monday
@@ -59,39 +58,21 @@ export function AvailableDoctorsPanel({ selectedDate }: AvailableDoctorsPanelPro
 
       const response = await frontdeskApi.getDoctorsAvailability(startOfWeek, endOfWeek);
 
-      if (response.success && response.data) {
-        setDoctorsAvailability(response.data);
-      } else if (!response.success) {
+      if (!response.success) {
         // Only show error toast if it's not an authentication error (401)
-        // Authentication errors are handled by the API client
         if (response.error && !response.error.includes('Authentication')) {
           toast.error(response.error || 'Failed to load doctor availability');
         }
-        setDoctorsAvailability([]);
+        return [];
       }
-    } catch (error) {
-      // Only show error if it's not an authentication issue
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      if (!errorMessage.includes('Authentication') && !errorMessage.includes('401')) {
-        toast.error('An error occurred while loading doctor availability');
-      }
-      console.error('Error loading doctor availability:', error);
-      setDoctorsAvailability([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [viewDate, isAuthenticated, user, authLoading]);
-
-  useEffect(() => {
-    // Only load data when authentication is ready and user is authenticated
-    if (!authLoading && isAuthenticated && user) {
-      loadDoctorsAvailability();
-    } else if (!authLoading && !isAuthenticated) {
-      // If not authenticated, stop loading and show empty state
-      setLoading(false);
-      setDoctorsAvailability([]);
-    }
-  }, [authLoading, isAuthenticated, user, loadDoctorsAvailability]);
+      return response.data || [];
+    },
+    enabled: !!isAuthenticated && !!user && !authLoading,
+    staleTime: 1000 * 60 * 5, // 5 minutes cache
+    gcTime: 1000 * 60 * 10,
+    retry: 1,
+    refetchOnWindowFocus: true,
+  });
 
   const getWorkingDayForDate = (doctor: DoctorAvailabilityResponseDto, date: Date) => {
     const dayName = DAYS_OF_WEEK[date.getDay() === 0 ? 6 : date.getDay() - 1]; // Convert to Monday=0
@@ -154,7 +135,7 @@ export function AvailableDoctorsPanel({ selectedDate }: AvailableDoctorsPanelPro
           <Button
             variant="ghost"
             size="sm"
-            onClick={loadDoctorsAvailability}
+            onClick={() => refetch()}
             className="h-8 px-2"
           >
             Refresh
