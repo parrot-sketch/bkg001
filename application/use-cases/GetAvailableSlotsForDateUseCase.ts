@@ -185,29 +185,36 @@ export class GetAvailableSlotsForDateUseCase {
       throw new DomainException('Start date cannot be after end date');
     }
 
-    // 3. Bulk fetch availability config (once)
-    const availability = await this.availabilityRepository.getDoctorAvailability(doctorId);
-    if (!availability) {
-      return [];
-    }
-
-    // 4. Bulk fetch all appointments for the entire range (once)
-    // Normalize to start/end of day to capture everything
+    // 3. Prepare date range (for both availability and appointments)
     const searchStart = new Date(startDate);
     searchStart.setHours(0, 0, 0, 0);
     const searchEnd = new Date(endDate);
     searchEnd.setHours(23, 59, 59, 999);
 
+    // 4. Bulk fetch availability config (optimized)
+    // Use the bulk method (even for one doctor) because it supports date range filtering
+    // and uses a transaction to handle overrides/blocks efficiently.
+    const availabilityList = await this.availabilityRepository.getDoctorsAvailability(
+      [doctorId],
+      searchStart,
+      searchEnd
+    );
+
+    if (availabilityList.length === 0) {
+      return [];
+    }
+    const availability = availabilityList[0];
+
+    // 5. Bulk fetch all appointments for the entire range (once)
     const allAppointments = await this.appointmentRepository.findByDoctor(doctorId, {
       startDate: searchStart,
       endDate: searchEnd,
     });
 
-    // 5. Bulk fetch all overrides and blocks for the entire range (once)
-    const [allOverrides, allBlocks] = await Promise.all([
-      this.availabilityRepository.getOverrides(doctorId, searchStart, searchEnd),
-      this.availabilityRepository.getBlocks(doctorId, searchStart, searchEnd),
-    ]);
+    // 6. (Removed) Manual fetching of overrides/blocks is no longer needed 
+    // as they are included in availabilityList filtered by date.
+    const allOverrides = availability.overrides;
+    const allBlocks = availability.blocks;
 
     // 6. Process each day in memory
     const availableDates: string[] = [];
