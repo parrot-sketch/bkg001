@@ -25,12 +25,31 @@ export class PrismaAvailabilityRepository implements IAvailabilityRepository {
   }
 
   async getDoctorAvailability(doctorId: string): Promise<DoctorAvailability | null> {
-    const [workingDays, overrides, blocks, breaks, slotConfig] = await Promise.all([
-      this.getWorkingDays(doctorId),
-      this.getOverrides(doctorId, new Date(0), new Date('2099-12-31')), // Get all overrides
-      this.getBlocks(doctorId, new Date(0), new Date('2099-12-31')), // Get all blocks
-      this.getBreaks(doctorId),
-      this.getSlotConfiguration(doctorId),
+    // Use a transaction to ensure a single DB connection is used for all these fetches
+    const [workingDays, overrides, blocks, breaks, slotConfig] = await this.prisma.$transaction([
+      this.prisma.workingDay.findMany({
+        where: { doctor_id: doctorId },
+        orderBy: { day: 'asc' },
+      }),
+      this.prisma.availabilityOverride.findMany({
+        where: {
+          doctor_id: doctorId,
+          // Optimization: Ideally we should filter by date, but this signature doesn't have dates.
+          // Keeping existing behavior (fetch all) but inside transaction for connection safety.
+        },
+        orderBy: { start_date: 'asc' },
+      }),
+      this.prisma.scheduleBlock.findMany({
+        where: { doctor_id: doctorId },
+        orderBy: { start_date: 'asc' },
+      }),
+      this.prisma.availabilityBreak.findMany({
+        where: { doctor_id: doctorId },
+        orderBy: { start_time: 'asc' },
+      }),
+      this.prisma.slotConfiguration.findUnique({
+        where: { doctor_id: doctorId },
+      }),
     ]);
 
     // Get all sessions for all working days
@@ -44,9 +63,36 @@ export class PrismaAvailabilityRepository implements IAvailabilityRepository {
       doctorId,
       workingDays,
       sessions,
-      overrides,
-      blocks,
-      breaks,
+      overrides: overrides.map((ov) => ({
+        id: ov.id,
+        doctorId: ov.doctor_id,
+        startDate: ov.start_date,
+        endDate: ov.end_date,
+        reason: ov.reason || undefined,
+        isBlocked: ov.is_blocked,
+        startTime: (ov as any).start_time || undefined,
+        endTime: (ov as any).end_time || undefined,
+      })),
+      blocks: blocks.map((b) => ({
+        id: b.id,
+        doctorId: b.doctor_id,
+        startDate: b.start_date,
+        endDate: b.end_date,
+        startTime: b.start_time || undefined,
+        endTime: b.end_time || undefined,
+        blockType: b.block_type,
+        reason: b.reason || undefined,
+        createdBy: b.created_by,
+      })),
+      breaks: breaks.map((br) => ({
+        id: br.id,
+        doctorId: br.doctor_id,
+        workingDayId: br.working_day_id || undefined,
+        dayOfWeek: br.day_of_week || undefined,
+        startTime: br.start_time,
+        endTime: br.end_time,
+        reason: br.reason || undefined,
+      })),
       slotConfiguration: slotConfig || undefined,
     };
   }
