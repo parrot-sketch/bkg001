@@ -117,10 +117,10 @@ export class AvailabilityService {
       daySessions.length === 0
         ? [{ startTime: workingDay.startTime, endTime: workingDay.endTime }]
         : daySessions.map((s) => ({
-            startTime: s.startTime,
-            endTime: s.endTime,
-            sessionType: s.sessionType,
-          }));
+          startTime: s.startTime,
+          endTime: s.endTime,
+          sessionType: s.sessionType,
+        }));
 
     // If override provides custom hours, use those instead of sessions
     let finalSessions = effectiveSessions;
@@ -371,12 +371,12 @@ export class AvailabilityService {
       const daySessions =
         workingDay && workingDay.isAvailable
           ? sessions
-              .filter((s) => s.workingDayId === workingDay.id)
-              .map((s) => ({
-                startTime: s.startTime,
-                endTime: s.endTime,
-                sessionType: s.sessionType,
-              }))
+            .filter((s) => s.workingDayId === workingDay.id)
+            .map((s) => ({
+              startTime: s.startTime,
+              endTime: s.endTime,
+              sessionType: s.sessionType,
+            }))
           : [];
 
       calendar.push({
@@ -491,21 +491,21 @@ export class AvailabilityService {
     const conflictsWithAppointment = existingAppointments.some((apt) => {
       const aptDate = new Date(apt.getAppointmentDate());
       aptDate.setHours(0, 0, 0, 0); // Normalize to start of day
-      
+
       const requestDateNormalized = new Date(date);
       requestDateNormalized.setHours(0, 0, 0, 0);
-      
+
       // Only check appointments on the same date
       if (aptDate.getTime() !== requestDateNormalized.getTime()) {
         return false;
       }
-      
+
       const aptTime = apt.getTime();
-      
+
       // Parse appointment time - handle HH:mm format
       let aptHour: number;
       let aptMin: number;
-      
+
       if (aptTime.includes('AM') || aptTime.includes('PM')) {
         // Handle 12-hour format (shouldn't happen but just in case)
         const timeMatch = aptTime.match(/(\d+):(\d+)\s*(AM|PM)/i);
@@ -525,39 +525,31 @@ export class AvailabilityService {
         aptHour = parseInt(timeParts[0], 10);
         aptMin = parseInt(timeParts[1], 10);
       }
-      
+
       if (isNaN(aptHour) || isNaN(aptMin)) {
         console.warn(`Invalid appointment time format: ${aptTime}`);
         return false;
       }
-      
+
       // Create appointment start/end times on the same date
       const aptStart = new Date(date);
       aptStart.setHours(aptHour, aptMin, 0, 0);
       const aptEnd = new Date(aptStart);
       aptEnd.setMinutes(aptEnd.getMinutes() + slotConfig.defaultDuration);
-      
+
       // Check for overlap
       const hasConflict = (
         (requestedStart >= aptStart && requestedStart < aptEnd) ||
         (requestedEnd > aptStart && requestedEnd <= aptEnd) ||
         (requestedStart <= aptStart && requestedEnd >= aptEnd)
       );
-      
+
+      /*
       if (hasConflict) {
-        console.log(`[AvailabilityService] Conflict detected:`, {
-          requestedTime: time,
-          requestedDate: date.toISOString(),
-          appointmentTime: aptTime,
-          appointmentDate: apt.getAppointmentDate().toISOString(),
-          appointmentStatus: apt.getStatus(),
-          requestedStart: requestedStart.toISOString(),
-          requestedEnd: requestedEnd.toISOString(),
-          aptStart: aptStart.toISOString(),
-          aptEnd: aptEnd.toISOString(),
-        });
+        // Logging removed for performance
       }
-      
+      */
+
       return hasConflict;
     });
 

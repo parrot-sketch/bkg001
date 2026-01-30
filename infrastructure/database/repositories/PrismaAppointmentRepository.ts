@@ -135,12 +135,15 @@ export class PrismaAppointmentRepository implements IAppointmentRepository, IDoc
         where.appointment_date = { gte: since };
       }
 
-      const DEFAULT_LIMIT = 100; // REFACTORED: Bounded query for safety
+      // REFACTORED: Only limit execution if no specific date range is requested.
+      // For calendar availability checks (e.g. 2 months), we need ALL appointments to prevent double booking.
+      const shouldLimit = !filters?.startDate && !filters?.endDate;
+      const DEFAULT_LIMIT = 100;
 
       const prismaAppointments = await this.prisma.appointment.findMany({
         where,
         orderBy: { appointment_date: 'desc' },
-        take: DEFAULT_LIMIT, // REFACTORED: Bounded query
+        ...(shouldLimit ? { take: DEFAULT_LIMIT } : {}),
       });
 
       return prismaAppointments.map((appointment) => AppointmentMapper.fromPrisma(appointment));
