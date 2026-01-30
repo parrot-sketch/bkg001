@@ -104,12 +104,12 @@ export class GetAvailableSlotsForDateUseCase {
     startOfRequestDate.setHours(0, 0, 0, 0);
     const endOfRequestDate = new Date(requestDate);
     endOfRequestDate.setHours(23, 59, 59, 999);
-    
+
     const doctorAppointments = await this.appointmentRepository.findByDoctor(dto.doctorId, {
       startDate: startOfRequestDate,
       endDate: endOfRequestDate,
     });
-    
+
     // Filter to only active appointments that occupy time slots for the exact date
     // Exclude: CANCELLED, COMPLETED (these don't block slots)
     // Include: PENDING, SCHEDULED (these block slots)
@@ -162,6 +162,116 @@ export class GetAvailableSlotsForDateUseCase {
       duration: slot.duration,
       isAvailable: slot.isAvailable,
     }));
+  }
+
+  /**
+   * Efficiently gets all dates with available slots within a range
+   * 
+   * Optimization: Performs a single bulk fetch for all data (appointments, blocks, overrides)
+   * instead of querying the database for each day individually.
+   */
+  async getAvailableDates(doctorId: string, startDate: Date, endDate: Date): Promise<string[]> {
+    // 1. Validate doctor exists (once)
+    const doctor = await this.prisma.doctor.findUnique({
+      where: { id: doctorId },
+    });
+
+    if (!doctor) {
+      throw new DomainException(`Doctor with ID ${doctorId} not found`);
+    }
+
+    // 2. Validate date range
+    if (startDate > endDate) {
+      throw new DomainException('Start date cannot be after end date');
+    }
+
+    // 3. Bulk fetch availability config (once)
+    const availability = await this.availabilityRepository.getDoctorAvailability(doctorId);
+    if (!availability) {
+      return [];
+    }
+
+    // 4. Bulk fetch all appointments for the entire range (once)
+    // Normalize to start/end of day to capture everything
+    const searchStart = new Date(startDate);
+    searchStart.setHours(0, 0, 0, 0);
+    const searchEnd = new Date(endDate);
+    searchEnd.setHours(23, 59, 59, 999);
+
+    const allAppointments = await this.appointmentRepository.findByDoctor(doctorId, {
+      startDate: searchStart,
+      endDate: searchEnd,
+    });
+
+    // 5. Bulk fetch all overrides and blocks for the entire range (once)
+    const [allOverrides, allBlocks] = await Promise.all([
+      this.availabilityRepository.getOverrides(doctorId, searchStart, searchEnd),
+      this.availabilityRepository.getBlocks(doctorId, searchStart, searchEnd),
+    ]);
+
+    // 6. Process each day in memory
+    const availableDates: string[] = [];
+    const currentDate = new Date(searchStart);
+    const excludedStatuses = ['CANCELLED', 'COMPLETED'];
+
+    // Default slot config if missing
+    const slotConfig = availability.slotConfiguration || {
+      id: '',
+      doctorId: doctorId,
+      defaultDuration: 30, // Default to 30 mins if not configured
+      bufferTime: 0,
+      slotInterval: 15,
+    };
+
+    while (currentDate <= searchEnd) {
+      // In-memory filter for this day's appointments
+      // Much faster than DB query per day
+      const dayStart = new Date(currentDate);
+      dayStart.setHours(0, 0, 0, 0);
+      const dayEnd = new Date(currentDate);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const dayAppointments = allAppointments.filter((apt) => {
+        const aptDate = new Date(apt.getAppointmentDate());
+        return aptDate >= dayStart &&
+          aptDate <= dayEnd &&
+          !excludedStatuses.includes(apt.getStatus() as string);
+      });
+
+      // In-memory filter for overrides and blocks
+      const dayOverrides = allOverrides.filter(o =>
+        (o.startDate <= dayEnd && o.endDate >= dayStart)
+      );
+
+      const dayBlocks = allBlocks.filter(b =>
+        (b.startDate <= dayEnd && b.endDate >= dayStart)
+      );
+
+      // Check availability using the service logic
+      try {
+        const slots = AvailabilityService.getAvailableSlots(
+          new Date(currentDate),
+          availability.workingDays,
+          availability.sessions,
+          dayOverrides,
+          dayBlocks,
+          availability.breaks,
+          dayAppointments,
+          slotConfig
+        );
+
+        if (slots.length > 0) {
+          availableDates.push(currentDate.toISOString().split('T')[0]);
+        }
+      } catch (e) {
+        // Skip errors for individual days
+      }
+
+      // Move to next day
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    return availableDates;
   }
 
   private formatTime(date: Date): string {

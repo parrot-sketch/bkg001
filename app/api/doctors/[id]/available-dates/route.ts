@@ -129,28 +129,12 @@ export async function GET(
     }
 
     // 8. Iterate through each date in range and check for available slots
-    const availableDates: string[] = [];
-    const currentDate = new Date(startDate);
-
-    while (currentDate <= endDate) {
-      try {
-        const slots = await getAvailableSlotsForDateUseCase.execute({
-          doctorId,
-          date: new Date(currentDate),
-        });
-
-        // If there's at least one available slot, add the date
-        if (slots.length > 0) {
-          availableDates.push(currentDate.toISOString().split('T')[0]);
-        }
-      } catch (error) {
-        // Skip dates that error (e.g., doctor doesn't work that day)
-        // Continue to next date
-      }
-
-      // Move to next day
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
+    // OPTIMIZED: Use bulk fetching method instead of N+1 loop
+    const availableDates = await getAvailableSlotsForDateUseCase.getAvailableDates(
+      doctorId,
+      startDate,
+      endDate
+    );
 
     // 9. Return success response
     return NextResponse.json(
