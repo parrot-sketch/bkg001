@@ -18,6 +18,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Calendar, Clock, User, MapPin, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -91,12 +92,41 @@ export function AvailableDoctorsPanel({ selectedDate }: AvailableDoctorsPanelPro
   if (authLoading || loading) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle>Doctors</CardTitle>
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-8 w-20" />
+          </div>
+          <Skeleton className="h-4 w-64 mt-2" />
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <CardContent className="pb-6 pt-0">
+          <div className="max-h-[680px] overflow-hidden pr-1 -mr-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 pt-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="border rounded-lg p-4">
+                  <div className="flex items-start gap-4 mb-3">
+                    <Skeleton className="h-14 w-14 rounded-xl" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-5 w-3/4" />
+                      <div className="flex gap-2">
+                        <Skeleton className="h-4 w-1/2" />
+                        <Skeleton className="h-4 w-12 rounded-full" />
+                      </div>
+                      <Skeleton className="h-4 w-1/3 mt-2" />
+                    </div>
+                  </div>
+                  {/* Calendar Grid Skeleton */}
+                  <div className="mt-4 p-2.5 bg-muted/10 rounded-xl border border-border/40">
+                    <div className="grid grid-cols-7 gap-1">
+                      {Array.from({ length: 7 }).map((_, j) => (
+                        <Skeleton key={j} className="h-10 w-full rounded-lg" />
+                      ))}
+                    </div>
+                  </div>
+                  <Skeleton className="h-10 w-full mt-4 rounded-lg" />
+                </div>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>
