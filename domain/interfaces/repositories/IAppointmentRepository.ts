@@ -29,7 +29,7 @@ export interface IAppointmentRepository {
    * @returns Promise resolving to an array of Appointment entities
    *          Returns empty array if no appointments found
    */
-  findByPatient(patientId: string): Promise<Appointment[]>;
+  findByPatient(patientId: string, txClient?: unknown): Promise<Appointment[]>;
 
   /**
    * Finds all appointments for a specific doctor

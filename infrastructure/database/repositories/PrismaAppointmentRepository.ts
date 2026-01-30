@@ -65,14 +65,16 @@ export class PrismaAppointmentRepository implements IAppointmentRepository, IDoc
    * @returns Promise resolving to an array of Appointment entities
    *          Returns empty array if no appointments found
    */
-  async findByPatient(patientId: string): Promise<Appointment[]> {
+  async findByPatient(patientId: string, txClient?: unknown): Promise<Appointment[]> {
     try {
+      const client = (txClient as PrismaClient) || this.prisma;
+
       // REFACTORED: Default to last 12 months (reasonable for clinical workflows)
       // This bounds the query and prevents fetching thousands of historical records
       const since = subMonths(new Date(), 12);
       const DEFAULT_LIMIT = 100; // Reasonable limit for conflict detection and history
 
-      const prismaAppointments = await this.prisma.appointment.findMany({
+      const prismaAppointments = await client.appointment.findMany({
         where: {
           patient_id: patientId,
           appointment_date: { gte: since }, // REFACTORED: Date filter for safety
