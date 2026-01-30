@@ -24,14 +24,21 @@ import { PrismaClient } from "@prisma/client";
  * - Connection exhaustion (by reusing single client)
  */
 const prismaClientSingleton = () => {
-  const isProduction = process.env.NODE_ENV === 'production' || 
-                      process.env.VERCEL_ENV === 'production';
-  
+  const isProduction = process.env.NODE_ENV === 'production' ||
+    process.env.VERCEL_ENV === 'production';
+
   return new PrismaClient({
     // Logging configuration
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-    // Note: We don't set datasources.url here because Prisma reads it from DATABASE_URL env var
-    // This allows the database to manage connections without pool parameters
+    // LIMIT CONNECTION POOL:
+    // Append connection_limit=1 to the URL to prevent pool exhaustion in serverless/dev environments
+    // With Aiven Free Tier (15 connections), this allows up to 14 concurrent serverless functions.
+    // This overrides/appends to the env var without changing the .env file
+    datasources: {
+      db: {
+        url: (process.env.DATABASE_URL || '') + (process.env.DATABASE_URL?.includes('?') ? '&' : '?') + 'connection_limit=1&pool_timeout=5',
+      },
+    },
   });
 };
 
@@ -46,7 +53,7 @@ const db = globalThis.prismaGlobal ?? prismaClientSingleton();
 
 if (!globalThis.prismaGlobal) {
   globalThis.prismaGlobal = db;
-  
+
   // Handle graceful shutdown in serverless environments
   // CRITICAL: Without connection pooling, we must explicitly manage connection lifecycle
   if (typeof process !== 'undefined') {
@@ -58,11 +65,11 @@ if (!globalThis.prismaGlobal) {
         // Ignore disconnect errors during shutdown
       }
     };
-    
+
     process.on('beforeExit', disconnect);
     process.on('SIGINT', disconnect);
     process.on('SIGTERM', disconnect);
-    
+
     // Also handle uncaught exceptions to prevent connection leaks
     process.on('uncaughtException', async (error) => {
       console.error('[DB] Uncaught exception, disconnecting...', error);
@@ -90,7 +97,7 @@ export async function withRetry<T>(
   delay: number = 1000
 ): Promise<T> {
   let lastError: Error | null = null;
-  
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       // Ensure connection is active before operation
@@ -114,13 +121,13 @@ export async function withRetry<T>(
           }
         }
       }
-      
+
       return await operation();
     } catch (error: any) {
       lastError = error;
-      
+
       // Check if it's a connection error
-      const isConnectionError = 
+      const isConnectionError =
         error?.name === 'PrismaClientInitializationError' || // Prisma client initialization failure
         error?.message?.includes('Connection closed') ||
         error?.message?.includes('Connection terminated') ||
@@ -131,23 +138,23 @@ export async function withRetry<T>(
         error?.code === 'P1008' || // Prisma operation timeout
         error?.code === 'P1017' || // Prisma server closed connection
         error?.code === 'P1010';   // Prisma connection timeout
-      
+
       if (isConnectionError && attempt < maxRetries) {
         console.warn(`[DB] Connection error on attempt ${attempt}, retrying...`, {
           message: error?.message,
           code: error?.code,
         });
-        
+
         // Disconnect and reconnect to reset connection state
         try {
           await db.$disconnect();
         } catch (disconnectError) {
           // Ignore disconnect errors
         }
-        
+
         // Exponential backoff before retry
         await new Promise(resolve => setTimeout(resolve, delay * attempt));
-        
+
         // Try to reconnect before next attempt
         try {
           await db.$connect();
@@ -155,15 +162,15 @@ export async function withRetry<T>(
           // If reconnect fails, continue to next attempt
           // The operation will try again
         }
-        
+
         continue;
       }
-      
+
       // If not a connection error or max retries reached, throw
       throw error;
     }
   }
-  
+
   throw lastError || new Error('Operation failed after retries');
 }
 

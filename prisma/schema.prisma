@@ -7,7 +7,11 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  // REFACTORED: Appending `&connection_limit=10&pool_timeout=10` to handle
+  // limited connection slots on Aiven (Postgres Superuser reserveration error).
+  // Ideally, use a PgBouncer connection string if available.
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL") // Recommended for migrations if using PgBouncer
 }
 
 // ============================================================================
