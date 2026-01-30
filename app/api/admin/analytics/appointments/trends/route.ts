@@ -69,43 +69,41 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const startDate = subDays(endDate, days - 1);
     startDate.setHours(0, 0, 0, 0);
 
-    // 5. Fetch appointments in date range
-    const appointments = await db.appointment.findMany({
-      where: {
-        appointment_date: {
-          gte: startDate,
-          lte: endDate,
-        },
-      },
-      select: {
-        appointment_date: true,
-      },
+    // 5. Fetch appointment counts grouped by date using raw SQL for performance
+    // This avoids fetching thousands of rows and processing in memory
+    const dailyCounts = await db.$queryRaw<{ date: Date; count: bigint }[]>`
+      SELECT 
+        DATE(appointment_date) as date, 
+        COUNT(*) as count
+      FROM "Appointment"
+      WHERE appointment_date >= ${startDate} 
+      AND appointment_date <= ${endDate}
+      GROUP BY DATE(appointment_date)
+      ORDER BY date ASC
+    `;
+
+    // 6. Map results to ensure all dates in range are represented
+    const trendsMap = new Map<string, number>();
+
+    // Fill map from DB results
+    dailyCounts.forEach(row => {
+      // Handle potential timezone differences by relying on the string format
+      const dateKey = format(new Date(row.date), 'yyyy-MM-dd');
+      trendsMap.set(dateKey, Number(row.count));
     });
 
-    // 6. Group appointments by date
-    const dateCountMap = new Map<string, number>();
-
-    // Initialize all dates in range with 0
+    // Generate complete date range (filling gaps with 0)
+    const trends: { date: string; count: number }[] = [];
     for (let i = 0; i < days; i++) {
       const date = subDays(endDate, days - 1 - i);
       const dateKey = format(startOfDay(date), 'yyyy-MM-dd');
-      dateCountMap.set(dateKey, 0);
+      trends.push({
+        date: dateKey,
+        count: trendsMap.get(dateKey) || 0
+      });
     }
 
-    // Count appointments per date
-    appointments.forEach((apt) => {
-      const dateKey = format(startOfDay(apt.appointment_date), 'yyyy-MM-dd');
-      const currentCount = dateCountMap.get(dateKey) || 0;
-      dateCountMap.set(dateKey, currentCount + 1);
-    });
 
-    // 7. Convert to array format
-    const trends = Array.from(dateCountMap.entries())
-      .map(([date, count]) => ({
-        date,
-        count,
-      }))
-      .sort((a, b) => a.date.localeCompare(b.date));
 
     // 8. Return trends data
     return NextResponse.json(
