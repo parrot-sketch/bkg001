@@ -588,13 +588,13 @@ model Appointment {
   late_arrival     Boolean           @default(false)
   late_by_minutes  Int? // Minutes late if late_arrival is true
 
-  // PHASE 1: Temporal Tracking (NEW)
-  scheduled_at         DateTime? // Full datetime (canonical, replaces appointment_date + time)
-  status_changed_at    DateTime  @default(now()) // When status was last changed
-  status_changed_by    String? // User ID who changed status
-  doctor_confirmed_at  DateTime? // When doctor explicitly confirmed
-  doctor_confirmed_by  String? // Doctor ID who confirmed
-  doctor_rejection_reason String? // Reason if doctor rejected
+  // PHASE 1: Temporal Tracking (NEW) - COMMENTED OUT DUE TO SCHEMA DRIFT
+  // scheduled_at         DateTime? // Full datetime (canonical, replaces appointment_date + time)
+  // status_changed_at    DateTime  @default(now()) // When status was last changed
+  // status_changed_by    String? // User ID who changed status
+  // doctor_confirmed_at  DateTime? // When doctor explicitly confirmed
+  // doctor_confirmed_by  String? // Doctor ID who confirmed
+  // doctor_rejection_reason String? // Reason if doctor rejected
 
   // No-Show Tracking
   no_show                       Boolean   @default(false)
@@ -602,7 +602,7 @@ model Appointment {
   no_show_reason                String? // 'AUTO', 'MANUAL', 'PATIENT_CALLED', etc.
   no_show_notes                 String?
   rescheduled_to_appointment_id Int? // If rescheduled after no-show
-  marked_no_show_at             DateTime? // PHASE 1: When marked as no-show
+  // marked_no_show_at             DateTime? // PHASE 1: When marked as no-show
 
   // Consultation Request Workflow (nullable for backward compatibility)
   consultation_request_status ConsultationRequestStatus?
@@ -610,10 +610,10 @@ model Appointment {
   reviewed_at                 DateTime?
   review_notes                String? // Notes from review (e.g., reason for needs_more_info)
 
-  // Slot tracking (for availability-based scheduling)
-  slot_start_time String? // HH:mm format of slot start time
-  slot_duration   Int? @default(30) // PHASE 1: minutes (e.g., 30 = 30-minute appointment) - now required with default
-  duration_minutes Int? // PHASE 1: Alternative duration field for clarity
+  // Slot tracking (for availability-based scheduling) - COMMENTED OUT DUE TO SCHEMA DRIFT
+  // slot_start_time String? // HH:mm format of slot start time
+  // slot_duration   Int? @default(30) // PHASE 1: minutes (e.g., 30 = 30-minute appointment) - now required with default
+  // duration_minutes Int? // PHASE 1: Alternative duration field for clarity
 
   // Relations
   patient              Patient              @relation(fields: [patient_id], references: [id], onDelete: Cascade)
@@ -644,17 +644,17 @@ model Appointment {
   @@index([created_at])
   @@index([updated_at])
   
-  // PHASE 1: Performance Indexes (NEW)
-  @@index([doctor_id, scheduled_at]) // Doctor schedule queries
-  @@index([doctor_id, status, scheduled_at]) // Doctor schedule with status filtering
-  @@index([patient_id, scheduled_at]) // Patient appointment history
-  @@index([patient_id, status, scheduled_at]) // Patient appointments with status
-  @@index([status, created_at]) // Status-based queries
-  @@index([status_changed_at]) // Audit trail queries
-  @@index([status_changed_by]) // Track who changed status
+  // PHASE 1: Performance Indexes (NEW) - COMMENTED OUT DUE TO SCHEMA DRIFT
+  // @@index([doctor_id, scheduled_at]) // Doctor schedule queries
+  // @@index([doctor_id, status, scheduled_at]) // Doctor schedule with status filtering
+  // @@index([patient_id, scheduled_at]) // Patient appointment history
+  // @@index([patient_id, status, scheduled_at]) // Patient appointments with status
+  // @@index([status, created_at]) // Status-based queries
+  // @@index([status_changed_at]) // Audit trail queries
+  // @@index([status_changed_by]) // Track who changed status
   
   // Unique constraint for slot locking (prevent double-booking)
-  @@unique([doctor_id, scheduled_at], map: "unique_doctor_scheduled_slot")
+  // @@unique([doctor_id, scheduled_at], map: "unique_doctor_scheduled_slot")
 }
 
 // ============================================================================

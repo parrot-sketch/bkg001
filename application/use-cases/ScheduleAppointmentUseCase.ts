@@ -213,7 +213,9 @@ export class ScheduleAppointmentUseCase {
         // Step 4.3: Save appointment
         const id = await this.appointmentRepository.save(appointment, undefined, tx as PrismaClient);
 
-        // Step 4.4: Save Phase 1 temporal fields
+        // Step 4.4: Save Phase 1 temporal fields - COMMENTED OUT DUE TO SCHEMA DRIFT
+        // These fields do not exist in the production database yet.
+        /*
         const appointmentDateWithTime = new Date(dto.appointmentDate);
         const [hours, minutes] = dto.time.split(':').map(Number);
         appointmentDateWithTime.setHours(hours, minutes, 0, 0);
@@ -229,6 +231,7 @@ export class ScheduleAppointmentUseCase {
             status_changed_by: userId,
           },
         });
+        */
 
         return id;
       }, { timeout: 15000 });
