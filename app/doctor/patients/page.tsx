@@ -11,75 +11,45 @@
  * and ensures consistent patient data display.
  */
 
-import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
-import { doctorApi } from '@/lib/api/doctor';
 import { PatientTable } from '@/components/patient/PatientTable';
-import { toast } from 'sonner';
-import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
-import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import { useDoctorPatients } from '@/hooks/doctor/useDoctorPatients';
+import { useDoctorAppointments } from '@/hooks/doctor/useDoctorAppointments';
 
 export default function DoctorPatientsPage() {
   const { user, isAuthenticated } = useAuth();
-  const [patients, setPatients] = useState<PatientResponseDto[]>([]);
-  const [appointments, setAppointments] = useState<AppointmentResponseDto[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      loadPatients();
-    }
-  }, [isAuthenticated, user]);
+  // OPTIMIZED: Use dedicated hooks for data fetching
+  // 1. Fetch unique patients directly (avoids N+1 query problem)
+  const {
+    data: patients = [],
+    isLoading: isLoadingPatients,
+    error: patientsError
+  } = useDoctorPatients(!!user);
 
-  const loadPatients = async () => {
-    if (!user) return;
+  // 2. Fetch appointments for history/stats (single query)
+  const {
+    data: appointments = [],
+    isLoading: isLoadingAppointments
+  } = useDoctorAppointments(user?.id, !!user);
 
-    try {
-      setLoading(true);
-      // Get appointments to extract unique patient IDs
-      // Include all appointments (not just consultation requests) to show all patients
-      const appointmentsResponse = await doctorApi.getAppointments(user.id, undefined, true);
-
-      if (appointmentsResponse.success && appointmentsResponse.data) {
-        // Store appointments for table display
-        setAppointments(appointmentsResponse.data);
-
-        // Extract unique patient IDs
-        const patientIds = Array.from(
-          new Set(appointmentsResponse.data.map((apt) => apt.patientId)),
-        );
-
-        // Fetch patient details for each unique patient
-        const patientPromises = patientIds.map((patientId) =>
-          doctorApi.getPatient(patientId).catch(() => null),
-        );
-
-        const patientResponses = await Promise.all(patientPromises);
-        const validPatients = patientResponses
-          .filter((response): response is { success: true; data: PatientResponseDto } =>
-            response !== null && response.success === true && response.data !== null,
-          )
-          .map((response) => response.data);
-
-        setPatients(validPatients);
-      } else if (!appointmentsResponse.success) {
-        toast.error(appointmentsResponse.error || 'Failed to load patients');
-      } else {
-        toast.error('Failed to load patients');
-      }
-    } catch (error) {
-      toast.error('An error occurred while loading patients');
-      console.error('Error loading patients:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loading = isLoadingPatients || isLoadingAppointments;
 
   if (!isAuthenticated || !user) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
           <p className="text-muted-foreground">Please log in to view patients</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (patientsError) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center text-red-500">
+          <p>Failed to load patients. Please try refreshing the page.</p>
         </div>
       </div>
     );

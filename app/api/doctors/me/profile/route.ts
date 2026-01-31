@@ -14,6 +14,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { UpdateDoctorProfileUseCase } from '@/application/use-cases/UpdateDoctorProfileUseCase';
+import { GetDoctorProfileUseCase } from '@/application/use-cases/GetDoctorProfileUseCase';
+import { PrismaDoctorRepository } from '@/infrastructure/database/repositories/PrismaDoctorRepository';
 import { ConsoleAuditService } from '@/infrastructure/services/ConsoleAuditService';
 import db from '@/lib/db';
 import { UpdateDoctorProfileDto } from '@/application/dtos/UpdateDoctorProfileDto';
@@ -23,8 +25,11 @@ import { Role } from '@/domain/enums/Role';
 import type { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';
 
 // Initialize dependencies
+const doctorRepository = new PrismaDoctorRepository(db);
 const auditService = new ConsoleAuditService();
-const updateDoctorProfileUseCase = new UpdateDoctorProfileUseCase(db, auditService);
+
+const getDoctorProfileUseCase = new GetDoctorProfileUseCase(doctorRepository);
+const updateDoctorProfileUseCase = new UpdateDoctorProfileUseCase(doctorRepository, auditService);
 
 /**
  * GET /api/doctors/me/profile
@@ -59,72 +64,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // 3. Find doctor by user_id
-    const doctor = await db.doctor.findUnique({
-      where: { user_id: userId },
-      select: {
-        id: true,
-        user_id: true,
-        email: true,
-        first_name: true,
-        last_name: true,
-        title: true,
-        name: true,
-        specialization: true,
-        license_number: true,
-        phone: true,
-        address: true,
-        clinic_location: true,
-        department: true,
-        img: true,
-        profile_image: true,
-        colorCode: true,
-        availability_status: true,
-        type: true,
-        bio: true,
-        education: true,
-        focus_areas: true,
-        professional_affiliations: true,
-        onboarding_status: true,
-        created_at: true,
-        updated_at: true,
-      },
-    });
-
-    if (!doctor) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Doctor profile not found',
-        },
-        { status: 404 }
-      );
-    }
-
-    // 4. Map to DoctorResponseDto
-    const doctorDto: DoctorResponseDto = {
-      id: doctor.id,
-      userId: doctor.user_id,
-      email: doctor.email,
-      firstName: doctor.first_name,
-      lastName: doctor.last_name,
-      title: doctor.title ?? undefined,
-      name: doctor.name,
-      specialization: doctor.specialization,
-      licenseNumber: doctor.license_number,
-      phone: doctor.phone,
-      address: doctor.address,
-      clinicLocation: doctor.clinic_location ?? undefined,
-      department: doctor.department ?? undefined,
-      profileImage: doctor.profile_image ?? undefined,
-      availabilityStatus: doctor.availability_status ?? undefined,
-      bio: doctor.bio ?? undefined,
-      education: doctor.education ?? undefined,
-      focusAreas: doctor.focus_areas ?? undefined,
-      professionalAffiliations: doctor.professional_affiliations ?? undefined,
-      createdAt: doctor.created_at,
-      updatedAt: doctor.updated_at,
-    };
+    // 3. Execute Use Case
+    // Use executeByUserId since we have the authenticated user's ID
+    const doctorDto = await getDoctorProfileUseCase.executeByUserId(userId);
 
     return NextResponse.json(
       {
@@ -134,6 +76,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       { status: 200 }
     );
   } catch (error) {
+    // Handle domain exceptions (e.g. Profile not found)
+    if (error instanceof DomainException) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: error.message,
+        },
+        { status: 404 }
+      );
+    }
+
     console.error('[API] /api/doctors/me/profile GET - Error:', error);
     return NextResponse.json(
       {
@@ -178,18 +131,15 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // 3. Find doctor by user_id
-    const doctor = await db.doctor.findUnique({
-      where: { user_id: userId },
-      select: { id: true },
-    });
-
-    if (!doctor) {
+    // 3. Resolve Doctor ID from User ID
+    // We can use the GetUseCase for this lookup to avoid direct DB call here
+    let doctorId: string;
+    try {
+      const doctorProfile = await getDoctorProfileUseCase.executeByUserId(userId);
+      doctorId = doctorProfile.id;
+    } catch (e) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Doctor profile not found',
-        },
+        { success: false, error: 'Doctor profile not found' },
         { status: 404 }
       );
     }
@@ -210,7 +160,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
 
     // 5. Build DTO
     const dto: UpdateDoctorProfileDto = {
-      doctorId: doctor.id,
+      doctorId: doctorId,
       bio: body.bio,
       education: body.education,
       focusAreas: body.focusAreas,

@@ -2,36 +2,21 @@ import { IAuditService } from '../../domain/interfaces/services/IAuditService';
 import { UpdateDoctorProfileDto } from '../dtos/UpdateDoctorProfileDto';
 import { DoctorResponseDto } from '../dtos/DoctorResponseDto';
 import { DomainException } from '../../domain/exceptions/DomainException';
-import { PrismaClient } from '@prisma/client';
+import { IDoctorRepository } from '../../domain/interfaces/repositories/IDoctorRepository';
 
 /**
  * Use Case: UpdateDoctorProfileUseCase
  * 
  * Orchestrates updating a doctor's profile information.
- * 
- * Business Purpose:
- * - Allows doctors to update their profile (bio, education, focus areas, etc.)
- * - Validates doctor exists
- * - Updates profile fields
- * - Records audit event
- * 
- * Clinical Workflow:
- * This is part of the doctor profile management:
- * 1. Doctor views profile → GetDoctorProfileUseCase (to be created)
- * 2. Doctor updates profile → UpdateDoctorProfileUseCase (this)
- * 
- * Business Rules:
- * - Doctor must exist
- * - Only doctor can update their own profile (or admin)
- * - Profile fields are optional but validated
+ * Refactored to use Repository Pattern.
  */
 export class UpdateDoctorProfileUseCase {
   constructor(
-    private readonly prisma: PrismaClient,
+    private readonly doctorRepository: IDoctorRepository,
     private readonly auditService: IAuditService,
   ) {
-    if (!prisma) {
-      throw new Error('PrismaClient is required');
+    if (!doctorRepository) {
+      throw new Error('DoctorRepository is required');
     }
     if (!auditService) {
       throw new Error('AuditService is required');
@@ -40,16 +25,10 @@ export class UpdateDoctorProfileUseCase {
 
   /**
    * Executes the update doctor profile use case
-   * 
-   * @param dto - UpdateDoctorProfileDto with doctor ID and profile fields
-   * @returns Promise resolving to DoctorResponseDto with updated doctor data
-   * @throws DomainException if validation fails
    */
   async execute(dto: UpdateDoctorProfileDto): Promise<DoctorResponseDto> {
     // Step 1: Verify doctor exists
-    const doctor = await this.prisma.doctor.findUnique({
-      where: { id: dto.doctorId },
-    });
+    const doctor = await this.doctorRepository.findById(dto.doctorId);
 
     if (!doctor) {
       throw new DomainException(`Doctor with ID ${dto.doctorId} not found`, {
@@ -60,30 +39,18 @@ export class UpdateDoctorProfileUseCase {
     // Step 2: Prepare update data (only include fields that are provided)
     const updateData: any = {};
 
-    if (dto.bio !== undefined) {
-      updateData.bio = dto.bio || null;
-    }
-    if (dto.education !== undefined) {
-      updateData.education = dto.education || null;
-    }
-    if (dto.focusAreas !== undefined) {
-      updateData.focus_areas = dto.focusAreas || null;
-    }
-    if (dto.professionalAffiliations !== undefined) {
-      updateData.professional_affiliations = dto.professionalAffiliations || null;
-    }
-    if (dto.profileImage !== undefined) {
-      updateData.profile_image = dto.profileImage || null;
-    }
-    if (dto.clinicLocation !== undefined) {
-      updateData.clinic_location = dto.clinicLocation || null;
-    }
+    if (dto.bio !== undefined) updateData.bio = dto.bio || null;
+    if (dto.education !== undefined) updateData.education = dto.education || null;
+    if (dto.focusAreas !== undefined) updateData.focus_areas = dto.focusAreas || null;
+    if (dto.professionalAffiliations !== undefined) updateData.professional_affiliations = dto.professionalAffiliations || null;
+    if (dto.profileImage !== undefined) updateData.profile_image = dto.profileImage || null;
+    if (dto.clinicLocation !== undefined) updateData.clinic_location = dto.clinicLocation || null;
 
-    // Step 3: Update doctor profile
-    const updatedDoctor = await this.prisma.doctor.update({
-      where: { id: dto.doctorId },
-      data: updateData,
-    });
+    // Additional Fields (Logic can be extended here)
+    // E.g. Check license uniqueness if license is being updated
+
+    // Step 3: Update doctor profile via Repository
+    const updatedDoctor = await this.doctorRepository.update(dto.doctorId, updateData);
 
     // Step 4: Record audit event
     await this.auditService.recordEvent({
@@ -95,31 +62,34 @@ export class UpdateDoctorProfileUseCase {
     });
 
     // Step 5: Map to response DTO
-    // Note: This is a simplified mapping. In production, use a proper mapper
-    const responseDto: DoctorResponseDto = {
-      id: updatedDoctor.id,
-      userId: updatedDoctor.user_id,
-      email: updatedDoctor.email,
-      firstName: updatedDoctor.first_name,
-      lastName: updatedDoctor.last_name,
-      title: updatedDoctor.title ?? undefined,
-      name: updatedDoctor.name,
-      specialization: updatedDoctor.specialization,
-      licenseNumber: updatedDoctor.license_number,
-      phone: updatedDoctor.phone,
-      address: updatedDoctor.address,
-      clinicLocation: updatedDoctor.clinic_location ?? undefined,
-      department: updatedDoctor.department ?? undefined,
-      profileImage: updatedDoctor.profile_image ?? undefined,
-      availabilityStatus: updatedDoctor.availability_status ?? undefined,
-      bio: updatedDoctor.bio ?? undefined,
-      education: updatedDoctor.education ?? undefined,
-      focusAreas: updatedDoctor.focus_areas ?? undefined,
-      professionalAffiliations: updatedDoctor.professional_affiliations ?? undefined,
-      createdAt: updatedDoctor.created_at,
-      updatedAt: updatedDoctor.updated_at,
-    };
+    return this.mapToDto(updatedDoctor);
+  }
 
-    return responseDto;
+  // Helper: Map Entity to DTO
+  private mapToDto(doctor: any): DoctorResponseDto {
+    return {
+      id: doctor.id,
+      userId: doctor.user_id,
+      email: doctor.email,
+      firstName: doctor.first_name,
+      lastName: doctor.last_name,
+      title: doctor.title ?? undefined,
+      name: doctor.name,
+      specialization: doctor.specialization,
+      licenseNumber: doctor.license_number,
+      phone: doctor.phone,
+      address: doctor.address,
+      clinicLocation: doctor.clinic_location ?? undefined,
+      department: doctor.department ?? undefined,
+      profileImage: doctor.profile_image ?? undefined,
+      availabilityStatus: doctor.availability_status ?? undefined,
+      bio: doctor.bio ?? undefined,
+      education: doctor.education ?? undefined,
+      focusAreas: doctor.focus_areas ?? undefined,
+      professionalAffiliations: doctor.professional_affiliations ?? undefined,
+      createdAt: doctor.created_at,
+      updatedAt: doctor.updated_at,
+    };
   }
 }
+

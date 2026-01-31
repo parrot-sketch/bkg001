@@ -269,4 +269,14 @@ export const doctorApi = {
   async scheduleAppointment(dto: import('../../application/dtos/ScheduleAppointmentDto').ScheduleAppointmentDto): Promise<ApiResponse<AppointmentResponseDto>> {
     return apiClient.post<AppointmentResponseDto>('/appointments', dto);
   },
+
+  /**
+   * Get doctor's patients
+   * 
+   * Fetches unique patients who have had appointments with this doctor.
+   * Optimized to avoid N+1 queries.
+   */
+  async getMyPatients(): Promise<ApiResponse<PatientResponseDto[]>> {
+    return apiClient.get<PatientResponseDto[]>('/doctors/me/patients');
+  },
 };

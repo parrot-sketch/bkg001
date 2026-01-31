@@ -15,6 +15,12 @@ export interface ApiSuccess<T> {
   success: true;
   data: T;
   message?: string;
+  meta?: {
+    totalRecords: number;
+    totalPages: number;
+    currentPage: number;
+    limit: number;
+  };
 }
 
 export type ApiResponse<T> = ApiSuccess<T> | ApiError;

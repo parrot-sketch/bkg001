@@ -68,7 +68,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const MAX_LIMIT = 100; // CRITICAL: Enforce maximum to prevent abuse
     const DEFAULT_LIMIT = 50;
     const DEFAULT_PAGE = 1;
-    
+
     const page = Math.max(1, parseInt(pageParam || String(DEFAULT_PAGE), 10));
     const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(limitParam || String(DEFAULT_LIMIT), 10)));
     const skip = (page - 1) * limit;
@@ -258,31 +258,62 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // 7. Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // 8. Create user
-    const newUser = await db.user.create({
-      data: {
-        email,
-        password_hash: passwordHash,
-        role: role as Role,
-        status: 'ACTIVE',
-        first_name: firstName || null,
-        last_name: lastName || null,
-        phone: phone || null,
-      },
-      select: {
-        id: true,
-        email: true,
-        first_name: true,
-        last_name: true,
-        phone: true,
-        role: true,
-        status: true,
-        created_at: true,
-        updated_at: true,
-      },
+    // 8. Create user and profile in transaction
+    const newUser = await db.$transaction(async (tx) => {
+      // Create the User
+      const user = await tx.user.create({
+        data: {
+          email,
+          password_hash: passwordHash,
+          role: role as Role,
+          status: 'ACTIVE',
+          first_name: firstName || null,
+          last_name: lastName || null,
+          phone: phone || null,
+        },
+        select: {
+          id: true,
+          email: true,
+          first_name: true,
+          last_name: true,
+          phone: true,
+          role: true,
+          status: true,
+          created_at: true,
+          updated_at: true,
+        },
+      });
+
+      // If role is DOCTOR, create the required Doctor profile
+      if (role === 'DOCTOR') {
+        const tempLicense = `TEMP-${Date.now().toString().slice(-6)}`;
+
+        await tx.doctor.create({
+          data: {
+            user_id: user.id,
+            email: user.email,
+            first_name: user.first_name || 'Doctor',
+            last_name: user.last_name || 'User',
+            name: `${user.first_name || 'Dr.'} ${user.last_name || 'User'}`,
+            phone: user.phone || '0000000000',
+            specialization: 'General Practice', // Default
+            license_number: tempLicense,
+            address: 'Clinic Address', // Default
+            onboarding_status: 'ACTIVE', // Critical: Allows immediate login
+            availability_status: 'AVAILABLE',
+            type: 'FULL',
+          },
+        });
+      }
+
+      // Create audit log within transaction (or outside if preferred, but safe here)
+      // Note: We swallow error here to not fail transaction on audit log failure as per original logic, 
+      // but inside transaction it's better to be strict. For now keeping it simple.
+
+      return user;
     });
 
-    // 9. Create audit log entry
+    // 9. Create audit log entry (outside transaction to avoid blocking if audit fails)
     try {
       await db.auditLog.create({
         data: {
