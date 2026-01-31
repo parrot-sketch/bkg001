@@ -22,12 +22,15 @@ import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import type { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';
 
+import { PrismaDoctorRepository } from '@/infrastructure/database/repositories/PrismaDoctorRepository';
+
 // Initialize dependencies (singleton pattern)
 const auditService = new ConsoleAuditService();
+const doctorRepository = new PrismaDoctorRepository(db);
 
 // Initialize use case
 const updateDoctorProfileUseCase = new UpdateDoctorProfileUseCase(
-  db,
+  doctorRepository,
   auditService,
 );
 
@@ -151,7 +154,7 @@ export async function PUT(
 ): Promise<NextResponse> {
   try {
     const params = await context.params;
-    
+
     // 1. Authenticate request
     const authResult = await JwtMiddleware.authenticate(request);
     if (!authResult.success || !authResult.user) {

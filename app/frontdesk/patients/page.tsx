@@ -7,7 +7,7 @@
  * Uses clean UI consistent with Doctor dashboard.
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useFrontdeskPatients } from "@/hooks/frontdesk/useFrontdeskPatients";
 import { PatientTable } from "@/components/patient/PatientTable";
@@ -16,7 +16,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Users, UserPlus } from "lucide-react";
 import Link from "next/link";
 
-export default function FrontdeskPatientsPage() {
+function FrontdeskPatientsContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -129,5 +129,17 @@ export default function FrontdeskPatientsPage() {
         searchValue={searchInput} // Bind controlled input
       />
     </div>
+  );
+}
+
+export default function FrontdeskPatientsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-muted-foreground">Loading patients...</div>
+      </div>
+    }>
+      <FrontdeskPatientsContent />
+    </Suspense>
   );
 }
