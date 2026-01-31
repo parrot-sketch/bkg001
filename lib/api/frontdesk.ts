@@ -104,6 +104,22 @@ export const frontdeskApi = {
   },
 
   /**
+   * Get patients with pagination and search
+   * 
+   * @param params - Pagination and search params
+   */
+  async getPatients(params: { page: number; limit: number; q?: string }): Promise<ApiResponse<PatientResponseDto[]>> {
+    const query = new URLSearchParams({
+      page: params.page.toString(),
+      limit: params.limit.toString(),
+    });
+    if (params.q) query.append('q', params.q);
+
+    return apiClient.get<PatientResponseDto[]>(`/frontdesk/patients?${query.toString()}`);
+  },
+
+
+  /**
    * Get pending consultation requests (SUBMITTED, PENDING_REVIEW)
    */
   async getPendingConsultations(): Promise<ApiResponse<(AppointmentResponseDto & { daysSinceSubmission?: number })[]>> {

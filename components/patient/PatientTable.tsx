@@ -16,13 +16,13 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProfileImage } from '@/components/profile-image';
-import { 
-  Users, 
-  Search, 
-  Eye, 
-  Calendar, 
-  Phone, 
-  Mail, 
+import {
+  Users,
+  Search,
+  Eye,
+  Calendar,
+  Phone,
+  Mail,
   MapPin,
   Clock,
   User,
@@ -42,6 +42,13 @@ interface PatientTableProps {
   onScheduleAppointment?: (patientId: string) => void;
   showActions?: boolean;
   role?: 'doctor' | 'frontdesk' | 'nurse';
+  // Server-side pagination props
+  manualPagination?: boolean;
+  totalPages?: number;
+  currentPage?: number;
+  onPageChange?: (page: number) => void;
+  onSearchChange?: (query: string) => void;
+  searchValue?: string;
 }
 
 export function PatientTable({
@@ -52,24 +59,49 @@ export function PatientTable({
   onScheduleAppointment,
   showActions = true,
   role = 'frontdesk',
+  manualPagination = false,
+  totalPages = 1,
+  currentPage = 1,
+  onPageChange,
+  onSearchChange,
+  searchValue = '',
 }: PatientTableProps) {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [internalSearchQuery, setInternalSearchQuery] = useState('');
 
-  // Filter patients based on search query
-  const filteredPatients = patients.filter((patient) => {
-    if (!searchQuery.trim()) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      patient.firstName?.toLowerCase().includes(query) ||
-      patient.lastName?.toLowerCase().includes(query) ||
-      patient.email?.toLowerCase().includes(query) ||
-      patient.phone?.toLowerCase().includes(query) ||
-      patient.fileNumber?.toLowerCase().includes(query)
-    );
-  });
+  // Use either controlled or uncontrolled search query
+  const searchQuery = manualPagination ? searchValue : internalSearchQuery;
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (manualPagination && onSearchChange) {
+      onSearchChange(value);
+    } else {
+      setInternalSearchQuery(value);
+    }
+  };
+
+  // Filter patients based on search query (CLIENT-SIDE ONLY)
+  // If manualPagination is true, we assume 'patients' prop is ALREADY filtered by server
+  const filteredPatients = manualPagination
+    ? patients
+    : patients.filter((patient) => {
+      if (!searchQuery.trim()) return true;
+      const query = searchQuery.toLowerCase();
+      return (
+        patient.firstName?.toLowerCase().includes(query) ||
+        patient.lastName?.toLowerCase().includes(query) ||
+        patient.email?.toLowerCase().includes(query) ||
+        patient.phone?.toLowerCase().includes(query) ||
+        patient.fileNumber?.toLowerCase().includes(query)
+      );
+    });
 
   // Helper to get patient's latest appointment
   const getPatientAppointment = (patientId: string): AppointmentResponseDto | undefined => {
+    // If patient object has lastVisit (from frontdesk API), use it to mock an appointment object
+    const patient = patients.find(p => p.id === patientId);
+    if (patient && (patient as any).lastVisit) {
+      return { appointmentDate: (patient as any).lastVisit } as any;
+    }
     return appointments.find((apt) => apt.patientId === patientId);
   };
 
@@ -116,7 +148,7 @@ export function PatientTable({
             <Input
               placeholder="Search patients by name, email, phone, or file number..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearchChange}
               className="pl-10"
             />
           </div>
@@ -459,6 +491,31 @@ export function PatientTable({
           );
         })}
       </div>
+
+      {/* Manual Pagination Controls */}
+      {manualPagination && totalPages > 1 && (
+        <div className="flex items-center justify-end space-x-2 py-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange?.(Math.max(1, currentPage - 1))}
+            disabled={currentPage <= 1}
+          >
+            Previous
+          </Button>
+          <div className="text-sm font-medium">
+            Page {currentPage} of {totalPages}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange?.(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage >= totalPages}
+          >
+            Next
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

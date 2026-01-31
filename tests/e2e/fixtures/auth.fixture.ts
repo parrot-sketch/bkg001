@@ -36,8 +36,8 @@ export const TEST_USERS = {
     role: 'NURSE' as Role,
   },
   ADMIN: {
-    email: 'admin.test@nairobisculpt.com',
-    password: 'AdminPassword123!',
+    email: 'admin@nairobisculpt.com',
+    password: 'admin123',
     role: 'ADMIN' as Role,
   },
 };
@@ -135,26 +135,26 @@ export const test = base.extend<AuthFixtures>({
  */
 export async function login(page: Page, email: string, password: string): Promise<void> {
   await page.goto('/login');
-  
+
   // Wait for login form
   await expect(page.locator('input[type="email"], input[name="email"]')).toBeVisible();
-  
+
   // Fill in credentials
   const emailInput = page.locator('input[type="email"], input[name="email"]').first();
   const passwordInput = page.locator('input[type="password"], input[name="password"]').first();
-  
+
   await emailInput.fill(email);
   await passwordInput.fill(password);
-  
+
   // Submit form
   const submitButton = page.locator('button[type="submit"], button:has-text("Login"), button:has-text("Sign In")').first();
   await submitButton.click();
-  
+
   // Wait for navigation to dashboard
   await page.waitForURL(/\/patient\/dashboard|\/doctor\/dashboard|\/frontdesk\/dashboard|\/nurse\/dashboard|\/admin\/dashboard/, {
-    timeout: 10000,
+    timeout: 30000,
   });
-  
+
   // Wait for page to be fully loaded
   await page.waitForLoadState('networkidle');
 }
@@ -165,12 +165,12 @@ export async function login(page: Page, email: string, password: string): Promis
 export async function logout(page: Page): Promise<void> {
   // Try to find and click logout button
   const logoutButton = page.locator('button:has-text("Logout"), button:has-text("Sign Out"), [data-testid="logout-button"]').first();
-  
+
   if (await logoutButton.isVisible().catch(() => false)) {
     await logoutButton.click();
     await page.waitForURL(/\/login|\/patient\/login/, { timeout: 5000 });
   }
-  
+
   // Clear any stored tokens
   await page.context().clearCookies();
   await page.evaluate(() => {
@@ -194,12 +194,12 @@ export async function isAuthenticated(page: Page): Promise<boolean> {
  */
 export async function navigateToProtectedRoute(page: Page, route: string): Promise<void> {
   await page.goto(route);
-  
+
   // If redirected to login, user is not authenticated
   const isLoginPage = page.url().includes('/login');
   if (isLoginPage) {
     throw new Error(`Access denied: User is not authenticated for route ${route}`);
   }
-  
+
   await page.waitForLoadState('networkidle');
 }

@@ -78,7 +78,7 @@ export default function DoctorDashboardPage() {
       endDate.setDate(endDate.getDate() + 7);
       const response = await doctorApi.getTheatreSchedule(startDate, endDate);
       if (response.success && response.data) {
-        // Filter for clinical relevance: only show current/future cases
+        // ... existing filtering logic ...
         const now = new Date();
         const currentHours = now.getHours();
         const currentMinutes = now.getMinutes();
@@ -110,11 +110,42 @@ export default function DoctorDashboardPage() {
     }
   };
 
+  // --- Onboarding / Setup Check ---
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [checkingOnboarding, setCheckingOnboarding] = useState(true);
+
+  useEffect(() => {
+    async function checkSetup() {
+      if (!user) return;
+      try {
+        // Check if schedule is set
+        const availResponse = await doctorApi.getMyAvailability();
+        const hasWorkingDays = availResponse.success &&
+          availResponse.data?.workingDays?.some((d: any) => d.isAvailable);
+
+        // Check if profile is "complete" (e.g. has bio or specialization)
+        // We can infer this from user object or fetch profile.
+        // For now, let's rely on availability as the primary "Action" needed.
+        if (!hasWorkingDays) {
+          setShowOnboarding(true);
+        }
+      } catch (e) {
+        console.error("Failed to check onboarding status", e);
+      } finally {
+        setCheckingOnboarding(false);
+      }
+    }
+    if (isAuthenticated) {
+      checkSetup();
+    }
+  }, [isAuthenticated, user]);
+
   const handleStartConsultation = (appointment: any) => {
     router.push(`/doctor/consultations/${appointment.id}/session`);
   };
 
   if (isLoading) {
+    // ... existing loading ... (omitted for brevity in replacement if matching exact block)
     return (
       <div className="flex items-center justify-center h-[80vh]">
         <div className="text-center">
@@ -181,6 +212,29 @@ export default function DoctorDashboardPage() {
           <NotificationBell />
         </div>
       </header>
+
+      {/* Onboarding Widget */}
+      {showOnboarding && !checkingOnboarding && (
+        <div className="bg-gradient-to-r from-indigo-600 to-indigo-800 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-10">
+            <Activity className="h-32 w-32" />
+          </div>
+          <div className="relative z-10">
+            <h2 className="text-2xl font-bold mb-2">Welcome, Dr. {user?.firstName || 'Doctor'}!</h2>
+            <p className="text-indigo-100 mb-6 max-w-xl">
+              Your account is active. To start receiving appointments, please configure your weekly availability and complete your professional profile.
+            </p>
+            <div className="flex gap-4">
+              <Link href="/doctor/profile">
+                <Button variant="secondary" className="font-semibold">
+                  Complete Setup
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats Cluster - Modern Bento Grid style */}
       <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
