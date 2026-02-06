@@ -28,6 +28,15 @@ export class PrismaDoctorRepository implements IDoctorRepository {
     }
 
     /**
+     * Find a doctor by their URL slug
+     */
+    async findBySlug(slug: string): Promise<Doctor | null> {
+        return this.prisma.doctor.findUnique({
+            where: { slug },
+        });
+    }
+
+    /**
      * Update a doctor's profile
      */
     async update(id: string, data: Partial<Doctor>): Promise<Doctor> {

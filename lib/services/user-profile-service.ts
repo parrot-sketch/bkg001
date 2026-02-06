@@ -151,16 +151,31 @@ export class UserProfileService {
         },
       });
 
-      // 3. Create working days if provided
+      // 3. Create availability template and slots if provided
       if (params.workingDays && params.workingDays.length > 0) {
-        await tx.workingDay.createMany({
-          data: params.workingDays.map((wd) => ({
+        // Create standard template
+        const template = await tx.availabilityTemplate.create({
+          data: {
             doctor_id: doctorId,
-            day: wd.day,
-            start_time: wd.startTime,
-            end_time: wd.endTime,
-            is_available: wd.isAvailable ?? true,
-          })),
+            name: 'Standard',
+            is_active: true
+          }
+        });
+
+        const daysMap: Record<string, number> = {
+          'Sunday': 0, 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4, 'Friday': 5, 'Saturday': 6
+        };
+
+        const slotsData = params.workingDays.map((wd) => ({
+          template_id: template.id,
+          day_of_week: daysMap[wd.day] ?? 1,
+          start_time: wd.startTime,
+          end_time: wd.endTime,
+          slot_type: 'CLINIC'
+        }));
+
+        await tx.availabilitySlot.createMany({
+          data: slotsData,
         });
       }
 

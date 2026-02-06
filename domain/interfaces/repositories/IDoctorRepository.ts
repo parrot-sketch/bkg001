@@ -22,6 +22,13 @@ export interface IDoctorRepository {
     findByUserId(userId: string): Promise<Doctor | null>;
 
     /**
+     * Find a doctor by their URL slug
+     * @param slug - The doctor's URL slug
+     * @returns The doctor entity or null if not found
+     */
+    findBySlug(slug: string): Promise<Doctor | null>;
+
+    /**
      * Update a doctor's profile
      * @param id - The doctor's ID
      * @param data - Partial doctor data to update

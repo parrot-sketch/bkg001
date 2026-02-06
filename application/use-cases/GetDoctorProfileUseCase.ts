@@ -55,6 +55,7 @@ export class GetDoctorProfileUseCase {
             title: doctor.title ?? undefined,
             name: doctor.name,
             specialization: doctor.specialization,
+            slug: doctor.slug ?? undefined,
             licenseNumber: doctor.license_number,
             phone: doctor.phone,
             address: doctor.address,

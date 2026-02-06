@@ -22,6 +22,7 @@ import { JwtMiddleware } from '@/lib/auth/middleware';
 import { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { extractConsultationRequestFields } from '@/infrastructure/mappers/ConsultationRequestMapper';
 import { ConsultationRequestStatus } from '@/domain/enums/ConsultationRequestStatus';
+import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { Role } from '@/domain/enums/Role';
 
 /**
@@ -119,19 +120,35 @@ export async function GET(
     tomorrowStart.setHours(0, 0, 0, 0);
 
     // 6. Build where clause
-    // Default: Only show SCHEDULED and CONFIRMED (approved consultations)
-    // Filter for future dates (after today)
+    // REFACTORED: Now includes appointments that are either:
+    // - From patient consultation requests (consultation_request_status = SCHEDULED/CONFIRMED)
+    // - From frontdesk bookings (status = SCHEDULED/CONFIRMED)
+    // This ensures both booking workflows show up in the doctor's upcoming schedule
     const where: any = {
       doctor_id: doctorId,
       appointment_date: {
         gte: tomorrowStart, // Future dates only (after today)
       },
-      consultation_request_status: {
-        in: [
-          ConsultationRequestStatus.SCHEDULED,
-          ConsultationRequestStatus.CONFIRMED,
-        ],
-      },
+      OR: [
+        {
+          // Patient-initiated consultation requests
+          consultation_request_status: {
+            in: [
+              ConsultationRequestStatus.SCHEDULED,
+              ConsultationRequestStatus.CONFIRMED,
+            ],
+          },
+        },
+        {
+          // Frontdesk bookings (confirmed by doctor)
+          status: {
+            in: [
+              AppointmentStatus.SCHEDULED,
+              AppointmentStatus.CONFIRMED,
+            ],
+          },
+        },
+      ],
     };
 
     // 7. Fetch upcoming appointments
@@ -171,7 +188,9 @@ export async function GET(
     });
 
     // 8. Map to DTO format
-    const mappedAppointments: AppointmentResponseDto[] = appointments.map((appointment) => {
+    // REFACTORED: Include patient and doctor objects with camelCase property names
+    // This ensures the frontend components can properly display patient names
+    const mappedAppointments = appointments.map((appointment) => {
       const consultationFields = extractConsultationRequestFields(appointment);
 
       return {
@@ -190,6 +209,22 @@ export async function GET(
         reviewNotes: consultationFields.reviewNotes ?? undefined,
         createdAt: appointment.created_at,
         updatedAt: appointment.updated_at,
+        // Include patient object with camelCase names for frontend components
+        patient: appointment.patient ? {
+          id: appointment.patient.id,
+          firstName: appointment.patient.first_name,
+          lastName: appointment.patient.last_name,
+          email: appointment.patient.email,
+          phone: appointment.patient.phone,
+          img: appointment.patient.img,
+        } : undefined,
+        // Include doctor object with camelCase names
+        doctor: appointment.doctor ? {
+          id: appointment.doctor.id,
+          name: appointment.doctor.name,
+          specialization: appointment.doctor.specialization,
+          img: appointment.doctor.img,
+        } : undefined,
       };
     });
 

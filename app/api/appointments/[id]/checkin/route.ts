@@ -62,11 +62,14 @@ export async function POST(
             );
         }
 
-        // 4. Extract body for potential additional fields (though mostly handled by ID)
-        // The DTO usually just needs appointmentId and userId
+        // 4. Extract body for potential additional fields
+        const body = await request.json().catch(() => ({}));
+        const { notes } = body;
+
         const dto: CheckInPatientDto = {
             appointmentId,
             userId,
+            notes,
         };
 
         // 5. Execute use case

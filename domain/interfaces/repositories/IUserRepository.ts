@@ -23,6 +23,14 @@ export interface IUserRepository {
   findById(id: string): Promise<User | null>;
 
   /**
+   * Finds multiple users by their unique identifiers
+   * 
+   * @param ids - Array of user unique identifiers
+   * @returns Promise resolving to an array of User entities found
+   */
+  findByIds(ids: string[]): Promise<User[]>;
+
+  /**
    * Finds a user by their email address
    * 
    * @param email - The user's email address (as Email value object)
@@ -53,4 +61,32 @@ export interface IUserRepository {
    * @throws Error if the user does not exist or the update fails
    */
   update(user: User): Promise<void>;
+
+  /**
+   * Updates a user's email address
+   * 
+   * @param userId - The user's unique identifier
+   * @param newEmail - The new email address
+   * @returns Promise that resolves when the update operation completes
+   * @throws Error if the user does not exist or the update fails
+   */
+  updateEmail(userId: string, newEmail: string): Promise<void>;
+
+  /**
+   * Updates a user's password
+   * 
+   * @param userId - The user's unique identifier
+   * @param hashedPassword - The new hashed password
+   * @returns Promise that resolves when the update operation completes
+   * @throws Error if the user does not exist or the update fails
+   */
+  updatePassword(userId: string, hashedPassword: string): Promise<void>;
+
+  /**
+   * Finds all users with a specific role
+   * 
+   * @param role - The role to filter by (e.g., 'FRONTDESK', 'DOCTOR', 'NURSE')
+   * @returns Promise resolving to an array of User entities with that role
+   */
+  findByRole(role: string): Promise<User[]>;
 }

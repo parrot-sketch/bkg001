@@ -53,19 +53,20 @@ export async function GET(
       );
     }
 
-    // Fetch working days from database
-    const workingDays = await db.workingDay.findMany({
-      where: { doctor_id: doctorId },
-      orderBy: [
-        { day: 'asc' },
-      ],
+    // Fetch active template slots
+    const template = await db.availabilityTemplate.findFirst({
+      where: { doctor_id: doctorId, is_active: true },
+      include: { slots: true }
     });
 
+    const slots = template?.slots || [];
+    const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
     // Map to response format
-    const response = workingDays.map((wd) => ({
-      day: wd.day,
-      startTime: wd.start_time,
-      endTime: wd.end_time,
+    const response = slots.map((slot) => ({
+      day: daysOfWeek[slot.day_of_week],
+      startTime: slot.start_time,
+      endTime: slot.end_time,
     }));
 
     return NextResponse.json(
@@ -98,7 +99,7 @@ export async function PUT(
 ): Promise<NextResponse> {
   try {
     const params = await context.params;
-    
+
     // 1. Authenticate request
     const authResult = await JwtMiddleware.authenticate(request);
     if (!authResult.success || !authResult.user) {

@@ -137,10 +137,13 @@ export class AcceptConsultationRequestUseCase {
     // Step 6: Validate date/time if provided
     if (dto.appointmentDate && dto.time) {
       const now = this.timeService.now();
+      const today = new Date(now);
+      today.setHours(0, 0, 0, 0);
+
       const proposedDateTime = new Date(dto.appointmentDate);
       proposedDateTime.setHours(0, 0, 0, 0);
 
-      if (proposedDateTime < now) {
+      if (proposedDateTime < today) {
         throw new DomainException('Appointment date cannot be in the past', {
           appointmentId: dto.appointmentId,
           appointmentDate: dto.appointmentDate,
@@ -221,11 +224,10 @@ export class AcceptConsultationRequestUseCase {
     if (patient) {
       try {
         const subject = 'Consultation Request Accepted';
-        const message = `Your consultation request has been accepted by Dr. ${dto.doctorId}.${
-          dto.appointmentDate && dto.time
+        const message = `Your consultation request has been accepted by Dr. ${dto.doctorId}.${dto.appointmentDate && dto.time
             ? ` Appointment scheduled for ${dto.appointmentDate.toLocaleDateString()} at ${dto.time}.`
             : ' Please wait for scheduling confirmation.'
-        }${dto.notes ? `\n\nNotes: ${dto.notes}` : ''}`;
+          }${dto.notes ? `\n\nNotes: ${dto.notes}` : ''}`;
 
         await this.notificationService.sendEmail(patient.getEmail(), subject, message);
       } catch (error) {

@@ -29,7 +29,7 @@ export function useNotifications() {
         refetchInterval: 30000,
     });
 
-    // Mark as read mutation
+    // Mark single notification as read mutation
     const markAsReadMutation = useMutation({
         mutationFn: (id: number) => notificationsApi.markAsRead(id),
         onSuccess: (response) => {
@@ -46,6 +46,23 @@ export function useNotifications() {
         },
     });
 
+    // Mark all notifications as read mutation
+    const markAllAsReadMutation = useMutation({
+        mutationFn: () => notificationsApi.markAllAsRead(),
+        onSuccess: (response) => {
+            if (!response.success) {
+                toast.error(response.error || 'Failed to mark all notifications as read');
+                return;
+            }
+            // Invalidate and refetch to update UI
+            queryClient.invalidateQueries({ queryKey: ['notifications'] });
+        },
+        onError: (error) => {
+            console.error('Error marking all notifications as read:', error);
+            toast.error('Failed to mark all notifications as read');
+        },
+    });
+
     const unreadCount = notifications.filter(n => n.status !== 'READ').length;
 
     return {
@@ -56,5 +73,7 @@ export function useNotifications() {
         refetch,
         markAsRead: markAsReadMutation.mutate,
         isMarkingAsRead: markAsReadMutation.isPending,
+        markAllAsRead: markAllAsReadMutation.mutate,
+        isMarkingAllAsRead: markAllAsReadMutation.isPending,
     };
 }

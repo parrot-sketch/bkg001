@@ -16,6 +16,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { CompleteConsultationUseCase } from '@/application/use-cases/CompleteConsultationUseCase';
 import { PrismaAppointmentRepository } from '@/infrastructure/database/repositories/PrismaAppointmentRepository';
 import { PrismaPatientRepository } from '@/infrastructure/database/repositories/PrismaPatientRepository';
+import { PrismaPaymentRepository } from '@/infrastructure/database/repositories/PrismaPaymentRepository';
+import { PrismaUserRepository } from '@/infrastructure/database/repositories/PrismaUserRepository';
+import { PrismaSurgicalCaseRepository } from '@/infrastructure/database/repositories/PrismaSurgicalCaseRepository';
+import { PrismaCasePlanRepository } from '@/infrastructure/database/repositories/PrismaCasePlanRepository';
+import { PrismaConsultationRepository } from '@/infrastructure/database/repositories/PrismaConsultationRepository';
 import { emailNotificationService } from '@/infrastructure/services/EmailNotificationService';
 import { ConsoleAuditService } from '@/infrastructure/services/ConsoleAuditService';
 import db from '@/lib/db';
@@ -27,15 +32,25 @@ import { Role } from '@/domain/enums/Role';
 // Initialize dependencies (singleton pattern)
 const appointmentRepository = new PrismaAppointmentRepository(db);
 const patientRepository = new PrismaPatientRepository(db);
+const paymentRepository = new PrismaPaymentRepository(db);
+const userRepository = new PrismaUserRepository(db);
+const surgicalCaseRepository = new PrismaSurgicalCaseRepository(db);
+const casePlanRepository = new PrismaCasePlanRepository(db);
+const consultationRepository = new PrismaConsultationRepository(db);
 const notificationService = emailNotificationService;
 const auditService = new ConsoleAuditService();
 
-// Initialize use case
+// Initialize use case with billing and surgery workflow support
 const completeConsultationUseCase = new CompleteConsultationUseCase(
   appointmentRepository,
   patientRepository,
   notificationService,
   auditService,
+  paymentRepository,
+  userRepository,
+  surgicalCaseRepository,
+  casePlanRepository,
+  consultationRepository,
 );
 
 /**

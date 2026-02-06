@@ -5,13 +5,13 @@
  * 
  * Capture patient's primary concern and presenting complaint.
  * Critical for aesthetic surgery: understanding patient expectations and goals.
+ * 
+ * Note: Auto-saves via parent context - no per-tab save button needed.
  */
 
 import { useState, useEffect } from 'react';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Save } from 'lucide-react';
 import { RichTextEditor } from '@/components/consultation/RichTextEditor';
 
 interface PatientGoalsTabProps {
@@ -25,8 +25,9 @@ interface PatientGoalsTabProps {
 export function PatientGoalsTab({
   initialValue = '',
   onChange,
-  onSave,
-  isSaving = false,
+  // onSave and isSaving are passed for interface consistency but auto-save is handled by parent
+  onSave: _onSave,
+  isSaving: _isSaving,
   isReadOnly = false,
 }: PatientGoalsTabProps) {
   const [goals, setGoals] = useState(initialValue);
@@ -41,7 +42,7 @@ export function PatientGoalsTab({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="p-6 space-y-4">
       <div>
         <Label htmlFor="chief-complaint" className="text-sm font-semibold">
           Chief Complaint
@@ -91,21 +92,6 @@ export function PatientGoalsTab({
             </div>
           </CardContent>
         </Card>
-      )}
-
-      {/* Save Button */}
-      {!isReadOnly && onSave && (
-        <div className="flex justify-end pt-4 border-t">
-          <Button
-            onClick={onSave}
-            disabled={isSaving || !goals.trim()}
-            size="sm"
-            className="bg-primary hover:bg-primary/90"
-          >
-            <Save className="h-4 w-4 mr-2" />
-            {isSaving ? 'Saving...' : 'Save Chief Complaint'}
-          </Button>
-        </div>
       )}
     </div>
   );

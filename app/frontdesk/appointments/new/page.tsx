@@ -7,10 +7,14 @@ import { AppointmentBookingForm } from '@/components/appointments/AppointmentBoo
 function NewAppointmentWrapper() {
     const searchParams = useSearchParams();
     const initialDoctorId = searchParams.get('doctorId') || undefined;
+    const initialDate = searchParams.get('date') || undefined;
+    const initialTime = searchParams.get('time') || undefined;
 
     return (
         <AppointmentBookingForm
             initialDoctorId={initialDoctorId}
+            initialDate={initialDate}
+            initialTime={initialTime}
             userRole="frontdesk"
         />
     );

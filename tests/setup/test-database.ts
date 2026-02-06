@@ -41,19 +41,18 @@ export function getTestDatabase(): PrismaClient {
  */
 export async function resetTestDatabase(): Promise<void> {
   const db = getTestDatabase();
-  
+
   try {
     // Delete in dependency order (reverse of creation)
     await db.appointment.deleteMany({});
     await db.consultation.deleteMany({});
-    await db.availabilityBreak.deleteMany({});
-    await db.scheduleSession.deleteMany({});
-    await db.workingDay.deleteMany({});
+    await db.availabilitySlot.deleteMany({});
+    await db.availabilityTemplate.deleteMany({});
     await db.slotConfiguration.deleteMany({});
     await db.doctor.deleteMany({});
     await db.patient.deleteMany({});
     await db.user.deleteMany({});
-    
+
     console.log('✓ Test database reset successful');
   } catch (error) {
     console.error('✗ Failed to reset test database:', error);

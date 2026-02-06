@@ -1,66 +1,139 @@
-import { PrismaClient, SurgicalCase, SurgicalCaseStatus } from '@prisma/client';
-import { db } from '@/lib/db';
+import { PrismaClient, SurgicalCase, SurgicalCaseStatus, SurgicalUrgency } from '@prisma/client';
+import { ISurgicalCaseRepository } from '@/domain/interfaces/repositories/ISurgicalCaseRepository';
 
-export class PrismaSurgicalCaseRepository {
-    constructor(private prisma: PrismaClient) { }
-
-    async findById(id: string): Promise<SurgicalCase | null> {
-        return this.prisma.surgicalCase.findUnique({
-            where: { id },
-            include: {
-                patient: true,
-                primary_surgeon: true,
-                consultation: true,
-                case_plan: true,
-                theater_booking: {
-                    include: {
-                        theater: true
-                    }
-                },
-                procedure_record: true
-            }
-        });
+/**
+ * Repository: PrismaSurgicalCaseRepository
+ *
+ * Prisma-based implementation of ISurgicalCaseRepository.
+ * Handles surgical case persistence for the surgery workflow.
+ */
+export class PrismaSurgicalCaseRepository implements ISurgicalCaseRepository {
+  constructor(private readonly prisma: PrismaClient) {
+    if (!prisma) {
+      throw new Error('PrismaClient is required');
     }
+  }
 
-    async findByPatientId(patientId: string): Promise<SurgicalCase[]> {
-        return this.prisma.surgicalCase.findMany({
-            where: { patient_id: patientId },
-            orderBy: { created_at: 'desc' },
-            include: {
-                primary_surgeon: true,
-                theater_booking: true
-            }
-        });
-    }
+  async findById(id: string): Promise<SurgicalCase | null> {
+    return this.prisma.surgicalCase.findUnique({
+      where: { id },
+      include: {
+        patient: true,
+        primary_surgeon: true,
+        consultation: true,
+        case_plan: true,
+        theater_booking: {
+          include: {
+            theater: true,
+          },
+        },
+        procedure_record: true,
+      },
+    });
+  }
 
-    async create(data: {
-        patientId: string;
-        primarySurgeonId: string;
-        consultationId?: number;
-        createdBy?: string;
-    }): Promise<SurgicalCase> {
-        return this.prisma.surgicalCase.create({
-            data: {
-                patient_id: data.patientId,
-                primary_surgeon_id: data.primarySurgeonId,
-                consultation_id: data.consultationId,
-                created_by: data.createdBy,
-                status: SurgicalCaseStatus.DRAFT,
-            }
-        });
-    }
+  async findByPatientId(patientId: string): Promise<SurgicalCase[]> {
+    return this.prisma.surgicalCase.findMany({
+      where: { patient_id: patientId },
+      orderBy: { created_at: 'desc' },
+      include: {
+        patient: true,
+        primary_surgeon: true,
+        case_plan: true,
+        theater_booking: true,
+      },
+    });
+  }
 
-    async updateStatus(id: string, status: SurgicalCaseStatus): Promise<SurgicalCase> {
-        return this.prisma.surgicalCase.update({
-            where: { id },
-            data: { status }
-        });
-    }
+  async findByConsultationId(consultationId: number): Promise<SurgicalCase | null> {
+    return this.prisma.surgicalCase.findUnique({
+      where: { consultation_id: consultationId },
+      include: {
+        patient: true,
+        primary_surgeon: true,
+        case_plan: true,
+      },
+    });
+  }
 
-    async update(id: string, data: Partial<SurgicalCase>): Promise<SurgicalCase> {
-        return this.prisma.surgicalCase.update({
-            where: { id },
-            data
-        });
-    }
+  async findByStatus(status: SurgicalCaseStatus): Promise<SurgicalCase[]> {
+    return this.prisma.surgicalCase.findMany({
+      where: { status },
+      orderBy: { created_at: 'desc' },
+      include: {
+        patient: true,
+        primary_surgeon: true,
+        case_plan: true,
+        theater_booking: true,
+      },
+    });
+  }
+
+  async findPendingPreOp(): Promise<SurgicalCase[]> {
+    return this.prisma.surgicalCase.findMany({
+      where: {
+        status: {
+          in: [SurgicalCaseStatus.DRAFT, SurgicalCaseStatus.PLANNING],
+        },
+      },
+      orderBy: { created_at: 'asc' },
+      include: {
+        patient: true,
+        primary_surgeon: true,
+        case_plan: {
+          include: {
+            consents: true,
+            images: true,
+          },
+        },
+        consultation: {
+          include: {
+            appointment: true,
+          },
+        },
+      },
+    });
+  }
+
+  async create(data: {
+    patientId: string;
+    primarySurgeonId: string;
+    consultationId?: number;
+    appointmentId?: number;
+    urgency?: SurgicalUrgency;
+    diagnosis?: string;
+    procedureName?: string;
+    createdBy?: string;
+  }): Promise<SurgicalCase> {
+    return this.prisma.surgicalCase.create({
+      data: {
+        patient_id: data.patientId,
+        primary_surgeon_id: data.primarySurgeonId,
+        consultation_id: data.consultationId,
+        urgency: data.urgency ?? SurgicalUrgency.ELECTIVE,
+        diagnosis: data.diagnosis,
+        procedure_name: data.procedureName,
+        created_by: data.createdBy,
+        status: SurgicalCaseStatus.DRAFT,
+      },
+      include: {
+        patient: true,
+        primary_surgeon: true,
+      },
+    });
+  }
+
+  async updateStatus(id: string, status: SurgicalCaseStatus): Promise<SurgicalCase> {
+    return this.prisma.surgicalCase.update({
+      where: { id },
+      data: { status },
+    });
+  }
+
+  async update(id: string, data: Partial<SurgicalCase>): Promise<SurgicalCase> {
+    return this.prisma.surgicalCase.update({
+      where: { id },
+      data,
+    });
+  }
 }

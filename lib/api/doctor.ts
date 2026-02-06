@@ -39,6 +39,13 @@ export const doctorApi = {
   },
 
   /**
+   * Get doctor by slug (for public profile pages)
+   */
+  async getDoctorBySlug(slug: string): Promise<ApiResponse<DoctorResponseDto>> {
+    return apiClient.get<DoctorResponseDto>(`/doctors/slug/${slug}`);
+  },
+
+  /**
    * Get doctor's appointments (only SCHEDULED/CONFIRMED consultations by default)
    * 
    * @param doctorId - Doctor ID
@@ -123,12 +130,17 @@ export const doctorApi = {
    * Update doctor's own profile
    */
   async updateProfile(dto: {
+    specialization?: string;
+    title?: string;
     bio?: string;
     education?: string;
     focusAreas?: string;
     professionalAffiliations?: string;
     profileImage?: string;
     clinicLocation?: string;
+    yearsOfExperience?: number;
+    consultationFee?: number;
+    languages?: string;
   }): Promise<ApiResponse<DoctorResponseDto>> {
     return apiClient.put<DoctorResponseDto>('/doctors/me/profile', dto);
   },

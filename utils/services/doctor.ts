@@ -25,7 +25,7 @@ export async function getDoctors() {
     // REFACTORED: Added limit to prevent fetching hundreds of doctors
     // If more doctors needed, should use paginated endpoint
     const DEFAULT_LIMIT = 100;
-    
+
     // Note: BookAppointment component expects full Doctor[] type from Prisma
     // Component uses: id, name, img, colorCode, specialization
     // We fetch all fields to satisfy the type requirement
@@ -71,7 +71,7 @@ export async function getDoctorDashboardStats() {
 
     const todayDate = new Date().getDay();
     const today = daysOfWeek[todayDate];
-    
+
     // Doctor dashboard: last 12 months for statistics
     const since = subMonths(new Date(), 12);
     const yearStart = startOfYear(new Date());
@@ -89,7 +89,7 @@ export async function getDoctorDashboardStats() {
     ] = await Promise.all([
       // Total patient count (preserved for UI compatibility)
       db.patient.count(),
-      
+
       // Total nurse count (preserved for UI compatibility)
       db.user.count({ where: { role: "NURSE" } }),
       // Recent 5 appointments for display (last 12 months, past appointments only)
@@ -130,7 +130,7 @@ export async function getDoctorDashboardStats() {
         orderBy: { appointment_date: "desc" },
         take: 5, // Only fetch what's displayed
       }),
-      
+
       // Database aggregation: status counts (last 12 months)
       db.appointment.groupBy({
         by: ["status"],
@@ -143,7 +143,7 @@ export async function getDoctorDashboardStats() {
         },
         _count: true,
       }),
-      
+
       // Total appointments count (last 12 months)
       db.appointment.count({
         where: {
@@ -154,7 +154,7 @@ export async function getDoctorDashboardStats() {
           },
         },
       }),
-      
+
       // Monthly data: fetch minimal data (date and status only) for current year
       db.appointment.findMany({
         where: {
@@ -169,13 +169,19 @@ export async function getDoctorDashboardStats() {
           status: true,
         },
       }),
-      
+
       // Available doctors (unchanged - already optimized)
+      // Available doctors (Updated for AvailabilityTemplate)
       db.doctor.findMany({
         where: {
-          working_days: {
-            some: { day: { equals: today, mode: "insensitive" } },
-          },
+          availability_templates: {
+            some: {
+              is_active: true,
+              slots: {
+                some: { day_of_week: todayDate }
+              }
+            }
+          }
         },
         select: {
           id: true,
@@ -183,7 +189,10 @@ export async function getDoctorDashboardStats() {
           specialization: true,
           img: true,
           colorCode: true,
-          working_days: true,
+          availability_templates: {
+            where: { is_active: true },
+            select: { slots: true }
+          }
         },
         take: 5,
       }),
@@ -206,7 +215,7 @@ export async function getDoctorDashboardStats() {
 
     // Monthly data: lightweight aggregation by month (current year only, max ~365 records)
     const monthlyDataMap = new Map<number, { appointment: number; completed: number }>();
-    
+
     monthlyAppointments.forEach((apt) => {
       const monthIndex = getMonth(apt.appointment_date);
       const current = monthlyDataMap.get(monthIndex) || { appointment: 0, completed: 0 };
@@ -245,11 +254,14 @@ export async function getDoctorDashboardStats() {
 
 export async function getDoctorById(id: string) {
   try {
-    const [doctor, totalAppointment] = await Promise.all([
+    const [doctorRaw, totalAppointment] = await Promise.all([
       db.doctor.findUnique({
         where: { id },
         include: {
-          working_days: true,
+          availability_templates: {
+            where: { is_active: true },
+            include: { slots: true }
+          },
           appointments: {
             include: {
               patient: {
@@ -280,6 +292,22 @@ export async function getDoctorById(id: string) {
         where: { doctor_id: id },
       }),
     ]);
+
+    if (!doctorRaw) return { data: null, totalAppointment };
+
+    // Map active template slots to legacy working_days structure
+    const activeSlots = doctorRaw.availability_templates[0]?.slots || [];
+    const workingDays = activeSlots.map(slot => ({
+      day: daysOfWeek[slot.day_of_week],
+      start_time: slot.start_time,
+      end_time: slot.end_time,
+      is_available: true
+    }));
+
+    const doctor = {
+      ...doctorRaw,
+      working_days: workingDays
+    };
 
     return { data: doctor, totalAppointment };
   } catch (error) {
@@ -377,12 +405,12 @@ export async function getAllDoctors({
     // Build WHERE clause conditionally - only add search if provided
     const whereClause = search && search.trim()
       ? {
-          OR: [
-            { name: { contains: search.trim(), mode: "insensitive" as const } },
-            { specialization: { contains: search.trim(), mode: "insensitive" as const } },
-            { email: { contains: search.trim(), mode: "insensitive" as const } },
-          ],
-        }
+        OR: [
+          { name: { contains: search.trim(), mode: "insensitive" as const } },
+          { specialization: { contains: search.trim(), mode: "insensitive" as const } },
+          { email: { contains: search.trim(), mode: "insensitive" as const } },
+        ],
+      }
       : {};
 
     const [doctors, totalRecords] = await Promise.all([
@@ -395,15 +423,12 @@ export async function getAllDoctors({
           email: true,
           img: true,
           colorCode: true,
-          working_days: {
+          availability_templates: {
+            where: { is_active: true },
             select: {
-              id: true,
-              day: true,
-              start_time: true,
-              end_time: true,
-              is_available: true,
-            },
-          },
+              slots: true
+            }
+          }
         },
         skip: SKIP,
         take: LIMIT,

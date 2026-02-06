@@ -8,17 +8,18 @@
  */
 
 export interface WorkingDay {
-  id: number;
+  id: string; // Changed to string (UUID) for compatibility with AvailabilitySlot
   doctorId: string;
   day: string; // Monday, Tuesday, etc.
   startTime: string; // HH:mm (backward compatibility: used if no sessions exist)
   endTime: string;   // HH:mm (backward compatibility: used if no sessions exist)
   isAvailable: boolean;
+  type?: string;     // "CLINIC", "SURGERY", etc.
 }
 
 export interface ScheduleSession {
   id: string;
-  workingDayId: number;
+  workingDayId: string; // Changed to string (UUID)
   startTime: string; // HH:mm
   endTime: string;   // HH:mm
   sessionType?: string; // "Clinic", "Ward Rounds", "Teleconsult", "Surgery", etc.
@@ -52,7 +53,7 @@ export interface AvailabilityOverride {
 export interface AvailabilityBreak {
   id: string;
   doctorId: string;
-  workingDayId?: number;
+  workingDayId?: string; // Changed to string (UUID)
   dayOfWeek?: string;
   startTime: string; // HH:mm
   endTime: string;   // HH:mm
@@ -142,12 +143,12 @@ export interface IAvailabilityRepository {
   /**
    * Get schedule sessions for a working day
    */
-  getSessionsForWorkingDay(workingDayId: number): Promise<ScheduleSession[]>;
+  getSessionsForWorkingDay(workingDayId: string): Promise<ScheduleSession[]>;
 
   /**
    * Save schedule sessions for a working day (replaces existing)
    */
-  saveSessionsForWorkingDay(workingDayId: number, sessions: Omit<ScheduleSession, 'id' | 'workingDayId'>[]): Promise<ScheduleSession[]>;
+  saveSessionsForWorkingDay(workingDayId: string, sessions: Omit<ScheduleSession, 'id' | 'workingDayId'>[]): Promise<ScheduleSession[]>;
 
   /**
    * Delete schedule session

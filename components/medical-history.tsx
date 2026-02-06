@@ -119,7 +119,7 @@ export const MedicalHistory = ({ data, isShowProfile }: DataProps) => {
         </td>
 
         <td>
-          <ViewAction href={`/record/appointments/${item?.appointment_id}`} />
+          <ViewAction href={`/frontdesk/appointments/${item?.appointment_id}`} />
         </td>
       </tr>
     );

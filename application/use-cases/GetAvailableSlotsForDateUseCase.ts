@@ -156,12 +156,15 @@ export class GetAvailableSlotsForDateUseCase {
     );
 
     // Step 8: Map to DTOs (preserving isAvailable flag from AvailabilityService)
-    return slots.map((slot) => ({
-      startTime: this.formatTime(slot.startTime),
-      endTime: this.formatTime(slot.endTime),
-      duration: slot.duration,
-      isAvailable: slot.isAvailable,
-    }));
+    // Filter out non-CLINIC slots (e.g. SURGERY)
+    return slots
+      .filter(slot => !slot.sessionType || slot.sessionType === 'CLINIC')
+      .map((slot) => ({
+        startTime: this.formatTime(slot.startTime),
+        endTime: this.formatTime(slot.endTime),
+        duration: slot.duration,
+        isAvailable: slot.isAvailable,
+      }));
   }
 
   /**

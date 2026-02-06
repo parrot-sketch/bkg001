@@ -13,7 +13,7 @@ export async function GET(
   { params }: { params: Promise<{ userId: string }> }
 ): Promise<NextResponse> {
   let userId: string | undefined;
-  
+
   try {
     const paramsResult = await params;
     userId = paramsResult.userId;
@@ -62,12 +62,17 @@ export async function GET(
         professional_affiliations: true,
         created_at: true,
         updated_at: true,
-        working_days: {
+        availability_templates: {
+          where: { is_active: true },
           select: {
-            day: true,
-            start_time: true,
-            end_time: true,
-          },
+            slots: {
+              select: {
+                day_of_week: true,
+                start_time: true,
+                end_time: true,
+              }
+            }
+          }
         },
       },
     });
@@ -113,9 +118,17 @@ export async function GET(
       type: doctor.type ?? undefined,
     };
 
+    const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const activeTemplate = doctor.availability_templates[0];
+    const workingDays = activeTemplate?.slots.map(slot => ({
+      day: daysOfWeek[slot.day_of_week],
+      start_time: slot.start_time,
+      end_time: slot.end_time
+    })) || [];
+
     const responseData = {
       ...doctorDto,
-      workingDays: doctor.working_days,
+      workingDays: workingDays,
     };
 
     console.log('[API] GET /api/doctors/user/[userId] - Success:', {
@@ -136,7 +149,7 @@ export async function GET(
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : undefined;
     const errorName = error instanceof Error ? error.name : typeof error;
-    
+
     console.error('[API] GET /api/doctors/user/[userId] - Error Details:', {
       message: errorMessage,
       name: errorName,
@@ -147,12 +160,12 @@ export async function GET(
 
     // Return detailed error in development, generic in production
     const isDevelopment = process.env.NODE_ENV === 'development';
-    
+
     return NextResponse.json(
       {
         success: false,
-        error: isDevelopment 
-          ? `Failed to fetch doctor: ${errorMessage}` 
+        error: isDevelopment
+          ? `Failed to fetch doctor: ${errorMessage}`
           : 'Failed to fetch doctor',
         ...(isDevelopment && {
           details: {
