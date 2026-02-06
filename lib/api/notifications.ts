@@ -34,7 +34,9 @@ export const notificationsApi = {
     },
 
     /**
-     * Optional: Marks all notifications as read.
-     * (We can add this if needed later).
+     * Marks all notifications as read.
      */
+    async markAllAsRead(): Promise<ApiResponse<{ count: number }>> {
+        return apiClient.post<{ count: number }>('/notifications/read-all', {});
+    },
 };

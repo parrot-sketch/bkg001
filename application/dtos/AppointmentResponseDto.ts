@@ -23,9 +23,24 @@ export interface AppointmentResponseDto {
   readonly reviewedAt?: Date;
   readonly reviewNotes?: string;
 
+  // Audit / Context fields
+  readonly bookedBy?: {
+    readonly id: string;
+    readonly name: string;
+    readonly role: string;
+  };
+
   readonly createdAt?: Date;
   readonly updatedAt?: Date;
+
+  // Check-in tracking
   readonly checkedInAt?: Date;
+  readonly checkedInBy?: string; // User ID of frontdesk staff who checked in the patient
+
+  // Consultation tracking
+  readonly consultationStartedAt?: Date;
+  readonly consultationEndedAt?: Date;
+  readonly consultationDuration?: number; // Duration in minutes
 
   // Optional patient information (included in some API responses)
   readonly patient?: {

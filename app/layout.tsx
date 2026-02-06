@@ -1,38 +1,43 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { Inter, Playfair_Display } from "next/font/google";
 import { Toaster } from "sonner";
 import { Providers } from "./providers";
 import "./globals.css";
 
+// Local fonts - no network required at build time
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
   variable: "--font-geist-sans",
   weight: "100 900",
 });
+
 const geistMono = localFont({
   src: "./fonts/GeistMonoVF.woff",
   variable: "--font-geist-mono",
   weight: "100 900",
 });
 
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+// Use Geist as the primary font (already local) with system font fallbacks
+// This replaces Inter - Geist is a modern, clean sans-serif similar to Inter
+const inter = localFont({
+  src: "./fonts/GeistVF.woff",
   variable: "--font-inter",
+  weight: "100 900",
+  fallback: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
 });
 
-const playfairDisplay = Playfair_Display({
-  subsets: ["latin"],
-  weight: ["400", "600", "700"],
+// For display/heading font, use Geist with serif fallback
+// In production, you can add a local serif font file if needed
+const playfair = localFont({
+  src: "./fonts/GeistVF.woff",
   variable: "--font-playfair",
+  weight: "100 900",
+  fallback: ['Georgia', 'Cambria', 'Times New Roman', 'serif'],
 });
 
 export const metadata: Metadata = {
   title: "Nairobi Sculpt - Aesthetic Surgery Management",
   description: "Premier Aesthetic Surgery & Clinical Management System",
-  // Next.js automatically detects icon.png, apple-icon.png, and favicon.ico from the app directory
-  // These are configured here for explicit control
   icons: {
     icon: [
       { url: "/icon.png", sizes: "32x32", type: "image/png" },
@@ -57,7 +62,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${playfairDisplay.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${playfair.variable} antialiased`}
       >
         <Providers>
           {children}

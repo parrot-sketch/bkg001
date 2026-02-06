@@ -18,6 +18,18 @@ import type { CreateConsultationFromFrontdeskDto } from '../../application/dtos/
 export const frontdeskApi = {
   /**
    * Get today's appointments (all patients)
+   * Optional: Filter by doctor ID
+   */
+  async getTodaysSchedule(doctorId?: string): Promise<ApiResponse<AppointmentResponseDto[]>> {
+    let url = '/frontdesk/schedule/today';
+    if (doctorId) {
+      url += `?doctorId=${doctorId}`;
+    }
+    return apiClient.get<AppointmentResponseDto[]>(url);
+  },
+
+  /**
+   * Get today's appointments (Legacy - can be deprecated or mapped to above)
    */
   async getTodayAppointments(): Promise<ApiResponse<AppointmentResponseDto[]>> {
     return apiClient.get<AppointmentResponseDto[]>('/appointments/today');
@@ -74,10 +86,11 @@ export const frontdeskApi = {
   /**
    * Check in a patient for an appointment
    */
-  async checkInPatient(appointmentId: number, userId: string): Promise<ApiResponse<AppointmentResponseDto>> {
-    const dto: CheckInPatientDto = {
+  async checkInPatient(appointmentId: number, options?: { userId?: string, notes?: string }): Promise<ApiResponse<AppointmentResponseDto>> {
+    const dto: any = { // Using any as DTO interface might be strict on userId but API route handles it
       appointmentId,
-      userId,
+      userId: options?.userId || '', // Backend extracts real userId from token
+      notes: options?.notes,
     };
     return apiClient.post<AppointmentResponseDto>(`/appointments/${appointmentId}/checkin`, dto);
   },
@@ -194,5 +207,15 @@ export const frontdeskApi = {
    */
   async createConsultation(dto: CreateConsultationFromFrontdeskDto): Promise<ApiResponse<AppointmentResponseDto>> {
     return apiClient.post<AppointmentResponseDto>('/consultations/frontdesk/create', dto);
+  },
+
+  /**
+   * Resolve a stale/overdue appointment (mark as completed or cancel)
+   */
+  async resolveStaleAppointment(
+    appointmentId: number, 
+    action: 'complete' | 'cancel'
+  ): Promise<ApiResponse<AppointmentResponseDto>> {
+    return apiClient.post<AppointmentResponseDto>(`/appointments/${appointmentId}/resolve`, { action });
   },
 };

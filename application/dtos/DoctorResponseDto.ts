@@ -13,6 +13,7 @@ export interface DoctorResponseDto {
   readonly title?: string;
   readonly name: string;
   readonly specialization: string;
+  readonly slug?: string;
   readonly licenseNumber: string;
   readonly phone: string;
   readonly address: string;
@@ -24,6 +25,9 @@ export interface DoctorResponseDto {
   readonly education?: string;
   readonly focusAreas?: string;
   readonly professionalAffiliations?: string;
+  readonly yearsOfExperience?: number;
+  readonly consultationFee?: number;
+  readonly languages?: string;
   readonly colorCode?: string;
   readonly createdAt?: Date;
   readonly updatedAt?: Date;

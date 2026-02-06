@@ -22,7 +22,7 @@ export interface DoctorAvailabilityResponseDto {
   readonly slotConfiguration?: SlotConfigurationDto;
   readonly overrides: AvailabilityOverrideDto[];
   readonly sessions?: Array<{
-    readonly workingDayId: number;
+    readonly workingDayId: string;
     readonly day: string; // Day name for mapping
     readonly startTime: string;
     readonly endTime: string;

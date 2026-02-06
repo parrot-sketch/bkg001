@@ -111,7 +111,7 @@ export class ReviewConsultationRequestUseCase {
       // If retrieval fails, assume SUBMITTED for validation
       currentConsultationFields = { consultationRequestStatus: ConsultationRequestStatus.SUBMITTED };
     }
-    
+
     // Step 4: Validate action-specific requirements
     if (dto.action === 'approve') {
       if (!dto.proposedDate || !dto.proposedTime) {
@@ -122,11 +122,15 @@ export class ReviewConsultationRequestUseCase {
       }
 
       // Validate proposed date is not in the past
+      // Validate proposed date is not in the past
       const now = this.timeService.now();
+      const today = new Date(now);
+      today.setHours(0, 0, 0, 0);
+
       const proposedDateTime = new Date(dto.proposedDate);
       proposedDateTime.setHours(0, 0, 0, 0);
-      
-      if (proposedDateTime < now) {
+
+      if (proposedDateTime < today) {
         throw new DomainException('Proposed appointment date cannot be in the past', {
           appointmentId: dto.appointmentId,
           proposedDate: dto.proposedDate,
@@ -147,7 +151,7 @@ export class ReviewConsultationRequestUseCase {
     // 2. Then to SCHEDULED (valid from APPROVED)
     let newConsultationStatus: ConsultationRequestStatus;
     let requiresTwoStepTransition = false;
-    
+
     switch (dto.action) {
       case 'approve':
         // If approving with proposed date/time, we need to go through APPROVED first
@@ -171,7 +175,7 @@ export class ReviewConsultationRequestUseCase {
           AppointmentStatus.CANCELLED,
         );
         await this.appointmentRepository.update(cancelledAppointment);
-        
+
         // Send notification
         const patient = await this.patientRepository.findById(appointment.getPatientId());
         if (patient) {
@@ -185,7 +189,7 @@ export class ReviewConsultationRequestUseCase {
             console.error('Failed to send rejection notification:', error);
           }
         }
-        
+
         // Record audit
         await this.auditService.recordEvent({
           userId,
@@ -194,9 +198,9 @@ export class ReviewConsultationRequestUseCase {
           model: 'ConsultationRequest',
           details: `Frontdesk rejected consultation request. Reason: ${dto.reviewNotes || 'N/A'}`,
         });
-        
+
         return ApplicationAppointmentMapper.toResponseDto(cancelledAppointment);
-      
+
       default:
         throw new DomainException(`Invalid review action: ${dto.action}`, {
           appointmentId: dto.appointmentId,
@@ -257,7 +261,7 @@ export class ReviewConsultationRequestUseCase {
       reviewedAt: now,
       reviewNotes: dto.reviewNotes ?? null,
     };
-    
+
     // Cast repository to access extended update method (optional consultation request parameter)
     (this.appointmentRepository as any).update(updatedAppointment, consultationRequestFields);
 
@@ -269,7 +273,7 @@ export class ReviewConsultationRequestUseCase {
 
     // Step 10: Send notifications (patient and doctor)
     const patient = await this.patientRepository.findById(appointment.getPatientId());
-    
+
     if (patient) {
       try {
         let subject: string;
@@ -338,7 +342,7 @@ export class ReviewConsultationRequestUseCase {
 
     // Step 13: Map domain entity to response DTO with consultation request fields
     const responseDto = ApplicationAppointmentMapper.toResponseDto(savedAppointment, updatedConsultationFields);
-    
+
     return responseDto;
   }
 }

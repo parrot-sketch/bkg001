@@ -27,13 +27,20 @@ import { format } from 'date-fns';
 import { CheckInDialog } from '@/components/frontdesk/CheckInDialog';
 import { FrontdeskAppointmentCard } from '@/components/frontdesk/FrontdeskAppointmentCard';
 
-export default function FrontdeskAppointmentsPage() {
+export default function FrontdeskAppointmentsPage({
+  searchParams,
+}: {
+  searchParams: { status?: string };
+}) {
   const { user, isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split('T')[0],
   );
-  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  // Initialize status filter from URL params if available, otherwise default to ALL
+  const [statusFilter, setStatusFilter] = useState<string>(
+    searchParams?.status || 'ALL'
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentResponseDto | null>(null);
   const [showCheckInDialog, setShowCheckInDialog] = useState(false);
@@ -85,10 +92,17 @@ export default function FrontdeskAppointmentsPage() {
     toast.success('Patient checked in successfully');
   };
 
+  // Appointments awaiting check-in: PENDING, SCHEDULED, CONFIRMED (patient can be checked in)
   const pendingCheckIns = appointments.filter(
-    (apt) => apt.status === AppointmentStatus.PENDING,
+    (apt) => apt.status === AppointmentStatus.PENDING ||
+             apt.status === AppointmentStatus.SCHEDULED ||
+             apt.status === AppointmentStatus.CONFIRMED,
   ).length;
-  const checkedIn = appointments.filter((apt) => apt.status === AppointmentStatus.SCHEDULED).length;
+  // Patients who have been checked in (waiting for consultation)
+  const checkedIn = appointments.filter(
+    (apt) => apt.status === AppointmentStatus.CHECKED_IN ||
+             apt.status === AppointmentStatus.READY_FOR_CONSULTATION,
+  ).length;
 
   if (!isAuthenticated || !user) {
     return (
@@ -133,8 +147,11 @@ export default function FrontdeskAppointmentsPage() {
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 <option value="ALL">All Statuses</option>
-                <option value={AppointmentStatus.PENDING}>Pending</option>
-                <option value={AppointmentStatus.SCHEDULED}>Checked In</option>
+                <option value={AppointmentStatus.PENDING}>Pending (Awaiting)</option>
+                <option value={AppointmentStatus.SCHEDULED}>Scheduled (Confirmed)</option>
+                <option value={AppointmentStatus.CHECKED_IN}>Checked In</option>
+                <option value={AppointmentStatus.READY_FOR_CONSULTATION}>Ready for Doctor</option>
+                <option value={AppointmentStatus.IN_CONSULTATION}>In Consultation</option>
                 <option value={AppointmentStatus.COMPLETED}>Completed</option>
                 <option value={AppointmentStatus.CANCELLED}>Cancelled</option>
               </select>
@@ -231,13 +248,20 @@ export default function FrontdeskAppointmentsPage() {
       {showCheckInDialog && selectedAppointment && (
         <CheckInDialog
           open={showCheckInDialog}
-          onClose={() => {
-            setShowCheckInDialog(false);
-            setSelectedAppointment(null);
+          onOpenChange={(isOpen) => {
+            setShowCheckInDialog(isOpen);
+            if (!isOpen) {
+              setSelectedAppointment(null);
+            }
+            // Refresh data on close if success occurred (handled internally via react-query cache invalidation)
+            // But if we want to ensure specific actions, we rely on the component's internal logic
+            // or pass a callback if the component supports it.
+            // Looking at CheckInDialog.tsx, it calls onOpenChange(false) on success.
+            // To ensure we refresh data, we should probably check if query invalidation happened.
+            // The CheckInDialog handles invalidation internally via useCheckIn hook.
+            // So just closing the dialog is sufficient here.
           }}
-          onSuccess={handleCheckInSuccess}
           appointment={selectedAppointment}
-          frontdeskUserId={user.id}
         />
       )}
     </div>

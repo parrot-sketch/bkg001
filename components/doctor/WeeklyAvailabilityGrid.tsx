@@ -12,11 +12,11 @@ import { Calendar, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import type { DoctorAvailabilityResponseDto } from '@/application/dtos/DoctorAvailabilityResponseDto';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import Link from 'next/link';
 
 interface WeeklyAvailabilityGridProps {
   availability: DoctorAvailabilityResponseDto | null;
   appointments: AppointmentResponseDto[];
-  onManageClick: () => void;
 }
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -25,7 +25,6 @@ const DAY_ABBREVIATIONS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 export function WeeklyAvailabilityGrid({
   availability,
   appointments,
-  onManageClick,
 }: WeeklyAvailabilityGridProps) {
   // Get appointments for each day of the week (next 7 days)
   const getAppointmentsForDay = (dayName: string) => {
@@ -62,10 +61,12 @@ export function WeeklyAvailabilityGrid({
             <CardTitle>Schedule Overview</CardTitle>
             <CardDescription>Weekly availability and booked appointments</CardDescription>
           </div>
-          <Button onClick={onManageClick} variant="outline" size="sm">
-            <Calendar className="mr-2 h-4 w-4" />
-            Manage
-          </Button>
+          <Link href="/doctor/schedule">
+            <Button variant="outline" size="sm">
+              <Calendar className="mr-2 h-4 w-4" />
+              Manage
+            </Button>
+          </Link>
         </div>
       </CardHeader>
       <CardContent>
@@ -78,11 +79,10 @@ export function WeeklyAvailabilityGrid({
             return (
               <div
                 key={dayName}
-                className={`p-3 rounded-lg border-2 ${
-                  isAvailable
-                    ? 'border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-800'
-                    : 'border-gray-200 bg-gray-50 dark:bg-gray-900/50 dark:border-gray-800'
-                }`}
+                className={`p-3 rounded-lg border-2 ${isAvailable
+                  ? 'border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-800'
+                  : 'border-gray-200 bg-gray-50 dark:bg-gray-900/50 dark:border-gray-800'
+                  }`}
               >
                 <div className="text-center space-y-2">
                   <p className="text-xs font-semibold text-muted-foreground uppercase">

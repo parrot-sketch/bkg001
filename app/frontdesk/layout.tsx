@@ -22,7 +22,7 @@ export default function FrontdeskLayout({ children }: FrontdeskLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-screen overflow-hidden bg-background">
       {/* Mobile Menu Button - REFACTORED: Better positioning to avoid overlaying content */}
       <button
         onClick={() => setSidebarOpen(true)}
@@ -36,7 +36,7 @@ export default function FrontdeskLayout({ children }: FrontdeskLayoutProps) {
       <FrontdeskSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Content Area - Using the shared ClinicalDashboardShell */}
-      <div className="flex-1 lg:ml-64 flex flex-col min-w-0">
+      <div className="flex-1 lg:ml-72 flex flex-col min-w-0 h-full overflow-hidden">
         <ClinicalDashboardShell>
           {children}
         </ClinicalDashboardShell>

@@ -13,13 +13,11 @@ import Link from 'next/link';
 
 interface ProfileActionsPanelProps {
   onEditProfile: () => void;
-  onManageSchedule: () => void;
   doctorId: string;
 }
 
 export function ProfileActionsPanel({
   onEditProfile,
-  onManageSchedule,
   doctorId,
 }: ProfileActionsPanelProps) {
   return (
@@ -37,15 +35,16 @@ export function ProfileActionsPanel({
           <Edit className="mr-2 h-4 w-4" />
           Edit Profile
         </Button>
-        <Button
-          onClick={onManageSchedule}
-          variant="outline"
-          className="w-full justify-start"
-          size="lg"
-        >
-          <Settings className="mr-2 h-4 w-4" />
-          Manage Schedule
-        </Button>
+        <Link href="/doctor/schedule" className="w-full">
+          <Button
+            variant="outline"
+            className="w-full justify-start"
+            size="lg"
+          >
+            <Settings className="mr-2 h-4 w-4" />
+            Manage Schedule
+          </Button>
+        </Link>
         <Link href="/doctor/appointments">
           <Button variant="outline" className="w-full justify-start" size="lg">
             <Calendar className="mr-2 h-4 w-4" />

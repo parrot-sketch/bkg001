@@ -26,19 +26,27 @@ import { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';
 import { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 
 interface AppointmentBookingFormProps {
+    mode?: 'full' | 'quick'; // NEW: Determines workflow behavior
     initialPatientId?: string;
     initialDoctorId?: string;
+    initialDate?: string; // ISO date string or YYYY-MM-DD
+    initialTime?: string; // HH:mm format
     initialType?: string;
     userRole?: 'doctor' | 'frontdesk';
+    lockDoctor?: boolean; // NEW: Prevents changing doctor selection
     onSuccess?: () => void;
     onCancel?: () => void;
 }
 
 export function AppointmentBookingForm({
+    mode = 'full',
     initialPatientId,
     initialDoctorId,
+    initialDate,
+    initialTime,
     initialType,
     userRole = 'frontdesk',
+    lockDoctor = false,
     onSuccess,
     onCancel
 }: AppointmentBookingFormProps) {
@@ -56,13 +64,26 @@ export function AppointmentBookingForm({
         selectedSlot: string | null; // HH:mm
         type: string;
         note: string;
-    }>({
-        patientId: initialPatientId || '',
-        doctorId: initialDoctorId || '',
-        appointmentDate: '',
-        selectedSlot: null,
-        type: initialType || '',
-        note: '',
+    }>(() => {
+        // Parse initialDate if it's an ISO string
+        let parsedDate = '';
+        if (initialDate) {
+            try {
+                const dateObj = new Date(initialDate);
+                parsedDate = dateObj.toISOString().split('T')[0]; // YYYY-MM-DD
+            } catch (e) {
+                parsedDate = initialDate; // Assume it's already YYYY-MM-DD
+            }
+        }
+
+        return {
+            patientId: initialPatientId || '',
+            doctorId: initialDoctorId || '',
+            appointmentDate: parsedDate,
+            selectedSlot: initialTime || null,
+            type: initialType || '',
+            note: '',
+        };
     });
 
     const [selectedPatient, setSelectedPatient] = useState<PatientResponseDto | null>(null);
@@ -114,14 +135,47 @@ export function AppointmentBookingForm({
         }
     }, [formData.doctorId, doctors]);
 
-    // Skip to step 3 if patient and doctor are pre-selected
+    // Smart step navigation based on pre-filled data and mode
     useEffect(() => {
-        if (initialPatientId && initialDoctorId && currentStep === 1) {
-            setCurrentStep(3);
-        } else if (initialPatientId && currentStep === 1) {
-            setCurrentStep(2);
+        if (currentStep !== 1) return; // Only run on initial load
+
+        // Quick mode with locked doctor: skip doctor selection step
+        if (mode === 'quick' && lockDoctor && initialDoctorId) {
+            if (initialPatientId) {
+                if (initialDate && initialTime) {
+                    setCurrentStep(4); // Skip to review
+                } else {
+                    setCurrentStep(3); // Skip to date/time
+                }
+            } else {
+                setCurrentStep(1); // Start at patient selection
+            }
+            return;
         }
-    }, [initialPatientId, initialDoctorId]);
+
+        // Full mode: traditional navigation
+        // If coming from a specific slot selection (doctor + date + time)
+        if (initialDoctorId && initialDate && initialTime) {
+            // Skip to patient selection, then to review
+            if (initialPatientId) {
+                setCurrentStep(4); // Skip to review
+            } else {
+                setCurrentStep(1); // Start at patient selection
+            }
+        }
+        // If doctor is pre-selected but no specific slot
+        else if (initialDoctorId) {
+            if (initialPatientId) {
+                setCurrentStep(3); // Skip to date/time selection
+            } else {
+                setCurrentStep(1); // Start at patient selection
+            }
+        }
+        // If only patient is pre-selected
+        else if (initialPatientId) {
+            setCurrentStep(2); // Skip to doctor selection
+        }
+    }, [initialPatientId, initialDoctorId, initialDate, initialTime, mode, lockDoctor]);
 
     const loadSpecificPatient = async (id: string) => {
         try {
@@ -165,12 +219,22 @@ export function AppointmentBookingForm({
 
     const handleNext = () => {
         if (canProceed()) {
-            setCurrentStep(prev => prev + 1);
+            // In quick mode with locked doctor, skip step 2
+            if (mode === 'quick' && lockDoctor && currentStep === 1) {
+                setCurrentStep(3); // Skip doctor selection
+            } else {
+                setCurrentStep(prev => prev + 1);
+            }
         }
     };
 
     const handleBack = () => {
-        setCurrentStep(prev => prev - 1);
+        // In quick mode with locked doctor, skip step 2 when going back
+        if (mode === 'quick' && lockDoctor && currentStep === 3) {
+            setCurrentStep(1); // Skip doctor selection
+        } else {
+            setCurrentStep(prev => prev - 1);
+        }
     };
 
     const canProceed = () => {
@@ -319,7 +383,28 @@ export function AppointmentBookingForm({
                     {/* STEP 2: DOCTOR */}
                     {currentStep === 2 && (
                         <div className="space-y-4">
-                            {loadingDoctors ? (
+                            {lockDoctor && selectedDoctor ? (
+                                <>
+                                    <div className="rounded-lg border-2 border-primary/20 bg-primary/5 p-4">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <Label className="text-sm font-medium text-muted-foreground">Selected Doctor (Locked)</Label>
+                                            <CheckCircle className="h-4 w-4 text-primary" />
+                                        </div>
+                                        <div className="flex gap-3 items-center">
+                                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold shrink-0">
+                                                {selectedDoctor.name.charAt(0)}
+                                            </div>
+                                            <div>
+                                                <h4 className="font-semibold">{selectedDoctor.name}</h4>
+                                                <p className="text-sm text-muted-foreground">{selectedDoctor.specialization}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        This doctor was pre-selected. To change doctors, please start a new booking.
+                                    </p>
+                                </>
+                            ) : loadingDoctors ? (
                                 <div>Loading doctors...</div>
                             ) : (
                                 <DoctorSelect

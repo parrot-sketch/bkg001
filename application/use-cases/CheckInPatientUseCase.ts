@@ -85,26 +85,30 @@ export class CheckInPatientUseCase {
     const appointmentDateTime = new Date(appointment.getAppointmentDate());
     const [hours, minutes] = appointment.getTime().split(':').map(Number);
     appointmentDateTime.setHours(hours, minutes, 0, 0);
-    
+
     const isLate = now > appointmentDateTime;
-    const lateByMinutes = isLate 
+    const lateByMinutes = isLate
       ? Math.floor((now.getTime() - appointmentDateTime.getTime()) / (1000 * 60))
       : null;
 
-    // Step 4: Update appointment status to SCHEDULED (patient has checked in)
-    // If already SCHEDULED, no change needed (idempotent)
+    // Step 4: Update appointment status to CHECKED_IN
+    // If already CHECKED_IN, checking idempotent behavior (just update notes/timestamp if needed)
     let updatedAppointment = appointment;
-    if (appointment.getStatus() === AppointmentStatus.PENDING) {
+    const currentStatus = appointment.getStatus();
+
+    if (currentStatus === AppointmentStatus.PENDING ||
+      currentStatus === AppointmentStatus.SCHEDULED ||
+      currentStatus === AppointmentStatus.CONFIRMED) {
+
       updatedAppointment = ApplicationAppointmentMapper.updateStatus(
         appointment,
-        AppointmentStatus.SCHEDULED,
+        AppointmentStatus.CHECKED_IN,
       );
 
       // Step 5: Save updated appointment status
       await this.appointmentRepository.update(updatedAppointment);
 
       // Step 6: Update check-in tracking fields directly via Prisma
-      // (These fields are not part of domain entity but needed for workflow)
       await db.appointment.update({
         where: { id: dto.appointmentId },
         data: {
@@ -112,10 +116,10 @@ export class CheckInPatientUseCase {
           checked_in_by: dto.userId,
           late_arrival: isLate,
           late_by_minutes: lateByMinutes,
-          // Clear no-show flags if patient eventually checked in
+          note: dto.notes ? `${appointment.getNote() || ''}\n[Check-in] ${dto.notes}`.trim() : undefined,
           no_show: false,
           no_show_at: null,
-        } as any, // Type assertion needed - Prisma types may not be fully up to date
+        } as any,
       });
 
       // Step 7: Record audit event
@@ -125,26 +129,16 @@ export class CheckInPatientUseCase {
         recordId: updatedAppointment.getId().toString(),
         action: 'UPDATE',
         model: 'Appointment',
-        details: `Patient checked in for appointment ${dto.appointmentId}${lateMessage}. Status changed from PENDING to SCHEDULED.`,
+        details: `Patient checked in for appointment ${dto.appointmentId}${lateMessage}. Status changed from ${currentStatus} to CHECKED_IN.${dto.notes ? ` Notes: ${dto.notes}` : ''}`,
       });
-    } else {
-      // Already SCHEDULED, but update check-in timestamp if not already set
-      const prismaAppointment = await db.appointment.findUnique({
-        where: { id: dto.appointmentId },
-        select: { checked_in_at: true },
-      });
-
-      if (!prismaAppointment?.checked_in_at) {
+    } else if (currentStatus === AppointmentStatus.CHECKED_IN) {
+      // Already checked in - just update notes if provided
+      if (dto.notes) {
         await db.appointment.update({
           where: { id: dto.appointmentId },
           data: {
-            checked_in_at: now,
-            checked_in_by: dto.userId,
-            late_arrival: isLate,
-            late_by_minutes: lateByMinutes,
-            no_show: false,
-            no_show_at: null,
-          } as any, // Type assertion needed - Prisma types may not be fully up to date
+            note: `${appointment.getNote() || ''}\n[Check-in Update] ${dto.notes}`.trim(),
+          } as any
         });
       }
 
@@ -155,6 +149,12 @@ export class CheckInPatientUseCase {
         action: 'VIEW',
         model: 'Appointment',
         details: `Patient check-in attempted for appointment ${dto.appointmentId} (already checked in).`,
+      });
+    } else {
+      // Other statuses (should have been caught by validation, but safe fallback)
+      throw new DomainException(`Cannot check in appointment with status ${currentStatus}`, {
+        appointmentId: dto.appointmentId,
+        status: currentStatus,
       });
     }
 

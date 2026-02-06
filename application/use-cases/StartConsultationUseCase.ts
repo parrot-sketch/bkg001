@@ -1,7 +1,7 @@
 import { IAppointmentRepository } from '../../domain/interfaces/repositories/IAppointmentRepository';
 import { IConsultationRepository } from '../../domain/interfaces/repositories/IConsultationRepository';
 import { IAuditService } from '../../domain/interfaces/services/IAuditService';
-import { AppointmentStatus } from '../../domain/enums/AppointmentStatus';
+import { AppointmentStatus, canStartConsultation } from '../../domain/enums/AppointmentStatus';
 import { ConsultationState } from '../../domain/enums/ConsultationState';
 import { StartConsultationDto } from '../dtos/StartConsultationDto';
 import { AppointmentResponseDto } from '../dtos/AppointmentResponseDto';
@@ -9,6 +9,7 @@ import { AppointmentMapper as ApplicationAppointmentMapper } from '../mappers/Ap
 import { Consultation } from '../../domain/entities/Consultation';
 import { ConsultationNotes } from '../../domain/value-objects/ConsultationNotes';
 import { DomainException } from '../../domain/exceptions/DomainException';
+import { AppointmentStateTransitionService } from '../../domain/services/AppointmentStateTransitionService';
 
 /**
  * Use Case: StartConsultationUseCase
@@ -16,20 +17,23 @@ import { DomainException } from '../../domain/exceptions/DomainException';
  * Orchestrates the start of a consultation between a doctor and patient.
  * 
  * Business Purpose:
- * - Marks consultation as started (appointment remains SCHEDULED or becomes SCHEDULED)
+ * - Transitions appointment from CHECKED_IN/READY_FOR_CONSULTATION → IN_CONSULTATION
+ * - Creates or updates consultation record
  * - Stores initial doctor notes
- * - Validates appointment can be started
  * - Records audit event for compliance
  * 
  * Clinical Workflow:
  * This use case is part of the consultation workflow:
- * 1. Check-in → CheckInPatientUseCase
- * 2. Start consultation → StartConsultationUseCase (this)
- * 3. Complete consultation → CompleteConsultationUseCase
+ * 1. Patient books → PENDING/SCHEDULED
+ * 2. Frontdesk checks in patient → CHECKED_IN (CheckInPatientUseCase)
+ * 3. (Optional) Nurse preps patient → READY_FOR_CONSULTATION
+ * 4. Doctor starts consultation → IN_CONSULTATION (this use case)
+ * 5. Doctor completes consultation → COMPLETED (CompleteConsultationUseCase)
  * 
  * Business Rules:
  * - Appointment must exist
- * - Appointment must be SCHEDULED or PENDING (cannot start cancelled/completed)
+ * - Appointment must be CHECKED_IN or READY_FOR_CONSULTATION
+ * - Patient must have been checked in before consultation can start
  * - Doctor ID must match appointment's doctor
  * - Consultation notes are optional but recommended
  * - Audit trail required for all consultation starts
@@ -80,31 +84,41 @@ export class StartConsultationUseCase {
       );
     }
 
-    // Step 3: Validate appointment can be started
-    if (appointment.getStatus() === AppointmentStatus.CANCELLED) {
-      throw new DomainException('Cannot start consultation for a cancelled appointment', {
+    // Step 3: Validate appointment can be started using state transition service
+    const currentStatus = appointment.getStatus();
+    const transitionResult = AppointmentStateTransitionService.onConsultationStart(currentStatus);
+    
+    if (!transitionResult.isValid) {
+      // Natural, clinical-friendly error messages
+      let message: string;
+      
+      if (currentStatus === AppointmentStatus.SCHEDULED || 
+          currentStatus === AppointmentStatus.PENDING ||
+          currentStatus === AppointmentStatus.CONFIRMED) {
+        message = 'Patient hasn\'t arrived yet';
+      } else if (currentStatus === AppointmentStatus.CANCELLED) {
+        message = 'This appointment was cancelled';
+      } else if (currentStatus === AppointmentStatus.COMPLETED) {
+        message = 'This consultation has already been completed';
+      } else if (currentStatus === AppointmentStatus.IN_CONSULTATION) {
+        message = 'Consultation already in progress';
+      } else if (currentStatus === AppointmentStatus.NO_SHOW) {
+        message = 'Patient was marked as no-show';
+      } else {
+        message = transitionResult.reason || 'Unable to start consultation';
+      }
+      
+      throw new DomainException(message, {
         appointmentId: dto.appointmentId,
-        status: appointment.getStatus(),
+        status: currentStatus,
       });
     }
 
-    if (appointment.getStatus() === AppointmentStatus.COMPLETED) {
-      throw new DomainException('Cannot start consultation for a completed appointment', {
-        appointmentId: dto.appointmentId,
-        status: appointment.getStatus(),
-      });
-    }
-
-    // Step 4: Update appointment with notes and ensure status is SCHEDULED
-    let updatedAppointment = appointment;
-
-    // If status is PENDING, update to SCHEDULED
-    if (appointment.getStatus() === AppointmentStatus.PENDING) {
-      updatedAppointment = ApplicationAppointmentMapper.updateStatus(
-        updatedAppointment,
-        AppointmentStatus.SCHEDULED,
-      );
-    }
+    // Step 4: Update appointment status to IN_CONSULTATION
+    let updatedAppointment = ApplicationAppointmentMapper.updateStatus(
+      appointment,
+      AppointmentStatus.IN_CONSULTATION,
+    );
 
     // Add doctor notes if provided
     if (dto.doctorNotes) {

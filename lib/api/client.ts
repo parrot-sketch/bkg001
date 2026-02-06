@@ -330,6 +330,17 @@ class ApiClient {
       method: 'DELETE',
     });
   }
+
+  /**
+   * PATCH request
+   */
+  async patch<T>(endpoint: string, body?: unknown, options?: RequestInit): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, {
+      ...options,
+      method: 'PATCH',
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  }
 }
 
 // Export singleton instance

@@ -178,7 +178,7 @@ export class SetDoctorAvailabilityUseCase {
 
     // Step 4a: Save working days
     const workingDays = dto.workingDays.map((wd) => ({
-      id: 0, // Will be assigned by repository
+      id: 'temp', // Will be ignored by repository during creation
       doctorId: dto.doctorId,
       day: wd.day,
       startTime: wd.startTime,

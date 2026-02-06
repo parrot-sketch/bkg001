@@ -149,7 +149,7 @@ export async function getPatientDashboardStatistics(id: string) {
         orderBy: { appointment_date: "desc" },
         take: 5, // Only fetch what's displayed
       }),
-      
+
       // Database aggregation: status counts (last 6 months)
       db.appointment.groupBy({
         by: ["status"],
@@ -159,7 +159,7 @@ export async function getPatientDashboardStatistics(id: string) {
         },
         _count: true,
       }),
-      
+
       // Total appointments count (last 6 months)
       db.appointment.count({
         where: {
@@ -167,7 +167,7 @@ export async function getPatientDashboardStatistics(id: string) {
           appointment_date: { gte: since },
         },
       }),
-      
+
       // Monthly data: fetch minimal data (date and status only) for current year
       db.appointment.findMany({
         where: {
@@ -200,7 +200,7 @@ export async function getPatientDashboardStatistics(id: string) {
 
     // Monthly data: lightweight aggregation by month (current year only, max ~365 records)
     const monthlyDataMap = new Map<number, { appointment: number; completed: number }>();
-    
+
     monthlyAppointments.forEach((apt) => {
       const monthIndex = getMonth(apt.appointment_date);
       const current = monthlyDataMap.get(monthIndex) || { appointment: 0, completed: 0 };
@@ -222,28 +222,63 @@ export async function getPatientDashboardStatistics(id: string) {
       };
     });
 
-    const today = daysOfWeek[new Date().getDay()];
+    const todayIndex = new Date().getDay(); // 0 (Sunday) to 6 (Saturday)
+    const todayName = daysOfWeek[todayIndex];
 
-    const availableDoctor = await db.doctor.findMany({
+    const doctorsWithAvailability = await db.doctor.findMany({
       select: {
         id: true,
         name: true,
         specialization: true,
         img: true,
-        working_days: true,
         colorCode: true,
+        // Fetch active templates and their slots for today
+        availability_templates: {
+          where: { is_active: true },
+          select: {
+            slots: {
+              where: { day_of_week: todayIndex },
+              select: {
+                day_of_week: true,
+                start_time: true,
+                end_time: true,
+              }
+            }
+          }
+        }
       },
       where: {
-        working_days: {
+        availability_templates: {
           some: {
-            day: {
-              equals: today,
-              mode: "insensitive",
-            },
-          },
-        },
+            is_active: true,
+            slots: {
+              some: {
+                day_of_week: todayIndex
+              }
+            }
+          }
+        }
       },
       take: 4,
+    });
+
+    // Map to legacy structure for frontend compatibility
+    const availableDoctor = doctorsWithAvailability.map(doc => {
+      // Flatten slots from the active template (should be only one active template)
+      const slots = doc.availability_templates.flatMap(t => t.slots);
+
+      return {
+        id: doc.id,
+        name: doc.name,
+        specialization: doc.specialization,
+        img: doc.img,
+        colorCode: doc.colorCode,
+        working_days: slots.map(slot => ({
+          day: daysOfWeek[slot.day_of_week], // Convert int back to string name
+          start_time: slot.start_time,
+          end_time: slot.end_time,
+        }))
+      };
     });
 
     return {
@@ -386,13 +421,13 @@ export async function getAllPatients({
     // Build WHERE clause conditionally - only add search if provided
     const whereClause = search && search.trim()
       ? {
-          OR: [
-            { first_name: { contains: search.trim(), mode: "insensitive" as const } },
-            { last_name: { contains: search.trim(), mode: "insensitive" as const } },
-            { phone: { contains: search.trim(), mode: "insensitive" as const } },
-            { email: { contains: search.trim(), mode: "insensitive" as const } },
-          ],
-        }
+        OR: [
+          { first_name: { contains: search.trim(), mode: "insensitive" as const } },
+          { last_name: { contains: search.trim(), mode: "insensitive" as const } },
+          { phone: { contains: search.trim(), mode: "insensitive" as const } },
+          { email: { contains: search.trim(), mode: "insensitive" as const } },
+        ],
+      }
       : {};
 
     // Optimized query with select to fetch only needed fields
@@ -419,9 +454,9 @@ export async function getAllPatients({
             appointments: {
               select: {
                 medical_records: {
-                  select: { 
-                    created_at: true, 
-                    treatment_plan: true 
+                  select: {
+                    created_at: true,
+                    treatment_plan: true
                   },
                   orderBy: { created_at: "desc" as const },
                   take: 1,

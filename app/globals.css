@@ -4,10 +4,19 @@
 
 html {
   scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 body {
-  font-family: var(--font-inter), system-ui, sans-serif;
+  font-family: var(--font-inter), var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+/* Smooth overscroll and momentum scrolling */
+* {
+  -webkit-overflow-scrolling: touch;
 }
 
 @layer base {
@@ -122,7 +131,7 @@ body {
   h4,
   h5,
   h6 {
-    font-family: var(--font-playfair), serif;
+    font-family: var(--font-playfair), var(--font-geist-sans), Georgia, Cambria, 'Times New Roman', serif;
     @apply font-semibold;
   }
 }
@@ -218,14 +227,14 @@ body {
   animation: loading-bar 1.5s ease-in-out infinite;
 }
 
-/* Custom scrollbar - elegant, minimal */
+/* Custom scrollbar - refined, minimal */
 *::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 *::-webkit-scrollbar-track {
-  background: #f5f5f5;
+  background: transparent;
 }
 
 /* Mobile input fixes - ensure inputs are interactive on mobile */
@@ -255,17 +264,17 @@ select:focus {
 }
 
 *::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 10px;
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 999px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: rgba(148, 163, 184, 0.6);
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 #f5f5f5;
+  scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
 }
 
 @layer utilities {

@@ -10,6 +10,16 @@ export interface UpdateDoctorProfileDto {
   readonly doctorId: string;
 
   /**
+   * Optional specialization
+   */
+  readonly specialization?: string;
+
+  /**
+   * Optional title (Dr., Prof., etc.)
+   */
+  readonly title?: string;
+
+  /**
    * Optional bio
    */
   readonly bio?: string;
@@ -38,4 +48,19 @@ export interface UpdateDoctorProfileDto {
    * Optional clinic location
    */
   readonly clinicLocation?: string;
+
+  /**
+   * Optional years of experience
+   */
+  readonly yearsOfExperience?: number;
+
+  /**
+   * Optional consultation fee
+   */
+  readonly consultationFee?: number;
+
+  /**
+   * Optional languages spoken
+   */
+  readonly languages?: string;
 }

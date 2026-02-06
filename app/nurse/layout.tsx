@@ -1,17 +1,18 @@
+'use client';
+
 /**
  * Nurse Dashboard Layout
  * 
  * Main layout for all nurse dashboard pages.
- * Includes sidebar navigation and content area.
+ * Uses UnifiedSidebar via NurseSidebar and ClinicalDashboardShell.
  * Mobile-responsive with sidebar toggle functionality.
  */
-
-'use client';
 
 import { useState } from 'react';
 import { NurseSidebar } from '@/components/nurse/NurseSidebar';
 import { Menu } from 'lucide-react';
 import { ReactNode } from 'react';
+import { ClinicalDashboardShell } from '@/components/layouts/ClinicalDashboardShell';
 
 interface NurseLayoutProps {
   children: ReactNode;
@@ -21,25 +22,25 @@ export default function NurseLayout({ children }: NurseLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex min-h-screen bg-background">
       {/* Mobile Menu Button */}
       <button
         onClick={() => setSidebarOpen(true)}
-        className="fixed top-4 left-4 z-50 lg:hidden p-2 rounded-lg bg-card border border-border shadow-md hover:bg-muted transition-colors"
+        className="fixed top-4 left-4 z-50 lg:hidden p-2.5 rounded-lg bg-card border border-border shadow-lg hover:bg-muted transition-colors"
         aria-label="Open sidebar"
       >
         <Menu className="h-5 w-5 text-foreground" />
       </button>
 
-      {/* Sidebar - Handles its own overlay and positioning */}
+      {/* Sidebar - Fixed position */}
       <NurseSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      {/* Main Content - Offset by sidebar width on desktop (256px = w-64) */}
-      <main className="flex-1 overflow-y-auto lg:ml-64 w-full">
-        <div className="container mx-auto px-4 py-8 lg:px-8">
+      {/* Content Area - Using the shared ClinicalDashboardShell */}
+      <div className="flex-1 lg:ml-72 flex flex-col min-w-0">
+        <ClinicalDashboardShell>
           {children}
-        </div>
-      </main>
+        </ClinicalDashboardShell>
+      </div>
     </div>
   );
 }

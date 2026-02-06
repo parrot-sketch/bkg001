@@ -49,10 +49,14 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 import { ProfileImage } from '@/components/profile-image';
 import { StartConsultationDialog } from '@/components/doctor/StartConsultationDialog';
+import { usePatientConsultationHistory } from '@/hooks/consultation/usePatientConsultationHistory';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { CaseReadinessStatus, getCaseReadinessStatusLabel } from '@/domain/enums/CaseReadinessStatus';
+import { ConsultationState } from '@/domain/enums/ConsultationState';
+import { ConsultationOutcomeType, getConsultationOutcomeTypeLabel } from '@/domain/enums/ConsultationOutcomeType';
+import { PatientDecision } from '@/domain/enums/PatientDecision';
 
 export default function DoctorPatientProfilePage() {
   const params = useParams();
@@ -72,6 +76,12 @@ export default function DoctorPatientProfilePage() {
   const [loadingCasePlans, setLoadingCasePlans] = useState(false);
   const [startConsultationOpen, setStartConsultationOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentResponseDto | null>(null);
+
+  // Fetch consultation history for this patient
+  const {
+    data: consultationHistory,
+    isLoading: loadingConsultations,
+  } = usePatientConsultationHistory(patientId || null);
 
   useEffect(() => {
     // Wait for auth to finish loading before checking
@@ -433,10 +443,11 @@ export default function DoctorPatientProfilePage() {
         {/* Right Column - Details */}
         <div className="lg:col-span-2 space-y-6">
           <Tabs defaultValue="appointments" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="appointments">Appointments</TabsTrigger>
-              <TabsTrigger value="medical">Medical History</TabsTrigger>
-              <TabsTrigger value="cases">Cases & Procedures</TabsTrigger>
+              <TabsTrigger value="consultations">Consultations</TabsTrigger>
+              <TabsTrigger value="medical">Medical</TabsTrigger>
+              <TabsTrigger value="cases">Cases</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
             </TabsList>
 
@@ -506,6 +517,148 @@ export default function DoctorPatientProfilePage() {
                             <Link href={`/doctor/cases/${apt.id}`}>
                               <Button variant="outline" size="sm">
                                 <Eye className="h-4 w-4" />
+                              </Button>
+                            </Link>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="consultations" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Consultation History</CardTitle>
+                  <CardDescription>
+                    Past consultations, outcomes, and clinical notes
+                    {consultationHistory?.summary && (
+                      <span className="ml-2 text-xs">
+                        ({consultationHistory.summary.completed} completed, {consultationHistory.summary.proceduresRecommended} procedures recommended)
+                      </span>
+                    )}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {loadingConsultations ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                      <p className="mt-4 text-sm text-muted-foreground">Loading consultation history...</p>
+                    </div>
+                  ) : !consultationHistory || consultationHistory.consultations.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Stethoscope className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-sm text-muted-foreground">No consultations found</p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Consultation records will appear here after appointments are completed.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {consultationHistory.consultations.map((consultation) => (
+                        <div
+                          key={consultation.id}
+                          className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                <Stethoscope className="h-5 w-5 text-primary" />
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold">
+                                    {format(new Date(consultation.appointmentDate), 'MMMM dd, yyyy')}
+                                  </span>
+                                  <span className="text-sm text-muted-foreground">at {consultation.appointmentTime}</span>
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                  Dr. {consultation.doctor.name} • {consultation.doctor.specialization}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                variant={
+                                  consultation.state === ConsultationState.COMPLETED
+                                    ? 'default'
+                                    : consultation.state === ConsultationState.IN_PROGRESS
+                                      ? 'secondary'
+                                      : 'outline'
+                                }
+                              >
+                                {consultation.state}
+                              </Badge>
+                              {consultation.outcomeType && (
+                                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                                  {getConsultationOutcomeTypeLabel(consultation.outcomeType)}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Outcome and Decision */}
+                          {consultation.outcomeType === ConsultationOutcomeType.PROCEDURE_RECOMMENDED && (
+                            <div className="mt-3 p-3 bg-muted/50 rounded-lg">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium">Patient Decision</span>
+                                <Badge
+                                  variant={
+                                    consultation.patientDecision === PatientDecision.YES
+                                      ? 'default'
+                                      : consultation.patientDecision === PatientDecision.NO
+                                        ? 'destructive'
+                                        : 'secondary'
+                                  }
+                                >
+                                  {consultation.patientDecision === PatientDecision.YES
+                                    ? 'Proceeding'
+                                    : consultation.patientDecision === PatientDecision.NO
+                                      ? 'Declined'
+                                      : 'Pending Decision'}
+                                </Badge>
+                              </div>
+                              {consultation.hasCasePlan && (
+                                <Link href={`/doctor/cases/${consultation.appointmentId}`}>
+                                  <Button variant="link" size="sm" className="p-0 h-auto mt-2">
+                                    <Eye className="h-3 w-3 mr-1" />
+                                    View Case Plan
+                                  </Button>
+                                </Link>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Notes Summary */}
+                          {consultation.notesSummary && (
+                            <p className="text-sm text-muted-foreground mt-3 line-clamp-2">
+                              {consultation.notesSummary}
+                            </p>
+                          )}
+                          
+                          {/* Quick Stats */}
+                          <div className="flex items-center gap-4 mt-3 pt-3 border-t text-xs text-muted-foreground">
+                            {consultation.durationMinutes && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {consultation.durationMinutes} min
+                              </span>
+                            )}
+                            {consultation.photoCount > 0 && (
+                              <span className="flex items-center gap-1">
+                                📷 {consultation.photoCount} photos
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Actions */}
+                          <div className="flex items-center gap-2 mt-3">
+                            <Link href={`/doctor/consultations/${consultation.appointmentId}/session`}>
+                              <Button variant="outline" size="sm">
+                                <Eye className="h-4 w-4 mr-1" />
+                                View Details
                               </Button>
                             </Link>
                           </div>

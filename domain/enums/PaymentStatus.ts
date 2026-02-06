@@ -1,32 +1,46 @@
 /**
- * Domain Enum: PaymentStatus
+ * Payment Status Enum
  * 
- * Represents the payment status of a bill.
- * This is a pure TypeScript enum with no framework dependencies.
+ * Represents the lifecycle states of a payment/bill.
+ * 
+ * Workflow:
+ * - UNPAID: Bill created but no payment received
+ * - PART: Partial payment received
+ * - PAID: Full payment received
+ * 
+ * Business Rules:
+ * - Consultation completion creates bill with UNPAID status
+ * - Frontdesk collects payment and updates status
+ * - Receipt generated only after PAID status
  */
 export enum PaymentStatus {
-  PAID = 'PAID',
   UNPAID = 'UNPAID',
-  PART = 'PART', // Partially paid
+  PART = 'PART',
+  PAID = 'PAID',
 }
 
 /**
- * Type guard to check if a string is a valid PaymentStatus
+ * Helper: Get display label for payment status
  */
-export function isPaymentStatus(value: string): value is PaymentStatus {
-  return Object.values(PaymentStatus).includes(value as PaymentStatus);
+export function getPaymentStatusLabel(status: PaymentStatus): string {
+  const labels: Record<PaymentStatus, string> = {
+    [PaymentStatus.UNPAID]: 'Unpaid',
+    [PaymentStatus.PART]: 'Partial',
+    [PaymentStatus.PAID]: 'Paid',
+  };
+  return labels[status] || status;
 }
 
 /**
- * Check if a payment status indicates full payment
+ * Check if payment is complete
  */
-export function isFullyPaid(status: PaymentStatus): boolean {
+export function isPaymentComplete(status: PaymentStatus): boolean {
   return status === PaymentStatus.PAID;
 }
 
 /**
- * Check if a payment status indicates outstanding balance
+ * Check if payment has any amount received
  */
-export function hasOutstandingBalance(status: PaymentStatus): boolean {
-  return status === PaymentStatus.UNPAID || status === PaymentStatus.PART;
+export function hasPartialPayment(status: PaymentStatus): boolean {
+  return status === PaymentStatus.PART || status === PaymentStatus.PAID;
 }

@@ -49,6 +49,9 @@ enum AppointmentStatus {
   PENDING_DOCTOR_CONFIRMATION
   CONFIRMED
   SCHEDULED
+  CHECKED_IN
+  READY_FOR_CONSULTATION
+  IN_CONSULTATION
   CANCELLED
   COMPLETED
   NO_SHOW
@@ -367,6 +370,7 @@ model Doctor {
   title                     String? // Dr., Prof., etc.
   name                      String // Full display name
   specialization            String
+  slug                      String? @unique // SEO-friendly URL slug (e.g., "dr-john-doe")
   license_number            String  @unique
   phone                     String
   address                   String
@@ -381,6 +385,11 @@ model Doctor {
   education                 String? @db.Text // Educational background and qualifications
   focus_areas               String? @db.Text // Areas of expertise/focus
   professional_affiliations String? @db.Text // Professional memberships and affiliations
+  
+  // Professional Profile Fields
+  years_of_experience       Int?    @default(0)
+  consultation_fee          Float?  @default(0.0)
+  languages                 String? // Comma-separated list of languages spoken
 
   // Onboarding State Machine (for non-self-registering doctors)
   onboarding_status    DoctorOnboardingStatus @default(INVITED)
@@ -391,7 +400,7 @@ model Doctor {
 
   // Relations
   user                     User                   @relation("DoctorUser", fields: [user_id], references: [id], onDelete: Cascade)
-  working_days             WorkingDay[]
+
   appointments             Appointment[]
   ratings                  Rating[]
   diagnoses                Diagnosis[]            @relation("DiagnosisDoctor")
@@ -403,7 +412,7 @@ model Doctor {
   case_plans               CasePlan[]
   surgical_outcomes        SurgicalOutcome[]
   availability_overrides   AvailabilityOverride[]
-  availability_breaks      AvailabilityBreak[]
+  availability_templates   AvailabilityTemplate[]
   schedule_blocks          ScheduleBlock[]
   primary_surgical_cases   SurgicalCase[]         // New Architecture
   slot_configuration       SlotConfiguration?
@@ -445,24 +454,7 @@ model DoctorInviteToken {
   @@index([invited_by])
 }
 
-model WorkingDay {
-  id           Int     @id @default(autoincrement())
-  doctor_id    String
-  day          String // Monday, Tuesday, etc.
-  start_time   String // HH:mm format (backward compatibility: used if no sessions exist)
-  end_time     String // HH:mm format (backward compatibility: used if no sessions exist)
-  is_available Boolean @default(true)
 
-  doctor   Doctor              @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
-  breaks   AvailabilityBreak[] @relation("WorkingDayBreaks")
-  sessions ScheduleSession[] // Multiple sessions per day (enterprise feature)
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  @@unique([doctor_id, day])
-  @@index([doctor_id])
-}
 
 // ============================================================================
 // AVAILABILITY MANAGEMENT
@@ -489,45 +481,38 @@ model AvailabilityOverride {
   @@index([doctor_id, start_date, end_date])
 }
 
-// Recurring breaks (lunch, admin time, etc.)
-model AvailabilityBreak {
-  id             String  @id @default(uuid())
-  doctor_id      String
-  working_day_id Int? // If set, break applies to specific working day
-  day_of_week    String? // If working_day_id is null, applies to this day of week (e.g., "Monday")
-  start_time     String // HH:mm format
-  end_time       String // HH:mm format
-  reason         String? // "Lunch", "Break", "Admin Time", etc.
+model AvailabilityTemplate {
+  id        String   @id @default(uuid())
+  doctor_id String
+  name      String   // e.g., "Standard Week", "Summer Schedule"
+  is_active Boolean  @default(false)
+  
+  slots     AvailabilitySlot[]
 
-  doctor      Doctor      @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
-  working_day WorkingDay? @relation("WorkingDayBreaks", fields: [working_day_id], references: [id], onDelete: Cascade)
-
+  doctor    Doctor   @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
+  
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
-
+  
   @@index([doctor_id])
-  @@index([working_day_id])
-  @@index([doctor_id, day_of_week])
 }
 
-// Multiple time sessions per working day (enterprise scheduling)
-// Example: Monday can have 08:00-11:00 (Clinic) and 14:00-17:00 (Consultations)
-model ScheduleSession {
-  id             String  @id @default(uuid())
-  working_day_id Int // Links to WorkingDay
-  start_time     String // HH:mm format
-  end_time       String // HH:mm format
-  session_type   String? // "Clinic", "Ward Rounds", "Teleconsult", "Surgery", etc.
-  max_patients   Int? // Optional: maximum appointments per session
-  notes          String? // Optional notes about this session
+model AvailabilitySlot {
+  id          String   @id @default(uuid())
+  template_id String
+  day_of_week Int      // 0=Sunday, 1=Monday, ..., 6=Saturday
+  start_time  String   // HH:mm format
+  end_time    String   // HH:mm format
+  slot_type   String?  @default("CLINIC") // "CLINIC", "SURGERY", "TELEHEALTH"
+  max_patients Int?    // Capacity planning
 
-  working_day WorkingDay @relation(fields: [working_day_id], references: [id], onDelete: Cascade)
-
+  template    AvailabilityTemplate @relation(fields: [template_id], references: [id], onDelete: Cascade)
+  
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  @@index([working_day_id])
-  @@index([start_time, end_time])
+  @@index([template_id])
+  @@index([template_id, day_of_week])
 }
 
 // Explicit blocked periods (leave, surgery, admin, emergency, etc.)
@@ -588,6 +573,11 @@ model Appointment {
   late_arrival     Boolean           @default(false)
   late_by_minutes  Int? // Minutes late if late_arrival is true
 
+  // Consultation tracking (Phase 1: Check-in workflow)
+  consultation_started_at DateTime? // When doctor started consultation
+  consultation_ended_at   DateTime? // When consultation was completed
+  consultation_duration   Int? // Duration in minutes
+
   // PHASE 1: Temporal Tracking (NEW)
   scheduled_at         DateTime? // Full datetime (canonical, replaces appointment_date + time)
   status_changed_at    DateTime  @default(now()) // When status was last changed
@@ -603,6 +593,12 @@ model Appointment {
   no_show_notes                 String?
   rescheduled_to_appointment_id Int? // If rescheduled after no-show
   marked_no_show_at             DateTime? // PHASE 1: When marked as no-show
+
+  // CONCURRENCY & LOCKING (Enterprise Scheduling)
+  version      Int       @default(1) // For optimistic concurrency control
+  locked_at    DateTime? // Soft lock during booking process
+  locked_by    String?   // User ID who holds the lock
+  resource_id  String?   // Optional: Link to Room/Equipment if applicable directly
 
   // Consultation Request Workflow (nullable for backward compatibility)
   consultation_request_status ConsultationRequestStatus?
@@ -1536,6 +1532,7 @@ model TheaterBooking {
   // Locking
   locked_by       String?              // User ID who holds the lock
   locked_at       DateTime?
+  version         Int                  @default(1) // Optimistic locking
   
   // Relations
   theater         Theater              @relation(fields: [theater_id], references: [id], onDelete: Cascade)

@@ -4,23 +4,40 @@
  * Represents the status of an appointment in the healthcare system.
  * This is a pure TypeScript enum with no framework dependencies.
  * 
- * Status Flow:
- * - PENDING: Initial state, waiting for doctor confirmation
- * - PENDING_DOCTOR_CONFIRMATION: Frontdesk scheduled, awaiting doctor confirmation
- * - CONFIRMED: Patient confirmed appointment (deprecated, use SCHEDULED)
- * - SCHEDULED: Doctor confirmed OR appointment is officially scheduled
- * - COMPLETED: Appointment conducted and finished
- * - CANCELLED: Appointment cancelled
- * - NO_SHOW: Patient did not arrive
+ * === CONSULTATION WORKFLOW ===
+ * 
+ * PENDING → SCHEDULED → CHECKED_IN → IN_CONSULTATION → COMPLETED
+ * 
+ * 1. PENDING: Patient booked, waiting for confirmation
+ * 2. SCHEDULED: Appointment confirmed (by doctor or system)
+ * 3. CHECKED_IN: Patient arrived, frontdesk checked them in (REQUIRED before consultation)
+ * 4. IN_CONSULTATION: Doctor is actively seeing the patient
+ * 5. COMPLETED: Consultation finished
+ * 
+ * Key Rule: Patient MUST be checked in before doctor can start consultation.
+ * 
+ * === SURGERY WORKFLOW (Future) ===
+ * 
+ * After consultation with PROCEDURE_RECOMMENDED outcome:
+ * - CasePlan created → Surgery readiness checks apply there
+ * - READY_FOR_CONSULTATION status reserved for surgery prep workflows
  */
 export enum AppointmentStatus {
+  // Booking phase
   PENDING = 'PENDING',
-  PENDING_DOCTOR_CONFIRMATION = 'PENDING_DOCTOR_CONFIRMATION', // NEW: Awaiting doctor confirmation
-  CONFIRMED = 'CONFIRMED', // Patient confirmed appointment
+  PENDING_DOCTOR_CONFIRMATION = 'PENDING_DOCTOR_CONFIRMATION',
+  CONFIRMED = 'CONFIRMED', // Deprecated, use SCHEDULED
   SCHEDULED = 'SCHEDULED',
+
+  // Day-of-appointment workflow
+  CHECKED_IN = 'CHECKED_IN',                          // Patient arrived and checked in by frontdesk
+  READY_FOR_CONSULTATION = 'READY_FOR_CONSULTATION',  // Optional: Nurse prep complete (reserved for surgery workflows)
+  IN_CONSULTATION = 'IN_CONSULTATION',                // Doctor actively seeing patient
+
+  // Terminal states
   CANCELLED = 'CANCELLED',
   COMPLETED = 'COMPLETED',
-  NO_SHOW = 'NO_SHOW', // Patient did not arrive
+  NO_SHOW = 'NO_SHOW',
 }
 
 /**
@@ -34,48 +51,52 @@ export function isAppointmentStatus(value: string): value is AppointmentStatus {
  * Check if an appointment status allows modifications
  */
 export function isAppointmentModifiable(status: AppointmentStatus): boolean {
-  return status === AppointmentStatus.PENDING || 
-         status === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION ||
-         status === AppointmentStatus.SCHEDULED;
+  return status === AppointmentStatus.PENDING ||
+    status === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION ||
+    status === AppointmentStatus.SCHEDULED;
 }
 
 /**
  * Check if an appointment status is final (cannot be changed)
  */
 export function isAppointmentFinal(status: AppointmentStatus): boolean {
-  return status === AppointmentStatus.CANCELLED || 
-         status === AppointmentStatus.COMPLETED ||
-         status === AppointmentStatus.NO_SHOW;
+  return status === AppointmentStatus.CANCELLED ||
+    status === AppointmentStatus.COMPLETED ||
+    status === AppointmentStatus.NO_SHOW;
 }
 
 /**
  * Check if appointment can be checked in
  */
 export function canCheckIn(status: AppointmentStatus): boolean {
-  return status === AppointmentStatus.PENDING || 
-         status === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION ||
-         status === AppointmentStatus.SCHEDULED ||
-         status === AppointmentStatus.CONFIRMED;
+  return status === AppointmentStatus.PENDING ||
+    status === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION ||
+    status === AppointmentStatus.SCHEDULED ||
+    status === AppointmentStatus.CONFIRMED;
 }
 
 /**
- * Check if appointment can start consultation
+ * Check if appointment can start consultation.
  * 
- * BUGFIX (Phase 3): Only SCHEDULED appointments can start consultation.
- * PENDING appointments have not yet been confirmed and should not start.
+ * IMPORTANT: Patient must be checked in before consultation can start.
+ * This enforces the clinical workflow where frontdesk confirms patient arrival.
+ * 
+ * Valid states: CHECKED_IN, READY_FOR_CONSULTATION (nurse prep complete)
+ * Invalid states: SCHEDULED (patient hasn't arrived yet)
  */
 export function canStartConsultation(status: AppointmentStatus): boolean {
-  return status === AppointmentStatus.SCHEDULED;
+  return status === AppointmentStatus.CHECKED_IN ||
+    status === AppointmentStatus.READY_FOR_CONSULTATION;
 }
 
 /**
  * Check if appointment can be marked as no-show
  */
 export function canMarkNoShow(status: AppointmentStatus): boolean {
-  return status === AppointmentStatus.PENDING || 
-         status === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION ||
-         status === AppointmentStatus.SCHEDULED ||
-         status === AppointmentStatus.CONFIRMED;
+  return status === AppointmentStatus.PENDING ||
+    status === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION ||
+    status === AppointmentStatus.SCHEDULED ||
+    status === AppointmentStatus.CONFIRMED;
 }
 
 /**
@@ -89,6 +110,6 @@ export function isPendingDoctorConfirmation(status: AppointmentStatus): boolean 
  * Check if appointment is confirmed/scheduled (not pending)
  */
 export function isConfirmed(status: AppointmentStatus): boolean {
-  return status === AppointmentStatus.SCHEDULED || 
-         status === AppointmentStatus.CONFIRMED;
+  return status === AppointmentStatus.SCHEDULED ||
+    status === AppointmentStatus.CONFIRMED;
 }

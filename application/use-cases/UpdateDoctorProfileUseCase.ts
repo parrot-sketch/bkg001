@@ -39,12 +39,17 @@ export class UpdateDoctorProfileUseCase {
     // Step 2: Prepare update data (only include fields that are provided)
     const updateData: any = {};
 
+    if (dto.specialization !== undefined) updateData.specialization = dto.specialization;
+    if (dto.title !== undefined) updateData.title = dto.title || null;
     if (dto.bio !== undefined) updateData.bio = dto.bio || null;
     if (dto.education !== undefined) updateData.education = dto.education || null;
     if (dto.focusAreas !== undefined) updateData.focus_areas = dto.focusAreas || null;
     if (dto.professionalAffiliations !== undefined) updateData.professional_affiliations = dto.professionalAffiliations || null;
     if (dto.profileImage !== undefined) updateData.profile_image = dto.profileImage || null;
     if (dto.clinicLocation !== undefined) updateData.clinic_location = dto.clinicLocation || null;
+    if (dto.yearsOfExperience !== undefined) updateData.years_of_experience = dto.yearsOfExperience;
+    if (dto.consultationFee !== undefined) updateData.consultation_fee = dto.consultationFee;
+    if (dto.languages !== undefined) updateData.languages = dto.languages || null;
 
     // Additional Fields (Logic can be extended here)
     // E.g. Check license uniqueness if license is being updated
@@ -76,6 +81,7 @@ export class UpdateDoctorProfileUseCase {
       title: doctor.title ?? undefined,
       name: doctor.name,
       specialization: doctor.specialization,
+      slug: doctor.slug ?? undefined,
       licenseNumber: doctor.license_number,
       phone: doctor.phone,
       address: doctor.address,
@@ -87,6 +93,9 @@ export class UpdateDoctorProfileUseCase {
       education: doctor.education ?? undefined,
       focusAreas: doctor.focus_areas ?? undefined,
       professionalAffiliations: doctor.professional_affiliations ?? undefined,
+      yearsOfExperience: doctor.years_of_experience ?? undefined,
+      consultationFee: doctor.consultation_fee ?? undefined,
+      languages: doctor.languages ?? undefined,
       createdAt: doctor.created_at,
       updatedAt: doctor.updated_at,
     };

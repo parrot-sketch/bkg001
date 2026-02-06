@@ -14,4 +14,9 @@ export interface CheckInPatientDto {
    * User ID performing the check-in (for audit purposes)
    */
   readonly userId: string;
+
+  /**
+   * Optional notes from frontdesk (e.g. "Patient complaining of pain")
+   */
+  readonly notes?: string;
 }

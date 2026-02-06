@@ -16,8 +16,10 @@
  */
 
 import { useAuth } from '@/hooks/patient/useAuth';
-import { useDoctorTodayAppointments, useDoctorUpcomingAppointments } from '@/hooks/doctor/useDoctorDashboard';
+import { useDoctorTodayAppointments, useDoctorUpcomingAppointments, useDoctorPendingConfirmations } from '@/hooks/doctor/useDoctorDashboard';
+import { useStartConsultation, useConfirmAppointment } from '@/hooks/doctor/useConsultation';
 import { doctorApi } from '@/lib/api/doctor';
+import { PendingConfirmationsSection } from '@/components/doctor/PendingConfirmationsSection';
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,11 +32,13 @@ import {
   Activity,
   CheckCircle,
   User,
-  ExternalLink
+  ExternalLink,
+  AlertCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { DoctorAppointmentCard } from '@/components/doctor/DoctorAppointmentCard';
+import { WaitingQueue } from '@/components/doctor/WaitingQueue';
 import { TheatreScheduleView } from '@/components/doctor/TheatreScheduleView';
 import { PostOpDashboard } from '@/components/doctor/PostOpDashboard';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
@@ -46,6 +50,8 @@ export default function DoctorDashboardPage() {
   const [theatreCases, setTheatreCases] = useState<any[]>([]);
   const [loadingTheatre, setLoadingTheatre] = useState(false);
   const router = useRouter();
+  const { mutateAsync: startConsultation } = useStartConsultation();
+  const { mutateAsync: confirmAppointment } = useConfirmAppointment();
 
   // REFACTORED: Hook integration for real-time schedule
   const {
@@ -57,6 +63,12 @@ export default function DoctorDashboardPage() {
     data: upcomingAppointments = [],
     isLoading: loadingUpcoming
   } = useDoctorUpcomingAppointments(user?.id, isAuthenticated && !!user);
+
+  // Pending confirmations - appointments booked by frontdesk awaiting doctor approval
+  const {
+    data: pendingConfirmations = [],
+    isLoading: loadingPendingConfirmations
+  } = useDoctorPendingConfirmations(user?.id, isAuthenticated && !!user);
 
   const loading = loadingToday || loadingUpcoming;
 
@@ -140,8 +152,31 @@ export default function DoctorDashboardPage() {
     }
   }, [isAuthenticated, user]);
 
-  const handleStartConsultation = (appointment: any) => {
-    router.push(`/doctor/consultations/${appointment.id}/session`);
+  const handleStartConsultation = async (appointment: any) => {
+    try {
+      await startConsultation(appointment.id);
+      router.push(`/doctor/consultations/${appointment.id}/session`);
+    } catch (error) {
+      console.error('Failed to start consultation', error);
+      // Fallback to navigation if start fails (maybe already started?)
+      router.push(`/doctor/consultations/${appointment.id}/session`);
+    }
+  };
+
+  const handleConfirmAppointment = async (appointmentId: number, notes?: string) => {
+    await confirmAppointment({
+      appointmentId,
+      action: 'confirm',
+      notes
+    });
+  };
+
+  const handleRejectAppointment = async (appointmentId: number, reason: string) => {
+    await confirmAppointment({
+      appointmentId,
+      action: 'reject',
+      rejectionReason: reason
+    });
   };
 
   if (isLoading) {
@@ -182,36 +217,58 @@ export default function DoctorDashboardPage() {
 
   const upcomingCount = upcomingAppointments.length;
   const todayCount = todayAppointments.length;
-  const checkedInCount = todayAppointments.filter(a => a.status === 'SCHEDULED' || a.status === 'CONFIRMED').length;
+  const checkedInCount = todayAppointments.filter(a => a.status === 'CHECKED_IN' || a.status === 'READY_FOR_CONSULTATION').length;
 
   return (
-    <div className="animate-in fade-in duration-500 space-y-10">
-      {/* Header Section */}
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-slate-100/60 mb-2">
-        <div className="space-y-4">
-          <div className="flex items-center gap-5">
-            <div className="h-14 w-14 bg-slate-900 rounded-2xl flex items-center justify-center shadow-2xl shadow-slate-900/10 transition-transform hover:scale-105 duration-300">
-              <Activity className="h-7 w-7 text-white" />
+    <div className="animate-in fade-in duration-500">
+      {/* Sticky Header - Profile-Centric Design */}
+      <header className="sticky top-0 z-40 -mx-4 sm:-mx-5 lg:-mx-8 xl:-mx-10 px-4 sm:px-5 lg:px-8 xl:px-10 py-3 mb-5 bg-white/80 backdrop-blur-md border-b border-slate-100/60">
+        <div className="flex items-center justify-between">
+          {/* Profile Section */}
+          <div className="flex items-center gap-3">
+            {/* Doctor Avatar */}
+            <div className="relative">
+              <div className="h-11 w-11 rounded-full ring-2 ring-white shadow-sm overflow-hidden">
+                <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-teal-600 to-teal-700 text-white text-sm font-semibold">
+                  {user?.firstName?.[0]}{user?.lastName?.[0]}
+                </div>
+              </div>
+              {/* Online indicator */}
+              <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white" />
             </div>
-            <div>
-              <h1 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-none mb-2">
-                {user.firstName ? `Dr. ${user.firstName}` : "Clinical Board"}
+            
+            {/* Name & Context */}
+            <div className="flex flex-col">
+              <h1 className="text-base font-semibold text-slate-900 leading-tight">
+                Dr. {user?.firstName} {user?.lastName}
               </h1>
-              <p className="text-slate-500 font-bold flex items-center gap-3">
-                <span className="h-1 w-1 rounded-full bg-slate-300" />
-                Surgeon Control Center • {format(new Date(), 'EEEE, MMMM d')}
+              <p className="text-[11px] text-slate-500 font-medium">
+                {format(new Date(), 'EEEE, MMMM d')}
               </p>
             </div>
           </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="hidden sm:flex h-10 px-4 items-center bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-600 shadow-sm">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 mr-2 animate-pulse" />
-            System Live
+
+          {/* Right Actions */}
+          <div className="flex items-center gap-2">
+            {/* Status Pill */}
+            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-100 rounded-full">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] font-medium text-emerald-700">Online</span>
+            </div>
+            
+            <NotificationBell />
+            
+            {/* Quick Profile Link */}
+            <Link href="/doctor/profile">
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full hover:bg-slate-100">
+                <User className="h-4 w-4 text-slate-500" />
+              </Button>
+            </Link>
           </div>
-          <NotificationBell />
         </div>
       </header>
+      
+      <div className="space-y-6">
 
       {/* Onboarding Widget */}
       {showOnboarding && !checkingOnboarding && (
@@ -236,14 +293,24 @@ export default function DoctorDashboardPage() {
         </div>
       )}
 
-      {/* Stats Cluster - Modern Bento Grid style */}
-      <div className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+      {/* Stats Cluster - Refined Compact Grid */}
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-5">
+        {pendingConfirmations.length > 0 && (
+          <StatCard
+            title="Needs Review"
+            value={pendingConfirmations.length}
+            subtitle="Pending confirmations"
+            icon={AlertCircle}
+            color="amber"
+            pulse
+          />
+        )}
         <StatCard
           title="Today's Caseload"
           value={todayCount}
           subtitle={`${checkedInCount} arrived / waiting`}
           icon={Calendar}
-          color="indigo"
+          color="teal"
         />
         <StatCard
           title="Arrived Now"
@@ -251,77 +318,110 @@ export default function DoctorDashboardPage() {
           subtitle="Ready for consultation"
           icon={CheckCircle}
           color="emerald"
-          pulse
+          pulse={checkedInCount > 0}
         />
         <StatCard
           title="Upcoming View"
           value={upcomingCount}
           subtitle="Next 7 days"
           icon={Clock}
-          color="amber"
+          color="blue"
         />
         <StatCard
-          title="Clinical Efficiency"
+          title="Efficiency"
           value="94%"
           subtitle="+3% from last week"
           icon={Activity}
-          color="slate"
+          color="indigo"
         />
       </div>
 
       {/* Main Content Layout: Balanced Clinical View */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
 
         {/* Left Column: Active Patient Flow (8 cols) */}
         <div className="xl:col-span-8 space-y-8">
-          <section className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+
+          {/* Pending Confirmations - Action items for doctor */}
+          <PendingConfirmationsSection
+            appointments={pendingConfirmations}
+            onConfirm={handleConfirmAppointment}
+            onReject={handleRejectAppointment}
+            isLoading={loadingPendingConfirmations}
+          />
+
+          {/* Waiting Queue - Checked-in patients ready for consultation */}
+          {todayAppointments.some(a => a.status === 'CHECKED_IN' || a.status === 'READY_FOR_CONSULTATION') && (
+            <WaitingQueue
+              appointments={todayAppointments.filter(a => a.status === 'CHECKED_IN' || a.status === 'READY_FOR_CONSULTATION')}
+              onStartConsultation={(apt) => handleStartConsultation(apt)}
+            />
+          )}
+
+          <section className="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
               <div className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-slate-900" />
-                <h2 className="text-xl font-bold text-slate-900">Today's Patient Flow</h2>
+                <Users className="h-4 w-4 text-slate-700" />
+                <h2 className="text-sm font-semibold text-slate-800">Today's Patient Flow</h2>
               </div>
               <Link href="/doctor/appointments">
-                <Button variant="ghost" size="sm" className="text-slate-500 hover:text-slate-900 font-bold gap-1">
+                <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-500 hover:text-slate-900 font-medium gap-1">
                   Full Calendar
-                  <ArrowRight className="h-4 w-4" />
+                  <ArrowRight className="h-3 w-3" />
                 </Button>
               </Link>
             </div>
-            <div className="p-6">
+            <div className="p-4">
               {loading ? (
                 <ScheduleSkeleton />
               ) : todayAppointments.length === 0 ? (
-                <div className="text-center py-16 bg-slate-50/30 rounded-xl border border-dashed border-slate-200">
-                  <Calendar className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-bold text-slate-900">Workspace Clear</h3>
-                  <p className="text-sm text-slate-500">No sessions scheduled for today yet.</p>
+                <div className="text-center py-10 bg-slate-50/30 rounded-lg border border-dashed border-slate-200">
+                  <Calendar className="h-8 w-8 text-slate-300 mx-auto mb-3" />
+                  <h3 className="text-sm font-semibold text-slate-800">Workspace Clear</h3>
+                  <p className="text-xs text-slate-500">No sessions scheduled for today yet.</p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {todayAppointments.map((appointment) => (
-                    <DoctorAppointmentCard
-                      key={appointment.id}
-                      appointment={appointment}
-                      onStartConsultation={handleStartConsultation}
-                    />
-                  ))}
+                <div className="space-y-3">
+                  {todayAppointments
+                    // Filter out already checked-in patients from main list to avoid duplication if desired, 
+                    // OR keep them. Let's keep them but sorted: In Consultation -> Scheduled. 
+                    // Waiting ones are already shown above.
+                    .filter(a => a.status !== 'CHECKED_IN' && a.status !== 'READY_FOR_CONSULTATION')
+                    .map((appointment) => (
+                      <DoctorAppointmentCard
+                        key={appointment.id}
+                        appointment={appointment}
+                        onStartConsultation={handleStartConsultation}
+                        onEndConsultation={(apt: any) => {
+                          // TODO: Open End Consultation Logic/Dialog
+                          // For Phase 1, we can redirect or just log
+                          console.log('End session', apt);
+                        }}
+                      />
+                    ))}
+
+                  {todayAppointments.filter(a => a.status !== 'CHECKED_IN' && a.status !== 'READY_FOR_CONSULTATION').length === 0 && (
+                    <p className="text-center text-slate-500 py-4">
+                      All active patients are in the waiting queue.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
           </section>
 
-          <section className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-            <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-2 bg-slate-50/50">
-              <Clock className="h-5 w-5 text-slate-900" />
-              <h2 className="text-xl font-bold text-slate-900">Upcoming Schedule</h2>
+          <section className="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2 bg-slate-50/30">
+              <Clock className="h-4 w-4 text-slate-700" />
+              <h2 className="text-sm font-semibold text-slate-800">Upcoming Schedule</h2>
             </div>
-            <div className="p-6">
+            <div className="p-4">
               {loading ? (
                 <ScheduleSkeleton count={2} />
               ) : upcomingAppointments.length === 0 ? (
-                <p className="text-center py-8 text-sm text-slate-400 font-medium">No sessions scheduled for the next 48 hours.</p>
+                <p className="text-center py-6 text-xs text-slate-400 font-medium">No sessions scheduled for the next 48 hours.</p>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {upcomingAppointments.slice(0, 3).map((appointment) => (
                     <DoctorAppointmentCard key={appointment.id} appointment={appointment} />
                   ))}
@@ -332,8 +432,8 @@ export default function DoctorDashboardPage() {
         </div>
 
         {/* Right Column: Theatre Monitoring & Stats (4 cols) */}
-        <div className="xl:col-span-4 space-y-8">
-          <section className="sticky top-8 space-y-8">
+        <div className="xl:col-span-4 space-y-5">
+          <section className="sticky top-6 space-y-5">
             {/* Theatre Schedule - Specialized View */}
             <div className="transform transition-transform hover:scale-[1.01] duration-300">
               <TheatreScheduleView
@@ -348,21 +448,21 @@ export default function DoctorDashboardPage() {
             </div>
 
             {/* Quick Shortcuts */}
-            <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-xl shadow-slate-200 ring-1 ring-white/10 overflow-hidden relative group">
-              <div className="absolute -right-4 -bottom-4 h-32 w-32 bg-white/5 rounded-full blur-2xl group-hover:bg-white/10 transition-colors" />
-              <h3 className="text-lg font-black mb-4 flex items-center gap-2">
-                <FileText className="h-5 w-5 text-slate-400" />
-                Clinical Toolbox
+            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-4 text-white shadow-lg overflow-hidden relative">
+              <div className="absolute -right-8 -bottom-8 h-24 w-24 bg-teal-500/10 rounded-full blur-2xl" />
+              <h3 className="text-xs font-semibold mb-3 text-slate-300 uppercase tracking-wide">
+                Quick Actions
               </h3>
-              <div className="grid grid-cols-2 gap-3 relative z-10">
-                <ToolButton icon={FileText} label="Draft Notes" />
+              <div className="grid grid-cols-2 gap-2 relative z-10">
+                <ToolButton icon={FileText} label="Notes" />
                 <ToolButton icon={Users} label="Referrals" />
-                <ToolButton icon={Activity} label="Vitals Log" />
+                <ToolButton icon={Activity} label="Vitals" />
                 <ToolButton icon={ExternalLink} label="Portal" />
               </div>
             </div>
           </section>
         </div>
+      </div>
       </div>
     </div>
   );
@@ -372,28 +472,51 @@ export default function DoctorDashboardPage() {
 
 function StatCard({ title, value, subtitle, icon: Icon, color, pulse }: any) {
   const colorClasses: any = {
-    indigo: "text-indigo-600 bg-indigo-50 border-indigo-100 shadow-indigo-500/10",
-    emerald: "text-emerald-600 bg-emerald-50 border-emerald-100 shadow-emerald-500/10",
-    amber: "text-amber-600 bg-amber-50 border-amber-100 shadow-amber-500/10",
-    slate: "text-slate-600 bg-slate-50 border-slate-100 shadow-slate-500/10",
+    indigo: "text-indigo-600 bg-indigo-50/80",
+    emerald: "text-emerald-600 bg-emerald-50/80",
+    amber: "text-amber-600 bg-amber-50/80",
+    blue: "text-sky-600 bg-sky-50/80",
+    slate: "text-slate-600 bg-slate-100/80",
+    teal: "text-teal-600 bg-teal-50/80",
+  };
+
+  const borderAccents: any = {
+    indigo: "hover:border-indigo-200",
+    emerald: "hover:border-emerald-200",
+    amber: "hover:border-amber-200",
+    blue: "hover:border-sky-200",
+    slate: "hover:border-slate-300",
+    teal: "hover:border-teal-200",
+  };
+
+  const pulseColors: any = {
+    indigo: "bg-indigo-500",
+    emerald: "bg-emerald-500",
+    amber: "bg-amber-500",
+    blue: "bg-sky-500",
+    slate: "bg-slate-500",
+    teal: "bg-teal-500",
   };
 
   return (
-    <Card className="group relative border-slate-200 hover:border-slate-300 shadow-sm transition-all hover:shadow-md duration-300 overflow-hidden rounded-2xl">
-      <CardHeader className="pb-2">
+    <Card className={cn(
+      "group relative border-slate-200/60 shadow-sm transition-all hover:shadow duration-200 overflow-hidden rounded-xl bg-white/80",
+      borderAccents[color]
+    )}>
+      <CardHeader className="p-3 pb-1">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-xs font-black uppercase tracking-widest text-slate-400">{title}</CardTitle>
-          <div className={cn("p-2 rounded-xl transition-transform group-hover:scale-110", colorClasses[color])}>
-            <Icon className="h-5 w-5" />
+          <CardTitle className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{title}</CardTitle>
+          <div className={cn("p-1.5 rounded-lg transition-transform group-hover:scale-105", colorClasses[color])}>
+            <Icon className="h-3.5 w-3.5" />
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="flex items-baseline gap-2">
-          <span className="text-4xl font-black text-slate-900 tracking-tighter">{value}</span>
-          {pulse && <span className="h-3 w-3 rounded-full bg-emerald-500 animate-pulse self-center mb-1" />}
+      <CardContent className="p-3 pt-0">
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-2xl font-bold text-slate-800 tracking-tight">{value}</span>
+          {pulse && <span className={cn("h-2 w-2 rounded-full animate-pulse self-center", pulseColors[color] || "bg-emerald-500")} />}
         </div>
-        <p className="text-sm font-medium text-slate-500 mt-1">{subtitle}</p>
+        <p className="text-[11px] font-medium text-slate-500 mt-0.5">{subtitle}</p>
       </CardContent>
     </Card>
   );
@@ -401,9 +524,9 @@ function StatCard({ title, value, subtitle, icon: Icon, color, pulse }: any) {
 
 function ToolButton({ icon: Icon, label }: any) {
   return (
-    <button className="flex flex-col items-center justify-center p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 transition-all text-slate-300 hover:text-white">
-      <Icon className="h-6 w-6 mb-2 text-slate-400" />
-      <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
+    <button className="flex flex-col items-center justify-center p-2.5 rounded-lg bg-white/5 hover:bg-teal-500/20 border border-white/5 hover:border-teal-500/30 transition-all text-slate-400 hover:text-teal-300">
+      <Icon className="h-4 w-4 mb-1" />
+      <span className="text-[9px] font-medium">{label}</span>
     </button>
   );
 }

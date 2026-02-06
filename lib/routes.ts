@@ -1,18 +1,31 @@
+/**
+ * Route Access Configuration
+ * 
+ * Defines which roles can access which route patterns.
+ * Uses regex patterns to match routes.
+ */
 type RouteAccessProps = {
   [key: string]: string[];
 };
 
 export const routeAccess: RouteAccessProps = {
+  // Admin routes
   "/admin(.*)": ["admin"],
+  
+  // Patient routes
   "/patient(.*)": ["patient", "admin", "doctor", "nurse"],
-  "/doctor(.*)": ["doctor"],
+  
+  // Doctor routes
+  "/doctor(.*)": ["doctor", "admin"],
+  
+  // Frontdesk routes
+  "/frontdesk(.*)": ["frontdesk", "admin"],
+  
+  // Nurse routes
+  "/nurse(.*)": ["nurse", "admin"],
+  
+  // Staff routes (lab tech, cashier, etc.)
   "/staff(.*)": ["nurse", "lab_technician", "cashier"],
-  "/record/users": ["admin"],
-  "/record/doctors": ["admin"],
-  "/record/doctors(.*)": ["admin", "doctor"],
-  "/record/staffs": ["admin", "doctor"],
-  "/record/patients": ["admin", "doctor", "nurse"],
-  "/patient/registrations": ["patient"],
 };
 
 // import { createRouteMatcher } from "@clerk/nextjs/server";

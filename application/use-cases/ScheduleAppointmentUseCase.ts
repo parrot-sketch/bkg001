@@ -111,14 +111,18 @@ export class ScheduleAppointmentUseCase {
     }
 
     // Step 2: Validate appointment date is not in the past
+    // Step 2: Validate appointment date is not in the past
     const now = this.timeService.now();
+    const today = new Date(now);
+    today.setHours(0, 0, 0, 0);
+
     const appointmentDateTime = new Date(dto.appointmentDate);
     appointmentDateTime.setHours(0, 0, 0, 0);
 
-    if (appointmentDateTime < now) {
+    if (appointmentDateTime < today) {
       throw new DomainException('Appointment date cannot be in the past', {
         appointmentDate: dto.appointmentDate,
-        currentDate: now,
+        currentDate: today,
       });
     }
 
@@ -151,9 +155,11 @@ export class ScheduleAppointmentUseCase {
 
     // Step 3: Create appointment domain entity (validates business rules)
     // Note: ID will be 0 temporarily, database will assign actual ID
+    // Status: PENDING_DOCTOR_CONFIRMATION - Doctor must confirm/reject the booking
+    // This ensures proper clinical workflow: Frontdesk books → Doctor confirms → Patient checks in
     const appointment = ApplicationAppointmentMapper.fromScheduleDto(
       dto,
-      AppointmentStatus.PENDING,
+      AppointmentStatus.PENDING_DOCTOR_CONFIRMATION,
       0, // Temporary ID, will be replaced after save
     );
 
@@ -279,11 +285,8 @@ export class ScheduleAppointmentUseCase {
       console.error('Failed to send appointment notification:', error);
     }
 
-    // Step 7: Send in-app notification to Doctor
+    // Step 7: Send in-app notification to Doctor for confirmation
     try {
-      // We need the doctor's User ID to send a notification
-      // (The Doctor entity might not have it loaded if it was just a reference check, 
-      // but usually we can fetch it or we might need a quick lookup)
       const doctorUser = await this.prisma.doctor.findUnique({
         where: { id: dto.doctorId },
         select: { user_id: true }
@@ -292,12 +295,13 @@ export class ScheduleAppointmentUseCase {
       if (doctorUser) {
         await this.notificationService.sendInApp(
           doctorUser.user_id,
-          'New Appointment Scheduled',
-          `New appointment with ${patient.getFullName()} on ${dto.appointmentDate.toLocaleDateString()} at ${dto.time}.`,
-          'info',
+          'New Appointment Request',
+          `${patient.getFullName()} has been booked for ${dto.appointmentDate.toLocaleDateString()} at ${dto.time}. Please confirm or reschedule.`,
+          'warning',
           {
             resourceType: 'appointment',
-            resourceId: savedAppointmentId
+            resourceId: savedAppointmentId,
+            actionUrl: `/doctor/appointments/${savedAppointmentId}`
           }
         );
       }

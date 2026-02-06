@@ -22,7 +22,7 @@ export async function getAdminDashboardStats() {
   try {
     const todayDate = new Date().getDay();
     const today = daysOfWeek[todayDate];
-    
+
     // Admin dashboard: last 90 days for statistics
     const since = subDays(new Date(), 90);
     const yearStart = startOfYear(new Date());
@@ -40,10 +40,10 @@ export async function getAdminDashboardStats() {
     ] = await Promise.all([
       // Total patient count
       db.patient.count(),
-      
+
       // Total doctor count
       db.doctor.count(),
-      
+
       // Recent 5 appointments for display (last 90 days)
       db.appointment.findMany({
         where: {
@@ -77,7 +77,7 @@ export async function getAdminDashboardStats() {
         orderBy: { appointment_date: "desc" },
         take: 5, // Only fetch what's displayed
       }),
-      
+
       // Database aggregation: status counts (last 90 days)
       db.appointment.groupBy({
         by: ["status"],
@@ -86,14 +86,14 @@ export async function getAdminDashboardStats() {
         },
         _count: true,
       }),
-      
+
       // Total appointments count (last 90 days)
       db.appointment.count({
         where: {
           appointment_date: { gte: since },
         },
       }),
-      
+
       // Monthly data: fetch minimal data (date and status only) for current year
       db.appointment.findMany({
         where: {
@@ -107,13 +107,18 @@ export async function getAdminDashboardStats() {
           status: true,
         },
       }),
-      
+
       // Available doctors (unchanged - already optimized)
       db.doctor.findMany({
         where: {
-          working_days: {
-            some: { day: { equals: today, mode: "insensitive" } },
-          },
+          availability_templates: {
+            some: {
+              is_active: true,
+              slots: {
+                some: { day_of_week: todayDate }
+              }
+            }
+          }
         },
         select: {
           id: true,
@@ -145,7 +150,7 @@ export async function getAdminDashboardStats() {
     // monthlyAppointments is already fetched in Promise.all() above (line 98-109)
     // Current year only, so max ~365 records per year = acceptable
     const monthlyDataMap = new Map<number, { appointment: number; completed: number }>();
-    
+
     monthlyAppointments.forEach((apt) => {
       const monthIndex = getMonth(apt.appointment_date);
       const current = monthlyDataMap.get(monthIndex) || { appointment: 0, completed: 0 };

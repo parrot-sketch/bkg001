@@ -46,11 +46,24 @@ export function useDoctorTodayAppointments(doctorId: string | undefined, enabled
         // Basic status filter
         const isActionableStatus =
           apt.status === AppointmentStatus.SCHEDULED ||
-          apt.status === AppointmentStatus.CONFIRMED;
+          apt.status === AppointmentStatus.CONFIRMED ||
+          apt.status === AppointmentStatus.CHECKED_IN ||
+          apt.status === AppointmentStatus.READY_FOR_CONSULTATION ||
+          apt.status === AppointmentStatus.IN_CONSULTATION;
 
         if (!isActionableStatus) return false;
 
         // Time-based relevance filter
+        // Skip time check for patients already checked in or in consultation
+        // We want to see them regardless of lateness if they are here
+        if (
+          apt.status === AppointmentStatus.CHECKED_IN ||
+          apt.status === AppointmentStatus.READY_FOR_CONSULTATION ||
+          apt.status === AppointmentStatus.IN_CONSULTATION
+        ) {
+          return true;
+        }
+
         try {
           // Time format is typically HH:mm
           const [aptHours, aptMinutes] = apt.time.split(':').map(Number);
@@ -109,6 +122,50 @@ export function useDoctorUpcomingAppointments(doctorId: string | undefined, enab
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     refetchOnWindowFocus: true,
+    enabled: enabled && !!doctorId,
+  });
+}
+
+/**
+ * Hook for fetching appointments pending doctor confirmation
+ * 
+ * Used by: Doctor dashboard - Pending Confirmations section
+ * 
+ * These are appointments booked by frontdesk that require the doctor's
+ * confirmation before they become active.
+ * 
+ * @param doctorId - Doctor user ID
+ * @param enabled - Whether the query should run (default: true)
+ */
+export function useDoctorPendingConfirmations(doctorId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: ['doctor', doctorId, 'appointments', 'pending-confirmations'],
+    queryFn: async () => {
+      if (!doctorId) {
+        throw new Error('Doctor ID is required');
+      }
+      // Request pending confirmation appointments specifically
+      const response = await doctorApi.getAppointments(
+        doctorId,
+        AppointmentStatus.PENDING_DOCTOR_CONFIRMATION,
+        true // Include all (don't filter by date range)
+      );
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load pending confirmations');
+      }
+      // Sort by date - soonest first
+      return response.data.sort((a, b) => {
+        const dateA = new Date(`${a.appointmentDate}T${a.time}`);
+        const dateB = new Date(`${b.appointmentDate}T${b.time}`);
+        return dateA.getTime() - dateB.getTime();
+      });
+    },
+    staleTime: 1000 * 30, // 30 seconds - needs to be fresh for action items
+    gcTime: 1000 * 60 * 5, // 5 minutes
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    refetchOnWindowFocus: true, // Refetch on focus since these are action items
+    refetchOnReconnect: true,
     enabled: enabled && !!doctorId,
   });
 }

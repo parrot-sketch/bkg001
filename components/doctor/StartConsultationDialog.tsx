@@ -3,11 +3,19 @@
 /**
  * Start Consultation Dialog
  * 
- * Modal dialog for starting a consultation.
- * Allows doctor to add initial notes.
+ * Streamlined modal for starting a consultation.
+ * Patient is already checked in - doctor can start immediately.
+ * 
+ * Simplified workflow:
+ * - Patient checked in by frontdesk → CHECKED_IN
+ * - Doctor clicks "Start" → Opens this dialog
+ * - Doctor adds optional notes → Clicks "Begin"
+ * - System transitions to IN_CONSULTATION → Routes to consultation interface
+ * 
+ * No readiness checks here - those belong to the surgery/procedure workflow.
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { doctorApi } from '@/lib/api/doctor';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -21,12 +29,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { User, Calendar, Clock, Stethoscope } from 'lucide-react';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import type { StartConsultationDto } from '@/application/dtos/StartConsultationDto';
-import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
-import { ConsultationReadinessIndicator, computeReadiness } from '@/components/consultation/ConsultationReadinessIndicator';
 import { useAuth } from '@/hooks/patient/useAuth';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { format } from 'date-fns';
 
 interface StartConsultationDialogProps {
   open: boolean;
@@ -46,61 +54,29 @@ export function StartConsultationDialog({
   const { user } = useAuth();
   const [doctorNotes, setDoctorNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [patient, setPatient] = useState<PatientResponseDto | null>(null);
-  const [loadingPatient, setLoadingPatient] = useState(false);
-  const [photoCount, setPhotoCount] = useState(0);
 
-  // Load patient information when dialog opens
-  useEffect(() => {
-    if (open && appointment.patientId) {
-      loadPatientInfo();
-    }
-  }, [open, appointment.patientId]);
-
-  const loadPatientInfo = async () => {
-    try {
-      setLoadingPatient(true);
-      const patientResponse = await doctorApi.getPatient(appointment.patientId);
-      if (patientResponse.success && patientResponse.data) {
-        setPatient(patientResponse.data);
-        // TODO: Load photo count from API
-        setPhotoCount(0);
-      }
-    } catch (error) {
-      console.error('Error loading patient info:', error);
-    } finally {
-      setLoadingPatient(false);
-    }
-  };
-
-  const readiness = patient ? computeReadiness(patient, appointment, photoCount) : null;
-  const isReady = readiness
-    ? readiness.intakeComplete &&
-    readiness.photosUploaded &&
-    readiness.medicalHistoryComplete &&
-    readiness.consentAcknowledged
-    : false;
+  const patientName = appointment.patient
+    ? `${appointment.patient.firstName} ${appointment.patient.lastName}`
+    : 'Patient';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     setIsSubmitting(true);
 
     try {
       const dto: StartConsultationDto = {
         appointmentId: appointment.id,
         doctorId,
-        userId: user?.id || doctorId, // Fallback to doctorId if user not available
+        userId: user?.id || doctorId,
         doctorNotes: doctorNotes.trim() || undefined,
       };
 
       const response = await doctorApi.startConsultation(dto);
 
       if (response.success) {
-        toast.success('Consultation started successfully');
+        toast.success('Consultation started');
         setDoctorNotes('');
-        // Trigger navigation callback immediately (it will handle dialog closing)
-        onSuccess(appointment.id); // Pass appointmentId for navigation
+        onSuccess(appointment.id);
       } else {
         toast.error(response.error || 'Failed to start consultation');
       }
@@ -114,94 +90,89 @@ export function StartConsultationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Start Consultation</DialogTitle>
-          <DialogDescription>
-            Add initial notes and start the consultation for this appointment
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-[450px] gap-0 p-0 overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 p-6 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold flex items-center gap-2 text-white">
+              <Stethoscope className="h-5 w-5" />
+              Begin Consultation
+            </DialogTitle>
+            <DialogDescription className="text-emerald-100">
+              Patient is checked in and ready to be seen.
+            </DialogDescription>
+          </DialogHeader>
+        </div>
+
         <form onSubmit={handleSubmit}>
-          <div className="space-y-4 py-4">
-            {/* Readiness Check */}
-            {loadingPatient ? (
-              <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
-                <p className="text-xs text-muted-foreground mt-2">Checking patient file...</p>
+          <div className="p-6 space-y-5">
+            {/* Patient Summary Card */}
+            <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
+              <Avatar className="h-12 w-12 border-2 border-white shadow-sm">
+                <AvatarImage src={appointment.patient?.img ?? undefined} />
+                <AvatarFallback className="bg-emerald-100 text-emerald-700 font-bold">
+                  {patientName.substring(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-slate-900 truncate">{patientName}</h3>
+                <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {format(new Date(appointment.appointmentDate), 'MMM d, yyyy')}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {appointment.time}
+                  </span>
+                </div>
               </div>
-            ) : readiness ? (
-              <div className="space-y-3">
-                <ConsultationReadinessIndicator readiness={readiness} compact={false} />
-                {!isReady && (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-amber-900 mb-1">
-                          Some items are missing from patient file
-                        </p>
-                        <p className="text-xs text-amber-800">
-                          You can proceed with the consultation. Missing items can be added during or after the session.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {isReady && (
-                  <div className="rounded-lg border border-green-200 bg-green-50 p-3">
-                    <div className="flex items-start gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                      <p className="text-sm text-green-800">
-                        Patient file is fully prepared. Ready to begin consultation.
-                      </p>
-                    </div>
-                  </div>
-                )}
+              <div className="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-md">
+                {appointment.type}
               </div>
-            ) : null}
+            </div>
 
             {/* Assistant Brief (if available) */}
             {appointment.reviewNotes && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <AlertCircle className="h-4 w-4 text-amber-600" />
-                  <span className="text-sm font-semibold text-foreground">Assistant Brief</span>
-                  {appointment.reviewedBy && (
-                    <span className="text-xs text-muted-foreground ml-auto">
-                      Prepared by Assistant
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground">{appointment.reviewNotes}</p>
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1">
+                  Assistant Brief
+                </p>
+                <p className="text-sm text-blue-900">{appointment.reviewNotes}</p>
               </div>
             )}
 
+            {/* Optional Notes */}
             <div className="space-y-2">
-              <Label htmlFor="doctorNotes">
-                Pre-Consultation Notes <span className="text-muted-foreground font-normal">(Optional)</span>
+              <Label htmlFor="doctorNotes" className="text-slate-700 font-medium">
+                Quick Notes <span className="text-slate-400 font-normal">(Optional)</span>
               </Label>
               <Textarea
                 id="doctorNotes"
-                placeholder="Add any pre-consultation observations, concerns, or notes. These will be saved and available during the consultation session..."
+                placeholder="Any observations before starting..."
                 value={doctorNotes}
                 onChange={(e) => setDoctorNotes(e.target.value)}
                 disabled={isSubmitting}
-                rows={4}
-                className="resize-none"
+                rows={3}
+                className="resize-none border-slate-200 focus:border-emerald-500 focus:ring-emerald-500"
               />
-              <p className="text-xs text-muted-foreground">
-                These notes will be saved and you can add more detailed clinical notes during the consultation session.
-              </p>
             </div>
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+
+          <DialogFooter className="p-6 pt-0 gap-3">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onClose} 
+              disabled={isSubmitting}
+              className="flex-1 sm:flex-none"
+            >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="bg-primary hover:bg-primary/90"
+              className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
             >
               {isSubmitting ? 'Starting...' : 'Begin Consultation'}
             </Button>

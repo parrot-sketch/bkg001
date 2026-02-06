@@ -1,13 +1,26 @@
 import { IAppointmentRepository } from '../../domain/interfaces/repositories/IAppointmentRepository';
 import { IPatientRepository } from '../../domain/interfaces/repositories/IPatientRepository';
+import { IPaymentRepository } from '../../domain/interfaces/repositories/IPaymentRepository';
+import { IUserRepository } from '../../domain/interfaces/repositories/IUserRepository';
+import { ISurgicalCaseRepository } from '../../domain/interfaces/repositories/ISurgicalCaseRepository';
+import { ICasePlanRepository } from '../../domain/interfaces/repositories/ICasePlanRepository';
+import { IConsultationRepository } from '../../domain/interfaces/repositories/IConsultationRepository';
 import { INotificationService } from '../../domain/interfaces/services/INotificationService';
 import { IAuditService } from '../../domain/interfaces/services/IAuditService';
 import { AppointmentStatus } from '../../domain/enums/AppointmentStatus';
+import { ConsultationOutcomeType } from '../../domain/enums/ConsultationOutcomeType';
+import { PatientDecision } from '../../domain/enums/PatientDecision';
 import { CompleteConsultationDto } from '../dtos/CompleteConsultationDto';
 import { AppointmentResponseDto } from '../dtos/AppointmentResponseDto';
 import { AppointmentMapper as ApplicationAppointmentMapper } from '../mappers/AppointmentMapper';
 import { DomainException } from '../../domain/exceptions/DomainException';
 import { ScheduleAppointmentDto } from '../dtos/ScheduleAppointmentDto';
+import db from '@/lib/db';
+
+/**
+ * Default consultation fee if doctor doesn't have one set
+ */
+const DEFAULT_CONSULTATION_FEE = 5000; // Should come from clinic settings
 
 /**
  * Use Case: CompleteConsultationUseCase
@@ -17,21 +30,25 @@ import { ScheduleAppointmentDto } from '../dtos/ScheduleAppointmentDto';
  * Business Purpose:
  * - Marks appointment as COMPLETED
  * - Stores consultation outcome/notes
+ * - Creates billing record for frontdesk to collect payment
  * - Optionally schedules follow-up appointment
  * - Sends notification to patient
+ * - Notifies frontdesk of pending payment
  * - Records audit event for compliance
  * 
  * Clinical Workflow:
  * This use case is part of the consultation completion workflow:
  * 1. Start consultation → StartConsultationUseCase
  * 2. Complete consultation → CompleteConsultationUseCase (this)
- * 3. (Optional) Schedule follow-up → ScheduleAppointmentUseCase
+ * 3. Frontdesk collects payment → RecordPaymentUseCase (separate)
+ * 4. (Optional) Schedule follow-up → ScheduleAppointmentUseCase
  * 
  * Business Rules:
  * - Appointment must exist
- * - Appointment must be SCHEDULED or PENDING (cannot complete cancelled/completed)
+ * - Appointment must be IN_CONSULTATION (active consultation)
  * - Doctor ID must match appointment's doctor
  * - Outcome/notes are required
+ * - Payment record is ALWAYS created with UNPAID status
  * - Follow-up appointment is optional but validated if provided
  * - Audit trail required for all consultation completions
  */
@@ -41,6 +58,11 @@ export class CompleteConsultationUseCase {
     private readonly patientRepository: IPatientRepository,
     private readonly notificationService: INotificationService,
     private readonly auditService: IAuditService,
+    private readonly paymentRepository?: IPaymentRepository,
+    private readonly userRepository?: IUserRepository,
+    private readonly surgicalCaseRepository?: ISurgicalCaseRepository,
+    private readonly casePlanRepository?: ICasePlanRepository,
+    private readonly consultationRepository?: IConsultationRepository,
   ) {
     if (!appointmentRepository) {
       throw new Error('AppointmentRepository is required');
@@ -54,6 +76,7 @@ export class CompleteConsultationUseCase {
     if (!auditService) {
       throw new Error('AuditService is required');
     }
+    // Optional repositories for backward compatibility
   }
 
   /**
@@ -170,7 +193,135 @@ export class CompleteConsultationUseCase {
       }
     }
 
-    // Step 7: Send notification to patient
+    // Step 7: Create billing record (if payment repository available)
+    let paymentId: number | undefined;
+    if (this.paymentRepository) {
+      try {
+        // Get doctor's consultation fee
+        const doctor = await db.doctor.findUnique({
+          where: { id: appointment.getDoctorId() },
+          select: { consultation_fee: true, name: true },
+        });
+        
+        const consultationFee = doctor?.consultation_fee || DEFAULT_CONSULTATION_FEE;
+        
+        // Create payment record with UNPAID status
+        const payment = await this.paymentRepository.create({
+          patientId: appointment.getPatientId(),
+          appointmentId: dto.appointmentId,
+          totalAmount: consultationFee,
+        });
+        
+        paymentId = payment.id;
+        
+        // Notify frontdesk users about pending payment
+        if (this.userRepository) {
+          const frontdeskUsers = await this.userRepository.findByRole('FRONTDESK');
+          const patient = await this.patientRepository.findById(appointment.getPatientId());
+          const patientName = patient ? patient.getFullName() : 'Patient';
+          
+          // Send in-app notification to all frontdesk users
+          for (const frontdeskUser of frontdeskUsers) {
+            try {
+              await this.notificationService.sendInApp(
+                frontdeskUser.getId(),
+                'Payment Ready for Collection',
+                `${patientName}'s consultation is complete. Amount due: ${consultationFee.toLocaleString()}`,
+                'info',
+                {
+                  resourceType: 'payment',
+                  resourceId: payment.id,
+                  appointmentId: dto.appointmentId,
+                },
+              );
+            } catch (notifyError) {
+              console.error(`Failed to notify frontdesk user ${frontdeskUser.getId()}:`, notifyError);
+            }
+          }
+        }
+      } catch (billingError) {
+        // Log but don't fail - consultation is complete, billing can be created manually
+        console.error('Failed to create billing record:', billingError);
+      }
+    }
+
+    // Step 8: Create surgical case if procedure recommended and patient accepted
+    let surgicalCaseId: string | undefined;
+    if (
+      dto.outcomeType === ConsultationOutcomeType.PROCEDURE_RECOMMENDED &&
+      dto.patientDecision === PatientDecision.YES &&
+      this.surgicalCaseRepository &&
+      this.casePlanRepository
+    ) {
+      try {
+        // Get consultation record for linking
+        let consultationId: number | undefined;
+        if (this.consultationRepository) {
+          const consultation = await this.consultationRepository.findByAppointmentId(dto.appointmentId);
+          consultationId = consultation?.getId();
+        }
+
+        // Create surgical case
+        const surgicalCase = await this.surgicalCaseRepository.create({
+          patientId: appointment.getPatientId(),
+          primarySurgeonId: dto.doctorId,
+          consultationId,
+          appointmentId: dto.appointmentId,
+          urgency: dto.procedureRecommended?.urgency as any,
+          diagnosis: dto.outcome,
+          procedureName: dto.procedureRecommended?.procedureType,
+          createdBy: dto.doctorId,
+        });
+
+        surgicalCaseId = surgicalCase.id;
+
+        // Create case plan linked to surgical case
+        await this.casePlanRepository.save({
+          appointmentId: dto.appointmentId,
+          patientId: appointment.getPatientId(),
+          doctorId: dto.doctorId,
+          procedurePlan: dto.procedureRecommended?.notes,
+          preOpNotes: dto.outcome,
+        });
+
+        // Link case plan to surgical case
+        const casePlan = await this.casePlanRepository.findByAppointmentId(dto.appointmentId);
+        if (casePlan) {
+          await this.casePlanRepository.linkToSurgicalCase(casePlan.id, surgicalCase.id);
+        }
+
+        // Notify nurses about new surgical case
+        if (this.userRepository) {
+          const nurseUsers = await this.userRepository.findByRole('NURSE');
+          const patient = await this.patientRepository.findById(appointment.getPatientId());
+          const patientName = patient ? patient.getFullName() : 'Patient';
+
+          for (const nurse of nurseUsers) {
+            try {
+              await this.notificationService.sendInApp(
+                nurse.getId(),
+                'New Surgical Case - Pre-Op Required',
+                `${patientName} has a new surgical case pending pre-operative preparation. Procedure: ${dto.procedureRecommended?.procedureType || 'Not specified'}`,
+                'info',
+                {
+                  resourceType: 'surgical_case',
+                  resourceId: surgicalCase.id,
+                  appointmentId: dto.appointmentId,
+                  patientId: appointment.getPatientId(),
+                },
+              );
+            } catch (notifyError) {
+              console.error(`Failed to notify nurse ${nurse.getId()}:`, notifyError);
+            }
+          }
+        }
+      } catch (surgeryError) {
+        // Log but don't fail - consultation is complete, surgical case can be created manually
+        console.error('Failed to create surgical case:', surgeryError);
+      }
+    }
+
+    // Step 9: Send notification to patient
     try {
       const patient = await this.patientRepository.findById(appointment.getPatientId());
       if (patient) {
@@ -181,7 +332,7 @@ export class CompleteConsultationUseCase {
             followUpAppointment
               ? `\n\nFollow-up appointment scheduled for ${followUpAppointment.appointmentDate.toLocaleDateString()} at ${followUpAppointment.time}.`
               : ''
-          }`,
+          }${surgicalCaseId ? '\n\nA surgical case has been created for your procedure. The clinic team will contact you with next steps.' : ''}`,
         );
       }
     } catch (error) {
@@ -189,16 +340,16 @@ export class CompleteConsultationUseCase {
       console.error('Failed to send completion notification:', error);
     }
 
-    // Step 8: Record audit event
+    // Step 10: Record audit event
     await this.auditService.recordEvent({
       userId: dto.doctorId,
       recordId: updatedAppointment.getId().toString(),
       action: 'UPDATE',
       model: 'Appointment',
-      details: `Consultation completed for appointment ${dto.appointmentId} by doctor ${dto.doctorId}${followUpAppointment ? ` (follow-up scheduled: ${followUpAppointment.id})` : ''}`,
+      details: `Consultation completed for appointment ${dto.appointmentId} by doctor ${dto.doctorId}${paymentId ? ` (payment created: ${paymentId})` : ''}${followUpAppointment ? ` (follow-up scheduled: ${followUpAppointment.id})` : ''}${surgicalCaseId ? ` (surgical case created: ${surgicalCaseId})` : ''}`,
     });
 
-    // Step 9: Map domain entity to response DTO
+    // Step 11: Map domain entity to response DTO
     return ApplicationAppointmentMapper.toResponseDto(updatedAppointment);
   }
 }

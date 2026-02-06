@@ -95,24 +95,45 @@ export class UpdateDoctorAvailabilityUseCase {
       }
     }
 
-    // Step 3: Delete existing working days for this doctor
-    await this.prisma.workingDay.deleteMany({
-      where: { doctor_id: dto.doctorId },
+    // Step 3: Find or Create Active Template
+    let template = await this.prisma.availabilityTemplate.findFirst({
+      where: { doctor_id: dto.doctorId, is_active: true }
     });
 
-    // Step 4: Create new working days
-    const createdWorkingDays = await Promise.all(
-      dto.workingDays.map((workingDay) =>
-        this.prisma.workingDay.create({
-          data: {
-            doctor_id: dto.doctorId,
-            day: workingDay.day,
-            start_time: workingDay.startTime,
-            end_time: workingDay.endTime,
-          },
-        }),
-      ),
-    );
+    if (!template) {
+      template = await this.prisma.availabilityTemplate.create({
+        data: {
+          doctor_id: dto.doctorId,
+          name: 'Standard',
+          is_active: true
+        }
+      });
+    }
+
+    // Step 4: Map input days to slots structure
+    const daysMap: Record<string, number> = {
+      'Sunday': 0, 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4, 'Friday': 5, 'Saturday': 6
+    };
+
+    // Clear existing slots for this template
+    await this.prisma.availabilitySlot.deleteMany({
+      where: { template_id: template.id }
+    });
+
+    // Create new slots
+    const slotsData = dto.workingDays.map(wd => ({
+      template_id: template.id,
+      day_of_week: daysMap[wd.day],
+      start_time: wd.startTime,
+      end_time: wd.endTime,
+      slot_type: 'CLINIC'
+    }));
+
+    if (slotsData.length > 0) {
+      await this.prisma.availabilitySlot.createMany({
+        data: slotsData
+      });
+    }
 
     // Step 5: Record audit event
     await this.auditService.recordEvent({
@@ -120,14 +141,11 @@ export class UpdateDoctorAvailabilityUseCase {
       recordId: dto.doctorId,
       action: 'UPDATE',
       model: 'DoctorAvailability',
-      details: `Doctor availability updated. Working days: ${dto.workingDays.length}`,
+      details: `Doctor availability updated via legacy API. Slots: ${slotsData.length}`,
     });
 
-    // Step 6: Map to response DTOs
-    return createdWorkingDays.map((wd) => ({
-      day: wd.day,
-      startTime: wd.start_time,
-      endTime: wd.end_time,
-    }));
+    // Step 6: Map back to legacy response DTO
+    // We can just return the input since we successfully saved it (and validated it)
+    return dto.workingDays;
   }
 }

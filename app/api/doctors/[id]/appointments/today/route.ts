@@ -23,6 +23,7 @@ import { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDt
 import { extractConsultationRequestFields } from '@/infrastructure/mappers/ConsultationRequestMapper';
 import { ConsultationRequestStatus } from '@/domain/enums/ConsultationRequestStatus';
 import { Role } from '@/domain/enums/Role';
+import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 
 /**
  * GET /api/doctors/[id]/appointments/today
@@ -36,7 +37,7 @@ export async function GET(
 ): Promise<NextResponse> {
   try {
     const params = await context.params;
-    
+
     // 1. Authenticate request
     const authResult = await JwtMiddleware.authenticate(request);
     if (!authResult.success || !authResult.user) {
@@ -115,24 +116,43 @@ export async function GET(
     const today = new Date();
     const todayStart = new Date(today);
     todayStart.setHours(0, 0, 0, 0);
-    
+
     const todayEnd = new Date(today);
     todayEnd.setHours(23, 59, 59, 999);
 
+
+
     // 6. Build where clause
-    // Default: Only show SCHEDULED and CONFIRMED (approved consultations)
+    // REFACTORED: Now includes appointments that are either administratively approved (consultation_request_status)
+    // OR have a valid clinical status (direct bookings, checked-in patients, etc.)
     const where: any = {
       doctor_id: doctorId,
       appointment_date: {
         gte: todayStart,
         lte: todayEnd,
       },
-      consultation_request_status: {
-        in: [
-          ConsultationRequestStatus.SCHEDULED,
-          ConsultationRequestStatus.CONFIRMED,
-        ],
-      },
+      OR: [
+        {
+          consultation_request_status: {
+            in: [
+              ConsultationRequestStatus.SCHEDULED,
+              ConsultationRequestStatus.CONFIRMED,
+            ],
+          },
+        },
+        {
+          status: {
+            in: [
+              AppointmentStatus.SCHEDULED,
+              AppointmentStatus.CONFIRMED,
+              AppointmentStatus.CHECKED_IN,
+              AppointmentStatus.READY_FOR_CONSULTATION,
+              AppointmentStatus.IN_CONSULTATION,
+              AppointmentStatus.COMPLETED,
+            ],
+          },
+        },
+      ],
     };
 
     // 7. Fetch today's appointments
@@ -191,6 +211,21 @@ export async function GET(
         reviewNotes: consultationFields.reviewNotes ?? undefined,
         createdAt: appointment.created_at,
         updatedAt: appointment.updated_at,
+        checkedInAt: appointment.checked_in_at ?? undefined,
+        checkedInBy: appointment.checked_in_by ?? undefined,
+        patient: appointment.patient ? {
+          id: appointment.patient.id,
+          firstName: appointment.patient.first_name,
+          lastName: appointment.patient.last_name,
+          email: appointment.patient.email,
+          phone: appointment.patient.phone,
+          img: appointment.patient.img,
+        } : undefined,
+        doctor: appointment.doctor ? {
+          id: appointment.doctor.id,
+          name: appointment.doctor.name,
+          specialization: appointment.doctor.specialization,
+        } : undefined,
       };
     });
 
@@ -207,7 +242,7 @@ export async function GET(
     // Enhanced error logging for debugging
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : undefined;
-    
+
     console.error('[API] GET /api/doctors/[id]/appointments/today - Error Details:', {
       message: errorMessage,
       stack: errorStack,
@@ -216,12 +251,12 @@ export async function GET(
 
     // Return detailed error in development, generic in production
     const isDevelopment = process.env.NODE_ENV === 'development';
-    
+
     return NextResponse.json(
       {
         success: false,
-        error: isDevelopment 
-          ? `Failed to fetch today's appointments: ${errorMessage}` 
+        error: isDevelopment
+          ? `Failed to fetch today's appointments: ${errorMessage}`
           : 'Failed to fetch today\'s appointments',
         ...(isDevelopment && {
           details: {

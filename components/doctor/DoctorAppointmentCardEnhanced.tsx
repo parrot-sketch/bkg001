@@ -4,32 +4,41 @@
  * Enhanced Doctor Appointment Card
  * 
  * Shows scheduled consultations with:
- * - Patient information (name, not just ID)
- * - Consultation readiness indicators
- * - Clinical summary (primary concern, assistant brief)
- * - Quick actions to start consultation
+ * - Patient information
+ * - Time-aware status (detects overdue appointments)
+ * - Clear action buttons based on workflow state
  * 
- * Designed for surgeon efficiency: see everything needed before consultation.
+ * Simplified workflow actions:
+ * - SCHEDULED: "Patient hasn't arrived" (no action)
+ * - CHECKED_IN: "Start Consultation" → goes to consultation workspace
+ * - IN_CONSULTATION: "Continue" → goes to consultation workspace
+ * - Overdue IN_CONSULTATION: Warning + "Continue" to complete
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   Clock,
   User,
-  AlertCircle,
-  ExternalLink
+  Calendar,
+  ChevronRight,
+  FileText,
+  Stethoscope,
+  AlertTriangle,
+  Play,
+  CheckCircle,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, isToday, isPast, parseISO } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { doctorApi } from '@/lib/api/doctor';
-import { ConsultationReadinessIndicator, computeReadiness, type ConsultationReadiness } from '@/components/consultation/ConsultationReadinessIndicator';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface DoctorAppointmentCardEnhancedProps {
   appointment: AppointmentResponseDto;
@@ -49,7 +58,6 @@ export function DoctorAppointmentCardEnhanced({
   const router = useRouter();
   const [patient, setPatient] = useState<PatientResponseDto | null>(appointment.patient as any || null);
   const [loadingPatient, setLoadingPatient] = useState(!appointment.patient);
-  const [photoCount, setPhotoCount] = useState(0);
 
   // Load patient information only if not provided in the DTO
   useEffect(() => {
@@ -72,142 +80,237 @@ export function DoctorAppointmentCardEnhanced({
     }
   };
 
+  // Time-aware status calculation
+  const timeStatus = useMemo(() => {
+    const now = new Date();
+    const appointmentDate = new Date(appointment.appointmentDate);
+    const isAppointmentToday = isToday(appointmentDate);
+    
+    // Parse appointment time (e.g., "09:30")
+    let slotEndTime: Date | null = null;
+    if (appointment.time && isAppointmentToday) {
+      const [hours, minutes] = appointment.time.split(':').map(Number);
+      slotEndTime = new Date(appointmentDate);
+      slotEndTime.setHours(hours, minutes + 30, 0, 0); // Assume 30-min slot
+    }
+    
+    const isOverdue = slotEndTime ? now > slotEndTime : false;
+    const isPastDate = !isAppointmentToday && isPast(appointmentDate);
+    
+    return { isAppointmentToday, isOverdue, isPastDate, slotEndTime };
+  }, [appointment.appointmentDate, appointment.time]);
+
+  // Status-based permissions
   const canCheckIn =
     appointment.status === AppointmentStatus.PENDING ||
-    appointment.status === AppointmentStatus.SCHEDULED;
-  const canStartConsultation = appointment.status === AppointmentStatus.SCHEDULED;
-  const canCompleteConsultation =
-    appointment.status === AppointmentStatus.SCHEDULED && appointment.note;
-
-  // Compute readiness if patient loaded
-  const readiness: ConsultationReadiness | null = patient
-    ? computeReadiness(patient, appointment, photoCount)
-    : null;
-
-  const isReady = readiness
-    ? readiness.intakeComplete &&
-    readiness.photosUploaded &&
-    readiness.medicalHistoryComplete &&
-    readiness.consentAcknowledged
-    : false;
+    appointment.status === AppointmentStatus.SCHEDULED ||
+    appointment.status === AppointmentStatus.CONFIRMED;
+  
+  const canStartConsultation = 
+    appointment.status === AppointmentStatus.CHECKED_IN ||
+    appointment.status === AppointmentStatus.READY_FOR_CONSULTATION;
+  
+  const isInConsultation = appointment.status === AppointmentStatus.IN_CONSULTATION;
+  const isCompleted = appointment.status === AppointmentStatus.COMPLETED;
 
   const patientName = patient
     ? `${patient.firstName} ${patient.lastName}`
     : appointment.patientId || 'Patient';
 
-  return (
-    <div className="group relative border border-slate-200 rounded-2xl bg-white overflow-hidden transition-all duration-300 hover:border-slate-400 hover:shadow-xl hover:shadow-slate-100">
-      <div className="p-5 sm:p-6">
-        <div className="flex flex-col xl:flex-row gap-6">
+  // Navigate directly to consultation workspace
+  const handleGoToConsultation = () => {
+    router.push(`/doctor/consultations/${appointment.id}/session`);
+  };
 
-          {/* 1. Primary Patient Info Block */}
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-3 mb-3">
-              <div className="h-14 w-14 rounded-2xl bg-slate-100 flex items-center justify-center border border-slate-200 flex-shrink-0 transition-transform group-hover:scale-105 duration-300 overflow-hidden">
-                {patient?.profileImage ? (
-                  <img src={patient.profileImage} alt={patientName} className="h-full w-full object-cover" />
-                ) : (
-                  <User className="h-7 w-7 text-slate-400" />
-                )}
-              </div>
-              <div className="min-w-0">
-                <h3 className="text-2xl font-black text-slate-900 tracking-tight truncate leading-none mb-1.5 pt-1">
-                  {patientName}
-                </h3>
-                <div className="flex items-center gap-3 text-sm font-bold text-slate-500">
-                  <span className="flex items-center gap-1.5">
-                    <Clock className="h-4 w-4 text-indigo-500" />
-                    <span className="text-slate-900">{appointment.time}</span>
+  // Status display configuration
+  const getStatusDisplay = () => {
+    if (isCompleted) {
+      return { label: 'Completed', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: CheckCircle };
+    }
+    if (isInConsultation) {
+      if (timeStatus.isOverdue) {
+        return { label: 'Overdue', color: 'bg-amber-100 text-amber-700 border-amber-200', icon: AlertTriangle };
+      }
+      return { label: 'In Progress', color: 'bg-violet-100 text-violet-700 border-violet-200', icon: Stethoscope };
+    }
+    if (canStartConsultation) {
+      return { label: 'Ready', color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: CheckCircle };
+    }
+    if (canCheckIn) {
+      return { label: 'Waiting', color: 'bg-slate-100 text-slate-600 border-slate-200', icon: Clock };
+    }
+    return { label: appointment.status, color: 'bg-slate-100 text-slate-600 border-slate-200', icon: Clock };
+  };
+
+  const statusDisplay = getStatusDisplay();
+  const StatusIcon = statusDisplay.icon;
+
+  // Stripe color
+  const stripeColor = isInConsultation 
+    ? (timeStatus.isOverdue ? 'bg-amber-500' : 'bg-violet-500')
+    : canStartConsultation 
+      ? 'bg-emerald-500' 
+      : isCompleted 
+        ? 'bg-blue-500'
+        : 'bg-slate-300';
+
+  if (loadingPatient) {
+    return (
+      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+        <div className="flex gap-4">
+          <Skeleton className="h-14 w-14 rounded-xl" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="group relative bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg hover:border-slate-300 transition-all duration-300 overflow-hidden">
+      {/* Status Stripe */}
+      <div className={cn("absolute left-0 top-0 bottom-0 w-1.5", stripeColor)} />
+
+      <div className="flex flex-col lg:flex-row">
+        {/* Main Content */}
+        <div className="flex-1 p-6 pl-8">
+          {/* Header Row */}
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <Avatar className="h-14 w-14 rounded-xl border-2 border-white shadow-md">
+                <AvatarImage src={patient?.profileImage} alt={patientName} />
+                <AvatarFallback className="rounded-xl bg-slate-100 text-slate-500 font-bold text-lg">
+                  {patientName.substring(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">{patientName}</h3>
+                <div className="flex items-center gap-3 mt-1 text-sm text-slate-500">
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <Clock className="h-4 w-4" />
+                    {appointment.time}
                   </span>
                   <span className="text-slate-300">•</span>
-                  <span className="flex items-center gap-1.5 uppercase tracking-widest text-[10px] text-slate-400 font-black">
-                    {appointment.type}
-                  </span>
+                  <span>{appointment.type}</span>
                 </div>
               </div>
             </div>
+            
+            <Badge className={cn("px-3 py-1.5 font-semibold text-xs border", statusDisplay.color)}>
+              <StatusIcon className="h-3.5 w-3.5 mr-1.5" />
+              {statusDisplay.label}
+            </Badge>
+          </div>
 
-            {/* 2. Unified Clinical Briefing */}
-            <div className="space-y-4 pt-1">
+          {/* Overdue Warning */}
+          {isInConsultation && timeStatus.isOverdue && (
+            <div className="flex items-center gap-3 p-3 mb-4 bg-amber-50 border border-amber-200 rounded-xl">
+              <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-amber-800">Consultation running overtime</p>
+                <p className="text-xs text-amber-600">Scheduled slot has ended. Complete or continue as needed.</p>
+              </div>
+            </div>
+          )}
+
+          {/* Clinical Notes */}
+          {(appointment.note || appointment.reviewNotes) && (
+            <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
               {appointment.note && (
-                <div className="relative pl-5 py-0.5">
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500/20 rounded-full" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 block mb-0.5 text-opacity-70">Case History</span>
-                  <p className="text-sm text-slate-700 leading-relaxed font-medium">
-                    {appointment.note}
+                <div className="mb-3 last:mb-0">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    <FileText className="h-3 w-3 inline mr-1" />
+                    Notes
                   </p>
+                  <p className="text-sm text-slate-700">{appointment.note}</p>
                 </div>
               )}
-
               {appointment.reviewNotes && (
-                <div className="relative pl-5 py-0.5">
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500/20 rounded-full" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 block mb-0.5 text-opacity-70">Clinical Brief</span>
-                  <p className="text-sm text-slate-600 italic leading-relaxed">
-                    {appointment.reviewNotes}
+                <div className={appointment.note ? "pt-3 border-t border-slate-200" : ""}>
+                  <p className="text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">
+                    <Stethoscope className="h-3 w-3 inline mr-1" />
+                    Brief
                   </p>
-                </div>
-              )}
-
-              {/* Readiness Row */}
-              {readiness && (
-                <div className="pt-2 flex items-center gap-4 border-t border-slate-100 mt-4">
-                  <ConsultationReadinessIndicator readiness={readiness} compact />
+                  <p className="text-sm text-slate-600 italic">{appointment.reviewNotes}</p>
                 </div>
               )}
             </div>
-          </div>
+          )}
+        </div>
 
-          {/* 3. Action Sidebar Block - Simplified */}
-          <div className="xl:w-56 flex flex-row xl:flex-col justify-between xl:justify-center gap-4 pt-4 xl:pt-1 xl:pl-6 xl:border-l border-slate-100 mt-4 xl:mt-0">
-            <div className="space-y-4 w-full">
-              <div className="flex flex-col items-start xl:items-center">
-                <Badge
+        {/* Actions Panel */}
+        <div className="lg:w-56 p-6 bg-slate-50/50 border-t lg:border-t-0 lg:border-l border-slate-100 flex flex-col justify-center gap-3">
+          {/* Primary Action */}
+          {isInConsultation && (
+            <Button
+              size="lg"
+              onClick={handleGoToConsultation}
+              className={cn(
+                "w-full h-12 rounded-xl font-bold shadow-lg transition-all flex items-center justify-center gap-2",
+                timeStatus.isOverdue 
+                  ? "bg-amber-600 hover:bg-amber-700 text-white shadow-amber-200"
+                  : "bg-violet-600 hover:bg-violet-700 text-white shadow-violet-200"
+              )}
+            >
+              <Play className="h-4 w-4" />
+              Continue
+            </Button>
+          )}
+
+          {canStartConsultation && (
+            <Button
+              size="lg"
+              onClick={() => onStartConsultation(appointment)}
+              className="w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-200 transition-all flex items-center justify-center gap-2"
+            >
+              <Stethoscope className="h-4 w-4" />
+              Start Consultation
+            </Button>
+          )}
+
+          {canCheckIn && !timeStatus.isPastDate && (
+            <div className="text-center py-2">
+              <p className="text-xs text-slate-400 font-medium">Patient hasn't arrived</p>
+              {onCheckIn && (
+                <Button
                   variant="outline"
-                  className={cn(
-                    "h-6 px-3 font-bold text-[10px] uppercase tracking-widest rounded-full border-slate-200 text-slate-400",
-                    appointment.status === AppointmentStatus.SCHEDULED && "border-emerald-200 text-emerald-600 bg-emerald-50/30"
-                  )}
+                  size="sm"
+                  className="mt-2 w-full h-9 rounded-lg text-xs font-semibold"
+                  onClick={() => onCheckIn(appointment.id)}
                 >
-                  {appointment.status}
-                </Badge>
-              </div>
-
-              <div className="flex flex-col gap-2 pt-1">
-                {canStartConsultation && (
-                  <Button
-                    size="lg"
-                    className="h-12 w-full rounded-xl font-black uppercase tracking-wider text-sm bg-slate-900 hover:bg-slate-800 text-white shadow-lg transition-all active:scale-[0.98]"
-                    onClick={() => onStartConsultation(appointment)}
-                  >
-                    CONSULT
-                  </Button>
-                )}
-
-                {canCompleteConsultation && onCompleteConsultation && (
-                  <Button
-                    size="lg"
-                    className="h-12 w-full rounded-xl font-black uppercase tracking-wider text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg"
-                    onClick={() => onCompleteConsultation(appointment)}
-                  >
-                    COMPLETE
-                  </Button>
-                )}
-
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    className="h-9 flex-1 border-slate-200 text-slate-500 font-bold text-[10px] uppercase tracking-wider rounded-lg hover:bg-slate-50"
-                    asChild
-                  >
-                    <Link href={`/doctor/patients/${appointment.patientId}`}>
-                      Records
-                    </Link>
-                  </Button>
-                </div>
-              </div>
+                  Check In
+                </Button>
+              )}
             </div>
-          </div>
+          )}
+
+          {isCompleted && (
+            <div className="text-center py-2">
+              <p className="text-xs text-slate-400 font-medium">Consultation completed</p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 w-full h-9 rounded-lg text-xs font-semibold"
+                onClick={handleGoToConsultation}
+              >
+                View Session
+              </Button>
+            </div>
+          )}
+
+          {/* Secondary Actions */}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="w-full h-9 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900"
+            asChild
+          >
+            <Link href={`/doctor/patients/${appointment.patientId}`}>
+              View Patient Records
+            </Link>
+          </Button>
         </div>
       </div>
     </div>

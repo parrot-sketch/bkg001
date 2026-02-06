@@ -15,6 +15,7 @@ export interface WorkingDayDto {
   readonly startTime: string; // HH:mm (backward compatibility: used if no sessions)
   readonly endTime: string;   // HH:mm (backward compatibility: used if no sessions)
   readonly isAvailable: boolean;
+  readonly type?: string;
   readonly breaks?: AvailabilityBreakDto[];
   readonly sessions?: ScheduleSessionDto[]; // Enterprise feature: multiple sessions per day
 }
