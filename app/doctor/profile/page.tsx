@@ -19,10 +19,10 @@ export default async function DoctorProfilePage() {
     // redirect('/dashboard');
   }
 
-  // 2. Pre-fetch Data in Parallel (optimized: 3 queries instead of 5)
-  //    - Removed 2 redundant getDoctorAppointments calls; today/upcoming
-  //      are filtered client-side from the single appointments fetch.
-  //    - getDoctorAvailability receives user.id (it internally resolves the doctor).
+  // 2. Pre-fetch Data in Parallel
+  //    - getDoctorAvailability receives doctorId directly with isDoctorId flag,
+  //      eliminating the redundant doctor-by-userId lookup inside the action.
+  //    - Appointments and profile still use their respective IDs.
   const doctorId = user.doctor_profile?.id || '';
 
   const [
@@ -32,7 +32,7 @@ export default async function DoctorProfilePage() {
   ] = await Promise.all([
     getDoctorProfile(user.id),
     getDoctorAppointments(doctorId, { limit: 100 }),
-    getDoctorAvailability(user.id),
+    getDoctorAvailability(doctorId, { isDoctorId: true }),
   ]);
 
   // Derive today/upcoming from the single appointments fetch (client-side filter)

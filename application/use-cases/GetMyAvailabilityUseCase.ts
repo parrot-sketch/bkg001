@@ -38,47 +38,58 @@ export class GetMyAvailabilityUseCase {
   /**
    * Executes the get my availability use case
    * 
-   * @param doctorId - Doctor ID
+   * @param doctorId - Doctor ID (caller must have already validated this exists)
+   * @param options.skipValidation - Skip the doctor-exists query when the caller
+   *   already verified the doctor (e.g. from auth context). Saves 1 DB round-trip.
    * @returns Promise resolving to DoctorAvailabilityResponseDto
    * @throws DomainException if doctor not found
    */
-  async execute(doctorId: string): Promise<DoctorAvailabilityResponseDto> {
-    // Step 1: Validate doctor exists
-    const doctor = await this.prisma.doctor.findUnique({
-      where: { id: doctorId },
-      select: {
-        id: true,
-        name: true,
-        specialization: true,
-      },
-    });
+  async execute(
+    doctorId: string,
+    { skipValidation = false }: { skipValidation?: boolean } = {}
+  ): Promise<DoctorAvailabilityResponseDto> {
+    // Step 1: Validate doctor exists (skippable when caller already confirmed)
+    let doctorName = '';
+    let specialization = '';
 
-    if (!doctor) {
-      throw new DomainException(`Doctor with ID ${doctorId} not found`, {
-        doctorId,
+    if (!skipValidation) {
+      const doctor = await this.prisma.doctor.findUnique({
+        where: { id: doctorId },
+        select: { id: true, name: true, specialization: true },
       });
+
+      if (!doctor) {
+        throw new DomainException(`Doctor with ID ${doctorId} not found`, { doctorId });
+      }
+      doctorName = doctor.name;
+      specialization = doctor.specialization;
     }
 
-    // Step 2: Get doctor availability
+    // Step 2: Get doctor availability (template + slots + overrides + blocks + slotConfig)
     const availability = await this.availabilityRepository.getDoctorAvailability(doctorId);
 
     if (!availability) {
-      // Return empty availability if not configured
       return {
         doctorId,
-        doctorName: doctor.name,
-        specialization: doctor.specialization,
+        doctorName,
+        specialization,
         workingDays: [],
         overrides: [],
         sessions: [],
       };
     }
 
-    // Step 3: Get overrides for next 90 days (for display)
-    const startDate = new Date();
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + 90);
-    const overrides = await this.availabilityRepository.getOverrides(doctorId, startDate, endDate);
+    // Step 3: Filter overrides to next 90 days in memory
+    //   (getDoctorAvailability already fetched ALL overrides — no need for a second query)
+    const now = new Date();
+    const ninetyDaysFromNow = new Date();
+    ninetyDaysFromNow.setDate(ninetyDaysFromNow.getDate() + 90);
+
+    const recentOverrides = (availability.overrides || []).filter((ov) => {
+      const end = new Date(ov.endDate);
+      const start = new Date(ov.startDate);
+      return end >= now && start <= ninetyDaysFromNow;
+    });
 
     // Step 4: Map sessions to include day name for easier frontend mapping
     const sessionsWithDay = availability.sessions.map((session) => {
@@ -97,8 +108,8 @@ export class GetMyAvailabilityUseCase {
     // Step 5: Map to response DTO
     return {
       doctorId: availability.doctorId,
-      doctorName: doctor.name,
-      specialization: doctor.specialization,
+      doctorName: doctorName || '',
+      specialization: specialization || '',
       workingDays: availability.workingDays.map((wd) => ({
         day: wd.day,
         startTime: wd.startTime,
@@ -110,7 +121,7 @@ export class GetMyAvailabilityUseCase {
         bufferTime: availability.slotConfiguration.bufferTime,
         slotInterval: availability.slotConfiguration.slotInterval,
       } : undefined,
-      overrides: overrides.map((ov) => ({
+      overrides: recentOverrides.map((ov) => ({
         id: ov.id,
         startDate: ov.startDate,
         endDate: ov.endDate,
