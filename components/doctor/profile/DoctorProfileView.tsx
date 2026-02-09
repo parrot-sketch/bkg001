@@ -9,8 +9,7 @@
  * Receives server-fetched data via props (no client-side data fetching).
  */
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -43,6 +42,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { EditDoctorProfileSheet } from '@/components/doctor/EditDoctorProfileSheet';
+import { useInvalidateDoctorProfile } from '@/hooks/doctor/useDoctorProfile';
 import { AccountSettingsSheet } from '@/components/settings/AccountSettingsSheet';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 
@@ -69,16 +69,20 @@ export function DoctorProfileView({
     todayAppointments = [],
     upcomingAppointments = []
 }: DoctorProfileViewProps) {
-    const router = useRouter();
     const [showEditDialog, setShowEditDialog] = useState(false);
     const [showAccountSettings, setShowAccountSettings] = useState(false);
     const [currentDoctorData, setCurrentDoctorData] = useState(doctorData);
+    const { invalidateProfile } = useInvalidateDoctorProfile();
+
+    // Sync props → local state when React Query delivers fresh data
+    useEffect(() => {
+        if (doctorData) setCurrentDoctorData(doctorData);
+    }, [doctorData]);
 
     const handleProfileUpdate = () => {
-        // router.refresh() re-fetches Server Component data WITHOUT a full page reload.
-        // This avoids destroying all client state, is faster, and re-runs only
-        // the server-side queries (not the entire JS bundle).
-        router.refresh();
+        // Invalidate React Query cache → triggers background refetch.
+        // The updated data flows in via props and the useEffect above syncs it.
+        invalidateProfile();
     };
 
     if (!currentDoctorData) {

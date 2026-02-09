@@ -1,88 +1,103 @@
-import { getCurrentUserFull } from '@/lib/auth/server-auth';
-import { redirect } from 'next/navigation';
+'use client';
+
+/**
+ * Doctor Profile Page — Hybrid client-side cached approach
+ *
+ * Uses React Query hooks to fetch data from API routes.
+ * - First visit: fetches from API, shows loading skeleton briefly.
+ * - Subsequent visits: React Query serves from cache INSTANTLY,
+ *   then revalidates in the background.
+ *
+ * This eliminates the "loading skeleton on every visit" problem
+ * that the previous async Server Component caused.
+ */
+
+import { useAuth } from '@/hooks/patient/useAuth';
+import { useRouter } from 'next/navigation';
+import { useMemo } from 'react';
 import {
-  getDoctorProfile,
-  getDoctorAppointments,
-  getDoctorAvailability
-} from '@/app/actions/doctor';
+  useDoctorMyProfile,
+  useDoctorMyAvailability,
+  useDoctorMyAppointments,
+} from '@/hooks/doctor/useDoctorProfile';
 import { DoctorProfileView } from '@/components/doctor/profile/DoctorProfileView';
+import DoctorProfileLoading from './loading';
 
-export default async function DoctorProfilePage() {
-  // 1. Server-Side Authentication
-  const user = await getCurrentUserFull();
+export default function DoctorProfilePage() {
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const router = useRouter();
 
-  if (!user) {
-    redirect('/login');
+  // ─── React Query hooks (cached across navigations) ──────────────────────
+  const {
+    data: profileData,
+    isLoading: profileLoading,
+    error: profileError,
+  } = useDoctorMyProfile();
+
+  const { data: availability } = useDoctorMyAvailability();
+
+  const { data: allAppointments = [] } = useDoctorMyAppointments(
+    profileData?.id,
+  );
+
+  // ─── Derive today / upcoming from the single appointments fetch ─────────
+  const { todayAppointments, upcomingAppointments } = useMemo(() => {
+    if (!allAppointments.length) {
+      return { todayAppointments: [], upcomingAppointments: [] };
+    }
+
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+    const activeStatuses = new Set(['SCHEDULED', 'CONFIRMED']);
+
+    return {
+      todayAppointments: allAppointments.filter((a: any) => {
+        const d = new Date(a.appointmentDate);
+        return d >= todayStart && d < tomorrowStart && activeStatuses.has(a.status);
+      }),
+      upcomingAppointments: allAppointments.filter((a: any) => {
+        const d = new Date(a.appointmentDate);
+        return d >= todayStart && activeStatuses.has(a.status);
+      }),
+    };
+  }, [allAppointments]);
+
+  // ─── Auth gate ──────────────────────────────────────────────────────────
+  if (authLoading) return <DoctorProfileLoading />;
+
+  if (!isAuthenticated || !user) {
+    router.push('/login');
+    return null;
   }
 
-  if (user.role !== 'DOCTOR' && user.role !== 'ADMIN') {
-    // redirect('/dashboard');
+  // ─── Data loading: show skeleton ONLY when no cached data exists ────────
+  if (profileLoading && !profileData) {
+    return <DoctorProfileLoading />;
   }
 
-  // 2. Pre-fetch Data in Parallel
-  //    - getDoctorAvailability receives doctorId directly with isDoctorId flag,
-  //      eliminating the redundant doctor-by-userId lookup inside the action.
-  //    - Appointments and profile still use their respective IDs.
-  const doctorId = user.doctor_profile?.id || '';
-
-  const [
-    profileResult,
-    appointmentsResult,
-    availabilityResult,
-  ] = await Promise.all([
-    getDoctorProfile(user.id),
-    getDoctorAppointments(doctorId, { limit: 100 }),
-    getDoctorAvailability(doctorId, { isDoctorId: true }),
-  ]);
-
-  // Derive today/upcoming from the single appointments fetch (client-side filter)
-  const allAppointments = appointmentsResult.success && appointmentsResult.data
-    ? appointmentsResult.data
-    : [];
-
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const tomorrowStart = new Date(todayStart);
-  tomorrowStart.setDate(tomorrowStart.getDate() + 1);
-
-  const activeStatuses = new Set(['SCHEDULED', 'CONFIRMED']);
-
-  const todayResult = {
-    success: true,
-    data: allAppointments.filter((a: any) => {
-      const d = new Date(a.appointmentDate);
-      return d >= todayStart && d < tomorrowStart && activeStatuses.has(a.status);
-    }),
-  };
-
-  const upcomingResult = {
-    success: true,
-    data: allAppointments.filter((a: any) => {
-      const d = new Date(a.appointmentDate);
-      return d >= todayStart && activeStatuses.has(a.status);
-    }),
-  };
-
-  // Handle profile missing
-  if (!profileResult.success || !profileResult.data) {
+  // ─── Error / missing profile ────────────────────────────────────────────
+  if (profileError || !profileData) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-[60vh]">
         <div className="text-center">
-          <p className="text-muted-foreground">Profile not found. Please contact support.</p>
+          <p className="text-muted-foreground">
+            Profile not found. Please contact support.
+          </p>
         </div>
       </div>
     );
   }
 
-  // 3. Render Client View with Data
+  // ─── Render ─────────────────────────────────────────────────────────────
   return (
     <DoctorProfileView
-      doctorData={profileResult.data}
-      availability={availabilityResult.success ? availabilityResult.data : null}
+      doctorData={profileData}
+      availability={availability ?? null}
       appointments={allAppointments}
-      todayAppointments={todayResult.data}
-      upcomingAppointments={upcomingResult.data}
+      todayAppointments={todayAppointments}
+      upcomingAppointments={upcomingAppointments}
     />
   );
 }
-
