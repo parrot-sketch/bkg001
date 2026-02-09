@@ -3,10 +3,10 @@
 /**
  * Chief Complaint Tab
  * 
- * Capture patient's primary concern and presenting complaint.
- * Critical for aesthetic surgery: understanding patient expectations and goals.
+ * Single responsibility: chief complaint notes (`chiefComplaint` field in StructuredNotes).
+ * Captures the patient's primary concern and aesthetic goals.
  * 
- * Note: Auto-saves via parent context - no per-tab save button needed.
+ * Note: Auto-saves via parent context — no per-tab save button needed.
  */
 
 import { useState, useEffect } from 'react';
@@ -17,17 +17,12 @@ import { RichTextEditor } from '@/components/consultation/RichTextEditor';
 interface PatientGoalsTabProps {
   initialValue?: string;
   onChange: (value: string) => void;
-  onSave?: () => void;
-  isSaving?: boolean;
   isReadOnly?: boolean;
 }
 
 export function PatientGoalsTab({
   initialValue = '',
   onChange,
-  // onSave and isSaving are passed for interface consistency but auto-save is handled by parent
-  onSave: _onSave,
-  isSaving: _isSaving,
   isReadOnly = false,
 }: PatientGoalsTabProps) {
   const [goals, setGoals] = useState(initialValue);

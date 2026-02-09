@@ -1,17 +1,18 @@
 'use client';
 
 /**
- * Recommendations Tab
+ * Assessment Tab
  * 
- * Consultation outcome and recommendations.
- * Critical for aesthetic surgery: determines next workflow path.
+ * Clinical assessment and consultation outcome selection.
+ * Single responsibility: outcome type + assessment notes.
+ * 
+ * The treatment plan is handled by the dedicated TreatmentPlanTab,
+ * ensuring each tab owns exactly one note field (SRP).
  */
 
 import { useState, useEffect } from 'react';
 import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Save } from 'lucide-react';
 import { RichTextEditor } from '@/components/consultation/RichTextEditor';
 import type { ConsultationResponseDto } from '@/application/dtos/ConsultationResponseDto';
 import { ConsultationOutcomeType } from '@/domain/enums/ConsultationOutcomeType';
@@ -20,9 +21,6 @@ interface RecommendationsTabProps {
   consultation: ConsultationResponseDto | null;
   onOutcomeChange?: (outcomeType: ConsultationOutcomeType) => void;
   onAssessmentChange?: (assessment: string) => void;
-  onPlanChange?: (plan: string) => void;
-  onSave?: () => void;
-  isSaving?: boolean;
   isReadOnly?: boolean;
 }
 
@@ -30,9 +28,6 @@ export function RecommendationsTab({
   consultation,
   onOutcomeChange,
   onAssessmentChange,
-  onPlanChange,
-  onSave,
-  isSaving = false,
   isReadOnly = false,
 }: RecommendationsTabProps) {
   const [outcomeType, setOutcomeType] = useState<ConsultationOutcomeType | ''>(
@@ -41,14 +36,10 @@ export function RecommendationsTab({
   const [assessment, setAssessment] = useState(
     consultation?.notes?.structured?.assessment || ''
   );
-  const [plan, setPlan] = useState(
-    consultation?.notes?.structured?.plan || ''
-  );
 
   useEffect(() => {
     if (consultation?.notes?.structured) {
       setAssessment(consultation.notes.structured.assessment || '');
-      setPlan(consultation.notes.structured.plan || '');
     }
   }, [consultation]);
 
@@ -62,16 +53,12 @@ export function RecommendationsTab({
     onAssessmentChange?.(value);
   };
 
-  const handlePlanChange = (value: string) => {
-    setPlan(value);
-    onPlanChange?.(value);
-  };
-
   return (
-    <div className="space-y-4">
+    <div className="p-6 space-y-6">
+      {/* Consultation Outcome */}
       <div>
-        <Label htmlFor="outcome-type" className="text-sm font-medium">
-          Consultation Outcome *
+        <Label htmlFor="outcome-type" className="text-sm font-semibold">
+          Consultation Outcome
         </Label>
         <p className="text-xs text-muted-foreground mt-1 mb-3">
           Select the outcome type to determine next workflow steps.
@@ -81,7 +68,7 @@ export function RecommendationsTab({
           onValueChange={(value) => handleOutcomeChange(value as ConsultationOutcomeType)}
           disabled={isReadOnly}
         >
-          <SelectTrigger id="outcome-type" className="mt-2">
+          <SelectTrigger id="outcome-type">
             <SelectValue placeholder="Select outcome type" />
           </SelectTrigger>
           <SelectContent>
@@ -104,52 +91,22 @@ export function RecommendationsTab({
         </Select>
       </div>
 
+      {/* Clinical Assessment */}
       <div>
-        <Label htmlFor="assessment" className="text-sm font-medium">
-          Assessment
+        <Label htmlFor="assessment" className="text-sm font-semibold">
+          Clinical Assessment
         </Label>
         <p className="text-xs text-muted-foreground mt-1 mb-3">
-          Clinical assessment and findings summary.
+          Document your clinical assessment, findings summary, and diagnosis.
         </p>
         <RichTextEditor
           content={assessment}
           onChange={handleAssessmentChange}
           placeholder="Clinical assessment, findings summary, diagnosis..."
           readOnly={isReadOnly}
-          minHeight="250px"
+          minHeight="400px"
         />
       </div>
-
-      <div>
-        <Label htmlFor="plan" className="text-sm font-medium">
-          Plan
-        </Label>
-        <p className="text-xs text-muted-foreground mt-1 mb-3">
-          Treatment plan and recommendations.
-        </p>
-        <RichTextEditor
-          content={plan}
-          onChange={handlePlanChange}
-          placeholder="Treatment plan, recommendations, next steps..."
-          readOnly={isReadOnly}
-          minHeight="250px"
-        />
-      </div>
-
-      {/* Save Button */}
-      {!isReadOnly && onSave && (
-        <div className="flex justify-end pt-4 border-t">
-          <Button
-            onClick={onSave}
-            disabled={isSaving || (!outcomeType && !assessment.trim() && !plan.trim())}
-            size="sm"
-            className="bg-primary hover:bg-primary/90"
-          >
-            <Save className="h-4 w-4 mr-2" />
-            {isSaving ? 'Saving...' : 'Save Assessment & Plan'}
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
