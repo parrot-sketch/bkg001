@@ -250,6 +250,38 @@ body {
   animation: landing-scale-in 0.5s ease-out both;
 }
 
+/* ------------------------------------------------------------------ */
+/* Landing page — premium background textures (pure CSS, no images)   */
+/* ------------------------------------------------------------------ */
+
+/* Dot grid — subtle structural texture (Vercel / Linear style)       */
+.bg-dot-grid {
+  background-image: radial-gradient(circle, rgba(30, 58, 95, 0.06) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.bg-dot-grid-light {
+  background-image: radial-gradient(circle, rgba(30, 58, 95, 0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+.bg-dot-grid-dark {
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Cross-hatch — ultra-subtle woven texture for warm sections         */
+.bg-crosshatch {
+  background-image:
+    linear-gradient(45deg, rgba(30, 58, 95, 0.015) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(30, 58, 95, 0.015) 25%, transparent 25%);
+  background-size: 20px 20px;
+}
+
+/* Fade mask — soft top/bottom edges for overlays                     */
+.mask-fade-y {
+  mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
+}
+
 /* Custom scrollbar - refined, minimal */
 *::-webkit-scrollbar {
   width: 6px;
