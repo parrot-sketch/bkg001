@@ -56,27 +56,21 @@ const db = globalThis.prismaGlobal ?? prismaClientSingleton();
 if (!globalThis.prismaGlobal) {
   globalThis.prismaGlobal = db;
 
-  // Handle graceful shutdown in serverless environments
-  // CRITICAL: Without connection pooling, we must explicitly manage connection lifecycle
+  // Handle graceful shutdown — only register once (guarded by the globalThis check above)
+  // NOTE: In Vercel serverless, these fire when the function instance is recycled.
+  // We intentionally omit 'uncaughtException' — it can mask errors and the async
+  // disconnect may not complete before the process exits.
   if (typeof process !== 'undefined') {
-    // Disconnect on function termination to free up connections
     const disconnect = async () => {
       try {
         await db.$disconnect();
-      } catch (error) {
+      } catch {
         // Ignore disconnect errors during shutdown
       }
     };
 
     process.on('beforeExit', disconnect);
-    process.on('SIGINT', disconnect);
     process.on('SIGTERM', disconnect);
-
-    // Also handle uncaught exceptions to prevent connection leaks
-    process.on('uncaughtException', async (error) => {
-      console.error('[DB] Uncaught exception, disconnecting...', error);
-      await disconnect();
-    });
   }
 }
 
@@ -91,8 +85,16 @@ export async function checkDatabaseConnection(): Promise<boolean> {
   }
 }
 
-// Retry wrapper for database operations
-// Works without connection pooling by managing connections explicitly
+/**
+ * Retry wrapper for database operations with exponential backoff.
+ *
+ * OPTIMIZED: Removed the pre-flight `SELECT 1` health check that ran before EVERY
+ * operation. That doubled the number of queries and wasted a connection slot each time.
+ * Prisma's internal pool already handles lazy connect/reconnect.
+ *
+ * Retries are only attempted for transient connection errors — not for application-level
+ * Prisma errors (unique constraint, validation, etc.).
+ */
 export async function withRetry<T>(
   operation: () => Promise<T>,
   maxRetries: number = 3,
@@ -102,73 +104,44 @@ export async function withRetry<T>(
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      // Ensure connection is active before operation
-      // This is critical when connection pooling is not available
-      try {
-        const isConnected = await checkDatabaseConnection();
-        if (!isConnected) {
-          // Explicitly connect if not connected
-          // This is safe to call multiple times - Prisma handles it
-          await db.$connect();
-        }
-      } catch (connectError) {
-        // If connection check fails, try to reconnect
-        if (attempt > 1) {
-          try {
-            await db.$disconnect();
-            await db.$connect();
-          } catch (reconnectError) {
-            // If reconnect fails, continue to operation attempt
-            // The operation itself might trigger a reconnect
-          }
-        }
-      }
-
       return await operation();
     } catch (error: any) {
       lastError = error;
 
-      // Check if it's a connection error
+      // Only retry on transient connection errors
       const isConnectionError =
-        error?.name === 'PrismaClientInitializationError' || // Prisma client initialization failure
+        error?.name === 'PrismaClientInitializationError' ||
         error?.message?.includes('Connection closed') ||
         error?.message?.includes('Connection terminated') ||
         error?.message?.includes('Connection refused') ||
         error?.message?.includes('Can\'t reach database server') ||
         error?.message?.includes('Can\'t reach database') ||
-        error?.code === 'P1001' || // Prisma connection error
-        error?.code === 'P1008' || // Prisma operation timeout
-        error?.code === 'P1017' || // Prisma server closed connection
-        error?.code === 'P1010';   // Prisma connection timeout
+        error?.code === 'P1001' || // Can't reach DB server
+        error?.code === 'P1008' || // Operation timeout
+        error?.code === 'P1017' || // Server closed connection
+        error?.code === 'P1010';   // Connection timeout
 
       if (isConnectionError && attempt < maxRetries) {
-        console.warn(`[DB] Connection error on attempt ${attempt}, retrying...`, {
+        console.warn(`[DB] Connection error on attempt ${attempt}/${maxRetries}, retrying...`, {
           message: error?.message,
           code: error?.code,
         });
 
-        // Disconnect and reconnect to reset connection state
-        try {
-          await db.$disconnect();
-        } catch (disconnectError) {
-          // Ignore disconnect errors
-        }
-
-        // Exponential backoff before retry
+        // Exponential backoff
         await new Promise(resolve => setTimeout(resolve, delay * attempt));
 
-        // Try to reconnect before next attempt
+        // Reset connection state before retry
         try {
+          await db.$disconnect();
           await db.$connect();
-        } catch (reconnectError) {
-          // If reconnect fails, continue to next attempt
-          // The operation will try again
+        } catch {
+          // Swallow — the next operation attempt will trigger lazy reconnect
         }
 
         continue;
       }
 
-      // If not a connection error or max retries reached, throw
+      // Not a connection error, or max retries reached — surface the error
       throw error;
     }
   }

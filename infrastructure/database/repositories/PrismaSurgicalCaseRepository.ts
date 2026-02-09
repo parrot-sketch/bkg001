@@ -36,6 +36,7 @@ export class PrismaSurgicalCaseRepository implements ISurgicalCaseRepository {
     return this.prisma.surgicalCase.findMany({
       where: { patient_id: patientId },
       orderBy: { created_at: 'desc' },
+      take: 50, // Safety limit — patient won't realistically have 50+ surgical cases
       include: {
         patient: true,
         primary_surgeon: true,
@@ -60,6 +61,7 @@ export class PrismaSurgicalCaseRepository implements ISurgicalCaseRepository {
     return this.prisma.surgicalCase.findMany({
       where: { status },
       orderBy: { created_at: 'desc' },
+      take: 100, // Safety limit for status-based queries
       include: {
         patient: true,
         primary_surgeon: true,
@@ -73,6 +75,7 @@ export class PrismaSurgicalCaseRepository implements ISurgicalCaseRepository {
     return this.prisma.surgicalCase.findMany({
       where: { primary_surgeon_id: surgeonId },
       orderBy: { created_at: 'desc' },
+      take: 100, // Safety limit — surgeon's active case list
       include: {
         patient: true,
         primary_surgeon: true,
@@ -102,6 +105,7 @@ export class PrismaSurgicalCaseRepository implements ISurgicalCaseRepository {
         status: SurgicalCaseStatus.READY_FOR_SCHEDULING,
       },
       orderBy: { created_at: 'asc' },
+      take: 100, // Safety limit for scheduling queue
       include: {
         patient: true,
         primary_surgeon: true,
@@ -128,6 +132,7 @@ export class PrismaSurgicalCaseRepository implements ISurgicalCaseRepository {
         },
       },
       orderBy: { created_at: 'asc' },
+      take: 100, // Safety limit for pre-op queue
       include: {
         patient: true,
         primary_surgeon: true,
