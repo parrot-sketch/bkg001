@@ -48,13 +48,34 @@ export async function getDoctorAppointments(doctorId: string, options: any = {})
 
 /**
  * Get Doctor Availability
+ * 
+ * @param doctorOrUserId - Can be a Doctor ID or User ID.
+ *   If `isDoctorId` is true, the lookup-by-user_id query is skipped
+ *   (saves one DB round-trip when the caller already has the doctor ID).
  */
-export async function getDoctorAvailability(userId: string) {
+export async function getDoctorAvailability(
+    doctorOrUserId: string,
+    { isDoctorId = false }: { isDoctorId?: boolean } = {}
+) {
     try {
-        const doctor = await db.doctor.findUnique({ where: { user_id: userId } });
-        if (!doctor) throw new Error('Doctor not found');
+        let doctorId: string;
 
-        const availability = await getMyAvailabilityUseCase.execute(doctor.id);
+        if (isDoctorId) {
+            // Caller already resolved the doctor ID — skip the lookup
+            doctorId = doctorOrUserId;
+        } else {
+            // Legacy path: resolve doctor by user_id
+            const doctor = await db.doctor.findUnique({ where: { user_id: doctorOrUserId } });
+            if (!doctor) throw new Error('Doctor not found');
+            doctorId = doctor.id;
+        }
+
+        // When isDoctorId is true, the caller already resolved the doctor —
+        // tell the use case to skip its redundant doctor-exists query too.
+        const availability = await getMyAvailabilityUseCase.execute(
+            doctorId,
+            { skipValidation: isDoctorId }
+        );
         return { success: true, data: availability };
     } catch (error: any) {
         console.error('Error fetching doctor availability:', error);
