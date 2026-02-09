@@ -67,26 +67,38 @@ export async function getCurrentUser(): Promise<AuthContext | null> {
       // Use the auth service to exchange the refresh token for new tokens
       const tokens = await authService.refreshToken(refreshToken);
 
-      // Write the new access token + refresh token cookies
-      // Using cookies().set() from next/headers to update server-side cookies
-      cookieStore.set('accessToken', tokens.accessToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        maxAge: tokens.expiresIn,
-      });
-
-      cookieStore.set('refreshToken', tokens.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 7 * 24 * 60 * 60,
-      });
-
-      // Verify the new access token to get the user context
+      // Verify the new access token FIRST to get the user context.
+      // This must happen before cookie writes, because cookies().set()
+      // throws in Server Components (read-only context). We still want
+      // to return the authenticated user even if cookies can't be persisted.
       const user = await jwtMiddleware.authenticate(`Bearer ${tokens.accessToken}`);
+
+      // Try to persist updated cookies. This succeeds in Route Handlers
+      // and Server Actions but will throw in Server Components — that's
+      // acceptable because the user is already authenticated for this request.
+      try {
+        cookieStore.set('accessToken', tokens.accessToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+          maxAge: tokens.expiresIn,
+        });
+
+        cookieStore.set('refreshToken', tokens.refreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+          maxAge: 7 * 24 * 60 * 60,
+        });
+      } catch {
+        // Server Component context — cookies are read-only.
+        // The user is authenticated for this request; cookies will be
+        // refreshed on the next API call or navigation through a
+        // Route Handler / Server Action.
+      }
+
       return user || null;
     } catch (refreshError) {
       // Refresh token is also invalid/expired — truly unauthenticated
