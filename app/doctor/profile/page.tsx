@@ -19,31 +19,49 @@ export default async function DoctorProfilePage() {
     // redirect('/dashboard');
   }
 
-  // 2. Pre-fetch Data in Parallel
+  // 2. Pre-fetch Data in Parallel (optimized: 3 queries instead of 5)
+  //    - Removed 2 redundant getDoctorAppointments calls; today/upcoming
+  //      are filtered client-side from the single appointments fetch.
+  //    - getDoctorAvailability receives user.id (it internally resolves the doctor).
+  const doctorId = user.doctor_profile?.id || '';
+
   const [
     profileResult,
     appointmentsResult,
     availabilityResult,
-    todayResult,
-    upcomingResult
   ] = await Promise.all([
     getDoctorProfile(user.id),
-    getDoctorAppointments(user.doctor_profile?.id || '', { limit: 100 }), // Fetch recent history
+    getDoctorAppointments(doctorId, { limit: 100 }),
     getDoctorAvailability(user.id),
-    // Fetch specific buckets if needed, or filter on client. 
-    // We'll fetch them as separate queries for now to match original logic.
-    getDoctorAppointments(user.doctor_profile?.id || '', {
-      startDate: new Date(),
-      endDate: new Date(new Date().setDate(new Date().getDate() + 1)),
-      status: 'SCHEDULED,CONFIRMED',
-      limit: 20
-    }),
-    getDoctorAppointments(user.doctor_profile?.id || '', {
-      startDate: new Date(),
-      status: 'SCHEDULED,CONFIRMED',
-      limit: 20
-    }),
   ]);
+
+  // Derive today/upcoming from the single appointments fetch (client-side filter)
+  const allAppointments = appointmentsResult.success && appointmentsResult.data
+    ? appointmentsResult.data
+    : [];
+
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrowStart = new Date(todayStart);
+  tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+
+  const activeStatuses = new Set(['SCHEDULED', 'CONFIRMED']);
+
+  const todayResult = {
+    success: true,
+    data: allAppointments.filter((a: any) => {
+      const d = new Date(a.appointmentDate);
+      return d >= todayStart && d < tomorrowStart && activeStatuses.has(a.status);
+    }),
+  };
+
+  const upcomingResult = {
+    success: true,
+    data: allAppointments.filter((a: any) => {
+      const d = new Date(a.appointmentDate);
+      return d >= todayStart && activeStatuses.has(a.status);
+    }),
+  };
 
   // Handle profile missing
   if (!profileResult.success || !profileResult.data) {
@@ -61,9 +79,9 @@ export default async function DoctorProfilePage() {
     <DoctorProfileView
       doctorData={profileResult.data}
       availability={availabilityResult.success ? availabilityResult.data : null}
-      appointments={appointmentsResult.success && appointmentsResult.data ? appointmentsResult.data : []}
-      todayAppointments={todayResult.success && todayResult.data ? todayResult.data : []}
-      upcomingAppointments={upcomingResult.success && upcomingResult.data ? upcomingResult.data : []}
+      appointments={allAppointments}
+      todayAppointments={todayResult.data}
+      upcomingAppointments={upcomingResult.data}
     />
   );
 }
