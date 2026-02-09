@@ -277,12 +277,12 @@ export default function DoctorDashboardPage() {
               Your account is active. To start receiving appointments, please configure your weekly availability and complete your professional profile.
             </p>
             <div className="flex gap-4">
-              <Link href="/doctor/profile">
-                <Button variant="secondary" className="font-semibold">
+              <Button asChild variant="secondary" className="font-semibold">
+                <Link href="/doctor/profile">
                   Complete Setup
                   <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
           </div>
         </div>
