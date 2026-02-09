@@ -5,6 +5,17 @@ import { PrismaIntakeSessionRepository } from '@/infrastructure/repositories/Int
 import { PrismaIntakeSubmissionRepository } from '@/infrastructure/repositories/IntakeSubmissionRepository';
 import { PrismaPatientRepository } from '@/infrastructure/repositories/PatientRepository';
 
+// Initialize repositories at module level (singleton — shared across requests)
+const sessionRepository = new PrismaIntakeSessionRepository(db);
+const submissionRepository = new PrismaIntakeSubmissionRepository(db);
+const patientRepository = new PrismaPatientRepository(db);
+
+const confirmIntakeUseCase = new ConfirmPatientIntakeUseCase(
+  submissionRepository,
+  sessionRepository,
+  patientRepository,
+);
+
 /**
  * POST /api/frontdesk/intake/confirm
  *
@@ -50,19 +61,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Initialize repositories and use case
-    const sessionRepository = new PrismaIntakeSessionRepository(db);
-    const submissionRepository = new PrismaIntakeSubmissionRepository(db);
-    const patientRepository = new PrismaPatientRepository(db);
-
-    const useCase = new ConfirmPatientIntakeUseCase(
-      submissionRepository,
-      sessionRepository,
-      patientRepository,
-    );
-
     // Execute use case
-    const result = await useCase.execute({
+    const result = await confirmIntakeUseCase.execute({
       sessionId,
       corrections,
     });

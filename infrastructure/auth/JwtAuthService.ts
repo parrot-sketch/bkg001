@@ -165,10 +165,19 @@ export class JwtAuthService implements IAuthService {
     await this.storeRefreshToken(user.getId(), tokens.refreshToken, this.refreshTokenExpiresIn);
 
     // 6. Update last login timestamp
-    const updatedUser = await this.updateLastLogin(user);
+    await this.updateLastLogin(user);
 
-    // 7. Return tokens
-    return tokens;
+    // 7. Return tokens + authenticated user info (avoids duplicate findByEmail in callers)
+    return {
+      ...tokens,
+      authenticatedUser: {
+        id: user.getId(),
+        email: user.getEmail().getValue(),
+        role: user.getRole(),
+        firstName: user.getFirstName(),
+        lastName: user.getLastName(),
+      },
+    };
   }
 
   /**

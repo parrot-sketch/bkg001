@@ -3,6 +3,9 @@ import { db } from '@/lib/db';
 import { PrismaIntakeSubmissionRepository } from '@/infrastructure/repositories/IntakeSubmissionRepository';
 import { IntakeSubmissionMapper } from '@/infrastructure/mappers/IntakeSubmissionMapper';
 
+// Module-level singleton — shared across requests
+const submissionRepository = new PrismaIntakeSubmissionRepository(db);
+
 /**
  * GET /api/frontdesk/intake/[sessionId]
  *
@@ -32,8 +35,7 @@ export async function GET(
   try {
     const { sessionId } = await params;
 
-    const repository = new PrismaIntakeSubmissionRepository(db);
-    const submission = await repository.findBySessionId(sessionId);
+    const submission = await submissionRepository.findBySessionId(sessionId);
 
     if (!submission) {
       return NextResponse.json(
