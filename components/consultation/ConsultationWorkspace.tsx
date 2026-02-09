@@ -267,8 +267,6 @@ export function ConsultationWorkspace({
               <PatientGoalsTab
                 initialValue={notesState.chiefComplaint}
                 onChange={(value) => updateStructuredNotes('chiefComplaint', value)}
-                onSave={onSave}
-                isSaving={isSaving}
                 isReadOnly={isReadOnly}
               />
             </TabsContent>
@@ -277,8 +275,6 @@ export function ConsultationWorkspace({
               <ExaminationTab
                 initialValue={notesState.examination}
                 onChange={(value) => updateStructuredNotes('examination', value)}
-                onSave={onSave}
-                isSaving={isSaving}
                 isReadOnly={isReadOnly}
               />
             </TabsContent>
@@ -308,9 +304,6 @@ export function ConsultationWorkspace({
                 consultation={consultation}
                 onOutcomeChange={onOutcomeChange}
                 onAssessmentChange={(value) => updateStructuredNotes('assessment', value)}
-                onPlanChange={(value) => updateStructuredNotes('plan', value)}
-                onSave={onSave}
-                isSaving={isSaving}
                 isReadOnly={isReadOnly}
               />
             </TabsContent>
@@ -320,8 +313,6 @@ export function ConsultationWorkspace({
                 consultation={consultation}
                 hasCasePlan={consultation?.hasCasePlan || false}
                 onPlanChange={(value) => updateStructuredNotes('plan', value)}
-                onSave={onSave}
-                isSaving={isSaving}
                 isReadOnly={isReadOnly}
               />
             </TabsContent>

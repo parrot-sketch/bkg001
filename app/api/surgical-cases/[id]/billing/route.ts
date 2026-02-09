@@ -1,14 +1,16 @@
 /**
- * API Route: GET/PUT /api/appointments/:id/billing
+ * API Route: GET/PUT /api/surgical-cases/:id/billing
  * 
- * Manage billing for an appointment.
+ * Manage billing for a surgical case.
+ * Surgery billing is decoupled from appointment billing — a procedure
+ * has its own Payment record with bill_type = 'SURGERY'.
  * 
- * GET - Get existing billing record for an appointment
- * PUT - Create or update billing items for an appointment
+ * GET - Get existing billing record for a surgical case
+ * PUT - Create or update billing items for a surgical case
  * 
  * Security:
  * - Requires authentication
- * - DOCTOR can view/update billing for their own appointments
+ * - DOCTOR (primary surgeon) can create/view/update billing
  * - FRONTDESK and ADMIN can view/update any billing
  */
 
@@ -18,9 +20,10 @@ import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 
 /**
- * GET /api/appointments/:id/billing
+ * GET /api/surgical-cases/:id/billing
  * 
- * Get the billing/payment record for an appointment, including bill items and services.
+ * Get the billing/payment record for a surgical case, including bill items,
+ * inventory usage, and services.
  */
 export async function GET(
   request: NextRequest,
@@ -28,6 +31,7 @@ export async function GET(
 ): Promise<NextResponse> {
   try {
     const params = await context.params;
+    const surgicalCaseId = params.id;
 
     // 1. Authenticate
     const authResult = await JwtMiddleware.authenticate(request);
@@ -38,16 +42,7 @@ export async function GET(
       );
     }
 
-    // 2. Parse appointment ID
-    const appointmentId = parseInt(params.id, 10);
-    if (isNaN(appointmentId)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid appointment ID' },
-        { status: 400 }
-      );
-    }
-
-    // 3. Check authorization
+    // 2. Check authorization
     const userRole = authResult.user.role as Role;
     const allowedRoles = [Role.DOCTOR, Role.FRONTDESK, Role.ADMIN];
     if (!allowedRoles.includes(userRole)) {
@@ -57,101 +52,84 @@ export async function GET(
       );
     }
 
-    // 4. If doctor, verify they own this appointment
-    if (userRole === Role.DOCTOR) {
-      const doctor = await db.doctor.findUnique({
-        where: { user_id: authResult.user.userId },
-        select: { id: true },
-      });
-      if (doctor) {
-        const appointment = await db.appointment.findUnique({
-          where: { id: appointmentId },
-          select: { doctor_id: true },
-        });
-        if (appointment && appointment.doctor_id !== doctor.id) {
-          return NextResponse.json(
-            { success: false, error: 'Access denied: Not your appointment' },
-            { status: 403 }
-          );
-        }
-      }
+    // 3. Verify surgical case exists
+    const surgicalCase = await db.surgicalCase.findUnique({
+      where: { id: surgicalCaseId },
+      include: {
+        patient: { select: { id: true, first_name: true, last_name: true } },
+        primary_surgeon: { select: { id: true, name: true, user_id: true } },
+      },
+    });
+
+    if (!surgicalCase) {
+      return NextResponse.json(
+        { success: false, error: 'Surgical case not found' },
+        { status: 404 }
+      );
     }
 
-    // 5. Find payment for this appointment
+    // 4. If doctor, verify they're the primary surgeon
+    if (userRole === Role.DOCTOR && surgicalCase.primary_surgeon.user_id !== authResult.user.userId) {
+      return NextResponse.json(
+        { success: false, error: 'Access denied: Not your surgical case' },
+        { status: 403 }
+      );
+    }
+
+    // 5. Find payment for this surgical case
     const payment = await db.payment.findUnique({
-      where: { appointment_id: appointmentId },
+      where: { surgical_case_id: surgicalCaseId },
       include: {
-        patient: {
-          select: {
-            id: true,
-            first_name: true,
-            last_name: true,
-            email: true,
-            phone: true,
-          },
-        },
-        appointment: {
-          select: {
-            id: true,
-            appointment_date: true,
-            time: true,
-            doctor_id: true,
-            type: true,
-            status: true,
-            doctor: {
-              select: {
-                name: true,
-                consultation_fee: true,
-              },
-            },
-          },
-        },
         bill_items: {
-          include: {
-            service: true,
-          },
+          include: { service: true },
         },
       },
     });
 
-    if (!payment) {
-      // No billing record yet — return null with appointment info
-      const appointment = await db.appointment.findUnique({
-        where: { id: appointmentId },
-        include: {
-          doctor: {
-            select: { consultation_fee: true, name: true },
-          },
-          patient: {
-            select: { id: true, first_name: true, last_name: true },
-          },
-        },
-      });
+    // 6. Get inventory usage for this surgical case
+    const inventoryUsage = await db.inventoryUsage.findMany({
+      where: { surgical_case_id: surgicalCaseId },
+      include: { inventory_item: true },
+      orderBy: { created_at: 'asc' },
+    });
 
+    if (!payment) {
       return NextResponse.json({
         success: true,
         data: {
           payment: null,
-          appointment: appointment ? {
-            id: appointment.id,
-            status: appointment.status,
-            type: appointment.type,
-            doctorName: appointment.doctor?.name,
-            consultationFee: appointment.doctor?.consultation_fee || 0,
-            patientName: `${appointment.patient?.first_name} ${appointment.patient?.last_name}`,
-          } : null,
+          surgicalCase: {
+            id: surgicalCase.id,
+            procedureName: surgicalCase.procedure_name,
+            status: surgicalCase.status,
+            surgeonName: surgicalCase.primary_surgeon?.name,
+            patientName: `${surgicalCase.patient?.first_name} ${surgicalCase.patient?.last_name}`,
+          },
+          inventoryUsage: inventoryUsage.map(u => ({
+            id: u.id,
+            itemName: u.inventory_item?.name || 'Unknown',
+            itemCategory: u.inventory_item?.category,
+            quantityUsed: u.quantity_used,
+            unitOfMeasure: u.inventory_item?.unit_of_measure || 'unit',
+            unitCost: u.unit_cost_at_time,
+            totalCost: u.total_cost,
+            isBillable: u.inventory_item?.is_billable ?? true,
+            isBilled: u.bill_item_id !== null,
+            notes: u.notes,
+          })),
         },
       });
     }
 
-    // 6. Map response
+    // 7. Map response
     return NextResponse.json({
       success: true,
       data: {
         payment: {
           id: payment.id,
           patientId: payment.patient_id,
-          appointmentId: payment.appointment_id,
+          surgicalCaseId: payment.surgical_case_id,
+          billType: payment.bill_type,
           billDate: payment.bill_date,
           paymentDate: payment.payment_date,
           discount: payment.discount,
@@ -160,17 +138,7 @@ export async function GET(
           paymentMethod: payment.payment_method,
           status: payment.status,
           receiptNumber: payment.receipt_number,
-          patient: payment.patient ? {
-            id: payment.patient.id,
-            firstName: payment.patient.first_name,
-            lastName: payment.patient.last_name,
-          } : undefined,
-          appointment: payment.appointment ? {
-            id: payment.appointment.id,
-            type: payment.appointment.type,
-            status: payment.appointment.status,
-            doctorName: payment.appointment.doctor?.name,
-          } : undefined,
+          notes: payment.notes,
           billItems: payment.bill_items.map(item => ({
             id: item.id,
             serviceId: item.service_id,
@@ -182,10 +150,29 @@ export async function GET(
             serviceDate: item.service_date,
           })),
         },
+        surgicalCase: {
+          id: surgicalCase.id,
+          procedureName: surgicalCase.procedure_name,
+          status: surgicalCase.status,
+          surgeonName: surgicalCase.primary_surgeon?.name,
+          patientName: `${surgicalCase.patient?.first_name} ${surgicalCase.patient?.last_name}`,
+        },
+        inventoryUsage: inventoryUsage.map(u => ({
+          id: u.id,
+          itemName: u.inventory_item?.name || 'Unknown',
+          itemCategory: u.inventory_item?.category,
+          quantityUsed: u.quantity_used,
+          unitOfMeasure: u.inventory_item?.unit_of_measure || 'unit',
+          unitCost: u.unit_cost_at_time,
+          totalCost: u.total_cost,
+          isBillable: u.inventory_item?.is_billable ?? true,
+          isBilled: u.bill_item_id !== null,
+          notes: u.notes,
+        })),
       },
     });
   } catch (error) {
-    console.error('[API] GET /api/appointments/[id]/billing - Error:', error);
+    console.error('[API] GET /api/surgical-cases/[id]/billing - Error:', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }
@@ -194,16 +181,17 @@ export async function GET(
 }
 
 /**
- * PUT /api/appointments/:id/billing
+ * PUT /api/surgical-cases/:id/billing
  * 
- * Create or update billing items for an appointment.
- * Doctors use this during consultation to specify which services were rendered.
+ * Create or update billing for a surgical case.
  * 
  * Request Body:
  * {
  *   billingItems: Array<{ serviceId: number, quantity: number, unitCost: number }>,
  *   discount?: number,
- *   customTotalAmount?: number
+ *   customTotalAmount?: number,
+ *   includeInventory?: boolean,  // Auto-include billable inventory usage
+ *   notes?: string,
  * }
  */
 export async function PUT(
@@ -212,6 +200,7 @@ export async function PUT(
 ): Promise<NextResponse> {
   try {
     const params = await context.params;
+    const surgicalCaseId = params.id;
 
     // 1. Authenticate
     const authResult = await JwtMiddleware.authenticate(request);
@@ -222,16 +211,7 @@ export async function PUT(
       );
     }
 
-    // 2. Parse appointment ID
-    const appointmentId = parseInt(params.id, 10);
-    if (isNaN(appointmentId)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid appointment ID' },
-        { status: 400 }
-      );
-    }
-
-    // 3. Check authorization (DOCTOR, FRONTDESK, ADMIN)
+    // 2. Check authorization
     const userRole = authResult.user.role as Role;
     const allowedRoles = [Role.DOCTOR, Role.FRONTDESK, Role.ADMIN];
     if (!allowedRoles.includes(userRole)) {
@@ -241,7 +221,7 @@ export async function PUT(
       );
     }
 
-    // 4. Parse body
+    // 3. Parse body
     let body: any;
     try {
       body = await request.json();
@@ -252,9 +232,9 @@ export async function PUT(
       );
     }
 
-    const { billingItems, discount, customTotalAmount } = body;
+    const { billingItems, discount, customTotalAmount, includeInventory, notes } = body;
 
-    // 5. Validate billing items
+    // 4. Validate billing items
     if (!billingItems || !Array.isArray(billingItems) || billingItems.length === 0) {
       return NextResponse.json(
         { success: false, error: 'At least one billing item is required' },
@@ -263,7 +243,7 @@ export async function PUT(
     }
 
     for (const item of billingItems) {
-      if (!item.serviceId || !item.quantity || item.quantity <= 0 || !item.unitCost || item.unitCost < 0) {
+      if (!item.serviceId || !item.quantity || item.quantity <= 0 || item.unitCost === undefined || item.unitCost < 0) {
         return NextResponse.json(
           { success: false, error: 'Each billing item must have serviceId, positive quantity, and non-negative unitCost' },
           { status: 400 }
@@ -271,48 +251,66 @@ export async function PUT(
       }
     }
 
-    // 6. Verify appointment exists
-    const appointment = await db.appointment.findUnique({
-      where: { id: appointmentId },
+    // 5. Verify surgical case exists
+    const surgicalCase = await db.surgicalCase.findUnique({
+      where: { id: surgicalCaseId },
       include: {
         patient: { select: { id: true } },
-        doctor: { select: { id: true, user_id: true, consultation_fee: true } },
+        primary_surgeon: { select: { id: true, user_id: true } },
       },
     });
 
-    if (!appointment) {
+    if (!surgicalCase) {
       return NextResponse.json(
-        { success: false, error: 'Appointment not found' },
+        { success: false, error: 'Surgical case not found' },
         { status: 404 }
       );
     }
 
-    // If doctor, verify they own this appointment
-    if (userRole === Role.DOCTOR && appointment.doctor.user_id !== authResult.user.userId) {
+    // If doctor, verify ownership
+    if (userRole === Role.DOCTOR && surgicalCase.primary_surgeon.user_id !== authResult.user.userId) {
       return NextResponse.json(
-        { success: false, error: 'Access denied: Not your appointment' },
+        { success: false, error: 'Access denied: Not your surgical case' },
         { status: 403 }
       );
     }
 
-    // 7. Calculate total from items
-    const calculatedTotal = billingItems.reduce(
+    // 6. Calculate total from service items
+    let calculatedTotal = billingItems.reduce(
       (sum: number, item: any) => sum + (item.quantity * item.unitCost), 0
     );
+
+    // 7. Optionally include billable inventory usage in the total
+    let inventoryTotal = 0;
+    if (includeInventory) {
+      const inventoryUsage = await db.inventoryUsage.findMany({
+        where: {
+          surgical_case_id: surgicalCaseId,
+          bill_item_id: null, // Only unbilled items
+        },
+        include: { inventory_item: true },
+      });
+
+      inventoryTotal = inventoryUsage
+        .filter(u => u.inventory_item?.is_billable)
+        .reduce((sum, u) => sum + u.total_cost, 0);
+
+      calculatedTotal += inventoryTotal;
+    }
+
     const finalTotal = customTotalAmount ?? calculatedTotal;
     const finalDiscount = discount ?? 0;
 
     // 8. Check if payment already exists
     const existingPayment = await db.payment.findUnique({
-      where: { appointment_id: appointmentId },
+      where: { surgical_case_id: surgicalCaseId },
       include: { bill_items: true },
     });
 
     let paymentId: number;
 
     if (existingPayment) {
-      // Update existing payment — delete old bill items, create new ones
-      // Only allow updates if payment hasn't been fully paid
+      // Update existing — only if not fully paid
       if (existingPayment.status === 'PAID') {
         return NextResponse.json(
           { success: false, error: 'Cannot update billing — payment already completed' },
@@ -331,6 +329,7 @@ export async function PUT(
         data: {
           total_amount: finalTotal,
           discount: finalDiscount,
+          notes: notes ?? existingPayment.notes,
           bill_items: {
             create: billingItems.map((item: any) => ({
               service_id: item.serviceId,
@@ -345,18 +344,19 @@ export async function PUT(
 
       paymentId = existingPayment.id;
     } else {
-      // Create new payment with bill items
+      // Create new surgery payment
       const newPayment = await db.payment.create({
         data: {
-          patient_id: appointment.patient.id,
-          appointment_id: appointmentId,
-          bill_type: 'CONSULTATION',
+          patient_id: surgicalCase.patient.id,
+          surgical_case_id: surgicalCaseId,
+          bill_type: 'SURGERY',
           bill_date: new Date(),
           total_amount: finalTotal,
           discount: finalDiscount,
           amount_paid: 0,
           payment_method: 'CASH',
           status: 'UNPAID',
+          notes: notes ?? null,
           bill_items: {
             create: billingItems.map((item: any) => ({
               service_id: item.serviceId,
@@ -386,7 +386,9 @@ export async function PUT(
       success: true,
       data: {
         paymentId,
+        billType: 'SURGERY',
         totalAmount: finalTotal,
+        inventoryTotal,
         discount: finalDiscount,
         status: updatedPayment?.status || 'UNPAID',
         billItems: updatedPayment?.bill_items.map(item => ({
@@ -398,10 +400,10 @@ export async function PUT(
           totalCost: item.total_cost,
         })) || [],
       },
-      message: existingPayment ? 'Billing updated successfully' : 'Billing created successfully',
+      message: existingPayment ? 'Surgery billing updated successfully' : 'Surgery billing created successfully',
     });
   } catch (error) {
-    console.error('[API] PUT /api/appointments/[id]/billing - Error:', error);
+    console.error('[API] PUT /api/surgical-cases/[id]/billing - Error:', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

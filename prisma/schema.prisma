@@ -82,6 +82,32 @@ enum PaymentStatus {
   PART
 }
 
+enum BillType {
+  CONSULTATION
+  SURGERY
+  LAB_TEST
+  FOLLOW_UP
+  OTHER
+}
+
+enum PriceType {
+  FIXED // Price is set and non-negotiable
+  VARIABLE // Price can vary within min/max range
+  PER_UNIT // Price is per unit (e.g., per ml, per session)
+  QUOTE_REQUIRED // Price determined on case-by-case basis
+}
+
+enum InventoryCategory {
+  IMPLANT
+  SUTURE
+  ANESTHETIC
+  MEDICATION
+  DISPOSABLE
+  INSTRUMENT
+  DRESSING
+  OTHER
+}
+
 enum CareNoteType {
   PRE_OP
   POST_OP
@@ -632,6 +658,7 @@ model Appointment {
   clinical_tasks       ClinicalTask[]
   surgical_outcome     SurgicalOutcome?
   consultation         Consultation?        @relation("AppointmentConsultation")
+  inventory_usage      InventoryUsage[]
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -857,28 +884,34 @@ model LabTest {
 // ============================================================================
 
 model Payment {
-  id             Int           @id @default(autoincrement())
-  patient_id     String
-  appointment_id Int           @unique
-  bill_date      DateTime
-  payment_date   DateTime?
-  discount       Float         @default(0)
-  total_amount   Float
-  amount_paid    Float         @default(0)
-  payment_method PaymentMethod @default(CASH)
-  status         PaymentStatus @default(UNPAID)
-  receipt_number String?       @unique
+  id               Int           @id @default(autoincrement())
+  patient_id       String
+  appointment_id   Int?          @unique // Nullable: surgery payments don't need an appointment
+  surgical_case_id String?       @unique // For surgery billing
+  bill_type        BillType      @default(CONSULTATION)
+  bill_date        DateTime
+  payment_date     DateTime?
+  discount         Float         @default(0)
+  total_amount     Float
+  amount_paid      Float         @default(0)
+  payment_method   PaymentMethod @default(CASH)
+  status           PaymentStatus @default(UNPAID)
+  receipt_number   String?       @unique
+  notes            String? // Optional billing notes
 
   // Relations
-  appointment Appointment   @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
-  patient     Patient       @relation(fields: [patient_id], references: [id], onDelete: Cascade)
-  bill_items  PatientBill[]
+  appointment   Appointment?  @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
+  patient       Patient       @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+  surgical_case SurgicalCase? @relation(fields: [surgical_case_id], references: [id], onDelete: Cascade)
+  bill_items    PatientBill[]
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
   @@index([patient_id])
   @@index([appointment_id])
+  @@index([surgical_case_id])
+  @@index([bill_type])
   @@index([status])
   @@index([payment_date])
   @@index([bill_date])
@@ -895,8 +928,9 @@ model PatientBill {
   total_cost   Float
 
   // Relations
-  service Service @relation(fields: [service_id], references: [id], onDelete: Cascade)
-  payment Payment @relation(fields: [payment_id], references: [id], onDelete: Cascade)
+  service         Service         @relation(fields: [service_id], references: [id], onDelete: Cascade)
+  payment         Payment         @relation(fields: [payment_id], references: [id], onDelete: Cascade)
+  inventory_usage InventoryUsage? // Link to consumed inventory item (if applicable)
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -906,12 +940,15 @@ model PatientBill {
 }
 
 model Service {
-  id           Int     @id @default(autoincrement())
+  id           Int       @id @default(autoincrement())
   service_name String
   description  String?
   price        Float
+  price_type   PriceType @default(FIXED)
+  min_price    Float? // Floor for VARIABLE pricing
+  max_price    Float? // Ceiling for VARIABLE pricing
   category     String? // Procedure, Consultation, Lab Test, etc.
-  is_active    Boolean @default(true)
+  is_active    Boolean   @default(true)
 
   // Relations
   lab_test   LabTest?
@@ -923,6 +960,66 @@ model Service {
   @@index([service_name])
   @@index([category])
   @@index([is_active])
+  @@index([price_type])
+}
+
+// ============================================================================
+// INVENTORY MANAGEMENT
+// ============================================================================
+
+model InventoryItem {
+  id               Int               @id @default(autoincrement())
+  name             String
+  sku              String?           @unique
+  category         InventoryCategory @default(OTHER)
+  description      String?
+  unit_of_measure  String            @default("unit") // unit, ml, mg, pack, etc.
+  unit_cost        Float             @default(0)
+  quantity_on_hand Int               @default(0)
+  reorder_point    Int               @default(0) // Alert when stock falls below this
+  supplier         String?
+  is_active        Boolean           @default(true)
+  is_billable      Boolean           @default(true) // Whether to charge patient for this item
+
+  // Relations
+  usage_records InventoryUsage[]
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([name])
+  @@index([sku])
+  @@index([category])
+  @@index([is_active])
+  @@index([quantity_on_hand])
+}
+
+model InventoryUsage {
+  id                Int     @id @default(autoincrement())
+  inventory_item_id Int
+  surgical_case_id  String?
+  appointment_id    Int?
+  quantity_used     Float   @default(1)
+  unit_cost_at_time Float // Snapshot of cost at time of use (price may change later)
+  total_cost        Float // quantity_used * unit_cost_at_time
+  recorded_by       String // User ID who recorded usage
+  notes             String?
+  bill_item_id      Int?    @unique // Link to PatientBill if this usage was billed
+
+  // Relations
+  inventory_item InventoryItem @relation(fields: [inventory_item_id], references: [id], onDelete: Cascade)
+  surgical_case  SurgicalCase? @relation(fields: [surgical_case_id], references: [id], onDelete: SetNull)
+  appointment    Appointment?  @relation(fields: [appointment_id], references: [id], onDelete: SetNull)
+  bill_item      PatientBill?  @relation(fields: [bill_item_id], references: [id], onDelete: SetNull)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([inventory_item_id])
+  @@index([surgical_case_id])
+  @@index([appointment_id])
+  @@index([recorded_by])
+  @@index([created_at])
 }
 
 // ============================================================================
@@ -1518,6 +1615,8 @@ model SurgicalCase {
   case_plan        CasePlan?
   procedure_record SurgicalProcedureRecord? // One active record per case usually
   checklist        SurgicalChecklist? // WHO Surgical Safety Checklist
+  payment          Payment? // Surgery billing
+  inventory_usage  InventoryUsage[] // Consumables used during surgery
 
   // Audit
   created_at DateTime @default(now())

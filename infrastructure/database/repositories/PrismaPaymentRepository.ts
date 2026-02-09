@@ -8,6 +8,7 @@ import {
 } from '../../../domain/interfaces/repositories/IPaymentRepository';
 import { PaymentStatus } from '../../../domain/enums/PaymentStatus';
 import { PaymentMethod } from '../../../domain/enums/PaymentMethod';
+import { BillType } from '../../../domain/enums/BillType';
 
 /**
  * Prisma Implementation: PrismaPaymentRepository
@@ -15,6 +16,7 @@ import { PaymentMethod } from '../../../domain/enums/PaymentMethod';
  * Implements IPaymentRepository using Prisma ORM.
  * 
  * Features:
+ * - Supports both consultation and surgery billing
  * - Automatic receipt number generation
  * - Smart status calculation based on amounts
  * - Efficient queries with proper indexing
@@ -29,7 +31,9 @@ export class PrismaPaymentRepository implements IPaymentRepository {
     return {
       id: data.id,
       patientId: data.patient_id,
-      appointmentId: data.appointment_id,
+      appointmentId: data.appointment_id ?? null,
+      surgicalCaseId: data.surgical_case_id ?? null,
+      billType: (data.bill_type as BillType) ?? BillType.CONSULTATION,
       billDate: data.bill_date,
       paymentDate: data.payment_date,
       discount: data.discount,
@@ -38,6 +42,7 @@ export class PrismaPaymentRepository implements IPaymentRepository {
       paymentMethod: data.payment_method as PaymentMethod,
       status: data.status as PaymentStatus,
       receiptNumber: data.receipt_number,
+      notes: data.notes ?? null,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     };
@@ -64,7 +69,12 @@ export class PrismaPaymentRepository implements IPaymentRepository {
         time: data.appointment.time,
         doctorId: data.appointment.doctor_id,
         doctorName: data.appointment.doctor?.name,
-      } : undefined,
+      } : null,
+      surgicalCase: data.surgical_case ? {
+        id: data.surgical_case.id,
+        procedureName: data.surgical_case.procedure_name,
+        surgeonName: data.surgical_case.primary_surgeon?.name,
+      } : null,
       billItems: data.bill_items?.map((item: any) => ({
         id: item.id,
         serviceName: item.service?.service_name || 'Unknown Service',
@@ -72,6 +82,30 @@ export class PrismaPaymentRepository implements IPaymentRepository {
         unitCost: item.unit_cost,
         totalCost: item.total_cost,
       })),
+    };
+  }
+
+  /**
+   * Standard include for full relation loading
+   */
+  private get fullInclude() {
+    return {
+      patient: true,
+      appointment: {
+        include: {
+          doctor: true,
+        },
+      },
+      surgical_case: {
+        include: {
+          primary_surgeon: true,
+        },
+      },
+      bill_items: {
+        include: {
+          service: true,
+        },
+      },
     };
   }
 
@@ -89,6 +123,13 @@ export class PrismaPaymentRepository implements IPaymentRepository {
     return result ? this.mapToPayment(result) : null;
   }
 
+  async findBySurgicalCaseId(surgicalCaseId: string): Promise<Payment | null> {
+    const result = await this.prisma.payment.findUnique({
+      where: { surgical_case_id: surgicalCaseId },
+    });
+    return result ? this.mapToPayment(result) : null;
+  }
+
   async findByPatientId(patientId: string): Promise<Payment[]> {
     const results = await this.prisma.payment.findMany({
       where: { patient_id: patientId },
@@ -100,19 +141,7 @@ export class PrismaPaymentRepository implements IPaymentRepository {
   async findByStatus(status: PaymentStatus, limit?: number): Promise<PaymentWithRelations[]> {
     const results = await this.prisma.payment.findMany({
       where: { status },
-      include: {
-        patient: true,
-        appointment: {
-          include: {
-            doctor: true,
-          },
-        },
-        bill_items: {
-          include: {
-            service: true,
-          },
-        },
-      },
+      include: this.fullInclude,
       orderBy: { bill_date: 'desc' },
       take: limit,
     });
@@ -126,19 +155,7 @@ export class PrismaPaymentRepository implements IPaymentRepository {
           in: ['UNPAID', 'PART'],
         },
       },
-      include: {
-        patient: true,
-        appointment: {
-          include: {
-            doctor: true,
-          },
-        },
-        bill_items: {
-          include: {
-            service: true,
-          },
-        },
-      },
+      include: this.fullInclude,
       orderBy: { bill_date: 'asc' }, // Oldest first (FIFO)
       take: limit,
     });
@@ -149,13 +166,16 @@ export class PrismaPaymentRepository implements IPaymentRepository {
     const result = await this.prisma.payment.create({
       data: {
         patient_id: dto.patientId,
-        appointment_id: dto.appointmentId,
+        appointment_id: dto.appointmentId ?? null,
+        surgical_case_id: dto.surgicalCaseId ?? null,
+        bill_type: dto.billType ?? 'CONSULTATION',
         bill_date: new Date(),
         total_amount: dto.totalAmount,
-        discount: dto.discount || 0,
+        discount: dto.discount ?? 0,
         amount_paid: 0,
         payment_method: 'CASH', // Default
         status: 'UNPAID',
+        notes: dto.notes ?? null,
         // Create bill items if provided
         bill_items: dto.billItems ? {
           create: dto.billItems.map(item => ({

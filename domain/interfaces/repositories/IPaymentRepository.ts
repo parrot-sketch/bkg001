@@ -1,15 +1,19 @@
 import { PaymentStatus } from '../../enums/PaymentStatus';
 import { PaymentMethod } from '../../enums/PaymentMethod';
+import { BillType } from '../../enums/BillType';
 
 /**
  * Payment Entity (simplified for repository interface)
  * 
- * Represents a bill/payment record linked to an appointment.
+ * Represents a bill/payment record. Can be linked to an appointment (consultation)
+ * or a surgical case (surgery), but not necessarily both.
  */
 export interface Payment {
   id: number;
   patientId: string;
-  appointmentId: number;
+  appointmentId: number | null;
+  surgicalCaseId: string | null;
+  billType: BillType;
   billDate: Date;
   paymentDate: Date | null;
   discount: number;
@@ -18,6 +22,7 @@ export interface Payment {
   paymentMethod: PaymentMethod;
   status: PaymentStatus;
   receiptNumber: string | null;
+  notes: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,7 +44,12 @@ export interface PaymentWithRelations extends Payment {
     time: string;
     doctorId: string;
     doctorName?: string;
-  };
+  } | null;
+  surgicalCase?: {
+    id: string;
+    procedureName: string | null;
+    surgeonName?: string;
+  } | null;
   billItems?: Array<{
     id: number;
     serviceName: string;
@@ -54,9 +64,12 @@ export interface PaymentWithRelations extends Payment {
  */
 export interface CreatePaymentDto {
   patientId: string;
-  appointmentId: number;
+  appointmentId?: number;         // For consultation billing
+  surgicalCaseId?: string;        // For surgery billing
+  billType?: BillType;            // Defaults to CONSULTATION
   totalAmount: number;
   discount?: number;
+  notes?: string;
   billItems?: Array<{
     serviceId: number;
     quantity: number;
@@ -80,9 +93,10 @@ export interface RecordPaymentDto {
  * Follows clean architecture - no infrastructure dependencies.
  * 
  * Business Rules:
- * - One payment per appointment (unique constraint)
- * - Payment created when consultation completes
- * - Frontdesk can record partial or full payments
+ * - One payment per appointment (consultation billing)
+ * - One payment per surgical case (surgery billing)
+ * - Payment created when consultation completes or surgery is billed
+ * - Frontdesk can record partial or full payments for either type
  */
 export interface IPaymentRepository {
   /**
@@ -95,6 +109,12 @@ export interface IPaymentRepository {
    * @returns Payment if exists (one-to-one relationship)
    */
   findByAppointmentId(appointmentId: number): Promise<Payment | null>;
+
+  /**
+   * Find payment by surgical case ID
+   * @returns Payment if exists (one-to-one relationship)
+   */
+  findBySurgicalCaseId(surgicalCaseId: string): Promise<Payment | null>;
 
   /**
    * Find all payments for a patient

@@ -10,6 +10,12 @@
  * IMPORTANT: We maintain consistency with the website structure and categories.
  * This enhances the patient portal experience while keeping the website as the
  * authoritative source of detailed service information.
+ * 
+ * Price Types:
+ * - FIXED: Standard rate (consultations)
+ * - QUOTE_REQUIRED: Price determined during consultation (major procedures)
+ * - VARIABLE: Price within a range (treatments, injectable based on units)
+ * - PER_UNIT: Per-unit pricing (Botox per unit, filler per syringe)
  */
 
 import { PrismaClient } from '@prisma/client';
@@ -31,7 +37,10 @@ const realServices = [
     service_name: 'Facelift',
     category: 'Procedure',
     description: 'A surgical procedure designed to reduce visible signs of aging in the face and neck, providing a natural, refreshed, and more youthful appearance',
-    price: 0, // Pricing determined during consultation
+    price: 0,
+    price_type: 'QUOTE_REQUIRED' as const,
+    min_price: 250000,
+    max_price: 600000,
     website_url: 'https://www.nairobisculpt.com/facelift.html',
   },
   {
@@ -39,6 +48,9 @@ const realServices = [
     category: 'Procedure',
     description: 'Nose reshaping procedure for aesthetic improvement and facial harmony',
     price: 0,
+    price_type: 'QUOTE_REQUIRED' as const,
+    min_price: 200000,
+    max_price: 450000,
     website_url: 'https://www.nairobisculpt.com/rhinoplasty.html',
   },
   {
@@ -46,6 +58,9 @@ const realServices = [
     category: 'Procedure',
     description: 'Eyelid surgery to refresh and rejuvenate the eyes, reducing sagging and creating a more youthful appearance',
     price: 0,
+    price_type: 'QUOTE_REQUIRED' as const,
+    min_price: 150000,
+    max_price: 350000,
     website_url: 'https://www.nairobisculpt.com/blepharoplasty.html',
   },
   {
@@ -53,6 +68,9 @@ const realServices = [
     category: 'Procedure',
     description: 'Lift and rejuvenate the brow area for a youthful, refreshed appearance',
     price: 0,
+    price_type: 'QUOTE_REQUIRED' as const,
+    min_price: 180000,
+    max_price: 400000,
     website_url: 'https://www.nairobisculpt.com/brow-lift.html',
   },
   {
@@ -60,6 +78,9 @@ const realServices = [
     category: 'Procedure',
     description: 'Enhance chin definition and improve facial balance and profile',
     price: 0,
+    price_type: 'QUOTE_REQUIRED' as const,
+    min_price: 120000,
+    max_price: 300000,
     website_url: 'https://www.nairobisculpt.com/chin-augmentation.html',
   },
   {
@@ -67,6 +88,9 @@ const realServices = [
     category: 'Procedure',
     description: 'Ear reshaping and correction procedure to improve ear appearance and proportion',
     price: 0,
+    price_type: 'QUOTE_REQUIRED' as const,
+    min_price: 100000,
+    max_price: 250000,
     website_url: 'https://www.nairobisculpt.com/otoplasty.html',
   },
 
@@ -78,6 +102,9 @@ const realServices = [
     category: 'Procedure',
     description: 'Sculpt your ideal figure by removing excess fat from targeted areas',
     price: 0,
+    price_type: 'QUOTE_REQUIRED' as const,
+    min_price: 150000,
+    max_price: 500000,
     website_url: 'https://www.nairobisculpt.com/liposuction.html',
   },
   {
@@ -85,6 +112,9 @@ const realServices = [
     category: 'Procedure',
     description: 'Enhance and sculpt the buttocks using your own fat, creating a more proportionate and aesthetically pleasing figure',
     price: 0,
+    price_type: 'QUOTE_REQUIRED' as const,
+    min_price: 300000,
+    max_price: 700000,
     website_url: 'https://www.nairobisculpt.com/bbl.html',
   },
   {
@@ -92,6 +122,9 @@ const realServices = [
     category: 'Procedure',
     description: 'Flatten and contour the abdomen for a refined silhouette',
     price: 0,
+    price_type: 'QUOTE_REQUIRED' as const,
+    min_price: 250000,
+    max_price: 600000,
     website_url: 'https://www.nairobisculpt.com/tummy-tuck.html',
   },
 
@@ -103,6 +136,9 @@ const realServices = [
     category: 'Procedure',
     description: 'Increase breast size and improve shape and fullness for a more confident and proportionate appearance',
     price: 0,
+    price_type: 'QUOTE_REQUIRED' as const,
+    min_price: 250000,
+    max_price: 550000,
     website_url: 'https://www.nairobisculpt.com/breast-augmentation.html',
   },
   {
@@ -110,6 +146,9 @@ const realServices = [
     category: 'Procedure',
     description: 'Restore youthful position and shape to the breasts, addressing sagging and restoring firmness',
     price: 0,
+    price_type: 'QUOTE_REQUIRED' as const,
+    min_price: 200000,
+    max_price: 500000,
     website_url: 'https://www.nairobisculpt.com/breast-lift.html',
   },
   {
@@ -117,6 +156,9 @@ const realServices = [
     category: 'Procedure',
     description: 'Reduce breast size for improved comfort, proportion, and physical relief',
     price: 0,
+    price_type: 'QUOTE_REQUIRED' as const,
+    min_price: 200000,
+    max_price: 500000,
     website_url: 'https://www.nairobisculpt.com/breast-reduction.html',
   },
   {
@@ -124,6 +166,9 @@ const realServices = [
     category: 'Procedure',
     description: 'Treat enlarged male breasts for a more masculine, defined chest contour',
     price: 0,
+    price_type: 'QUOTE_REQUIRED' as const,
+    min_price: 150000,
+    max_price: 400000,
     website_url: 'https://www.nairobisculpt.com/male-gynecomastia.html',
   },
 
@@ -135,6 +180,9 @@ const realServices = [
     category: 'Treatment',
     description: 'Advanced treatments to improve scar appearance and promote optimal healing',
     price: 0,
+    price_type: 'VARIABLE' as const,
+    min_price: 5000,
+    max_price: 50000,
     website_url: 'https://www.nairobisculpt.com/scar-management.html',
   },
   {
@@ -142,6 +190,9 @@ const realServices = [
     category: 'Treatment',
     description: 'Specialized treatment for keloid scars to reduce appearance and prevent recurrence',
     price: 0,
+    price_type: 'VARIABLE' as const,
+    min_price: 10000,
+    max_price: 80000,
     website_url: 'https://www.nairobisculpt.com/keloid-treatment.html',
   },
   {
@@ -149,6 +200,9 @@ const realServices = [
     category: 'Treatment',
     description: 'Surgical revision to improve scar appearance and restore skin texture',
     price: 0,
+    price_type: 'QUOTE_REQUIRED' as const,
+    min_price: 30000,
+    max_price: 150000,
     website_url: 'https://www.nairobisculpt.com/scar-revision.html',
   },
   {
@@ -156,6 +210,9 @@ const realServices = [
     category: 'Treatment',
     description: 'Expert wound care and healing support using advanced techniques',
     price: 0,
+    price_type: 'VARIABLE' as const,
+    min_price: 5000,
+    max_price: 30000,
     website_url: 'https://www.nairobisculpt.com/advanced-wound-care.html',
   },
 
@@ -166,14 +223,20 @@ const realServices = [
     service_name: 'Botox',
     category: 'Treatment',
     description: 'Minimally invasive wrinkle reduction treatment for a refreshed appearance',
-    price: 0,
+    price: 500,
+    price_type: 'PER_UNIT' as const,
+    min_price: 500,
+    max_price: 500,
     website_url: 'https://www.nairobisculpt.com/botox.html',
   },
   {
     service_name: 'Dermal Fillers',
     category: 'Treatment',
     description: 'Restore volume and smooth fine lines with advanced dermal fillers',
-    price: 0,
+    price: 25000,
+    price_type: 'PER_UNIT' as const,
+    min_price: 25000,
+    max_price: 50000,
     website_url: 'https://www.nairobisculpt.com/dermal-fillers.html',
   },
 
@@ -185,13 +248,19 @@ const realServices = [
     category: 'Consultation',
     description: 'First-time patient consultation with our expert surgeons to discuss your aesthetic goals',
     price: 5000,
-    website_url: null, // Consultation doesn't have a dedicated page
+    price_type: 'FIXED' as const,
+    min_price: null,
+    max_price: null,
+    website_url: null,
   },
   {
     service_name: 'Follow-up Consultation',
     category: 'Consultation',
     description: 'Follow-up appointment for existing patients to discuss progress and next steps',
     price: 3000,
+    price_type: 'FIXED' as const,
+    min_price: null,
+    max_price: null,
     website_url: null,
   },
 ];
@@ -243,12 +312,15 @@ async function main() {
             description: serviceData.description,
             category: serviceData.category,
             is_active: true,
-            // Only update price if it's not set (0 means use existing or default)
+            price_type: serviceData.price_type,
+            min_price: serviceData.min_price,
+            max_price: serviceData.max_price,
+            // Only update price if it's explicitly set (>0)
             price: serviceData.price > 0 ? serviceData.price : existing.price,
           },
         });
         updated++;
-        console.log(`  ✓ Updated: ${serviceData.service_name}`);
+        console.log(`  ✓ Updated: ${serviceData.service_name} (${serviceData.price_type})`);
       } else {
         // Create new service
         await prisma.service.create({
@@ -257,11 +329,14 @@ async function main() {
             description: serviceData.description,
             category: serviceData.category,
             price: serviceData.price,
+            price_type: serviceData.price_type,
+            min_price: serviceData.min_price,
+            max_price: serviceData.max_price,
             is_active: true,
           },
         });
         created++;
-        console.log(`  ✓ Created: ${serviceData.service_name}`);
+        console.log(`  ✓ Created: ${serviceData.service_name} (${serviceData.price_type})`);
       }
     } catch (error) {
       console.error(`  ✗ Error with ${serviceData.service_name}:`, error);
@@ -273,6 +348,7 @@ async function main() {
   console.log(`   Updated: ${updated}`);
   console.log(`   Total: ${created + updated}`);
   console.log(`\n📋 Categories: Procedure, Treatment, Consultation`);
+  console.log(`💰 Price Types: FIXED, VARIABLE, PER_UNIT, QUOTE_REQUIRED`);
   console.log(`🔗 Website URLs available for "Learn More" links\n`);
 }
 
