@@ -109,20 +109,21 @@ export class PrismaConsultationRepository implements IConsultationRepository {
         }
       }
 
-      // Apply date range filter
+      // Apply date range filter using created_at (doesn't overwrite state filter on started_at)
       if (filters?.startDate || filters?.endDate) {
-        where.started_at = {};
+        where.created_at = {};
         if (filters.startDate) {
-          where.started_at.gte = filters.startDate;
+          (where.created_at as any).gte = filters.startDate;
         }
         if (filters.endDate) {
-          where.started_at.lte = filters.endDate;
+          (where.created_at as any).lte = filters.endDate;
         }
       }
 
       const prismaConsultations = await this.prisma.consultation.findMany({
         where,
         orderBy: { started_at: 'desc' },
+        take: 200, // Safety limit to prevent unbounded queries
       });
 
       return prismaConsultations.map((consultation) => ConsultationMapper.fromPrisma(consultation));

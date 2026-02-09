@@ -64,6 +64,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
         // 4. Efficiently fetch unique patients
         // Find patients who have at least one appointment with this doctor
+        // SAFETY: Bounded query with take limit to prevent memory exhaustion
         const prismaPatients = await db.patient.findMany({
             where: {
                 appointments: {
@@ -75,6 +76,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             orderBy: {
                 created_at: 'desc',
             },
+            take: 200, // Safety limit — a single doctor won't realistically have 200+ unique patients
         });
 
         // 5. Map to DTOs

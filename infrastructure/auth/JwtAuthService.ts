@@ -192,6 +192,25 @@ export class JwtAuthService implements IAuthService {
   }
 
   /**
+   * Cleans up expired and revoked refresh tokens from the database.
+   * Should be called periodically (e.g. daily cron or on each login).
+   * Prevents unbounded growth of the RefreshToken table.
+   *
+   * @returns Promise resolving to the number of deleted tokens
+   */
+  async cleanupExpiredTokens(): Promise<number> {
+    const result = await this.prisma.refreshToken.deleteMany({
+      where: {
+        OR: [
+          { expires_at: { lt: new Date() } },     // Expired
+          { revoked: true },                        // Revoked
+        ],
+      },
+    });
+    return result.count;
+  }
+
+  /**
    * Refreshes an access token using a refresh token
    * 
    * @param refreshToken - Valid refresh token

@@ -95,6 +95,7 @@ export class PrismaCasePlanRepository implements ICasePlanRepository {
         readiness_status: status,
       },
       orderBy: { created_at: 'asc' },
+      take: 100, // Safety limit for readiness status queries
       include: {
         patient: true,
         doctor: true,
@@ -118,6 +119,7 @@ export class PrismaCasePlanRepository implements ICasePlanRepository {
         ready_for_surgery: false,
       },
       orderBy: { created_at: 'asc' },
+      take: 100, // Safety limit for pending readiness queue
       include: {
         patient: true,
         doctor: true,

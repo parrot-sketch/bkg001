@@ -70,7 +70,15 @@ export class LoginUseCase {
       details: `User ${user.getEmail().getValue()} logged in successfully`,
     });
 
-    // 5. Return response DTO
+    // 5. Opportunistic cleanup of expired/revoked refresh tokens (fire-and-forget)
+    // Keeps the RefreshToken table from growing unboundedly
+    if ('cleanupExpiredTokens' in this.authService) {
+      (this.authService as any).cleanupExpiredTokens().catch(() => {
+        // Swallow errors — cleanup is best-effort and must not block login
+      });
+    }
+
+    // 6. Return response DTO
     return {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
