@@ -174,8 +174,9 @@ export class GetPatientConsultationHistoryUseCase {
         const casePlan = casePlansByAppointment.get(appointmentId);
 
         const notes = consultation.getNotes();
-        const notesSummary = notes
-          ? notes.toFullText().substring(0, 200) + (notes.toFullText().length > 200 ? '...' : '')
+        const plainText = notes ? notes.toPlainText() : undefined;
+        const notesSummary = plainText
+          ? plainText.substring(0, 200) + (plainText.length > 200 ? '…' : '')
           : undefined;
 
         const patientDecision = consultation.getPatientDecision();

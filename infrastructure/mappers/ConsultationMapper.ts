@@ -134,25 +134,11 @@ export class ConsultationMapper {
       };
     }
 
-    // Add fields that may not exist in schema yet (for future compatibility)
-    if ((Prisma as any).ConsultationCreateInput?.state !== undefined) {
-      input.state = consultation.getState();
-    }
-    if ((Prisma as any).ConsultationCreateInput?.duration_seconds !== undefined) {
-      input.duration_seconds = duration?.getSeconds() ?? null;
-    }
-    if ((Prisma as any).ConsultationCreateInput?.chief_complaint !== undefined) {
-      input.chief_complaint = notes?.getChiefComplaint() ?? null;
-    }
-    if ((Prisma as any).ConsultationCreateInput?.examination !== undefined) {
-      input.examination = notes?.getExamination() ?? null;
-    }
-    if ((Prisma as any).ConsultationCreateInput?.assessment !== undefined) {
-      input.assessment = notes?.getAssessment() ?? null;
-    }
-    if ((Prisma as any).ConsultationCreateInput?.plan !== undefined) {
-      input.plan = notes?.getPlan() ?? null;
-    }
+    // Structured note fields (now in schema)
+    input.chief_complaint = notes?.getChiefComplaint() ?? null;
+    input.examination = notes?.getExamination() ?? null;
+    input.assessment = notes?.getAssessment() ?? null;
+    input.plan = notes?.getPlan() ?? null;
 
     return input;
   }
@@ -196,25 +182,11 @@ export class ConsultationMapper {
       }
     }
 
-    // Add fields that may not exist in schema yet (for future compatibility)
-    if ((Prisma as any).ConsultationUpdateInput?.state !== undefined) {
-      updateInput.state = consultation.getState();
-    }
-    if ((Prisma as any).ConsultationUpdateInput?.duration_seconds !== undefined) {
-      updateInput.duration_seconds = duration?.getSeconds() ?? null;
-    }
-    if ((Prisma as any).ConsultationUpdateInput?.chief_complaint !== undefined) {
-      updateInput.chief_complaint = notes?.getChiefComplaint() ?? null;
-    }
-    if ((Prisma as any).ConsultationUpdateInput?.examination !== undefined) {
-      updateInput.examination = notes?.getExamination() ?? null;
-    }
-    if ((Prisma as any).ConsultationUpdateInput?.assessment !== undefined) {
-      updateInput.assessment = notes?.getAssessment() ?? null;
-    }
-    if ((Prisma as any).ConsultationUpdateInput?.plan !== undefined) {
-      updateInput.plan = notes?.getPlan() ?? null;
-    }
+    // Structured note fields (now in schema)
+    updateInput.chief_complaint = notes?.getChiefComplaint() ?? null;
+    updateInput.examination = notes?.getExamination() ?? null;
+    updateInput.assessment = notes?.getAssessment() ?? null;
+    updateInput.plan = notes?.getPlan() ?? null;
 
     return updateInput;
   }
@@ -269,22 +241,22 @@ export class ConsultationMapper {
    * Maps notes from Prisma model to ConsultationNotes value object
    */
   private static mapNotes(prismaConsultation: PrismaConsultation): ConsultationNotes | undefined {
-    // Try structured notes first (if fields exist in schema)
-    const chiefComplaint = (prismaConsultation as any).chief_complaint;
-    const examination = (prismaConsultation as any).examination;
-    const assessment = (prismaConsultation as any).assessment;
-    const plan = (prismaConsultation as any).plan;
+    // Use structured note columns (now in schema)
+    const chiefComplaint = prismaConsultation.chief_complaint;
+    const examination = prismaConsultation.examination;
+    const assessment = prismaConsultation.assessment;
+    const plan = prismaConsultation.plan;
 
     if (chiefComplaint || examination || assessment || plan) {
       return ConsultationNotes.createStructured({
-        chiefComplaint,
-        examination,
-        assessment,
-        plan,
+        chiefComplaint: chiefComplaint ?? undefined,
+        examination: examination ?? undefined,
+        assessment: assessment ?? undefined,
+        plan: plan ?? undefined,
       });
     }
 
-    // Fall back to raw text
+    // Fall back to legacy raw text field
     if (prismaConsultation.doctor_notes) {
       return ConsultationNotes.createRaw(prismaConsultation.doctor_notes);
     }

@@ -29,6 +29,7 @@ export interface DoctorResponseDto {
   readonly consultationFee?: number;
   readonly languages?: string;
   readonly colorCode?: string;
+  readonly onboardingStatus?: string;
   readonly createdAt?: Date;
   readonly updatedAt?: Date;
 }

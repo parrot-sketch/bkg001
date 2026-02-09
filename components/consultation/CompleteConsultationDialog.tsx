@@ -9,11 +9,13 @@
  * Designed for clinical safety: clear warnings, no accidental completion.
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { doctorApi } from '@/lib/api/doctor';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -30,9 +32,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Receipt, Plus, Trash2 } from 'lucide-react';
 import { ConsultationOutcomeType } from '@/domain/enums/ConsultationOutcomeType';
 import { PatientDecision } from '@/domain/enums/PatientDecision';
+import { useServices } from '@/hooks/useServices';
+import { useAppointmentBilling } from '@/hooks/doctor/useBilling';
 import type { ConsultationResponseDto } from '@/application/dtos/ConsultationResponseDto';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import type { CompleteConsultationDto } from '@/application/dtos/CompleteConsultationDto';
@@ -58,6 +62,60 @@ export function CompleteConsultationDialog({
   const [summary, setSummary] = useState('');
   const [patientDecision, setPatientDecision] = useState<PatientDecision | ''>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Billing state
+  const { services } = useServices();
+  const { data: existingBilling } = useAppointmentBilling(appointment.id, open);
+  const [billingItems, setBillingItems] = useState<Array<{ serviceId: number; serviceName: string; quantity: number; unitCost: number }>>([]);
+  const [billingDiscount, setBillingDiscount] = useState(0);
+  const [selectedServiceId, setSelectedServiceId] = useState('');
+
+  // Initialize billing items from existing billing data
+  useEffect(() => {
+    if (existingBilling?.payment?.billItems && existingBilling.payment.billItems.length > 0) {
+      setBillingItems(
+        existingBilling.payment.billItems.map(item => ({
+          serviceId: item.serviceId,
+          serviceName: item.serviceName,
+          quantity: item.quantity,
+          unitCost: item.unitCost,
+        }))
+      );
+      setBillingDiscount(existingBilling.payment.discount || 0);
+    }
+  }, [existingBilling]);
+
+  // Calculate billing totals
+  const billingSubtotal = useMemo(
+    () => billingItems.reduce((sum, item) => sum + item.quantity * item.unitCost, 0),
+    [billingItems]
+  );
+  const billingTotal = Math.max(0, billingSubtotal - billingDiscount);
+
+  // Billing handlers
+  const handleAddBillingService = () => {
+    if (!selectedServiceId) return;
+    const service = services.find(s => s.id === parseInt(selectedServiceId));
+    if (!service) return;
+    const existing = billingItems.findIndex(item => item.serviceId === service.id);
+    if (existing >= 0) {
+      const updated = [...billingItems];
+      updated[existing].quantity += 1;
+      setBillingItems(updated);
+    } else {
+      setBillingItems(prev => [...prev, {
+        serviceId: service.id,
+        serviceName: service.service_name,
+        quantity: 1,
+        unitCost: service.price,
+      }]);
+    }
+    setSelectedServiceId('');
+  };
+
+  const handleRemoveBillingItem = (serviceId: number) => {
+    setBillingItems(prev => prev.filter(item => item.serviceId !== serviceId));
+  };
 
   // Validation
   const isValid = outcomeType !== '' && summary.trim().length > 0;
@@ -86,6 +144,13 @@ export function CompleteConsultationDialog({
         outcome: summary.trim(),
         outcomeType: outcomeType as ConsultationOutcomeType,
         patientDecision: requiresPatientDecision ? (patientDecision as PatientDecision) : undefined,
+        billingItems: billingItems.length > 0 ? billingItems.map(item => ({
+          serviceId: item.serviceId,
+          quantity: item.quantity,
+          unitCost: item.unitCost,
+        })) : undefined,
+        customTotalAmount: billingItems.length > 0 ? billingTotal : undefined,
+        discount: billingDiscount > 0 ? billingDiscount : undefined,
       };
 
       const response = await doctorApi.completeConsultation(dto);
@@ -210,12 +275,130 @@ export function CompleteConsultationDialog({
                 onChange={(e) => setSummary(e.target.value)}
                 required
                 disabled={isSubmitting}
-                rows={8}
+                rows={6}
                 className="font-mono text-sm"
               />
               <p className="text-xs text-muted-foreground">
                 Include: Chief complaint, examination, assessment, and plan
               </p>
+            </div>
+
+            {/* Billing Section */}
+            <div className="space-y-3 border-t pt-4">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2">
+                  <Receipt className="h-4 w-4" />
+                  Billing
+                </Label>
+                {billingItems.length > 0 && (
+                  <Badge variant="secondary" className="text-xs">
+                    {billingTotal.toLocaleString()} total
+                  </Badge>
+                )}
+              </div>
+              
+              <p className="text-xs text-muted-foreground">
+                Add services to create an itemized bill. If no services are added, the default consultation fee will be used.
+              </p>
+
+              {/* Add Service */}
+              <div className="flex items-end gap-2">
+                <div className="flex-1">
+                  <Select
+                    value={selectedServiceId}
+                    onValueChange={setSelectedServiceId}
+                    disabled={isSubmitting}
+                  >
+                    <SelectTrigger className="h-9 text-sm">
+                      <SelectValue placeholder="Add a service..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {services.map(service => (
+                        <SelectItem key={service.id} value={service.id.toString()}>
+                          <span>{service.service_name}</span>
+                          <span className="text-xs text-muted-foreground ml-2">
+                            ({service.price.toLocaleString()})
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddBillingService}
+                  disabled={!selectedServiceId || isSubmitting}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Billing Items List */}
+              {billingItems.length > 0 && (
+                <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                  {billingItems.map(item => (
+                    <div
+                      key={item.serviceId}
+                      className="flex items-center justify-between py-1.5 px-2 bg-muted/50 rounded text-sm"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium truncate block">{item.serviceName}</span>
+                      </div>
+                      <div className="flex items-center gap-2 ml-2">
+                        <Input
+                          type="number"
+                          min={1}
+                          value={item.quantity}
+                          onChange={e => {
+                            const qty = parseInt(e.target.value) || 1;
+                            setBillingItems(prev =>
+                              prev.map(i => i.serviceId === item.serviceId ? { ...i, quantity: qty } : i)
+                            );
+                          }}
+                          className="w-14 h-7 text-xs text-center"
+                          disabled={isSubmitting}
+                        />
+                        <span className="text-xs text-muted-foreground w-16 text-right">
+                          × {item.unitCost.toLocaleString()}
+                        </span>
+                        <span className="font-medium text-xs w-20 text-right">
+                          {(item.quantity * item.unitCost).toLocaleString()}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                          onClick={() => handleRemoveBillingItem(item.serviceId)}
+                          disabled={isSubmitting}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Discount and Total */}
+                  <div className="flex items-center justify-between pt-2 border-t text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">Discount:</span>
+                      <Input
+                        type="number"
+                        min={0}
+                        value={billingDiscount}
+                        onChange={e => setBillingDiscount(parseFloat(e.target.value) || 0)}
+                        className="w-20 h-7 text-xs"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    <div className="font-bold">
+                      Total: {billingTotal.toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

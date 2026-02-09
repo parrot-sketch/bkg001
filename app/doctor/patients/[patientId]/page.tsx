@@ -3,17 +3,16 @@
 /**
  * Doctor Patient Profile Page
  * 
- * Comprehensive patient profile view for doctors with quick actions:
- * - Start consultation
- * - View/manage case plans
- * - Manage consent
- * - View medical history
- * - View appointments
+ * Comprehensive patient profile view for doctors with:
+ * - Hero header with key vitals & allergy alert
+ * - Quick actions (start/continue consultation, view case)
+ * - Tabbed detail sections (Appointments, Consultations, Medical, Cases)
+ * - Full consultation history with timeline view
  * 
- * Optimized for aesthetic surgery center workflow.
+ * Follows the aesthetic surgery center workflow.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { doctorApi } from '@/lib/api/doctor';
@@ -22,6 +21,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
 import { 
   ArrowLeft, 
   User, 
@@ -30,33 +31,77 @@ import {
   Mail, 
   MapPin, 
   FileText, 
-  Activity,
   Stethoscope,
-  ClipboardCheck,
   AlertCircle,
+  AlertTriangle,
   CheckCircle2,
   Clock,
   Heart,
-  Pill,
   Shield,
   Eye,
-  Edit,
-  Play
+  Play,
+  ChevronRight,
+  Briefcase,
+  Users,
+  Camera,
+  Activity,
+  Clipboard,
+  ExternalLink,
+  CircleDot,
+  Hash,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow, isToday, isPast, isFuture } from 'date-fns';
 import { calculateAge } from '@/lib/utils';
 import { toast } from 'sonner';
 import Link from 'next/link';
-import { ProfileImage } from '@/components/profile-image';
 import { StartConsultationDialog } from '@/components/doctor/StartConsultationDialog';
 import { usePatientConsultationHistory } from '@/hooks/consultation/usePatientConsultationHistory';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
-import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
+import { 
+  AppointmentStatus, 
+  canStartConsultation, 
+  isAwaitingConfirmation, 
+  isAppointmentFinal,
+} from '@/domain/enums/AppointmentStatus';
 import { CaseReadinessStatus, getCaseReadinessStatusLabel } from '@/domain/enums/CaseReadinessStatus';
 import { ConsultationState } from '@/domain/enums/ConsultationState';
 import { ConsultationOutcomeType, getConsultationOutcomeTypeLabel } from '@/domain/enums/ConsultationOutcomeType';
 import { PatientDecision } from '@/domain/enums/PatientDecision';
+
+// ============================================================================
+// STATUS DISPLAY CONFIG
+// ============================================================================
+
+function getAppointmentStatusConfig(status: string) {
+  const configs: Record<string, { label: string; color: string; bg: string; dot: string }> = {
+    PENDING: { label: 'Pending', color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200', dot: 'bg-amber-500' },
+    PENDING_DOCTOR_CONFIRMATION: { label: 'Awaiting Confirmation', color: 'text-orange-700', bg: 'bg-orange-50 border-orange-200', dot: 'bg-orange-500' },
+    CONFIRMED: { label: 'Confirmed', color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200', dot: 'bg-blue-500' },
+    SCHEDULED: { label: 'Scheduled', color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200', dot: 'bg-blue-500' },
+    CHECKED_IN: { label: 'Checked In', color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', dot: 'bg-emerald-500' },
+    READY_FOR_CONSULTATION: { label: 'Ready', color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', dot: 'bg-emerald-500' },
+    IN_CONSULTATION: { label: 'In Consultation', color: 'text-violet-700', bg: 'bg-violet-50 border-violet-200', dot: 'bg-violet-500' },
+    COMPLETED: { label: 'Completed', color: 'text-slate-600', bg: 'bg-slate-50 border-slate-200', dot: 'bg-slate-400' },
+    CANCELLED: { label: 'Cancelled', color: 'text-red-700', bg: 'bg-red-50 border-red-200', dot: 'bg-red-500' },
+    NO_SHOW: { label: 'No Show', color: 'text-red-700', bg: 'bg-red-50 border-red-200', dot: 'bg-red-500' },
+  };
+  return configs[status] || { label: status, color: 'text-slate-600', bg: 'bg-slate-50 border-slate-200', dot: 'bg-slate-400' };
+}
+
+function getConsultationStateConfig(state: string) {
+  const configs: Record<string, { label: string; color: string; bg: string }> = {
+    NOT_STARTED: { label: 'Not Started', color: 'text-slate-600', bg: 'bg-slate-100' },
+    IN_PROGRESS: { label: 'In Progress', color: 'text-violet-700', bg: 'bg-violet-100' },
+    COMPLETED: { label: 'Completed', color: 'text-emerald-700', bg: 'bg-emerald-100' },
+    DRAFT: { label: 'Draft', color: 'text-amber-700', bg: 'bg-amber-100' },
+  };
+  return configs[state] || { label: state, color: 'text-slate-600', bg: 'bg-slate-100' };
+}
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
 
 export default function DoctorPatientProfilePage() {
   const params = useParams();
@@ -65,7 +110,7 @@ export default function DoctorPatientProfilePage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const patientId = params.patientId as string;
 
-  // Get navigation context from query params
+  // Navigation context
   const fromConsultation = searchParams.get('from') === 'consultation';
   const consultationAppointmentId = searchParams.get('appointmentId');
 
@@ -77,29 +122,23 @@ export default function DoctorPatientProfilePage() {
   const [startConsultationOpen, setStartConsultationOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentResponseDto | null>(null);
 
-  // Fetch consultation history for this patient
+  // Consultation history
   const {
     data: consultationHistory,
     isLoading: loadingConsultations,
   } = usePatientConsultationHistory(patientId || null);
 
   useEffect(() => {
-    // Wait for auth to finish loading before checking
-    if (authLoading) {
-      return;
-    }
-
+    if (authLoading) return;
     if (!isAuthenticated || !user) {
       router.push('/login');
       return;
     }
-
     if (!patientId) {
       toast.error('Invalid patient ID');
       router.push('/doctor/patients');
       return;
     }
-
     loadPatientData();
   }, [isAuthenticated, user, patientId, authLoading, router]);
 
@@ -107,7 +146,6 @@ export default function DoctorPatientProfilePage() {
     try {
       setLoading(true);
       
-      // Load patient details
       const patientResponse = await doctorApi.getPatient(patientId);
       if (patientResponse.success && patientResponse.data) {
         setPatient(patientResponse.data);
@@ -117,13 +155,11 @@ export default function DoctorPatientProfilePage() {
         return;
       }
 
-      // Load patient's appointments
       const appointmentsResponse = await doctorApi.getPatientAppointments(patientId);
       if (appointmentsResponse.success && appointmentsResponse.data) {
         setAppointments(appointmentsResponse.data);
       }
 
-      // Load case plans
       await loadCasePlans();
     } catch (error) {
       console.error('Error loading patient data:', error);
@@ -156,678 +192,781 @@ export default function DoctorPatientProfilePage() {
     toast.success('Consultation started successfully');
     setStartConsultationOpen(false);
     setSelectedAppointment(null);
-    // Navigate to consultation session
     router.push(`/doctor/consultations/${appointmentId}/session`);
   };
 
-  const getNextAppointment = (): AppointmentResponseDto | null => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    return appointments
+  // ============================================================================
+  // DERIVED DATA
+  // ============================================================================
+
+  const { upcomingAppointments, pastAppointments, activeAppointment, nextAppointment } = useMemo(() => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    const sorted = [...appointments].sort(
+      (a, b) => new Date(b.appointmentDate).getTime() - new Date(a.appointmentDate).getTime()
+    );
+
+    // Active = IN_CONSULTATION or CHECKED_IN today
+    const active = sorted.find(
+      (apt) =>
+        apt.status === AppointmentStatus.IN_CONSULTATION ||
+        ((apt.status === AppointmentStatus.CHECKED_IN || apt.status === AppointmentStatus.READY_FOR_CONSULTATION) &&
+          isToday(new Date(apt.appointmentDate)))
+    ) || null;
+
+    const upcoming = sorted
       .filter((apt) => {
         const aptDate = new Date(apt.appointmentDate);
         aptDate.setHours(0, 0, 0, 0);
-        return (
-          aptDate >= today &&
-          (apt.status === AppointmentStatus.SCHEDULED || apt.status === AppointmentStatus.PENDING)
-        );
+        return aptDate >= now && !isAppointmentFinal(apt.status as AppointmentStatus);
       })
-      .sort((a, b) => 
-        new Date(a.appointmentDate).getTime() - new Date(b.appointmentDate).getTime()
-      )[0] || null;
-  };
+      .reverse(); // chronological order
 
-  const hasActiveConsultation = (appointmentId: number): boolean => {
-    // If we're coming from a consultation session, this appointment has an active consultation
-    return fromConsultation && consultationAppointmentId === appointmentId.toString();
-  };
+    const past = sorted.filter((apt) => {
+      const aptDate = new Date(apt.appointmentDate);
+      aptDate.setHours(0, 0, 0, 0);
+      return aptDate < now || isAppointmentFinal(apt.status as AppointmentStatus);
+    });
 
-  const getUpcomingAppointments = (): AppointmentResponseDto[] => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    return appointments
-      .filter((apt) => {
-        const aptDate = new Date(apt.appointmentDate);
-        aptDate.setHours(0, 0, 0, 0);
-        return aptDate >= today;
-      })
-      .sort((a, b) => 
-        new Date(a.appointmentDate).getTime() - new Date(b.appointmentDate).getTime()
-      )
-      .slice(0, 5);
-  };
+    const next = upcoming[0] || null;
 
-  // Show loading while auth is checking or data is loading
+    return { upcomingAppointments: upcoming, pastAppointments: past, activeAppointment: active, nextAppointment: next };
+  }, [appointments]);
+
+  const stats = useMemo(() => {
+    const totalConsultations = consultationHistory?.summary?.total ?? 0;
+    const completedConsultations = consultationHistory?.summary?.completed ?? 0;
+    const proceduresRecommended = consultationHistory?.summary?.proceduresRecommended ?? 0;
+    const totalPhotos = consultationHistory?.summary?.totalPhotos ?? 0;
+
+    return {
+      totalAppointments: appointments.length,
+      upcomingCount: upcomingAppointments.length,
+      totalConsultations,
+      completedConsultations,
+      proceduresRecommended,
+      totalPhotos,
+      totalCasePlans: casePlans.length,
+    };
+  }, [appointments, upcomingAppointments, consultationHistory, casePlans]);
+
+  // ============================================================================
+  // LOADING & ERROR STATES
+  // ============================================================================
+
   if (authLoading || loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-sm text-muted-foreground">
-            {authLoading ? 'Checking authentication...' : 'Loading patient profile...'}
-          </p>
+      <div className="space-y-6 animate-in fade-in duration-300">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-10 w-10 rounded-lg" />
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+        </div>
+        <Skeleton className="h-40 w-full rounded-2xl" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Skeleton className="h-80 rounded-xl" />
+          <Skeleton className="h-80 rounded-xl lg:col-span-2" />
         </div>
       </div>
     );
   }
 
-  // If not authenticated after loading, show message (redirect will happen in useEffect)
   if (!isAuthenticated || !user) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <p className="text-muted-foreground">Please log in to view patient profile</p>
-        </div>
+      <div className="flex items-center justify-center h-[60vh]">
+        <p className="text-muted-foreground">Please log in to view patient profile</p>
       </div>
     );
   }
 
   if (!patient) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <p className="text-muted-foreground">Patient not found</p>
-          <Button onClick={() => router.push('/doctor/patients')} className="mt-4">
-            Back to Patients
-          </Button>
-        </div>
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+        <User className="h-16 w-16 text-muted-foreground/40" />
+        <p className="text-muted-foreground">Patient not found</p>
+        <Button variant="outline" onClick={() => router.push('/doctor/patients')}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Patients
+        </Button>
       </div>
     );
   }
 
   const patientName = `${patient.firstName} ${patient.lastName}`;
-  const nextAppointment = getNextAppointment();
-  const upcomingAppointments = getUpcomingAppointments();
+  const initials = `${patient.firstName?.[0] ?? ''}${patient.lastName?.[0] ?? ''}`.toUpperCase();
+  const age = calculateAge(patient.dateOfBirth);
+  const hasAllergies = !!patient.allergies && patient.allergies.trim().length > 0;
+
+  // Determine primary CTA
+  const canStartConsult = activeAppointment && canStartConsultation(activeAppointment.status as AppointmentStatus);
+  const isInConsultation = activeAppointment?.status === AppointmentStatus.IN_CONSULTATION;
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            {fromConsultation && consultationAppointmentId ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.push(`/doctor/consultations/${consultationAppointmentId}/session`)}
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Consultation
-              </Button>
-            ) : null}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push('/doctor/patients')}
+    <div className="space-y-6 animate-in fade-in duration-500">
+      {/* ================================================================== */}
+      {/* BREADCRUMB + BACK NAVIGATION                                       */}
+      {/* ================================================================== */}
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        {fromConsultation && consultationAppointmentId ? (
+          <>
+            <button
+              onClick={() => router.push(`/doctor/consultations/${consultationAppointmentId}/session`)}
+              className="hover:text-foreground transition-colors"
             >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Patients
-            </Button>
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Patient Profile</h1>
-            <p className="text-muted-foreground mt-1">View and manage patient information</p>
+              Consultation
+            </button>
+            <ChevronRight className="h-3.5 w-3.5" />
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => router.push('/doctor/patients')}
+              className="hover:text-foreground transition-colors"
+            >
+              Patients
+            </button>
+            <ChevronRight className="h-3.5 w-3.5" />
+          </>
+        )}
+        <span className="text-foreground font-medium">{patientName}</span>
+      </div>
+
+      {/* ================================================================== */}
+      {/* HERO HEADER — Patient Identity + Vital Info + CTA                  */}
+      {/* ================================================================== */}
+      <div className="relative rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white overflow-hidden">
+        {/* Decorative */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent" />
+        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-white/5 to-transparent rounded-full -translate-y-1/2 translate-x-1/2" />
+
+        <div className="relative p-6 lg:p-8">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-6">
+            {/* Avatar + Core Info */}
+            <div className="flex items-center gap-5 flex-1 min-w-0">
+              <Avatar className="h-20 w-20 border-2 border-white/20 shadow-xl flex-shrink-0">
+                <AvatarImage src={patient.profileImage ?? undefined} alt={patientName} />
+                <AvatarFallback className="bg-white/10 text-white text-2xl font-bold backdrop-blur-sm">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+
+              <div className="min-w-0">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h1 className="text-2xl lg:text-3xl font-bold tracking-tight truncate">{patientName}</h1>
+                  {hasAllergies && (
+                    <Badge className="bg-red-500/20 text-red-200 border border-red-400/30 text-xs font-semibold">
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      Allergies
+                    </Badge>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-4 mt-2 text-sm text-white/70 flex-wrap">
+                  <span className="flex items-center gap-1.5">
+                    <Hash className="h-3.5 w-3.5" />
+                    {patient.fileNumber}
+                  </span>
+                  <span className="text-white/30">•</span>
+                  <span>{age}</span>
+                  <span className="text-white/30">•</span>
+                  <span>{patient.gender}</span>
+                  {patient.bloodGroup && (
+                    <>
+                      <span className="text-white/30">•</span>
+                      <span className="flex items-center gap-1">
+                        <Heart className="h-3.5 w-3.5 text-red-400" />
+                        {patient.bloodGroup}
+                      </span>
+                    </>
+                  )}
+                </div>
+
+                {/* Contact Row */}
+                <div className="flex items-center gap-4 mt-2 text-sm text-white/60 flex-wrap">
+                  {patient.phone && (
+                    <a href={`tel:${patient.phone}`} className="flex items-center gap-1 hover:text-white/90 transition-colors">
+                      <Phone className="h-3.5 w-3.5" />
+                      {patient.phone}
+                    </a>
+                  )}
+                  {patient.email && (
+                    <a href={`mailto:${patient.email}`} className="flex items-center gap-1 hover:text-white/90 transition-colors truncate max-w-[200px]">
+                      <Mail className="h-3.5 w-3.5" />
+                      {patient.email}
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Primary CTA */}
+            <div className="flex items-center gap-3 flex-shrink-0">
+              {isInConsultation && activeAppointment ? (
+                <Button
+                  size="lg"
+                  onClick={() => router.push(`/doctor/consultations/${activeAppointment.id}/session`)}
+                  className="bg-violet-500 hover:bg-violet-600 text-white font-bold shadow-lg shadow-violet-500/25"
+                >
+                  <Play className="h-5 w-5 mr-2" />
+                  Continue Consultation
+                </Button>
+              ) : canStartConsult && activeAppointment ? (
+                <Button
+                  size="lg"
+                  onClick={() => handleStartConsultation(activeAppointment)}
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-500/25"
+                >
+                  <Stethoscope className="h-5 w-5 mr-2" />
+                  Start Consultation
+                </Button>
+              ) : nextAppointment ? (
+                <Link href={`/doctor/appointments/${nextAppointment.id}`}>
+                  <Button size="lg" variant="secondary" className="font-semibold">
+                    <Calendar className="h-5 w-5 mr-2" />
+                    Next: {format(new Date(nextAppointment.appointmentDate), 'MMM d')} at {nextAppointment.time}
+                  </Button>
+                </Link>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Quick Actions Bar */}
-      {nextAppointment && (
-        <Card className="bg-primary/5 border-primary/20">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  <Calendar className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Next Appointment</p>
-                  <p className="font-semibold">
-                    {format(new Date(nextAppointment.appointmentDate), 'EEEE, MMMM dd, yyyy')} at {nextAppointment.time}
-                  </p>
-                  <p className="text-sm text-muted-foreground">{nextAppointment.type}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {hasActiveConsultation(nextAppointment.id) ? (
-                  <Button
-                    onClick={() => router.push(`/doctor/consultations/${nextAppointment.id}/session`)}
-                    className="bg-primary hover:bg-primary/90"
-                  >
-                    <Play className="h-4 w-4 mr-2" />
-                    Continue Consultation
-                  </Button>
-                ) : nextAppointment.status === AppointmentStatus.SCHEDULED ? (
-                  <Button
-                    onClick={() => handleStartConsultation(nextAppointment)}
-                    className="bg-primary hover:bg-primary/90"
-                  >
-                    <Play className="h-4 w-4 mr-2" />
-                    Start Consultation
-                  </Button>
-                ) : null}
-                <Link href={`/doctor/cases/${nextAppointment.id}`}>
-                  <Button variant="outline">
-                    <Eye className="h-4 w-4 mr-2" />
-                    View Case
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* ================================================================== */}
+      {/* ALLERGY ALERT BANNER                                               */}
+      {/* ================================================================== */}
+      {hasAllergies && (
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50 border border-red-200">
+          <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold text-red-800 text-sm">Known Allergies</p>
+            <p className="text-red-700 text-sm mt-0.5">{patient.allergies}</p>
+          </div>
+        </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Patient Info */}
-        <div className="lg:col-span-1 space-y-6">
-          {/* Patient Card */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-4">
-                <ProfileImage
-                  name={patientName}
-                  bgColor="#10b981"
-                  textClassName="text-white font-semibold"
-                />
-                <div className="flex-1">
-                  <CardTitle className="text-xl">{patientName}</CardTitle>
-                  <CardDescription className="mt-1">
-                    {patient.fileNumber} • {calculateAge(patient.dateOfBirth)} years • {patient.gender}
-                  </CardDescription>
-                </div>
-              </div>
+      {/* ================================================================== */}
+      {/* SUMMARY STRIP — Key Stats                                          */}
+      {/* ================================================================== */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+        {[
+          { label: 'Appointments', value: stats.totalAppointments, icon: Calendar, color: 'text-blue-600' },
+          { label: 'Upcoming', value: stats.upcomingCount, icon: Clock, color: 'text-amber-600' },
+          { label: 'Consultations', value: stats.completedConsultations, icon: Stethoscope, color: 'text-violet-600' },
+          { label: 'Procedures Rec.', value: stats.proceduresRecommended, icon: Activity, color: 'text-indigo-600' },
+          { label: 'Case Plans', value: stats.totalCasePlans, icon: Clipboard, color: 'text-emerald-600' },
+          { label: 'Photos', value: stats.totalPhotos, icon: Camera, color: 'text-pink-600' },
+          { label: 'Patient Since', value: patient.createdAt ? format(new Date(patient.createdAt), 'MMM yyyy') : '—', icon: User, color: 'text-slate-600' },
+        ].map((stat) => (
+          <div key={stat.label} className="flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-100 shadow-sm">
+            <stat.icon className={`h-4 w-4 ${stat.color} flex-shrink-0`} />
+            <div className="min-w-0">
+              <p className="text-lg font-bold text-slate-900 leading-none">{stat.value}</p>
+              <p className="text-[10px] uppercase tracking-wider text-slate-500 mt-0.5 truncate">{stat.label}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ================================================================== */}
+      {/* MAIN CONTENT — Sidebar + Tabs                                      */}
+      {/* ================================================================== */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        {/* LEFT SIDEBAR — Patient Details Card */}
+        <div className="lg:col-span-4 xl:col-span-3 space-y-5">
+          
+          {/* Contact & Personal Info */}
+          <Card className="border-slate-200">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Patient Details</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Contact Info */}
-              <div className="space-y-3">
-                {patient.phone && (
-                  <div className="flex items-center gap-3 text-sm">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    <a href={`tel:${patient.phone}`} className="text-foreground hover:text-primary">
-                      {patient.phone}
-                    </a>
-                  </div>
-                )}
-                {patient.email && (
-                  <div className="flex items-center gap-3 text-sm">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <a href={`mailto:${patient.email}`} className="text-foreground hover:text-primary truncate">
-                      {patient.email}
-                    </a>
-                  </div>
-                )}
+            <CardContent className="space-y-4 text-sm">
+              {/* Personal */}
+              <div className="space-y-2.5">
                 {patient.address && (
-                  <div className="flex items-center gap-3 text-sm">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-foreground">{patient.address}</span>
+                  <div className="flex items-start gap-2.5 text-slate-600">
+                    <MapPin className="h-4 w-4 text-slate-400 mt-0.5 flex-shrink-0" />
+                    <span>{patient.address}</span>
+                  </div>
+                )}
+                {patient.occupation && (
+                  <div className="flex items-center gap-2.5 text-slate-600">
+                    <Briefcase className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                    <span>{patient.occupation}</span>
+                  </div>
+                )}
+                {patient.maritalStatus && (
+                  <div className="flex items-center gap-2.5 text-slate-600">
+                    <Users className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                    <span className="capitalize">{patient.maritalStatus.toLowerCase()}</span>
+                  </div>
+                )}
+                {patient.whatsappPhone && (
+                  <div className="flex items-center gap-2.5 text-slate-600">
+                    <Phone className="h-4 w-4 text-green-500 flex-shrink-0" />
+                    <span>WhatsApp: {patient.whatsappPhone}</span>
                   </div>
                 )}
               </div>
 
-              {/* Medical Info */}
-              <div className="pt-4 border-t space-y-3">
-                {patient.bloodGroup && (
-                  <div className="flex items-center gap-3 text-sm">
-                    <Heart className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-foreground">Blood Group: <strong>{patient.bloodGroup}</strong></span>
+              {/* Emergency Contact */}
+              {patient.emergencyContactName && (
+                <div className="pt-3 border-t space-y-2">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Emergency Contact</p>
+                  <div className="p-3 rounded-lg bg-slate-50">
+                    <p className="font-medium text-slate-900">{patient.emergencyContactName}</p>
+                    <p className="text-slate-500 text-xs capitalize">{patient.relation}</p>
+                    {patient.emergencyContactNumber && (
+                      <a href={`tel:${patient.emergencyContactNumber}`} className="text-blue-600 hover:text-blue-700 text-xs mt-1 inline-flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
+                        {patient.emergencyContactNumber}
+                      </a>
+                    )}
                   </div>
-                )}
-                {patient.allergies && (
-                  <div className="flex items-center gap-3 text-sm">
-                    <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-foreground">Allergies: <strong>{patient.allergies}</strong></span>
+                </div>
+              )}
+
+              {/* Insurance */}
+              {(patient.insuranceProvider || patient.insuranceNumber) && (
+                <div className="pt-3 border-t space-y-2">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Insurance</p>
+                  <div className="p-3 rounded-lg bg-slate-50">
+                    {patient.insuranceProvider && (
+                      <p className="font-medium text-slate-900">{patient.insuranceProvider}</p>
+                    )}
+                    {patient.insuranceNumber && (
+                      <p className="text-slate-500 text-xs">Policy: {patient.insuranceNumber}</p>
+                    )}
                   </div>
-                )}
-                {!patient.allergies && (
-                  <div className="flex items-center gap-3 text-sm">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <span className="text-foreground">No known allergies</span>
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* Consent Status */}
-              <div className="pt-4 border-t space-y-2">
-                <p className="text-sm font-semibold text-foreground mb-2">Consent Status</p>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Privacy</span>
-                    <Badge variant={patient.hasPrivacyConsent ? "default" : "destructive"}>
-                      {patient.hasPrivacyConsent ? 'Granted' : 'Pending'}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Medical</span>
-                    <Badge variant={patient.hasMedicalConsent ? "default" : "destructive"}>
-                      {patient.hasMedicalConsent ? 'Granted' : 'Pending'}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Service</span>
-                    <Badge variant={patient.hasServiceConsent ? "default" : "destructive"}>
-                      {patient.hasServiceConsent ? 'Granted' : 'Pending'}
-                    </Badge>
-                  </div>
+              <div className="pt-3 border-t space-y-2">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Consent Status</p>
+                <div className="space-y-1.5">
+                  {[
+                    { label: 'Privacy', granted: patient.hasPrivacyConsent },
+                    { label: 'Medical', granted: patient.hasMedicalConsent },
+                    { label: 'Service', granted: patient.hasServiceConsent },
+                  ].map(({ label, granted }) => (
+                    <div key={label} className="flex items-center justify-between">
+                      <span className="text-slate-500">{label}</span>
+                      {granted ? (
+                        <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Granted
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 border-red-200">
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                          Pending
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
                 </div>
-                <Button variant="outline" size="sm" className="w-full mt-3">
-                  <Shield className="h-4 w-4 mr-2" />
-                  Manage Consent
-                </Button>
               </div>
             </CardContent>
           </Card>
 
-          {/* Quick Stats */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Quick Stats</CardTitle>
+          {/* Medical Info Summary */}
+          <Card className="border-slate-200">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Medical Summary</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-3 text-sm">
+              {patient.bloodGroup && (
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Blood Group</span>
+                  <Badge variant="outline" className="font-bold">{patient.bloodGroup}</Badge>
+                </div>
+              )}
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Total Appointments</span>
-                <Badge variant="outline">{appointments.length}</Badge>
+                <span className="text-slate-500">Allergies</span>
+                {hasAllergies ? (
+                  <Badge variant="destructive" className="text-xs">{patient.allergies}</Badge>
+                ) : (
+                  <span className="text-emerald-600 text-xs font-medium">None known</span>
+                )}
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Upcoming</span>
-                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                  {upcomingAppointments.length}
-                </Badge>
-              </div>
+              {patient.medicalConditions && (
+                <div className="pt-2 border-t">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Conditions</p>
+                  <p className="text-slate-700 text-sm">{patient.medicalConditions}</p>
+                </div>
+              )}
+              {patient.medicalHistory && (
+                <div className="pt-2 border-t">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Medical History</p>
+                  <p className="text-slate-700 text-sm line-clamp-4">{patient.medicalHistory}</p>
+                </div>
+              )}
+              {!patient.medicalConditions && !patient.medicalHistory && !patient.bloodGroup && !hasAllergies && (
+                <div className="text-center py-4">
+                  <FileText className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                  <p className="text-slate-400 text-xs">No medical records</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Right Column - Details */}
-        <div className="lg:col-span-2 space-y-6">
+        {/* RIGHT CONTENT — Tabs */}
+        <div className="lg:col-span-8 xl:col-span-9">
           <Tabs defaultValue="appointments" className="w-full">
-            <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="appointments">Appointments</TabsTrigger>
-              <TabsTrigger value="consultations">Consultations</TabsTrigger>
-              <TabsTrigger value="medical">Medical</TabsTrigger>
-              <TabsTrigger value="cases">Cases</TabsTrigger>
-              <TabsTrigger value="notes">Notes</TabsTrigger>
+            <TabsList className="w-full grid grid-cols-4 h-11 bg-slate-100/80 p-1 rounded-xl">
+              <TabsTrigger value="appointments" className="rounded-lg text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <Calendar className="h-4 w-4 mr-1.5 hidden sm:inline" />
+                Appointments
+              </TabsTrigger>
+              <TabsTrigger value="consultations" className="rounded-lg text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <Stethoscope className="h-4 w-4 mr-1.5 hidden sm:inline" />
+                Consultations
+              </TabsTrigger>
+              <TabsTrigger value="cases" className="rounded-lg text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <Clipboard className="h-4 w-4 mr-1.5 hidden sm:inline" />
+                Cases
+              </TabsTrigger>
+              <TabsTrigger value="medical" className="rounded-lg text-xs sm:text-sm data-[state=active]:bg-white data-[state=active]:shadow-sm">
+                <FileText className="h-4 w-4 mr-1.5 hidden sm:inline" />
+                Medical
+              </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="appointments" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Appointments</CardTitle>
-                  <CardDescription>Patient's appointment history and upcoming visits</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {appointments.length === 0 ? (
-                    <div className="text-center py-8">
-                      <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-sm text-muted-foreground">No appointments found</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {appointments.map((apt) => (
-                        <div
-                          key={apt.id}
-                          className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                        >
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <Calendar className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-semibold">
-                                {format(new Date(apt.appointmentDate), 'EEEE, MMMM dd, yyyy')}
-                              </span>
-                              <Clock className="h-4 w-4 text-muted-foreground ml-2" />
-                              <span className="text-sm text-muted-foreground">{apt.time}</span>
-                            </div>
-                            <p className="text-sm text-muted-foreground">{apt.type}</p>
-                            {apt.note && (
-                              <p className="text-sm text-muted-foreground mt-1 italic">{apt.note}</p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <Badge
-                              variant={
-                                apt.status === AppointmentStatus.COMPLETED
-                                  ? 'default'
-                                  : apt.status === AppointmentStatus.SCHEDULED
-                                    ? 'default'
-                                    : 'secondary'
-                              }
-                            >
-                              {apt.status}
-                            </Badge>
-                            {hasActiveConsultation(apt.id) ? (
-                              <Button
-                                size="sm"
-                                onClick={() => router.push(`/doctor/consultations/${apt.id}/session`)}
-                                className="bg-primary hover:bg-primary/90"
-                              >
-                                <Play className="h-4 w-4 mr-1" />
-                                Continue
-                              </Button>
-                            ) : apt.status === AppointmentStatus.SCHEDULED ? (
-                              <Button
-                                size="sm"
-                                onClick={() => handleStartConsultation(apt)}
-                              >
-                                <Play className="h-4 w-4 mr-1" />
-                                Start
-                              </Button>
-                            ) : null}
-                            <Link href={`/doctor/cases/${apt.id}`}>
-                              <Button variant="outline" size="sm">
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </Link>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+            {/* ============================================================ */}
+            {/* APPOINTMENTS TAB                                              */}
+            {/* ============================================================ */}
+            <TabsContent value="appointments" className="mt-5 space-y-5">
+              {/* Upcoming Section */}
+              {upcomingAppointments.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Upcoming</h3>
+                  {upcomingAppointments.map((apt) => (
+                    <AppointmentRow
+                      key={apt.id}
+                      appointment={apt}
+                      onStartConsultation={handleStartConsultation}
+                      onNavigate={(id) => router.push(`/doctor/appointments/${id}`)}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Past Section */}
+              {pastAppointments.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">History</h3>
+                  {pastAppointments.slice(0, 10).map((apt) => (
+                    <AppointmentRow
+                      key={apt.id}
+                      appointment={apt}
+                      onStartConsultation={handleStartConsultation}
+                      onNavigate={(id) => router.push(`/doctor/appointments/${id}`)}
+                      isPast
+                    />
+                  ))}
+                  {pastAppointments.length > 10 && (
+                    <p className="text-center text-sm text-muted-foreground py-2">
+                      Showing 10 of {pastAppointments.length} past appointments
+                    </p>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              )}
+
+              {appointments.length === 0 && (
+                <EmptyState
+                  icon={Calendar}
+                  title="No Appointments"
+                  description="This patient has no appointment history yet."
+                />
+              )}
             </TabsContent>
 
-            <TabsContent value="consultations" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Consultation History</CardTitle>
-                  <CardDescription>
-                    Past consultations, outcomes, and clinical notes
-                    {consultationHistory?.summary && (
-                      <span className="ml-2 text-xs">
-                        ({consultationHistory.summary.completed} completed, {consultationHistory.summary.proceduresRecommended} procedures recommended)
-                      </span>
+            {/* ============================================================ */}
+            {/* CONSULTATIONS TAB                                             */}
+            {/* ============================================================ */}
+            <TabsContent value="consultations" className="mt-5 space-y-4">
+              {/* Summary Banner */}
+              {consultationHistory?.summary && consultationHistory.summary.total > 0 && (
+                <div className="flex items-center gap-4 p-4 rounded-xl bg-violet-50 border border-violet-100 text-sm">
+                  <Stethoscope className="h-5 w-5 text-violet-600 flex-shrink-0" />
+                  <p className="text-violet-800">
+                    <strong>{consultationHistory.summary.completed}</strong> completed consultations
+                    {consultationHistory.summary.proceduresRecommended > 0 && (
+                      <> · <strong>{consultationHistory.summary.proceduresRecommended}</strong> procedures recommended</>
                     )}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {loadingConsultations ? (
-                    <div className="text-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                      <p className="mt-4 text-sm text-muted-foreground">Loading consultation history...</p>
-                    </div>
-                  ) : !consultationHistory || consultationHistory.consultations.length === 0 ? (
-                    <div className="text-center py-8">
-                      <Stethoscope className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-sm text-muted-foreground">No consultations found</p>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Consultation records will appear here after appointments are completed.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {consultationHistory.consultations.map((consultation) => (
-                        <div
-                          key={consultation.id}
-                          className="border rounded-lg p-4 hover:bg-muted/50 transition-colors"
-                        >
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex items-center gap-3">
-                              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                <Stethoscope className="h-5 w-5 text-primary" />
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-semibold">
-                                    {format(new Date(consultation.appointmentDate), 'MMMM dd, yyyy')}
-                                  </span>
-                                  <span className="text-sm text-muted-foreground">at {consultation.appointmentTime}</span>
-                                </div>
-                                <p className="text-sm text-muted-foreground">
-                                  Dr. {consultation.doctor.name} • {consultation.doctor.specialization}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Badge
-                                variant={
-                                  consultation.state === ConsultationState.COMPLETED
-                                    ? 'default'
-                                    : consultation.state === ConsultationState.IN_PROGRESS
-                                      ? 'secondary'
-                                      : 'outline'
-                                }
-                              >
-                                {consultation.state}
-                              </Badge>
-                              {consultation.outcomeType && (
-                                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                                  {getConsultationOutcomeTypeLabel(consultation.outcomeType)}
-                                </Badge>
-                              )}
+                    {consultationHistory.summary.totalPhotos > 0 && (
+                      <> · <strong>{consultationHistory.summary.totalPhotos}</strong> photos</>
+                    )}
+                  </p>
+                </div>
+              )}
+
+              {loadingConsultations ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-28 w-full rounded-xl" />
+                  ))}
+                </div>
+              ) : !consultationHistory || consultationHistory.consultations.length === 0 ? (
+                <EmptyState
+                  icon={Stethoscope}
+                  title="No Consultations"
+                  description="Consultation records will appear here after appointments are completed."
+                />
+              ) : (
+                <div className="space-y-4">
+                  {consultationHistory.consultations.map((consultation, index) => {
+                    const stateConfig = getConsultationStateConfig(consultation.state);
+                    return (
+                      <div key={consultation.id} className="relative">
+                        {/* Timeline connector */}
+                        {index < consultationHistory.consultations.length - 1 && (
+                          <div className="absolute left-[19px] top-14 bottom-0 w-px bg-slate-200 -mb-4" />
+                        )}
+
+                        <div className="flex gap-4">
+                          {/* Timeline dot */}
+                          <div className="flex-shrink-0 mt-1">
+                            <div className={`h-[38px] w-[38px] rounded-full ${stateConfig.bg} flex items-center justify-center`}>
+                              <Stethoscope className={`h-4 w-4 ${stateConfig.color}`} />
                             </div>
                           </div>
-                          
-                          {/* Outcome and Decision */}
-                          {consultation.outcomeType === ConsultationOutcomeType.PROCEDURE_RECOMMENDED && (
-                            <div className="mt-3 p-3 bg-muted/50 rounded-lg">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium">Patient Decision</span>
-                                <Badge
-                                  variant={
-                                    consultation.patientDecision === PatientDecision.YES
-                                      ? 'default'
-                                      : consultation.patientDecision === PatientDecision.NO
-                                        ? 'destructive'
-                                        : 'secondary'
-                                  }
-                                >
-                                  {consultation.patientDecision === PatientDecision.YES
-                                    ? 'Proceeding'
-                                    : consultation.patientDecision === PatientDecision.NO
-                                      ? 'Declined'
-                                      : 'Pending Decision'}
-                                </Badge>
+
+                          {/* Content */}
+                          <Card className="flex-1 border-slate-200 hover:shadow-sm transition-shadow">
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between gap-3 mb-2">
+                                <div>
+                                  <p className="font-semibold text-slate-900">
+                                    {format(new Date(consultation.appointmentDate), 'MMMM d, yyyy')}
+                                    <span className="font-normal text-slate-500 ml-2">at {consultation.appointmentTime}</span>
+                                  </p>
+                                  <p className="text-sm text-slate-500">
+                                    Dr. {consultation.doctor.name} · {consultation.doctor.specialization}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  <Badge variant="outline" className={`text-xs ${stateConfig.color} ${stateConfig.bg}`}>
+                                    {stateConfig.label}
+                                  </Badge>
+                                  {consultation.outcomeType && (
+                                    <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                      {getConsultationOutcomeTypeLabel(consultation.outcomeType)}
+                                    </Badge>
+                                  )}
+                                </div>
                               </div>
-                              {consultation.hasCasePlan && (
-                                <Link href={`/doctor/cases/${consultation.appointmentId}`}>
-                                  <Button variant="link" size="sm" className="p-0 h-auto mt-2">
-                                    <Eye className="h-3 w-3 mr-1" />
-                                    View Case Plan
+
+                              {/* Procedure Decision */}
+                              {consultation.outcomeType === ConsultationOutcomeType.PROCEDURE_RECOMMENDED && (
+                                <div className="flex items-center gap-3 mt-2 p-2.5 rounded-lg bg-slate-50">
+                                  <span className="text-xs text-slate-500">Patient Decision:</span>
+                                  <Badge
+                                    variant={
+                                      consultation.patientDecision === PatientDecision.YES
+                                        ? 'default'
+                                        : consultation.patientDecision === PatientDecision.NO
+                                          ? 'destructive'
+                                          : 'secondary'
+                                    }
+                                    className="text-xs"
+                                  >
+                                    {consultation.patientDecision === PatientDecision.YES
+                                      ? 'Proceeding'
+                                      : consultation.patientDecision === PatientDecision.NO
+                                        ? 'Declined'
+                                        : 'Pending'}
+                                  </Badge>
+                                  {consultation.hasCasePlan && (
+                                    <Link href={`/doctor/cases/${consultation.appointmentId}`} className="ml-auto">
+                                      <Button variant="ghost" size="sm" className="h-7 text-xs">
+                                        <Eye className="h-3 w-3 mr-1" />
+                                        Case Plan
+                                      </Button>
+                                    </Link>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Notes Summary */}
+                              {consultation.notesSummary && (
+                                <p className="text-sm text-slate-500 mt-2 line-clamp-2 italic">
+                                  "{consultation.notesSummary}"
+                                </p>
+                              )}
+
+                              {/* Footer */}
+                              <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-100">
+                                <div className="flex items-center gap-3 text-xs text-slate-400">
+                                  {consultation.durationMinutes && (
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      {consultation.durationMinutes} min
+                                    </span>
+                                  )}
+                                  {consultation.photoCount > 0 && (
+                                    <span className="flex items-center gap-1">
+                                      <Camera className="h-3 w-3" />
+                                      {consultation.photoCount} photos
+                                    </span>
+                                  )}
+                                </div>
+                                <Link href={`/doctor/consultations/${consultation.appointmentId}/session`}>
+                                  <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-500 hover:text-slate-900">
+                                    View Details
+                                    <ExternalLink className="h-3 w-3 ml-1" />
                                   </Button>
                                 </Link>
-                              )}
-                            </div>
-                          )}
-                          
-                          {/* Notes Summary */}
-                          {consultation.notesSummary && (
-                            <p className="text-sm text-muted-foreground mt-3 line-clamp-2">
-                              {consultation.notesSummary}
-                            </p>
-                          )}
-                          
-                          {/* Quick Stats */}
-                          <div className="flex items-center gap-4 mt-3 pt-3 border-t text-xs text-muted-foreground">
-                            {consultation.durationMinutes && (
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {consultation.durationMinutes} min
-                              </span>
-                            )}
-                            {consultation.photoCount > 0 && (
-                              <span className="flex items-center gap-1">
-                                📷 {consultation.photoCount} photos
-                              </span>
-                            )}
-                          </div>
-                          
-                          {/* Actions */}
-                          <div className="flex items-center gap-2 mt-3">
-                            <Link href={`/doctor/consultations/${consultation.appointmentId}/session`}>
-                              <Button variant="outline" size="sm">
-                                <Eye className="h-4 w-4 mr-1" />
-                                View Details
-                              </Button>
-                            </Link>
-                          </div>
+                              </div>
+                            </CardContent>
+                          </Card>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </TabsContent>
 
-            <TabsContent value="medical" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Medical History</CardTitle>
-                  <CardDescription>Patient's medical background and conditions</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {patient.medicalHistory ? (
-                    <div>
-                      <p className="text-sm text-foreground whitespace-pre-wrap">{patient.medicalHistory}</p>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-sm text-muted-foreground">No medical history recorded</p>
-                    </div>
-                  )}
-                  {patient.medicalConditions && (
-                    <div className="pt-4 border-t">
-                      <p className="text-sm font-semibold mb-2">Medical Conditions</p>
-                      <p className="text-sm text-foreground">{patient.medicalConditions}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="cases" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle>Cases & Procedures</CardTitle>
-                      <CardDescription>Surgical cases and procedure plans</CardDescription>
-                    </div>
-                    <Link href={`/doctor/patients/${patientId}/case-plans`}>
-                      <Button variant="outline" size="sm">
-                        <Eye className="h-4 w-4 mr-2" />
-                        View All
-                      </Button>
-                    </Link>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {loadingCasePlans ? (
-                    <div className="text-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                      <p className="mt-4 text-sm text-muted-foreground">Loading case plans...</p>
-                    </div>
-                  ) : casePlans.length === 0 ? (
-                    <div className="text-center py-8">
-                      <Stethoscope className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-sm text-muted-foreground mb-4">No case plans found</p>
-                      <p className="text-xs text-muted-foreground mb-4">
-                        Case plans are created when a consultation results in a procedure recommendation.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {casePlans.slice(0, 5).map((casePlan) => (
-                        <div
-                          key={casePlan.id}
-                          className="rounded-lg border border-border p-4 hover:bg-muted/50 transition-colors"
-                        >
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex-1">
+            {/* ============================================================ */}
+            {/* CASES TAB                                                     */}
+            {/* ============================================================ */}
+            <TabsContent value="cases" className="mt-5 space-y-4">
+              {loadingCasePlans ? (
+                <div className="space-y-3">
+                  {[1, 2].map((i) => (
+                    <Skeleton key={i} className="h-32 w-full rounded-xl" />
+                  ))}
+                </div>
+              ) : casePlans.length === 0 ? (
+                <EmptyState
+                  icon={Clipboard}
+                  title="No Case Plans"
+                  description="Case plans are created when a consultation results in a procedure recommendation."
+                />
+              ) : (
+                <div className="space-y-4">
+                  {casePlans.map((casePlan) => {
+                    const readinessConfig = getCaseReadinessConfig(casePlan.readinessStatus);
+                    return (
+                      <Card key={casePlan.id} className="border-slate-200 hover:shadow-sm transition-shadow">
+                        <CardContent className="p-5">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
                               {casePlan.appointment && (
-                                <div className="flex items-center gap-2 mb-2">
-                                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                                  <span className="font-semibold">
-                                    {format(new Date(casePlan.appointment.appointmentDate), 'MMM dd, yyyy')}
+                                <div className="flex items-center gap-2 text-sm mb-1">
+                                  <Calendar className="h-4 w-4 text-slate-400" />
+                                  <span className="font-semibold text-slate-900">
+                                    {format(new Date(casePlan.appointment.appointmentDate), 'MMM d, yyyy')}
                                   </span>
-                                  <Clock className="h-4 w-4 text-muted-foreground ml-2" />
-                                  <span className="text-sm text-muted-foreground">
-                                    {casePlan.appointment.time}
-                                  </span>
+                                  <span className="text-slate-400">at</span>
+                                  <span className="text-slate-600">{casePlan.appointment.time}</span>
+                                  <span className="text-slate-300">·</span>
+                                  <span className="text-slate-500">{casePlan.appointment.type}</span>
                                 </div>
                               )}
                               {casePlan.procedurePlan && (
-                                <p className="text-sm text-foreground line-clamp-2 mb-2">
-                                  {casePlan.procedurePlan}
-                                </p>
+                                <p className="text-sm text-slate-700 mt-2 line-clamp-2">{casePlan.procedurePlan}</p>
                               )}
                               {casePlan.doctor && (
-                                <p className="text-xs text-muted-foreground">
-                                  {casePlan.doctor.name} • {casePlan.doctor.specialization}
-                                </p>
+                                <p className="text-xs text-slate-400 mt-1.5">{casePlan.doctor.name} · {casePlan.doctor.specialization}</p>
                               )}
                             </div>
-                            <div className="flex items-center gap-2 ml-4">
-                              <Badge
-                                variant={
-                                  casePlan.readinessStatus === CaseReadinessStatus.READY
-                                    ? 'default'
-                                    : casePlan.readinessStatus === CaseReadinessStatus.PENDING_LABS ||
-                                        casePlan.readinessStatus === CaseReadinessStatus.PENDING_CONSENT ||
-                                        casePlan.readinessStatus === CaseReadinessStatus.PENDING_REVIEW
-                                      ? 'secondary'
-                                      : casePlan.readinessStatus === CaseReadinessStatus.ON_HOLD
-                                        ? 'destructive'
-                                        : 'outline'
-                                }
-                              >
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <Badge variant="outline" className={`text-xs ${readinessConfig.color} ${readinessConfig.bg}`}>
                                 {getCaseReadinessStatusLabel(casePlan.readinessStatus)}
                               </Badge>
                               {casePlan.readyForSurgery && (
-                                <Badge variant="default" className="bg-green-500">
+                                <Badge className="bg-emerald-500 text-white text-xs">
                                   <CheckCircle2 className="h-3 w-3 mr-1" />
                                   Ready
                                 </Badge>
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center justify-between pt-3 border-t">
-                            <div className="text-xs text-muted-foreground">
-                              Updated: {format(new Date(casePlan.updatedAt), 'MMM dd, yyyy')}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Link href={`/doctor/patients/${patientId}/case-plans`}>
-                                <Button variant="outline" size="sm">
-                                  <Eye className="h-4 w-4 mr-1" />
-                                  View Details
-                                </Button>
-                              </Link>
-                            </div>
+
+                          <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
+                            <span className="text-xs text-slate-400">
+                              Updated {format(new Date(casePlan.updatedAt), 'MMM d, yyyy')}
+                            </span>
+                            <Link href={`/doctor/patients/${patientId}/case-plans`}>
+                              <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-500 hover:text-slate-900">
+                                View Details
+                                <ExternalLink className="h-3 w-3 ml-1" />
+                              </Button>
+                            </Link>
                           </div>
-                        </div>
-                      ))}
-                      {casePlans.length > 5 && (
-                        <div className="text-center pt-4">
-                          <Link href={`/doctor/patients/${patientId}/case-plans`}>
-                            <Button variant="outline" size="sm">
-                              View All {casePlans.length} Case Plans
-                            </Button>
-                          </Link>
-                        </div>
-                      )}
-                    </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </TabsContent>
+
+            {/* ============================================================ */}
+            {/* MEDICAL TAB                                                   */}
+            {/* ============================================================ */}
+            <TabsContent value="medical" className="mt-5 space-y-5">
+              {/* Medical History */}
+              <Card className="border-slate-200">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-slate-400" />
+                    Medical History
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {patient.medicalHistory ? (
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{patient.medicalHistory}</p>
+                  ) : (
+                    <p className="text-sm text-slate-400 italic">No medical history recorded</p>
                   )}
                 </CardContent>
               </Card>
-            </TabsContent>
 
-            <TabsContent value="notes" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Clinical Notes</CardTitle>
-                  <CardDescription>Doctor's notes and observations</CardDescription>
+              {/* Medical Conditions */}
+              <Card className="border-slate-200">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-slate-400" />
+                    Medical Conditions
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-8">
-                    <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-sm text-muted-foreground mb-4">No clinical notes recorded</p>
-                    <Button variant="outline" size="sm">
-                      <Edit className="h-4 w-4 mr-2" />
-                      Add Note
-                    </Button>
-                  </div>
+                  {patient.medicalConditions ? (
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{patient.medicalConditions}</p>
+                  ) : (
+                    <p className="text-sm text-slate-400 italic">No medical conditions recorded</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Allergies Detail */}
+              <Card className={`border-slate-200 ${hasAllergies ? 'border-red-200' : ''}`}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <AlertTriangle className={`h-4 w-4 ${hasAllergies ? 'text-red-500' : 'text-slate-400'}`} />
+                    Allergies
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {hasAllergies ? (
+                    <div className="p-3 rounded-lg bg-red-50 border border-red-100">
+                      <p className="text-sm text-red-800 font-medium">{patient.allergies}</p>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-sm">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                      <span className="text-emerald-700">No known allergies</span>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -850,4 +989,124 @@ export default function DoctorPatientProfilePage() {
       )}
     </div>
   );
+}
+
+// ============================================================================
+// SUB-COMPONENTS
+// ============================================================================
+
+function AppointmentRow({
+  appointment,
+  onStartConsultation,
+  onNavigate,
+  isPast = false,
+}: {
+  appointment: AppointmentResponseDto;
+  onStartConsultation: (apt: AppointmentResponseDto) => void;
+  onNavigate: (id: number) => void;
+  isPast?: boolean;
+}) {
+  const config = getAppointmentStatusConfig(appointment.status);
+  const canConsult = canStartConsultation(appointment.status as AppointmentStatus);
+  const isContinue = appointment.status === AppointmentStatus.IN_CONSULTATION;
+
+  return (
+    <div
+      className="group flex items-center gap-4 p-4 rounded-xl bg-white border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all cursor-pointer"
+      onClick={() => onNavigate(appointment.id)}
+    >
+      {/* Status dot + date */}
+      <div className="flex-shrink-0 text-center min-w-[60px]">
+        <p className={`text-lg font-bold leading-none ${isPast ? 'text-slate-400' : 'text-slate-900'}`}>
+          {format(new Date(appointment.appointmentDate), 'd')}
+        </p>
+        <p className={`text-xs mt-0.5 ${isPast ? 'text-slate-300' : 'text-slate-500'}`}>
+          {format(new Date(appointment.appointmentDate), 'MMM yy')}
+        </p>
+      </div>
+
+      {/* Separator */}
+      <div className={`w-1 h-10 rounded-full flex-shrink-0 ${config.dot}`} />
+
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className={`font-medium ${isPast ? 'text-slate-500' : 'text-slate-900'}`}>
+            {appointment.time}
+          </span>
+          <span className="text-slate-300">·</span>
+          <span className={`text-sm ${isPast ? 'text-slate-400' : 'text-slate-600'}`}>{appointment.type}</span>
+        </div>
+        {appointment.note && (
+          <p className="text-xs text-slate-400 mt-0.5 truncate">{appointment.note}</p>
+        )}
+      </div>
+
+      {/* Status + Actions */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <Badge variant="outline" className={`text-[10px] font-semibold ${config.color} ${config.bg} border`}>
+          {config.label}
+        </Badge>
+
+        {isContinue && (
+          <Button
+            size="sm"
+            className="h-8 bg-violet-500 hover:bg-violet-600 text-white text-xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              onNavigate(appointment.id);
+            }}
+          >
+            <Play className="h-3 w-3 mr-1" />
+            Continue
+          </Button>
+        )}
+
+        {canConsult && !isContinue && (
+          <Button
+            size="sm"
+            className="h-8 bg-emerald-500 hover:bg-emerald-600 text-white text-xs"
+            onClick={(e) => {
+              e.stopPropagation();
+              onStartConsultation(appointment);
+            }}
+          >
+            <Stethoscope className="h-3 w-3 mr-1" />
+            Start
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <div className="h-16 w-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+        <Icon className="h-8 w-8 text-slate-400" />
+      </div>
+      <h3 className="font-semibold text-slate-700 mb-1">{title}</h3>
+      <p className="text-sm text-slate-400 max-w-sm">{description}</p>
+    </div>
+  );
+}
+
+function getCaseReadinessConfig(status: string) {
+  const configs: Record<string, { color: string; bg: string }> = {
+    READY: { color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+    PENDING_LABS: { color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
+    PENDING_CONSENT: { color: 'text-orange-700', bg: 'bg-orange-50 border-orange-200' },
+    PENDING_REVIEW: { color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200' },
+    ON_HOLD: { color: 'text-red-700', bg: 'bg-red-50 border-red-200' },
+  };
+  return configs[status] || { color: 'text-slate-600', bg: 'bg-slate-50 border-slate-200' };
 }

@@ -48,6 +48,9 @@ import {
   Building,
   Search,
   TrendingUp,
+  ChevronDown,
+  ChevronUp,
+  Package,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { PaymentStatus, getPaymentStatusLabel } from '@/domain/enums/PaymentStatus';
@@ -64,6 +67,7 @@ export default function FrontdeskBillingPage() {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
+  const [expandedPaymentId, setExpandedPaymentId] = useState<number | null>(null);
 
   if (!isAuthenticated || !user) {
     return (
@@ -232,68 +236,143 @@ export default function FrontdeskBillingPage() {
               {filteredPayments.map((payment) => {
                 const payable = payment.totalAmount - payment.discount;
                 const remaining = payable - payment.amountPaid;
+                const isExpanded = expandedPaymentId === payment.id;
+                const hasBillItems = payment.billItems && payment.billItems.length > 0;
                 
                 return (
                   <div
                     key={payment.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    className="border rounded-lg hover:bg-muted/30 transition-colors"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <User className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-semibold">
-                          {payment.patient?.firstName} {payment.patient?.lastName}
-                        </p>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Calendar className="h-3 w-3" />
-                          <span>{format(new Date(payment.billDate), 'MMM dd, yyyy')}</span>
-                          {payment.appointment && (
-                            <>
-                              <span>•</span>
-                              <span>{payment.appointment.time}</span>
-                            </>
-                          )}
+                    {/* Main Row */}
+                    <div className="flex items-center justify-between p-4">
+                      <div className="flex items-center gap-4">
+                        {/* Expand Toggle */}
+                        {hasBillItems && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 flex-shrink-0"
+                            onClick={() => setExpandedPaymentId(isExpanded ? null : payment.id)}
+                          >
+                            {isExpanded
+                              ? <ChevronUp className="h-4 w-4" />
+                              : <ChevronDown className="h-4 w-4" />
+                            }
+                          </Button>
+                        )}
+                        {!hasBillItems && <div className="w-8" />}
+
+                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                          <User className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-semibold">
+                            {payment.patient?.firstName} {payment.patient?.lastName}
+                          </p>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Calendar className="h-3 w-3" />
+                            <span>{format(new Date(payment.billDate), 'MMM dd, yyyy')}</span>
+                            {payment.appointment && (
+                              <>
+                                <span>•</span>
+                                <span>{payment.appointment.time}</span>
+                              </>
+                            )}
+                            {hasBillItems && (
+                              <>
+                                <span>•</span>
+                                <Package className="h-3 w-3" />
+                                <span>{payment.billItems!.length} item{payment.billItems!.length !== 1 ? 's' : ''}</span>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-6">
-                      <div className="text-right">
-                        <p className="text-sm text-muted-foreground">Amount Due</p>
-                        <p className="font-bold text-lg">{remaining.toLocaleString()}</p>
-                        {payment.discount > 0 && (
-                          <p className="text-xs text-emerald-600">
-                            -{payment.discount.toLocaleString()} discount
-                          </p>
-                        )}
+                      <div className="flex items-center gap-6">
+                        <div className="text-right">
+                          <p className="text-sm text-muted-foreground">Amount Due</p>
+                          <p className="font-bold text-lg">{remaining.toLocaleString()}</p>
+                          {payment.discount > 0 && (
+                            <p className="text-xs text-emerald-600">
+                              -{payment.discount.toLocaleString()} discount
+                            </p>
+                          )}
+                        </div>
+
+                        <Badge
+                          variant={
+                            payment.status === PaymentStatus.PART
+                              ? 'secondary'
+                              : 'outline'
+                          }
+                          className={
+                            payment.status === PaymentStatus.PART
+                              ? 'bg-amber-100 text-amber-700 border-amber-200'
+                              : ''
+                          }
+                        >
+                          {getPaymentStatusLabel(payment.status)}
+                          {payment.status === PaymentStatus.PART && (
+                            <span className="ml-1">
+                              ({payment.amountPaid.toLocaleString()} paid)
+                            </span>
+                          )}
+                        </Badge>
+
+                        <Button onClick={() => handleOpenPaymentDialog(payment)}>
+                          Collect Payment
+                        </Button>
                       </div>
-
-                      <Badge
-                        variant={
-                          payment.status === PaymentStatus.PART
-                            ? 'secondary'
-                            : 'outline'
-                        }
-                        className={
-                          payment.status === PaymentStatus.PART
-                            ? 'bg-amber-100 text-amber-700 border-amber-200'
-                            : ''
-                        }
-                      >
-                        {getPaymentStatusLabel(payment.status)}
-                        {payment.status === PaymentStatus.PART && (
-                          <span className="ml-1">
-                            ({payment.amountPaid.toLocaleString()} paid)
-                          </span>
-                        )}
-                      </Badge>
-
-                      <Button onClick={() => handleOpenPaymentDialog(payment)}>
-                        Collect Payment
-                      </Button>
                     </div>
+
+                    {/* Expandable Bill Items Section */}
+                    {isExpanded && hasBillItems && (
+                      <div className="border-t bg-muted/20 px-4 py-3 mx-4 mb-4 rounded-md">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                          Itemized Bill
+                        </p>
+                        <div className="space-y-1.5">
+                          {payment.billItems!.map((item, idx) => (
+                            <div
+                              key={item.id ?? idx}
+                              className="flex items-center justify-between text-sm"
+                            >
+                              <span className="text-foreground">{item.serviceName}</span>
+                              <div className="flex items-center gap-4 text-muted-foreground">
+                                <span>{item.quantity} × {item.unitCost.toLocaleString()}</span>
+                                <span className="font-medium text-foreground w-20 text-right">
+                                  {item.totalCost.toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t text-sm">
+                          <span className="font-medium">Subtotal</span>
+                          <span className="font-bold">
+                            {payment.totalAmount.toLocaleString()}
+                          </span>
+                        </div>
+                        {payment.discount > 0 && (
+                          <div className="flex items-center justify-between text-sm text-emerald-600">
+                            <span>Discount</span>
+                            <span>-{payment.discount.toLocaleString()}</span>
+                          </div>
+                        )}
+                        {payment.amountPaid > 0 && (
+                          <div className="flex items-center justify-between text-sm text-muted-foreground">
+                            <span>Already Paid</span>
+                            <span>-{payment.amountPaid.toLocaleString()}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between text-sm font-bold mt-1 pt-1 border-t">
+                          <span>Balance Due</span>
+                          <span>{remaining.toLocaleString()}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -304,7 +383,7 @@ export default function FrontdeskBillingPage() {
 
       {/* Payment Dialog */}
       <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Record Payment</DialogTitle>
             <DialogDescription>
@@ -319,6 +398,31 @@ export default function FrontdeskBillingPage() {
 
           {selectedPayment && (
             <div className="space-y-4 py-4">
+              {/* Itemized Bill Details */}
+              {selectedPayment.billItems && selectedPayment.billItems.length > 0 && (
+                <div className="bg-muted/30 rounded-lg p-4 space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                    Services Rendered
+                  </p>
+                  <div className="space-y-1.5">
+                    {selectedPayment.billItems.map((item, idx) => (
+                      <div
+                        key={item.id ?? idx}
+                        className="flex items-center justify-between text-sm"
+                      >
+                        <span>{item.serviceName}</span>
+                        <div className="flex items-center gap-3 text-muted-foreground">
+                          <span className="text-xs">{item.quantity} × {item.unitCost.toLocaleString()}</span>
+                          <span className="font-medium text-foreground w-20 text-right">
+                            {item.totalCost.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Payment Summary */}
               <div className="bg-muted/50 rounded-lg p-4 space-y-2">
                 <div className="flex justify-between text-sm">

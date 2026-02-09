@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { format } from 'date-fns';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Clock, Stethoscope, Scissors, Briefcase } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export interface SlotData {
     id?: string;
@@ -15,6 +16,12 @@ export interface SlotData {
     end: Date;
     type: string;
 }
+
+const SLOT_TYPES = [
+    { value: 'CLINIC', label: 'General Clinic', icon: Stethoscope, color: '#059669', description: 'Regular patient consultations' },
+    { value: 'SURGERY', label: 'Surgery', icon: Scissors, color: '#3b82f6', description: 'Surgical procedures' },
+    { value: 'ADMIN', label: 'Admin / Other', icon: Briefcase, color: '#6b7280', description: 'Administrative tasks, meetings' },
+];
 
 interface SlotEditorDialogProps {
     isOpen: boolean;
@@ -35,19 +42,20 @@ export function SlotEditorDialog({ isOpen, onClose, onSave, onDelete, initialDat
             setStartTime(format(initialData.start, 'HH:mm'));
             setEndTime(format(initialData.end, 'HH:mm'));
         } else if (isOpen) {
-            // Defaults for new slot
             setType('CLINIC');
-            // If we could pass in the clicked slot time, that would be better.
-            // But for now, if initialData is null (which shouldn't happen for "add" if we pass the range), we stick to defaults.
-            // Actually, for "Add", we should pass the clicked range as initialData with no ID.
+            setStartTime('09:00');
+            setEndTime('17:00');
         }
     }, [isOpen, initialData]);
 
     const handleSave = () => {
         if (!initialData) return;
 
-        // Construct Date objects based on the *original* date but new times
-        // We assume the slot stays on the same day for this simple editor
+        // Validate times
+        if (startTime >= endTime) {
+            return; // Could show error, but simple guard for now
+        }
+
         const [startH, startM] = startTime.split(':').map(Number);
         const [endH, endM] = endTime.split(':').map(Number);
 
@@ -58,7 +66,7 @@ export function SlotEditorDialog({ isOpen, onClose, onSave, onDelete, initialDat
         newEnd.setHours(endH, endM, 0, 0);
 
         onSave({
-            ...initialData, // keep ID if exists
+            ...initialData,
             start: newStart,
             end: newEnd,
             type
@@ -66,72 +74,142 @@ export function SlotEditorDialog({ isOpen, onClose, onSave, onDelete, initialDat
         onClose();
     };
 
+    const isEditing = !!initialData?.id;
+    const selectedType = SLOT_TYPES.find(t => t.value === type);
+    const dayLabel = initialData ? format(initialData.start, 'EEEE') : '';
+
+    // Duration calculation
+    const [startH, startM] = startTime.split(':').map(Number);
+    const [endH, endM] = endTime.split(':').map(Number);
+    const durationMins = (endH * 60 + endM) - (startH * 60 + startM);
+    const durationLabel = durationMins > 0
+        ? `${Math.floor(durationMins / 60)}h ${durationMins % 60 > 0 ? `${durationMins % 60}m` : ''}`
+        : 'Invalid';
+
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[440px]">
                 <DialogHeader>
-                    <DialogTitle>{initialData?.id ? 'Edit Availability Slot' : 'Add Availability Slot'}</DialogTitle>
+                    <DialogTitle className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        {isEditing ? 'Edit Availability Slot' : 'Add Availability Slot'}
+                    </DialogTitle>
                     <DialogDescription>
-                        Set the time and type for this availability window.
+                        {dayLabel ? `${dayLabel} — ` : ''}Set the time window and type for this availability block.
                     </DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="type" className="text-right">
-                            Type
+
+                <div className="space-y-5 py-2">
+                    {/* Slot Type */}
+                    <div className="space-y-2">
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            Slot Type
                         </Label>
-                        <Select value={type} onValueChange={setType}>
-                            <SelectTrigger className="col-span-3">
-                                <SelectValue placeholder="Select type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="CLINIC">General Clinic</SelectItem>
-                                <SelectItem value="SURGERY">Surgery</SelectItem>
-                                <SelectItem value="ADMIN">Admin / Other</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="start" className="text-right">
-                            Map
-                        </Label>
-                        <div className="col-span-3 flex items-center gap-2">
-                            <Input
-                                id="start"
-                                type="time"
-                                value={startTime}
-                                onChange={(e) => setStartTime(e.target.value)}
-                                className="w-32"
-                            />
-                            <span>to</span>
-                            <Input
-                                id="end"
-                                type="time"
-                                value={endTime}
-                                onChange={(e) => setEndTime(e.target.value)}
-                                className="w-32"
-                            />
+                        <div className="grid grid-cols-3 gap-2">
+                            {SLOT_TYPES.map(st => {
+                                const Icon = st.icon;
+                                const isSelected = type === st.value;
+                                return (
+                                    <button
+                                        key={st.value}
+                                        type="button"
+                                        onClick={() => setType(st.value)}
+                                        className={cn(
+                                            "flex flex-col items-center gap-1.5 p-3 rounded-lg border-2 transition-all text-center",
+                                            isSelected
+                                                ? "border-current shadow-sm"
+                                                : "border-transparent bg-muted/40 hover:bg-muted/60"
+                                        )}
+                                        style={isSelected ? { borderColor: st.color, backgroundColor: `${st.color}10` } : {}}
+                                    >
+                                        <Icon
+                                            className="h-5 w-5"
+                                            style={{ color: isSelected ? st.color : undefined }}
+                                        />
+                                        <span className={cn(
+                                            "text-xs font-medium",
+                                            isSelected ? "text-foreground" : "text-muted-foreground"
+                                        )}>
+                                            {st.label}
+                                        </span>
+                                    </button>
+                                );
+                            })}
                         </div>
+                        {selectedType && (
+                            <p className="text-[0.65rem] text-muted-foreground pl-1">
+                                {selectedType.description}
+                            </p>
+                        )}
+                    </div>
+
+                    {/* Time Range */}
+                    <div className="space-y-2">
+                        <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            Time Range
+                        </Label>
+                        <div className="flex items-center gap-3">
+                            <div className="flex-1">
+                                <Input
+                                    type="time"
+                                    value={startTime}
+                                    onChange={(e) => setStartTime(e.target.value)}
+                                    className="h-10 text-center font-mono"
+                                />
+                                <span className="text-[0.6rem] text-muted-foreground mt-1 block text-center">Start</span>
+                            </div>
+                            <span className="text-muted-foreground text-sm font-medium pb-4">→</span>
+                            <div className="flex-1">
+                                <Input
+                                    type="time"
+                                    value={endTime}
+                                    onChange={(e) => setEndTime(e.target.value)}
+                                    className="h-10 text-center font-mono"
+                                />
+                                <span className="text-[0.6rem] text-muted-foreground mt-1 block text-center">End</span>
+                            </div>
+                        </div>
+                        {durationMins > 0 && (
+                            <p className="text-xs text-muted-foreground text-center">
+                                Duration: <span className="font-medium text-foreground">{durationLabel}</span>
+                            </p>
+                        )}
+                        {durationMins <= 0 && (
+                            <p className="text-xs text-destructive text-center">
+                                End time must be after start time
+                            </p>
+                        )}
                     </div>
                 </div>
-                <DialogFooter className="flex justify-between sm:justify-between">
-                    {initialData?.id ? (
+
+                <DialogFooter className="flex justify-between sm:justify-between pt-2">
+                    {isEditing ? (
                         <Button
-                            variant="destructive"
-                            size="icon"
+                            variant="outline"
+                            size="sm"
+                            className="text-destructive hover:bg-destructive/10 border-destructive/30"
                             onClick={() => {
-                                onDelete(initialData.id!);
+                                onDelete(initialData!.id!);
                                 onClose();
                             }}
                         >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                            Delete
                         </Button>
                     ) : (
-                        <div></div> // Spacer
+                        <div />
                     )}
                     <div className="flex gap-2">
-                        <Button variant="outline" onClick={onClose}>Cancel</Button>
-                        <Button onClick={handleSave}>Save</Button>
+                        <Button variant="outline" size="sm" onClick={onClose}>
+                            Cancel
+                        </Button>
+                        <Button
+                            size="sm"
+                            onClick={handleSave}
+                            disabled={durationMins <= 0}
+                        >
+                            {isEditing ? 'Update' : 'Add Slot'}
+                        </Button>
                     </div>
                 </DialogFooter>
             </DialogContent>

@@ -79,6 +79,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       maxAge: safeExpiresIn,
     });
 
+    // Also persist new refresh token as httpOnly cookie for server-side silent refresh
+    nextResponse.cookies.set('refreshToken', response.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60, // 7 days (matches refresh token lifetime)
+    });
+
     return nextResponse;
   } catch (error) {
     // Handle domain exceptions (e.g., invalid or expired refresh token)

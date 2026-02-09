@@ -69,4 +69,26 @@ export interface CompleteConsultationDto {
    * Optional: Type of follow-up appointment if needed
    */
   readonly followUpType?: string;
+
+  /**
+   * Optional: Billing items (services rendered during consultation)
+   * If provided, the payment record will be created with these itemized services.
+   * If not provided, defaults to the doctor's consultation fee.
+   */
+  readonly billingItems?: Array<{
+    readonly serviceId: number;
+    readonly quantity: number;
+    readonly unitCost: number;
+  }>;
+
+  /**
+   * Optional: Custom total amount for the bill
+   * If not provided, calculated from billingItems or doctor's consultation fee
+   */
+  readonly customTotalAmount?: number;
+
+  /**
+   * Optional: Discount to apply to the bill
+   */
+  readonly discount?: number;
 }

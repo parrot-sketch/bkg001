@@ -17,7 +17,7 @@
 
 import { useAuth } from '@/hooks/patient/useAuth';
 import { useDoctorTodayAppointments, useDoctorUpcomingAppointments, useDoctorPendingConfirmations } from '@/hooks/doctor/useDoctorDashboard';
-import { useStartConsultation, useConfirmAppointment } from '@/hooks/doctor/useConsultation';
+import { useConfirmAppointment } from '@/hooks/doctor/useConsultation';
 import { doctorApi } from '@/lib/api/doctor';
 import { PendingConfirmationsSection } from '@/components/doctor/PendingConfirmationsSection';
 import { useState, useEffect } from 'react';
@@ -50,7 +50,6 @@ export default function DoctorDashboardPage() {
   const [theatreCases, setTheatreCases] = useState<any[]>([]);
   const [loadingTheatre, setLoadingTheatre] = useState(false);
   const router = useRouter();
-  const { mutateAsync: startConsultation } = useStartConsultation();
   const { mutateAsync: confirmAppointment } = useConfirmAppointment();
 
   // REFACTORED: Hook integration for real-time schedule
@@ -152,15 +151,11 @@ export default function DoctorDashboardPage() {
     }
   }, [isAuthenticated, user]);
 
-  const handleStartConsultation = async (appointment: any) => {
-    try {
-      await startConsultation(appointment.id);
-      router.push(`/doctor/consultations/${appointment.id}/session`);
-    } catch (error) {
-      console.error('Failed to start consultation', error);
-      // Fallback to navigation if start fails (maybe already started?)
-      router.push(`/doctor/consultations/${appointment.id}/session`);
-    }
+  const handleStartConsultation = (appointment: any) => {
+    // Navigate to the consultation session page — the session page
+    // owns the "start consultation" workflow (shows dialog, calls API).
+    // This avoids double-start race conditions.
+    router.push(`/doctor/consultations/${appointment.id}/session`);
   };
 
   const handleConfirmAppointment = async (appointmentId: number, notes?: string) => {

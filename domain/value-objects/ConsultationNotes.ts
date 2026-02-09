@@ -86,7 +86,7 @@ export class ConsultationNotes {
   }
 
   /**
-   * Convert to full text format
+   * Convert to full text format (preserves HTML)
    */
   toFullText(): string {
     if (this.rawText) {
@@ -106,6 +106,47 @@ export class ConsultationNotes {
       parts.push(`Plan: ${this.plan}`);
     }
     return parts.join('\n\n');
+  }
+
+  /**
+   * Convert to plain text summary (HTML stripped).
+   * Suitable for preview cards, timelines, and search indexing.
+   */
+  toPlainText(): string {
+    if (this.rawText) {
+      return ConsultationNotes.stripHtml(this.rawText);
+    }
+    const parts: string[] = [];
+    if (this.chiefComplaint) {
+      parts.push(`Chief Complaint: ${ConsultationNotes.stripHtml(this.chiefComplaint)}`);
+    }
+    if (this.examination) {
+      parts.push(`Examination: ${ConsultationNotes.stripHtml(this.examination)}`);
+    }
+    if (this.assessment) {
+      parts.push(`Assessment: ${ConsultationNotes.stripHtml(this.assessment)}`);
+    }
+    if (this.plan) {
+      parts.push(`Plan: ${ConsultationNotes.stripHtml(this.plan)}`);
+    }
+    return parts.join(' · ');
+  }
+
+  /**
+   * Strip HTML tags and normalize whitespace.
+   * Handles Tiptap output (p, ul, ol, li, br, strong, em, etc.)
+   */
+  private static stripHtml(html: string): string {
+    return html
+      .replace(/<br\s*\/?>/gi, ' ')          // <br> → space
+      .replace(/<\/?(p|div|li|h[1-6])>/gi, ' ') // block-level closers → space
+      .replace(/<[^>]*>/g, '')                 // strip remaining tags
+      .replace(/&nbsp;/gi, ' ')               // HTML entities
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/\s+/g, ' ')                   // collapse whitespace
+      .trim();
   }
 
   /**

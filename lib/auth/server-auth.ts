@@ -3,6 +3,10 @@
  * 
  * For use in Next.js server components and server actions.
  * Gets authenticated user from JWT token stored in cookies.
+ * 
+ * Supports silent token refresh: if the access token is expired but
+ * a valid refresh token cookie exists, a new access token is generated
+ * transparently and the cookie is updated.
  */
 
 import { cookies } from 'next/headers';
@@ -30,6 +34,8 @@ const jwtMiddleware = new JwtMiddleware(authService);
  * Get current authenticated user from server-side (server components)
  * 
  * Reads JWT token from cookies and verifies it.
+ * If the access token is expired, attempts a silent refresh using
+ * the refresh token cookie.
  * 
  * @returns User context or null if not authenticated
  */
@@ -38,12 +44,55 @@ export async function getCurrentUser(): Promise<AuthContext | null> {
     const cookieStore = await cookies();
     const accessToken = cookieStore.get('accessToken')?.value;
 
-    // Verify token and get user
-    const user = await jwtMiddleware.authenticate(`Bearer ${accessToken}`);
-    if (!user) {
-      // Token verification failed or expired
+    if (accessToken) {
+      try {
+        // Try to verify the access token
+        const user = await jwtMiddleware.authenticate(`Bearer ${accessToken}`);
+        if (user) return user;
+      } catch {
+        // Access token is invalid/expired — fall through to refresh
+      }
     }
-    return user || null;
+
+    // ── Silent Refresh ──────────────────────────────────────────────
+    // Access token missing or expired. Try to refresh using the
+    // refresh token stored in the httpOnly cookie.
+    const refreshToken = cookieStore.get('refreshToken')?.value;
+    if (!refreshToken) {
+      // No refresh token available — truly unauthenticated
+      return null;
+    }
+
+    try {
+      // Use the auth service to exchange the refresh token for new tokens
+      const tokens = await authService.refreshToken(refreshToken);
+
+      // Write the new access token + refresh token cookies
+      // Using cookies().set() from next/headers to update server-side cookies
+      cookieStore.set('accessToken', tokens.accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: tokens.expiresIn,
+      });
+
+      cookieStore.set('refreshToken', tokens.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60,
+      });
+
+      // Verify the new access token to get the user context
+      const user = await jwtMiddleware.authenticate(`Bearer ${tokens.accessToken}`);
+      return user || null;
+    } catch (refreshError) {
+      // Refresh token is also invalid/expired — truly unauthenticated
+      console.error('Silent token refresh failed:', refreshError instanceof Error ? refreshError.message : refreshError);
+      return null;
+    }
   } catch (error) {
     console.error('Error getting current user:', error);
     return null;

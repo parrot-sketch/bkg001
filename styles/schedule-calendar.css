@@ -1,0 +1,299 @@
+/* ============================================================================
+ * Custom React Big Calendar Styles — Nairobi Sculpt Scheduling
+ * Modern, clean design matching the app's design system
+ * ============================================================================ */
+
+/* ── Base Reset ── */
+.rbc-calendar {
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  background: transparent;
+}
+
+/* ── Header Row (Day Names) ── */
+.rbc-header {
+  padding: 10px 4px;
+  font-weight: 500;
+  font-size: 0.8rem;
+  color: hsl(var(--muted-foreground));
+  border-bottom: 1px solid hsl(var(--border));
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.rbc-header + .rbc-header {
+  border-left: 1px solid hsl(var(--border));
+}
+
+/* ── Today Column ── */
+.rbc-today {
+  background-color: hsl(var(--primary) / 0.04) !important;
+}
+
+.rbc-header.rbc-today {
+  color: hsl(var(--primary));
+  font-weight: 600;
+  background-color: hsl(var(--primary) / 0.06) !important;
+}
+
+/* ── Time Gutter ── */
+.rbc-time-gutter .rbc-timeslot-group {
+  border-bottom: 1px solid hsl(var(--border) / 0.5);
+}
+
+.rbc-time-gutter .rbc-label {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+.rbc-time-header-gutter {
+  background: hsl(var(--background));
+}
+
+/* ── Time Slots & Grid ── */
+.rbc-timeslot-group {
+  border-bottom: 1px solid hsl(var(--border) / 0.3);
+  min-height: 48px;
+}
+
+.rbc-time-slot {
+  border-top: none;
+}
+
+.rbc-day-slot .rbc-time-slot {
+  border-top: 1px solid hsl(var(--border) / 0.15);
+}
+
+/* ── Time Content (Day columns) ── */
+.rbc-time-content {
+  border-top: 1px solid hsl(var(--border));
+}
+
+.rbc-time-content > * + * > * {
+  border-left: 1px solid hsl(var(--border) / 0.4);
+}
+
+/* ── Events ── */
+.rbc-event {
+  border: none !important;
+  border-radius: 6px !important;
+  padding: 3px 6px !important;
+  font-size: 0.75rem !important;
+  font-weight: 500;
+  line-height: 1.3;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+  transition: transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+.rbc-event:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+.rbc-event-label {
+  font-size: 0.65rem !important;
+  opacity: 0.9;
+}
+
+.rbc-event-content {
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rbc-event.rbc-selected {
+  box-shadow: 0 0 0 2px hsl(var(--primary)), 0 4px 8px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* ── Drag & Drop ── */
+.rbc-addons-dnd .rbc-addons-dnd-resize-ns-anchor {
+  width: 100%;
+  height: 8px;
+}
+
+.rbc-addons-dnd .rbc-addons-dnd-resize-ns-anchor .rbc-addons-dnd-resize-ns-icon {
+  display: none;
+}
+
+.rbc-addons-dnd-dragged-event {
+  opacity: 0.4;
+}
+
+/* ── Current Time Indicator ── */
+.rbc-current-time-indicator {
+  background-color: hsl(var(--destructive)) !important;
+  height: 2px !important;
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 3;
+}
+
+.rbc-current-time-indicator::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  background-color: hsl(var(--destructive));
+  border-radius: 50%;
+}
+
+/* ── Month View ── */
+.rbc-month-view {
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.rbc-month-row {
+  border-bottom: 1px solid hsl(var(--border) / 0.5);
+}
+
+.rbc-date-cell {
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+}
+
+.rbc-date-cell.rbc-now {
+  color: hsl(var(--primary));
+  font-weight: 700;
+}
+
+.rbc-off-range {
+  color: hsl(var(--muted-foreground) / 0.4);
+}
+
+.rbc-off-range-bg {
+  background: hsl(var(--muted) / 0.3);
+}
+
+/* ── Toolbar ── */
+.rbc-toolbar {
+  display: none; /* We use custom toolbar */
+}
+
+/* ── Agenda View ── */
+.rbc-agenda-view table.rbc-agenda-table {
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.rbc-agenda-view table.rbc-agenda-table thead > tr > th {
+  padding: 8px 12px;
+  font-weight: 500;
+  font-size: 0.8rem;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted) / 0.3);
+  border-bottom: 1px solid hsl(var(--border));
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.rbc-agenda-view table.rbc-agenda-table tbody > tr > td {
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  border-bottom: 1px solid hsl(var(--border) / 0.3);
+}
+
+/* ── Popup Overlay ── */
+.rbc-overlay {
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  background: hsl(var(--background));
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  z-index: 50;
+}
+
+.rbc-overlay-header {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: hsl(var(--foreground));
+  padding: 4px 8px 8px;
+  border-bottom: 1px solid hsl(var(--border));
+  margin-bottom: 4px;
+}
+
+/* ── Selection ── */
+.rbc-slot-selection {
+  background-color: hsl(var(--primary) / 0.15) !important;
+  border: 1px dashed hsl(var(--primary) / 0.4) !important;
+  border-radius: 4px;
+}
+
+/* ── Background Events (Availability blocks) ── */
+.rbc-background-event {
+  opacity: 0.15 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  pointer-events: none;
+}
+
+/* ── Week/Day View Border Fixes ── */
+.rbc-time-view {
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.rbc-time-header {
+  border-bottom: none;
+}
+
+.rbc-time-header-content {
+  border-left: 1px solid hsl(var(--border) / 0.4);
+}
+
+/* ── All-Day Section ── */
+.rbc-allday-cell {
+  display: none; /* Hide if not needed */
+}
+
+.rbc-time-view .rbc-allday-cell + .rbc-time-content {
+  border-top: 1px solid hsl(var(--border));
+}
+
+/* ── Template Calendar Overrides (for Weekly Schedule Editor) ── */
+.schedule-template-calendar .rbc-time-view {
+  border-radius: 8px;
+}
+
+.schedule-template-calendar .rbc-header {
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 12px 4px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: hsl(var(--foreground));
+}
+
+.schedule-template-calendar .rbc-event {
+  border-radius: 4px !important;
+  cursor: pointer;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .rbc-header {
+    font-size: 0.7rem;
+    padding: 6px 2px;
+  }
+  
+  .rbc-time-gutter .rbc-label {
+    font-size: 0.6rem;
+    padding: 0 4px;
+  }
+  
+  .rbc-event {
+    padding: 2px 4px !important;
+    font-size: 0.65rem !important;
+  }
+}

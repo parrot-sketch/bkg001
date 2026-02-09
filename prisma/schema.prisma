@@ -6,11 +6,11 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
   // REFACTORED: Appending `&connection_limit=10&pool_timeout=10` to handle
   // limited connection slots on Aiven (Postgres Superuser reserveration error).
   // Ideally, use a PgBouncer connection string if available.
-  url      = env("DATABASE_URL")
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL") // Recommended for migrations if using PgBouncer
 }
 
@@ -26,6 +26,7 @@ enum Role {
   PATIENT
   CASHIER
   FRONTDESK
+  THEATER_TECHNICIAN
 }
 
 enum Status {
@@ -254,6 +255,14 @@ model User {
   witnessed_consents     ConsentForm[]
   consultations          Consultation[]
 
+  // Surgical checklist phase completions
+  checklist_sign_ins  SurgicalChecklist[] @relation("ChecklistSignIn")
+  checklist_time_outs SurgicalChecklist[] @relation("ChecklistTimeOut")
+  checklist_sign_outs SurgicalChecklist[] @relation("ChecklistSignOut")
+
+  // Clinical audit trail
+  clinical_audit_events ClinicalAuditEvent[]
+
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
@@ -335,7 +344,7 @@ model Patient {
   patient_images       PatientImage[]
   clinical_tasks       ClinicalTask[]
   surgical_outcomes    SurgicalOutcome[]
-  surgical_cases       SurgicalCase[]    // New Architecture
+  surgical_cases       SurgicalCase[] // New Architecture
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -385,11 +394,11 @@ model Doctor {
   education                 String? @db.Text // Educational background and qualifications
   focus_areas               String? @db.Text // Areas of expertise/focus
   professional_affiliations String? @db.Text // Professional memberships and affiliations
-  
+
   // Professional Profile Fields
-  years_of_experience       Int?    @default(0)
-  consultation_fee          Float?  @default(0.0)
-  languages                 String? // Comma-separated list of languages spoken
+  years_of_experience Int?    @default(0)
+  consultation_fee    Float?  @default(0.0)
+  languages           String? // Comma-separated list of languages spoken
 
   // Onboarding State Machine (for non-self-registering doctors)
   onboarding_status    DoctorOnboardingStatus @default(INVITED)
@@ -399,7 +408,7 @@ model Doctor {
   profile_completed_at DateTime?
 
   // Relations
-  user                     User                   @relation("DoctorUser", fields: [user_id], references: [id], onDelete: Cascade)
+  user User @relation("DoctorUser", fields: [user_id], references: [id], onDelete: Cascade)
 
   appointments             Appointment[]
   ratings                  Rating[]
@@ -414,7 +423,7 @@ model Doctor {
   availability_overrides   AvailabilityOverride[]
   availability_templates   AvailabilityTemplate[]
   schedule_blocks          ScheduleBlock[]
-  primary_surgical_cases   SurgicalCase[]         // New Architecture
+  primary_surgical_cases   SurgicalCase[] // New Architecture
   slot_configuration       SlotConfiguration?
 
   created_at DateTime @default(now())
@@ -454,8 +463,6 @@ model DoctorInviteToken {
   @@index([invited_by])
 }
 
-
-
 // ============================================================================
 // AVAILABILITY MANAGEMENT
 // ============================================================================
@@ -482,32 +489,32 @@ model AvailabilityOverride {
 }
 
 model AvailabilityTemplate {
-  id        String   @id @default(uuid())
+  id        String  @id @default(uuid())
   doctor_id String
-  name      String   // e.g., "Standard Week", "Summer Schedule"
-  is_active Boolean  @default(false)
-  
-  slots     AvailabilitySlot[]
+  name      String // e.g., "Standard Week", "Summer Schedule"
+  is_active Boolean @default(false)
 
-  doctor    Doctor   @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
-  
+  slots AvailabilitySlot[]
+
+  doctor Doctor @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
+
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
-  
+
   @@index([doctor_id])
 }
 
 model AvailabilitySlot {
-  id          String   @id @default(uuid())
-  template_id String
-  day_of_week Int      // 0=Sunday, 1=Monday, ..., 6=Saturday
-  start_time  String   // HH:mm format
-  end_time    String   // HH:mm format
-  slot_type   String?  @default("CLINIC") // "CLINIC", "SURGERY", "TELEHEALTH"
-  max_patients Int?    // Capacity planning
+  id           String  @id @default(uuid())
+  template_id  String
+  day_of_week  Int // 0=Sunday, 1=Monday, ..., 6=Saturday
+  start_time   String // HH:mm format
+  end_time     String // HH:mm format
+  slot_type    String? @default("CLINIC") // "CLINIC", "SURGERY", "TELEHEALTH"
+  max_patients Int? // Capacity planning
 
-  template    AvailabilityTemplate @relation(fields: [template_id], references: [id], onDelete: Cascade)
-  
+  template AvailabilityTemplate @relation(fields: [template_id], references: [id], onDelete: Cascade)
+
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
@@ -579,11 +586,11 @@ model Appointment {
   consultation_duration   Int? // Duration in minutes
 
   // PHASE 1: Temporal Tracking (NEW)
-  scheduled_at         DateTime? // Full datetime (canonical, replaces appointment_date + time)
-  status_changed_at    DateTime  @default(now()) // When status was last changed
-  status_changed_by    String? // User ID who changed status
-  doctor_confirmed_at  DateTime? // When doctor explicitly confirmed
-  doctor_confirmed_by  String? // Doctor ID who confirmed
+  scheduled_at            DateTime? // Full datetime (canonical, replaces appointment_date + time)
+  status_changed_at       DateTime  @default(now()) // When status was last changed
+  status_changed_by       String? // User ID who changed status
+  doctor_confirmed_at     DateTime? // When doctor explicitly confirmed
+  doctor_confirmed_by     String? // Doctor ID who confirmed
   doctor_rejection_reason String? // Reason if doctor rejected
 
   // No-Show Tracking
@@ -595,10 +602,10 @@ model Appointment {
   marked_no_show_at             DateTime? // PHASE 1: When marked as no-show
 
   // CONCURRENCY & LOCKING (Enterprise Scheduling)
-  version      Int       @default(1) // For optimistic concurrency control
-  locked_at    DateTime? // Soft lock during booking process
-  locked_by    String?   // User ID who holds the lock
-  resource_id  String?   // Optional: Link to Room/Equipment if applicable directly
+  version     Int       @default(1) // For optimistic concurrency control
+  locked_at   DateTime? // Soft lock during booking process
+  locked_by   String? // User ID who holds the lock
+  resource_id String? // Optional: Link to Room/Equipment if applicable directly
 
   // Consultation Request Workflow (nullable for backward compatibility)
   consultation_request_status ConsultationRequestStatus?
@@ -607,8 +614,8 @@ model Appointment {
   review_notes                String? // Notes from review (e.g., reason for needs_more_info)
 
   // Slot tracking (for availability-based scheduling)
-  slot_start_time String? // HH:mm format of slot start time
-  slot_duration   Int? @default(30) // PHASE 1: minutes (e.g., 30 = 30-minute appointment) - now required with default
+  slot_start_time  String? // HH:mm format of slot start time
+  slot_duration    Int?    @default(30) // PHASE 1: minutes (e.g., 30 = 30-minute appointment) - now required with default
   duration_minutes Int? // PHASE 1: Alternative duration field for clarity
 
   // Relations
@@ -629,6 +636,8 @@ model Appointment {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
+  // Unique constraint for slot locking (prevent double-booking)
+  @@unique([doctor_id, scheduled_at], map: "unique_doctor_scheduled_slot")
   @@index([patient_id])
   @@index([doctor_id])
   @@index([appointment_date])
@@ -639,7 +648,6 @@ model Appointment {
   @@index([reviewed_by])
   @@index([created_at])
   @@index([updated_at])
-  
   // PHASE 1: Performance Indexes (NEW)
   @@index([doctor_id, scheduled_at]) // Doctor schedule queries
   @@index([doctor_id, status, scheduled_at]) // Doctor schedule with status filtering
@@ -648,9 +656,6 @@ model Appointment {
   @@index([status, created_at]) // Status-based queries
   @@index([status_changed_at]) // Audit trail queries
   @@index([status_changed_by]) // Track who changed status
-  
-  // Unique constraint for slot locking (prevent double-booking)
-  @@unique([doctor_id, scheduled_at], map: "unique_doctor_scheduled_slot")
 }
 
 // ============================================================================
@@ -665,7 +670,11 @@ model Consultation {
   started_at       DateTime?
   completed_at     DateTime?
   duration_minutes Int? // Calculated: completed_at - started_at
-  doctor_notes     String?   @db.Text
+  doctor_notes     String?   @db.Text // Legacy: concatenated full text
+  chief_complaint  String?   @db.Text // Structured note: chief complaint
+  examination      String?   @db.Text // Structured note: examination findings
+  assessment       String?   @db.Text // Structured note: assessment
+  plan             String?   @db.Text // Structured note: treatment plan
   outcome          String? // Legacy field, use outcome_type instead
   outcome_type     String? // ConsultationOutcomeType: PROCEDURE_RECOMMENDED, CONSULTATION_ONLY, etc.
   patient_decision String? // 'YES', 'NO', 'PENDING' - if procedure recommended
@@ -674,10 +683,10 @@ model Consultation {
   follow_up_notes  String?
 
   // Relations
-  surgical_case   SurgicalCase? // New Architecture
-  appointment Appointment @relation("AppointmentConsultation", fields: [appointment_id], references: [id], onDelete: Cascade)
-  doctor      Doctor      @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
-  user        User?       @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  surgical_case SurgicalCase? // New Architecture
+  appointment   Appointment   @relation("AppointmentConsultation", fields: [appointment_id], references: [id], onDelete: Cascade)
+  doctor        Doctor        @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
+  user          User?         @relation(fields: [user_id], references: [id], onDelete: SetNull)
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -1109,100 +1118,100 @@ model CasePlan {
 }
 
 model SurgicalProcedureRecord {
-  id                  Int       @id @default(autoincrement())
-  case_plan_id        Int?      @unique // Legacy
-  surgical_case_id    String?   @unique // New Architecture
-  
+  id               Int     @id @default(autoincrement())
+  case_plan_id     Int?    @unique // Legacy
+  surgical_case_id String? @unique // New Architecture
+
   // Relations
-  surgical_case       SurgicalCase? @relation(fields: [surgical_case_id], references: [id], onDelete: Cascade)
+  surgical_case SurgicalCase? @relation(fields: [surgical_case_id], references: [id], onDelete: Cascade)
 
   // Clinical Details
-  pre_op_diagnosis    String    @db.Text
-  post_op_diagnosis   String?   @db.Text
-  procedure_performed String?   @db.Text
-  
+  pre_op_diagnosis    String  @db.Text
+  post_op_diagnosis   String? @db.Text
+  procedure_performed String? @db.Text
+
   // Logistics
-  urgency             SurgicalUrgency @default(ELECTIVE)
-  theater_id          String?
-  
+  urgency    SurgicalUrgency @default(ELECTIVE)
+  theater_id String?
+
   // Timestamps (Audit)
-  anesthesia_start    DateTime?
-  incision_time       DateTime?
-  closure_time        DateTime?
-  wheels_out          DateTime?
+  anesthesia_start DateTime?
+  incision_time    DateTime?
+  closure_time     DateTime?
+  wheels_out       DateTime?
 
   // Prep Details
-  shaving_required    Boolean   @default(false)
-  shaving_extent      String?
-  skin_prep_agent     String?
+  shaving_required Boolean @default(false)
+  shaving_extent   String?
+  skin_prep_agent  String?
 
   // Anesthesia
-  anesthesia_type     AnesthesiaType?
-  asa_score           Int?
+  anesthesia_type AnesthesiaType?
+  asa_score       Int?
 
   // Classification
-  wound_class         WoundClassification?
+  wound_class WoundClassification?
 
   // Staffing
-  staff               SurgicalStaff[]
+  staff SurgicalStaff[]
 
   // Relations
-  case_plan           CasePlan? @relation(fields: [case_plan_id], references: [id], onDelete: SetNull)
-  theater             Theater?  @relation(fields: [theater_id], references: [id], onDelete: SetNull)
+  case_plan CasePlan? @relation(fields: [case_plan_id], references: [id], onDelete: SetNull)
+  theater   Theater?  @relation(fields: [theater_id], references: [id], onDelete: SetNull)
 
-  created_at          DateTime  @default(now())
-  updated_at          DateTime  @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@index([case_plan_id])
   @@index([theater_id])
 }
 
 model SurgicalStaff {
-  id                  Int       @id @default(autoincrement())
+  id                  Int          @id @default(autoincrement())
   procedure_record_id Int
   user_id             String
   role                SurgicalRole
   notes               String?
 
   // Relations
-  procedure_record    SurgicalProcedureRecord @relation(fields: [procedure_record_id], references: [id], onDelete: Cascade)
-  user                User      @relation(fields: [user_id], references: [id])
+  procedure_record SurgicalProcedureRecord @relation(fields: [procedure_record_id], references: [id], onDelete: Cascade)
+  user             User                    @relation(fields: [user_id], references: [id])
 
   @@index([procedure_record_id])
   @@index([user_id])
 }
 
 model ConsentForm {
-  id                  String    @id @default(uuid())
-  case_plan_id        Int
+  id           String @id @default(uuid())
+  case_plan_id Int
 
   // Document details
-  title               String
-  type                ConsentType
-  content_snapshot    String    @db.Text // Immutable copy
-  version             Int       @default(1)
+  title            String
+  type             ConsentType
+  content_snapshot String      @db.Text // Immutable copy
+  version          Int         @default(1)
 
   // Status
-  status              ConsentStatus @default(DRAFT)
+  status ConsentStatus @default(DRAFT)
 
   // Signatures
-  patient_signature   String?   @db.Text
-  signed_at           DateTime?
-  signed_by_ip        String?
+  patient_signature String?   @db.Text
+  signed_at         DateTime?
+  signed_by_ip      String?
 
-  witness_signature   String?   @db.Text
-  witness_name        String?
-  witness_id          String?
+  witness_signature String? @db.Text
+  witness_name      String?
+  witness_id        String?
 
   // Expiry
-  valid_until         DateTime?
+  valid_until DateTime?
 
   // Relations
-  case_plan           CasePlan  @relation(fields: [case_plan_id], references: [id], onDelete: Cascade)
-  witness_user        User?     @relation(fields: [witness_id], references: [id])
+  case_plan    CasePlan @relation(fields: [case_plan_id], references: [id], onDelete: Cascade)
+  witness_user User?    @relation(fields: [witness_id], references: [id])
 
-  created_at          DateTime  @default(now())
-  updated_at          DateTime  @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@index([case_plan_id])
   @@index([status])
@@ -1321,59 +1330,58 @@ model SurgicalOutcome {
   @@index([recorded_at])
 }
 
-
 // ============================================================================
 // CLINIC MANAGEMENT (ADMIN GOVERNANCE)
 // ============================================================================
 
 model Clinic {
-  id             String  @id @default(uuid())
-  name           String  @default("Nairobi Sculpt Surgical Aesthetic Center")
-  address        String?
-  phone          String?
-  email          String?
-  website        String?
-  logo_url       String?
-  
+  id       String  @id @default(uuid())
+  name     String  @default("Nairobi Sculpt Surgical Aesthetic Center")
+  address  String?
+  phone    String?
+  email    String?
+  website  String?
+  logo_url String?
+
   // Settings
-  primary_color  String? @default("#4F46E5") // Indigo-600
-  accent_color   String? 
-  
-  created_at     DateTime @default(now())
-  updated_at     DateTime @updatedAt
+  primary_color String? @default("#4F46E5") // Indigo-600
+  accent_color  String?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 }
 
 model Theater {
-  id             String  @id @default(uuid())
-  name           String  // e.g. "Theater A (Major)"
-  type           String  // "MAJOR", "MINOR", "PROCEDURE_ROOM"
-  status         Status  @default(ACTIVE)
-  color_code     String? // For scheduling UI
-  notes          String?
-  
+  id         String  @id @default(uuid())
+  name       String // e.g. "Theater A (Major)"
+  type       String // "MAJOR", "MINOR", "PROCEDURE_ROOM"
+  status     Status  @default(ACTIVE)
+  color_code String? // For scheduling UI
+  notes      String?
+
   // Capabilities & Scheduling
-  is_active        Boolean @default(true)
+  is_active         Boolean @default(true)
   operational_hours String? @db.Text // JSON: {"Mon": "08:00-18:00"}
   capabilities      String? @db.Text // JSON array: ["General Anesthesia", "X-Ray"]
 
   surgical_records SurgicalProcedureRecord[]
   bookings         TheaterBooking[]
 
-  created_at     DateTime @default(now())
-  updated_at     DateTime @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 }
 
 model ConsentTemplate {
-  id             String      @id @default(uuid())
-  title          String
-  type           ConsentType
-  content        String      @db.Text // HTML or Markdown content
-  version        Int         @default(1)
-  is_active      Boolean     @default(true)
-  created_by     String?     // User ID
+  id         String      @id @default(uuid())
+  title      String
+  type       ConsentType
+  content    String      @db.Text // HTML or Markdown content
+  version    Int         @default(1)
+  is_active  Boolean     @default(true)
+  created_by String? // User ID
 
-  created_at     DateTime    @default(now())
-  updated_at     DateTime    @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@index([type])
   @@index([is_active])
@@ -1403,58 +1411,58 @@ model IntakeSession {
 
 // Stores submitted patient intake forms
 model IntakeSubmission {
-  id                     String   @id @default(cuid())
-  submission_id          String   @unique // Matches domain entity ID
-  session_id             String   // One submission per session
-  session                IntakeSession @relation(fields: [session_id], references: [session_id], onDelete: Cascade)
+  id            String        @id @default(cuid())
+  submission_id String        @unique // Matches domain entity ID
+  session_id    String // One submission per session
+  session       IntakeSession @relation(fields: [session_id], references: [session_id], onDelete: Cascade)
 
   // Personal Information
-  first_name             String
-  last_name              String
-  date_of_birth          DateTime
-  gender                 Gender
+  first_name    String
+  last_name     String
+  date_of_birth DateTime
+  gender        Gender
 
   // Contact Information
-  email                  String
-  phone                  String
-  whatsapp_phone         String?
-  address                String
-  marital_status         String // SINGLE, MARRIED, DIVORCED, WIDOWED
-  occupation             String?
+  email          String
+  phone          String
+  whatsapp_phone String?
+  address        String
+  marital_status String // SINGLE, MARRIED, DIVORCED, WIDOWED
+  occupation     String?
 
   // Emergency Contact
-  emergency_contact_name     String
-  emergency_contact_number   String
-  relation                   String // SPOUSE, PARENT, CHILD, SIBLING, FRIEND, OTHER
+  emergency_contact_name   String
+  emergency_contact_number String
+  relation                 String // SPOUSE, PARENT, CHILD, SIBLING, FRIEND, OTHER
 
   // Medical Information
-  blood_group            String? // O+, O-, A+, A-, B+, B-, AB+, AB-
-  allergies              String? @db.Text
-  medical_conditions     String? @db.Text
-  medical_history        String? @db.Text
+  blood_group        String? // O+, O-, A+, A-, B+, B-, AB+, AB-
+  allergies          String? @db.Text
+  medical_conditions String? @db.Text
+  medical_history    String? @db.Text
 
   // Insurance
-  insurance_provider     String?
-  insurance_number       String?
+  insurance_provider String?
+  insurance_number   String?
 
   // Consent (Required)
-  privacy_consent        Boolean
-  service_consent        Boolean
-  medical_consent        Boolean
+  privacy_consent Boolean
+  service_consent Boolean
+  medical_consent Boolean
 
   // Audit
-  submitted_at           DateTime @default(now())
-  ip_address             String?
-  user_agent             String? @db.Text
+  submitted_at DateTime @default(now())
+  ip_address   String?
+  user_agent   String?  @db.Text
 
   // Status
-  status                 String @default("PENDING") // PENDING, CONFIRMED, REJECTED
-  created_patient_id     String? // References Patient(id) after confirmation
-  confirmed_at           DateTime?
-  confirmed_by_user_id   String?
+  status               String    @default("PENDING") // PENDING, CONFIRMED, REJECTED
+  created_patient_id   String? // References Patient(id) after confirmation
+  confirmed_at         DateTime?
+  confirmed_by_user_id String?
 
-  created_at             DateTime @default(now())
-  updated_at             DateTime @updatedAt
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
   @@unique([session_id])
   @@index([session_id])
@@ -1488,32 +1496,33 @@ enum TheaterBookingStatus {
 }
 
 model SurgicalCase {
-  id                  String             @id @default(uuid())
-  patient_id          String
-  primary_surgeon_id  String
-  consultation_id     Int?               @unique // Originating consultation
-  urgency             SurgicalUrgency    @default(ELECTIVE)
-  status              SurgicalCaseStatus @default(DRAFT)
-  
+  id                 String             @id @default(uuid())
+  patient_id         String
+  primary_surgeon_id String
+  consultation_id    Int?               @unique // Originating consultation
+  urgency            SurgicalUrgency    @default(ELECTIVE)
+  status             SurgicalCaseStatus @default(DRAFT)
+
   // Clinical Data
-  diagnosis           String?            @db.Text
-  procedure_name      String?
-  side                String?            // Left, Right, Bilateral, N/A
-  
+  diagnosis      String? @db.Text
+  procedure_name String?
+  side           String? // Left, Right, Bilateral, N/A
+
   // Scheduling
-  theater_booking     TheaterBooking?
-  
+  theater_booking TheaterBooking?
+
   // Relations
-  patient             Patient            @relation(fields: [patient_id], references: [id], onDelete: Cascade)
-  primary_surgeon     Doctor             @relation(fields: [primary_surgeon_id], references: [id], onDelete: Cascade)
-  consultation        Consultation?      @relation(fields: [consultation_id], references: [id], onDelete: SetNull)
-  case_plan           CasePlan?
-  procedure_record    SurgicalProcedureRecord? // One active record per case usually
-  
+  patient          Patient                  @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+  primary_surgeon  Doctor                   @relation(fields: [primary_surgeon_id], references: [id], onDelete: Cascade)
+  consultation     Consultation?            @relation(fields: [consultation_id], references: [id], onDelete: SetNull)
+  case_plan        CasePlan?
+  procedure_record SurgicalProcedureRecord? // One active record per case usually
+  checklist        SurgicalChecklist? // WHO Surgical Safety Checklist
+
   // Audit
-  created_at          DateTime           @default(now())
-  updated_at          DateTime           @updatedAt
-  created_by          String?            // User ID
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  created_by String? // User ID
 
   @@index([patient_id])
   @@index([primary_surgeon_id])
@@ -1522,27 +1531,95 @@ model SurgicalCase {
 }
 
 model TheaterBooking {
-  id              String               @id @default(uuid())
-  theater_id      String
-  surgical_case_id String              @unique
-  start_time      DateTime
-  end_time        DateTime
-  status          TheaterBookingStatus @default(PROVISIONAL)
-  
+  id               String               @id @default(uuid())
+  theater_id       String
+  surgical_case_id String               @unique
+  start_time       DateTime
+  end_time         DateTime
+  status           TheaterBookingStatus @default(PROVISIONAL)
+
   // Locking
-  locked_by       String?              // User ID who holds the lock
-  locked_at       DateTime?
-  version         Int                  @default(1) // Optimistic locking
-  
+  locked_by String? // User ID who holds the lock
+  locked_at DateTime?
+  version   Int       @default(1) // Optimistic locking
+
   // Relations
-  theater         Theater              @relation(fields: [theater_id], references: [id], onDelete: Cascade)
-  surgical_case   SurgicalCase         @relation(fields: [surgical_case_id], references: [id], onDelete: Cascade)
-  
-  created_at      DateTime             @default(now())
-  updated_at      DateTime             @updatedAt
+  theater       Theater      @relation(fields: [theater_id], references: [id], onDelete: Cascade)
+  surgical_case SurgicalCase @relation(fields: [surgical_case_id], references: [id], onDelete: Cascade)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  // Prevent double booking overlap in application logic, DB constraint harder for ranges without exclusion constraint support in raw prisma
 
   @@index([theater_id])
   @@index([start_time, end_time])
   @@index([status])
-  // Prevent double booking overlap in application logic, DB constraint harder for ranges without exclusion constraint support in raw prisma
+}
+
+// ============================================================================
+// SURGICAL SAFETY CHECKLIST (WHO Standard)
+// ============================================================================
+
+enum ChecklistPhase {
+  SIGN_IN // Before induction of anesthesia
+  TIME_OUT // Before skin incision
+  SIGN_OUT // Before patient leaves operating room
+}
+
+model SurgicalChecklist {
+  id               String @id @default(uuid())
+  surgical_case_id String @unique
+
+  // Phase completions — gate fields (not JSON) for efficient querying
+  sign_in_completed_at DateTime?
+  sign_in_by_user_id   String?
+  sign_in_by_role      String? // Role of the user who completed this phase
+  sign_in_items        String?   @db.Text // JSON: array of confirmed items with notes
+
+  time_out_completed_at DateTime?
+  time_out_by_user_id   String?
+  time_out_by_role      String?
+  time_out_items        String?   @db.Text // JSON: array of confirmed items with notes
+
+  sign_out_completed_at DateTime?
+  sign_out_by_user_id   String?
+  sign_out_by_role      String?
+  sign_out_items        String?   @db.Text // JSON: array of confirmed items with notes
+
+  // Relations
+  surgical_case SurgicalCase @relation(fields: [surgical_case_id], references: [id], onDelete: Cascade)
+  sign_in_user  User?        @relation("ChecklistSignIn", fields: [sign_in_by_user_id], references: [id], onDelete: SetNull)
+  time_out_user User?        @relation("ChecklistTimeOut", fields: [time_out_by_user_id], references: [id], onDelete: SetNull)
+  sign_out_user User?        @relation("ChecklistSignOut", fields: [sign_out_by_user_id], references: [id], onDelete: SetNull)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([surgical_case_id])
+  @@index([sign_in_completed_at])
+  @@index([time_out_completed_at])
+  @@index([sign_out_completed_at])
+}
+
+// ============================================================================
+// CLINICAL AUDIT EVENTS (Immutable Trail)
+// ============================================================================
+
+model ClinicalAuditEvent {
+  id            String  @id @default(uuid())
+  actor_user_id String
+  action_type   String // e.g. "CHECKLIST_SIGN_IN", "CASE_TRANSITION", "TIMESTAMP_SET"
+  entity_type   String // e.g. "SurgicalCase", "SurgicalProcedureRecord", "SurgicalChecklist"
+  entity_id     String
+  metadata      String? @db.Text // JSON: additional context (reason, old/new values, etc.)
+
+  // Relations
+  actor User @relation(fields: [actor_user_id], references: [id], onDelete: Cascade)
+
+  created_at DateTime @default(now())
+
+  @@index([actor_user_id])
+  @@index([entity_type, entity_id])
+  @@index([action_type])
+  @@index([created_at])
 }

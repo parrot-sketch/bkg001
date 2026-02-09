@@ -193,29 +193,93 @@ export class CompleteConsultationUseCase {
       }
     }
 
-    // Step 7: Create billing record (if payment repository available)
+    // Step 7: Create or update billing record (if payment repository available)
     let paymentId: number | undefined;
     if (this.paymentRepository) {
       try {
-        // Get doctor's consultation fee
-        const doctor = await db.doctor.findUnique({
-          where: { id: appointment.getDoctorId() },
-          select: { consultation_fee: true, name: true },
-        });
-        
-        const consultationFee = doctor?.consultation_fee || DEFAULT_CONSULTATION_FEE;
-        
-        // Create payment record with UNPAID status
-        const payment = await this.paymentRepository.create({
-          patientId: appointment.getPatientId(),
-          appointmentId: dto.appointmentId,
-          totalAmount: consultationFee,
-        });
-        
-        paymentId = payment.id;
-        
+        // Check if a payment record already exists (e.g., created via BillingTab during consultation)
+        const existingPayment = await this.paymentRepository.findByAppointmentId(dto.appointmentId);
+
+        if (existingPayment) {
+          // Payment already exists (doctor saved billing during consultation).
+          // If the dialog provided updated billing items, update the payment via the billing API.
+          // Otherwise, leave the existing payment as-is.
+          paymentId = existingPayment.id;
+
+          if (dto.billingItems && dto.billingItems.length > 0 && existingPayment.status !== 'PAID') {
+            // Doctor updated billing items in the Complete dialog — update the payment
+            const totalAmount = dto.customTotalAmount ?? dto.billingItems.reduce(
+              (sum, item) => sum + (item.quantity * item.unitCost), 0
+            );
+            const discount = dto.discount || 0;
+
+            // Update payment total and replace bill items
+            await db.patientBill.deleteMany({
+              where: { payment_id: existingPayment.id },
+            });
+
+            await db.payment.update({
+              where: { id: existingPayment.id },
+              data: {
+                total_amount: totalAmount,
+                discount,
+                bill_items: {
+                  create: dto.billingItems.map(item => ({
+                    service_id: item.serviceId,
+                    service_date: new Date(),
+                    quantity: item.quantity,
+                    unit_cost: item.unitCost,
+                    total_cost: item.quantity * item.unitCost,
+                  })),
+                },
+              },
+            });
+          }
+        } else {
+          // No existing payment — create one
+          let totalAmount: number;
+          let billItems: Array<{ serviceId: number; quantity: number; unitCost: number }> | undefined;
+          let discount = dto.discount || 0;
+
+          if (dto.billingItems && dto.billingItems.length > 0) {
+            // Doctor specified billing items — use itemized billing
+            billItems = dto.billingItems.map(item => ({
+              serviceId: item.serviceId,
+              quantity: item.quantity,
+              unitCost: item.unitCost,
+            }));
+            totalAmount = dto.customTotalAmount ?? dto.billingItems.reduce(
+              (sum, item) => sum + (item.quantity * item.unitCost), 0
+            );
+          } else if (dto.customTotalAmount) {
+            // Custom amount without items
+            totalAmount = dto.customTotalAmount;
+          } else {
+            // Default: use doctor's consultation fee
+            const doctor = await db.doctor.findUnique({
+              where: { id: appointment.getDoctorId() },
+              select: { consultation_fee: true, name: true },
+            });
+            totalAmount = doctor?.consultation_fee || DEFAULT_CONSULTATION_FEE;
+          }
+          
+          // Create payment record with UNPAID status
+          const payment = await this.paymentRepository.create({
+            patientId: appointment.getPatientId(),
+            appointmentId: dto.appointmentId,
+            totalAmount,
+            discount,
+            billItems,
+          });
+          
+          paymentId = payment.id;
+        }
+
         // Notify frontdesk users about pending payment
-        if (this.userRepository) {
+        if (this.userRepository && paymentId) {
+          const currentPayment = await this.paymentRepository.findById(paymentId);
+          const totalAmount = currentPayment?.totalAmount || 0;
+
           const frontdeskUsers = await this.userRepository.findByRole('FRONTDESK');
           const patient = await this.patientRepository.findById(appointment.getPatientId());
           const patientName = patient ? patient.getFullName() : 'Patient';
@@ -226,11 +290,11 @@ export class CompleteConsultationUseCase {
               await this.notificationService.sendInApp(
                 frontdeskUser.getId(),
                 'Payment Ready for Collection',
-                `${patientName}'s consultation is complete. Amount due: ${consultationFee.toLocaleString()}`,
+                `${patientName}'s consultation is complete. Amount due: ${totalAmount.toLocaleString()}`,
                 'info',
                 {
                   resourceType: 'payment',
-                  resourceId: payment.id,
+                  resourceId: paymentId,
                   appointmentId: dto.appointmentId,
                 },
               );

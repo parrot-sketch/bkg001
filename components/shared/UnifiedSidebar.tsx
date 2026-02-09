@@ -30,7 +30,7 @@ export interface NavItem {
 export interface UserInfo {
     name: string;
     email: string;
-    role: 'ADMIN' | 'DOCTOR' | 'NURSE' | 'FRONTDESK' | 'PATIENT' | 'LAB_TECHNICIAN' | 'CASHIER';
+    role: 'ADMIN' | 'DOCTOR' | 'NURSE' | 'FRONTDESK' | 'PATIENT' | 'LAB_TECHNICIAN' | 'CASHIER' | 'THEATER_TECHNICIAN';
 }
 
 interface UnifiedSidebarProps {
@@ -77,6 +77,11 @@ const roleConfig = {
         label: 'Cashier',
         badgeColor: 'bg-rose-600 text-white',
         accentColor: 'from-rose-600 to-rose-700',
+    },
+    THEATER_TECHNICIAN: {
+        label: 'Theater Tech',
+        badgeColor: 'bg-cyan-600 text-white',
+        accentColor: 'from-cyan-600 to-cyan-700',
     },
 };
 

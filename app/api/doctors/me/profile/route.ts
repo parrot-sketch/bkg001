@@ -158,15 +158,20 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // 5. Build DTO
+    // 5. Build DTO — pass through all editable fields from the request body
     const dto: UpdateDoctorProfileDto = {
       doctorId: doctorId,
+      specialization: body.specialization,
+      title: body.title,
       bio: body.bio,
       education: body.education,
       focusAreas: body.focusAreas,
       professionalAffiliations: body.professionalAffiliations,
       profileImage: body.profileImage,
       clinicLocation: body.clinicLocation,
+      yearsOfExperience: body.yearsOfExperience,
+      consultationFee: body.consultationFee,
+      languages: body.languages,
     };
 
     // 6. Execute update doctor profile use case

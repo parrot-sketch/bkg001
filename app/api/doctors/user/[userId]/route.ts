@@ -46,6 +46,7 @@ export async function GET(
         title: true,
         name: true,
         specialization: true,
+        slug: true,
         license_number: true,
         phone: true,
         address: true,
@@ -60,6 +61,10 @@ export async function GET(
         education: true,
         focus_areas: true,
         professional_affiliations: true,
+        years_of_experience: true,
+        consultation_fee: true,
+        languages: true,
+        onboarding_status: true,
         created_at: true,
         updated_at: true,
         availability_templates: {
@@ -91,7 +96,7 @@ export async function GET(
 
     // Map to DoctorResponseDto with additional fields
     console.log('[API] GET /api/doctors/user/[userId] - Mapping doctor data...');
-    const doctorDto: DoctorResponseDto & { img?: string; colorCode?: string; type?: string } = {
+    const doctorDto: DoctorResponseDto & { img?: string; type?: string } = {
       id: doctor.id,
       userId: doctor.user_id,
       email: doctor.email,
@@ -100,6 +105,7 @@ export async function GET(
       title: doctor.title ?? undefined,
       name: doctor.name,
       specialization: doctor.specialization,
+      slug: doctor.slug ?? undefined,
       licenseNumber: doctor.license_number,
       phone: doctor.phone,
       address: doctor.address,
@@ -111,10 +117,14 @@ export async function GET(
       education: doctor.education ?? undefined,
       focusAreas: doctor.focus_areas ?? undefined,
       professionalAffiliations: doctor.professional_affiliations ?? undefined,
+      yearsOfExperience: doctor.years_of_experience ?? undefined,
+      consultationFee: doctor.consultation_fee ?? undefined,
+      languages: doctor.languages ?? undefined,
+      colorCode: doctor.colorCode ?? undefined,
+      onboardingStatus: doctor.onboarding_status ?? undefined,
       createdAt: doctor.created_at,
       updatedAt: doctor.updated_at,
       img: doctor.img ?? undefined,
-      colorCode: doctor.colorCode ?? undefined,
       type: doctor.type ?? undefined,
     };
 
