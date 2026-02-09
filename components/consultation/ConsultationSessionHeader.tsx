@@ -14,7 +14,7 @@
 
 import { useState, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { Clock, Save, Camera, History, CheckCircle2 } from 'lucide-react';
+import { Clock, Save, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConsultationState } from '@/domain/enums/ConsultationState';
 import type { ConsultationResponseDto } from '@/application/dtos/ConsultationResponseDto';
@@ -25,8 +25,6 @@ interface ConsultationSessionHeaderProps {
   consultation: ConsultationResponseDto | null;
   userRole?: Role;
   onSaveDraft: () => void;
-  onUploadPhoto: () => void;
-  onViewHistory: () => void;
   onComplete: () => void;
   autoSaveStatus: 'idle' | 'saving' | 'saved' | 'error';
   isSaving?: boolean;
@@ -37,8 +35,6 @@ export function ConsultationSessionHeader({
   consultation,
   userRole,
   onSaveDraft,
-  onUploadPhoto,
-  onViewHistory,
   onComplete,
   autoSaveStatus,
   isSaving = false,
@@ -94,36 +90,16 @@ export function ConsultationSessionHeader({
         {/* Right: Quick Actions */}
         <div className="flex items-center gap-2">
           {isActive && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onSaveDraft}
-                disabled={isSaving}
-                className="h-8"
-              >
-                <Save className="h-3.5 w-3.5 mr-1.5" />
-                Save
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onUploadPhoto}
-                className="h-8"
-              >
-                <Camera className="h-3.5 w-3.5 mr-1.5" />
-                Photo
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onViewHistory}
-                className="h-8"
-              >
-                <History className="h-3.5 w-3.5 mr-1.5" />
-                History
-              </Button>
-            </>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onSaveDraft}
+              disabled={isSaving}
+              className="h-8"
+            >
+              <Save className="h-3.5 w-3.5 mr-1.5" />
+              Save
+            </Button>
           )}
           {isActive && canCompleteConsultation && (
             <Button

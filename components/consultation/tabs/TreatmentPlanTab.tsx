@@ -3,13 +3,15 @@
 /**
  * Treatment Plan Tab
  * 
- * Treatment plan and next steps.
- * Links to case planning workflow if procedure recommended.
+ * Single responsibility: treatment plan notes (`plan` field in StructuredNotes).
+ * Also displays case plan links and follow-up information when available.
+ * 
+ * Note: Auto-saves via parent context — no per-tab save button needed.
  */
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Calendar, CheckCircle2, ExternalLink, Save } from 'lucide-react';
+import { Calendar, CheckCircle2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -20,8 +22,6 @@ interface TreatmentPlanTabProps {
   consultation: ConsultationResponseDto | null;
   hasCasePlan: boolean;
   onPlanChange?: (plan: string) => void;
-  onSave?: () => void;
-  isSaving?: boolean;
   isReadOnly?: boolean;
 }
 
@@ -29,8 +29,6 @@ export function TreatmentPlanTab({
   consultation,
   hasCasePlan,
   onPlanChange,
-  onSave,
-  isSaving = false,
   isReadOnly = false,
 }: TreatmentPlanTabProps) {
   const [nextSteps, setNextSteps] = useState(
@@ -49,7 +47,8 @@ export function TreatmentPlanTab({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="p-6 space-y-6">
+      {/* Case Plan Banner */}
       {hasCasePlan && consultation?.casePlanId && (
         <Card className="border-green-200 bg-green-50">
           <CardContent className="pt-4">
@@ -74,37 +73,24 @@ export function TreatmentPlanTab({
         </Card>
       )}
 
+      {/* Treatment Plan Editor */}
       <div>
-        <Label htmlFor="next-steps" className="text-sm font-medium">
-          Next Steps & Timeline
+        <Label htmlFor="next-steps" className="text-sm font-semibold">
+          Treatment Plan & Next Steps
         </Label>
         <p className="text-xs text-muted-foreground mt-1 mb-3">
-          Document next steps, timeline, and patient instructions.
+          Document treatment plan, timeline, pre-op requirements, and patient instructions.
         </p>
         <RichTextEditor
           content={nextSteps}
           onChange={handleChange}
-          placeholder="Next steps, timeline, pre-op requirements, patient instructions..."
+          placeholder="Treatment plan, timeline, pre-op requirements, patient instructions..."
           readOnly={isReadOnly}
           minHeight="400px"
         />
       </div>
 
-      {/* Save Button */}
-      {!isReadOnly && onSave && (
-        <div className="flex justify-end pt-4 border-t">
-          <Button
-            onClick={onSave}
-            disabled={isSaving || !nextSteps.trim()}
-            size="sm"
-            className="bg-primary hover:bg-primary/90"
-          >
-            <Save className="h-4 w-4 mr-2" />
-            {isSaving ? 'Saving...' : 'Save Treatment Plan'}
-          </Button>
-        </div>
-      )}
-
+      {/* Follow-Up Info */}
       {consultation?.followUp && (
         <Card>
           <CardContent className="pt-4">

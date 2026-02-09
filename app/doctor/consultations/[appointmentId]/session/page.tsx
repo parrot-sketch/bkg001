@@ -211,8 +211,6 @@ function ConsultationSessionContent() {
           consultation={consultation}
           userRole={Role.DOCTOR}
           onSaveDraft={saveDraft}
-          onUploadPhoto={() => {/* TODO */}}
-          onViewHistory={() => {/* TODO */}}
           onComplete={openCompleteDialog}
           autoSaveStatus={autoSaveStatus}
           isSaving={isSaving}

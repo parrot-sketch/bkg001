@@ -21,7 +21,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { 
   FileText, 
   Stethoscope, 
-  Camera, 
   ClipboardCheck, 
   CalendarPlus,
   ChevronLeft,
@@ -50,22 +49,6 @@ const PatientGoalsTab = dynamic(
 
 const ExaminationTab = dynamic(
   () => import('./tabs/ExaminationTab').then(mod => ({ default: mod.ExaminationTab })),
-  { 
-    loading: () => <TabSkeleton />,
-    ssr: false 
-  }
-);
-
-const ProcedureDiscussionTab = dynamic(
-  () => import('./tabs/ProcedureDiscussionTab').then(mod => ({ default: mod.ProcedureDiscussionTab })),
-  { 
-    loading: () => <TabSkeleton />,
-    ssr: false 
-  }
-);
-
-const PhotosTab = dynamic(
-  () => import('./tabs/PhotosTab').then(mod => ({ default: mod.PhotosTab })),
   { 
     loading: () => <TabSkeleton />,
     ssr: false 
@@ -111,7 +94,6 @@ interface TabConfig {
 const TABS: TabConfig[] = [
   { id: 'chief', label: 'Chief Complaint', shortLabel: 'Chief', icon: FileText, noteField: 'chiefComplaint' },
   { id: 'exam', label: 'Examination', shortLabel: 'Exam', icon: Stethoscope, noteField: 'examination' },
-  { id: 'photos', label: 'Photos', shortLabel: 'Photos', icon: Camera, noteField: null },
   { id: 'assessment', label: 'Assessment', shortLabel: 'Assess', icon: ClipboardCheck, noteField: 'assessment' },
   { id: 'plan', label: 'Treatment Plan', shortLabel: 'Plan', icon: CalendarPlus, noteField: 'plan' },
   { id: 'billing', label: 'Billing', shortLabel: 'Billing', icon: Receipt, noteField: null },
@@ -170,7 +152,6 @@ export function ConsultationWorkspaceOptimized() {
     saveDraft,
     updateNotes,
     setOutcome,
-    setPatientDecision,
     openCompleteDialog,
   } = useConsultationContext();
   
@@ -273,17 +254,6 @@ export function ConsultationWorkspaceOptimized() {
             </LazyTab>
           </TabsContent>
           
-          {/* Photos */}
-          <TabsContent value="photos" className="mt-0 h-full p-0">
-            <LazyTab isActive={activeTab === 'photos'}>
-              <PhotosTab
-                appointmentId={state.consultation?.appointmentId}
-                photoCount={state.consultation?.photoCount || 0}
-                isReadOnly={isReadOnly}
-              />
-            </LazyTab>
-          </TabsContent>
-          
           {/* Assessment */}
           <TabsContent value="assessment" className="mt-0 h-full p-0">
             <LazyTab isActive={activeTab === 'assessment'}>
@@ -291,7 +261,6 @@ export function ConsultationWorkspaceOptimized() {
                 consultation={state.consultation}
                 onOutcomeChange={setOutcome}
                 onAssessmentChange={handleNoteChange('assessment')}
-                onPlanChange={handleNoteChange('plan')}
                 isReadOnly={isReadOnly}
               />
             </LazyTab>
