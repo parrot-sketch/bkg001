@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import db from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth/jwt-helper';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 
-const prisma = new PrismaClient();
+const prisma = db;
 
 /**
  * GET /api/frontdesk/schedule/today
