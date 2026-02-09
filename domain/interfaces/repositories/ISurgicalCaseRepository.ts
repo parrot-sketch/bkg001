@@ -29,6 +29,17 @@ export interface ISurgicalCaseRepository {
   findByStatus(status: SurgicalCaseStatus): Promise<SurgicalCase[]>;
 
   /**
+   * Find all surgical cases for a specific surgeon
+   */
+  findBySurgeonId(surgeonId: string): Promise<SurgicalCase[]>;
+
+  /**
+   * Find surgical cases that are ready for scheduling (for admin theater booking)
+   * Returns cases in READY_FOR_SCHEDULING status with full relations
+   */
+  findReadyForScheduling(): Promise<SurgicalCase[]>;
+
+  /**
    * Find surgical cases pending pre-op readiness (for nurse dashboard)
    * Returns cases in DRAFT or PLANNING status that need readiness work
    */

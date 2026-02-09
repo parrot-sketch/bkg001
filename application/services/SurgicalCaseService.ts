@@ -1,8 +1,27 @@
-import { SurgicalCase, SurgicalCaseStatus } from '@prisma/client';
-import { PrismaSurgicalCaseRepository } from '@/infrastructure/database/repositories/PrismaSurgicalCaseRepository';
+import { SurgicalCase, SurgicalCaseStatus, CasePlan } from '@prisma/client';
+import { ISurgicalCaseRepository } from '@/domain/interfaces/repositories/ISurgicalCaseRepository';
+import { ICasePlanRepository } from '@/domain/interfaces/repositories/ICasePlanRepository';
 
+/**
+ * Service: SurgicalCaseService
+ *
+ * Domain service that encapsulates surgical case state machine logic.
+ * Validates transitions and enforces business rules for the surgery workflow.
+ *
+ * Transition map:
+ *   DRAFT → PLANNING | CANCELLED
+ *   PLANNING → READY_FOR_SCHEDULING | DRAFT | CANCELLED
+ *   READY_FOR_SCHEDULING → SCHEDULED | PLANNING | CANCELLED
+ *   SCHEDULED → IN_PREP | READY_FOR_SCHEDULING | CANCELLED
+ *   IN_PREP → IN_THEATER
+ *   IN_THEATER → RECOVERY
+ *   RECOVERY → COMPLETED
+ */
 export class SurgicalCaseService {
-    constructor(private repository: PrismaSurgicalCaseRepository) { }
+    constructor(
+        private repository: ISurgicalCaseRepository,
+        private casePlanRepository?: ICasePlanRepository,
+    ) {}
 
     /**
      * Validates and executes a state transition
@@ -13,16 +32,29 @@ export class SurgicalCaseService {
             throw new Error('Surgical case not found');
         }
 
-        this.validateTransition(surgicalCase, targetStatus);
+        await this.validateTransition(surgicalCase, targetStatus);
 
-        // Perform transition
         return this.repository.updateStatus(caseId, targetStatus);
     }
 
     /**
-     * strict state machine validation
+     * Fetch all surgical cases for a specific surgeon
      */
-    private validateTransition(currentCase: SurgicalCase, target: SurgicalCaseStatus) {
+    async getSurgeonCases(surgeonId: string): Promise<SurgicalCase[]> {
+        return this.repository.findBySurgeonId(surgeonId);
+    }
+
+    /**
+     * Fetch cases ready for scheduling (admin view)
+     */
+    async getCasesReadyForScheduling(): Promise<SurgicalCase[]> {
+        return this.repository.findReadyForScheduling();
+    }
+
+    /**
+     * Strict state machine validation
+     */
+    private async validateTransition(currentCase: SurgicalCase, target: SurgicalCaseStatus) {
         const current = currentCase.status;
 
         // 1. DRAFT transitions
@@ -35,7 +67,7 @@ export class SurgicalCaseService {
         if (current === 'PLANNING') {
             if (['READY_FOR_SCHEDULING', 'DRAFT', 'CANCELLED'].includes(target)) {
                 if (target === 'READY_FOR_SCHEDULING') {
-                    this.validateReadyForScheduling(currentCase);
+                    await this.validateReadyForScheduling(currentCase);
                 }
                 return;
             }
@@ -45,7 +77,6 @@ export class SurgicalCaseService {
         // 3. READY_FOR_SCHEDULING transitions
         if (current === 'READY_FOR_SCHEDULING') {
             if (['SCHEDULED', 'PLANNING', 'CANCELLED'].includes(target)) return;
-            // Scheduled is handled by TheaterService usually, but status update allows it
             throw new Error(`Cannot transition from READY_FOR_SCHEDULING to ${target}`);
         }
 
@@ -55,7 +86,7 @@ export class SurgicalCaseService {
             throw new Error(`Cannot transition from SCHEDULED to ${target}`);
         }
 
-        // ... (Other transitions imply linear progression)
+        // Linear progression for day-of-surgery states
         if (current === 'IN_PREP' && target === 'IN_THEATER') return;
         if (current === 'IN_THEATER' && target === 'RECOVERY') return;
         if (current === 'RECOVERY' && target === 'COMPLETED') return;
@@ -64,10 +95,53 @@ export class SurgicalCaseService {
         throw new Error(`Invalid state transition: ${current} -> ${target}`);
     }
 
-    private validateReadyForScheduling(surgicalCase: SurgicalCase) {
-        // This is where we will eventually verify Consents, Risk Plan, etc.
-        // For Phase 1 migration, we might be lenient or check existing CasePlan
-        // if (!surgicalCase.case_plan) throw new Error("Operative Plan missing");
-        // TODO: strictly enforce checks
+    /**
+     * Validates that a surgical case has met minimum readiness criteria
+     * before it can be marked as READY_FOR_SCHEDULING.
+     *
+     * Minimum requirements for an aesthetic surgery center:
+     * - CasePlan must exist and be linked
+     * - Procedure plan must be documented
+     * - Risk factors must be assessed
+     * - Pre-operative notes must be present
+     */
+    private async validateReadyForScheduling(surgicalCase: SurgicalCase): Promise<void> {
+        if (!this.casePlanRepository) {
+            // No case plan repo available — skip validation (lenient mode)
+            return;
+        }
+
+        let casePlan: CasePlan | null = null;
+
+        // Try to find by surgical case link first, then by appointment
+        casePlan = await this.casePlanRepository.findBySurgicalCaseId(surgicalCase.id);
+
+        if (!casePlan) {
+            throw new Error(
+                'Cannot mark as ready: No operative plan found. ' +
+                'Please complete the operative plan before marking ready for scheduling.',
+            );
+        }
+
+        // Validate minimum required fields
+        const errors: string[] = [];
+
+        if (!casePlan.procedure_plan || casePlan.procedure_plan.trim().length < 10) {
+            errors.push('Procedure plan must be documented');
+        }
+
+        if (!casePlan.risk_factors || casePlan.risk_factors.trim().length < 5) {
+            errors.push('Risk factors must be assessed');
+        }
+
+        if (!casePlan.pre_op_notes || casePlan.pre_op_notes.trim().length < 5) {
+            errors.push('Pre-operative notes are required');
+        }
+
+        if (errors.length > 0) {
+            throw new Error(
+                `Cannot mark as ready for scheduling:\n• ${errors.join('\n• ')}`,
+            );
+        }
     }
 }

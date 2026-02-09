@@ -37,8 +37,27 @@ export async function POST(
             );
         }
 
-        const body = await request.json();
-        const { doctorId } = body;
+        // Parse body (optional — some callers send empty body)
+        let body: Record<string, unknown> = {};
+        try {
+            body = await request.json();
+        } catch {
+            // Empty body is acceptable for this endpoint
+        }
+
+        // Resolve the authenticated user's Doctor record
+        // This is the canonical way to map User.id → Doctor.id
+        const doctor = await db.doctor.findUnique({
+            where: { user_id: authResult.user.userId },
+            select: { id: true },
+        });
+
+        if (!doctor) {
+            return NextResponse.json(
+                { success: false, error: 'Doctor profile not found for authenticated user' },
+                { status: 403 }
+            );
+        }
 
         // Find the appointment
         const appointment = await db.appointment.findUnique({
@@ -58,7 +77,6 @@ export async function POST(
 
         // Verify appointment can start consultation
         // Patient MUST be checked in before consultation can start
-        // SCHEDULED means confirmed but patient hasn't arrived yet
         const validStatuses = [
             AppointmentStatus.CHECKED_IN,           // Primary: patient checked in by frontdesk
             AppointmentStatus.READY_FOR_CONSULTATION, // Optional: nurse prep completed
@@ -66,7 +84,6 @@ export async function POST(
         ];
         
         if (!validStatuses.includes(appointment.status as AppointmentStatus)) {
-            // Natural, clinical-friendly error messages
             let errorMessage: string;
             
             if (appointment.status === 'SCHEDULED' || 
@@ -89,8 +106,11 @@ export async function POST(
             );
         }
 
-        // Verify doctor matches
-        if (appointment.doctor_id !== doctorId && appointment.doctor_id !== authResult.user.userId) {
+        // Verify doctor ownership: compare appointment.doctor_id against the
+        // Doctor record resolved from the authenticated user (same table PK)
+        const bodyDoctorId = body.doctorId as string | undefined;
+        if (appointment.doctor_id !== doctor.id &&
+            (!bodyDoctorId || appointment.doctor_id !== bodyDoctorId)) {
             return NextResponse.json(
                 { success: false, error: 'Unauthorized: Not your appointment' },
                 { status: 403 }

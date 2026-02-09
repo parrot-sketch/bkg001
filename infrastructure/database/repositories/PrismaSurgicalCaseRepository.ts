@@ -69,6 +69,57 @@ export class PrismaSurgicalCaseRepository implements ISurgicalCaseRepository {
     });
   }
 
+  async findBySurgeonId(surgeonId: string): Promise<SurgicalCase[]> {
+    return this.prisma.surgicalCase.findMany({
+      where: { primary_surgeon_id: surgeonId },
+      orderBy: { created_at: 'desc' },
+      include: {
+        patient: true,
+        primary_surgeon: true,
+        case_plan: {
+          include: {
+            consents: true,
+            images: true,
+          },
+        },
+        theater_booking: {
+          include: {
+            theater: true,
+          },
+        },
+        consultation: {
+          include: {
+            appointment: true,
+          },
+        },
+      },
+    });
+  }
+
+  async findReadyForScheduling(): Promise<SurgicalCase[]> {
+    return this.prisma.surgicalCase.findMany({
+      where: {
+        status: SurgicalCaseStatus.READY_FOR_SCHEDULING,
+      },
+      orderBy: { created_at: 'asc' },
+      include: {
+        patient: true,
+        primary_surgeon: true,
+        case_plan: {
+          include: {
+            consents: true,
+            images: true,
+          },
+        },
+        consultation: {
+          include: {
+            appointment: true,
+          },
+        },
+      },
+    });
+  }
+
   async findPendingPreOp(): Promise<SurgicalCase[]> {
     return this.prisma.surgicalCase.findMany({
       where: {

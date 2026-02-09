@@ -357,9 +357,17 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
         }
       }
       
-      // Determine workflow state based on appointment/consultation status
-      if (apt.status === AppointmentStatus.IN_CONSULTATION) {
+      // Determine workflow state based on appointment/consultation status.
+      // If the appointment is already IN_CONSULTATION, go straight to the 
+      // workspace — no start dialog. This is the normal path when navigating
+      // from a "Start Consultation" button that already called the API.
+      const hasActiveConsultation = consultationResponse.success && 
+        consultationResponse.data?.state === ConsultationState.IN_PROGRESS;
+      
+      if (apt.status === AppointmentStatus.IN_CONSULTATION || hasActiveConsultation) {
         dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.ACTIVE });
+        // Explicitly ensure the dialog is closed (defensive)
+        dispatch({ type: 'SHOW_START_DIALOG', payload: false });
       } else if (apt.status === AppointmentStatus.CHECKED_IN || 
                  apt.status === AppointmentStatus.READY_FOR_CONSULTATION) {
         dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.READY });
@@ -392,10 +400,22 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
       });
       
       if (!response.success) {
-        throw new Error(response.error || 'Failed to start consultation');
+        // Handle "already in progress" gracefully — another code path
+        // (dashboard, appointment detail) may have started it first.
+        const errorMsg = (response.error || '').toLowerCase();
+        const isAlreadyStarted = errorMsg.includes('in progress') || 
+                                 errorMsg.includes('in_consultation') ||
+                                 errorMsg.includes('already');
+        
+        if (isAlreadyStarted) {
+          // Not an error — just proceed to the workspace
+          console.info('[ConsultationContext] Consultation already in progress, proceeding to workspace');
+        } else {
+          throw new Error(response.error || 'Failed to start consultation');
+        }
       }
       
-      // Refresh consultation data
+      // Refresh consultation data regardless (it may exist from a prior start)
       const consultationResponse = await consultationApi.getConsultation(state.appointment.id);
       if (consultationResponse.success && consultationResponse.data) {
         dispatch({ type: 'SET_CONSULTATION', payload: consultationResponse.data });

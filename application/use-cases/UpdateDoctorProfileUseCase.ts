@@ -96,6 +96,8 @@ export class UpdateDoctorProfileUseCase {
       yearsOfExperience: doctor.years_of_experience ?? undefined,
       consultationFee: doctor.consultation_fee ?? undefined,
       languages: doctor.languages ?? undefined,
+      colorCode: doctor.colorCode ?? undefined,
+      onboardingStatus: doctor.onboarding_status ?? undefined,
       createdAt: doctor.created_at,
       updatedAt: doctor.updated_at,
     };

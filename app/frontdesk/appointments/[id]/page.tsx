@@ -28,7 +28,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useQuery } from '@tanstack/react-query';
 import { frontdeskApi } from '@/lib/api/frontdesk';
 import { useCheckIn } from '@/hooks/frontdesk/useTodaysSchedule';
-import { AppointmentStatus, canCheckIn } from '@/domain/enums/AppointmentStatus';
+import { AppointmentStatus, canCheckIn, isAwaitingConfirmation } from '@/domain/enums/AppointmentStatus';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -127,6 +127,7 @@ export default function FrontdeskAppointmentDetailPage({ params }: PageProps) {
   }
 
   const showCheckInButton = canCheckIn(appointment.status as AppointmentStatus);
+  const showAwaitingConfirmation = isAwaitingConfirmation(appointment.status as AppointmentStatus);
   const patientName = appointment.patient 
     ? `${appointment.patient.firstName} ${appointment.patient.lastName}`.trim()
     : 'Unknown Patient';
@@ -251,6 +252,15 @@ export default function FrontdeskAppointmentDetailPage({ params }: PageProps) {
               <CardTitle>Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              {showAwaitingConfirmation && (
+                <div className="flex items-center gap-2 p-3 bg-indigo-50 text-indigo-700 rounded-lg border border-indigo-100">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <p className="text-xs font-medium">
+                    Awaiting doctor confirmation. Check-in will be available once the doctor confirms this appointment.
+                  </p>
+                </div>
+              )}
+
               {showCheckInButton && (
                 <Button 
                   className="w-full bg-teal-600 hover:bg-teal-700"

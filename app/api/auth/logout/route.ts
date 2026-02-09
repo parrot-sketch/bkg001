@@ -59,8 +59,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 200 }
     );
 
-    // Clear access token cookie
+    // Clear auth cookies
     nextResponse.cookies.delete('accessToken');
+    nextResponse.cookies.delete('refreshToken');
 
     return nextResponse;
   } catch (error) {

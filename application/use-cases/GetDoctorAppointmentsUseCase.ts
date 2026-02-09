@@ -74,6 +74,11 @@ export class GetDoctorAppointmentsUseCase {
                 reviewed_by: true,
                 reviewed_at: true,
                 review_notes: true,
+                checked_in_at: true,
+                checked_in_by: true,
+                consultation_started_at: true,
+                consultation_ended_at: true,
+                consultation_duration: true,
                 created_at: true,
                 updated_at: true,
                 patient: {
@@ -145,7 +150,12 @@ export class GetDoctorAppointmentsUseCase {
                 reviewedBy: consultationFields.reviewedBy ?? undefined,
                 reviewedAt: consultationFields.reviewedAt ?? undefined,
                 reviewNotes: consultationFields.reviewNotes ?? undefined,
-                bookedBy: bookedBy, // The new field
+                bookedBy: bookedBy,
+                checkedInAt: appointment.checked_in_at ?? undefined,
+                checkedInBy: appointment.checked_in_by ?? undefined,
+                consultationStartedAt: appointment.consultation_started_at ?? undefined,
+                consultationEndedAt: appointment.consultation_ended_at ?? undefined,
+                consultationDuration: appointment.consultation_duration ?? undefined,
                 createdAt: appointment.created_at,
                 updatedAt: appointment.updated_at,
                 patient: appointment.patient ? {

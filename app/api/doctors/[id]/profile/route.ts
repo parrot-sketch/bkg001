@@ -69,6 +69,7 @@ export async function GET(
         title: true,
         name: true,
         specialization: true,
+        slug: true,
         license_number: true,
         phone: true,
         address: true,
@@ -83,6 +84,9 @@ export async function GET(
         education: true,
         focus_areas: true,
         professional_affiliations: true,
+        years_of_experience: true,
+        consultation_fee: true,
+        languages: true,
         onboarding_status: true,
         created_at: true,
         updated_at: true,
@@ -109,6 +113,7 @@ export async function GET(
       title: doctor.title ?? undefined,
       name: doctor.name,
       specialization: doctor.specialization,
+      slug: doctor.slug ?? undefined,
       licenseNumber: doctor.license_number,
       phone: doctor.phone,
       address: doctor.address,
@@ -120,6 +125,11 @@ export async function GET(
       education: doctor.education ?? undefined,
       focusAreas: doctor.focus_areas ?? undefined,
       professionalAffiliations: doctor.professional_affiliations ?? undefined,
+      yearsOfExperience: doctor.years_of_experience ?? undefined,
+      consultationFee: doctor.consultation_fee ?? undefined,
+      languages: doctor.languages ?? undefined,
+      colorCode: doctor.colorCode ?? undefined,
+      onboardingStatus: doctor.onboarding_status ?? undefined,
       createdAt: doctor.created_at,
       updatedAt: doctor.updated_at,
     };
@@ -236,15 +246,20 @@ export async function PUT(
       );
     }
 
-    // 6. Build DTO
+    // 6. Build DTO — pass through all editable fields from the request body
     const dto: UpdateDoctorProfileDto = {
       doctorId,
+      specialization: body.specialization,
+      title: body.title,
       bio: body.bio,
       education: body.education,
       focusAreas: body.focusAreas,
       professionalAffiliations: body.professionalAffiliations,
       profileImage: body.profileImage,
       clinicLocation: body.clinicLocation,
+      yearsOfExperience: body.yearsOfExperience,
+      consultationFee: body.consultationFee,
+      languages: body.languages,
     };
 
     // 7. Execute update doctor profile use case

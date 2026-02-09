@@ -5,6 +5,66 @@ import { CreateCasePlanDto } from '@/application/dtos/CreateCasePlanDto';
 import { getCreateCasePlanUseCase } from '@/lib/use-cases';
 
 /**
+ * Maps a raw Prisma CasePlan (snake_case) to the client-expected DTO (camelCase).
+ */
+function mapCasePlanToDto(casePlan: any) {
+    return {
+        id: casePlan.id,
+        appointmentId: casePlan.appointment_id,
+        patientId: casePlan.patient_id,
+        doctorId: casePlan.doctor_id,
+        surgicalCaseId: casePlan.surgical_case_id ?? null,
+        procedurePlan: casePlan.procedure_plan ?? null,
+        riskFactors: casePlan.risk_factors ?? null,
+        preOpNotes: casePlan.pre_op_notes ?? null,
+        implantDetails: casePlan.implant_details ?? null,
+        anesthesiaPlan: casePlan.planned_anesthesia ?? null,
+        specialInstructions: casePlan.special_instructions ?? null,
+        markingDiagram: casePlan.marking_diagram ?? null,
+        readinessStatus: casePlan.readiness_status,
+        readyForSurgery: casePlan.ready_for_surgery,
+        createdAt: casePlan.created_at,
+        updatedAt: casePlan.updated_at,
+        consents: casePlan.consents?.map((c: any) => ({
+            id: c.id,
+            title: c.title,
+            type: c.type,
+            status: c.status,
+            createdAt: c.created_at,
+        })),
+        images: casePlan.images?.map((img: any) => ({
+            id: img.id,
+            imageUrl: img.image_url,
+            timepoint: img.timepoint,
+            description: img.description,
+        })),
+        surgicalCase: casePlan.surgical_case
+            ? {
+                id: casePlan.surgical_case.id,
+                status: casePlan.surgical_case.status,
+                urgency: casePlan.surgical_case.urgency,
+            }
+            : undefined,
+        procedure_record: casePlan.procedure_record
+            ? {
+                urgency: casePlan.procedure_record.urgency,
+                anesthesia_type: casePlan.procedure_record.anesthesia_type,
+                staff: casePlan.procedure_record.staff?.map((s: any) => ({
+                    role: s.role,
+                    user: s.user
+                        ? {
+                            firstName: s.user.first_name,
+                            lastName: s.user.last_name,
+                            role: s.user.role,
+                        }
+                        : undefined,
+                })),
+            }
+            : undefined,
+    };
+}
+
+/**
  * POST /api/doctor/case-plans
  * 
  * Create or update a Case Plan for an appointment.
@@ -28,11 +88,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         // 3. Parse and Validate Body
         const body: CreateCasePlanDto = await request.json();
 
-        if (!body.appointmentId || !body.patientId || !body.doctorId) {
+        if (!body.appointmentId || !body.patientId) {
             return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 });
         }
 
-        // 4. Verify Doctor Ownership
+        // 4. Resolve Doctor profile from authenticated user
         const doctorProfile = await db.doctor.findUnique({
             where: { user_id: userId },
         });
@@ -41,13 +101,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             return NextResponse.json({ success: false, error: 'Doctor profile not found' }, { status: 404 });
         }
 
-        // 5. Execute Use Case
+        // 5. Override doctorId with the resolved doctor profile ID (not user ID)
+        const dto: CreateCasePlanDto = {
+            ...body,
+            doctorId: doctorProfile.id,
+        };
+
+        // 6. Execute Use Case
         const useCase = getCreateCasePlanUseCase();
-        const casePlan = await useCase.execute(body, userId);
+        const casePlan = await useCase.execute(dto, userId);
 
         return NextResponse.json({
             success: true,
-            data: casePlan,
+            data: mapCasePlanToDto(casePlan),
             message: 'Case plan saved successfully',
         });
 
@@ -81,6 +147,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                 appointment_id: parseInt(appointmentId),
             },
             include: {
+                surgical_case: {
+                    select: {
+                        id: true,
+                        status: true,
+                        urgency: true,
+                    },
+                },
                 procedure_record: {
                     include: {
                         staff: {
@@ -111,7 +184,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             return NextResponse.json({ success: true, data: null }); // No plan yet
         }
 
-        return NextResponse.json({ success: true, data: casePlan });
+        // Map snake_case Prisma data to camelCase DTO
+        return NextResponse.json({ success: true, data: mapCasePlanToDto(casePlan) });
 
     } catch (error) {
         console.error('[API] /api/doctor/case-plans - GET Error:', error);

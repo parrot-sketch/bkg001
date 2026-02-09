@@ -27,8 +27,9 @@ import db from '@/lib/db';
  * 
  * Business Rules:
  * - Appointment must exist
- * - Appointment status must be PENDING (can't check in to cancelled/completed appointments)
- * - Appointment date must be today or in the future
+ * - Appointment must be doctor-confirmed (SCHEDULED or CONFIRMED)
+ * - Cannot check in PENDING or PENDING_DOCTOR_CONFIRMATION appointments
+ * - Cannot check in cancelled or completed appointments
  * - Audit trail required for all check-ins
  */
 export class CheckInPatientUseCase {
@@ -66,18 +67,32 @@ export class CheckInPatientUseCase {
     }
 
     // Step 2: Validate appointment can be checked in
-    if (appointment.getStatus() === AppointmentStatus.CANCELLED) {
+    // Only doctor-confirmed appointments (SCHEDULED, CONFIRMED) can be checked in.
+    // PENDING and PENDING_DOCTOR_CONFIRMATION require doctor action first.
+    const status = appointment.getStatus();
+
+    if (status === AppointmentStatus.CANCELLED) {
       throw new DomainException('Cannot check in to a cancelled appointment', {
         appointmentId: dto.appointmentId,
-        status: appointment.getStatus(),
+        status,
       });
     }
 
-    if (appointment.getStatus() === AppointmentStatus.COMPLETED) {
+    if (status === AppointmentStatus.COMPLETED) {
       throw new DomainException('Cannot check in to a completed appointment', {
         appointmentId: dto.appointmentId,
-        status: appointment.getStatus(),
+        status,
       });
+    }
+
+    if (status === AppointmentStatus.PENDING || status === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION) {
+      throw new DomainException(
+        'Cannot check in — this appointment has not been confirmed by the doctor yet. Please wait for doctor confirmation before checking in the patient.',
+        {
+          appointmentId: dto.appointmentId,
+          status,
+        }
+      );
     }
 
     // Step 3: Calculate if patient is late
@@ -96,8 +111,7 @@ export class CheckInPatientUseCase {
     let updatedAppointment = appointment;
     const currentStatus = appointment.getStatus();
 
-    if (currentStatus === AppointmentStatus.PENDING ||
-      currentStatus === AppointmentStatus.SCHEDULED ||
+    if (currentStatus === AppointmentStatus.SCHEDULED ||
       currentStatus === AppointmentStatus.CONFIRMED) {
 
       updatedAppointment = ApplicationAppointmentMapper.updateStatus(

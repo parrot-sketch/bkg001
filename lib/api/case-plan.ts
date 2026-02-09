@@ -6,6 +6,7 @@ export interface CasePlanResponseDto {
     appointmentId: number;
     patientId: string;
     doctorId: string;
+    surgicalCaseId?: string | null;
     procedurePlan: string | null;
     riskFactors?: string | null;
     preOpNotes?: string | null;
@@ -15,6 +16,13 @@ export interface CasePlanResponseDto {
     readinessStatus: string;
     createdAt: string;
     updatedAt: string;
+
+    // Surgical Case (linked)
+    surgicalCase?: {
+        id: string;
+        status: string;
+        urgency: string;
+    };
 
     // Relations (Mapped from backend)
     consents?: Array<{

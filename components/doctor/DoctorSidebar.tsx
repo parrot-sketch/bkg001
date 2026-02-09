@@ -6,7 +6,7 @@
  * Uses the UnifiedSidebar component for consistent design.
  */
 
-import { LayoutDashboard, Calendar, FileText, Users, User, Clock } from 'lucide-react';
+import { LayoutDashboard, Calendar, FileText, Users, User, Clock, Scissors } from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { useAuth } from '@/hooks/patient/useAuth';
 
@@ -30,6 +30,11 @@ const navItems: NavItem[] = [
     name: 'Consultation History',
     href: '/doctor/consultations',
     icon: FileText,
+  },
+  {
+    name: 'Surgical Cases',
+    href: '/doctor/surgical-cases',
+    icon: Scissors,
   },
   {
     name: 'My Patients',

@@ -28,6 +28,7 @@ import {
   ChevronRight,
   Save,
   CheckCircle,
+  Receipt,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useConsultationContext, type StructuredNotes } from '@/contexts/ConsultationContext';
@@ -87,6 +88,14 @@ const TreatmentPlanTab = dynamic(
   }
 );
 
+const BillingTab = dynamic(
+  () => import('./tabs/BillingTab').then(mod => ({ default: mod.BillingTab })),
+  { 
+    loading: () => <TabSkeleton />,
+    ssr: false 
+  }
+);
+
 // ============================================================================
 // TAB CONFIGURATION
 // ============================================================================
@@ -105,6 +114,7 @@ const TABS: TabConfig[] = [
   { id: 'photos', label: 'Photos', shortLabel: 'Photos', icon: Camera, noteField: null },
   { id: 'assessment', label: 'Assessment', shortLabel: 'Assess', icon: ClipboardCheck, noteField: 'assessment' },
   { id: 'plan', label: 'Treatment Plan', shortLabel: 'Plan', icon: CalendarPlus, noteField: 'plan' },
+  { id: 'billing', label: 'Billing', shortLabel: 'Billing', icon: Receipt, noteField: null },
 ];
 
 // ============================================================================
@@ -295,6 +305,17 @@ export function ConsultationWorkspaceOptimized() {
                 hasCasePlan={state.consultation?.hasCasePlan || false}
                 onPlanChange={handleNoteChange('plan')}
                 isReadOnly={isReadOnly}
+              />
+            </LazyTab>
+          </TabsContent>
+
+          {/* Billing — always editable by the doctor, even after consultation is completed.
+              Editability is determined by payment status inside the BillingTab itself. */}
+          <TabsContent value="billing" className="mt-0 h-full p-0">
+            <LazyTab isActive={activeTab === 'billing'}>
+              <BillingTab
+                appointmentId={state.appointment?.id}
+                isReadOnly={false}
               />
             </LazyTab>
           </TabsContent>

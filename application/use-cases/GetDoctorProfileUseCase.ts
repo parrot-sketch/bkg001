@@ -67,6 +67,11 @@ export class GetDoctorProfileUseCase {
             education: doctor.education ?? undefined,
             focusAreas: doctor.focus_areas ?? undefined,
             professionalAffiliations: doctor.professional_affiliations ?? undefined,
+            yearsOfExperience: doctor.years_of_experience ?? undefined,
+            consultationFee: doctor.consultation_fee ?? undefined,
+            languages: doctor.languages ?? undefined,
+            colorCode: doctor.colorCode ?? undefined,
+            onboardingStatus: doctor.onboarding_status ?? undefined,
             createdAt: doctor.created_at,
             updatedAt: doctor.updated_at,
         };

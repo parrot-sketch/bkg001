@@ -174,6 +174,9 @@ export async function POST(
       followUpDate,
       followUpTime: body.followUpTime || undefined,
       followUpType: body.followUpType || undefined,
+      billingItems: body.billingItems || undefined,
+      customTotalAmount: body.customTotalAmount || undefined,
+      discount: body.discount || undefined,
     };
 
     // 9. Execute complete consultation use case

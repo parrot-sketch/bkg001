@@ -101,8 +101,8 @@ export function DoctorAppointmentCardEnhanced({
   }, [appointment.appointmentDate, appointment.time]);
 
   // Status-based permissions
+  // Only doctor-confirmed appointments are eligible for check-in
   const canCheckIn =
-    appointment.status === AppointmentStatus.PENDING ||
     appointment.status === AppointmentStatus.SCHEDULED ||
     appointment.status === AppointmentStatus.CONFIRMED;
   
