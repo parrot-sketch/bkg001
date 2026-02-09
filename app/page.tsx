@@ -18,7 +18,6 @@ import {
   Mail,
   Shield,
   Heart,
-  Sparkles,
   Star,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -248,18 +247,13 @@ export default function Home() {
             ].map((service, index) => (
               <Reveal key={index} delay={index * 60}>
                 <div className="group p-6 rounded-xl border border-gray-100 bg-white hover:border-brand-primary/20 hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
-                  <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-brand-primary/5 flex items-center justify-center group-hover:bg-brand-primary/10 transition-colors">
-                      <Sparkles className="h-5 w-5 text-brand-primary/60 group-hover:text-brand-primary transition-colors" />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="text-base font-semibold text-slate-900 mb-1.5">
-                        {service.title}
-                      </h3>
-                      <p className="text-sm text-slate-500 leading-relaxed">
-                        {service.description}
-                      </p>
-                    </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-slate-900 mb-1.5">
+                      {service.title}
+                    </h3>
+                    <p className="text-sm text-slate-500 leading-relaxed">
+                      {service.description}
+                    </p>
                   </div>
                 </div>
               </Reveal>
