@@ -526,8 +526,6 @@ export default function ConsultationSessionPage() {
         consultation={consultation ?? null}
         userRole={user?.role as any}
         onSaveDraft={handleSaveDraft}
-        onUploadPhoto={() => toast.info('Photo upload coming soon')}
-        onViewHistory={() => router.push(`/doctor/patients/${patient.id}/consultations`)}
         onComplete={handleCompleteConsultation}
         autoSaveStatus={autoSaveStatus}
         isSaving={saveDraftMutation.isPending}

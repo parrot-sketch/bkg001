@@ -144,12 +144,14 @@ export async function generateBill(data: any) {
       where: { id: Number(validatedData?.id) },
     });
 
-    await db.appointment.update({
-      data: {
-        status: "COMPLETED",
-      },
-      where: { id: res.appointment_id },
-    });
+    if (res.appointment_id) {
+      await db.appointment.update({
+        data: {
+          status: "COMPLETED",
+        },
+        where: { id: res.appointment_id },
+      });
+    }
     return {
       success: true,
       error: false,

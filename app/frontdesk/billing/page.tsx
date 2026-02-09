@@ -55,7 +55,16 @@ import {
 import { format } from 'date-fns';
 import { PaymentStatus, getPaymentStatusLabel } from '@/domain/enums/PaymentStatus';
 import { PaymentMethod, getPaymentMethodLabel } from '@/domain/enums/PaymentMethod';
+import { BillType } from '@/domain/enums/BillType';
 import type { PaymentWithRelations } from '@/domain/interfaces/repositories/IPaymentRepository';
+
+const BILL_TYPE_CONFIG: Record<string, { label: string; className: string }> = {
+  [BillType.CONSULTATION]: { label: 'Consultation', className: 'bg-blue-100 text-blue-700 border-blue-200' },
+  [BillType.SURGERY]: { label: 'Surgery', className: 'bg-purple-100 text-purple-700 border-purple-200' },
+  [BillType.LAB_TEST]: { label: 'Lab Test', className: 'bg-teal-100 text-teal-700 border-teal-200' },
+  [BillType.FOLLOW_UP]: { label: 'Follow-Up', className: 'bg-sky-100 text-sky-700 border-sky-200' },
+  [BillType.OTHER]: { label: 'Other', className: 'bg-gray-100 text-gray-700 border-gray-200' },
+};
 
 export default function FrontdeskBillingPage() {
   const { user, isAuthenticated } = useAuth();
@@ -267,9 +276,16 @@ export default function FrontdeskBillingPage() {
                           <User className="h-5 w-5 text-primary" />
                         </div>
                         <div>
-                          <p className="font-semibold">
-                            {payment.patient?.firstName} {payment.patient?.lastName}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold">
+                              {payment.patient?.firstName} {payment.patient?.lastName}
+                            </p>
+                            {payment.billType && BILL_TYPE_CONFIG[payment.billType] && (
+                              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${BILL_TYPE_CONFIG[payment.billType].className}`}>
+                                {BILL_TYPE_CONFIG[payment.billType].label}
+                              </Badge>
+                            )}
+                          </div>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <Calendar className="h-3 w-3" />
                             <span>{format(new Date(payment.billDate), 'MMM dd, yyyy')}</span>
@@ -277,6 +293,12 @@ export default function FrontdeskBillingPage() {
                               <>
                                 <span>•</span>
                                 <span>{payment.appointment.time}</span>
+                              </>
+                            )}
+                            {payment.surgicalCase && (
+                              <>
+                                <span>•</span>
+                                <span className="text-purple-600">{payment.surgicalCase.procedureName || 'Surgery'}</span>
                               </>
                             )}
                             {hasBillItems && (
