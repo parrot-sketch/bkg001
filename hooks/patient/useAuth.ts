@@ -125,20 +125,25 @@ export function useAuth(): UseAuthReturn {
 
   /**
    * Logout function
+   *
+   * Optimistic: clears client state and redirects immediately.
+   * Server-side token revocation fires in the background (fire-and-forget).
+   * Access tokens are stateless JWT that expire in 15 min regardless;
+   * revoking refresh tokens is security hygiene, not a UX blocker.
    */
   const logout = useCallback(async () => {
-    try {
-      if (tokenStorage.isAuthenticated()) {
-        await authApi.logout();
-      }
-    } catch (error) {
-      // Log error but continue with logout
-      console.error('Logout API call failed:', error);
-    } finally {
-      tokenStorage.clear();
-      setUser(null);
-      router.push('/login');
+    // 1. Fire server-side revocation in background — don't block the UI.
+    //    The auth header is captured synchronously before tokenStorage.clear().
+    if (tokenStorage.isAuthenticated()) {
+      authApi.logout().catch((err) =>
+        console.error('[AUTH] Background token revocation failed:', err)
+      );
     }
+
+    // 2. Immediately clear client state and redirect
+    tokenStorage.clear();
+    setUser(null);
+    router.push('/login');
   }, [router]);
 
   /**
