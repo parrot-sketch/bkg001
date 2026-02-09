@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import db from '@/lib/db';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { authenticateRequest } from '@/lib/auth/jwt-helper';
 
-const prisma = new PrismaClient();
+const prisma = db;
 
 /**
  * POST /api/appointments/[id]/end-consultation

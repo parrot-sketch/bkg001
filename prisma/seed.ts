@@ -42,7 +42,8 @@ async function main() {
   const tableNames = [
     'Notification', 'AuditLog', 'Rating', 'PatientBill', 'Payment', 'Service',
     'LabTest', 'Diagnosis', 'VitalSign', 'MedicalRecord', 'CareNote', 'NurseAssignment',
-    'SurgicalStaff', 'SurgicalProcedureRecord', 'ConsentForm', 'PatientImage', 'CasePlan',
+    'ClinicalAuditEvent', 'SurgicalChecklist', 'SurgicalStaff', 'SurgicalProcedureRecord',
+    'TheaterBooking', 'SurgicalCase', 'ConsentForm', 'PatientImage', 'CasePlan',
     'ConsultationMessage', 'ConsultationAttachment', 'DoctorConsultation',
     'Consultation', 'Appointment', 'AvailabilitySlot', 'AvailabilityTemplate', 'ScheduleSession', 'ScheduleBlock',
     'AvailabilityOverride', 'AvailabilityBreak', 'SlotConfiguration', 'RefreshToken',
@@ -210,6 +211,26 @@ async function main() {
       address: 'Nairobi & Kapsabet, Kenya',
       clinicLocation: 'Nairobi & Kapsabet',
     },
+    {
+      // https://nairobisculpt.com/dr-john-paul-ogalo.html
+      title: 'Dr.',
+      firstName: 'John Paul',
+      lastName: 'Ogalo',
+      name: 'Dr. John Paul Ogalo',
+      email: 'ogalo@nairobisculpt.com',
+      phone: '+254759067388',
+      spec: 'Plastic, Reconstructive & Aesthetic Surgery',
+      color: '#F59E0B', // Amber - Senior surgeon distinction
+      slug: 'dr-john-paul-ogalo',
+      yearsOfExperience: 15,
+      bio: 'Dr. John Paul Ogalo is a distinguished plastic, reconstructive, and aesthetic surgeon with over a decade of expertise. As Consultant Plastic Surgeon at Nairobi Hospital and Head of Plastic Surgery since July 2021, he excels in body contouring, facial aesthetics, and reconstructive procedures. Renowned for pioneering Kenya\'s first Pygopagus separation surgery, he has enhanced over 1,000 lives with his gentle techniques and innovative technologies.',
+      education: 'Specialist in Plastic, Reconstructive and Aesthetic Surgery, Senior Fellow (since July 2020)',
+      focusAreas: 'Body Contouring (Liposuction, Abdominoplasty, BBL), Facial Aesthetics (Rhinoplasty, Facelifts, Blepharoplasty), Reconstructive Surgery (Post-Traumatic, Oncology, Breast Reconstruction), Cosmetic Injectables (Botox, Dermal Fillers)',
+      affiliations: 'Head of Plastic Surgery - Nairobi Hospital, Consultant Plastic Surgeon - Nairobi Hospital, Senior Fellow, Published in Science Publishing Group, Journal of Foot and Ankle Surgery, Journal of Plastic Reconstructive & Aesthetic Surgery, Trauma Case Reports',
+      licenseNumber: 'KMPDB-5201',
+      address: '4th Avenue Towers, 13th Floor, Fourth Ngong Ave, Nairobi',
+      clinicLocation: '4th Avenue Towers, 13th Floor',
+    },
   ];
 
   const doctors = [];
@@ -286,6 +307,19 @@ async function main() {
       role: Role.FRONTDESK,
       first_name: 'David',
       last_name: 'Omondi',
+    }
+  });
+
+  // --- Theater Technician ---
+  const theaterTechPassword = await hashPassword('theatertech123');
+  const theaterTechUser = await prisma.user.create({
+    data: {
+      id: uuid(),
+      email: 'theater@nairobisculpt.com',
+      password_hash: theaterTechPassword,
+      role: Role.THEATER_TECHNICIAN,
+      first_name: 'Samuel',
+      last_name: 'Kiprop',
     }
   });
 
@@ -610,17 +644,19 @@ async function main() {
   console.log('   - 3 Consent Templates');
   console.log('   - 5 Service Types');
   console.log('');
-  console.log('👨‍⚕️ Doctors (4):');
+  console.log('👨‍⚕️ Doctors (5):');
   console.log('   - Dr. Angela Muoki (angela@nairobisculpt.com)');
   console.log('   - Dr. Mukami Gathariki (mukami@nairobisculpt.com)');
   console.log('   - Dr. Dorsi Jowi (dorsi@nairobisculpt.com)');
   console.log('   - Dr. Ken Aluora (ken@nairobisculpt.com)');
+  console.log('   - Dr. John Paul Ogalo (ogalo@nairobisculpt.com)');
   console.log('   Password: doctor123');
   console.log('');
   console.log('👥 Staff:');
   console.log('   - Admin: admin@nairobisculpt.com (admin123)');
   console.log('   - Frontdesk: reception@nairobisculpt.com (frontdesk123)');
   console.log('   - Nurses: jane@nairobisculpt.com, lucy@nairobisculpt.com (nurse123)');
+  console.log('   - Theater Tech: theater@nairobisculpt.com (theatertech123)');
   console.log('');
   console.log('🧪 Test Patients (11): password123');
   console.log('   Millicent, Rhoda, Rita, Carl, Fiona, Uma,');

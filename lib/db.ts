@@ -31,15 +31,16 @@ const prismaClientSingleton = () => {
     // Logging configuration
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
     // LIMIT CONNECTION POOL:
-    // Append connection_limit=1 to the URL to prevent pool exhaustion in serverless/dev environments
-    // With Aiven Free Tier (15 connections), this allows up to 14 concurrent serverless functions.
-    // This overrides/appends to the env var without changing the .env file
-    datasources: {
+    // Aiven free tier has ~25 connection slots, with some reserved for superuser.
+    // In Vercel serverless, EACH cold-start creates its own process with its own pool.
+    // connection_limit=2 per process means ~10 concurrent serverless instances can run
+    // before hitting the DB limit (~20 usable slots).
+    // pool_timeout=10 ensures queries that can't get a connection fail fast.
+    datasources: isProduction ? {
       db: {
-        // Limit connection pool to 5 (approx 1/3 of DB limit of 15) to leave room for other processes
-        url: (process.env.DATABASE_URL || '') + (process.env.DATABASE_URL?.includes('?') ? '&' : '?') + 'connection_limit=5&pool_timeout=10',
+        url: (process.env.DATABASE_URL || '') + (process.env.DATABASE_URL?.includes('?') ? '&' : '?') + 'connection_limit=2&pool_timeout=10',
       },
-    },
+    } : undefined,
   });
 };
 
