@@ -159,14 +159,14 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      {/* Header - Fixed height to prevent layout shifts */}
-      <div className="text-center space-y-2" style={{ minHeight: '80px' }}>
-        <h1 className="text-3xl font-semibold text-slate-900 tracking-tight">
-          Sign In
+    <div className="space-y-7 animate-fade-in">
+      {/* Header */}
+      <div className="text-center space-y-2">
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+          Welcome Back
         </h1>
-        <p className="text-sm text-gray-600">
-          Access your account
+        <p className="text-sm text-slate-500 leading-relaxed">
+          Sign in to your account to continue
         </p>
       </div>
 
@@ -303,10 +303,10 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Submit Button - Fixed height to prevent layout shifts */}
+        {/* Submit Button */}
         <Button
           type="submit"
-          className="w-full h-11 bg-brand-primary hover:bg-brand-primary/90 text-white font-medium transition-colors shadow-sm hover:shadow focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2"
+          className="w-full h-11 bg-brand-primary hover:bg-brand-primary/90 text-white font-medium transition-all duration-300 shadow-md shadow-brand-primary/15 hover:shadow-lg hover:shadow-brand-primary/25 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2"
           disabled={isDisabled}
           aria-busy={isSubmitting}
         >
@@ -319,13 +319,13 @@ export default function LoginPage() {
         </Button>
       </form>
 
-      {/* Register Link - Fixed height to prevent layout shifts */}
-      <div className="text-center pt-4 border-t border-gray-200" style={{ minHeight: '60px' }}>
-        <p className="text-sm text-gray-600">
-          Don't have an account?{' '}
+      {/* Register Link */}
+      <div className="text-center pt-5 border-t border-gray-100">
+        <p className="text-sm text-slate-500">
+          Don&apos;t have an account?{' '}
           <Link
             href="/patient/register"
-            className="font-medium text-brand-primary hover:text-brand-primary/80 hover:underline transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-1 rounded"
+            className="font-semibold text-brand-primary hover:text-brand-primary/80 hover:underline transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-1 rounded"
           >
             Create account
           </Link>
@@ -336,7 +336,7 @@ export default function LoginPage() {
       <div className="text-center pt-2">
         <Link
           href="/"
-          className="text-xs text-gray-500 hover:text-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-1 rounded"
+          className="text-xs text-slate-400 hover:text-slate-600 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-1 rounded"
         >
           ← Back to homepage
         </Link>

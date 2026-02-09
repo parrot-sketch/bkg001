@@ -120,14 +120,14 @@ export default function PatientRegisterPage() {
   const isDisabled = isSubmitting;
 
   return (
-    <div className="space-y-8">
-      {/* Header - Clean Typography Hierarchy */}
+    <div className="space-y-7 animate-fade-in">
+      {/* Header */}
       <div className="text-center space-y-2">
-        <h1 className="text-3xl font-semibold text-slate-900 tracking-tight">
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
           Create Account
         </h1>
-        <p className="text-sm text-gray-600">
-          Start your journey with us
+        <p className="text-sm text-slate-500 leading-relaxed">
+          Begin your journey with Nairobi Sculpt
         </p>
       </div>
 
@@ -147,7 +147,7 @@ export default function PatientRegisterPage() {
               onChange={(e) => updateField('firstName', e.target.value)}
               required
               disabled={isDisabled}
-              className={`h-11 bg-transparent border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors ${
+              className={`h-11 bg-transparent border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 transition-colors ${
                 errors.firstName ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''
               }`}
               aria-invalid={!!errors.firstName}
@@ -172,7 +172,7 @@ export default function PatientRegisterPage() {
               onChange={(e) => updateField('lastName', e.target.value)}
               required
               disabled={isDisabled}
-              className={`h-11 bg-transparent border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors ${
+              className={`h-11 bg-transparent border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 transition-colors ${
                 errors.lastName ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''
               }`}
               aria-invalid={!!errors.lastName}
@@ -199,7 +199,7 @@ export default function PatientRegisterPage() {
             onChange={(e) => updateField('email', e.target.value)}
             required
             disabled={isDisabled}
-            className={`h-11 bg-transparent border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors ${
+            className={`h-11 bg-transparent border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 transition-colors ${
               errors.email ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''
             }`}
             aria-invalid={!!errors.email}
@@ -224,7 +224,7 @@ export default function PatientRegisterPage() {
             value={formData.phone}
             onChange={(e) => updateField('phone', e.target.value)}
             disabled={isDisabled}
-            className="h-11 bg-transparent border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors"
+            className="h-11 bg-transparent border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 transition-colors"
           />
         </div>
 
@@ -241,7 +241,7 @@ export default function PatientRegisterPage() {
             required
             disabled={isDisabled}
             minLength={8}
-            className={`h-11 bg-transparent border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors ${
+            className={`h-11 bg-transparent border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 transition-colors ${
               errors.password ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''
             }`}
             aria-invalid={!!errors.password}
@@ -268,7 +268,7 @@ export default function PatientRegisterPage() {
             required
             disabled={isDisabled}
             minLength={8}
-            className={`h-11 bg-transparent border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors ${
+            className={`h-11 bg-transparent border-gray-300 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 transition-colors ${
               errors.confirmPassword ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''
             }`}
             aria-invalid={!!errors.confirmPassword}
@@ -285,12 +285,13 @@ export default function PatientRegisterPage() {
         {/* Submit Button */}
         <Button
           type="submit"
-          className="w-full h-11 bg-teal-500 hover:bg-teal-600 text-white font-medium transition-colors shadow-sm hover:shadow mt-1"
+          className="w-full h-11 bg-brand-primary hover:bg-brand-primary/90 text-white font-medium transition-all duration-300 shadow-md shadow-brand-primary/15 hover:shadow-lg hover:shadow-brand-primary/25 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 mt-1"
           disabled={isDisabled}
+          aria-busy={isSubmitting}
         >
           {isSubmitting ? (
-            <span className="flex items-center justify-center">
-              <span className="mr-2 h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            <span className="flex items-center justify-center gap-2">
+              <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden="true" />
               Creating account...
             </span>
           ) : (
@@ -300,12 +301,12 @@ export default function PatientRegisterPage() {
       </form>
 
       {/* Login Link */}
-      <div className="text-center pt-4 border-t border-gray-200">
-        <p className="text-sm text-gray-600">
+      <div className="text-center pt-5 border-t border-gray-100">
+        <p className="text-sm text-slate-500">
           Already have an account?{' '}
           <Link
             href="/login"
-            className="font-medium text-teal-600 hover:text-teal-700 hover:underline transition-colors"
+            className="font-semibold text-brand-primary hover:text-brand-primary/80 hover:underline transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-1 rounded"
           >
             Sign in
           </Link>
@@ -316,7 +317,7 @@ export default function PatientRegisterPage() {
       <div className="text-center pt-2">
         <Link
           href="/"
-          className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+          className="text-xs text-slate-400 hover:text-slate-600 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-1 rounded"
         >
           ← Back to homepage
         </Link>
