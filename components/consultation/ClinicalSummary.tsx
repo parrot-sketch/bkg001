@@ -9,12 +9,11 @@
  * Clinical workstation design: information-dense, zero cognitive overhead.
  */
 
-import { FileText, User, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { FileText, User, AlertCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
-import { ConsultationReadinessIndicator, computeReadiness } from './ConsultationReadinessIndicator';
 
 interface ClinicalSummaryProps {
   patient: PatientResponseDto;
@@ -29,8 +28,6 @@ export function ClinicalSummary({
   photoCount = 0,
   compact = false,
 }: ClinicalSummaryProps) {
-  const readiness = computeReadiness(patient, appointment, photoCount);
-
   // Extract primary concern from appointment note or type
   const primaryConcern = appointment.note
     ? extractPrimaryConcern(appointment.note)
@@ -60,7 +57,6 @@ export function ClinicalSummary({
             </div>
           </div>
         )}
-        <ConsultationReadinessIndicator readiness={readiness} compact />
       </div>
     );
   }
@@ -113,10 +109,6 @@ export function ClinicalSummary({
           </div>
         )}
 
-        {/* Readiness Status */}
-        <div>
-          <ConsultationReadinessIndicator readiness={readiness} />
-        </div>
       </CardContent>
     </Card>
   );

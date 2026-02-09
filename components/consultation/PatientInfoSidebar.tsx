@@ -9,15 +9,13 @@
  * Clinical workstation design: minimal, information-dense, no clutter.
  */
 
-import { AlertTriangle, FileText, Calendar, Link as LinkIcon } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import type { PatientConsultationHistoryItemDto } from '@/application/dtos/PatientConsultationHistoryDto';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
-import { ConsultationReadinessIndicator, computeReadiness } from './ConsultationReadinessIndicator';
 import { ClinicalSummary } from './ClinicalSummary';
 
 interface PatientInfoSidebarProps {
@@ -25,9 +23,9 @@ interface PatientInfoSidebarProps {
   appointment?: AppointmentResponseDto | null;
   consultationHistory?: PatientConsultationHistoryItemDto[];
   photoCount?: number;
-  onViewFullProfile: () => void;
-  onViewCasePlans: () => void;
-  onViewPhotos: () => void;
+  onViewFullProfile?: () => void;
+  onViewCasePlans?: () => void;
+  onViewPhotos?: () => void;
 }
 
 export function PatientInfoSidebar({
@@ -35,18 +33,10 @@ export function PatientInfoSidebar({
   appointment,
   consultationHistory = [],
   photoCount = 0,
-  onViewFullProfile,
-  onViewCasePlans,
-  onViewPhotos,
 }: PatientInfoSidebarProps) {
   // Calculate age
   const age = patient.dateOfBirth
     ? Math.floor((new Date().getTime() - new Date(patient.dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
-    : null;
-
-  // Compute readiness if appointment provided
-  const readiness = appointment
-    ? computeReadiness(patient, appointment, photoCount)
     : null;
 
   return (
@@ -154,46 +144,6 @@ export function PatientInfoSidebar({
         </Card>
       )}
 
-      {/* Readiness Indicator - Always visible when available */}
-      {readiness && (
-        <ConsultationReadinessIndicator readiness={readiness} />
-      )}
-
-      {/* Quick Links Card */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold">Quick Links</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-1.5">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start text-xs h-8"
-            onClick={onViewFullProfile}
-          >
-            <FileText className="h-3.5 w-3.5 mr-2" />
-            Full Profile
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start text-xs h-8"
-            onClick={onViewCasePlans}
-          >
-            <Calendar className="h-3.5 w-3.5 mr-2" />
-            Case Plans
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start text-xs h-8"
-            onClick={onViewPhotos}
-          >
-            <LinkIcon className="h-3.5 w-3.5 mr-2" />
-            Before/After Photos
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   );
 }
