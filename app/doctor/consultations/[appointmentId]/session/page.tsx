@@ -155,7 +155,6 @@ function ConsultationSessionContent() {
     closeCompleteDialog,
     completeConsultation,
     switchToPatient,
-    goToSurgeryPlanning,
   } = useConsultationContext();
   
   const { 
@@ -231,9 +230,6 @@ function ConsultationSessionContent() {
                 appointment={appointment}
                 consultationHistory={[]}
                 photoCount={consultation?.photoCount || 0}
-                onViewFullProfile={() => {/* TODO */}}
-                onViewCasePlans={goToSurgeryPlanning}
-                onViewPhotos={() => {/* TODO */}}
               />
             </div>
           </div>
