@@ -96,6 +96,21 @@ export interface JWTToken {
    * Access token expiration time (in seconds or Date)
    */
   readonly expiresIn: number; // seconds
+
+  /**
+   * Optional: the authenticated user's info, provided by the auth service
+   * to avoid a redundant DB lookup after login.
+   *
+   * If present, consumers (e.g. LoginUseCase) can use this directly
+   * instead of re-fetching the user from the database.
+   */
+  readonly authenticatedUser?: {
+    readonly id: string;
+    readonly email: string;
+    readonly role: string;
+    readonly firstName?: string;
+    readonly lastName?: string;
+  };
 }
 
 /**

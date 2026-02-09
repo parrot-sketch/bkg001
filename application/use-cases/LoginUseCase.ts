@@ -49,29 +49,45 @@ export class LoginUseCase {
     const email = Email.create(dto.email);
 
     // 2. Authenticate user (throws DomainException if invalid)
+    //    JwtAuthService.login() already fetches the user internally,
+    //    and returns `authenticatedUser` alongside the tokens so we
+    //    don't need a redundant findByEmail here.
     const tokens = await this.authService.login(email, dto.password);
 
-    // 3. Get user information
-    const user = await this.userRepository.findByEmail(email);
+    // 3. Resolve user info — prefer the inline authenticatedUser to
+    //    avoid a duplicate SELECT.  Fall back to a DB lookup only if
+    //    the auth service implementation doesn't provide it.
+    let userInfo: { id: string; email: string; role: string; firstName?: string; lastName?: string };
 
-    if (!user) {
-      // This should never happen after successful login, but handle it anyway
-      throw new DomainException('User not found after authentication', {
-        email: email.getValue(),
-      });
+    if (tokens.authenticatedUser) {
+      userInfo = tokens.authenticatedUser;
+    } else {
+      const user = await this.userRepository.findByEmail(email);
+      if (!user) {
+        throw new DomainException('User not found after authentication', {
+          email: email.getValue(),
+        });
+      }
+      userInfo = {
+        id: user.getId(),
+        email: user.getEmail().getValue(),
+        role: user.getRole(),
+        firstName: user.getFirstName(),
+        lastName: user.getLastName(),
+      };
     }
 
-    // 4. Record audit event
+    // 4. Record audit event (console-only — no DB round-trip)
     await this.auditService.recordEvent({
-      userId: user.getId(),
-      recordId: user.getId(),
+      userId: userInfo.id,
+      recordId: userInfo.id,
       action: 'LOGIN',
       model: 'User',
-      details: `User ${user.getEmail().getValue()} logged in successfully`,
+      details: `User ${userInfo.email} logged in successfully`,
     });
 
     // 5. Opportunistic cleanup of expired/revoked refresh tokens (fire-and-forget)
-    // Keeps the RefreshToken table from growing unboundedly
+    //    Keeps the RefreshToken table from growing unboundedly.
     if ('cleanupExpiredTokens' in this.authService) {
       (this.authService as any).cleanupExpiredTokens().catch(() => {
         // Swallow errors — cleanup is best-effort and must not block login
@@ -83,13 +99,7 @@ export class LoginUseCase {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       expiresIn: tokens.expiresIn,
-      user: {
-        id: user.getId(),
-        email: user.getEmail().getValue(),
-        role: user.getRole(),
-        firstName: user.getFirstName(),
-        lastName: user.getLastName(),
-      },
+      user: userInfo,
     };
   }
 }

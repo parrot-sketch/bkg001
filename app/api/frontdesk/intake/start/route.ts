@@ -3,6 +3,10 @@ import { db } from '@/lib/db';
 import { StartPatientIntakeUseCase } from '@/application/use-cases/StartPatientIntakeUseCase';
 import { PrismaIntakeSessionRepository } from '@/infrastructure/repositories/IntakeSessionRepository';
 
+// Module-level singleton — shared across requests
+const sessionRepository = new PrismaIntakeSessionRepository(db);
+const startIntakeUseCase = new StartPatientIntakeUseCase(sessionRepository);
+
 /**
  * POST /api/frontdesk/intake/start
  *
@@ -27,10 +31,7 @@ export async function POST(request: NextRequest) {
     // TODO: Add authentication check
     // TODO: Add role check (FRONTDESK only)
 
-    const repository = new PrismaIntakeSessionRepository(db);
-    const useCase = new StartPatientIntakeUseCase(repository);
-
-    const result = await useCase.execute();
+    const result = await startIntakeUseCase.execute();
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {

@@ -20,21 +20,33 @@ import { PrismaClient } from '@prisma/client';
 
 export class JwtMiddleware {
   constructor(private readonly authService: IAuthService) {}
-  
+
   /**
-   * Static helper to create auth service instance
-   * Used internally by static authenticate method
+   * Cached singleton for the static authenticate() path.
+   * Avoids recreating JwtAuthService + PrismaUserRepository on every request
+   * (~70 API routes call this per request).
    */
-  private static createAuthService(prisma: PrismaClient): IAuthService {
-    const userRepository = new PrismaUserRepository(prisma);
+  private static cachedMiddleware: JwtMiddleware | null = null;
+  private static cachedDb: PrismaClient | null = null;
+
+  private static getOrCreateMiddleware(db: PrismaClient): JwtMiddleware {
+    // Reuse if the PrismaClient instance hasn't changed (it shouldn't — singleton)
+    if (this.cachedMiddleware && this.cachedDb === db) {
+      return this.cachedMiddleware;
+    }
+
+    const userRepository = new PrismaUserRepository(db);
     const authConfig = {
       jwtSecret: process.env.JWT_SECRET || 'dev-secret-change-in-production',
       jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret-change-in-production',
-      accessTokenExpiresIn: 15 * 60, // 15 minutes
-      refreshTokenExpiresIn: 7 * 24 * 60 * 60, // 7 days
+      accessTokenExpiresIn: 15 * 60,
+      refreshTokenExpiresIn: 7 * 24 * 60 * 60,
       saltRounds: 10,
     };
-    return new JwtAuthService(userRepository, prisma, authConfig);
+    const authService = new JwtAuthService(userRepository, db, authConfig);
+    this.cachedMiddleware = new JwtMiddleware(authService);
+    this.cachedDb = db;
+    return this.cachedMiddleware;
   }
   
   /**
@@ -70,9 +82,8 @@ export class JwtMiddleware {
         };
       }
       
-      // Create auth service and middleware instance
-      const authService = this.createAuthService(db);
-      const middleware = new JwtMiddleware(authService);
+      // Reuse cached middleware (no allocation per request)
+      const middleware = this.getOrCreateMiddleware(db);
       
       // Authenticate using instance method
       const user = await middleware.authenticate(authorizationHeader);

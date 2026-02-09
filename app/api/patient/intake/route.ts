@@ -5,6 +5,14 @@ import { SubmitPatientIntakeUseCase } from '@/application/use-cases/SubmitPatien
 import { PrismaIntakeSessionRepository } from '@/infrastructure/repositories/IntakeSessionRepository';
 import { PrismaIntakeSubmissionRepository } from '@/infrastructure/repositories/IntakeSubmissionRepository';
 
+// Initialize repositories at module level (singleton — shared across requests)
+const sessionRepository = new PrismaIntakeSessionRepository(db);
+const submissionRepository = new PrismaIntakeSubmissionRepository(db);
+const submitIntakeUseCase = new SubmitPatientIntakeUseCase(
+  sessionRepository,
+  submissionRepository,
+);
+
 /**
  * POST /api/patient/intake
  *
@@ -74,14 +82,6 @@ export async function POST(request: NextRequest) {
 
     const userAgent = request.headers.get('user-agent') || undefined;
 
-    // Initialize repositories and use case
-    const sessionRepository = new PrismaIntakeSessionRepository(db);
-    const submissionRepository = new PrismaIntakeSubmissionRepository(db);
-    const useCase = new SubmitPatientIntakeUseCase(
-      sessionRepository,
-      submissionRepository,
-    );
-
     // Clean validated data: convert empty strings to undefined for optional fields
     // This is necessary because Zod allows empty strings via .or(z.literal(""))
     // but the use case expects undefined instead
@@ -118,8 +118,8 @@ export async function POST(request: NextRequest) {
       userAgent,
     };
 
-    // Execute use case
-    const result = await useCase.execute(requestPayload);
+    // Execute use case (module-level singleton)
+    const result = await submitIntakeUseCase.execute(requestPayload);
 
     return NextResponse.json(result, { status: 201 });
   } catch (error) {

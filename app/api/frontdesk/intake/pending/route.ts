@@ -3,6 +3,9 @@ import { db } from '@/lib/db';
 import { PrismaIntakeSubmissionRepository } from '@/infrastructure/repositories/IntakeSubmissionRepository';
 import { IntakeSubmissionMapper } from '@/infrastructure/mappers/IntakeSubmissionMapper';
 
+// Module-level singleton — shared across requests
+const submissionRepository = new PrismaIntakeSubmissionRepository(db);
+
 /**
  * GET /api/frontdesk/intake/pending
  *
@@ -53,11 +56,9 @@ export async function GET(request: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0', 10);
     const status = searchParams.get('status') || undefined;
 
-    const repository = new PrismaIntakeSubmissionRepository(db);
-
     // Get pending submissions (using provided limit/offset)
-    const submissions = await repository.findPending(limit, offset);
-    const total = await repository.countPending();
+    const submissions = await submissionRepository.findPending(limit, offset);
+    const total = await submissionRepository.countPending();
 
     // Map to DTOs
     const intakes = submissions.map((submission) => {
