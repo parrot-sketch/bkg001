@@ -59,8 +59,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             }
             : {};
 
-        // 5. Execute DB Queries (Parallel Count + Data)
-        const [totalRecords, prismaPatients] = await Promise.all([
+        // 5. Execute DB Queries (Parallel Count + Data + Stats)
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        const [totalRecords, prismaPatients, newToday, newThisMonth] = await Promise.all([
             db.patient.count({ where: whereClause }),
             db.patient.findMany({
                 where: whereClause,
@@ -109,6 +113,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                     },
                 },
             }),
+            // Stats: new patients registered today
+            db.patient.count({ where: { created_at: { gte: startOfToday } } }),
+            // Stats: new patients registered this month
+            db.patient.count({ where: { created_at: { gte: startOfMonth } } }),
         ]);
 
         // 6. Map to DTOs
@@ -156,6 +164,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                 totalPages,
                 currentPage: page,
                 limit,
+                newToday,
+                newThisMonth,
             },
         });
 
