@@ -4,16 +4,16 @@
  * Doctor Profile View Component
  * 
  * Premium profile page for doctors. Shows identity hero, professional
- * credentials, weekly schedule, and activity snapshot.
+ * credentials, and quick navigation links.
  * 
- * Receives server-fetched data via props (no client-side data fetching).
+ * Schedule and appointment data live on their dedicated pages
+ * (Dashboard, Availability) — this page focuses purely on identity.
  */
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
     Edit,
     Settings,
@@ -31,20 +31,15 @@ import {
     Users,
     Stethoscope,
     ChevronRight,
-    ExternalLink,
     Shield,
-    ArrowRight,
     Briefcase,
     Hash,
-    Camera,
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { format } from 'date-fns';
 import { EditDoctorProfileSheet } from '@/components/doctor/EditDoctorProfileSheet';
 import { useInvalidateDoctorProfile } from '@/hooks/doctor/useDoctorProfile';
 import { AccountSettingsSheet } from '@/components/settings/AccountSettingsSheet';
-import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 
 // ============================================================================
 // TYPES
@@ -52,10 +47,6 @@ import type { AppointmentResponseDto } from '@/application/dtos/AppointmentRespo
 
 interface DoctorProfileViewProps {
     doctorData: any;
-    availability: any;
-    appointments: any[];
-    todayAppointments: any[];
-    upcomingAppointments: any[];
 }
 
 // ============================================================================
@@ -64,10 +55,6 @@ interface DoctorProfileViewProps {
 
 export function DoctorProfileView({
     doctorData,
-    availability,
-    appointments = [],
-    todayAppointments = [],
-    upcomingAppointments = []
 }: DoctorProfileViewProps) {
     const [showEditDialog, setShowEditDialog] = useState(false);
     const [showAccountSettings, setShowAccountSettings] = useState(false);
@@ -100,15 +87,6 @@ export function DoctorProfileView({
         .join('')
         .toUpperCase()
         .slice(0, 2) ?? '';
-
-    const workingDays = doctor.workingDays || [];
-    const availabilityDays = availability?.workingDays || [];
-
-    // Stats
-    const todayCount = todayAppointments.length;
-    const upcomingCount = upcomingAppointments.length;
-    const totalAppointments = appointments.length;
-    const workingDaysCount = availabilityDays.filter((d: any) => d.isAvailable).length;
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -218,22 +196,26 @@ export function DoctorProfileView({
                                 )}
                             </div>
 
-                            {/* Stat Chips */}
+                            {/* Profile Chips */}
                             <div className="flex items-center gap-3 mt-5 flex-wrap">
-                                {[
-                                    { label: 'Today', value: todayCount, color: 'bg-blue-500/20 text-blue-300 border-blue-400/30' },
-                                    { label: 'Upcoming', value: upcomingCount, color: 'bg-amber-500/20 text-amber-300 border-amber-400/30' },
-                                    { label: 'Total Appts', value: totalAppointments, color: 'bg-white/10 text-white/80 border-white/20' },
-                                    { label: 'Working Days', value: `${workingDaysCount}/7`, color: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30' },
-                                ].map((stat) => (
-                                    <div
-                                        key={stat.label}
-                                        className={`px-3 py-1.5 rounded-lg border text-xs font-medium ${stat.color}`}
-                                    >
-                                        <span className="font-bold text-sm mr-1">{stat.value}</span>
-                                        {stat.label}
+                                {doctor.yearsOfExperience && (
+                                    <div className="px-3 py-1.5 rounded-lg border text-xs font-medium bg-white/10 text-white/80 border-white/20">
+                                        <span className="font-bold text-sm mr-1">{doctor.yearsOfExperience}</span>
+                                        Years Experience
                                     </div>
-                                ))}
+                                )}
+                                {doctor.languages && (
+                                    <div className="px-3 py-1.5 rounded-lg border text-xs font-medium bg-indigo-500/20 text-indigo-300 border-indigo-400/30">
+                                        <Globe className="inline h-3 w-3 mr-1" />
+                                        {doctor.languages}
+                                    </div>
+                                )}
+                                {doctor.consultationFee != null && doctor.consultationFee > 0 && (
+                                    <div className="px-3 py-1.5 rounded-lg border text-xs font-medium bg-emerald-500/20 text-emerald-300 border-emerald-400/30">
+                                        <span className="font-bold text-sm mr-1">KSh {doctor.consultationFee.toLocaleString()}</span>
+                                        Consultation
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -398,116 +380,6 @@ export function DoctorProfileView({
                 </div>
             )}
 
-            {/* ================================================================ */}
-            {/* SCHEDULE OVERVIEW — Weekly Availability                           */}
-            {/* ================================================================ */}
-            <Card className="border-slate-200">
-                <CardHeader className="pb-4">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <CardTitle className="text-base flex items-center gap-2">
-                                <Calendar className="h-4 w-4 text-slate-400" />
-                                Weekly Schedule
-                            </CardTitle>
-                            <p className="text-sm text-muted-foreground mt-1">Your availability and appointment load</p>
-                        </div>
-                        <Link href="/doctor/schedule">
-                            <Button variant="outline" size="sm" className="text-xs">
-                                <Settings className="h-3.5 w-3.5 mr-1.5" />
-                                Manage
-                            </Button>
-                        </Link>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <WeeklyScheduleStrip
-                        availabilityDays={availabilityDays}
-                        appointments={appointments}
-                    />
-                </CardContent>
-            </Card>
-
-            {/* ================================================================ */}
-            {/* ACTIVITY SNAPSHOT — Today + Upcoming                              */}
-            {/* ================================================================ */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Today */}
-                <Card className="border-slate-200">
-                    <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                            <CardTitle className="text-base flex items-center gap-2">
-                                <div className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
-                                Today&apos;s Appointments
-                            </CardTitle>
-                            <Badge variant="outline" className="text-xs">{todayCount}</Badge>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        {todayAppointments.length > 0 ? (
-                            <div className="space-y-2">
-                                {todayAppointments.slice(0, 4).map((apt: AppointmentResponseDto) => (
-                                    <AppointmentMiniCard key={apt.id} appointment={apt} />
-                                ))}
-                                {todayAppointments.length > 4 && (
-                                    <p className="text-xs text-center text-slate-400 pt-1">
-                                        +{todayAppointments.length - 4} more
-                                    </p>
-                                )}
-                            </div>
-                        ) : (
-                            <div className="flex flex-col items-center justify-center py-8 text-center">
-                                <Calendar className="h-8 w-8 text-slate-300 mb-2" />
-                                <p className="text-sm text-slate-400">No appointments today</p>
-                            </div>
-                        )}
-                        <Link href="/doctor/appointments" className="block mt-4">
-                            <Button variant="ghost" size="sm" className="w-full text-xs text-slate-500 hover:text-slate-900">
-                                View All Appointments
-                                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-                            </Button>
-                        </Link>
-                    </CardContent>
-                </Card>
-
-                {/* Upcoming */}
-                <Card className="border-slate-200">
-                    <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                            <CardTitle className="text-base flex items-center gap-2">
-                                <Clock className="h-4 w-4 text-slate-400" />
-                                Upcoming (Next 7 Days)
-                            </CardTitle>
-                            <Badge variant="outline" className="text-xs">{upcomingCount}</Badge>
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        {upcomingAppointments.length > 0 ? (
-                            <div className="space-y-2">
-                                {upcomingAppointments.slice(0, 4).map((apt: AppointmentResponseDto) => (
-                                    <AppointmentMiniCard key={apt.id} appointment={apt} showDate />
-                                ))}
-                                {upcomingAppointments.length > 4 && (
-                                    <p className="text-xs text-center text-slate-400 pt-1">
-                                        +{upcomingAppointments.length - 4} more
-                                    </p>
-                                )}
-                            </div>
-                        ) : (
-                            <div className="flex flex-col items-center justify-center py-8 text-center">
-                                <Clock className="h-8 w-8 text-slate-300 mb-2" />
-                                <p className="text-sm text-slate-400">No upcoming appointments</p>
-                            </div>
-                        )}
-                        <Link href="/doctor/appointments" className="block mt-4">
-                            <Button variant="ghost" size="sm" className="w-full text-xs text-slate-500 hover:text-slate-900">
-                                View All Appointments
-                                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-                            </Button>
-                        </Link>
-                    </CardContent>
-                </Card>
-            </div>
-
             {/* Edit Profile Sheet */}
             {currentDoctorData && (
                 <EditDoctorProfileSheet
@@ -528,158 +400,3 @@ export function DoctorProfileView({
     );
 }
 
-// ============================================================================
-// INLINE SUB-COMPONENTS
-// ============================================================================
-
-const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const DAY_ABBREV = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-function WeeklyScheduleStrip({
-    availabilityDays,
-    appointments,
-}: {
-    availabilityDays: any[];
-    appointments: AppointmentResponseDto[];
-}) {
-    const getWorkingDayInfo = (dayName: string) => {
-        return availabilityDays.find((wd: any) => {
-            const wdDay = wd.day || wd.day_of_week;
-            return wdDay?.toLowerCase() === dayName.toLowerCase();
-        });
-    };
-
-    const getAppointmentsForDay = (dayName: string) => {
-        const today = new Date();
-        const dayIndex = DAYS_OF_WEEK.indexOf(dayName);
-        if (dayIndex === -1) return 0;
-        const jsDay = (dayIndex + 1) % 7; // Monday=1 ... Sunday=0
-        const daysUntil = (jsDay - today.getDay() + 7) % 7 || 7;
-        const targetDate = new Date(today);
-        targetDate.setDate(today.getDate() + daysUntil);
-        const dateStr = format(targetDate, 'yyyy-MM-dd');
-        return appointments.filter((apt) => format(new Date(apt.appointmentDate), 'yyyy-MM-dd') === dateStr).length;
-    };
-
-    return (
-        <div className="space-y-4">
-            <div className="grid grid-cols-7 gap-2">
-                {DAYS_OF_WEEK.map((dayName, index) => {
-                    const wd = getWorkingDayInfo(dayName);
-                    const isAvailable = wd?.isAvailable ?? false;
-                    const aptCount = getAppointmentsForDay(dayName);
-                    const startTime = wd?.startTime || wd?.start_time;
-                    const endTime = wd?.endTime || wd?.end_time;
-
-                    return (
-                        <div
-                            key={dayName}
-                            className={`relative rounded-xl p-3 text-center border transition-colors ${
-                                isAvailable
-                                    ? 'bg-emerald-50 border-emerald-200'
-                                    : 'bg-slate-50 border-slate-100'
-                            }`}
-                        >
-                            <p className={`text-xs font-bold uppercase tracking-wider mb-1.5 ${
-                                isAvailable ? 'text-emerald-700' : 'text-slate-400'
-                            }`}>
-                                {DAY_ABBREV[index]}
-                            </p>
-                            {isAvailable && startTime && endTime ? (
-                                <>
-                                    <p className="text-[10px] text-emerald-600 font-medium">
-                                        {startTime}–{endTime}
-                                    </p>
-                                    <div className="mt-2 pt-2 border-t border-emerald-100">
-                                        <p className="text-lg font-bold text-emerald-800 leading-none">{aptCount}</p>
-                                        <p className="text-[10px] text-emerald-500 mt-0.5">appts</p>
-                                    </div>
-                                </>
-                            ) : (
-                                <p className="text-[10px] text-slate-400 mt-1">Off</p>
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
-
-            {/* Legend */}
-            <div className="flex items-center justify-between text-xs text-slate-400">
-                <div className="flex items-center gap-4">
-                    <span className="flex items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 rounded bg-emerald-200" />
-                        Available
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 rounded bg-slate-200" />
-                        Off
-                    </span>
-                </div>
-                <span>{totalAvailableDays(availabilityDays)} days/week · {appointments.length} total appointments</span>
-            </div>
-        </div>
-    );
-}
-
-function totalAvailableDays(days: any[]): number {
-    return days.filter((d: any) => d.isAvailable).length;
-}
-
-function AppointmentMiniCard({
-    appointment,
-    showDate = false,
-}: {
-    appointment: AppointmentResponseDto;
-    showDate?: boolean;
-}) {
-    const statusConfig = getStatusConfig(appointment.status);
-    const patientName = appointment.patient
-        ? `${appointment.patient.firstName} ${appointment.patient.lastName}`
-        : `Patient`;
-
-    return (
-        <Link href={`/doctor/appointments/${appointment.id}`}>
-            <div className="flex items-center gap-3 p-3 rounded-lg border border-slate-100 bg-white hover:bg-slate-50 hover:border-slate-200 transition-all cursor-pointer group">
-                {/* Time */}
-                <div className="flex-shrink-0 text-center min-w-[52px]">
-                    <p className="text-sm font-bold text-slate-900 leading-none">{appointment.time}</p>
-                    {showDate && (
-                        <p className="text-[10px] text-slate-400 mt-0.5">
-                            {format(new Date(appointment.appointmentDate), 'MMM d')}
-                        </p>
-                    )}
-                </div>
-
-                {/* Dot */}
-                <div className={`w-1 h-8 rounded-full flex-shrink-0 ${statusConfig.dot}`} />
-
-                {/* Patient + Type */}
-                <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-800 truncate">{patientName}</p>
-                    <p className="text-xs text-slate-400 truncate">{appointment.type}</p>
-                </div>
-
-                {/* Status */}
-                <Badge variant="outline" className={`text-[10px] font-semibold flex-shrink-0 ${statusConfig.color} ${statusConfig.bg} border`}>
-                    {statusConfig.label}
-                </Badge>
-            </div>
-        </Link>
-    );
-}
-
-function getStatusConfig(status: string) {
-    const configs: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-        PENDING: { label: 'Pending', color: 'text-amber-700', bg: 'bg-amber-50', dot: 'bg-amber-400' },
-        PENDING_DOCTOR_CONFIRMATION: { label: 'Awaiting', color: 'text-orange-700', bg: 'bg-orange-50', dot: 'bg-orange-400' },
-        CONFIRMED: { label: 'Confirmed', color: 'text-blue-700', bg: 'bg-blue-50', dot: 'bg-blue-400' },
-        SCHEDULED: { label: 'Scheduled', color: 'text-blue-700', bg: 'bg-blue-50', dot: 'bg-blue-400' },
-        CHECKED_IN: { label: 'Checked In', color: 'text-emerald-700', bg: 'bg-emerald-50', dot: 'bg-emerald-400' },
-        READY_FOR_CONSULTATION: { label: 'Ready', color: 'text-emerald-700', bg: 'bg-emerald-50', dot: 'bg-emerald-500' },
-        IN_CONSULTATION: { label: 'In Consult', color: 'text-violet-700', bg: 'bg-violet-50', dot: 'bg-violet-500' },
-        COMPLETED: { label: 'Done', color: 'text-slate-500', bg: 'bg-slate-50', dot: 'bg-slate-300' },
-        CANCELLED: { label: 'Cancelled', color: 'text-red-600', bg: 'bg-red-50', dot: 'bg-red-400' },
-        NO_SHOW: { label: 'No Show', color: 'text-red-600', bg: 'bg-red-50', dot: 'bg-red-400' },
-    };
-    return configs[status] || { label: status, color: 'text-slate-500', bg: 'bg-slate-50', dot: 'bg-slate-300' };
-}
