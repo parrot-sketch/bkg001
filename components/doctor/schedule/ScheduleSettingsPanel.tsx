@@ -1,32 +1,21 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
-import { useAuth } from '@/hooks/patient/useAuth';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Save, Undo, Clock, Briefcase, Stethoscope, Scissors, Sun, Moon, Sunset, Star, CalendarDays, Info } from 'lucide-react';
 import { updateAvailability } from '@/app/actions/schedule';
-import { Calendar, dateFnsLocalizer, Views } from 'react-big-calendar';
-import { format, parse, startOfWeek, getDay } from 'date-fns';
-import { enUS } from 'date-fns/locale';
+import { Calendar, Views } from 'react-big-calendar';
+import { format } from 'date-fns';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import { SlotEditorDialog, SlotData } from './SlotEditorDialog';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import '@/styles/schedule-calendar.css';
 import { cn } from '@/lib/utils';
-
-// ── Localizer ──
-const locales = { 'en-US': enUS };
-const localizer = dateFnsLocalizer({
-    format,
-    parse,
-    startOfWeek,
-    getDay,
-    locales,
-});
+import { calendarLocalizer } from '@/lib/calendar';
 
 const DnDCalendar = withDragAndDrop<AvailabilitySlot>(Calendar);
 
@@ -52,10 +41,10 @@ interface AvailabilitySlot {
 
 interface ScheduleSettingsPanelProps {
     initialWorkingDays?: { dayOfWeek: number; startTime: string; endTime: string; type?: string }[];
+    userId: string;
 }
 
-export function ScheduleSettingsPanel({ initialWorkingDays = [] }: ScheduleSettingsPanelProps) {
-    const { user } = useAuth();
+export function ScheduleSettingsPanel({ initialWorkingDays = [], userId }: ScheduleSettingsPanelProps) {
     const [saving, setSaving] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
 
@@ -139,8 +128,6 @@ export function ScheduleSettingsPanel({ initialWorkingDays = [] }: ScheduleSetti
 
     // Save to server
     const handleSave = async () => {
-        if (!user) return;
-
         try {
             setSaving(true);
 
@@ -152,7 +139,7 @@ export function ScheduleSettingsPanel({ initialWorkingDays = [] }: ScheduleSetti
             }));
 
             const result = await updateAvailability({
-                doctorId: user.id,
+                doctorId: userId,
                 templateName: 'Standard Week',
                 slots
             });
@@ -315,7 +302,7 @@ export function ScheduleSettingsPanel({ initialWorkingDays = [] }: ScheduleSetti
                     <CardContent className="p-0 min-h-[520px] relative">
                         <div className="schedule-template-calendar h-[520px]">
                             <DnDCalendar
-                                localizer={localizer}
+                                localizer={calendarLocalizer}
                                 events={events}
                                 defaultView={Views.WEEK}
                                 views={[Views.WEEK]}

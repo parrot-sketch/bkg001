@@ -42,23 +42,57 @@ const UpdateAvailabilitySchema = z.object({
 export async function getDoctorSchedule(userId: string, start: Date, end: Date) {
     // RESOLVE DOCTOR ID (since input is likely User ID)
     const doctor = await db.doctor.findUnique({ where: { user_id: userId } });
-    const doctorId = doctor ? doctor.id : userId; // Fallback if already doctor ID, or if specific query needed
+    const doctorId = doctor ? doctor.id : userId;
 
-    // 1. Fetch Availability (New Enterprise Schema)
-    // Find active template, or default to first created if none active (fallback)
-    const activeTemplate = await db.availabilityTemplate.findFirst({
-        where: { doctor_id: doctorId, is_active: true },
-        include: { slots: true }
-    });
-
-    // If no active template, try to find ANY template
-    let template = activeTemplate;
-    if (!template) {
-        template = await db.availabilityTemplate.findFirst({
+    // ── Run all independent queries in parallel (was sequential waterfall) ──
+    const [template, overrides, blocks, appointments] = await Promise.all([
+        // 1. Availability template (active first, then any)
+        db.availabilityTemplate.findFirst({
+            where: { doctor_id: doctorId, is_active: true },
+            include: { slots: true },
+        }).then(active => active ?? db.availabilityTemplate.findFirst({
             where: { doctor_id: doctorId },
-            include: { slots: true }
-        });
-    }
+            include: { slots: true },
+        })),
+
+        // 2. Overrides
+        db.availabilityOverride.findMany({
+            where: {
+                doctor_id: doctorId,
+                start_date: { lte: end },
+                end_date: { gte: start },
+            },
+        }),
+
+        // 3. Blocks
+        db.scheduleBlock.findMany({
+            where: {
+                doctor_id: doctorId,
+                start_date: { lte: end },
+                end_date: { gte: start },
+            },
+        }),
+
+        // 4. Appointments (30 days)
+        db.appointment.findMany({
+            where: {
+                doctor_id: doctorId,
+                scheduled_at: { gte: start, lte: end },
+                status: { notIn: [AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW] },
+            },
+            select: {
+                id: true,
+                patient_id: true,
+                patient: { select: { first_name: true, last_name: true } },
+                scheduled_at: true,
+                duration_minutes: true,
+                status: true,
+                type: true,
+                version: true,
+                locked_at: true,
+            },
+        }),
+    ]);
 
     const workingDays = template ? template.slots.map(slot => ({
         dayOfWeek: slot.day_of_week,
@@ -67,61 +101,7 @@ export async function getDoctorSchedule(userId: string, start: Date, end: Date) 
         type: slot.slot_type,
     })) : [];
 
-
-    // 2. Fetch Exceptions (Overrides)
-    const overrides = await db.availabilityOverride.findMany({
-        where: {
-            doctor_id: doctorId,
-            start_date: { lte: end },
-            end_date: { gte: start },
-        },
-    });
-
-    // 3. Fetch Blocks (Hard Constraints)
-    const blocks = await db.scheduleBlock.findMany({
-        where: {
-            doctor_id: doctorId,
-            start_date: { lte: end },
-            end_date: { gte: start },
-        },
-    });
-
-    // 4. Fetch Appointments (Bookings)
-    const appointments = await db.appointment.findMany({
-        where: {
-            doctor_id: doctorId,
-            scheduled_at: {
-                gte: start,
-                lte: end,
-            },
-            status: {
-                notIn: [AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW],
-            },
-        },
-        select: {
-            id: true,
-            patient_id: true,
-            patient: {
-                select: {
-                    first_name: true,
-                    last_name: true,
-                }
-            },
-            scheduled_at: true,
-            duration_minutes: true,
-            status: true,
-            type: true,
-            version: true, // Critical for optimistic UI
-            locked_at: true,
-        },
-    });
-
-    return {
-        workingDays,
-        overrides,
-        blocks,
-        appointments,
-    };
+    return { workingDays, overrides, blocks, appointments };
 }
 
 export async function moveAppointment(data: z.infer<typeof MoveAppointmentSchema>) {

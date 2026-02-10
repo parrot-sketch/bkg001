@@ -1,14 +1,29 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar as CalendarIcon, Settings2, RefreshCw } from 'lucide-react';
+import { Calendar as CalendarIcon, Settings2, RefreshCw, Loader2 } from 'lucide-react';
 import { ScheduleCalendarView } from '@/components/doctor/schedule/ScheduleCalendarView';
-import { ScheduleSettingsPanel } from '@/components/doctor/schedule/ScheduleSettingsPanel';
 import { getDoctorSchedule } from '@/app/actions/schedule';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+
+// Lazy-load the settings panel — it bundles its own react-big-calendar
+// instance, so we only pay for that JS when the doctor opens the tab.
+const ScheduleSettingsPanel = dynamic(
+    () => import('@/components/doctor/schedule/ScheduleSettingsPanel').then(m => ({ default: m.ScheduleSettingsPanel })),
+    {
+        ssr: false,
+        loading: () => (
+            <div className="flex items-center justify-center py-24 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                <span className="text-sm">Loading schedule editor…</span>
+            </div>
+        ),
+    },
+);
 
 interface ScheduleTabsProps {
     initialSchedule: any;
@@ -95,7 +110,10 @@ export function ScheduleTabs({ initialSchedule, currentUser }: ScheduleTabsProps
             </TabsContent>
 
             <TabsContent value="settings" className="mt-0">
-                <ScheduleSettingsPanel initialWorkingDays={scheduleData?.workingDays || []} />
+                <ScheduleSettingsPanel
+                    initialWorkingDays={scheduleData?.workingDays || []}
+                    userId={currentUser.id}
+                />
             </TabsContent>
         </Tabs>
     );
