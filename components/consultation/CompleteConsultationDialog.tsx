@@ -1,20 +1,23 @@
 'use client';
 
 /**
- * Complete Consultation Dialog
+ * Complete Consultation Dialog — Review & Confirm
  * 
- * Medico-legally critical: Finalizes consultation with required outcome and summary.
- * Enforces validation: outcome type and summary are required.
+ * This dialog is a CONFIRMATION step, not a data-entry step.
  * 
- * Billing is READ-ONLY here. The BillingTab in the consultation workspace is the
- * single source of truth for billing items. This dialog shows a summary of what's
- * been billed (if anything) and delegates to the use case's default fallback
- * (doctor's consultation fee) when no billing exists.
+ * All clinical data (outcome type, patient decision, notes) has already been
+ * captured in the workspace tabs. This dialog:
  * 
- * Designed for clinical safety: clear warnings, no accidental completion.
+ * 1. Shows a review of what was documented
+ * 2. Auto-generates a summary from structured notes
+ * 3. Validates all required fields are set
+ * 4. Shows billing summary (read-only)
+ * 5. Provides appropriate CTA based on outcome type
+ * 
+ * Medico-legal: Once completed, the consultation is locked.
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { doctorApi } from '@/lib/api/doctor';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -28,21 +31,34 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { toast } from 'sonner';
-import { AlertTriangle, Receipt, CheckCircle, Info } from 'lucide-react';
+import {
+  AlertTriangle,
+  Receipt,
+  CheckCircle,
+  CheckCircle2,
+  Info,
+  FileText,
+  Stethoscope,
+  ClipboardCheck,
+  CalendarPlus,
+  UserCheck,
+  ArrowRight,
+  Loader2,
+  ExternalLink,
+} from 'lucide-react';
 import { ConsultationOutcomeType } from '@/domain/enums/ConsultationOutcomeType';
 import { PatientDecision } from '@/domain/enums/PatientDecision';
 import { useAppointmentBilling } from '@/hooks/doctor/useBilling';
+import { useConsultationContext } from '@/contexts/ConsultationContext';
 import type { ConsultationResponseDto } from '@/application/dtos/ConsultationResponseDto';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import type { CompleteConsultationDto } from '@/application/dtos/CompleteConsultationDto';
+import { cn } from '@/lib/utils';
+
+// ============================================================================
+// PROPS
+// ============================================================================
 
 interface CompleteConsultationDialogProps {
   open: boolean;
@@ -53,6 +69,74 @@ interface CompleteConsultationDialogProps {
   doctorId: string;
 }
 
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, '').trim();
+}
+
+function getOutcomeLabel(type: ConsultationOutcomeType): string {
+  const labels: Record<ConsultationOutcomeType, string> = {
+    [ConsultationOutcomeType.PROCEDURE_RECOMMENDED]: 'Procedure Recommended',
+    [ConsultationOutcomeType.CONSULTATION_ONLY]: 'Consultation Only',
+    [ConsultationOutcomeType.FOLLOW_UP_CONSULTATION_NEEDED]: 'Follow-Up Needed',
+    [ConsultationOutcomeType.PATIENT_DECIDING]: 'Patient Deciding',
+    [ConsultationOutcomeType.REFERRAL_NEEDED]: 'Referral Needed',
+  };
+  return labels[type] || type;
+}
+
+function getDecisionLabel(decision: PatientDecision): string {
+  const labels: Record<PatientDecision, string> = {
+    [PatientDecision.YES]: 'Yes — Proceed',
+    [PatientDecision.NO]: 'No — Decline',
+    [PatientDecision.PENDING]: 'Pending — Deciding',
+  };
+  return labels[decision] || decision;
+}
+
+function getOutcomeColor(type: ConsultationOutcomeType): string {
+  const colors: Record<ConsultationOutcomeType, string> = {
+    [ConsultationOutcomeType.PROCEDURE_RECOMMENDED]: 'bg-blue-50 text-blue-700 border-blue-200',
+    [ConsultationOutcomeType.CONSULTATION_ONLY]: 'bg-slate-50 text-slate-700 border-slate-200',
+    [ConsultationOutcomeType.FOLLOW_UP_CONSULTATION_NEEDED]: 'bg-amber-50 text-amber-700 border-amber-200',
+    [ConsultationOutcomeType.PATIENT_DECIDING]: 'bg-purple-50 text-purple-700 border-purple-200',
+    [ConsultationOutcomeType.REFERRAL_NEEDED]: 'bg-orange-50 text-orange-700 border-orange-200',
+  };
+  return colors[type] || '';
+}
+
+/**
+ * Generate a clean summary from structured notes.
+ * This is what gets saved as the `outcome` field.
+ */
+function generateSummary(notes: {
+  chiefComplaint?: string;
+  examination?: string;
+  assessment?: string;
+  plan?: string;
+}): string {
+  const parts: string[] = [];
+
+  const chief = notes.chiefComplaint ? stripHtml(notes.chiefComplaint) : '';
+  const exam = notes.examination ? stripHtml(notes.examination) : '';
+  const assess = notes.assessment ? stripHtml(notes.assessment) : '';
+  const plan = notes.plan ? stripHtml(notes.plan) : '';
+
+  if (chief) parts.push(`Chief Complaint: ${chief}`);
+  if (exam) parts.push(`Examination: ${exam}`);
+  if (assess) parts.push(`Assessment: ${assess}`);
+  if (plan) parts.push(`Plan: ${plan}`);
+
+  return parts.join('\n\n');
+}
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
+
 export function CompleteConsultationDialog({
   open,
   onClose,
@@ -61,50 +145,68 @@ export function CompleteConsultationDialog({
   appointment,
   doctorId,
 }: CompleteConsultationDialogProps) {
-  const [outcomeType, setOutcomeType] = useState<ConsultationOutcomeType | ''>('');
+  const { state } = useConsultationContext();
+
+  // Read outcome & decision from context (set in Assessment tab)
+  const outcomeType = state.outcomeType;
+  const patientDecision = state.patientDecision;
+
+  // Auto-generate summary from structured notes
+  const autoSummary = useMemo(
+    () => generateSummary(state.notes),
+    [state.notes],
+  );
+
+  // Allow doctor to optionally edit the summary
   const [summary, setSummary] = useState('');
-  const [patientDecision, setPatientDecision] = useState<PatientDecision | ''>('');
+  const [summaryEdited, setSummaryEdited] = useState(false);
+  const effectiveSummary = summaryEdited ? summary : autoSummary;
+
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [actionChoice, setActionChoice] = useState<'complete' | 'plan' | null>(null);
 
-  // Read-only billing data — the BillingTab is the sole editor
+  // Billing data (read-only)
   const { data: existingBilling } = useAppointmentBilling(appointment.id, open);
-
   const hasBilling = existingBilling?.payment?.billItems && existingBilling.payment.billItems.length > 0;
   const billingTotal = existingBilling?.payment?.totalAmount ?? 0;
   const billingDiscount = existingBilling?.payment?.discount ?? 0;
   const billingStatus = existingBilling?.payment?.status;
 
-  // Validation
-  const isValid = outcomeType !== '' && summary.trim().length > 0;
-  const requiresPatientDecision = outcomeType === ConsultationOutcomeType.PROCEDURE_RECOMMENDED;
-  const isValidWithDecision = isValid && (!requiresPatientDecision || patientDecision !== '');
-
-  const isFollowUp = outcomeType === ConsultationOutcomeType.FOLLOW_UP_CONSULTATION_NEEDED;
+  // ─── Validation ───
   const isProcedure = outcomeType === ConsultationOutcomeType.PROCEDURE_RECOMMENDED;
+  const isFollowUp = outcomeType === ConsultationOutcomeType.FOLLOW_UP_CONSULTATION_NEEDED;
 
-  const [actionChoice, setActionChoice] = useState<'complete' | 'plan' | null>(null);
+  const missingOutcome = !outcomeType;
+  const missingDecision = isProcedure && !patientDecision;
+  const missingSummary = !effectiveSummary.trim();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const validationErrors: string[] = [];
+  if (missingOutcome) validationErrors.push('Consultation outcome not selected (go to Assessment tab)');
+  if (missingDecision) validationErrors.push('Patient decision not selected (go to Assessment tab)');
+  if (missingSummary) validationErrors.push('No notes documented — at least one section is required');
 
-    if (!isValidWithDecision) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
+  const isValid = validationErrors.length === 0;
 
+  // ─── Notes completeness check ───
+  const hasChief = !!state.notes.chiefComplaint && stripHtml(state.notes.chiefComplaint).length > 0;
+  const hasExam = !!state.notes.examination && stripHtml(state.notes.examination).length > 0;
+  const hasAssessment = !!state.notes.assessment && stripHtml(state.notes.assessment).length > 0;
+  const hasPlan = !!state.notes.plan && stripHtml(state.notes.plan).length > 0;
+
+  // ─── Submit ───
+  const handleSubmit = async (choice: 'complete' | 'plan') => {
+    if (!isValid || !outcomeType) return;
+
+    setActionChoice(choice);
     setIsSubmitting(true);
 
     try {
-      // No billing items sent from dialog — the BillingTab is the single source of truth.
-      // The use case will:
-      // 1. Use existing billing (from BillingTab) if it exists
-      // 2. Fall back to the doctor's consultation fee if no billing was saved
       const dto: CompleteConsultationDto = {
         appointmentId: appointment.id,
         doctorId,
-        outcome: summary.trim(),
-        outcomeType: outcomeType as ConsultationOutcomeType,
-        patientDecision: requiresPatientDecision ? (patientDecision as PatientDecision) : undefined,
+        outcome: effectiveSummary.trim(),
+        outcomeType,
+        patientDecision: isProcedure ? (patientDecision ?? undefined) : undefined,
       };
 
       const response = await doctorApi.completeConsultation(dto);
@@ -112,16 +214,14 @@ export function CompleteConsultationDialog({
       if (response.success) {
         if (isProcedure) {
           toast.success('Consultation completed. Patient added to surgery waiting list.');
-
-          if (actionChoice === 'plan') {
+          if (choice === 'plan') {
             const operativeUrl = `/doctor/operative/plan/${appointment.id}/new`;
             onSuccess(operativeUrl);
           } else {
             onSuccess();
           }
-        }
-        else if (isFollowUp) {
-          toast.success('Consultation completed. Redirecting to schedule follow-up...');
+        } else if (isFollowUp) {
+          toast.success('Consultation completed. Redirecting to schedule follow-up…');
           const bookingUrl = `/doctor/appointments/new?patientId=${appointment.patientId}&type=Follow-up`;
           onSuccess(bookingUrl);
         } else {
@@ -136,204 +236,279 @@ export function CompleteConsultationDialog({
       console.error('Error completing consultation:', error);
     } finally {
       setIsSubmitting(false);
+      setActionChoice(null);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[580px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Complete Consultation</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+            Review & Complete
+          </DialogTitle>
           <DialogDescription>
-            Finalize the consultation with outcome and summary. This action cannot be undone.
+            Review your documentation before finalizing. This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-4 py-4">
-            {/* Warning */}
-            <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
-              <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
-              <div className="text-xs text-amber-800">
-                <strong>Medico-legal notice:</strong> Once completed, this consultation cannot be edited.
-                Ensure all information is accurate and complete.
+        <div className="space-y-5 py-2">
+          {/* ─── Validation Errors ─── */}
+          {!isValid && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4 space-y-2">
+              <div className="flex items-center gap-2 text-sm font-semibold text-red-800">
+                <AlertTriangle className="h-4 w-4" />
+                Missing Required Information
               </div>
+              <ul className="space-y-1 ml-6">
+                {validationErrors.map((error, i) => (
+                  <li key={i} className="text-xs text-red-700 list-disc">{error}</li>
+                ))}
+              </ul>
             </div>
+          )}
 
-            {/* Outcome Type - Required */}
-            <div className="space-y-2">
-              <Label htmlFor="outcome-type">
-                Consultation Outcome <span className="text-destructive">*</span>
-              </Label>
-              <Select
-                value={outcomeType}
-                onValueChange={(value) => setOutcomeType(value as ConsultationOutcomeType)}
-                disabled={isSubmitting}
-              >
-                <SelectTrigger id="outcome-type">
-                  <SelectValue placeholder="Select outcome type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ConsultationOutcomeType.PROCEDURE_RECOMMENDED}>
-                    Procedure Recommended
-                  </SelectItem>
-                  <SelectItem value={ConsultationOutcomeType.CONSULTATION_ONLY}>
-                    Consultation Only
-                  </SelectItem>
-                  <SelectItem value={ConsultationOutcomeType.FOLLOW_UP_CONSULTATION_NEEDED}>
-                    Follow-Up Consultation Needed
-                  </SelectItem>
-                  <SelectItem value={ConsultationOutcomeType.PATIENT_DECIDING}>
-                    Patient Deciding
-                  </SelectItem>
-                  <SelectItem value={ConsultationOutcomeType.REFERRAL_NEEDED}>
-                    Referral Needed
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          {/* ─── Outcome & Decision Review ─── */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50/50 p-4 space-y-3">
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              Consultation Outcome
+            </h3>
 
-            {/* Patient Decision - Required if Procedure Recommended */}
-            {requiresPatientDecision && (
+            {outcomeType ? (
               <div className="space-y-2">
-                <Label htmlFor="patient-decision">
-                  Patient Decision <span className="text-destructive">*</span>
-                </Label>
-                <Select
-                  value={patientDecision}
-                  onValueChange={(value) => setPatientDecision(value as PatientDecision)}
-                  disabled={isSubmitting}
+                <Badge
+                  variant="outline"
+                  className={cn('text-sm font-medium px-3 py-1', getOutcomeColor(outcomeType))}
                 >
-                  <SelectTrigger id="patient-decision">
-                    <SelectValue placeholder="Select patient decision" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={PatientDecision.YES}>Yes - Proceed</SelectItem>
-                    <SelectItem value={PatientDecision.NO}>No - Decline</SelectItem>
-                    <SelectItem value={PatientDecision.PENDING}>Pending - Needs Time</SelectItem>
-                  </SelectContent>
-                </Select>
+                  {getOutcomeLabel(outcomeType)}
+                </Badge>
+
+                {isProcedure && patientDecision && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <UserCheck className="h-4 w-4 text-blue-600" />
+                    <span className="text-slate-600">Patient Decision:</span>
+                    <span className="font-medium text-slate-900">
+                      {getDecisionLabel(patientDecision)}
+                    </span>
+                  </div>
+                )}
+
+                {isFollowUp && (
+                  <p className="text-xs text-amber-700 flex items-center gap-1.5">
+                    <ArrowRight className="h-3 w-3" />
+                    You&apos;ll be redirected to schedule a follow-up appointment.
+                  </p>
+                )}
               </div>
-            )}
-
-            {/* Consultation Summary - Required */}
-            <div className="space-y-2">
-              <Label htmlFor="summary">
-                Consultation Summary <span className="text-destructive">*</span>
-              </Label>
-              <Textarea
-                id="summary"
-                placeholder="Chief complaint, examination findings, assessment, and plan..."
-                value={summary}
-                onChange={(e) => setSummary(e.target.value)}
-                required
-                disabled={isSubmitting}
-                rows={6}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground">
-                Include: Chief complaint, examination, assessment, and plan
+            ) : (
+              <p className="text-sm text-red-600 font-medium">
+                ⚠ No outcome selected — go to the Assessment tab first.
               </p>
-            </div>
+            )}
+          </div>
 
-            {/* Billing Summary — Read-Only */}
-            <div className="space-y-2 border-t pt-4">
-              <Label className="flex items-center gap-2">
-                <Receipt className="h-4 w-4" />
-                Billing Summary
-              </Label>
-
-              {hasBilling ? (
-                <div className="bg-muted/30 rounded-lg p-3 space-y-2">
-                  {/* Itemized list */}
-                  <div className="space-y-1">
-                    {existingBilling!.payment!.billItems.map((item) => (
-                      <div
-                        key={item.serviceId}
-                        className="flex items-center justify-between text-sm"
-                      >
-                        <span className="text-muted-foreground">{item.serviceName}</span>
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs text-muted-foreground">
-                            {item.quantity} × {item.unitCost.toLocaleString()}
-                          </span>
-                          <span className="font-medium w-20 text-right">
-                            {item.totalCost.toLocaleString()}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Totals */}
-                  <div className="flex items-center justify-between pt-2 border-t text-sm">
-                    {billingDiscount > 0 && (
-                      <span className="text-xs text-muted-foreground">
-                        Discount: -{billingDiscount.toLocaleString()}
-                      </span>
-                    )}
-                    <div className="ml-auto flex items-center gap-2">
-                      <span className="font-bold">Total:</span>
-                      <Badge variant="secondary" className="text-xs font-bold">
-                        {billingTotal.toLocaleString()}
-                      </Badge>
-                      {billingStatus === 'PAID' && (
-                        <Badge className="bg-emerald-100 text-emerald-700 text-xs">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Paid
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
-                  <Info className="h-4 w-4 mt-0.5 shrink-0" />
-                  <div>
-                    No billing items were added during this consultation.
-                    The doctor&apos;s default consultation fee will be applied automatically.
-                    To add specific services, use the <strong>Billing tab</strong> before completing.
-                  </div>
-                </div>
-              )}
+          {/* ─── Documentation Checklist ─── */}
+          <div className="rounded-xl border border-slate-200 p-4 space-y-3">
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              Documentation Review
+            </h3>
+            <div className="grid grid-cols-2 gap-2">
+              <ChecklistItem icon={FileText} label="Chief Complaint" complete={hasChief} />
+              <ChecklistItem icon={Stethoscope} label="Examination" complete={hasExam} />
+              <ChecklistItem icon={ClipboardCheck} label="Assessment" complete={hasAssessment} />
+              <ChecklistItem icon={CalendarPlus} label="Treatment Plan" complete={hasPlan} />
             </div>
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
-              Cancel
-            </Button>
-            {isProcedure ? (
-              <div className="flex gap-2">
-                <Button
-                  type="submit"
-                  disabled={!isValidWithDecision || isSubmitting}
-                  onClick={() => setActionChoice('complete')}
-                  className="bg-slate-800 text-white min-w-[120px]"
+          {/* ─── Summary (auto-generated, optionally editable) ─── */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold text-slate-700">
+                Consultation Summary
+              </Label>
+              {!summaryEdited && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSummary(autoSummary);
+                    setSummaryEdited(true);
+                  }}
+                  className="text-[11px] text-blue-600 hover:text-blue-800 font-medium"
                 >
-                  {isSubmitting && actionChoice === 'complete' ? 'Completing...' : 'Finish & Exit'}
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={!isValidWithDecision || isSubmitting}
-                  onClick={() => setActionChoice('plan')}
-                  className="bg-primary text-primary-foreground min-w-[120px] gap-2"
-                >
-                  {isSubmitting && actionChoice === 'plan' ? 'Redirecting...' : 'Plan Surgery Now'}
-                </Button>
+                  Edit summary
+                </button>
+              )}
+            </div>
+
+            {summaryEdited ? (
+              <Textarea
+                value={summary}
+                onChange={(e) => setSummary(e.target.value)}
+                rows={5}
+                className="text-sm font-mono"
+                placeholder="Consultation summary…"
+              />
+            ) : (
+              <div className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-3 leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto">
+                {autoSummary || (
+                  <span className="text-slate-400 italic">No notes documented yet.</span>
+                )}
+              </div>
+            )}
+            <p className="text-[11px] text-slate-400">
+              Auto-generated from your structured notes. Click &quot;Edit&quot; to customize.
+            </p>
+          </div>
+
+          {/* ─── Billing Summary (read-only) ─── */}
+          <div className="space-y-2 border-t border-slate-100 pt-4">
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+              <Receipt className="h-3.5 w-3.5" />
+              Billing
+            </h3>
+
+            {hasBilling ? (
+              <div className="bg-slate-50 rounded-lg p-3 space-y-2">
+                <div className="space-y-1">
+                  {existingBilling!.payment!.billItems.map((item) => (
+                    <div key={item.serviceId} className="flex items-center justify-between text-xs">
+                      <span className="text-slate-600">{item.serviceName}</span>
+                      <span className="font-medium text-slate-900">
+                        KSH {item.totalCost.toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t border-slate-200 text-sm">
+                  {billingDiscount > 0 && (
+                    <span className="text-xs text-slate-400">
+                      Discount: - KSH {billingDiscount.toLocaleString()}
+                    </span>
+                  )}
+                  <div className="ml-auto flex items-center gap-2">
+                    <span className="font-bold text-slate-700">Total:</span>
+                    <span className="font-bold text-slate-900">
+                      KSH {billingTotal.toLocaleString()}
+                    </span>
+                    {billingStatus === 'PAID' && (
+                      <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">
+                        <CheckCircle className="h-3 w-3 mr-0.5" />
+                        Paid
+                      </Badge>
+                    )}
+                  </div>
+                </div>
               </div>
             ) : (
-              <Button
-                type="submit"
-                disabled={!isValidWithDecision || isSubmitting}
-                className="bg-primary text-primary-foreground min-w-[120px]"
-              >
-                {isSubmitting ? 'Completing...' : (isFollowUp ? 'Complete & Schedule' : 'Complete Consultation')}
-              </Button>
+              <div className="flex items-start gap-2 p-3 bg-blue-50/50 border border-blue-100 rounded-lg text-xs text-blue-700">
+                <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span>
+                  No billing items added. The doctor&apos;s default consultation fee will be applied.
+                </span>
+              </div>
             )}
-          </DialogFooter>
-        </form>
+          </div>
+
+          {/* ─── Medico-legal warning ─── */}
+          <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+            <p className="text-xs text-amber-800">
+              <strong>Medico-legal notice:</strong> Once completed, this consultation record is
+              locked and cannot be edited. Ensure all information is accurate.
+            </p>
+          </div>
+        </div>
+
+        {/* ─── Actions ─── */}
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+
+          {isProcedure && patientDecision === PatientDecision.YES ? (
+            // Procedure flow: two CTA options
+            <>
+              <Button
+                onClick={() => handleSubmit('complete')}
+                disabled={!isValid || isSubmitting}
+                variant="outline"
+                className="gap-1.5"
+              >
+                {isSubmitting && actionChoice === 'complete' ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
+                Finish & Exit
+              </Button>
+              <Button
+                onClick={() => handleSubmit('plan')}
+                disabled={!isValid || isSubmitting}
+                className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5"
+              >
+                {isSubmitting && actionChoice === 'plan' ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ExternalLink className="h-4 w-4" />
+                )}
+                Complete & Plan Surgery
+              </Button>
+            </>
+          ) : (
+            // Standard flow: single CTA
+            <Button
+              onClick={() => handleSubmit('complete')}
+              disabled={!isValid || isSubmitting}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 min-w-[140px]"
+            >
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4" />
+              )}
+              {isFollowUp ? 'Complete & Schedule' : 'Complete Consultation'}
+            </Button>
+          )}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ============================================================================
+// SUB-COMPONENTS
+// ============================================================================
+
+function ChecklistItem({
+  icon: Icon,
+  label,
+  complete,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  complete: boolean;
+}) {
+  return (
+    <div className={cn(
+      'flex items-center gap-2 rounded-lg px-3 py-2 text-xs transition-colors',
+      complete
+        ? 'bg-emerald-50 text-emerald-700'
+        : 'bg-slate-50 text-slate-400',
+    )}>
+      {complete ? (
+        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+      ) : (
+        <Icon className="h-3.5 w-3.5" />
+      )}
+      <span className={cn('font-medium', complete ? '' : 'font-normal')}>
+        {label}
+      </span>
+    </div>
   );
 }

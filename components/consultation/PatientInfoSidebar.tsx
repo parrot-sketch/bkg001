@@ -3,20 +3,23 @@
 /**
  * Patient Info Sidebar
  * 
- * Persistent patient context panel - always visible during consultation.
- * Designed for surgeon efficiency: critical patient information at a glance.
+ * Persistent patient context panel — always visible during consultation.
+ * Premium clinical design with clear information hierarchy:
  * 
- * Clinical workstation design: minimal, information-dense, no clutter.
+ * 1. Patient identity (name, age, gender, file #)
+ * 2. Clinical brief (primary concern, assistant notes)
+ * 3. Allergies (prominent warning if exists)
+ * 4. Medical conditions & history
+ * 5. Previous consultations (compact timeline)
  */
 
-import { AlertTriangle } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertTriangle, User, FileText, Heart, History, Camera } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import type { PatientConsultationHistoryItemDto } from '@/application/dtos/PatientConsultationHistoryDto';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
-import { ClinicalSummary } from './ClinicalSummary';
+import { cn } from '@/lib/utils';
 
 interface PatientInfoSidebarProps {
   patient: PatientResponseDto;
@@ -39,146 +42,214 @@ export function PatientInfoSidebar({
     ? Math.floor((new Date().getTime() - new Date(patient.dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
     : null;
 
-  return (
-    <div className="w-64 space-y-4 overflow-y-auto">
-      {/* Clinical Summary - Always at top for surgeon context */}
-      {appointment && (
-        <ClinicalSummary
-          patient={patient}
-          appointment={appointment}
-          photoCount={photoCount}
-          compact={true}
-        />
-      )}
+  const primaryConcern = appointment?.note
+    ? extractPrimaryConcern(appointment.note)
+    : appointment?.type || 'Consultation';
 
-      {/* Patient Profile Card */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-              <span className="text-lg font-medium text-muted-foreground">
-                {patient.firstName?.[0]}{patient.lastName?.[0]}
-              </span>
+  const isFirstTime = !appointment?.note && !patient.medicalHistory;
+
+  return (
+    <div className="space-y-1 overflow-y-auto">
+      {/* ─── Patient Identity ─── */}
+      <div className="p-4 pb-3">
+        <div className="flex items-center gap-3">
+          <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center shrink-0">
+            <span className="text-sm font-bold text-slate-600">
+              {patient.firstName?.[0]}{patient.lastName?.[0]}
+            </span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-semibold text-slate-900 truncate">
+              {patient.firstName} {patient.lastName}
+            </h2>
+            <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-500">
+              {age !== null && <span>{age}y</span>}
+              {age !== null && patient.gender && <span className="text-slate-300">•</span>}
+              {patient.gender && <span className="capitalize">{patient.gender.toLowerCase()}</span>}
+              {patient.fileNumber && (
+                <>
+                  <span className="text-slate-300">•</span>
+                  <span className="font-mono text-[11px]">{patient.fileNumber}</span>
+                </>
+              )}
             </div>
-            <div className="flex-1 min-w-0">
-              <CardTitle className="text-base font-semibold truncate">
-                {patient.firstName} {patient.lastName}
-              </CardTitle>
-              <div className="text-xs text-muted-foreground mt-0.5">
-                {age !== null && `${age} years`} {patient.gender && `• ${patient.gender}`}
+          </div>
+        </div>
+
+        {/* Quick badges */}
+        <div className="flex flex-wrap gap-1.5 mt-3">
+          {isFirstTime && (
+            <Badge variant="outline" className="text-[10px] h-5 bg-blue-50 text-blue-700 border-blue-200">
+              First Visit
+            </Badge>
+          )}
+          {photoCount > 0 && (
+            <Badge variant="outline" className="text-[10px] h-5 gap-1">
+              <Camera className="h-2.5 w-2.5" />
+              {photoCount} photo{photoCount !== 1 ? 's' : ''}
+            </Badge>
+          )}
+          {patient.allergies && (
+            <Badge variant="outline" className="text-[10px] h-5 bg-amber-50 text-amber-700 border-amber-200 gap-1">
+              <AlertTriangle className="h-2.5 w-2.5" />
+              Allergies
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      <Divider />
+
+      {/* ─── Clinical Brief ─── */}
+      <SidebarSection icon={FileText} title="Clinical Brief">
+        <div className="text-xs text-slate-600 leading-relaxed">
+          {primaryConcern}
+        </div>
+        {appointment?.reviewNotes && (
+          <div className="mt-2 text-xs text-amber-800 bg-amber-50/80 border border-amber-100 rounded-lg px-3 py-2 leading-relaxed">
+            <span className="font-medium">Assistant: </span>
+            {appointment.reviewNotes}
+          </div>
+        )}
+      </SidebarSection>
+
+      {/* ─── Allergies (prominent) ─── */}
+      {patient.allergies && (
+        <>
+          <Divider />
+          <div className="px-4 py-3">
+            <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2.5">
+              <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-xs font-semibold text-red-800">Allergies</p>
+                <p className="text-xs text-red-700 mt-0.5 leading-relaxed">{patient.allergies}</p>
               </div>
             </div>
           </div>
-        </CardHeader>
-        <CardContent className="pt-0">
-          {patient.fileNumber && (
-            <div className="text-xs text-muted-foreground">
-              File: <span className="font-mono">{patient.fileNumber}</span>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Medical Info Card */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold">Medical Information</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {/* Allergies - Prominent if exists */}
-          {patient.allergies ? (
-            <div>
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
-                <span className="text-xs font-medium text-foreground">Allergies</span>
-              </div>
-              <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
-                {patient.allergies}
-              </div>
-            </div>
-          ) : (
-            <div className="text-xs text-muted-foreground">No known allergies</div>
-          )}
-
-          {/* Medical Conditions */}
-          {patient.medicalConditions && (
-            <div>
-              <div className="text-xs font-medium text-foreground mb-1">Conditions</div>
-              <div className="text-xs text-muted-foreground">{patient.medicalConditions}</div>
-            </div>
-          )}
-
-          {/* Medical History */}
-          {patient.medicalHistory && (
-            <div>
-              <div className="text-xs font-medium text-foreground mb-1">History</div>
-              <div className="text-xs text-muted-foreground line-clamp-3">
-                {patient.medicalHistory}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Previous Consultations Card */}
-      {consultationHistory.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold">Previous Consultations</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {consultationHistory.slice(0, 3).map((consultation) => (
-                <ConsultationHistoryItem
-                  key={consultation.id}
-                  consultation={consultation}
-                />
-              ))}
-              {consultationHistory.length > 3 && (
-                <div className="text-xs text-muted-foreground pt-1">
-                  +{consultationHistory.length - 3} more
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        </>
       )}
 
+      {/* ─── Medical Info ─── */}
+      {(patient.medicalConditions || patient.medicalHistory) && (
+        <>
+          <Divider />
+          <SidebarSection icon={Heart} title="Medical Background">
+            {patient.medicalConditions && (
+              <div className="mb-2">
+                <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1">Conditions</p>
+                <p className="text-xs text-slate-600 leading-relaxed">{patient.medicalConditions}</p>
+              </div>
+            )}
+            {patient.medicalHistory && (
+              <div>
+                <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-1">History</p>
+                <p className="text-xs text-slate-600 leading-relaxed line-clamp-4">{patient.medicalHistory}</p>
+              </div>
+            )}
+          </SidebarSection>
+        </>
+      )}
+
+      {/* ─── Previous Consultations ─── */}
+      {consultationHistory.length > 0 && (
+        <>
+          <Divider />
+          <SidebarSection icon={History} title={`Past Consultations (${consultationHistory.length})`}>
+            <div className="space-y-2">
+              {consultationHistory.slice(0, 3).map((c) => (
+                <ConsultationHistoryItem key={c.id} consultation={c} />
+              ))}
+              {consultationHistory.length > 3 && (
+                <p className="text-[11px] text-slate-400 font-medium pt-1">
+                  +{consultationHistory.length - 3} more
+                </p>
+              )}
+            </div>
+          </SidebarSection>
+        </>
+      )}
+
+      {/* No allergies indicator (subtle) */}
+      {!patient.allergies && !patient.medicalConditions && !patient.medicalHistory && (
+        <>
+          <Divider />
+          <div className="px-4 py-3">
+            <p className="text-xs text-slate-400 italic">
+              No medical history on file
+            </p>
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
-/**
- * Consultation History Item
- * Compact display for previous consultations
- */
+// ============================================================================
+// SUB-COMPONENTS
+// ============================================================================
+
+function Divider() {
+  return <div className="mx-4 border-t border-slate-100" />;
+}
+
+function SidebarSection({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="px-4 py-3">
+      <div className="flex items-center gap-1.5 mb-2">
+        <Icon className="h-3.5 w-3.5 text-slate-400" />
+        <h3 className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{title}</h3>
+      </div>
+      {children}
+    </div>
+  );
+}
+
 function ConsultationHistoryItem({
   consultation,
 }: {
   consultation: PatientConsultationHistoryItemDto;
 }) {
   return (
-    <div className="border rounded p-2 text-xs">
-      <div className="flex items-center justify-between mb-1">
-        <span className="font-medium text-foreground">
-          {format(new Date(consultation.appointmentDate), 'MMM d, yyyy')}
-        </span>
-        {consultation.outcomeType && (
-          <Badge variant="outline" className="text-xs h-4 px-1.5">
-            {consultation.outcomeType === 'PROCEDURE_RECOMMENDED' ? 'Procedure' : 'Consultation'}
-          </Badge>
+    <div className="group flex items-start gap-2.5">
+      {/* Timeline dot */}
+      <div className="mt-1.5 h-2 w-2 rounded-full bg-slate-200 group-first:bg-slate-400 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-slate-700">
+            {format(new Date(consultation.appointmentDate), 'MMM d, yyyy')}
+          </span>
+          {consultation.outcomeType && (
+            <Badge variant="outline" className="text-[10px] h-4 px-1.5 font-normal">
+              {consultation.outcomeType === 'PROCEDURE_RECOMMENDED' ? 'Procedure' : 'Consult'}
+            </Badge>
+          )}
+        </div>
+        {consultation.notesSummary && (
+          <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5 leading-relaxed">
+            {consultation.notesSummary}
+          </p>
         )}
       </div>
-      {consultation.notesSummary && (
-        <div className="text-muted-foreground line-clamp-2 mt-1">
-          {consultation.notesSummary}
-        </div>
-      )}
-      {consultation.photoCount > 0 && (
-        <div className="text-muted-foreground mt-1">
-          {consultation.photoCount} photo{consultation.photoCount !== 1 ? 's' : ''}
-        </div>
-      )}
     </div>
   );
+}
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+function extractPrimaryConcern(note: string): string {
+  const firstSentence = note.split(/[.!?]/)[0].trim();
+  if (firstSentence.length > 0 && firstSentence.length < 150) {
+    return firstSentence;
+  }
+  return note.length > 100 ? note.substring(0, 100) + '…' : note;
 }

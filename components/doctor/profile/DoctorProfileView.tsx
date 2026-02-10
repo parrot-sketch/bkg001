@@ -34,12 +34,16 @@ import {
     Shield,
     Briefcase,
     Hash,
+    Timer,
+    Hourglass,
+    LayoutGrid,
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { EditDoctorProfileSheet } from '@/components/doctor/EditDoctorProfileSheet';
 import { useInvalidateDoctorProfile } from '@/hooks/doctor/useDoctorProfile';
 import { AccountSettingsSheet } from '@/components/settings/AccountSettingsSheet';
+import { doctorApi } from '@/lib/api/doctor';
 
 // ============================================================================
 // TYPES
@@ -59,12 +63,28 @@ export function DoctorProfileView({
     const [showEditDialog, setShowEditDialog] = useState(false);
     const [showAccountSettings, setShowAccountSettings] = useState(false);
     const [currentDoctorData, setCurrentDoctorData] = useState(doctorData);
+    const [slotConfig, setSlotConfig] = useState<{
+        defaultDuration: number;
+        bufferTime: number;
+        slotInterval: number;
+    } | null>(null);
     const { invalidateProfile } = useInvalidateDoctorProfile();
 
     // Sync props → local state when React Query delivers fresh data
     useEffect(() => {
         if (doctorData) setCurrentDoctorData(doctorData);
     }, [doctorData]);
+
+    // Fetch slot configuration on mount
+    useEffect(() => {
+        doctorApi.getMyAvailability().then((res) => {
+            if (res.success && res.data?.slotConfiguration) {
+                setSlotConfig(res.data.slotConfiguration);
+            }
+        }).catch(() => {
+            // Slot config not configured yet — that's fine
+        });
+    }, []);
 
     const handleProfileUpdate = () => {
         // Invalidate React Query cache → triggers background refetch.
@@ -246,6 +266,59 @@ export function DoctorProfileView({
                     </Link>
                 ))}
             </div>
+
+            {/* ================================================================ */}
+            {/* APPOINTMENT SLOT SETTINGS                                         */}
+            {/* ================================================================ */}
+            <Card className="border-slate-200">
+                <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-slate-400" />
+                            Appointment Slot Settings
+                        </CardTitle>
+                        <Link href="/doctor/schedule">
+                            <Button variant="outline" size="sm" className="text-xs gap-1.5 h-8">
+                                <Settings className="h-3.5 w-3.5" />
+                                Edit in Schedule
+                            </Button>
+                        </Link>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    {slotConfig ? (
+                        <div className="grid grid-cols-3 gap-4">
+                            <div className="rounded-xl bg-slate-50 border border-slate-100 p-4 text-center">
+                                <Timer className="h-5 w-5 text-indigo-500 mx-auto mb-2" />
+                                <p className="text-2xl font-bold text-slate-900">{slotConfig.defaultDuration}</p>
+                                <p className="text-xs text-slate-500 mt-0.5">Slot Duration (min)</p>
+                            </div>
+                            <div className="rounded-xl bg-slate-50 border border-slate-100 p-4 text-center">
+                                <Hourglass className="h-5 w-5 text-amber-500 mx-auto mb-2" />
+                                <p className="text-2xl font-bold text-slate-900">{slotConfig.bufferTime}</p>
+                                <p className="text-xs text-slate-500 mt-0.5">Buffer Between (min)</p>
+                            </div>
+                            <div className="rounded-xl bg-slate-50 border border-slate-100 p-4 text-center">
+                                <LayoutGrid className="h-5 w-5 text-emerald-500 mx-auto mb-2" />
+                                <p className="text-2xl font-bold text-slate-900">{slotConfig.slotInterval}</p>
+                                <p className="text-xs text-slate-500 mt-0.5">Slot Interval (min)</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-center py-4">
+                            <p className="text-sm text-slate-500">No slot configuration set yet.</p>
+                            <Link href="/doctor/schedule">
+                                <Button variant="link" size="sm" className="text-xs mt-1">
+                                    Configure your schedule →
+                                </Button>
+                            </Link>
+                        </div>
+                    )}
+                    <p className="text-[11px] text-slate-400 mt-3">
+                        These settings control appointment scheduling, available time slots, and buffer time between patients.
+                    </p>
+                </CardContent>
+            </Card>
 
             {/* ================================================================ */}
             {/* PROFESSIONAL INFORMATION                                          */}

@@ -108,37 +108,40 @@ export function ConsultationQueuePanel({
     }
   };
 
-  // Collapsed view - just show badge
+  // Collapsed view - slim rail with badge
   if (isCollapsed) {
     return (
-      <div className={cn("relative", className)}>
-        <Button
-          variant="outline"
-          size="sm"
+      <div className={cn("relative hidden lg:block", className)}>
+        <button
           onClick={() => setIsCollapsed(false)}
           className={cn(
-            "h-auto py-3 px-2 flex flex-col items-center gap-1 border-emerald-200 bg-emerald-50/50",
-            queueCount > 0 && "border-emerald-400 bg-emerald-100"
+            "h-full w-10 border-l flex flex-col items-center justify-start pt-4 gap-2 transition-colors",
+            queueCount > 0
+              ? "bg-emerald-50/80 border-emerald-200 hover:bg-emerald-100/80"
+              : "bg-slate-50/50 border-slate-200 hover:bg-slate-100/50",
           )}
         >
-          <ChevronLeft className="h-4 w-4 text-emerald-600" />
-          <Users className="h-5 w-5 text-emerald-600" />
+          <ChevronLeft className="h-3.5 w-3.5 text-slate-400" />
+          <Users className={cn(
+            "h-4 w-4",
+            queueCount > 0 ? "text-emerald-600" : "text-slate-400",
+          )} />
           {queueCount > 0 && (
-            <Badge className="bg-emerald-600 text-white text-xs px-1.5 py-0">
+            <Badge className="bg-emerald-600 text-white text-[10px] h-4 min-w-4 px-1 justify-center">
               {queueCount}
             </Badge>
           )}
-          <span className="text-[10px] text-emerald-700 font-medium writing-mode-vertical">
+          <span className="text-[9px] text-slate-500 font-semibold uppercase tracking-widest [writing-mode:vertical-lr]">
             Queue
           </span>
-        </Button>
+        </button>
       </div>
     );
   }
 
   return (
     <div className={cn(
-      "w-72 bg-white border-l border-slate-200 flex flex-col h-full",
+      "w-64 bg-white border-l border-slate-200 flex flex-col h-full hidden lg:flex",
       className
     )}>
       {/* Header */}

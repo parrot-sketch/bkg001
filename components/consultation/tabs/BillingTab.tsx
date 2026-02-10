@@ -1,15 +1,16 @@
 'use client';
 
 /**
- * Billing Tab - Consultation Workspace
+ * Billing Tab — Consultation Workspace
  * 
- * Allows doctors to manage billing during a consultation:
- * - Add/remove services rendered
- * - Set quantities and view costs
- * - Apply discounts
- * - Save billing that frontdesk will collect
+ * Purpose: Manage the consultation billing record.
  * 
- * This tab bridges the consultation workflow with the billing workflow.
+ * Design principles:
+ * - This is CONSULTATION billing only — not a general service catalog
+ * - The doctor determines the fee (types description + amount in KSH)
+ * - Simple, direct, no dropdown selections
+ * - Uses the consultation service record in the DB as the FK anchor
+ * - Frontdesk collects the payment from the patient
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -18,67 +19,47 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  DollarSign,
-  Plus,
-  Trash2,
-  Save,
   Receipt,
   CheckCircle,
   AlertCircle,
   Loader2,
+  Save,
+  Plus,
+  Trash2,
+  Info,
+  Banknote,
 } from 'lucide-react';
 import { useServices } from '@/hooks/useServices';
-import { useAppointmentBilling, useSaveBilling, type BillItem } from '@/hooks/doctor/useBilling';
-import type { ServiceDto } from '@/lib/api/services';
+import { useAppointmentBilling, useSaveBilling } from '@/hooks/doctor/useBilling';
+import { cn } from '@/lib/utils';
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-interface BillingItem {
-  serviceId: number;
-  serviceName: string;
-  category: string | null;
-  quantity: number;
-  unitCost: number;
+interface ConsultationBillingItem {
+  /** Internal key for React rendering */
+  key: string;
+  /** Service description typed by the doctor */
+  description: string;
+  /** Amount in KSH */
+  amount: number;
+  /** Linked service ID for DB FK (resolved automatically) */
+  serviceId: number | null;
 }
 
 interface BillingTabProps {
   appointmentId?: number;
-  /**
-   * If true, billing is completely locked (e.g., non-doctor user viewing the record).
-   * If false, billing editability is determined by payment status:
-   * - PAID → read-only
-   * - UNPAID/PART/no payment → editable
-   * 
-   * NOTE: This is intentionally separate from consultation isReadOnly.
-   * Billing should remain editable even after a consultation is completed,
-   * so doctors can retroactively add billing for consultations that were
-   * completed without billing items.
-   */
   isReadOnly?: boolean;
+}
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+let keyCounter = 0;
+function nextKey(): string {
+  return `item-${Date.now()}-${++keyCounter}`;
 }
 
 // ============================================================================
@@ -90,403 +71,358 @@ export function BillingTab({ appointmentId, isReadOnly = false }: BillingTabProp
   const { data: billingData, isLoading: billingLoading } = useAppointmentBilling(appointmentId, !!appointmentId);
   const { mutateAsync: saveBilling, isPending: isSaving } = useSaveBilling();
 
-  // Local state
-  const [billingItems, setBillingItems] = useState<BillingItem[]>([]);
-  const [discount, setDiscount] = useState(0);
-  const [selectedServiceId, setSelectedServiceId] = useState<string>('');
-  const [isDirty, setIsDirty] = useState(false);
+  // Find the consultation service (used as the DB FK anchor)
+  const consultationService = useMemo(() => {
+    // Prefer "Consultation - Initial", fallback to any service with category "Consultation"
+    const initial = services.find(s =>
+      s.service_name.toLowerCase().includes('consultation') &&
+      s.service_name.toLowerCase().includes('initial')
+    );
+    if (initial) return initial;
 
-  // Group services by category for easier selection
-  const servicesByCategory = useMemo(() => {
-    const grouped: Record<string, ServiceDto[]> = {};
-    services.forEach(service => {
-      const category = service.category || 'Other';
-      if (!grouped[category]) {
-        grouped[category] = [];
-      }
-      grouped[category].push(service);
-    });
-    return grouped;
+    const anyConsultation = services.find(s =>
+      s.category?.toLowerCase() === 'consultation'
+    );
+    if (anyConsultation) return anyConsultation;
+
+    // Last resort: first active service
+    return services.length > 0 ? services[0] : null;
   }, [services]);
 
-  // Calculate totals
-  const subtotal = useMemo(
-    () => billingItems.reduce((sum, item) => sum + item.quantity * item.unitCost, 0),
-    [billingItems]
-  );
-  const total = Math.max(0, subtotal - discount);
+  // Local state
+  const [items, setItems] = useState<ConsultationBillingItem[]>([]);
+  const [discount, setDiscount] = useState(0);
+  const [isDirty, setIsDirty] = useState(false);
 
-  // Initialize from existing billing data
+  // Defaults from appointment data
+  const defaultConsultationFee = billingData?.appointment?.consultationFee ?? 0;
+
+  // Initialize from existing billing data or set default
   useEffect(() => {
     if (billingData?.payment?.billItems && billingData.payment.billItems.length > 0) {
-      setBillingItems(
+      setItems(
         billingData.payment.billItems.map(item => ({
+          key: nextKey(),
+          description: item.serviceName,
+          amount: item.totalCost,
           serviceId: item.serviceId,
-          serviceName: item.serviceName,
-          category: item.serviceCategory || null,
-          quantity: item.quantity,
-          unitCost: item.unitCost,
         }))
       );
       setDiscount(billingData.payment.discount || 0);
       setIsDirty(false);
+    } else if (items.length === 0 && consultationService && defaultConsultationFee > 0) {
+      // Auto-populate with doctor's default consultation fee
+      setItems([{
+        key: nextKey(),
+        description: 'Consultation Fee',
+        amount: defaultConsultationFee,
+        serviceId: consultationService.id,
+      }]);
+      setIsDirty(true);
     }
-  }, [billingData]);
+  }, [billingData, consultationService, defaultConsultationFee]);
 
-  // Add a service to the bill
-  const handleAddService = useCallback(() => {
-    if (!selectedServiceId) return;
+  // Calculations
+  const subtotal = useMemo(
+    () => items.reduce((sum, item) => sum + (item.amount || 0), 0),
+    [items]
+  );
+  const total = Math.max(0, subtotal - discount);
 
-    const service = services.find(s => s.id === parseInt(selectedServiceId));
-    if (!service) return;
+  // ── Actions ──
 
-    // Check if already added
-    const existingIndex = billingItems.findIndex(item => item.serviceId === service.id);
-    if (existingIndex >= 0) {
-      // Increment quantity
-      const updated = [...billingItems];
-      updated[existingIndex] = {
-        ...updated[existingIndex],
-        quantity: updated[existingIndex].quantity + 1,
-      };
-      setBillingItems(updated);
-    } else {
-      setBillingItems(prev => [
-        ...prev,
-        {
-          serviceId: service.id,
-          serviceName: service.service_name,
-          category: service.category,
-          quantity: 1,
-          unitCost: service.price,
-        },
-      ]);
-    }
-
-    setSelectedServiceId('');
+  const addItem = useCallback(() => {
+    setItems(prev => [
+      ...prev,
+      {
+        key: nextKey(),
+        description: '',
+        amount: 0,
+        serviceId: consultationService?.id ?? null,
+      },
+    ]);
     setIsDirty(true);
-  }, [selectedServiceId, services, billingItems]);
+  }, [consultationService]);
 
-  // Remove a service from the bill
-  const handleRemoveItem = useCallback((serviceId: number) => {
-    setBillingItems(prev => prev.filter(item => item.serviceId !== serviceId));
+  const removeItem = useCallback((key: string) => {
+    setItems(prev => prev.filter(item => item.key !== key));
     setIsDirty(true);
   }, []);
 
-  // Update item quantity
-  const handleQuantityChange = useCallback((serviceId: number, quantity: number) => {
-    if (quantity < 1) return;
-    setBillingItems(prev =>
-      prev.map(item =>
-        item.serviceId === serviceId ? { ...item, quantity } : item
-      )
-    );
+  const updateDescription = useCallback((key: string, description: string) => {
+    setItems(prev => prev.map(item =>
+      item.key === key ? { ...item, description } : item
+    ));
     setIsDirty(true);
   }, []);
 
-  // Update item unit cost
-  const handleUnitCostChange = useCallback((serviceId: number, unitCost: number) => {
-    if (unitCost < 0) return;
-    setBillingItems(prev =>
-      prev.map(item =>
-        item.serviceId === serviceId ? { ...item, unitCost } : item
-      )
-    );
+  const updateAmount = useCallback((key: string, amount: number) => {
+    setItems(prev => prev.map(item =>
+      item.key === key ? { ...item, amount: Math.max(0, amount) } : item
+    ));
     setIsDirty(true);
   }, []);
 
   // Save billing
   const handleSave = useCallback(async () => {
-    if (!appointmentId || billingItems.length === 0) return;
+    if (!appointmentId) return;
+
+    // Filter out empty items
+    const validItems = items.filter(item => item.description.trim() && item.amount > 0);
+    if (validItems.length === 0) return;
+
+    // Map to API format — use the consultation service ID for the FK
+    const fallbackServiceId = consultationService?.id ?? 1;
 
     await saveBilling({
       appointmentId,
-      billingItems: billingItems.map(item => ({
-        serviceId: item.serviceId,
-        quantity: item.quantity,
-        unitCost: item.unitCost,
+      billingItems: validItems.map(item => ({
+        serviceId: item.serviceId ?? fallbackServiceId,
+        quantity: 1,
+        unitCost: item.amount,
       })),
       discount: discount > 0 ? discount : undefined,
     });
 
     setIsDirty(false);
-  }, [appointmentId, billingItems, discount, saveBilling]);
+  }, [appointmentId, items, discount, consultationService, saveBilling]);
 
-  // Loading state
+  // ── Loading ──
   if (billingLoading || servicesLoading) {
     return (
       <div className="flex items-center justify-center h-full p-8">
         <div className="text-center space-y-3">
-          <Loader2 className="h-8 w-8 animate-spin text-slate-400 mx-auto" />
-          <p className="text-sm text-slate-500">Loading billing...</p>
+          <Loader2 className="h-8 w-8 animate-spin text-slate-300 mx-auto" />
+          <p className="text-sm text-slate-500">Loading billing…</p>
         </div>
       </div>
     );
   }
 
-  // Already paid state
   const isPaid = billingData?.payment?.status === 'PAID';
   const isPartiallyPaid = billingData?.payment?.status === 'PART';
+  const isEditable = !isReadOnly && !isPaid;
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl mx-auto">
-      {/* Header */}
+    <div className="p-5 lg:p-6 max-w-3xl mx-auto space-y-6">
+      {/* ─── Header ─── */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-            <Receipt className="h-5 w-5 text-slate-600" />
-            Billing & Services
-          </h2>
-          <p className="text-sm text-slate-500 mt-1">
-            Add services rendered during this consultation
+          <div className="flex items-center gap-2 mb-1">
+            <Receipt className="h-4 w-4 text-slate-400" />
+            <h2 className="text-sm font-semibold text-slate-900">Consultation Billing</h2>
+          </div>
+          <p className="text-xs text-slate-500 ml-6">
+            Set the fee for this consultation. Frontdesk will collect payment.
           </p>
         </div>
         {billingData?.payment && (
           <Badge
-            variant={isPaid ? 'default' : isPartiallyPaid ? 'secondary' : 'outline'}
-            className={
+            variant="outline"
+            className={cn(
+              'text-[11px] font-semibold px-2.5 py-1',
               isPaid
-                ? 'bg-emerald-100 text-emerald-700'
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                 : isPartiallyPaid
-                ? 'bg-amber-100 text-amber-700'
-                : 'bg-slate-100 text-slate-700'
-            }
+                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                  : 'bg-slate-50 text-slate-600 border-slate-200',
+            )}
           >
-            {isPaid ? 'Paid' : isPartiallyPaid ? 'Partially Paid' : 'Unpaid'}
+            {isPaid ? (
+              <><CheckCircle className="h-3 w-3 mr-1" />Paid</>
+            ) : isPartiallyPaid ? 'Partially Paid' : 'Unpaid'}
           </Badge>
         )}
       </div>
 
-      {/* Payment already completed notice */}
+      {/* ─── Paid notice ─── */}
       {isPaid && (
-        <Card className="border-emerald-200 bg-emerald-50">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <CheckCircle className="h-5 w-5 text-emerald-600 mt-0.5" />
-              <div>
-                <p className="font-medium text-emerald-800">Payment Complete</p>
-                <p className="text-sm text-emerald-600">
-                  This bill has been fully paid. Receipt: {billingData?.payment?.receiptNumber || 'Pending'}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="flex items-start gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+          <CheckCircle className="h-5 w-5 text-emerald-600 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-emerald-800">Payment Complete</p>
+            <p className="text-xs text-emerald-600 mt-0.5">
+              Receipt: {billingData?.payment?.receiptNumber || 'Pending'}
+            </p>
+          </div>
+        </div>
       )}
 
-      {/* Add Service Section */}
-      {!isReadOnly && !isPaid && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Add Service</CardTitle>
-            <CardDescription>Select a service to add to the patient&apos;s bill</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-end gap-3">
-              <div className="flex-1">
-                <Label htmlFor="service-select" className="sr-only">Service</Label>
-                <Select
-                  value={selectedServiceId}
-                  onValueChange={setSelectedServiceId}
-                >
-                  <SelectTrigger id="service-select">
-                    <SelectValue placeholder="Select a service..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(servicesByCategory).map(([category, categoryServices]) => (
-                      <div key={category}>
-                        <div className="px-2 py-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                          {category}
-                        </div>
-                        {categoryServices.map(service => (
-                          <SelectItem key={service.id} value={service.id.toString()}>
-                            <div className="flex items-center justify-between w-full gap-4">
-                              <span>{service.service_name}</span>
-                              <span className="text-xs text-slate-500 ml-auto">
-                                {service.price.toLocaleString()}
-                              </span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </div>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button
-                onClick={handleAddService}
-                disabled={!selectedServiceId}
-                className="gap-1"
+      {/* ─── Billing Items ─── */}
+      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+        {/* Table header */}
+        <div className="grid grid-cols-[1fr_160px_40px] gap-3 px-4 py-3 bg-slate-50 border-b border-slate-100">
+          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Description</span>
+          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right">Amount (KSH)</span>
+          <span />
+        </div>
+
+        {/* Items */}
+        {items.length === 0 ? (
+          <div className="text-center py-10 px-4">
+            <Banknote className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+            <p className="text-sm font-medium text-slate-500">No billing items</p>
+            <p className="text-xs text-slate-400 mt-1">
+              Add a consultation fee below
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {items.map((item) => (
+              <div
+                key={item.key}
+                className="grid grid-cols-[1fr_160px_40px] gap-3 px-4 py-3 items-center group"
               >
-                <Plus className="h-4 w-4" />
-                Add
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                {/* Description */}
+                {isEditable ? (
+                  <Input
+                    value={item.description}
+                    onChange={(e) => updateDescription(item.key, e.target.value)}
+                    placeholder="e.g. Consultation Fee"
+                    className="h-9 text-sm border-slate-200 bg-white focus:ring-1 focus:ring-slate-300"
+                  />
+                ) : (
+                  <span className="text-sm font-medium text-slate-800">{item.description}</span>
+                )}
 
-      {/* Billing Items Table */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">
-            Services Rendered
-            {billingItems.length > 0 && (
-              <span className="text-slate-500 font-normal ml-2">({billingItems.length} items)</span>
+                {/* Amount */}
+                {isEditable ? (
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium">
+                      KSH
+                    </span>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={item.amount || ''}
+                      onChange={(e) => updateAmount(item.key, parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      className="h-9 text-sm text-right pl-12 border-slate-200 bg-white focus:ring-1 focus:ring-slate-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                  </div>
+                ) : (
+                  <span className="text-sm font-semibold text-slate-900 text-right">
+                    {item.amount.toLocaleString()}
+                  </span>
+                )}
+
+                {/* Remove */}
+                {isEditable ? (
+                  <button
+                    onClick={() => removeItem(item.key)}
+                    className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                ) : (
+                  <span />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Add item button */}
+        {isEditable && (
+          <div className="px-4 py-3 border-t border-slate-100 bg-slate-50/50">
+            <button
+              onClick={addItem}
+              className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Add line item
+            </button>
+          </div>
+        )}
+
+        {/* ─── Totals ─── */}
+        {items.length > 0 && (
+          <div className="border-t border-slate-200 bg-slate-50/30 px-4 py-4 space-y-2.5">
+            {/* Subtotal (only show if more than 1 item or discount) */}
+            {(items.length > 1 || discount > 0) && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-500">Subtotal</span>
+                <span className="font-medium text-slate-700">
+                  KSH {subtotal.toLocaleString()}
+                </span>
+              </div>
             )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {billingItems.length === 0 ? (
-            <div className="text-center py-8">
-              <DollarSign className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-              <p className="text-sm text-slate-500">No services added yet</p>
-              <p className="text-xs text-slate-400 mt-1">
-                Add services from the dropdown above to create a bill
-              </p>
-            </div>
-          ) : (
-            <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[40%]">Service</TableHead>
-                    <TableHead className="text-center">Qty</TableHead>
-                    <TableHead className="text-right">Unit Price</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                    {!isReadOnly && !isPaid && (
-                      <TableHead className="w-[50px]"></TableHead>
-                    )}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {billingItems.map(item => (
-                    <TableRow key={item.serviceId}>
-                      <TableCell>
-                        <div>
-                          <span className="font-medium text-sm">{item.serviceName}</span>
-                          {item.category && (
-                            <span className="text-xs text-slate-400 block">{item.category}</span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {!isReadOnly && !isPaid ? (
-                          <Input
-                            type="number"
-                            min={1}
-                            value={item.quantity}
-                            onChange={e => handleQuantityChange(item.serviceId, parseInt(e.target.value) || 1)}
-                            className="w-16 h-8 text-center mx-auto"
-                          />
-                        ) : (
-                          <span>{item.quantity}</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {!isReadOnly && !isPaid ? (
-                          <Input
-                            type="number"
-                            min={0}
-                            value={item.unitCost}
-                            onChange={e => handleUnitCostChange(item.serviceId, parseFloat(e.target.value) || 0)}
-                            className="w-24 h-8 text-right ml-auto"
-                          />
-                        ) : (
-                          <span>{item.unitCost.toLocaleString()}</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {(item.quantity * item.unitCost).toLocaleString()}
-                      </TableCell>
-                      {!isReadOnly && !isPaid && (
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-slate-400 hover:text-red-600"
-                            onClick={() => handleRemoveItem(item.serviceId)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
 
-              {/* Totals */}
-              <div className="border-t mt-4 pt-4 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Subtotal</span>
-                  <span className="font-medium">{subtotal.toLocaleString()}</span>
-                </div>
-                
-                {/* Discount */}
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-600">Discount</span>
-                  {!isReadOnly && !isPaid ? (
+            {/* Discount */}
+            {(discount > 0 || isEditable) && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-500">Discount</span>
+                {isEditable ? (
+                  <div className="relative w-36">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-medium">
+                      KSH
+                    </span>
                     <Input
                       type="number"
                       min={0}
                       max={subtotal}
-                      value={discount}
+                      value={discount || ''}
                       onChange={e => {
                         setDiscount(parseFloat(e.target.value) || 0);
                         setIsDirty(true);
                       }}
-                      className="w-28 h-8 text-right"
+                      className="h-8 text-sm text-right pl-12 border-slate-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
-                  ) : (
-                    <span className="text-emerald-600">
-                      {discount > 0 ? `-${discount.toLocaleString()}` : '0'}
-                    </span>
-                  )}
-                </div>
-
-                {/* Already paid (if partial) */}
-                {isPartiallyPaid && billingData?.payment?.amountPaid && billingData.payment.amountPaid > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-600">Amount Paid</span>
-                    <span className="text-emerald-600">-{billingData.payment.amountPaid.toLocaleString()}</span>
                   </div>
+                ) : (
+                  <span className="text-emerald-600 font-medium">
+                    {discount > 0 ? `- KSH ${discount.toLocaleString()}` : '—'}
+                  </span>
                 )}
-
-                <div className="flex justify-between text-base font-bold border-t pt-2">
-                  <span>Total Due</span>
-                  <span className="text-lg">{total.toLocaleString()}</span>
-                </div>
               </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+            )}
 
-      {/* Save Button */}
-      {!isReadOnly && !isPaid && billingItems.length > 0 && (
+            {/* Already paid (partial) */}
+            {isPartiallyPaid && billingData?.payment?.amountPaid && billingData.payment.amountPaid > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-500">Amount Paid</span>
+                <span className="text-emerald-600 font-medium">
+                  - KSH {billingData.payment.amountPaid.toLocaleString()}
+                </span>
+              </div>
+            )}
+
+            {/* Total */}
+            <div className="flex items-center justify-between pt-2.5 border-t border-slate-200">
+              <span className="text-sm font-bold text-slate-900">Total Due</span>
+              <span className="text-lg font-bold text-slate-900">
+                KSH {total.toLocaleString()}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ─── Save Button ─── */}
+      {isEditable && items.length > 0 && (
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-2">
             {isDirty && (
-              <>
-                <AlertCircle className="h-4 w-4 text-amber-500" />
-                <span className="text-amber-600">Unsaved billing changes</span>
-              </>
+              <div className="flex items-center gap-1.5 text-xs text-amber-600">
+                <AlertCircle className="h-3.5 w-3.5" />
+                Unsaved changes
+              </div>
             )}
           </div>
           <Button
             onClick={handleSave}
-            disabled={isSaving || !isDirty}
-            className="gap-2"
+            disabled={isSaving || !isDirty || items.every(i => !i.description.trim() || i.amount <= 0)}
+            size="sm"
+            className="gap-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white px-5"
           >
             {isSaving ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Saving...
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Saving…
               </>
             ) : (
               <>
-                <Save className="h-4 w-4" />
+                <Save className="h-3.5 w-3.5" />
                 Save Billing
               </>
             )}
@@ -494,15 +430,14 @@ export function BillingTab({ appointmentId, isReadOnly = false }: BillingTabProp
         </div>
       )}
 
-      {/* Info notice */}
-      {!isPaid && billingItems.length > 0 && (
-        <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
-          <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-          <div>
-            <strong>How billing works:</strong> Once you save the billing, it will appear in the
-            frontdesk billing queue. The frontdesk staff will collect the payment from the patient
-            and mark it as paid.
-          </div>
+      {/* ─── Info notice ─── */}
+      {!isPaid && (
+        <div className="flex items-start gap-2.5 p-3.5 bg-blue-50/50 border border-blue-100 rounded-xl text-xs text-blue-700">
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <span>
+            Once saved, this bill will appear in the frontdesk billing queue.
+            Frontdesk staff will collect payment from the patient.
+          </span>
         </div>
       )}
     </div>

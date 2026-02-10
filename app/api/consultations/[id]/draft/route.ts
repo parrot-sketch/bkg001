@@ -153,6 +153,8 @@ export async function PUT(
         rawText: body.notes.rawText || undefined,
         structured: body.notes.structured || undefined,
       },
+      outcomeType: body.outcomeType || undefined,
+      patientDecision: body.patientDecision || undefined,
       versionToken: body.versionToken || undefined,
     };
 

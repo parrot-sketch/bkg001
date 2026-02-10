@@ -60,6 +60,8 @@ export function useSaveConsultationDraft() {
               fullText,
               structured: newDraft.notes.structured,
             },
+            outcomeType: newDraft.outcomeType ?? previousConsultation.outcomeType,
+            patientDecision: newDraft.patientDecision ?? previousConsultation.patientDecision,
             updatedAt: new Date(), // Optimistic timestamp
           }
         );

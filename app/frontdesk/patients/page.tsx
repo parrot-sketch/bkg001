@@ -497,26 +497,32 @@ function FrontdeskPatientsContent() {
                             )}
                           </div>
 
-                          {/* Quick actions */}
-                          <div className="mt-3 flex gap-2" onClick={(e) => e.preventDefault()}>
-                            <Link href={`/frontdesk/appointments/new?patientId=${patient.id}`} className="flex-1">
-                              <Button
-                                size="sm"
-                                className="w-full h-8 text-xs rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white"
-                              >
-                                <Calendar className="h-3 w-3 mr-1" />
-                                Book Appointment
-                              </Button>
-                            </Link>
-                            <Link href={`/frontdesk/patient/${patient.id}`}>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-8 text-xs rounded-lg text-slate-500"
-                              >
-                                <ArrowRight className="h-3 w-3" />
-                              </Button>
-                            </Link>
+                          {/* Quick actions — use onClick + router.push to avoid nested <a> tags */}
+                          <div className="mt-3 flex gap-2" onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              size="sm"
+                              className="flex-1 h-8 text-xs rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                router.push(`/frontdesk/appointments/new?patientId=${patient.id}`);
+                              }}
+                            >
+                              <Calendar className="h-3 w-3 mr-1" />
+                              Book Appointment
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 text-xs rounded-lg text-slate-500"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                router.push(`/frontdesk/patient/${patient.id}`);
+                              }}
+                            >
+                              <ArrowRight className="h-3 w-3" />
+                            </Button>
                           </div>
                         </div>
                       </div>

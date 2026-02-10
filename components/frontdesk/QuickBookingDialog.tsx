@@ -48,10 +48,7 @@ import {
   Stethoscope,
   CheckCircle2,
   Loader2,
-  ChevronRight,
-  Sparkles,
   FileText,
-  MapPin,
   X,
   Sun,
   Sunset,
@@ -590,22 +587,17 @@ export function QuickBookingDialog({
                 icon={FileText}
               />
 
-              <div className="mt-3 space-y-3">
+              <div className="mt-3 space-y-4">
                 <div>
                   <Label htmlFor="qb-type" className="text-xs font-semibold text-slate-600 mb-1.5 block">
-                    Type <span className="text-red-400">*</span>
+                    Appointment Type <span className="text-red-400">*</span>
                   </Label>
                   <Select value={appointmentType} onValueChange={setAppointmentType}>
-                    <SelectTrigger id="qb-type" className="h-10 rounded-xl border-slate-200">
-                      <SelectValue placeholder="Select appointment type..." />
+                    <SelectTrigger id="qb-type" className="h-10 rounded-xl border-slate-200 bg-white">
+                      <SelectValue placeholder="Select type…" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Initial Consultation">
-                        <span className="flex items-center gap-2">
-                          <Sparkles className="h-3.5 w-3.5 text-cyan-500" />
-                          Initial Consultation
-                        </span>
-                      </SelectItem>
+                      <SelectItem value="Initial Consultation">Initial Consultation</SelectItem>
                       <SelectItem value="Follow-up">Follow-up Visit</SelectItem>
                       <SelectItem value="Routine Checkup">Routine Checkup</SelectItem>
                       <SelectItem value="Procedure">Procedure</SelectItem>
@@ -622,11 +614,11 @@ export function QuickBookingDialog({
                   </Label>
                   <Textarea
                     id="qb-notes"
-                    placeholder="Any relevant notes for this appointment..."
+                    placeholder="Any relevant notes for this appointment…"
                     rows={2}
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    className="rounded-xl border-slate-200 resize-none text-sm"
+                    className="rounded-xl border-slate-200 bg-white resize-none text-sm"
                   />
                 </div>
               </div>

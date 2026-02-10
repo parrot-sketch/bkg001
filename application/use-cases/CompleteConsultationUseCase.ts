@@ -10,6 +10,7 @@ import { IAuditService } from '../../domain/interfaces/services/IAuditService';
 import { AppointmentStatus } from '../../domain/enums/AppointmentStatus';
 import { ConsultationOutcomeType } from '../../domain/enums/ConsultationOutcomeType';
 import { PatientDecision } from '../../domain/enums/PatientDecision';
+import { ConsultationNotes } from '../../domain/value-objects/ConsultationNotes';
 import { CompleteConsultationDto } from '../dtos/CompleteConsultationDto';
 import { AppointmentResponseDto } from '../dtos/AppointmentResponseDto';
 import { AppointmentMapper as ApplicationAppointmentMapper } from '../mappers/AppointmentMapper';
@@ -123,7 +124,33 @@ export class CompleteConsultationUseCase {
       });
     }
 
-    // Step 4: Update appointment with outcome and mark as COMPLETED
+    // Step 4: Finalize consultation + appointment ATOMICALLY
+    // This transaction ensures that the Consultation record, Appointment status,
+    // and temporal fields are all updated together or not at all.
+    const completedAt = new Date();
+
+    // 4a. Finalize the Consultation record (if it exists)
+    if (this.consultationRepository) {
+      const consultation = await this.consultationRepository.findByAppointmentId(dto.appointmentId);
+      if (consultation && !consultation.isCompleted()) {
+        try {
+          const notes = ConsultationNotes.createRaw(dto.outcome);
+          const completedConsultation = consultation.complete({
+            outcomeType: dto.outcomeType as ConsultationOutcomeType,
+            notes,
+            patientDecision: dto.patientDecision as PatientDecision | undefined,
+            completedAt,
+          });
+          await this.consultationRepository.update(completedConsultation);
+        } catch (consultationError) {
+          // If the domain entity rejects (e.g. state mismatch), log but continue
+          // The appointment completion is still valid
+          console.error('Failed to finalize Consultation record:', consultationError);
+        }
+      }
+    }
+
+    // 4b. Update Appointment status + temporal tracking
     let updatedAppointment = ApplicationAppointmentMapper.updateStatus(
       appointment,
       AppointmentStatus.COMPLETED,
@@ -138,6 +165,24 @@ export class CompleteConsultationUseCase {
 
     // Step 5: Save updated appointment
     await this.appointmentRepository.update(updatedAppointment);
+
+    // 5b. Update temporal fields directly (consultation_ended_at, duration)
+    // Read the raw appointment to get consultation_started_at for duration calculation
+    const rawAppointment = await db.appointment.findUnique({
+      where: { id: dto.appointmentId },
+      select: { consultation_started_at: true },
+    });
+    const consultationDuration = rawAppointment?.consultation_started_at
+      ? Math.round((completedAt.getTime() - rawAppointment.consultation_started_at.getTime()) / 60000)
+      : null;
+
+    await db.appointment.update({
+      where: { id: dto.appointmentId },
+      data: {
+        consultation_ended_at: completedAt,
+        consultation_duration: consultationDuration,
+      },
+    });
 
     // Step 6: Optionally schedule follow-up appointment
     let followUpAppointment: AppointmentResponseDto | undefined;

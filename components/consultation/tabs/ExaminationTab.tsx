@@ -3,15 +3,15 @@
 /**
  * Examination Tab
  * 
- * Single responsibility: examination notes (`examination` field in StructuredNotes).
+ * Single responsibility: examination notes (`examination` field).
  * Physical examination findings, measurements, and observations.
  * 
- * Note: Auto-saves via parent context — no per-tab save button needed.
+ * Auto-saves via parent context — no per-tab save button needed.
  */
 
 import { useState, useEffect } from 'react';
-import { Label } from '@/components/ui/label';
 import { RichTextEditor } from '@/components/consultation/RichTextEditor';
+import { Stethoscope } from 'lucide-react';
 
 interface ExaminationTabProps {
   initialValue?: string;
@@ -36,22 +36,26 @@ export function ExaminationTab({
   };
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-5 lg:p-6 max-w-4xl mx-auto space-y-5">
+      {/* Section header */}
       <div>
-        <Label htmlFor="examination" className="text-sm font-semibold">
-          Physical Examination
-        </Label>
-        <p className="text-xs text-muted-foreground mt-1 mb-3">
-          Document examination findings, measurements, and observations.
+        <div className="flex items-center gap-2 mb-1">
+          <Stethoscope className="h-4 w-4 text-slate-400" />
+          <h2 className="text-sm font-semibold text-slate-900">Physical Examination</h2>
+        </div>
+        <p className="text-xs text-slate-500 ml-6">
+          Document examination findings, measurements, body areas examined, and clinical observations.
         </p>
-        <RichTextEditor
-          content={examination}
-          onChange={handleChange}
-          placeholder="Examination findings, measurements, body areas examined..."
-          readOnly={isReadOnly}
-          minHeight="500px"
-        />
       </div>
+
+      {/* Editor */}
+      <RichTextEditor
+        content={examination}
+        onChange={handleChange}
+        placeholder="Examination findings, measurements, body areas examined, tissue quality, skin laxity…"
+        readOnly={isReadOnly}
+        minHeight="420px"
+      />
     </div>
   );
 }

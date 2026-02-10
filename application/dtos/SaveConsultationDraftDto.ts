@@ -45,6 +45,16 @@ export interface SaveConsultationDraftDto {
   };
 
   /**
+   * Optional: Consultation outcome type (persisted as draft so it survives refreshes)
+   */
+  readonly outcomeType?: import('../../domain/enums/ConsultationOutcomeType').ConsultationOutcomeType;
+
+  /**
+   * Optional: Patient decision (persisted as draft when outcome is PROCEDURE_RECOMMENDED)
+   */
+  readonly patientDecision?: import('../../domain/enums/PatientDecision').PatientDecision;
+
+  /**
    * Optional: Version token for optimistic locking
    * If provided, ensures we're not overwriting a newer version
    * Frontend should track updatedAt timestamp as version token

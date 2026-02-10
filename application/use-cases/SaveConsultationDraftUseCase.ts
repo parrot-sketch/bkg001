@@ -146,8 +146,12 @@ export class SaveConsultationDraftUseCase {
       });
     }
 
-    // Step 7: Update consultation with new notes
-    const updatedConsultation = consultation.updateNotes(notes);
+    // Step 7: Update consultation with notes + optional outcome/decision
+    const updatedConsultation = consultation.updateDraft({
+      notes,
+      outcomeType: dto.outcomeType,
+      patientDecision: dto.patientDecision,
+    });
 
     // Step 8: Save updated consultation
     await this.consultationRepository.update(updatedConsultation);
