@@ -5,7 +5,8 @@ import { INotificationService } from '../../domain/interfaces/services/INotifica
 import { IAuditService } from '../../domain/interfaces/services/IAuditService';
 import { ITimeService } from '../../domain/interfaces/services/ITimeService';
 import { Appointment } from '../../domain/entities/Appointment';
-import { AppointmentStatus } from '../../domain/enums/AppointmentStatus';
+import { AppointmentStatus, getDefaultStatusForSource } from '../../domain/enums/AppointmentStatus';
+import { AppointmentSource } from '../../domain/enums/AppointmentSource';
 import { ScheduleAppointmentDto } from '../dtos/ScheduleAppointmentDto';
 import { AppointmentResponseDto } from '../dtos/AppointmentResponseDto';
 import { AppointmentMapper as ApplicationAppointmentMapper } from '../mappers/AppointmentMapper';
@@ -155,11 +156,15 @@ export class ScheduleAppointmentUseCase {
 
     // Step 3: Create appointment domain entity (validates business rules)
     // Note: ID will be 0 temporarily, database will assign actual ID
-    // Status: PENDING_DOCTOR_CONFIRMATION - Doctor must confirm/reject the booking
-    // This ensures proper clinical workflow: Frontdesk books → Doctor confirms → Patient checks in
+    // Status is determined by source:
+    //   PATIENT_REQUESTED → PENDING_DOCTOR_CONFIRMATION (requires doctor review)
+    //   FRONTDESK_SCHEDULED, DOCTOR_FOLLOW_UP, ADMIN_SCHEDULED → SCHEDULED (auto-confirmed)
+    const appointmentSource = dto.source || AppointmentSource.PATIENT_REQUESTED;
+    const defaultStatus = getDefaultStatusForSource(appointmentSource);
+
     const appointment = ApplicationAppointmentMapper.fromScheduleDto(
       dto,
-      AppointmentStatus.PENDING_DOCTOR_CONFIRMATION,
+      defaultStatus,
       0, // Temporary ID, will be replaced after save
     );
 
@@ -233,6 +238,15 @@ export class ScheduleAppointmentUseCase {
             duration_minutes: appointmentDuration,
             status_changed_at: new Date(),
             status_changed_by: userId,
+            // Source tracking
+            source: appointmentSource as any,
+            parent_appointment_id: dto.parentAppointmentId || null,
+            parent_consultation_id: dto.parentConsultationId || null,
+            // Auto-confirm for non-patient sources
+            ...(defaultStatus === AppointmentStatus.SCHEDULED ? {
+              doctor_confirmed_at: new Date(),
+              doctor_confirmed_by: userId,
+            } : {}),
           },
         });
 
@@ -286,36 +300,42 @@ export class ScheduleAppointmentUseCase {
     }
 
     // Step 7: Send in-app notification to Doctor for confirmation
-    try {
-      const doctorUser = await this.prisma.doctor.findUnique({
-        where: { id: dto.doctorId },
-        select: { user_id: true }
-      });
+    // Only send "needs confirmation" for patient-requested appointments
+    if (defaultStatus === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION) {
+      try {
+        const doctorUser = await this.prisma.doctor.findUnique({
+          where: { id: dto.doctorId },
+          select: { user_id: true }
+        });
 
-      if (doctorUser) {
-        await this.notificationService.sendInApp(
-          doctorUser.user_id,
-          'New Appointment Request',
-          `${patient.getFullName()} has been booked for ${dto.appointmentDate.toLocaleDateString()} at ${dto.time}. Please confirm or reschedule.`,
-          'warning',
-          {
-            resourceType: 'appointment',
-            resourceId: savedAppointmentId,
-            actionUrl: `/doctor/appointments/${savedAppointmentId}`
-          }
-        );
+        if (doctorUser) {
+          await this.notificationService.sendInApp(
+            doctorUser.user_id,
+            'New Appointment Request',
+            `${patient.getFullName()} has been booked for ${dto.appointmentDate.toLocaleDateString()} at ${dto.time}. Please confirm or reschedule.`,
+            'warning',
+            {
+              resourceType: 'appointment',
+              resourceId: savedAppointmentId,
+              actionUrl: `/doctor/appointments/${savedAppointmentId}`
+            }
+          );
+        }
+      } catch (error) {
+        console.error('Failed to send doctor notification:', error);
       }
-    } catch (error) {
-      console.error('Failed to send doctor notification:', error);
     }
 
     // Step 8: Record audit event
+    const sourceLabel = appointmentSource === AppointmentSource.DOCTOR_FOLLOW_UP
+      ? ' (doctor follow-up)' : appointmentSource === AppointmentSource.FRONTDESK_SCHEDULED
+      ? ' (frontdesk)' : '';
     await this.auditService.recordEvent({
       userId,
       recordId: savedAppointment.getId().toString(),
       action: 'CREATE',
       model: 'Appointment',
-      details: `Scheduled appointment for patient ${patient.getFullName()} with doctor ${dto.doctorId} on ${dto.appointmentDate.toISOString()}`,
+      details: `Scheduled appointment${sourceLabel} for patient ${patient.getFullName()} with doctor ${dto.doctorId} on ${dto.appointmentDate.toISOString()} [status: ${defaultStatus}, source: ${appointmentSource}]`,
     });
 
     // Step 9: Map domain entity to response DTO

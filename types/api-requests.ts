@@ -16,6 +16,12 @@ export interface CreateAppointmentRequest {
   type?: string;
   note?: string;
   reason?: string;
+  /** Source of the appointment (PATIENT_REQUESTED, FRONTDESK_SCHEDULED, DOCTOR_FOLLOW_UP, ADMIN_SCHEDULED) */
+  source?: string;
+  /** Parent appointment ID for follow-up linkage */
+  parentAppointmentId?: number;
+  /** Parent consultation ID for follow-up linkage */
+  parentConsultationId?: number;
 }
 
 /**

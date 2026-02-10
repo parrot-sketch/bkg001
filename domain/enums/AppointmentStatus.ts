@@ -48,6 +48,31 @@ export function isAppointmentStatus(value: string): value is AppointmentStatus {
 }
 
 /**
+ * Determines the default status for a newly created appointment based on its source.
+ * 
+ * This is the SINGLE SOURCE OF TRUTH for the source → status mapping.
+ * 
+ * Rule: Only PATIENT_REQUESTED requires doctor confirmation.
+ *       All staff-initiated appointments are auto-scheduled.
+ * 
+ * @param source - The appointment source (who created it)
+ * @returns The default appointment status
+ */
+export function getDefaultStatusForSource(source: string): AppointmentStatus {
+  switch (source) {
+    case 'PATIENT_REQUESTED':
+      return AppointmentStatus.PENDING_DOCTOR_CONFIRMATION;
+    case 'FRONTDESK_SCHEDULED':
+    case 'DOCTOR_FOLLOW_UP':
+    case 'ADMIN_SCHEDULED':
+      return AppointmentStatus.SCHEDULED;
+    default:
+      // Defensive: unknown sources require confirmation
+      return AppointmentStatus.PENDING_DOCTOR_CONFIRMATION;
+  }
+}
+
+/**
  * Check if an appointment status allows modifications
  */
 export function isAppointmentModifiable(status: AppointmentStatus): boolean {

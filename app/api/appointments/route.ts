@@ -19,6 +19,7 @@ import { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDt
 import { extractConsultationRequestFields } from '@/infrastructure/mappers/ConsultationRequestMapper';
 import { ConsultationRequestStatus } from '@/domain/enums/ConsultationRequestStatus';
 import { DomainException } from '@/domain/exceptions/DomainException';
+import { isAppointmentSource } from '@/domain/enums/AppointmentSource';
 import { subDays } from 'date-fns';
 import type { CreateAppointmentRequest } from '@/types/api-requests';
 
@@ -403,7 +404,50 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    // 5. Use ScheduleAppointmentUseCase to create appointment
+    // 5. Validate and resolve source field
+    let source = body.source || 'PATIENT_REQUESTED';
+
+    // Validate source enum value
+    if (body.source && !isAppointmentSource(body.source)) {
+      return NextResponse.json(
+        { success: false, error: `Invalid appointment source: ${body.source}` },
+        { status: 400 }
+      );
+    }
+
+    // Role-based source restrictions:
+    // - Patients can only create PATIENT_REQUESTED
+    // - Doctors can create DOCTOR_FOLLOW_UP or PATIENT_REQUESTED
+    // - Frontdesk can create FRONTDESK_SCHEDULED or PATIENT_REQUESTED
+    // - Admins can create any source
+    if (userRole === 'PATIENT' && source !== 'PATIENT_REQUESTED') {
+      return NextResponse.json(
+        { success: false, error: 'Patients can only create patient-requested appointments' },
+        { status: 403 }
+      );
+    }
+    if (userRole === 'DOCTOR' && source !== 'DOCTOR_FOLLOW_UP' && source !== 'PATIENT_REQUESTED') {
+      return NextResponse.json(
+        { success: false, error: 'Doctors can only create follow-up or patient-requested appointments' },
+        { status: 403 }
+      );
+    }
+    if (userRole === 'FRONTDESK' && source === 'DOCTOR_FOLLOW_UP') {
+      return NextResponse.json(
+        { success: false, error: 'Frontdesk cannot create doctor follow-up appointments' },
+        { status: 403 }
+      );
+    }
+
+    // Default source for roles when not explicitly provided
+    if (!body.source) {
+      if (userRole === 'FRONTDESK') source = 'FRONTDESK_SCHEDULED';
+      else if (userRole === 'ADMIN') source = 'ADMIN_SCHEDULED';
+      else if (userRole === 'PATIENT') source = 'PATIENT_REQUESTED';
+      // For DOCTOR, keep PATIENT_REQUESTED unless explicitly set (backward compat)
+    }
+
+    // 6. Use ScheduleAppointmentUseCase to create appointment
     const { getScheduleAppointmentUseCase } = await import('@/lib/use-cases');
     const scheduleAppointmentUseCase = getScheduleAppointmentUseCase();
 
@@ -416,9 +460,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       time: body.time,
       type: body.type,
       note: body.note,
+      source,
+      parentAppointmentId: body.parentAppointmentId,
+      parentConsultationId: body.parentConsultationId,
     }, userId);
 
-    // 6. Map to response DTO format
+    // 7. Map to response DTO format
     const responseDto: AppointmentResponseDto = {
       id: result.id,
       patientId: result.patientId,
@@ -437,7 +484,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       updatedAt: result.updatedAt,
     };
 
-    // 7. Return success response
+    // 8. Return success response
     return NextResponse.json(
       {
         success: true,

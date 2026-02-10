@@ -58,6 +58,13 @@ enum AppointmentStatus {
   NO_SHOW
 }
 
+enum AppointmentSource {
+  PATIENT_REQUESTED
+  FRONTDESK_SCHEDULED
+  DOCTOR_FOLLOW_UP
+  ADMIN_SCHEDULED
+}
+
 enum ConsultationRequestStatus {
   SUBMITTED
   PENDING_REVIEW
@@ -606,6 +613,11 @@ model Appointment {
   late_arrival     Boolean           @default(false)
   late_by_minutes  Int? // Minutes late if late_arrival is true
 
+  // Source tracking (who created this appointment and why)
+  source                  AppointmentSource @default(PATIENT_REQUESTED)
+  parent_appointment_id   Int? // If this is a follow-up, links to the original appointment
+  parent_consultation_id  Int? // If created from a consultation, links to the consultation
+
   // Consultation tracking (Phase 1: Check-in workflow)
   consultation_started_at DateTime? // When doctor started consultation
   consultation_ended_at   DateTime? // When consultation was completed
@@ -660,6 +672,13 @@ model Appointment {
   consultation         Consultation?        @relation("AppointmentConsultation")
   inventory_usage      InventoryUsage[]
 
+  // Self-referential relation for follow-up linkage
+  parent_appointment      Appointment?  @relation("FollowUpChain", fields: [parent_appointment_id], references: [id])
+  follow_up_appointments  Appointment[] @relation("FollowUpChain")
+
+  // Consultation that spawned this follow-up
+  parent_consultation     Consultation? @relation("ConsultationFollowUp", fields: [parent_consultation_id], references: [id])
+
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
@@ -669,6 +688,7 @@ model Appointment {
   @@index([doctor_id])
   @@index([appointment_date])
   @@index([status])
+  @@index([source])
   @@index([appointment_date, status])
   @@index([doctor_id, appointment_date, time])
   @@index([consultation_request_status])
@@ -710,10 +730,11 @@ model Consultation {
   follow_up_notes  String?
 
   // Relations
-  surgical_case SurgicalCase? // New Architecture
-  appointment   Appointment   @relation("AppointmentConsultation", fields: [appointment_id], references: [id], onDelete: Cascade)
-  doctor        Doctor        @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
-  user          User?         @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  surgical_case          SurgicalCase? // New Architecture
+  appointment            Appointment   @relation("AppointmentConsultation", fields: [appointment_id], references: [id], onDelete: Cascade)
+  doctor                 Doctor        @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
+  user                   User?         @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  follow_up_appointments Appointment[] @relation("ConsultationFollowUp") // Follow-up appointments spawned from this consultation
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt

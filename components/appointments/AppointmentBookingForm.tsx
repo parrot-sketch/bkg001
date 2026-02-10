@@ -34,6 +34,12 @@ interface AppointmentBookingFormProps {
     initialType?: string;
     userRole?: 'doctor' | 'frontdesk';
     lockDoctor?: boolean; // NEW: Prevents changing doctor selection
+    /** Appointment source (PATIENT_REQUESTED, FRONTDESK_SCHEDULED, DOCTOR_FOLLOW_UP) */
+    source?: string;
+    /** Parent appointment ID for follow-up linkage */
+    parentAppointmentId?: number;
+    /** Parent consultation ID for follow-up linkage */
+    parentConsultationId?: number;
     onSuccess?: () => void;
     onCancel?: () => void;
 }
@@ -47,10 +53,15 @@ export function AppointmentBookingForm({
     initialType,
     userRole = 'frontdesk',
     lockDoctor = false,
+    source,
+    parentAppointmentId,
+    parentConsultationId,
     onSuccess,
     onCancel
 }: AppointmentBookingFormProps) {
     const router = useRouter();
+
+    const isFollowUp = source === 'DOCTOR_FOLLOW_UP' || initialType === 'Follow-up';
 
     // Steps: 1. Patient, 2. Doctor, 3. DateTime, 4. Details/Review
     const [currentStep, setCurrentStep] = useState(1);
@@ -267,10 +278,17 @@ export function AppointmentBookingForm({
                 time: formData.selectedSlot,
                 type: formData.type,
                 note: formData.note,
+                // Source-aware fields for follow-up linkage
+                ...(source ? { source } : {}),
+                ...(parentAppointmentId ? { parentAppointmentId } : {}),
+                ...(parentConsultationId ? { parentConsultationId } : {}),
             });
 
             if (response.success) {
-                toast.success('Appointment scheduled successfully');
+                toast.success(isFollowUp
+                    ? 'Follow-up appointment scheduled successfully'
+                    : 'Appointment scheduled successfully'
+                );
                 if (onSuccess) {
                     onSuccess();
                 } else {
@@ -321,10 +339,34 @@ export function AppointmentBookingForm({
                     <ArrowLeft className="h-4 w-4" />
                 </Button>
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Book Appointment</h1>
-                    <p className="text-muted-foreground">Schedule a new appointment</p>
+                    <h1 className="text-2xl font-bold tracking-tight">
+                        {isFollowUp ? 'Schedule Follow-up' : 'Book Appointment'}
+                    </h1>
+                    <p className="text-muted-foreground">
+                        {isFollowUp
+                            ? 'Select a date and time for the patient\'s follow-up visit'
+                            : 'Schedule a new appointment'
+                        }
+                    </p>
                 </div>
             </div>
+
+            {/* Follow-up context banner */}
+            {isFollowUp && parentConsultationId && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/60 px-5 py-4 flex items-start gap-3">
+                    <div className="mt-0.5 h-8 w-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+                        <FileText className="h-4 w-4 text-amber-700" />
+                    </div>
+                    <div className="min-w-0">
+                        <p className="font-semibold text-amber-900 text-sm">Follow-up Appointment</p>
+                        <p className="text-xs text-amber-700 mt-0.5">
+                            Linked to consultation #{parentConsultationId}
+                            {parentAppointmentId ? ` (appointment #${parentAppointmentId})` : ''}
+                            . This appointment will be auto-confirmed — no additional confirmation step required.
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {renderStepIndicator()}
 
@@ -334,13 +376,13 @@ export function AppointmentBookingForm({
                         {currentStep === 1 && "Select Patient"}
                         {currentStep === 2 && "Select Doctor"}
                         {currentStep === 3 && "Select Date & Time"}
-                        {currentStep === 4 && "Review & Confirm"}
+                        {currentStep === 4 && (isFollowUp ? "Review & Schedule" : "Review & Confirm")}
                     </CardTitle>
                     <CardDescription>
                         {currentStep === 1 && "Search for the patient."}
                         {currentStep === 2 && "Choose a doctor."}
                         {currentStep === 3 && "View availability and select a time slot."}
-                        {currentStep === 4 && "Confirm booking details."}
+                        {currentStep === 4 && (isFollowUp ? "Review and schedule the follow-up." : "Confirm booking details.")}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -563,7 +605,10 @@ export function AppointmentBookingForm({
                             <div className="flex justify-between pt-4">
                                 <Button variant="outline" onClick={handleBack} disabled={isSubmitting}>Back</Button>
                                 <Button onClick={handleSubmit} disabled={!formData.type || isSubmitting} className="bg-teal-600 hover:bg-teal-700">
-                                    {isSubmitting ? "Book in Progress..." : "Confirm Booking"}
+                                    {isSubmitting
+                                        ? (isFollowUp ? 'Scheduling…' : 'Booking…')
+                                        : (isFollowUp ? 'Schedule Follow-up' : 'Confirm Booking')
+                                    }
                                 </Button>
                             </div>
                         </div>

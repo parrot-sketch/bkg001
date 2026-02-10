@@ -34,4 +34,21 @@ export interface ScheduleAppointmentDto {
    * Optional: Notes about the appointment
    */
   readonly note?: string;
+
+  /**
+   * Source: Who/what created this appointment.
+   * Determines default status (PATIENT_REQUESTED → needs confirmation, others → auto-scheduled).
+   * Defaults to PATIENT_REQUESTED if not provided.
+   */
+  readonly source?: string;
+
+  /**
+   * Optional: Parent appointment ID for follow-up linkage
+   */
+  readonly parentAppointmentId?: number;
+
+  /**
+   * Optional: Parent consultation ID for follow-up linkage
+   */
+  readonly parentConsultationId?: number;
 }

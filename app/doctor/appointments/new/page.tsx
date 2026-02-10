@@ -1,19 +1,25 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { AppointmentBookingForm } from '@/components/appointments/AppointmentBookingForm';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { doctorApi } from '@/lib/api/doctor';
 
 function DoctorBookingWrapper() {
     const searchParams = useSearchParams();
+    const router = useRouter();
     const { user } = useAuth();
     const [doctorId, setDoctorId] = useState<string | undefined>(undefined);
 
-    // Pre-fill patient from URL if coming from consultation
+    // Pre-fill from URL (consultation follow-up flow passes these)
     const patientId = searchParams.get('patientId') || undefined;
     const type = searchParams.get('type') || undefined;
+    const source = searchParams.get('source') || undefined;
+    const parentAppointmentId = searchParams.get('parentAppointmentId') || undefined;
+    const parentConsultationId = searchParams.get('parentConsultationId') || undefined;
+
+    const isFollowUp = source === 'DOCTOR_FOLLOW_UP' || type === 'Follow-up';
 
     useEffect(() => {
         if (user) {
@@ -34,10 +40,17 @@ function DoctorBookingWrapper() {
             initialPatientId={patientId}
             initialType={type}
             userRole="doctor"
+            lockDoctor
+            source={source}
+            parentAppointmentId={parentAppointmentId ? Number(parentAppointmentId) : undefined}
+            parentConsultationId={parentConsultationId ? Number(parentConsultationId) : undefined}
             onSuccess={() => {
-                // Determine where to go back
-                // For now, go to appointments list, or dashboard?
-                // The form defaults to router.back(), but let's be explicit if needed
+                // After follow-up: go to consultation room / queue
+                if (isFollowUp) {
+                    router.push('/doctor/consultations');
+                } else {
+                    router.push('/doctor/dashboard');
+                }
             }}
         />
     );
