@@ -4,23 +4,25 @@ import { PrismaClient } from "@prisma/client";
  * Prisma Client Singleton for Serverless Environments
  *
  * ═══════════════════════════════════════════════════════════════════════════
- * CONNECTION BUDGET  (Aiven Free Tier — ~20 usable slots)
+ * CONNECTION BUDGET  (Aiven — max_connections = 15)
  * ═══════════════════════════════════════════════════════════════════════════
  *
- * Aiven free-tier PostgreSQL typically provides max_connections = 25, of
- * which ~5 are reserved for superuser / replication.  That leaves ~20
- * usable connection slots for the application.
+ * Aiven PostgreSQL (current plan) provides max_connections = 15, of which
+ * ~3 are reserved for superuser / replication.  That leaves ~12 usable
+ * connection slots for the application.
  *
  * Strategy:
  *   • ONE PrismaClient instance per process (globalThis singleton)
- *   • connection_limit=1 per instance — each serverless function handles
- *     one request at a time, so one DB connection is sufficient.
- *   • pool_timeout=5 / connect_timeout=5 — fail fast to prevent pile-ups.
+ *   • connection_limit is ALWAYS applied (both dev and prod):
+ *       – Production (Vercel serverless): 1 per instance (one req at a time)
+ *       – Development (local next dev):   5 per process (SSR + API + actions)
+ *   • pool_timeout=10 / connect_timeout=10 — fail fast to prevent pile-ups.
  *   • If Aiven exposes a PgBouncer pooled URL, set DATABASE_URL to that
  *     and DIRECT_URL to the direct connection (for migrations only).
  *
- * With connection_limit=1 you can safely run ~15-20 concurrent Vercel
- * function instances before exhausting the pool.
+ * Budget (15 max, ~12 usable after superuser reservation):
+ *   – Dev:  1 process × 5 = 5 connections  (leaves 7 for tools/migrations)
+ *   – Prod: N instances × 1 = N connections (supports up to 12 concurrent)
  *
  * This singleton protects against:
  *   • HMR re-creation in dev (globalThis survives hot-reload)
@@ -36,21 +38,30 @@ const prismaClientSingleton = () => {
   const isProduction = process.env.NODE_ENV === 'production' ||
     process.env.VERCEL_ENV === 'production';
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // Pool sizing — Aiven free tier: max_connections = 15
+  //   ~3 reserved for superuser  →  ~12 usable
+  //
+  // Production (Vercel serverless): 1 connection per function instance.
+  //   Each lambda handles one request at a time, so 1 is sufficient.
+  //   With 12 usable slots, supports ~12 concurrent function instances.
+  //
+  // Development (local next dev): 5 connections for the single process.
+  //   Handles SSR + API routes + server actions concurrently within one
+  //   process, while leaving ~7 slots for migrations, pgAdmin, seeds, etc.
+  // ═══════════════════════════════════════════════════════════════════════
+  const poolLimit = isProduction ? 1 : 5;
+  const baseUrl = process.env.DATABASE_URL || '';
+  const separator = baseUrl.includes('?') ? '&' : '?';
+  const pooledUrl = `${baseUrl}${separator}connection_limit=${poolLimit}&pool_timeout=10&connect_timeout=10`;
+
   const client = new PrismaClient({
-    // Log config: errors everywhere; queries + warns in dev only
     log: isProduction
       ? ['error']
       : ['query', 'error', 'warn'],
-    // connection_limit=1: one connection per serverless instance — fits Aiven free tier
-    // pool_timeout=5:     fail fast if no slot is available
-    // connect_timeout=5:  don't hang on cold-start TCP handshake
-    datasources: isProduction ? {
-      db: {
-        url: (process.env.DATABASE_URL || '') +
-          (process.env.DATABASE_URL?.includes('?') ? '&' : '?') +
-          'connection_limit=1&pool_timeout=5&connect_timeout=5',
-      },
-    } : undefined,
+    datasources: {
+      db: { url: pooledUrl },
+    },
   });
 
   return client;
