@@ -1,10 +1,9 @@
 'use client';
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { Calendar, dateFnsLocalizer, View, Views } from 'react-big-calendar';
+import { Calendar, View, Views } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
-import { format, parse, startOfWeek, getDay, addDays, subDays, startOfMonth, endOfMonth, addMonths, subMonths, isToday, isSameDay } from 'date-fns';
-import { enUS } from 'date-fns/locale';
+import { format, addDays, subDays, addMonths, subMonths, isToday } from 'date-fns';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import '@/styles/schedule-calendar.css';
@@ -15,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { moveAppointment } from '@/app/actions/schedule';
 import { cn } from '@/lib/utils';
+import { calendarLocalizer } from '@/lib/calendar';
 import {
     ChevronLeft,
     ChevronRight,
@@ -26,16 +26,6 @@ import {
     List,
     Maximize2,
 } from 'lucide-react';
-
-// ── Localizer ──
-const locales = { 'en-US': enUS };
-const localizer = dateFnsLocalizer({
-    format,
-    parse,
-    startOfWeek,
-    getDay,
-    locales,
-});
 
 const DnDCalendar = withDragAndDrop<CalendarEvent>(Calendar);
 
@@ -399,7 +389,7 @@ export function ScheduleCalendarView({
                     {/* Calendar */}
                     <div ref={calendarRef} className="flex-1 min-h-[600px]">
                         <DnDCalendar
-                            localizer={localizer}
+                            localizer={calendarLocalizer}
                             events={events}
                             startAccessor="start"
                             endAccessor="end"
