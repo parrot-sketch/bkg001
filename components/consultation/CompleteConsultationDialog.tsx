@@ -222,7 +222,14 @@ export function CompleteConsultationDialog({
           }
         } else if (isFollowUp) {
           toast.success('Consultation completed. Redirecting to schedule follow-up…');
-          const bookingUrl = `/doctor/appointments/new?patientId=${appointment.patientId}&type=Follow-up`;
+          const params = new URLSearchParams({
+            patientId: appointment.patientId,
+            type: 'Follow-up',
+            source: 'DOCTOR_FOLLOW_UP',
+            parentAppointmentId: String(appointment.id),
+            parentConsultationId: String(consultation.id),
+          });
+          const bookingUrl = `/doctor/appointments/new?${params.toString()}`;
           onSuccess(bookingUrl);
         } else {
           toast.success('Consultation completed successfully');
