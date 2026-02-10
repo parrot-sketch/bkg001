@@ -27,7 +27,7 @@ const navItems: NavItem[] = [
     icon: Clock,
   },
   {
-    name: 'Consultation History',
+    name: 'Consultation Room',
     href: '/doctor/consultations',
     icon: FileText,
   },

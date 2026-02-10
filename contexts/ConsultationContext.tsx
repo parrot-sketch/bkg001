@@ -166,10 +166,18 @@ function consultationReducer(state: ConsultationProviderState, action: Consultat
       };
       
     case 'SET_OUTCOME':
-      return { ...state, outcomeType: action.payload };
+      return {
+        ...state,
+        outcomeType: action.payload,
+        workflow: { ...state.workflow, isDirty: true },
+      };
       
     case 'SET_PATIENT_DECISION':
-      return { ...state, patientDecision: action.payload };
+      return {
+        ...state,
+        patientDecision: action.payload,
+        workflow: { ...state.workflow, isDirty: true },
+      };
       
     case 'SET_AUTO_SAVE_STATUS':
       return { ...state, autoSaveStatus: action.payload };
@@ -295,8 +303,15 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
   }, [todayAppointments, state.appointment?.id]);
   
   // Computed properties
-  const isActive = state.consultation?.state === ConsultationState.IN_PROGRESS;
-  const isReadOnly = state.consultation?.state === ConsultationState.COMPLETED;
+  // Ground truth: appointment status trumps consultation record state.
+  // Old consultations completed before our updates may have a Consultation record
+  // still stuck in IN_PROGRESS even though the appointment is COMPLETED.
+  const appointmentCompleted = state.appointment?.status === AppointmentStatus.COMPLETED;
+  const appointmentCancelled = state.appointment?.status === AppointmentStatus.CANCELLED;
+  const isActive = !appointmentCompleted && !appointmentCancelled &&
+    state.consultation?.state === ConsultationState.IN_PROGRESS;
+  const isReadOnly = appointmentCompleted || appointmentCancelled ||
+    state.consultation?.state === ConsultationState.COMPLETED;
   const canSave = isActive && state.workflow.isDirty;
   const canComplete = isActive && !state.isSaving;
   
@@ -364,7 +379,13 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
       const hasActiveConsultation = consultationResponse.success && 
         consultationResponse.data?.state === ConsultationState.IN_PROGRESS;
       
-      if (apt.status === AppointmentStatus.IN_CONSULTATION || hasActiveConsultation) {
+      if (apt.status === AppointmentStatus.COMPLETED || 
+          apt.status === AppointmentStatus.CANCELLED) {
+        // Already completed or cancelled — read-only view, no dialogs
+        dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.READY });
+        dispatch({ type: 'SHOW_START_DIALOG', payload: false });
+        dispatch({ type: 'SHOW_COMPLETE_DIALOG', payload: false });
+      } else if (apt.status === AppointmentStatus.IN_CONSULTATION || hasActiveConsultation) {
         dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.ACTIVE });
         // Explicitly ensure the dialog is closed (defensive)
         dispatch({ type: 'SHOW_START_DIALOG', payload: false });
@@ -451,6 +472,8 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
           rawText: generateFullText(state.notes),
           structured: state.notes,
         },
+        outcomeType: state.outcomeType ?? undefined,
+        patientDecision: state.patientDecision ?? undefined,
       });
       
       dispatch({ type: 'SET_DIRTY', payload: false });
@@ -467,7 +490,7 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
     } finally {
       dispatch({ type: 'SET_SAVING', payload: false });
     }
-  }, [state.appointment, state.doctorId, state.consultation, state.notes, canSave, saveDraftMutation]);
+  }, [state.appointment, state.doctorId, state.consultation, state.notes, state.outcomeType, state.patientDecision, canSave, saveDraftMutation]);
   
   const updateNotes = useCallback((field: keyof StructuredNotes, value: string) => {
     dispatch({ type: 'UPDATE_NOTE_FIELD', payload: { field, value } });
@@ -494,21 +517,31 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
   const completeConsultation = useCallback(async (redirectPath?: string) => {
     if (!state.appointment) return;
     
+    const completedAppointmentId = state.appointment.id;
+    
     dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.TRANSITIONING });
     dispatch({ type: 'SHOW_COMPLETE_DIALOG', payload: false });
     
-    // Invalidate queries
-    queryClient.invalidateQueries({ queryKey: ['consultation', state.appointment.id] });
-    queryClient.invalidateQueries({ queryKey: ['doctor'] });
+    // Full state reset — prevent stale patient data from leaking into next session
+    dispatch({ type: 'RESET' });
     
-    // Navigate
+    // Aggressively invalidate all related caches
+    queryClient.invalidateQueries({ queryKey: ['consultation', completedAppointmentId] });
+    queryClient.invalidateQueries({ queryKey: ['consultation'] });
+    queryClient.invalidateQueries({ queryKey: ['doctor'] });
+    queryClient.invalidateQueries({ queryKey: ['appointments'] });
+    queryClient.invalidateQueries({ queryKey: ['billing'] });
+    queryClient.invalidateQueries({ queryKey: ['appointment-billing'] });
+    
+    // Navigate: explicit redirect > next in queue > back to consultations list
     if (redirectPath) {
       router.push(redirectPath);
     } else if (waitingQueue.length > 0) {
-      // Go to next patient
-      router.push(`/doctor/consultations/${waitingQueue[0].id}/session`);
+      const nextPatient = waitingQueue[0];
+      toast.info(`Loading next patient: ${nextPatient.patient?.firstName || 'Patient'}…`);
+      router.push(`/doctor/consultations/${nextPatient.id}/session`);
     } else {
-      router.push('/doctor/appointments');
+      router.push('/doctor/consultations');
     }
   }, [state.appointment, waitingQueue, queryClient, router]);
   

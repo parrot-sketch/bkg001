@@ -219,10 +219,10 @@ export default function DoctorConsultationsPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                         <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-                            Consultations
+                            Consultation Room
                         </h1>
                         <p className="text-sm text-slate-500 mt-0.5">
-                            Clinical session history & active consultations
+                            Active sessions & consultation history
                         </p>
                     </div>
                     <Button
@@ -236,6 +236,34 @@ export default function DoctorConsultationsPage() {
                         Refresh
                     </Button>
                 </div>
+
+                {/* ─── Ready State Banner (no active sessions) ──────────── */}
+                {!loading && activeList.length === 0 && (
+                    <div className="relative overflow-hidden rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-6">
+                        <div className="absolute top-0 right-0 p-6 opacity-5">
+                            <Stethoscope className="h-28 w-28" />
+                        </div>
+                        <div className="relative z-10 flex items-center gap-4">
+                            <div className="h-12 w-12 rounded-xl bg-emerald-100 flex items-center justify-center">
+                                <CheckCircle className="h-6 w-6 text-emerald-600" />
+                            </div>
+                            <div>
+                                <h2 className="text-base font-bold text-slate-900">
+                                    Consultation Room — Ready
+                                </h2>
+                                <p className="text-sm text-slate-500 mt-0.5">
+                                    No active sessions. Start a consultation from the appointments page when a patient is checked in.
+                                </p>
+                            </div>
+                            <Link href="/doctor/appointments" className="ml-auto shrink-0">
+                                <Button size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white">
+                                    <Calendar className="h-3.5 w-3.5" />
+                                    View Appointments
+                                </Button>
+                            </Link>
+                        </div>
+                    </div>
+                )}
 
                 {/* ─── Stats Strip ─────────────────────────────────────── */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

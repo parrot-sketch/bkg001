@@ -183,6 +183,48 @@ export class Consultation {
   }
 
   /**
+   * Updates draft: notes + optional outcome/decision during active consultation.
+   * Used by auto-save to persist everything the doctor has entered so far.
+   * 
+   * Invariants:
+   * - Must be in IN_PROGRESS state
+   */
+  updateDraft(params: {
+    notes: ConsultationNotes;
+    outcomeType?: ConsultationOutcomeType;
+    patientDecision?: PatientDecision;
+  }): Consultation {
+    if (this.state !== ConsultationState.IN_PROGRESS) {
+      throw new DomainException(
+        `Cannot update draft in ${this.state} state. Only IN_PROGRESS consultations can be updated.`,
+        {
+          currentState: this.state,
+          consultationId: this.id,
+        }
+      );
+    }
+
+    return new Consultation(
+      this.id,
+      this.appointmentId,
+      this.doctorId,
+      this.userId,
+      this.state,
+      this.startedAt,
+      this.completedAt,
+      this.duration,
+      params.notes,
+      params.outcomeType ?? this.outcomeType,
+      params.patientDecision ?? this.patientDecision,
+      this.followUpDate,
+      this.followUpType,
+      this.followUpNotes,
+      this.createdAt,
+      new Date(),
+    );
+  }
+
+  /**
    * Completes the consultation
    * 
    * Invariants:

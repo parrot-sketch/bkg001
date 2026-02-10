@@ -255,7 +255,8 @@ export class AvailabilityService {
         );
       });
 
-      // Check if slot conflicts with existing appointments
+      // Check if slot conflicts with existing appointments (including buffer)
+      const appointmentFootprint = slotConfig.defaultDuration + (slotConfig.bufferTime || 0);
       const conflictsWithAppointment = existingAppointments.some((apt) => {
         const aptDate = new Date(apt.getAppointmentDate());
         const aptTime = apt.getTime();
@@ -292,7 +293,7 @@ export class AvailabilityService {
 
         aptDate.setHours(aptHour, aptMin, 0, 0);
         const aptEnd = new Date(aptDate);
-        aptEnd.setMinutes(aptEnd.getMinutes() + slotConfig.defaultDuration);
+        aptEnd.setMinutes(aptEnd.getMinutes() + appointmentFootprint);
 
         return (
           (currentTime >= aptDate && currentTime < aptEnd) ||
@@ -311,8 +312,9 @@ export class AvailabilityService {
         sessionType,
       });
 
-      // Move to next slot
-      currentTime.setMinutes(currentTime.getMinutes() + slotConfig.slotInterval);
+      // Move to next slot: advance by slotInterval + bufferTime between appointments
+      const advance = slotConfig.slotInterval + (slotConfig.bufferTime || 0);
+      currentTime.setMinutes(currentTime.getMinutes() + advance);
     }
 
     return slots;

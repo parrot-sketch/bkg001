@@ -10,6 +10,7 @@ import { Consultation } from '../../domain/entities/Consultation';
 import { ConsultationNotes } from '../../domain/value-objects/ConsultationNotes';
 import { DomainException } from '../../domain/exceptions/DomainException';
 import { AppointmentStateTransitionService } from '../../domain/services/AppointmentStateTransitionService';
+import db from '@/lib/db';
 
 /**
  * Use Case: StartConsultationUseCase
@@ -63,6 +64,72 @@ export class StartConsultationUseCase {
    * @throws DomainException if appointment not found or cannot be started
    */
   async execute(dto: StartConsultationDto): Promise<AppointmentResponseDto> {
+    // Step 0: Concurrency guard — doctor cannot have two active consultations
+    // Also heal stale data: appointments stuck in IN_CONSULTATION from old code paths
+    // where completion didn't properly update the appointment status.
+    const staleOrActive = await db.appointment.findMany({
+      where: {
+        doctor_id: dto.doctorId,
+        status: 'IN_CONSULTATION',
+        id: { not: dto.appointmentId }, // exclude current (idempotent re-start)
+      },
+      select: {
+        id: true,
+        appointment_date: true,
+        consultation_ended_at: true,
+        patient: { select: { first_name: true, last_name: true } },
+        consultation: { select: { completed_at: true, outcome_type: true } },
+      },
+    });
+
+    // Auto-heal: fix any stale IN_CONSULTATION appointments that are actually done.
+    // Detect stale records via multiple signals (old code may have set some but not others):
+    //  1. consultation.completed_at is set
+    //  2. consultation.outcome_type is set (doctor submitted outcome)
+    //  3. appointment.consultation_ended_at is set
+    //  4. no consultation record exists at all (orphaned status)
+    //  5. appointment date is not today (a past-day IN_CONSULTATION is definitely stale)
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+
+    const trulyActive = [];
+    for (const apt of staleOrActive) {
+      const aptDate = new Date(apt.appointment_date);
+      const isFromToday = aptDate >= todayStart && aptDate < todayEnd;
+
+      const isStale =
+        apt.consultation?.completed_at != null ||
+        apt.consultation?.outcome_type != null ||
+        apt.consultation_ended_at != null ||
+        apt.consultation === null ||
+        !isFromToday; // past-day appointment still IN_CONSULTATION = definitely stale
+
+      if (isStale) {
+        await db.appointment.update({
+          where: { id: apt.id },
+          data: { status: 'COMPLETED' },
+        });
+        console.log(`[StartConsultation] Auto-healed stale appointment #${apt.id} → COMPLETED (from ${aptDate.toISOString().slice(0, 10)})`);
+      } else {
+        trulyActive.push(apt);
+      }
+    }
+
+    if (trulyActive.length > 0) {
+      const active = trulyActive[0];
+      const patientName = active.patient
+        ? `${active.patient.first_name} ${active.patient.last_name}`
+        : `appointment #${active.id}`;
+      throw new DomainException(
+        `You already have an active consultation with ${patientName}. Please complete it first.`,
+        {
+          appointmentId: dto.appointmentId,
+          activeAppointmentId: active.id,
+        },
+      );
+    }
+
     // Step 1: Find appointment
     const appointment = await this.appointmentRepository.findById(dto.appointmentId);
 
