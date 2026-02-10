@@ -1,85 +1,111 @@
 import { PrismaClient } from "@prisma/client";
+import { withAccelerate } from "@prisma/extension-accelerate";
 
 /**
- * Prisma Client Singleton for Serverless Environments
+ * Prisma Client Singleton — Connection Strategy
  *
  * ═══════════════════════════════════════════════════════════════════════════
- * CONNECTION BUDGET  (Aiven — max_connections = 15)
+ * PRODUCTION  (Vercel → Prisma Accelerate → Aiven Postgres)
  * ═══════════════════════════════════════════════════════════════════════════
  *
- * Aiven PostgreSQL (current plan) provides max_connections = 15, of which
- * ~3 are reserved for superuser / replication.  That leaves ~12 usable
- * connection slots for the application.
+ * Problem: Aiven free tier has max_connections = 15 (~12 usable).
+ * Vercel serverless can spin up 12+ concurrent function instances,
+ * each needing its own DB connection → instant pool exhaustion.
  *
- * Strategy:
- *   • ONE PrismaClient instance per process (globalThis singleton)
- *   • connection_limit is ALWAYS applied (both dev and prod):
- *       – Production (Vercel serverless): 1 per instance (one req at a time)
- *       – Development (local next dev):   5 per process (SSR + API + actions)
- *   • pool_timeout=10 / connect_timeout=10 — fail fast to prevent pile-ups.
- *   • If Aiven exposes a PgBouncer pooled URL, set DATABASE_URL to that
- *     and DIRECT_URL to the direct connection (for migrations only).
+ * Solution: Prisma Accelerate acts as a connection pooler proxy:
  *
- * Budget (15 max, ~12 usable after superuser reservation):
- *   – Dev:  1 process × 5 = 5 connections  (leaves 7 for tools/migrations)
- *   – Prod: N instances × 1 = N connections (supports up to 12 concurrent)
+ *   Vercel fn #1 ──┐
+ *   Vercel fn #2 ──┤── Accelerate proxy ──── Aiven Postgres (15 conns)
+ *   Vercel fn #N ──┘     (managed pool)
  *
- * This singleton protects against:
- *   • HMR re-creation in dev (globalThis survives hot-reload)
- *   • Per-request instantiation in prod (globalThis survives across
- *     Vercel invocations on the same instance)
- *   • Connection pool exhaustion
+ * DATABASE_URL = prisma://accelerate.prisma-data.net/?api_key=...
+ * DIRECT_URL  = postgres://avnadmin:...@pg-xxx.aivencloud.com:22630/...
+ *
+ * Accelerate multiplexes unlimited client connections over ~5 real
+ * database connections. No connection_limit tuning needed.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * LOCAL DEVELOPMENT  (Docker Postgres, 100+ max_connections)
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * DATABASE_URL = postgresql://postgres:postgres@localhost:5433/nairobi_sculpt
+ * DIRECT_URL   = (same as DATABASE_URL)
+ *
+ * withAccelerate() is a no-op when URL is postgres:// — zero overhead.
+ * A conservative connection_limit=5 is applied as a safety net.
+ *
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
 const LOG_PREFIX = '[DB]';
 
 const prismaClientSingleton = () => {
-  const isProduction = process.env.NODE_ENV === 'production' ||
+  const isVercel = process.env.VERCEL === '1';
+  const isProduction = isVercel ||
+    process.env.NODE_ENV === 'production' ||
     process.env.VERCEL_ENV === 'production';
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // Pool sizing — Aiven free tier: max_connections = 15
-  //   ~3 reserved for superuser  →  ~12 usable
-  //
-  // Production (Vercel serverless): 1 connection per function instance.
-  //   Each lambda handles one request at a time, so 1 is sufficient.
-  //   With 12 usable slots, supports ~12 concurrent function instances.
-  //
-  // Development (local next dev): 5 connections for the single process.
-  //   Handles SSR + API routes + server actions concurrently within one
-  //   process, while leaving ~7 slots for migrations, pgAdmin, seeds, etc.
-  // ═══════════════════════════════════════════════════════════════════════
-  const poolLimit = isProduction ? 1 : 5;
-  const baseUrl = process.env.DATABASE_URL || '';
-  const separator = baseUrl.includes('?') ? '&' : '?';
-  const pooledUrl = `${baseUrl}${separator}connection_limit=${poolLimit}&pool_timeout=10&connect_timeout=10`;
+  const databaseUrl = process.env.DATABASE_URL || '';
+  const isAccelerate = databaseUrl.startsWith('prisma://');
+
+  const logConfig: Array<'query' | 'error' | 'warn'> = isProduction
+    ? ['error']
+    : ['query', 'error', 'warn'];
+
+  // ── Prisma Accelerate (production) ─────────────────────────────────
+  // The proxy handles all connection pooling — no datasources override.
+  // withAccelerate() enables the Accelerate protocol for prisma:// URLs.
+  if (isAccelerate) {
+    if (!isProduction) {
+      console.log(`${LOG_PREFIX} Prisma Accelerate: connection pooling via proxy`);
+    }
+
+    const client = new PrismaClient({ log: logConfig })
+      .$extends(withAccelerate());
+
+    // Cast to PrismaClient for type compatibility with 17 repository
+    // constructors that accept PrismaClient. At runtime the extended
+    // client is a strict superset — all methods work identically.
+    return client as unknown as PrismaClient;
+  }
+
+  // ── Direct Postgres (local dev / Docker) ───────────────────────────
+  // Apply conservative connection limits. Docker has 100+ max_connections
+  // so 5 is plenty. Also protects if accidentally pointing at a remote DB.
+  const cleanUrl = databaseUrl
+    .replace(/[&?]connection_limit=\d+/g, '')
+    .replace(/[&?]pool_timeout=\d+/g, '')
+    .replace(/[&?]connect_timeout=\d+/g, '');
+  const sep = cleanUrl.includes('?') ? '&' : '?';
+  const pooledUrl = `${cleanUrl}${sep}connection_limit=5&pool_timeout=10`;
+
+  if (!isProduction) {
+    console.log(`${LOG_PREFIX} Direct Postgres: connection_limit=5, pool_timeout=10s`);
+  }
 
   const client = new PrismaClient({
-    log: isProduction
-      ? ['error']
-      : ['query', 'error', 'warn'],
+    log: logConfig,
     datasources: {
       db: { url: pooledUrl },
     },
-  });
+  }).$extends(withAccelerate()); // No-op for postgres:// URLs
 
-  return client;
+  return client as unknown as PrismaClient;
 };
 
 declare const globalThis: {
   prismaGlobal: ReturnType<typeof prismaClientSingleton>;
 } & typeof global;
 
-// Cache Prisma client on globalThis to survive HMR (dev) and
-// Vercel function reuse (prod).  Never create more than one instance.
+// Cache on globalThis to survive HMR (dev) and Vercel function reuse (prod).
+// Never create more than one instance per process/function.
 const db = globalThis.prismaGlobal ?? prismaClientSingleton();
 
 if (!globalThis.prismaGlobal) {
   globalThis.prismaGlobal = db;
 
-  // Handle graceful shutdown — only register once (guarded by the globalThis check)
-  // In Vercel serverless these fire when the function instance is recycled.
+  // Graceful shutdown — disconnect when the process exits.
+  // On Vercel serverless these fire when the function instance is recycled.
   if (typeof process !== 'undefined') {
     const disconnect = async () => {
       try {
@@ -98,7 +124,7 @@ if (!globalThis.prismaGlobal) {
 // Helpers
 // ═══════════════════════════════════════════════════════════════════════════
 
-/** Quick health-check.  Call sparingly — every call is a real round-trip. */
+/** Quick health-check. Call sparingly — every call is a real round-trip. */
 export async function checkDatabaseConnection(): Promise<boolean> {
   try {
     await db.$queryRaw`SELECT 1`;
@@ -110,17 +136,12 @@ export async function checkDatabaseConnection(): Promise<boolean> {
 }
 
 /**
- * Retry wrapper for database operations with exponential backoff.
+ * Retry wrapper for transient connection errors with exponential backoff.
  *
- * Only retries on *transient connection errors* (P1001, P1008, P1017,
- * P1010, "Connection closed/terminated/refused").  Application-level
- * Prisma errors (unique constraint, validation, etc.) are surfaced
- * immediately.
+ * Retries on: P1001 (unreachable), P1008 (timeout), P1017 (server closed),
+ * P1010 (connect timeout), and common connection error messages.
  *
- * NOTE: In serverless (one request per instance) calling $disconnect +
- * $connect is safe.  In a long-running `next start` process avoid
- * calling this wrapper around operations that run concurrently — the
- * disconnect would tear down connections used by parallel requests.
+ * Non-connection errors (unique constraint, validation, etc.) throw immediately.
  */
 export async function withRetry<T>(
   operation: () => Promise<T>,
@@ -157,18 +178,16 @@ export async function withRetry<T>(
         await new Promise(resolve => setTimeout(resolve, delay * attempt));
 
         // Reset connection state before retry.
-        // Safe in serverless (single concurrent request per instance).
         try {
           await db.$disconnect();
           await db.$connect();
         } catch {
-          // Swallow — the next operation attempt triggers lazy reconnect
+          // Swallow — next operation triggers lazy reconnect
         }
 
         continue;
       }
 
-      // Not a connection error, or max retries reached — surface immediately
       if (isConnectionError) {
         console.error(
           `${LOG_PREFIX} [DB-ERR-002] Connection error after ${maxRetries} retries:`,
@@ -184,4 +203,3 @@ export async function withRetry<T>(
 
 export default db;
 export { db };
-
