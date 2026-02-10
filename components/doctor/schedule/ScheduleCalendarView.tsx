@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Calendar, View, Views } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
-import { format, addDays, subDays, addMonths, subMonths, isToday } from 'date-fns';
+import { format, addDays, subDays, addMonths, subMonths, startOfWeek, isToday } from 'date-fns';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import '@/styles/schedule-calendar.css';
