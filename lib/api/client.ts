@@ -20,6 +20,7 @@ export interface ApiSuccess<T> {
     totalPages: number;
     currentPage: number;
     limit: number;
+    [key: string]: number; // Allow additional numeric stats (e.g. newToday, newThisMonth)
   };
 }
 
