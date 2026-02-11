@@ -13,6 +13,7 @@ import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import db from '@/lib/db';
 import { CaseReadinessStatus, SurgicalCaseStatus } from '@prisma/client';
+import { getMissingPlanningItems } from '@/domain/helpers/planningReadiness';
 
 /**
  * GET /api/nurse/pre-op/:id
@@ -299,42 +300,64 @@ export async function PATCH(
         });
       }
 
-      // Update readiness status if provided
+      // Update nurse readiness status if provided
       if (
         readinessStatus &&
         Object.values(CaseReadinessStatus).includes(readinessStatus) &&
         surgicalCase.case_plan
       ) {
-        const isReady = readinessStatus === CaseReadinessStatus.READY;
+        const nurseMarksReady = readinessStatus === CaseReadinessStatus.READY;
         await tx.casePlan.update({
           where: { id: surgicalCase.case_plan.id },
           data: {
             readiness_status: readinessStatus,
-            ready_for_surgery: isReady,
+            ready_for_surgery: nurseMarksReady,
           },
         });
 
-        // If ready, update surgical case status to READY_FOR_SCHEDULING
-        if (isReady) {
-          await tx.surgicalCase.update({
-            where: { id: params.id },
-            data: {
-              status: SurgicalCaseStatus.READY_FOR_SCHEDULING,
+        // DUAL READINESS: Only transition to READY_FOR_SCHEDULING if BOTH
+        // nurse readiness is complete AND doctor planning is complete.
+        if (nurseMarksReady) {
+          // Fetch full plan with consents + images for doctor readiness check
+          const fullPlan = await tx.casePlan.findUnique({
+            where: { id: surgicalCase.case_plan.id },
+            include: {
+              consents: { select: { status: true } },
+              images: { select: { timepoint: true } },
             },
           });
+
+          const doctorReadiness = getMissingPlanningItems({
+            procedurePlan: fullPlan?.procedure_plan ?? null,
+            riskFactors: fullPlan?.risk_factors ?? null,
+            plannedAnesthesia: fullPlan?.planned_anesthesia ?? null,
+            signedConsentCount: fullPlan?.consents?.filter(c => c.status === 'SIGNED').length ?? 0,
+            preOpPhotoCount: fullPlan?.images?.filter(i => i.timepoint === 'PRE_OP').length ?? 0,
+          });
+
+          if (doctorReadiness.isComplete) {
+            // Both nurse and doctor are ready — transition
+            await tx.surgicalCase.update({
+              where: { id: params.id },
+              data: { status: SurgicalCaseStatus.READY_FOR_SCHEDULING },
+            });
+          }
+          // If doctor plan is incomplete, nurse marks ready but case stays in current status.
+          // The doctor must complete planning before the case can advance.
         }
       }
 
-      // Update surgical case status if explicitly provided
+      // Prevent nurses from directly setting surgical case status to bypass readiness
+      // (Removed the ability for nurse to set arbitrary surgicalCaseStatus)
       if (
         surgicalCaseStatus &&
-        Object.values(SurgicalCaseStatus).includes(surgicalCaseStatus)
+        Object.values(SurgicalCaseStatus).includes(surgicalCaseStatus) &&
+        surgicalCaseStatus !== SurgicalCaseStatus.READY_FOR_SCHEDULING
       ) {
+        // Allow non-readiness status changes (e.g., reverting to PLANNING)
         await tx.surgicalCase.update({
           where: { id: params.id },
-          data: {
-            status: surgicalCaseStatus,
-          },
+          data: { status: surgicalCaseStatus },
         });
       }
 

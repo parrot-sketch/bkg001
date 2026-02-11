@@ -5,7 +5,11 @@
  *
  * Business rules enforced by SurgicalCaseService:
  * - Case must be in PLANNING status
- * - CasePlan must exist with documented procedure plan, risk factors, and pre-op notes
+ * - Doctor planning items complete (procedure, risk, anesthesia, consent, photo)
+ * - Nurse pre-op checklist complete (ready_for_surgery = true)
+ *
+ * On failure returns structured { missingItems, completedCount, totalRequired }
+ * so the UI can render a targeted checklist.
  *
  * Security:
  * - Requires authentication
@@ -18,6 +22,7 @@ import { JwtMiddleware } from '@/lib/auth/middleware';
 import { SurgicalCaseStatus } from '@prisma/client';
 import db from '@/lib/db';
 import { surgicalCaseService, surgicalCaseRepo } from '@/lib/factories/theaterTechFactory';
+import { ReadinessValidationError } from '@/application/services/SurgicalCaseService';
 
 export async function POST(
     request: NextRequest,
@@ -77,6 +82,17 @@ export async function POST(
             authResult.user.userId,
         );
 
+        // 5. Audit log — mark ready is a significant clinical event
+        await db.auditLog.create({
+            data: {
+                user_id: authResult.user.userId,
+                record_id: caseId,
+                action: 'UPDATE',
+                model: 'SurgicalCase',
+                details: `Case marked READY_FOR_SCHEDULING. Previous status: ${(surgicalCase as any).status}`,
+            },
+        });
+
         return NextResponse.json({
             success: true,
             data: {
@@ -90,10 +106,24 @@ export async function POST(
     } catch (error) {
         console.error('[API] POST /api/doctor/surgical-cases/[id]/mark-ready - Error:', error);
 
+        // Structured readiness failure → 422 with missingItems
+        if (error instanceof ReadinessValidationError) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: error.message,
+                    missingItems: error.missingItems,
+                    completedCount: error.completedCount,
+                    totalRequired: error.totalRequired,
+                },
+                { status: 422 },
+            );
+        }
+
         const message = error instanceof Error ? error.message : 'Unknown error';
 
-        // Business rule violation → 422
-        if (message.includes('Cannot') || message.includes('ready')) {
+        // Other business rule violations → 422
+        if (message.includes('Cannot') || message.includes('transition')) {
             return NextResponse.json(
                 { success: false, error: message },
                 { status: 422 },

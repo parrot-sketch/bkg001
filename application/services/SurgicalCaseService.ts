@@ -1,6 +1,23 @@
 import { SurgicalCase, SurgicalCaseStatus, CasePlan } from '@prisma/client';
 import { ISurgicalCaseRepository } from '@/domain/interfaces/repositories/ISurgicalCaseRepository';
 import { ICasePlanRepository } from '@/domain/interfaces/repositories/ICasePlanRepository';
+import { getMissingPlanningItems, PlanningReadinessInput, PlanningReadinessItem } from '@/domain/helpers/planningReadiness';
+
+/**
+ * Error thrown when readiness validation fails.
+ * Contains structured missing items for the API to return.
+ */
+export class ReadinessValidationError extends Error {
+    constructor(
+        message: string,
+        public readonly missingItems: PlanningReadinessItem[],
+        public readonly completedCount: number,
+        public readonly totalRequired: number,
+    ) {
+        super(message);
+        this.name = 'ReadinessValidationError';
+    }
+}
 
 /**
  * Service: SurgicalCaseService
@@ -99,11 +116,14 @@ export class SurgicalCaseService {
      * Validates that a surgical case has met minimum readiness criteria
      * before it can be marked as READY_FOR_SCHEDULING.
      *
-     * Minimum requirements for an aesthetic surgery center:
-     * - CasePlan must exist and be linked
-     * - Procedure plan must be documented
-     * - Risk factors must be assessed
-     * - Pre-operative notes must be present
+     * Uses the domain helper `getMissingPlanningItems` as the single source of truth.
+     *
+     * Required:
+     * - Procedure plan documented
+     * - Risk factors assessed
+     * - Anesthesia plan selected
+     * - At least 1 signed consent
+     * - At least 1 pre-op photo
      */
     private async validateReadyForScheduling(surgicalCase: SurgicalCase): Promise<void> {
         if (!this.casePlanRepository) {
@@ -111,10 +131,8 @@ export class SurgicalCaseService {
             return;
         }
 
-        let casePlan: CasePlan | null = null;
-
-        // Try to find by surgical case link first, then by appointment
-        casePlan = await this.casePlanRepository.findBySurgicalCaseId(surgicalCase.id);
+        // findBySurgicalCaseId includes consents + images relations
+        const casePlan = await this.casePlanRepository.findBySurgicalCaseId(surgicalCase.id);
 
         if (!casePlan) {
             throw new Error(
@@ -123,24 +141,39 @@ export class SurgicalCaseService {
             );
         }
 
-        // Validate minimum required fields
-        const errors: string[] = [];
+        // Cast to access included relations (Prisma include returns them but TS type is plain CasePlan)
+        const planWithRelations = casePlan as CasePlan & {
+            consents?: Array<{ status: string }>;
+            images?: Array<{ timepoint: string }>;
+        };
 
-        if (!casePlan.procedure_plan || casePlan.procedure_plan.trim().length < 10) {
-            errors.push('Procedure plan must be documented');
-        }
+        const input: PlanningReadinessInput = {
+            procedurePlan: casePlan.procedure_plan,
+            riskFactors: casePlan.risk_factors,
+            plannedAnesthesia: casePlan.planned_anesthesia,
+            signedConsentCount: planWithRelations.consents?.filter(c => c.status === 'SIGNED').length ?? 0,
+            preOpPhotoCount: planWithRelations.images?.filter(i => i.timepoint === 'PRE_OP').length ?? 0,
+        };
 
-        if (!casePlan.risk_factors || casePlan.risk_factors.trim().length < 5) {
-            errors.push('Risk factors must be assessed');
-        }
+        const readiness = getMissingPlanningItems(input);
 
-        if (!casePlan.pre_op_notes || casePlan.pre_op_notes.trim().length < 5) {
-            errors.push('Pre-operative notes are required');
-        }
+        // Add nurse readiness as an extra item
+        const nurseItem: PlanningReadinessItem = {
+            key: 'nurse_checklist',
+            label: 'Nurse Pre-Op Checklist',
+            required: true,
+            done: !!casePlan.ready_for_surgery,
+        };
+        const allItems = [...readiness.items, nurseItem];
+        const allMissing = allItems.filter(i => i.required && !i.done);
 
-        if (errors.length > 0) {
-            throw new Error(
-                `Cannot mark as ready for scheduling:\n• ${errors.join('\n• ')}`,
+        if (allMissing.length > 0) {
+            const labels = allMissing.map(i => i.label);
+            throw new ReadinessValidationError(
+                `Cannot mark as ready for scheduling:\n• ${labels.join('\n• ')}`,
+                allItems,
+                allItems.filter(i => i.required && i.done).length,
+                allItems.filter(i => i.required).length,
             );
         }
     }

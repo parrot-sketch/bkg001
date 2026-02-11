@@ -1213,9 +1213,10 @@ model CasePlan {
   marking_diagram      String? // URL to diagram/image
   consent_checklist    String?             @db.Text // JSON array of consent items
   planned_anesthesia   String?
-  special_instructions String?             @db.Text // Instructions to theatre team
-  readiness_status     CaseReadinessStatus @default(NOT_STARTED)
-  ready_for_surgery    Boolean             @default(false)
+  special_instructions       String?             @db.Text // Instructions to theatre team
+  estimated_duration_minutes Int?              // Estimated OR time in minutes (15–600)
+  readiness_status           CaseReadinessStatus @default(NOT_STARTED)
+  ready_for_surgery          Boolean             @default(false)
 
   // Relations
   surgical_case    SurgicalCase?            @relation(fields: [surgical_case_id], references: [id], onDelete: SetNull)
