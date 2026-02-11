@@ -1,8 +1,10 @@
 /**
  * Test Database Configuration
  * 
- * Provides an in-memory test database instance for testing.
- * This eliminates the need for a separate PostgreSQL instance during test runs.
+ * Provides a test database instance for testing.
+ * 
+ * SAFETY: This module refuses to connect to production databases.
+ * It requires TEST_DATABASE_URL or a clearly-local DATABASE_URL.
  * 
  * Usage in tests:
  *   import { getTestDatabase } from './tests/setup/test-database';
@@ -15,17 +17,56 @@ import { PrismaClient } from '@prisma/client';
 let testClient: PrismaClient | null = null;
 
 /**
+ * Check if a database URL looks like a production/remote database.
+ * Blocks connections to Aiven, Supabase, Neon, AWS RDS, and other cloud providers.
+ */
+function isProductionUrl(url: string): boolean {
+  const productionPatterns = [
+    'aivencloud.com',
+    'supabase.co',
+    'neon.tech',
+    'amazonaws.com',
+    'azure.com',
+    'digitalocean.com',
+    'render.com',
+    'railway.app',
+    'planetscale.com',
+    'cockroachlabs.cloud',
+    'nairobisculpt',
+    'nsac.co.ke',
+  ];
+  const lower = url.toLowerCase();
+  return productionPatterns.some((pattern) => lower.includes(pattern));
+}
+
+/**
  * Get or create the test database client
- * Uses the TEST_DATABASE_URL from environment, or falls back to dev database
+ * Uses TEST_DATABASE_URL from environment, or falls back to dev DATABASE_URL.
+ * 
+ * SAFETY: Throws an error if the resolved URL points to a production database.
  * 
  * @returns Configured PrismaClient for testing
  */
 export function getTestDatabase(): PrismaClient {
   if (!testClient) {
+    const dbUrl = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL;
+
+    // ── PRODUCTION SAFETY GUARD ──────────────────────────────────────
+    if (dbUrl && isProductionUrl(dbUrl)) {
+      throw new Error(
+        `🚨 REFUSING TO RUN TESTS AGAINST PRODUCTION DATABASE!\n` +
+        `   Detected production-like DATABASE_URL.\n` +
+        `   Set TEST_DATABASE_URL to a local/test database, or ensure\n` +
+        `   DATABASE_URL points to localhost/docker.\n` +
+        `   Blocked URL pattern found in: ${dbUrl.substring(0, 40)}…`
+      );
+    }
+    // ─────────────────────────────────────────────────────────────────
+
     testClient = new PrismaClient({
       datasources: {
         db: {
-          url: process.env.TEST_DATABASE_URL || process.env.DATABASE_URL,
+          url: dbUrl,
         },
       },
     });

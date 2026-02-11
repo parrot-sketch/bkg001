@@ -2,12 +2,17 @@
  * React Query hooks for doctor surgical case operations.
  *
  * Provides:
- * - useDoctorSurgicalCases: Fetch all surgical cases for the logged-in doctor
+ * - useDoctorSurgicalCases: Paginated, filterable surgical cases list
  * - useMarkCaseReady: Transition a case PLANNING → READY_FOR_SCHEDULING
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { surgicalCasesApi, SurgicalCaseListDto } from '@/lib/api/surgical-cases';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import {
+    surgicalCasesApi,
+    SurgicalCaseListResponse,
+    SurgicalCaseQueryParams,
+    ReadinessItem,
+} from '@/lib/api/surgical-cases';
 import { toast } from 'sonner';
 
 // ============================================================================
@@ -16,7 +21,8 @@ import { toast } from 'sonner';
 
 export const surgicalCaseKeys = {
     all: ['surgical-cases'] as const,
-    mine: () => [...surgicalCaseKeys.all, 'mine'] as const,
+    mine: (params?: SurgicalCaseQueryParams) =>
+        [...surgicalCaseKeys.all, 'mine', params ?? {}] as const,
 };
 
 // ============================================================================
@@ -24,18 +30,22 @@ export const surgicalCaseKeys = {
 // ============================================================================
 
 /**
- * Fetch all surgical cases assigned to the authenticated doctor.
+ * Fetch surgical cases for the authenticated doctor.
+ * Supports pagination, search, and status/urgency filters.
+ *
+ * Uses `keepPreviousData` for smooth pagination transitions.
  */
-export function useDoctorSurgicalCases() {
-    return useQuery<SurgicalCaseListDto[]>({
-        queryKey: surgicalCaseKeys.mine(),
+export function useDoctorSurgicalCases(params: SurgicalCaseQueryParams = {}) {
+    return useQuery<SurgicalCaseListResponse>({
+        queryKey: surgicalCaseKeys.mine(params),
         queryFn: async () => {
-            const response = await surgicalCasesApi.getMyCases();
+            const response = await surgicalCasesApi.getMyCases(params);
             if (!response.success) {
                 throw new Error(response.error || 'Failed to fetch surgical cases');
             }
             return response.data;
         },
+        placeholderData: keepPreviousData,
     });
 }
 
@@ -44,17 +54,41 @@ export function useDoctorSurgicalCases() {
 // ============================================================================
 
 /**
+ * Error thrown when mark-ready fails due to incomplete readiness items.
+ * Contains structured data for the UI to render a targeted checklist.
+ */
+export class MarkReadyError extends Error {
+    constructor(
+        message: string,
+        public readonly missingItems?: ReadinessItem[],
+        public readonly completedCount?: number,
+        public readonly totalRequired?: number,
+    ) {
+        super(message);
+        this.name = 'MarkReadyError';
+    }
+}
+
+/**
  * Mark a surgical case as ready for scheduling.
- * Invalidates the surgical cases query on success.
+ * Invalidates all surgical case queries on success.
+ *
+ * On failure, throws MarkReadyError with structured missingItems
+ * so the UI can render a targeted checklist modal.
  */
 export function useMarkCaseReady() {
     const queryClient = useQueryClient();
 
-    return useMutation({
+    return useMutation<any, MarkReadyError, string>({
         mutationFn: async (caseId: string) => {
-            const response = await surgicalCasesApi.markReady(caseId);
+            const response = await surgicalCasesApi.markReady(caseId) as any;
             if (!response.success) {
-                throw new Error(response.error || 'Failed to mark case as ready');
+                throw new MarkReadyError(
+                    response.error || 'Failed to mark case as ready',
+                    response.missingItems,
+                    response.completedCount,
+                    response.totalRequired,
+                );
             }
             return response.data;
         },
@@ -62,8 +96,6 @@ export function useMarkCaseReady() {
             toast.success('Case marked as ready for scheduling');
             queryClient.invalidateQueries({ queryKey: surgicalCaseKeys.all });
         },
-        onError: (error: Error) => {
-            toast.error(error.message);
-        },
+        // Don't show toast here — let the plan page handle it with a modal
     });
 }
