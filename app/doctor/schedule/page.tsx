@@ -3,6 +3,8 @@ import { getCurrentUserFull } from '@/lib/auth/server-auth';
 import { redirect } from 'next/navigation';
 import { getDoctorSchedule } from '@/app/actions/schedule';
 
+export const dynamic = 'force-dynamic';
+
 export default async function DoctorSchedulePage() {
     // 1. Server-Side Authentication
     const user = await getCurrentUserFull();

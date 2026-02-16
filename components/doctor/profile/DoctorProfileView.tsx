@@ -158,12 +158,6 @@ export function DoctorProfileView({
                                             <Award className="h-3.5 w-3.5 mr-1.5" />
                                             {doctor.specialization}
                                         </Badge>
-                                        {doctor.licenseNumber && (
-                                            <Badge variant="outline" className="text-white/70 border-white/20 text-xs">
-                                                <Shield className="h-3 w-3 mr-1" />
-                                                {doctor.licenseNumber}
-                                            </Badge>
-                                        )}
                                         {doctor.onboardingStatus === 'ACTIVE' && (
                                             <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs">
                                                 Active
