@@ -10,6 +10,7 @@
  */
 
 import { useParams, useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useCasePlanDetail } from '@/hooks/doctor/useCasePlan';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -96,11 +97,23 @@ export default function PrintPlanPage() {
             {/* Printable content */}
             <div className="max-w-3xl mx-auto p-8 print:p-4 space-y-6 text-sm leading-relaxed">
                 {/* Header */}
-                <div className="border-b-2 border-black pb-4">
-                    <h1 className="text-xl font-bold">Surgical Plan Summary</h1>
-                    <p className="text-muted-foreground print:text-black mt-1">
-                        Generated: {format(new Date(), 'EEEE, MMMM d, yyyy HH:mm')}
-                    </p>
+                <div className="border-b-2 border-black pb-4 flex justify-between items-start gap-4">
+                    <div>
+                        <h1 className="text-xl font-bold">Surgical Plan Summary</h1>
+                        <p className="text-muted-foreground print:text-black mt-1">
+                            Generated: {format(new Date(), 'EEEE, MMMM d, yyyy HH:mm')}
+                        </p>
+                    </div>
+                    {/* Company Logo */}
+                    <div className="relative h-12 w-32 shrink-0">
+                        <Image
+                            src="/logo.png"
+                            alt="Clinic Logo"
+                            fill
+                            className="object-contain object-right-top"
+                            priority
+                        />
+                    </div>
                 </div>
 
                 {/* Patient Information */}

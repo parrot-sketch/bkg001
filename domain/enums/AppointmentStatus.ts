@@ -61,8 +61,8 @@ export function isAppointmentStatus(value: string): value is AppointmentStatus {
 export function getDefaultStatusForSource(source: string): AppointmentStatus {
   switch (source) {
     case 'PATIENT_REQUESTED':
-      return AppointmentStatus.PENDING_DOCTOR_CONFIRMATION;
     case 'FRONTDESK_SCHEDULED':
+      return AppointmentStatus.PENDING_DOCTOR_CONFIRMATION;
     case 'DOCTOR_FOLLOW_UP':
     case 'ADMIN_SCHEDULED':
       return AppointmentStatus.SCHEDULED;

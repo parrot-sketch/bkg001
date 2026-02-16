@@ -46,59 +46,32 @@ const prismaClientSingleton = () => {
     process.env.VERCEL_ENV === 'production';
 
   const databaseUrl = process.env.DATABASE_URL || '';
-  const isAccelerate = databaseUrl.startsWith('prisma://');
 
-  const logConfig: Array<'query' | 'error' | 'warn'> = isProduction
-    ? ['error']
-    : ['query', 'error', 'warn'];
-
-  // ── Prisma Accelerate (production) ─────────────────────────────────
-  // The proxy handles all connection pooling — no datasources override.
-  // withAccelerate() enables the Accelerate protocol for prisma:// URLs.
-  if (isAccelerate) {
-    if (!isProduction) {
-      console.log(`${LOG_PREFIX} Prisma Accelerate: connection pooling via proxy`);
-    }
-
-    const client = new PrismaClient({ log: logConfig })
-      .$extends(withAccelerate());
-
-    // Cast to PrismaClient for type compatibility with 17 repository
-    // constructors that accept PrismaClient. At runtime the extended
-    // client is a strict superset — all methods work identically.
-    return client as unknown as PrismaClient;
-  }
-
-  // ── Direct Postgres (local dev / Docker) ───────────────────────────
-  // Apply conservative connection limits. Docker has 100+ max_connections
-  // so 5 is plenty. Also protects if accidentally pointing at a remote DB.
-  const cleanUrl = databaseUrl
-    .replace(/[&?]connection_limit=\d+/g, '')
-    .replace(/[&?]pool_timeout=\d+/g, '')
-    .replace(/[&?]connect_timeout=\d+/g, '');
-  const sep = cleanUrl.includes('?') ? '&' : '?';
-  const pooledUrl = `${cleanUrl}${sep}connection_limit=5&pool_timeout=10`;
-
+  // FORCE local dev to be direct connection only
   if (!isProduction) {
-    console.log(`${LOG_PREFIX} Direct Postgres: connection_limit=5, pool_timeout=10s`);
+    console.log(`${LOG_PREFIX} Local/Dev Environment: Using direct PrismaClient (no accelerate)`);
+    return new PrismaClient({
+      log: ['query', 'error', 'warn'],
+    });
   }
 
-  const client = new PrismaClient({
-    log: logConfig,
-    datasources: {
-      db: { url: pooledUrl },
-    },
-  }).$extends(withAccelerate()); // No-op for postgres:// URLs
+  // Production logic with Accelerate
+  const isAccelerate = databaseUrl.startsWith('prisma://');
+  const logConfig: Array<'query' | 'error' | 'warn'> = ['error'];
 
-  return client as unknown as PrismaClient;
+  if (isAccelerate) {
+    return new PrismaClient({ log: logConfig }).$extends(withAccelerate()) as unknown as PrismaClient;
+  }
+
+  return new PrismaClient({
+    log: logConfig,
+  }).$extends(withAccelerate()) as unknown as PrismaClient;
 };
 
 declare const globalThis: {
   prismaGlobal: ReturnType<typeof prismaClientSingleton>;
 } & typeof global;
 
-// Cache on globalThis to survive HMR (dev) and Vercel function reuse (prod).
-// Never create more than one instance per process/function.
 const db = globalThis.prismaGlobal ?? prismaClientSingleton();
 
 if (!globalThis.prismaGlobal) {

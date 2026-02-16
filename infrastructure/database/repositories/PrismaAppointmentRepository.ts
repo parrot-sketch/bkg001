@@ -229,14 +229,28 @@ export class PrismaAppointmentRepository implements IAppointmentRepository, IDoc
       const appointmentDateTime = new Date(appointmentDate);
       appointmentDateTime.setHours(0, 0, 0, 0);
 
+      // Create proper scheduled_at time for robust comparison
+      const scheduledAt = new Date(appointmentDateTime);
+      const [hours, minutes] = time.split(':').map(Number);
+      scheduledAt.setHours(hours, minutes, 0, 0);
+
       const conflict = await client.appointment.findFirst({
         where: {
           doctor_id: doctorId,
-          appointment_date: appointmentDateTime,
-          time: time,
           status: {
             not: AppointmentStatus.CANCELLED as any,
           },
+          OR: [
+            // check legacy fields (exact string match)
+            {
+              appointment_date: appointmentDateTime,
+              time: time,
+            },
+            // check robust timestamp (handles format differences like "9:00" vs "09:00")
+            {
+              scheduled_at: scheduledAt,
+            }
+          ]
         },
       });
 

@@ -1,6 +1,7 @@
 /**
  * Unit tests for AppointmentSource enum and type guard
  */
+import { describe, it, expect } from 'vitest';
 import { 
   AppointmentSource, 
   isAppointmentSource 

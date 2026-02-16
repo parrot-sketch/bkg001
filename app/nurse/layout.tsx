@@ -36,7 +36,7 @@ export default function NurseLayout({ children }: NurseLayoutProps) {
       <NurseSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Content Area - Using the shared ClinicalDashboardShell */}
-      <div className="flex-1 lg:ml-72 flex flex-col min-w-0">
+      <div className="flex-1 lg:ml-72 flex flex-col min-w-0 h-screen overflow-hidden">
         <ClinicalDashboardShell>
           {children}
         </ClinicalDashboardShell>

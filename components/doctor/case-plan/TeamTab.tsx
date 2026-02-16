@@ -16,8 +16,9 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { UserPlus, Users, Loader2, Trash2 } from 'lucide-react';
+import { useInitProcedureRecord, useAssignStaff, useRemoveStaff, useInviteStaff, useCancelInvite } from '@/hooks/doctor/useCasePlan';
 import { CasePlanResponseDto } from '@/lib/api/case-plan';
-import { useInitProcedureRecord, useAssignStaff, useRemoveStaff } from '@/hooks/doctor/useCasePlan';
+import { StaffSelector } from './StaffSelector';
 
 interface TeamTabProps {
     casePlan?: CasePlanResponseDto | null;
@@ -46,11 +47,14 @@ const ROLE_COLORS: Record<string, string> = {
 
 export function TeamTab({ casePlan, caseId }: TeamTabProps) {
     const staff = casePlan?.procedure_record?.staff || [];
+    const invites = casePlan?.surgicalCase?.staffInvites || [];
     const hasRecord = !!casePlan?.procedure_record;
 
     const initRecord = useInitProcedureRecord(caseId ?? '');
     const assignStaff = useAssignStaff(caseId ?? '');
     const removeStaff = useRemoveStaff(caseId ?? '');
+    const inviteStaff = useInviteStaff(caseId ?? '');
+    const cancelInvite = useCancelInvite(caseId ?? '');
 
     const [showAssignDialog, setShowAssignDialog] = useState(false);
     const [assignUserId, setAssignUserId] = useState('');
@@ -64,10 +68,13 @@ export function TeamTab({ casePlan, caseId }: TeamTabProps) {
 
     const handleAssign = async () => {
         if (!assignUserId.trim()) return;
-        await assignStaff.mutateAsync({
-            userId: assignUserId.trim(),
-            role: assignRole,
+
+        // Use Invite instead of Assign
+        await inviteStaff.mutateAsync({
+            invitedUserId: assignUserId.trim(),
+            invitedRole: assignRole,
         });
+
         setShowAssignDialog(false);
         setAssignUserId('');
         setAssignRole('SCRUB_NURSE');
@@ -117,7 +124,7 @@ export function TeamTab({ casePlan, caseId }: TeamTabProps) {
                         onClick={() => setShowAssignDialog(true)}
                     >
                         <UserPlus className="h-4 w-4" />
-                        Assign Member
+                        Invite Member
                     </Button>
                 )}
             </div>
@@ -180,6 +187,51 @@ export function TeamTab({ casePlan, caseId }: TeamTabProps) {
                 </div>
             )}
 
+            {/* Pending Invites */}
+            {invites.length > 0 && (
+                <div className="space-y-2 mt-6">
+                    <h4 className="text-sm font-medium text-muted-foreground">Pending Invitations</h4>
+                    <div className="space-y-2">
+                        {invites.map((invite: any) => {
+                            const roleColor = ROLE_COLORS[invite.invitedRole] || 'bg-muted text-muted-foreground';
+                            const displayName = invite.invitedUser
+                                ? `${invite.invitedUser.firstName} ${invite.invitedUser.lastName}`
+                                : 'Unknown User';
+
+                            return (
+                                <div key={invite.id} className="flex items-center justify-between p-4 border rounded-lg bg-muted/10">
+                                    <div className="flex items-center gap-3">
+                                        <Avatar className="h-9 w-9 opacity-70">
+                                            <AvatarFallback className="text-xs">{displayName[0]}</AvatarFallback>
+                                        </Avatar>
+                                        <div>
+                                            <h4 className="font-medium text-sm text-muted-foreground">{displayName}</h4>
+                                            <div className="flex items-center gap-2">
+                                                <Badge variant="outline" className={`text-xs ${roleColor} opacity-70`}>
+                                                    {invite.invitedRole.replace(/_/g, ' ')}
+                                                </Badge>
+                                                <Badge variant="secondary" className="text-[10px] h-5">Pending</Badge>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {canManage && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                                            onClick={() => cancelInvite.mutateAsync(invite.id)}
+                                            disabled={cancelInvite.isPending}
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
             {/* Info about anesthesia from procedure record */}
             {casePlan?.procedure_record?.anesthesia_type && (
                 <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50 border text-sm">
@@ -192,7 +244,7 @@ export function TeamTab({ casePlan, caseId }: TeamTabProps) {
             <Dialog open={showAssignDialog} onOpenChange={setShowAssignDialog}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Assign Team Member</DialogTitle>
+                        <DialogTitle>Invite Team Member</DialogTitle>
                         <DialogDescription>
                             Enter the user ID and select their surgical role.
                         </DialogDescription>
@@ -200,14 +252,12 @@ export function TeamTab({ casePlan, caseId }: TeamTabProps) {
                     <div className="space-y-4 py-2">
                         <div className="space-y-1.5">
                             <Label className="text-sm font-medium">User ID</Label>
-                            <Input
+                            <StaffSelector
+                                caseId={caseId || ''}
+                                surgicalRole={assignRole}
                                 value={assignUserId}
-                                onChange={(e) => setAssignUserId(e.target.value)}
-                                placeholder="Enter the user's ID"
+                                onSelect={setAssignUserId}
                             />
-                            <p className="text-xs text-muted-foreground">
-                                The unique identifier of the staff member to assign.
-                            </p>
                         </div>
 
                         <div className="space-y-1.5">
@@ -232,12 +282,12 @@ export function TeamTab({ casePlan, caseId }: TeamTabProps) {
                         </Button>
                         <Button
                             onClick={handleAssign}
-                            disabled={assignStaff.isPending || !assignUserId.trim()}
+                            disabled={inviteStaff.isPending || !assignUserId.trim()}
                             className="gap-2"
                         >
-                            {assignStaff.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                            {inviteStaff.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                             <UserPlus className="h-4 w-4" />
-                            Assign
+                            Send Invite
                         </Button>
                     </DialogFooter>
                 </DialogContent>

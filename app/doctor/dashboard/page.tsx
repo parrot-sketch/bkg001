@@ -17,7 +17,7 @@
 
 import { useAuth } from '@/hooks/patient/useAuth';
 import { useDoctorTodayAppointments, useDoctorUpcomingAppointments, useDoctorPendingConfirmations } from '@/hooks/doctor/useDoctorDashboard';
-import { useConfirmAppointment } from '@/hooks/doctor/useConsultation';
+import { useConfirmAppointment, useRescheduleAppointment } from '@/hooks/doctor/useConsultation';
 import { doctorApi } from '@/lib/api/doctor';
 import { PendingConfirmationsSection } from '@/components/doctor/PendingConfirmationsSection';
 import { useState, useEffect } from 'react';
@@ -51,6 +51,8 @@ export default function DoctorDashboardPage() {
   const [loadingTheatre, setLoadingTheatre] = useState(false);
   const router = useRouter();
   const { mutateAsync: confirmAppointment } = useConfirmAppointment();
+
+  const { mutateAsync: rescheduleAppointment } = useRescheduleAppointment();
 
   // REFACTORED: Hook integration for real-time schedule
   const {
@@ -174,6 +176,15 @@ export default function DoctorDashboardPage() {
     });
   };
 
+  const handleRescheduleAppointment = async (appointmentId: number, newDate: Date | string, newTime: string, reason?: string) => {
+    await rescheduleAppointment({
+      appointmentId,
+      newDate,
+      newTime,
+      reason
+    });
+  };
+
   if (isLoading) {
     // ... existing loading ... (omitted for brevity in replacement if matching exact block)
     return (
@@ -231,7 +242,7 @@ export default function DoctorDashboardPage() {
               {/* Online indicator */}
               <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white" />
             </div>
-            
+
             {/* Name & Context */}
             <div className="flex flex-col">
               <h1 className="text-base font-semibold text-slate-900 leading-tight">
@@ -250,9 +261,9 @@ export default function DoctorDashboardPage() {
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-[10px] font-medium text-emerald-700">Online</span>
             </div>
-            
+
             <NotificationBell />
-            
+
             {/* Quick Profile Link */}
             <Link href="/doctor/profile">
               <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full hover:bg-slate-100">
@@ -262,202 +273,203 @@ export default function DoctorDashboardPage() {
           </div>
         </div>
       </header>
-      
+
       <div className="space-y-6">
 
-      {/* Onboarding Widget */}
-      {showOnboarding && !checkingOnboarding && (
-        <div className="bg-gradient-to-r from-indigo-600 to-indigo-800 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-8 opacity-10">
-            <Activity className="h-32 w-32" />
-          </div>
-          <div className="relative z-10">
-            <h2 className="text-2xl font-bold mb-2">Welcome, Dr. {user?.firstName || 'Doctor'}!</h2>
-            <p className="text-indigo-100 mb-6 max-w-xl">
-              Your account is active. To start receiving appointments, please configure your weekly availability and complete your professional profile.
-            </p>
-            <div className="flex gap-4">
-              <Button asChild variant="secondary" className="font-semibold">
-                <Link href="/doctor/profile">
-                  Complete Setup
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
+        {/* Onboarding Widget */}
+        {showOnboarding && !checkingOnboarding && (
+          <div className="bg-gradient-to-r from-indigo-600 to-indigo-800 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-10">
+              <Activity className="h-32 w-32" />
+            </div>
+            <div className="relative z-10">
+              <h2 className="text-2xl font-bold mb-2">Welcome, Dr. {user?.firstName || 'Doctor'}!</h2>
+              <p className="text-indigo-100 mb-6 max-w-xl">
+                Your account is active. To start receiving appointments, please configure your weekly availability and complete your professional profile.
+              </p>
+              <div className="flex gap-4">
+                <Button asChild variant="secondary" className="font-semibold">
+                  <Link href="/doctor/profile">
+                    Complete Setup
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Stats Cluster - Refined Compact Grid */}
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-5">
-        {pendingConfirmations.length > 0 && (
-          <StatCard
-            title="Needs Review"
-            value={pendingConfirmations.length}
-            subtitle="Pending confirmations"
-            icon={AlertCircle}
-            color="amber"
-            pulse
-          />
         )}
-        <StatCard
-          title="Today's Caseload"
-          value={todayCount}
-          subtitle={`${checkedInCount} arrived / waiting`}
-          icon={Calendar}
-          color="teal"
-        />
-        <StatCard
-          title="Arrived Now"
-          value={checkedInCount}
-          subtitle="Ready for consultation"
-          icon={CheckCircle}
-          color="emerald"
-          pulse={checkedInCount > 0}
-        />
-        <StatCard
-          title="Upcoming View"
-          value={upcomingCount}
-          subtitle="Next 7 days"
-          icon={Clock}
-          color="blue"
-        />
-        <StatCard
-          title="Efficiency"
-          value="94%"
-          subtitle="+3% from last week"
-          icon={Activity}
-          color="indigo"
-        />
-      </div>
 
-      {/* Main Content Layout: Balanced Clinical View */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
-
-        {/* Left Column: Active Patient Flow (8 cols) */}
-        <div className="xl:col-span-8 space-y-8">
-
-          {/* Pending Confirmations - Action items for doctor */}
-          <PendingConfirmationsSection
-            appointments={pendingConfirmations}
-            onConfirm={handleConfirmAppointment}
-            onReject={handleRejectAppointment}
-            isLoading={loadingPendingConfirmations}
-          />
-
-          {/* Waiting Queue - Checked-in patients ready for consultation */}
-          {todayAppointments.some(a => a.status === 'CHECKED_IN' || a.status === 'READY_FOR_CONSULTATION') && (
-            <WaitingQueue
-              appointments={todayAppointments.filter(a => a.status === 'CHECKED_IN' || a.status === 'READY_FOR_CONSULTATION')}
-              onStartConsultation={(apt) => handleStartConsultation(apt)}
+        {/* Stats Cluster - Refined Compact Grid */}
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-5">
+          {pendingConfirmations.length > 0 && (
+            <StatCard
+              title="Needs Review"
+              value={pendingConfirmations.length}
+              subtitle="Pending confirmations"
+              icon={AlertCircle}
+              color="amber"
+              pulse
             />
           )}
-
-          <section className="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-slate-700" />
-                <h2 className="text-sm font-semibold text-slate-800">Today's Patient Flow</h2>
-              </div>
-              <Link href="/doctor/appointments">
-                <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-500 hover:text-slate-900 font-medium gap-1">
-                  Full Calendar
-                  <ArrowRight className="h-3 w-3" />
-                </Button>
-              </Link>
-            </div>
-            <div className="p-4">
-              {loading ? (
-                <ScheduleSkeleton />
-              ) : todayAppointments.length === 0 ? (
-                <div className="text-center py-10 bg-slate-50/30 rounded-lg border border-dashed border-slate-200">
-                  <Calendar className="h-8 w-8 text-slate-300 mx-auto mb-3" />
-                  <h3 className="text-sm font-semibold text-slate-800">Workspace Clear</h3>
-                  <p className="text-xs text-slate-500">No sessions scheduled for today yet.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {todayAppointments
-                    // Filter out already checked-in patients from main list to avoid duplication if desired, 
-                    // OR keep them. Let's keep them but sorted: In Consultation -> Scheduled. 
-                    // Waiting ones are already shown above.
-                    .filter(a => a.status !== 'CHECKED_IN' && a.status !== 'READY_FOR_CONSULTATION')
-                    .map((appointment) => (
-                      <DoctorAppointmentCard
-                        key={appointment.id}
-                        appointment={appointment}
-                        onStartConsultation={handleStartConsultation}
-                        onEndConsultation={(apt: any) => {
-                          // TODO: Open End Consultation Logic/Dialog
-                          // For Phase 1, we can redirect or just log
-                          console.log('End session', apt);
-                        }}
-                      />
-                    ))}
-
-                  {todayAppointments.filter(a => a.status !== 'CHECKED_IN' && a.status !== 'READY_FOR_CONSULTATION').length === 0 && (
-                    <p className="text-center text-slate-500 py-4">
-                      All active patients are in the waiting queue.
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          </section>
-
-          <section className="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2 bg-slate-50/30">
-              <Clock className="h-4 w-4 text-slate-700" />
-              <h2 className="text-sm font-semibold text-slate-800">Upcoming Schedule</h2>
-            </div>
-            <div className="p-4">
-              {loading ? (
-                <ScheduleSkeleton count={2} />
-              ) : upcomingAppointments.length === 0 ? (
-                <p className="text-center py-6 text-xs text-slate-400 font-medium">No sessions scheduled for the next 48 hours.</p>
-              ) : (
-                <div className="space-y-3">
-                  {upcomingAppointments.slice(0, 3).map((appointment) => (
-                    <DoctorAppointmentCard key={appointment.id} appointment={appointment} />
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
+          <StatCard
+            title="Today's Caseload"
+            value={todayCount}
+            subtitle={`${checkedInCount} arrived / waiting`}
+            icon={Calendar}
+            color="teal"
+          />
+          <StatCard
+            title="Arrived Now"
+            value={checkedInCount}
+            subtitle="Ready for consultation"
+            icon={CheckCircle}
+            color="emerald"
+            pulse={checkedInCount > 0}
+          />
+          <StatCard
+            title="Upcoming View"
+            value={upcomingCount}
+            subtitle="Next 7 days"
+            icon={Clock}
+            color="blue"
+          />
+          <StatCard
+            title="Efficiency"
+            value="94%"
+            subtitle="+3% from last week"
+            icon={Activity}
+            color="indigo"
+          />
         </div>
 
-        {/* Right Column: Theatre Monitoring & Stats (4 cols) */}
-        <div className="xl:col-span-4 space-y-5">
-          <section className="sticky top-6 space-y-5">
-            {/* Theatre Schedule - Specialized View */}
-            <div className="transform transition-transform hover:scale-[1.01] duration-300">
-              <TheatreScheduleView
-                cases={theatreCases}
-                loading={loadingTheatre}
+        {/* Main Content Layout: Balanced Clinical View */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+
+          {/* Left Column: Active Patient Flow (8 cols) */}
+          <div className="xl:col-span-8 space-y-8">
+
+            {/* Pending Confirmations - Action items for doctor */}
+            <PendingConfirmationsSection
+              appointments={pendingConfirmations}
+              onConfirm={handleConfirmAppointment}
+              onReject={handleRejectAppointment}
+              onReschedule={handleRescheduleAppointment}
+              isLoading={loadingPendingConfirmations}
+            />
+
+            {/* Waiting Queue - Checked-in patients ready for consultation */}
+            {todayAppointments.some(a => a.status === 'CHECKED_IN' || a.status === 'READY_FOR_CONSULTATION') && (
+              <WaitingQueue
+                appointments={todayAppointments.filter(a => a.status === 'CHECKED_IN' || a.status === 'READY_FOR_CONSULTATION')}
+                onStartConsultation={(apt) => handleStartConsultation(apt)}
               />
-            </div>
+            )}
 
-            {/* Post-Op Live Monitor */}
-            <div className="transform transition-transform hover:scale-[1.01] duration-300">
-              <PostOpDashboard cases={[]} loading={false} />
-            </div>
-
-            {/* Quick Shortcuts */}
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-4 text-white shadow-lg overflow-hidden relative">
-              <div className="absolute -right-8 -bottom-8 h-24 w-24 bg-teal-500/10 rounded-full blur-2xl" />
-              <h3 className="text-xs font-semibold mb-3 text-slate-300 uppercase tracking-wide">
-                Quick Actions
-              </h3>
-              <div className="grid grid-cols-2 gap-2 relative z-10">
-                <ToolButton icon={FileText} label="Notes" />
-                <ToolButton icon={Users} label="Referrals" />
-                <ToolButton icon={Activity} label="Vitals" />
-                <ToolButton icon={ExternalLink} label="Portal" />
+            <section className="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-slate-700" />
+                  <h2 className="text-sm font-semibold text-slate-800">Today's Patient Flow</h2>
+                </div>
+                <Link href="/doctor/appointments">
+                  <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-500 hover:text-slate-900 font-medium gap-1">
+                    Full Calendar
+                    <ArrowRight className="h-3 w-3" />
+                  </Button>
+                </Link>
               </div>
-            </div>
-          </section>
+              <div className="p-4">
+                {loading ? (
+                  <ScheduleSkeleton />
+                ) : todayAppointments.length === 0 ? (
+                  <div className="text-center py-10 bg-slate-50/30 rounded-lg border border-dashed border-slate-200">
+                    <Calendar className="h-8 w-8 text-slate-300 mx-auto mb-3" />
+                    <h3 className="text-sm font-semibold text-slate-800">Workspace Clear</h3>
+                    <p className="text-xs text-slate-500">No sessions scheduled for today yet.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {todayAppointments
+                      // Filter out already checked-in patients from main list to avoid duplication if desired, 
+                      // OR keep them. Let's keep them but sorted: In Consultation -> Scheduled. 
+                      // Waiting ones are already shown above.
+                      .filter(a => a.status !== 'CHECKED_IN' && a.status !== 'READY_FOR_CONSULTATION')
+                      .map((appointment) => (
+                        <DoctorAppointmentCard
+                          key={appointment.id}
+                          appointment={appointment}
+                          onStartConsultation={handleStartConsultation}
+                          onEndConsultation={(apt: any) => {
+                            // TODO: Open End Consultation Logic/Dialog
+                            // For Phase 1, we can redirect or just log
+                            console.log('End session', apt);
+                          }}
+                        />
+                      ))}
+
+                    {todayAppointments.filter(a => a.status !== 'CHECKED_IN' && a.status !== 'READY_FOR_CONSULTATION').length === 0 && (
+                      <p className="text-center text-slate-500 py-4">
+                        All active patients are in the waiting queue.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section className="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2 bg-slate-50/30">
+                <Clock className="h-4 w-4 text-slate-700" />
+                <h2 className="text-sm font-semibold text-slate-800">Upcoming Schedule</h2>
+              </div>
+              <div className="p-4">
+                {loading ? (
+                  <ScheduleSkeleton count={2} />
+                ) : upcomingAppointments.length === 0 ? (
+                  <p className="text-center py-6 text-xs text-slate-400 font-medium">No sessions scheduled for the next 48 hours.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {upcomingAppointments.slice(0, 3).map((appointment) => (
+                      <DoctorAppointmentCard key={appointment.id} appointment={appointment} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
+
+          {/* Right Column: Theatre Monitoring & Stats (4 cols) */}
+          <div className="xl:col-span-4 space-y-5">
+            <section className="sticky top-6 space-y-5">
+              {/* Theatre Schedule - Specialized View */}
+              <div className="transform transition-transform hover:scale-[1.01] duration-300">
+                <TheatreScheduleView
+                  cases={theatreCases}
+                  loading={loadingTheatre}
+                />
+              </div>
+
+              {/* Post-Op Live Monitor */}
+              <div className="transform transition-transform hover:scale-[1.01] duration-300">
+                <PostOpDashboard cases={[]} loading={false} />
+              </div>
+
+              {/* Quick Shortcuts */}
+              <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-4 text-white shadow-lg overflow-hidden relative">
+                <div className="absolute -right-8 -bottom-8 h-24 w-24 bg-teal-500/10 rounded-full blur-2xl" />
+                <h3 className="text-xs font-semibold mb-3 text-slate-300 uppercase tracking-wide">
+                  Quick Actions
+                </h3>
+                <div className="grid grid-cols-2 gap-2 relative z-10">
+                  <ToolButton icon={FileText} label="Notes" />
+                  <ToolButton icon={Users} label="Referrals" />
+                  <ToolButton icon={Activity} label="Vitals" />
+                  <ToolButton icon={ExternalLink} label="Portal" />
+                </div>
+              </div>
+            </section>
+          </div>
         </div>
-      </div>
       </div>
     </div>
   );

@@ -146,7 +146,7 @@ export function EditDoctorProfileSheet({
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                             <TabsList className="grid w-full grid-cols-3">
-                                <TabsTrigger value="basic">Identify</TabsTrigger>
+                                <TabsTrigger value="basic">General</TabsTrigger>
                                 <TabsTrigger value="details">Details</TabsTrigger>
                                 <TabsTrigger value="professional">Professional</TabsTrigger>
                             </TabsList>
@@ -254,6 +254,9 @@ export function EditDoctorProfileSheet({
                                                     value={field.value}
                                                     onChange={field.onChange}
                                                     disabled={form.formState.isSubmitting}
+                                                    variant="avatar"
+                                                    label="Profile Photo"
+                                                    subtitle="Professional headshot"
                                                 />
                                             </FormControl>
                                             <FormMessage />

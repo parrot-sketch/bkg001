@@ -360,6 +360,70 @@ async function main() {
 
 
   // ============================================================================
+  // 4b. CLINICAL FORM TEMPLATES (Nurse/Doctor Forms)
+  // ============================================================================
+  console.log('📋 Creating Clinical Form Templates...');
+
+  await prisma.clinicalFormTemplate.upsert({
+    where: { key_version: { key: 'NURSE_PREOP_WARD_CHECKLIST', version: 1 } },
+    update: {},
+    create: {
+      key: 'NURSE_PREOP_WARD_CHECKLIST',
+      version: 1,
+      title: 'Pre-Operative Ward Checklist',
+      role_owner: Role.NURSE,
+      schema_json: '{}', // Schema defined in code (Zod)
+      ui_json: '{}',     // UI defined in React components
+      is_active: true,
+    }
+  });
+
+  await prisma.clinicalFormTemplate.upsert({
+    where: { key_version: { key: 'NURSE_INTRAOP_RECORD', version: 1 } },
+    update: {},
+    create: {
+      key: 'NURSE_INTRAOP_RECORD',
+      version: 1,
+      title: 'Intra-Operative Nurse Record',
+      role_owner: Role.NURSE,
+      schema_json: '{}',
+      ui_json: '{}',
+      is_active: true,
+    }
+  });
+
+  await prisma.clinicalFormTemplate.upsert({
+    where: { key_version: { key: 'NURSE_RECOVERY_RECORD', version: 1 } },
+    update: {},
+    create: {
+      key: 'NURSE_RECOVERY_RECORD',
+      version: 1,
+      title: 'Immediate Recovery Care Record (PACU)',
+      role_owner: Role.NURSE,
+      schema_json: '{}',
+      ui_json: '{}',
+      is_active: true,
+    }
+  });
+
+  await prisma.clinicalFormTemplate.upsert({
+    where: { key_version: { key: 'SURGEON_OPERATIVE_NOTE', version: 1 } },
+    update: {},
+    create: {
+      key: 'SURGEON_OPERATIVE_NOTE',
+      version: 1,
+      title: 'Surgeon Operative Note',
+      role_owner: Role.DOCTOR,
+      schema_json: '{}',
+      ui_json: '{}',
+      is_active: true,
+    }
+  });
+
+  console.log('✅ Clinical Form Templates created\n');
+
+
+  // ============================================================================
   // 5. PATIENTS & CLINICAL DATA
   // ============================================================================
   console.log('🏥 Creating Patients & Clinical Data...');
@@ -446,28 +510,28 @@ async function main() {
 
   // --- Test Patient: "Rita CheckIn" ---
   const userRita = await prisma.user.create({
-    data: { 
-      id: uuid(), 
-      email: 'rita.checkin@example.com', 
-      role: Role.PATIENT, 
-      password_hash: await hashPassword('password123'), 
-      first_name: 'Rita', 
-      last_name: 'CheckIn' 
+    data: {
+      id: uuid(),
+      email: 'rita.checkin@example.com',
+      role: Role.PATIENT,
+      password_hash: await hashPassword('password123'),
+      first_name: 'Rita',
+      last_name: 'CheckIn'
     }
   });
   await prisma.patient.create({
     data: {
-      user_id: userRita.id, 
-      file_number: 'TEST001', 
-      first_name: 'Rita', 
-      last_name: 'CheckIn', 
-      email: 'rita.checkin@example.com', 
+      user_id: userRita.id,
+      file_number: 'TEST001',
+      first_name: 'Rita',
+      last_name: 'CheckIn',
+      email: 'rita.checkin@example.com',
       phone: '+254722000001',
-      date_of_birth: new Date('1992-03-15'), 
-      gender: Gender.FEMALE, 
-      address: 'Westlands, Nairobi', 
-      emergency_contact_name: 'John CheckIn', 
-      emergency_contact_number: '0700111222', 
+      date_of_birth: new Date('1992-03-15'),
+      gender: Gender.FEMALE,
+      address: 'Westlands, Nairobi',
+      emergency_contact_name: 'John CheckIn',
+      emergency_contact_number: '0700111222',
       relation: 'Brother',
       marital_status: 'Single',
     }
@@ -475,28 +539,28 @@ async function main() {
 
   // --- Test Patient: "Carl Consult" ---
   const userCarl = await prisma.user.create({
-    data: { 
-      id: uuid(), 
-      email: 'carl.consult@example.com', 
-      role: Role.PATIENT, 
-      password_hash: await hashPassword('password123'), 
-      first_name: 'Carl', 
-      last_name: 'Consult' 
+    data: {
+      id: uuid(),
+      email: 'carl.consult@example.com',
+      role: Role.PATIENT,
+      password_hash: await hashPassword('password123'),
+      first_name: 'Carl',
+      last_name: 'Consult'
     }
   });
   await prisma.patient.create({
     data: {
-      user_id: userCarl.id, 
-      file_number: 'TEST002', 
-      first_name: 'Carl', 
-      last_name: 'Consult', 
-      email: 'carl.consult@example.com', 
+      user_id: userCarl.id,
+      file_number: 'TEST002',
+      first_name: 'Carl',
+      last_name: 'Consult',
+      email: 'carl.consult@example.com',
       phone: '+254722000002',
-      date_of_birth: new Date('1988-07-20'), 
-      gender: Gender.MALE, 
-      address: 'Kilimani, Nairobi', 
-      emergency_contact_name: 'Mary Consult', 
-      emergency_contact_number: '0700333444', 
+      date_of_birth: new Date('1988-07-20'),
+      gender: Gender.MALE,
+      address: 'Kilimani, Nairobi',
+      emergency_contact_name: 'Mary Consult',
+      emergency_contact_number: '0700333444',
       relation: 'Wife',
       marital_status: 'Married',
     }
@@ -504,28 +568,28 @@ async function main() {
 
   // --- Test Patient: "Fiona Fresh" ---
   const userFiona = await prisma.user.create({
-    data: { 
-      id: uuid(), 
-      email: 'fiona.fresh@example.com', 
-      role: Role.PATIENT, 
-      password_hash: await hashPassword('password123'), 
-      first_name: 'Fiona', 
-      last_name: 'Fresh' 
+    data: {
+      id: uuid(),
+      email: 'fiona.fresh@example.com',
+      role: Role.PATIENT,
+      password_hash: await hashPassword('password123'),
+      first_name: 'Fiona',
+      last_name: 'Fresh'
     }
   });
   await prisma.patient.create({
     data: {
-      user_id: userFiona.id, 
-      file_number: 'TEST003', 
-      first_name: 'Fiona', 
-      last_name: 'Fresh', 
-      email: 'fiona.fresh@example.com', 
+      user_id: userFiona.id,
+      file_number: 'TEST003',
+      first_name: 'Fiona',
+      last_name: 'Fresh',
+      email: 'fiona.fresh@example.com',
       phone: '+254722000003',
-      date_of_birth: new Date('1995-11-10'), 
-      gender: Gender.FEMALE, 
-      address: 'Karen, Nairobi', 
-      emergency_contact_name: 'Tom Fresh', 
-      emergency_contact_number: '0700555666', 
+      date_of_birth: new Date('1995-11-10'),
+      gender: Gender.FEMALE,
+      address: 'Karen, Nairobi',
+      emergency_contact_name: 'Tom Fresh',
+      emergency_contact_number: '0700555666',
       relation: 'Father',
       marital_status: 'Single',
     }
@@ -533,28 +597,28 @@ async function main() {
 
   // --- Test Patient: "Uma Upcoming" ---
   const userUma = await prisma.user.create({
-    data: { 
-      id: uuid(), 
-      email: 'uma.upcoming@example.com', 
-      role: Role.PATIENT, 
-      password_hash: await hashPassword('password123'), 
-      first_name: 'Uma', 
-      last_name: 'Upcoming' 
+    data: {
+      id: uuid(),
+      email: 'uma.upcoming@example.com',
+      role: Role.PATIENT,
+      password_hash: await hashPassword('password123'),
+      first_name: 'Uma',
+      last_name: 'Upcoming'
     }
   });
   await prisma.patient.create({
     data: {
-      user_id: userUma.id, 
-      file_number: 'TEST004', 
-      first_name: 'Uma', 
-      last_name: 'Upcoming', 
-      email: 'uma.upcoming@example.com', 
+      user_id: userUma.id,
+      file_number: 'TEST004',
+      first_name: 'Uma',
+      last_name: 'Upcoming',
+      email: 'uma.upcoming@example.com',
       phone: '+254722000004',
-      date_of_birth: new Date('1990-01-25'), 
-      gender: Gender.FEMALE, 
-      address: 'Lavington, Nairobi', 
-      emergency_contact_name: 'Dan Upcoming', 
-      emergency_contact_number: '0700777888', 
+      date_of_birth: new Date('1990-01-25'),
+      gender: Gender.FEMALE,
+      address: 'Lavington, Nairobi',
+      emergency_contact_name: 'Dan Upcoming',
+      emergency_contact_number: '0700777888',
       relation: 'Husband',
       marital_status: 'Married',
     }
@@ -630,6 +694,122 @@ async function main() {
   });
 
   console.log('✅ Additional Test Patients Created (Alice, Bob, Charlie, Diana, Eve)');
+
+
+  // ============================================================================
+  // 8. SURGICAL CASES (Sample Data)
+  // ============================================================================
+  console.log('😷 Creating Sample Surgical Cases...');
+
+  // Case 1: Millicent (Post-op / Recovery)
+  // Dr. Mukami performing Breast Augmentation
+  const case1 = await prisma.surgicalCase.create({
+    data: {
+      patient_id: p1.id,
+      primary_surgeon_id: doctors[1].id, // Dr. Mukami
+      urgency: 'ELECTIVE',
+      status: 'RECOVERY', // In recovery
+      procedure_name: 'Breast Augmentation (Bilateral)',
+      diagnosis: 'Mammary Hypoplasia',
+      side: 'Bilateral',
+      created_by: adminUser.id,
+    }
+  });
+
+  // Create Recovery Record for Case 1
+  await prisma.clinicalFormResponse.create({
+    data: {
+      template_key: 'NURSE_RECOVERY_RECORD',
+      template_version: 1,
+      surgical_case_id: case1.id,
+      patient_id: p1.id,
+      status: 'DRAFT',
+      data_json: JSON.stringify({
+        arrivalBaseline: {
+          timeOfArrival: "10:30",
+          airwayStatus: "Patent / Spontaneous",
+          consciousness: "Drowsy / Arousable",
+          o2Saturation: 98,
+          o2Administration: "Nasal Cannula",
+          painScore: 2,
+          nauseaVomiting: "None"
+        },
+        vitalsMonitoring: {
+          observations: [
+            { time: "10:35", bpSystolic: 110, bpDiastolic: 70, pulse: 80, rr: 16, spo2: 99, temperature: 36.8, consciousness: "Awake" }
+          ]
+        }
+      }),
+      created_by_user_id: nurses[0].id, // Jane
+      template_id: (await prisma.clinicalFormTemplate.findUnique({ where: { key_version: { key: 'NURSE_RECOVERY_RECORD', version: 1 } } }))!.id
+    }
+  });
+
+  // Case 2: Rhoda (Pre-op / Ward Prep)
+  // Dr. Ken performing Liposuction
+  const case2 = await prisma.surgicalCase.create({
+    data: {
+      patient_id: p2.id,
+      primary_surgeon_id: doctors[3].id, // Dr. Ken
+      urgency: 'ELECTIVE',
+      status: 'READY_FOR_SCHEDULING',
+      procedure_name: 'Liposuction 360 + BBL',
+      diagnosis: 'Lipodystrophy',
+      created_by: adminUser.id,
+    }
+  });
+
+  // Create Ward Checklist for Case 2 (partially filled)
+  await prisma.clinicalFormResponse.create({
+    data: {
+      template_key: 'NURSE_PREOP_WARD_CHECKLIST',
+      template_version: 1,
+      surgical_case_id: case2.id,
+      patient_id: p2.id,
+      status: 'DRAFT',
+      data_json: JSON.stringify({
+        documentation: { documentationComplete: true, correctConsent: true },
+        vitals: { bpSystolic: 120, bpDiastolic: 80, pulse: 72, temperature: 36.5 }
+      }),
+      created_by_user_id: nurses[0].id,
+      template_id: (await prisma.clinicalFormTemplate.findUnique({ where: { key_version: { key: 'NURSE_PREOP_WARD_CHECKLIST', version: 1 } } }))!.id
+    }
+  });
+
+  // Case 3: Alice (Intra-op)
+  // Dr. Angela performing Rhinoplasty
+  const case3 = await prisma.surgicalCase.create({
+    data: {
+      patient_id: (await prisma.patient.findFirst({ where: { file_number: 'TEST005' } }))!.id, // Alice
+      primary_surgeon_id: doctors[0].id, // Dr. Angela
+      urgency: 'ELECTIVE',
+      status: 'IN_THEATER',
+      procedure_name: 'Open Rhinoplasty',
+      diagnosis: 'Nasal Deformity',
+      created_by: adminUser.id,
+    }
+  });
+
+  // Create Intra-Op Record for Case 3
+  await prisma.clinicalFormResponse.create({
+    data: {
+      template_key: 'NURSE_INTRAOP_RECORD',
+      template_version: 1,
+      surgical_case_id: case3.id,
+      patient_id: case3.patient_id,
+      status: 'DRAFT',
+      data_json: JSON.stringify({
+        theatreSetup: { theatreClean: true, equipmentChecked: true },
+        counts: { initialSwabCount: 20, initialSharpCount: 10, initialInstrumentCount: 40 }
+      }),
+      created_by_user_id: nurses[1].id, // Lucy
+      template_id: (await prisma.clinicalFormTemplate.findUnique({ where: { key_version: { key: 'NURSE_INTRAOP_RECORD', version: 1 } } }))!.id
+    }
+  });
+
+
+  console.log('✅ Sample Surgical Cases Created (Pre-op, Intra-op, Recovery)');
+
 
   // ============================================================================
   // SEED COMPLETE

@@ -20,7 +20,7 @@ import { InventoryCategory } from '../../../domain/enums/InventoryCategory';
  * - Low stock alerts based on reorder point
  */
 export class PrismaInventoryRepository implements IInventoryRepository {
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(private readonly prisma: PrismaClient) { }
 
   // ============================================================================
   // MAPPERS
@@ -38,6 +38,7 @@ export class PrismaInventoryRepository implements IInventoryRepository {
       quantityOnHand: data.quantity_on_hand,
       reorderPoint: data.reorder_point,
       supplier: data.supplier ?? null,
+      manufacturer: data.manufacturer ?? null,
       isActive: data.is_active,
       isBillable: data.is_billable,
       createdAt: data.created_at,
@@ -142,6 +143,7 @@ export class PrismaInventoryRepository implements IInventoryRepository {
     if (data.quantityOnHand !== undefined) updateData.quantity_on_hand = data.quantityOnHand;
     if (data.reorderPoint !== undefined) updateData.reorder_point = data.reorderPoint;
     if (data.supplier !== undefined) updateData.supplier = data.supplier;
+    if (data.manufacturer !== undefined) updateData.manufacturer = data.manufacturer;
     if (data.isBillable !== undefined) updateData.is_billable = data.isBillable;
 
     const result = await this.prisma.inventoryItem.update({

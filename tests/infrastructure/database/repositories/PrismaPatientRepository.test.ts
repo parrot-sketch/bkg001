@@ -4,7 +4,7 @@ import { Patient } from '../../../../domain/entities/Patient';
 import { Email } from '../../../../domain/value-objects/Email';
 import { PhoneNumber } from '../../../../domain/value-objects/PhoneNumber';
 import { Gender } from '../../../../domain/enums/Gender';
-import type { PrismaClient } from '@prisma/client';
+import { Prisma, type PrismaClient } from '@prisma/client';
 
 describe('PrismaPatientRepository', () => {
   let mockPrisma: {
@@ -32,6 +32,7 @@ describe('PrismaPatientRepository', () => {
     it('should return Patient entity when patient is found', async () => {
       const prismaPatient = {
         id: 'patient-1',
+        file_number: 'NS001',
         first_name: 'John',
         last_name: 'Doe',
         date_of_birth: new Date('1990-01-01'),
@@ -98,6 +99,7 @@ describe('PrismaPatientRepository', () => {
       const email = Email.create('john.doe@example.com');
       const prismaPatient = {
         id: 'patient-1',
+        file_number: 'NS001',
         first_name: 'John',
         last_name: 'Doe',
         date_of_birth: new Date('1990-01-01'),
@@ -197,10 +199,11 @@ describe('PrismaPatientRepository', () => {
         medicalConsent: true,
       });
 
-      const prismaError = {
-        code: 'P2002',
-        message: 'Unique constraint failed',
-      };
+      // Use proper PrismaClientKnownRequestError instance
+      const prismaError = new Prisma.PrismaClientKnownRequestError(
+        'Unique constraint failed',
+        { code: 'P2002', clientVersion: '5.0.0' }
+      );
 
       mockPrisma.patient.create.mockRejectedValue(prismaError);
 
@@ -264,10 +267,11 @@ describe('PrismaPatientRepository', () => {
         medicalConsent: true,
       });
 
-      const prismaError = {
-        code: 'P2025',
-        message: 'Record not found',
-      };
+      // Use proper PrismaClientKnownRequestError instance
+      const prismaError = new Prisma.PrismaClientKnownRequestError(
+        'Record not found',
+        { code: 'P2025', clientVersion: '5.0.0' }
+      );
 
       mockPrisma.patient.update.mockRejectedValue(prismaError);
 

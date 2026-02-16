@@ -152,16 +152,16 @@ describe('Patient Entity', () => {
       ).toThrow(DomainException);
     });
 
-    it('should reject date of birth too far in the past', () => {
+    it('should accept date of birth far in the past (legacy data tolerance)', () => {
       const veryOldDate = new Date();
       veryOldDate.setFullYear(veryOldDate.getFullYear() - 200); // 200 years ago
 
-      expect(() =>
-        Patient.create({
-          ...basePatientParams,
-          dateOfBirth: veryOldDate,
-        }),
-      ).toThrow(DomainException);
+      // 150-year limit removed to support legacy data — only future dates are rejected
+      const patient = Patient.create({
+        ...basePatientParams,
+        dateOfBirth: veryOldDate,
+      });
+      expect(patient).toBeDefined();
     });
 
     it('should reject empty address', () => {

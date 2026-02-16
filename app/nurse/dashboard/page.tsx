@@ -2,55 +2,66 @@
 
 /**
  * Nurse Dashboard Overview
- * 
- * Main dashboard page showing:
- * - Welcome message
- * - Quick stats (patients to care for, pre/post-op, pending follow-ups)
- * - Today's checked-in patients
- * - Pending actions
- * 
- * REFACTORED: Replaced manual useState/useEffect fetch with React Query hooks
- * REASON: Eliminates manual loading state, error handling, and fetch logic.
- * Provides automatic caching, retries, and background refetching.
+ *
+ * Main dashboard page showing Work Queues for the surgical workflow.
+ * Refactored for modern, professional aesthetic consistent with Doctor dashboard.
  */
 
 import { useAuth } from '@/hooks/patient/useAuth';
-import { useTodayCheckedInPatients, usePreOpPatients, usePostOpPatients } from '@/hooks/nurse/useNurseDashboard';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useTodayCheckedInPatients } from '@/hooks/nurse/useNurseDashboard';
+import { usePreOpSummary } from '@/hooks/nurse/usePreOpCases';
+import { useIntraOpCases } from '@/hooks/nurse/useIntraOpCases';
+import { useRecoveryCases } from '@/hooks/nurse/useRecoveryCases';
+
 import { Button } from '@/components/ui/button';
-import { Users, Activity, FileText, Bell, Clock } from 'lucide-react';
+import {
+  ClipboardCheck,
+  Activity,
+  HeartPulse,
+  Users,
+  Calendar,
+  ArrowRight,
+  Clock
+} from 'lucide-react';
 import Link from 'next/link';
-import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
+import { NursePageHeader } from '@/components/nurse/NursePageHeader';
+import { NurseStatCard } from '@/components/nurse/NurseStatCard';
+import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 
 export default function NurseDashboardPage() {
-  const { user, isAuthenticated, isLoading } = useAuth();
-  
-  // REFACTORED: Replaced manual useState/useEffect with React Query
-  // React Query handles: loading, error, retries, caching, deduplication automatically
-  const { 
-    data: checkedInPatients = [], 
-    isLoading: loadingCheckedIn 
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+
+  // 1. Clinic Patients (Appointments)
+  const {
+    data: checkedInPatients = [],
+    isLoading: loadingCheckedIn
   } = useTodayCheckedInPatients(isAuthenticated && !!user);
-  
-  const { 
-    data: preOpPatients = [], 
-    isLoading: loadingPreOp 
-  } = usePreOpPatients(isAuthenticated && !!user);
-  
-  const { 
-    data: postOpPatients = [], 
-    isLoading: loadingPostOp 
-  } = usePostOpPatients(isAuthenticated && !!user);
 
-  const loading = loadingCheckedIn || loadingPreOp || loadingPostOp;
+  // 2. Ward Prep (Pre-Op Cases)
+  const {
+    summary: preOpSummary,
+    isLoading: loadingPreOp
+  } = usePreOpSummary();
 
-  if (isLoading) {
+  // 3. Theatre Support (Intra-Op Cases)
+  const {
+    data: intraOpData,
+    isLoading: loadingIntraOp
+  } = useIntraOpCases();
+
+  // 4. Recovery (Post-Op Cases)
+  const {
+    data: recoveryData,
+    isLoading: loadingRecovery
+  } = useRecoveryCases();
+
+  if (authLoading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-[80vh]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading...</p>
+          <div className="h-16 w-16 rounded-full border-4 border-slate-100 border-t-teal-500 animate-spin mx-auto mb-4" />
+          <p className="text-sm font-medium text-slate-500">Loading workspace...</p>
         </div>
       </div>
     );
@@ -58,242 +69,246 @@ export default function NurseDashboardPage() {
 
   if (!isAuthenticated || !user) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <p className="text-muted-foreground">Please log in to access your dashboard</p>
-          <Link href="/login">
-            <Button className="mt-4">Go to Login</Button>
-          </Link>
-        </div>
+      <div className="flex items-center justify-center h-[60vh] flex-col gap-4">
+        <p className="text-muted-foreground">Please log in to access your dashboard</p>
+        <Link href="/login">
+          <Button>Go to Login</Button>
+        </Link>
       </div>
     );
   }
 
-  const totalPatientsToCare = checkedInPatients.length;
-  const pendingPreOp = preOpPatients.length;
-  const pendingPostOp = postOpPatients.length;
-  const pendingFollowUps = checkedInPatients.filter(
-    (apt) =>
-      apt.status === AppointmentStatus.SCHEDULED &&
-      new Date(apt.appointmentDate) < new Date(),
-  ).length;
-
   return (
-    <div className="space-y-8">
-      {/* Welcome Section */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">
-          Welcome, Nurse {user.firstName || user.email}
-        </h1>
-        <p className="mt-2 text-muted-foreground">
-          Here's an overview of your patients and care assignments
-        </p>
-      </div>
+    <div className="animate-in fade-in duration-500 pb-10">
 
-      {/* Quick Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Patients to Care</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalPatientsToCare}</div>
-            <p className="text-xs text-muted-foreground">Checked in today</p>
-          </CardContent>
-        </Card>
+      <NursePageHeader />
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pre-op Care</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{pendingPreOp}</div>
-            <p className="text-xs text-muted-foreground">Requiring pre-op care</p>
-          </CardContent>
-        </Card>
+      <div className="space-y-8">
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Post-op Care</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{pendingPostOp}</div>
-            <p className="text-xs text-muted-foreground">Requiring post-op care</p>
-          </CardContent>
-        </Card>
+        {/* Stats Grid */}
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+          <Link href="/nurse/ward-prep" className="block transition-transform hover:-translate-y-1 duration-200">
+            <NurseStatCard
+              title="Ward Prep"
+              value={preOpSummary?.total || 0}
+              subtitle="Pending admission/prep"
+              icon={ClipboardCheck}
+              color="amber"
+              loading={loadingPreOp}
+              pulse={(preOpSummary?.total || 0) > 0}
+            />
+          </Link>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Follow-ups</CardTitle>
-            <Bell className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{pendingFollowUps}</div>
-            <p className="text-xs text-muted-foreground">Awaiting attention</p>
-          </CardContent>
-        </Card>
-      </div>
+          <Link href="/nurse/theatre-support" className="block transition-transform hover:-translate-y-1 duration-200">
+            <NurseStatCard
+              title="In Theater"
+              value={intraOpData?.cases.length || 0}
+              subtitle="Active surgeries"
+              icon={Activity}
+              color="blue"
+              loading={loadingIntraOp}
+              pulse={(intraOpData?.cases.length || 0) > 0}
+            />
+          </Link>
 
-      {/* Today's Checked-in Patients */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Today's Checked-in Patients</CardTitle>
-              <CardDescription>Patients requiring care today</CardDescription>
-            </div>
-            <Link href="/nurse/patients">
-              <Button variant="outline" size="sm">
-                View All
-              </Button>
-            </Link>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-4 text-sm text-muted-foreground">Loading patients...</p>
-            </div>
-          ) : checkedInPatients.length === 0 ? (
-            <div className="text-center py-8">
-              <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-sm text-muted-foreground">No checked-in patients for today</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {checkedInPatients.slice(0, 10).map((appointment) => (
-                <div
-                  key={appointment.id}
-                  className="flex items-center justify-between rounded-lg border border-border p-4 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center space-x-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                      <Users className="h-6 w-6 text-primary" />
+          <Link href="/nurse/recovery-discharge" className="block transition-transform hover:-translate-y-1 duration-200">
+            <NurseStatCard
+              title="Recovery"
+              value={recoveryData?.cases.length || 0}
+              subtitle="PACU monitoring"
+              icon={HeartPulse}
+              color="emerald"
+              loading={loadingRecovery}
+            />
+          </Link>
+
+          <Link href="/nurse/patients" className="block transition-transform hover:-translate-y-1 duration-200">
+            <NurseStatCard
+              title="Clinic Queue"
+              value={checkedInPatients.length}
+              subtitle="Waiting for consultation"
+              icon={Users}
+              color="purple"
+              loading={loadingCheckedIn}
+            />
+          </Link>
+        </div>
+
+        {/* Main Content Layout */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+
+          {/* Left Column: Active Surgeries & Clinic Flow (8 cols) */}
+          <div className="xl:col-span-8 space-y-6">
+
+            {/* Active Surgeries Section */}
+            <section className="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div className="flex items-center gap-2.5">
+                  <Activity className="h-4 w-4 text-blue-600" />
+                  <h2 className="text-sm font-semibold text-slate-800">Active Theater Cases</h2>
+                </div>
+                <Button variant="ghost" size="sm" asChild className="h-8 text-xs font-medium text-slate-500 hover:text-blue-600">
+                  <Link href="/nurse/theatre-support">
+                    View Board <ArrowRight className="ml-1 h-3 w-3" />
+                  </Link>
+                </Button>
+              </div>
+
+              <div className="p-0">
+                {loadingIntraOp ? (
+                  <div className="p-6 space-y-3">
+                    <div className="h-16 bg-slate-50 animate-pulse rounded-lg border border-slate-100" />
+                    <div className="h-16 bg-slate-50 animate-pulse rounded-lg border border-slate-100" />
+                  </div>
+                ) : intraOpData?.cases.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center bg-white">
+                    <div className="h-12 w-12 bg-slate-50 rounded-full flex items-center justify-center mb-3">
+                      <Activity className="h-6 w-6 text-slate-300" />
                     </div>
-                    <div className="space-y-1">
-                      <p className="font-medium">
-                        Patient: {appointment.patientId}
-                      </p>
-                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                        <span className="flex items-center">
-                          <Clock className="mr-1 h-4 w-4" />
-                          {format(new Date(appointment.appointmentDate), 'h:mm a')}
-                        </span>
-                        <span>•</span>
-                        <span>{appointment.type}</span>
+                    <p className="text-sm font-medium text-slate-900">No active surgeries</p>
+                    <p className="text-xs text-slate-500 max-w-xs mt-1">Theater is currently clear. Check Ward Prep for upcoming cases.</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {intraOpData?.cases.map((c) => (
+                      <Link key={c.id} href={`/nurse/intra-op-cases/${c.id}/record`} className="block hover:bg-slate-50/80 transition-colors group">
+                        <div className="p-4 flex items-center justify-between">
+                          <div className="flex items-start gap-4">
+                            <div className="h-10 w-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs ring-4 ring-white">
+                              {c.patient?.fullName.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                            </div>
+                            <div>
+                              <h3 className="text-sm font-medium text-slate-900 group-hover:text-blue-700 transition-colors">
+                                {c.patient?.fullName}
+                              </h3>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 font-normal bg-slate-100 text-slate-600 border-slate-200">
+                                  {c.procedureName}
+                                </Badge>
+                                <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                                  <Clock className="h-3 w-3" /> Started {c.startTime ? format(new Date(c.startTime), 'HH:mm') : '--:--'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 uppercase text-[10px] tracking-wider font-bold">
+                              {c.theaterName || 'OR Main'}
+                            </Badge>
+                            <span className="text-[10px] text-slate-400 font-medium">Click to manage</span>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Clinic Queue Section */}
+            <section className="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                <div className="flex items-center gap-2.5">
+                  <Users className="h-4 w-4 text-purple-600" />
+                  <h2 className="text-sm font-semibold text-slate-800">Clinic Waiting Room</h2>
+                </div>
+                <Button variant="ghost" size="sm" asChild className="h-8 text-xs font-medium text-slate-500 hover:text-purple-600">
+                  <Link href="/nurse/patients">
+                    View All <ArrowRight className="ml-1 h-3 w-3" />
+                  </Link>
+                </Button>
+              </div>
+
+              <div className="p-4 grid gap-3 sm:grid-cols-2">
+                {loadingCheckedIn ? (
+                  <>
+                    <div className="h-20 bg-slate-50 animate-pulse rounded-lg border border-slate-100" />
+                    <div className="h-20 bg-slate-50 animate-pulse rounded-lg border border-slate-100" />
+                  </>
+                ) : checkedInPatients.length === 0 ? (
+                  <div className="col-span-full py-8 text-center text-slate-400 text-sm">
+                    No patients waiting in the clinic area.
+                  </div>
+                ) : (
+                  checkedInPatients.slice(0, 6).map((apt) => (
+                    <Link key={apt.id} href="/nurse/patients" className="group">
+                      <div className="bg-white border border-slate-200 rounded-lg p-3 hover:border-purple-300 hover:shadow-sm transition-all relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-2">
+                          <div className="h-2 w-2 rounded-full bg-green-500 ring-2 ring-white" />
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center text-xs font-bold">
+                            P
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold text-slate-900">Patient #{apt.patientId?.substring(0, 6)}</p>
+                            <p className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1">
+                              <Calendar className="h-3 w-3" /> {format(new Date(apt.appointmentDate), 'h:mm a')} • {apt.type}
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Status: <span className="font-medium">{appointment.status}</span>
-                      </p>
-                    </div>
-                  </div>
-                  <Link href={`/nurse/patients/${appointment.patientId}`}>
-                    <Button variant="outline" size="sm">
-                      View Patient
-                    </Button>
-                  </Link>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Pre-op Patients */}
-      {preOpPatients.length > 0 && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Pre-op Patients</CardTitle>
-                <CardDescription>Patients requiring pre-operative care</CardDescription>
+                    </Link>
+                  ))
+                )}
               </div>
-              <Link href="/nurse/pre-post-op">
-                <Button variant="outline" size="sm">
-                  View All
-                </Button>
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {preOpPatients.slice(0, 5).map((appointment) => (
-                <div
-                  key={appointment.id}
-                  className="flex items-center justify-between rounded-lg border border-border p-4 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center space-x-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-warning/10">
-                      <Activity className="h-6 w-6 text-warning" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="font-medium">Patient: {appointment.patientId}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {format(new Date(appointment.appointmentDate), 'MMMM d, yyyy')} • {appointment.time}
-                      </p>
-                    </div>
-                  </div>
-                  <Link href={`/nurse/pre-post-op?patient=${appointment.patientId}&type=pre-op`}>
-                    <Button variant="outline" size="sm">
-                      Record Care
-                    </Button>
-                  </Link>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+            </section>
 
-      {/* Post-op Patients */}
-      {postOpPatients.length > 0 && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Post-op Patients</CardTitle>
-                <CardDescription>Patients requiring post-operative care</CardDescription>
-              </div>
-              <Link href="/nurse/pre-post-op">
-                <Button variant="outline" size="sm">
-                  View All
-                </Button>
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {postOpPatients.slice(0, 5).map((appointment) => (
-                <div
-                  key={appointment.id}
-                  className="flex items-center justify-between rounded-lg border border-border p-4 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center space-x-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-success/10">
-                      <FileText className="h-6 w-6 text-success" />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="font-medium">Patient: {appointment.patientId}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {format(new Date(appointment.appointmentDate), 'MMMM d, yyyy')} • {appointment.time}
-                      </p>
-                    </div>
-                  </div>
-                  <Link href={`/nurse/pre-post-op?patient=${appointment.patientId}&type=post-op`}>
-                    <Button variant="outline" size="sm">
-                      Record Care
-                    </Button>
-                  </Link>
+          </div>
+
+          {/* Right Column: Quick Actions & Status (4 cols) */}
+          <div className="xl:col-span-4 space-y-6">
+
+            {/* Ward Prep Status Summary */}
+            <div className="bg-white border border-slate-200/80 rounded-xl shadow-sm p-5">
+              <h3 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                <ClipboardCheck className="h-4 w-4 text-amber-500" />
+                Ward Efficiency
+              </h3>
+
+              <div className="space-y-4">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-500">Pending Prep</span>
+                  <span className="font-medium text-slate-900">{preOpSummary?.total || 0}</span>
                 </div>
-              ))}
+                <div className="w-full bg-slate-100 rounded-full h-1.5">
+                  <div
+                    className="bg-amber-500 h-1.5 rounded-full"
+                    style={{ width: `${Math.min(((preOpSummary?.total || 0) / 10) * 100, 100)}%` }}
+                  />
+                </div>
+
+                <div className="pt-2">
+                  <Button variant="outline" size="sm" className="w-full text-xs" asChild>
+                    <Link href="/nurse/ward-prep">Go to Ward Checklist</Link>
+                  </Button>
+                </div>
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+
+            {/* Quick Actions Panel */}
+            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-5 text-white shadow-lg overflow-hidden relative">
+              <div className="absolute -right-6 -bottom-6 h-24 w-24 bg-rose-500/20 rounded-full blur-2xl" />
+              <h3 className="text-xs font-semibold mb-4 text-slate-300 uppercase tracking-wide">
+                Quick Launch
+              </h3>
+              <div className="grid grid-cols-2 gap-3 relative z-10">
+                <Link href="/nurse/patients" className="flex flex-col items-center justify-center p-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/20 transition-all text-slate-300 hover:text-white group">
+                  <Activity className="h-5 w-5 mb-2 text-rose-400 group-hover:scale-110 transition-transform" />
+                  <span className="text-[10px] font-medium">Record Vitals</span>
+                </Link>
+                <Link href="/nurse/ward-prep" className="flex flex-col items-center justify-center p-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/20 transition-all text-slate-300 hover:text-white group">
+                  <ClipboardCheck className="h-5 w-5 mb-2 text-amber-400 group-hover:scale-110 transition-transform" />
+                  <span className="text-[10px] font-medium">Admit Patient</span>
+                </Link>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
     </div>
   );
 }

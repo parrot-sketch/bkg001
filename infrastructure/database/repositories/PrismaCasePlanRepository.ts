@@ -54,7 +54,21 @@ export class PrismaCasePlanRepository implements ICasePlanRepository {
       include: {
         patient: true,
         doctor: true,
-        surgical_case: true,
+        surgical_case: {
+          include: {
+            staff_invites: {
+              include: {
+                invited_user: {
+                  select: {
+                    first_name: true,
+                    last_name: true,
+                    role: true,
+                  }
+                }
+              }
+            }
+          }
+        },
         images: true,
         consents: true,
       },
@@ -69,7 +83,21 @@ export class PrismaCasePlanRepository implements ICasePlanRepository {
       include: {
         patient: true,
         doctor: true,
-        surgical_case: true,
+        surgical_case: {
+          include: {
+            staff_invites: {
+              include: {
+                invited_user: {
+                  select: {
+                    first_name: true,
+                    last_name: true,
+                    role: true,
+                  }
+                }
+              }
+            }
+          }
+        },
         images: true,
         consents: true,
       },
@@ -82,7 +110,21 @@ export class PrismaCasePlanRepository implements ICasePlanRepository {
       include: {
         patient: true,
         doctor: true,
-        surgical_case: true,
+        surgical_case: {
+          include: {
+            staff_invites: {
+              include: {
+                invited_user: {
+                  select: {
+                    first_name: true,
+                    last_name: true,
+                    role: true,
+                  }
+                }
+              }
+            }
+          }
+        },
         images: true,
         consents: true,
       },

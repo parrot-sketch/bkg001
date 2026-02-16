@@ -17,6 +17,7 @@ export interface InventoryItem {
   quantityOnHand: number;
   reorderPoint: number;
   supplier: string | null;
+  manufacturer: string | null;
   isActive: boolean;
   isBillable: boolean;
   createdAt: Date;
@@ -69,6 +70,7 @@ export interface CreateInventoryItemDto {
   quantityOnHand?: number;
   reorderPoint?: number;
   supplier?: string;
+  manufacturer?: string;
   isBillable?: boolean;
 }
 

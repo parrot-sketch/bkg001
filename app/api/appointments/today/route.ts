@@ -83,6 +83,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
               email: true,
               phone: true,
               img: true,
+              date_of_birth: true,
+              gender: true,
             },
           },
           doctor: {
@@ -135,6 +137,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           email: appointment.patient.email,
           phone: appointment.patient.phone,
           img: appointment.patient.img,
+          dateOfBirth: appointment.patient.date_of_birth,
+          gender: appointment.patient.gender,
         } : undefined,
         doctor: appointment.doctor ? {
           id: appointment.doctor.id,

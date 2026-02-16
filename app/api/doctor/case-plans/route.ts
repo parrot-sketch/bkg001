@@ -43,6 +43,16 @@ function mapCasePlanToDto(casePlan: any) {
                 id: casePlan.surgical_case.id,
                 status: casePlan.surgical_case.status,
                 urgency: casePlan.surgical_case.urgency,
+                staffInvites: casePlan.surgical_case.staff_invites?.map((invite: any) => ({
+                    id: invite.id,
+                    invitedUser: invite.invited_user ? {
+                        firstName: invite.invited_user.first_name,
+                        lastName: invite.invited_user.last_name,
+                        role: invite.invited_user.role,
+                    } : undefined,
+                    invitedRole: invite.invited_role,
+                    status: invite.status,
+                })),
             }
             : undefined,
         procedure_record: casePlan.procedure_record
@@ -152,6 +162,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                         id: true,
                         status: true,
                         urgency: true,
+                        staff_invites: {
+                            select: {
+                                id: true,
+                                status: true,
+                                invited_role: true,
+                                invited_user: {
+                                    select: {
+                                        first_name: true,
+                                        last_name: true,
+                                        role: true,
+                                    }
+                                }
+                            }
+                        }
                     },
                 },
                 procedure_record: {

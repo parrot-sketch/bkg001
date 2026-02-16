@@ -20,7 +20,7 @@ interface ClinicalDashboardShellProps {
 export function ClinicalDashboardShell({ children, className }: ClinicalDashboardShellProps) {
     return (
         <main className={cn(
-            "flex-1 overflow-y-auto overscroll-contain",
+            "flex-1 relative overflow-y-auto overscroll-contain focus:outline-none",
             "bg-gradient-to-b from-slate-50/80 via-white to-slate-50/40",
             "scroll-smooth"
         )}>

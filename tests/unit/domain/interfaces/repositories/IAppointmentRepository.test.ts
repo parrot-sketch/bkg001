@@ -167,7 +167,8 @@ describe('IAppointmentRepository Interface', () => {
     it('should have save method with correct signature', () => {
       const repository: IAppointmentRepository = new MockAppointmentRepository();
       expect(typeof repository.save).toBe('function');
-      expect(repository.save.length).toBe(1); // Takes 1 parameter (Appointment)
+      // save(appointment, consultationRequestFields?, txClient?) — 3 params total
+      expect(repository.save.length).toBe(3);
     });
   });
 

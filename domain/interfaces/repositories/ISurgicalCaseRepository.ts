@@ -1,4 +1,4 @@
-import { SurgicalCase, SurgicalCaseStatus, SurgicalUrgency } from '@prisma/client';
+import { SurgicalCase, SurgicalCaseStatus, SurgicalUrgency, SurgicalRole } from '@prisma/client';
 
 /**
  * Repository Interface: ISurgicalCaseRepository
@@ -68,4 +68,13 @@ export interface ISurgicalCaseRepository {
    * Update surgical case fields
    */
   update(id: string, data: Partial<SurgicalCase>): Promise<SurgicalCase>;
+
+  /**
+   * Add a staff member to the surgical procedure record
+   */
+  addStaff(data: {
+    procedureRecordId: number;
+    userId: string;
+    role: SurgicalRole;
+  }): Promise<void>;
 }

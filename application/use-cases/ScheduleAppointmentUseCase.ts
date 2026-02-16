@@ -262,7 +262,7 @@ export class ScheduleAppointmentUseCase {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         const target = error.meta?.target;
         const targetArray = Array.isArray(target) ? target : (typeof target === 'string' ? [target] : []);
-        if (targetArray.some(t => String(t).includes('appointment_no_double_booking'))) {
+        if (targetArray.some(t => String(t).includes('appointment_no_double_booking') || String(t).includes('unique_doctor_scheduled_slot'))) {
           throw new DomainException(
             `Appointment conflict: Doctor ${dto.doctorId} already has an appointment on ${dto.appointmentDate.toISOString()} at ${dto.time}`,
             {
@@ -329,7 +329,7 @@ export class ScheduleAppointmentUseCase {
     // Step 8: Record audit event
     const sourceLabel = appointmentSource === AppointmentSource.DOCTOR_FOLLOW_UP
       ? ' (doctor follow-up)' : appointmentSource === AppointmentSource.FRONTDESK_SCHEDULED
-      ? ' (frontdesk)' : '';
+        ? ' (frontdesk)' : '';
     await this.auditService.recordEvent({
       userId,
       recordId: savedAppointment.getId().toString(),

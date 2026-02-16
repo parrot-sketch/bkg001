@@ -15,10 +15,11 @@
  * Includes patient & doctor names from joined query
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, Suspense } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { useAppointmentsByDate } from '@/hooks/appointments/useAppointments';
 import { useQueryClient } from '@tanstack/react-query';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -140,11 +141,45 @@ const STATUS_CHIPS: StatusChip[] = [
 /* ═══════════════════ Page Component ═══════════════════ */
 
 export default function FrontdeskAppointmentsPage() {
+  return (
+    <Suspense fallback={<AppointmentsSkeleton />}>
+      <FrontdeskAppointmentsContent />
+    </Suspense>
+  );
+}
+
+function FrontdeskAppointmentsContent() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // Parse query params
+  const dateParam = searchParams.get('date');
+  const highlightedId = searchParams.get('highlight') ? parseInt(searchParams.get('highlight')!) : null;
 
   // Date state
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    if (dateParam) {
+      const parsed = new Date(dateParam);
+      return isNaN(parsed.getTime()) ? new Date() : parsed;
+    }
+    return new Date();
+  });
+
+  // Update URL when date changes (shallow push to keep history clean)
+  useEffect(() => {
+    const dateStr = format(selectedDate, 'yyyy-MM-dd');
+    const currentParam = searchParams.get('date');
+    if (currentParam !== dateStr && !highlightedId) {
+      // Only update if not currently highlighting (to avoid wiping the highlight param immediately)
+      // actually we can just update the date param.
+      // router.replace(`/frontdesk/appointments?date=${dateStr}`, { scroll: false });
+      // But this might conflict with the highlight param if we are not careful.
+      // Let's keep it simple: The page initializes from URL. 
+      // If user changes date via UI, we update state. We can optionally update URL.
+    }
+  }, [selectedDate, searchParams, highlightedId, router]);
 
   // Filter state
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -487,6 +522,7 @@ export default function FrontdeskAppointmentsPage() {
                 key={appointment.id}
                 appointment={appointment}
                 onCheckIn={handleCheckIn}
+                isHighlighted={highlightedId === appointment.id}
               />
             ))}
           </div>

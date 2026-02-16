@@ -3,6 +3,7 @@
  * 
  * Verifies the single source of truth for the source → status mapping.
  */
+import { describe, it, expect } from 'vitest';
 import { 
   AppointmentStatus, 
   getDefaultStatusForSource 

@@ -21,6 +21,7 @@ import { Role } from '@/domain/enums/Role';
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { CaseTransitionSchema } from '@/application/validation/theaterTechSchemas';
 import { theaterTechService } from '@/lib/factories/theaterTechFactory';
+import { endpointTimer } from '@/lib/observability/endpointLogger';
 
 const ALLOWED_ROLES = new Set([Role.THEATER_TECHNICIAN, Role.ADMIN]);
 
@@ -64,6 +65,7 @@ export async function POST(
     const { id: caseId } = await params;
     const { action, reason } = validation.data;
 
+    const timer = endpointTimer('POST /api/theater-tech/cases/[id]/transition');
     const result = await theaterTechService.transitionCase(
       caseId,
       action,
@@ -71,6 +73,7 @@ export async function POST(
       authResult.user.role,
       reason
     );
+    timer.end({ caseId, action });
 
     return NextResponse.json(
       { success: true, data: result },
@@ -80,8 +83,15 @@ export async function POST(
     console.error('[API] /api/theater-tech/cases/[id]/transition - Error:', error);
 
     if (error instanceof DomainException) {
+      const metadata = error.metadata as Record<string, unknown> | undefined;
       return NextResponse.json(
-        { success: false, error: error.message, metadata: error.metadata },
+        {
+          success: false,
+          error: error.message,
+          missingItems: (metadata?.missingItems as string[]) ?? [],
+          blockingCategory: (metadata?.gate as string) ?? 'UNKNOWN',
+          message: error.message,
+        },
         { status: 422 }
       );
     }
@@ -89,7 +99,13 @@ export async function POST(
     // State machine validation errors from SurgicalCaseService
     if (error instanceof Error && error.message.includes('Cannot transition')) {
       return NextResponse.json(
-        { success: false, error: error.message },
+        {
+          success: false,
+          error: error.message,
+          missingItems: [],
+          blockingCategory: 'STATE_MACHINE',
+          message: error.message,
+        },
         { status: 422 }
       );
     }

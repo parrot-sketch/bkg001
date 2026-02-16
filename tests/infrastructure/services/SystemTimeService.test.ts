@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { SystemTimeService } from '../../../../infrastructure/services/SystemTimeService';
+import { SystemTimeService } from '../../../infrastructure/services/SystemTimeService';
 
 describe('SystemTimeService', () => {
   let service: SystemTimeService;

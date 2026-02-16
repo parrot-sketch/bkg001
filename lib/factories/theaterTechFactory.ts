@@ -21,8 +21,8 @@ const casePlanRepo = new PrismaCasePlanRepository(db);
 const checklistRepo = new PrismaSurgicalChecklistRepository(db);
 const auditRepo = new PrismaClinicalAuditRepository(db);
 
-// Domain service (with CasePlan repo for readiness validation)
-const surgicalCaseService = new SurgicalCaseService(surgicalCaseRepo, casePlanRepo);
+// Domain service (with CasePlan repo for readiness validation + DB for form engine checks)
+const surgicalCaseService = new SurgicalCaseService(surgicalCaseRepo, casePlanRepo, db);
 
 // Exported for reuse by doctor surgical case API routes
 export { surgicalCaseService };

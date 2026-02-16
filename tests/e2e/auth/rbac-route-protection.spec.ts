@@ -56,8 +56,9 @@ test.describe('RBAC - Route Protection', () => {
       
       // If middleware working: redirect to patient dashboard
       // If client-side only: may show "access denied" message
-      expect(currentUrl).not.toContain('/admin/dashboard') || 
-        expect(page.locator('text=/access denied/i, text=/unauthorized/i')).toBeVisible();
+      const isRedirected = !currentUrl.includes('/admin/dashboard');
+      const hasDeniedMessage = await page.locator('text=/access denied/i, text=/unauthorized/i').isVisible().catch(() => false);
+      expect(isRedirected || hasDeniedMessage).toBe(true);
     });
 
     test('should deny DOCTOR access to /admin/** routes', async ({ page }) => {
@@ -104,8 +105,9 @@ test.describe('RBAC - Route Protection', () => {
 
       // Should deny or redirect
       const currentUrl = page.url();
-      expect(currentUrl).not.toContain('/doctor/dashboard') || 
-        expect(page.locator('text=/access denied/i')).toBeVisible();
+      const isRedirected = !currentUrl.includes('/doctor/dashboard');
+      const hasDeniedMessage = await page.locator('text=/access denied/i').isVisible().catch(() => false);
+      expect(isRedirected || hasDeniedMessage).toBe(true);
     });
   });
 

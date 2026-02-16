@@ -4,85 +4,90 @@
  * Nurse Patients Page
  * 
  * View all patients assigned to nurse for care.
- * Allows recording vitals, adding care notes, and updating patient status.
+ * Refactored for modern aesthetic with sticky header and responsive table layout.
  */
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
-import { nurseApi } from '@/lib/api/nurse';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useTodayCheckedInPatients } from '@/hooks/nurse/useNurseDashboard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Users, Search, Activity, FileText, Plus } from 'lucide-react';
-import { toast } from 'sonner';
+import { Users, Search, RefreshCw, Filter } from 'lucide-react';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { RecordVitalsDialog } from '@/components/nurse/RecordVitalsDialog';
 import { AddCareNoteDialog } from '@/components/nurse/AddCareNoteDialog';
-import { PatientCard } from '@/components/nurse/PatientCard';
+import { PatientTableRow } from '@/components/nurse/PatientTableRow';
+import { NursePageHeader } from '@/components/nurse/NursePageHeader';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import Link from 'next/link';
 
 export default function NursePatientsPage() {
   const { user, isAuthenticated } = useAuth();
-  const [patients, setPatients] = useState<PatientResponseDto[]>([]);
-  const [appointments, setAppointments] = useState<AppointmentResponseDto[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<PatientResponseDto | null>(null);
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentResponseDto | null>(null);
   const [showVitalsDialog, setShowVitalsDialog] = useState(false);
   const [showCareNoteDialog, setShowCareNoteDialog] = useState(false);
 
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      loadPatients();
-    }
-  }, [isAuthenticated, user]);
+  // Use the hook for automatic data fetching
+  const {
+    data: appointments = [],
+    isLoading: loading,
+    refetch
+  } = useTodayCheckedInPatients(isAuthenticated && !!user);
 
-  const loadPatients = async () => {
-    if (!user) return;
+  // Map appointments to patient objects for the list
+  const patients = appointments
+    .filter(apt => apt.patient) // Ensure patient data exists
+    .map(apt => {
+      const p = apt.patient!;
+      const birthDate = p.dateOfBirth ? new Date(p.dateOfBirth) : new Date();
+      const age = p.dateOfBirth ? new Date().getFullYear() - birthDate.getFullYear() : 0;
 
-    try {
-      setLoading(true);
-      
-      // Get checked-in patients for today
-      const appointmentsResponse = await nurseApi.getTodayCheckedInPatients();
+      return {
+        id: p.id,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        fullName: `${p.firstName} ${p.lastName}`,
+        email: p.email || '',
+        phone: p.phone || '',
+        dateOfBirth: birthDate,
+        age: age,
+        fileNumber: p.fileNumber || '',
+        gender: p.gender || '',
+        address: '',
+        maritalStatus: '',
+        emergencyContactName: '',
+        emergencyContactNumber: '',
+        relation: '',
+        hasPrivacyConsent: false,
+        hasServiceConsent: false,
+        hasMedicalConsent: false,
+      } as PatientResponseDto;
+    });
 
-      if (appointmentsResponse.success && appointmentsResponse.data) {
-        setAppointments(appointmentsResponse.data);
-        
-        // Extract unique patient IDs and fetch patient details
-        const patientIds = Array.from(
-          new Set(appointmentsResponse.data.map((apt) => apt.patientId)),
-        );
-
-        const patientPromises = patientIds.map((patientId) =>
-          nurseApi.getPatient(patientId).catch(() => null),
-        );
-
-        const patientResponses = await Promise.all(patientPromises);
-        const validPatients = patientResponses
-          .filter((response): response is { success: true; data: PatientResponseDto } =>
-            response !== null && response.success === true && response.data !== null,
-          )
-          .map((response) => response.data);
-
-        setPatients(validPatients);
-      } else if (!appointmentsResponse.success) {
-        toast.error(appointmentsResponse.error || 'Failed to load patients');
-      } else {
-        toast.error('Failed to load patients');
-      }
-    } catch (error) {
-      toast.error('An error occurred while loading patients');
-      console.error('Error loading patients:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Filter patients based on search query
+  const filteredPatients = patients.filter((patient) => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      patient.firstName?.toLowerCase().includes(query) ||
+      patient.lastName?.toLowerCase().includes(query) ||
+      patient.email?.toLowerCase().includes(query) ||
+      patient.phone?.toLowerCase().includes(query)
+    );
+  });
 
   const handleRecordVitals = (patient: PatientResponseDto) => {
     setSelectedPatient(patient);
-    // Find appointment for this patient
     const appointment = appointments.find((apt) => apt.patientId === patient.id);
     setSelectedAppointment(appointment || null);
     setShowVitalsDialog(true);
@@ -100,92 +105,115 @@ export default function NursePatientsPage() {
     setShowCareNoteDialog(false);
     setSelectedPatient(null);
     setSelectedAppointment(null);
-    loadPatients();
+    refetch();
   };
-
-  const filteredPatients = patients.filter((patient) => {
-    if (!searchQuery.trim()) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      patient.firstName?.toLowerCase().includes(query) ||
-      patient.lastName?.toLowerCase().includes(query) ||
-      patient.email?.toLowerCase().includes(query) ||
-      patient.phone?.toLowerCase().includes(query)
-    );
-  });
 
   if (!isAuthenticated || !user) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
           <p className="text-muted-foreground">Please log in to view patients</p>
+          <Link href="/login">
+            <Button className="mt-4">Go to Login</Button>
+          </Link>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Patients Under Care</h1>
-          <p className="mt-2 text-muted-foreground">Manage patient care and record vitals</p>
-        </div>
-      </div>
+    <div className="animate-in fade-in duration-500 pb-10">
 
-      {/* Search */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search patients by name, email, or phone..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+      <NursePageHeader />
+
+      <div className="space-y-6">
+        {/* Header & Controls */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-800 tracking-tight">Clinic Patients</h2>
+            <p className="text-sm text-slate-500">
+              Patients checked in for appointments today
+            </p>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Patients List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Today's Patients</CardTitle>
-          <CardDescription>Patients checked in today requiring care</CardDescription>
-        </CardHeader>
-        <CardContent>
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <div className="relative flex-1 md:w-80">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="Search patients..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 h-10 bg-white border-slate-200 focus:border-purple-300 focus:ring-purple-100"
+              />
+            </div>
+            <Button variant="outline" size="icon" onClick={() => refetch()} className="h-10 w-10 shrink-0 border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-white">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon" className="h-10 w-10 shrink-0 border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-white">
+              <Filter className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Filters/Tabs Pill (Optional Visual Enhancement) */}
+        <div className="flex items-center gap-2 pb-2 overflow-x-auto">
+          <Badge variant="secondary" className="bg-purple-100 text-purple-700 hover:bg-purple-200 cursor-pointer px-3 py-1 rounded-full text-xs font-medium border border-purple-200">
+            All Patients
+          </Badge>
+          <Badge variant="outline" className="bg-white text-slate-600 hover:bg-slate-50 cursor-pointer px-3 py-1 rounded-full text-xs font-medium border border-slate-200">
+            Waiting Vitals
+          </Badge>
+          <Badge variant="outline" className="bg-white text-slate-600 hover:bg-slate-50 cursor-pointer px-3 py-1 rounded-full text-xs font-medium border border-slate-200">
+            Seen
+          </Badge>
+        </div>
+
+        {/* Results - Table View */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-4 text-sm text-muted-foreground">Loading patients...</p>
+            <div className="p-8 space-y-4">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="h-12 bg-slate-50 animate-pulse rounded-lg" />
+              ))}
             </div>
           ) : filteredPatients.length === 0 ? (
-            <div className="text-center py-8">
-              <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-sm text-muted-foreground">
-                {searchQuery ? 'No patients match your search' : 'No patients checked in today'}
+            <div className="text-center py-20 bg-slate-50/50">
+              <Users className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+              <h3 className="text-slate-900 font-medium mb-1">No patients found</h3>
+              <p className="text-sm text-slate-500">
+                {searchQuery ? `No results matching "${searchQuery}"` : 'No patients have checked in yet today'}
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {filteredPatients.map((patient) => {
-                const appointment = appointments.find((apt) => apt.patientId === patient.id);
-                return (
-                  <PatientCard
-                    key={patient.id}
-                    patient={patient}
-                    appointment={appointment}
-                    onRecordVitals={handleRecordVitals}
-                    onAddCareNote={handleAddCareNote}
-                  />
-                );
-              })}
-            </div>
+            <Table>
+              <TableHeader className="bg-slate-50/80">
+                <TableRow>
+                  <TableHead className="w-[280px]">Patient</TableHead>
+                  <TableHead>Demographics</TableHead>
+                  <TableHead>Appointment</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredPatients.map((patient) => {
+                  const appointment = appointments.find((apt) => apt.patientId === patient.id);
+                  return (
+                    <PatientTableRow
+                      key={patient.id}
+                      patient={patient}
+                      appointment={appointment}
+                      onRecordVitals={handleRecordVitals}
+                      onAddCareNote={handleAddCareNote}
+                    />
+                  );
+                })}
+              </TableBody>
+            </Table>
           )}
-        </CardContent>
-      </Card>
+        </div>
+
+      </div>
 
       {/* Record Vitals Dialog */}
       {showVitalsDialog && selectedPatient && (

@@ -10,7 +10,7 @@
  * Readiness checklist driven by backend truth.
  */
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useCasePlanDetail, useUpdateCasePlan } from '@/hooks/doctor/useCasePlan';
 import { useMarkCaseReady, MarkReadyError } from '@/hooks/doctor/useSurgicalCases';
@@ -23,6 +23,15 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import {
     Dialog,
     DialogContent,
@@ -50,11 +59,19 @@ import {
     AlertCircle,
     XCircle,
     Printer,
+    Timer,
+    Edit,
 } from 'lucide-react';
 import { ProfileImage } from '@/components/profile-image';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import {
+    TIMELINE_FIELD_ORDER,
+    TIMELINE_FIELD_LABELS,
+    type TimelineFieldName,
+} from '@/domain/helpers/operativeTimeline';
+import type { TimelineResultDto } from '@/application/dtos/TheaterTechDtos';
 
 // Tabs — imported from existing components
 import { ClinicalPlanTab } from '@/components/doctor/case-plan/ClinicalPlanTab';
@@ -91,6 +108,18 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
     SCHEDULED: { label: 'Scheduled', className: 'bg-indigo-100 text-indigo-700' },
 };
 
+/** Statuses where an operative timeline exists and should be shown. */
+const OPERATIVE_STATUSES = new Set([
+    'IN_PREP',
+    'IN_THEATER',
+    'RECOVERY',
+    'COMPLETED',
+]);
+
+function getToken() {
+    return typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+}
+
 /**
  * Adapt CasePlanDetailDto into the shape expected by existing ClinicalPlanTab,
  * ConsentsTab, PhotosTab, TeamTab (which expect CasePlanResponseDto).
@@ -119,20 +148,21 @@ function adaptForLegacyTabs(detail: CasePlanDetailDto) {
             id: detail.id,
             status: detail.status,
             urgency: detail.urgency,
+            staffInvites: detail.staffInvites,
         },
         consents: cp.consents,
         images: cp.images,
         procedure_record: cp.procedureRecord
             ? {
-                  urgency: cp.procedureRecord.urgency,
-                  anesthesia_type: cp.procedureRecord.anesthesiaType ?? '',
-                  staff: cp.procedureRecord.staff.map((s) => ({
-                      role: s.role,
-                      user: s.user
-                          ? { firstName: s.user.firstName, lastName: s.user.lastName, role: s.user.role }
-                          : { firstName: '?', lastName: '?', role: 'UNKNOWN' },
-                  })),
-              }
+                urgency: cp.procedureRecord.urgency,
+                anesthesia_type: cp.procedureRecord.anesthesiaType ?? '',
+                staff: cp.procedureRecord.staff.map((s) => ({
+                    role: s.role,
+                    user: s.user
+                        ? { firstName: s.user.firstName, lastName: s.user.lastName, role: s.user.role }
+                        : { firstName: '?', lastName: '?', role: 'UNKNOWN' },
+                })),
+            }
             : undefined,
     };
 }
@@ -184,10 +214,42 @@ export default function CasePlanPage() {
         nurse_checklist: '', // No tab — external
     };
 
+    // ─── Edit Details Handler ────────────────────────────────────────
+    const [showEditDetails, setShowEditDetails] = useState(false);
+    const [editDetailsForm, setEditDetailsForm] = useState({
+        procedureName: '',
+        side: '',
+        diagnosis: '',
+    });
+
+    // Initialize form when detail loads or modal opens
+    useEffect(() => {
+        if (detail && showEditDetails) {
+            setEditDetailsForm({
+                procedureName: detail.procedureName ?? '',
+                side: detail.side ?? '',
+                diagnosis: detail.diagnosis ?? '',
+            });
+        }
+    }, [detail, showEditDetails]);
+
+    const handleSaveDetails = async () => {
+        await updatePlan.mutateAsync({
+            // Only sending the fields we are editing here
+            procedureName: editDetailsForm.procedureName,
+            side: editDetailsForm.side,
+            diagnosis: editDetailsForm.diagnosis,
+        } as any); // Casting because updatePlan expects partial CasePlan but we updated api to handle these
+        setShowEditDetails(false);
+        toast.success('Case details updated');
+        refetch(); // Ensure UI updates immediately
+    };
+
     // ─── Save handler for ClinicalPlanTab ────────────────────────────
     const handleSaveClinical = useCallback(
         async (data: any) => {
             await updatePlan.mutateAsync({
+                procedureName: data.procedureName,
                 procedurePlan: data.procedurePlan,
                 riskFactors: data.riskFactors,
                 preOpNotes: data.preOpNotes,
@@ -196,7 +258,7 @@ export default function CasePlanPage() {
                 specialInstructions: data.specialInstructions,
                 estimatedDurationMinutes: data.estimatedDurationMinutes,
                 readinessStatus: data.readinessStatus,
-            });
+            } as any);
         },
         [updatePlan],
     );
@@ -310,6 +372,11 @@ export default function CasePlanPage() {
                                     </Button>
                                 </Link>
                             )}
+
+                            <Button variant="outline" size="sm" className="gap-1.5 text-xs h-8" onClick={() => setShowEditDetails(true)}>
+                                <Edit className="h-3 w-3" />
+                                Edit Details
+                            </Button>
 
                             <Link href={`/doctor/surgical-cases/${caseId}/plan/print`}>
                                 <Button variant="outline" size="sm" className="gap-1.5 text-xs h-8">
@@ -466,6 +533,11 @@ export default function CasePlanPage() {
                     </div>
                 )}
 
+                {/* ── Operative Timeline (read-only, for active cases) ── */}
+                {OPERATIVE_STATUSES.has(detail.status) && (
+                    <ReadOnlyTimelineSummary caseId={caseId} />
+                )}
+
                 {/* ── Tabbed Workspace ────────────────────────────── */}
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <TabsList className="w-full justify-start gap-1 p-1 bg-muted/40 rounded-lg h-auto">
@@ -563,6 +635,62 @@ export default function CasePlanPage() {
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
+                {/* ── Edit Details Modal ──────────────────────────── */}
+                <Dialog open={showEditDetails} onOpenChange={setShowEditDetails}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Edit Case Details</DialogTitle>
+                            <DialogDescription>
+                                Update the core surgical case information.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="procedureName">Procedure Name</Label>
+                                <Input
+                                    id="procedureName"
+                                    value={editDetailsForm.procedureName}
+                                    onChange={(e) => setEditDetailsForm(prev => ({ ...prev, procedureName: e.target.value }))}
+                                    placeholder="e.g. Total Knee Replacement"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="side">Laterality (Side)</Label>
+                                <Select
+                                    value={editDetailsForm.side}
+                                    onValueChange={(val) => setEditDetailsForm(prev => ({ ...prev, side: val }))}
+                                >
+                                    <SelectTrigger id="side">
+                                        <SelectValue placeholder="Select side" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="LEFT">Left</SelectItem>
+                                        <SelectItem value="RIGHT">Right</SelectItem>
+                                        <SelectItem value="BILATERAL">Bilateral</SelectItem>
+                                        <SelectItem value="MIDLINE">Midline / N/A</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="diagnosis">Diagnosis</Label>
+                                <Input
+                                    id="diagnosis"
+                                    value={editDetailsForm.diagnosis}
+                                    onChange={(e) => setEditDetailsForm(prev => ({ ...prev, diagnosis: e.target.value }))}
+                                    placeholder="e.g. Osteoarthritis"
+                                />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setShowEditDetails(false)}>Cancel</Button>
+                            <Button onClick={handleSaveDetails} disabled={updatePlan.isPending}>
+                                {updatePlan.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Save Changes
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
             </div>
         </TooltipProvider>
     );
@@ -592,6 +720,121 @@ function NavTab({ value, icon: Icon, label, count }: {
                 </span>
             )}
         </TabsTrigger>
+    );
+}
+
+// ─── Read-Only Operative Timeline ───────────────────────────────────────
+
+function ReadOnlyTimelineSummary({ caseId }: { caseId: string }) {
+    const [data, setData] = useState<TimelineResultDto | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const token = getToken();
+        fetch(`/api/theater-tech/surgical-cases/${caseId}/timeline`, {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then((res) => res.json())
+            .then((json) => {
+                if (json.success) {
+                    setData(json.data);
+                } else {
+                    setError(json.error || 'Failed to load timeline');
+                }
+            })
+            .catch((e) => setError(e.message))
+            .finally(() => setLoading(false));
+    }, [caseId]);
+
+    if (loading) {
+        return (
+            <Card>
+                <CardContent className="p-4">
+                    <div className="flex items-center gap-3 mb-3">
+                        <Skeleton className="h-7 w-7 rounded-full" />
+                        <Skeleton className="h-4 w-40" />
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {Array.from({ length: 6 }).map((_, i) => (
+                            <Skeleton key={i} className="h-12 rounded-lg" />
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    if (error || !data) return null; // Graceful fallback — don't block doctor flow
+
+    const { timeline, durations } = data;
+    const hasAnyTimestamp = TIMELINE_FIELD_ORDER.some(
+        (f) => timeline[f as keyof typeof timeline] != null,
+    );
+
+    if (!hasAnyTimestamp) return null; // Nothing recorded yet — no reason to show
+
+    return (
+        <Card className="border-slate-200">
+            <CardContent className="p-4 sm:p-5">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="flex items-center justify-center w-7 h-7 rounded-full bg-cyan-100 text-cyan-600 shrink-0">
+                        <Timer className="h-4 w-4" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-slate-800">Operative Timeline</h3>
+                    <Badge variant="secondary" className="text-[10px] font-medium">
+                        {data.caseStatus.replace(/_/g, ' ')}
+                    </Badge>
+                </div>
+
+                {/* Timestamps grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
+                    {TIMELINE_FIELD_ORDER.map((field) => {
+                        const label = TIMELINE_FIELD_LABELS[field as TimelineFieldName];
+                        const value = timeline[field as keyof typeof timeline];
+                        return (
+                            <div
+                                key={field}
+                                className={cn(
+                                    'rounded-lg border px-3 py-2.5',
+                                    value ? 'border-slate-200 bg-white' : 'border-dashed border-slate-200 bg-slate-50/50',
+                                )}
+                            >
+                                <p className="text-[11px] font-medium text-muted-foreground mb-0.5">{label}</p>
+                                <p className={cn('text-sm font-medium', value ? 'text-slate-800' : 'text-slate-400')}>
+                                    {value ? format(parseISO(value), 'HH:mm') : '—'}
+                                </p>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* Derived durations */}
+                {durations && (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
+                        <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                            Durations
+                        </p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5 text-xs">
+                            {[
+                                { label: 'OR Time', value: durations.orTimeMinutes },
+                                { label: 'Surgery', value: durations.surgeryTimeMinutes },
+                                { label: 'Prep', value: durations.prepTimeMinutes },
+                                { label: 'Close-out', value: durations.closeOutTimeMinutes },
+                                { label: 'Anesthesia', value: durations.anesthesiaTimeMinutes },
+                            ].map((d) => (
+                                <div key={d.label} className="flex items-baseline gap-1.5">
+                                    <span className="text-muted-foreground">{d.label}:</span>
+                                    <span className="font-medium text-slate-800">
+                                        {d.value !== null && d.value !== undefined ? `${d.value} min` : '—'}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
     );
 }
 

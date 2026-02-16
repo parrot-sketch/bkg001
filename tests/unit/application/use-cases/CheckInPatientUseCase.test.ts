@@ -69,25 +69,25 @@ describe('CheckInPatientUseCase', () => {
 
   describe('execute', () => {
     it('should check in patient successfully when arriving on time', async () => {
-      // Arrange
-      const pendingAppointment = Appointment.create({
+      // Arrange — appointment must be CONFIRMED/SCHEDULED for check-in
+      const confirmedAppointment = Appointment.create({
         id: 1,
         patientId: 'patient-1',
         doctorId: 'doctor-1',
         appointmentDate: new Date('2025-12-31'),
         time: '10:00',
-        status: AppointmentStatus.PENDING,
+        status: AppointmentStatus.CONFIRMED,
         type: 'Consultation',
       });
 
-      mockAppointmentRepository.findById.mockResolvedValue(pendingAppointment);
+      mockAppointmentRepository.findById.mockResolvedValue(confirmedAppointment);
       mockAppointmentRepository.update.mockResolvedValue(undefined);
 
       // Act
       const result = await useCase.execute(validDto);
 
-      // Assert
-      expect(result.status).toBe(AppointmentStatus.SCHEDULED);
+      // Assert — transitions to CHECKED_IN
+      expect(result.status).toBe(AppointmentStatus.CHECKED_IN);
       expect(mockAppointmentRepository.update).toHaveBeenCalledOnce();
 
       // Verify DB update for arrival metadata
@@ -111,17 +111,17 @@ describe('CheckInPatientUseCase', () => {
       const arrivalTime = new Date('2025-12-31T10:15:00'); // 15 mins late
       mockTimeService.now.mockReturnValue(arrivalTime);
 
-      const pendingAppointment = Appointment.create({
+      const confirmedAppointment = Appointment.create({
         id: 1,
         patientId: 'patient-1',
         doctorId: 'doctor-1',
         appointmentDate: new Date('2025-12-31'),
         time: scheduledTime,
-        status: AppointmentStatus.PENDING,
+        status: AppointmentStatus.CONFIRMED,
         type: 'Consultation',
       });
 
-      mockAppointmentRepository.findById.mockResolvedValue(pendingAppointment);
+      mockAppointmentRepository.findById.mockResolvedValue(confirmedAppointment);
 
       // Act
       await useCase.execute(validDto);
@@ -140,30 +140,26 @@ describe('CheckInPatientUseCase', () => {
       expect(auditCall.details).toContain('15 minutes late');
     });
 
-    it('should be idempotent if already SCHEDULED but refresh missing metadata', async () => {
-      // Arrange
-      const scheduledAppointment = Appointment.create({
+    it('should be idempotent if already CHECKED_IN', async () => {
+      // Arrange — patient is already checked in
+      const checkedInAppointment = Appointment.create({
         id: 1,
         patientId: 'patient-1',
         doctorId: 'doctor-1',
         appointmentDate: new Date('2025-12-31'),
         time: '10:00',
-        status: AppointmentStatus.SCHEDULED,
+        status: AppointmentStatus.CHECKED_IN,
         type: 'Consultation',
       });
 
-      mockAppointmentRepository.findById.mockResolvedValue(scheduledAppointment);
-      // Simulate missing checked_in_at in DB
-      (db.appointment.findUnique as Mock).mockResolvedValue({ checked_in_at: null });
+      mockAppointmentRepository.findById.mockResolvedValue(checkedInAppointment);
 
       // Act
       const result = await useCase.execute(validDto);
 
-      // Assert
-      expect(result.status).toBe(AppointmentStatus.SCHEDULED);
+      // Assert — stays CHECKED_IN, no status update
+      expect(result.status).toBe(AppointmentStatus.CHECKED_IN);
       expect(mockAppointmentRepository.update).not.toHaveBeenCalled();
-      // Should still update DB metadata since it was missing
-      expect(db.appointment.update).toHaveBeenCalled();
       expect(mockAuditService.recordEvent).toHaveBeenCalled();
     });
 

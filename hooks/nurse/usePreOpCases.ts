@@ -107,9 +107,9 @@ export function useUpdatePreOpCase() {
           ...previousCase,
           casePlan: previousCase.casePlan
             ? {
-                ...previousCase.casePlan,
-                readinessStatus: updates.readinessStatus as any,
-              }
+              ...previousCase.casePlan,
+              readinessStatus: updates.readinessStatus as any,
+            }
             : null,
         });
       }
@@ -160,6 +160,7 @@ export function useMarkCaseReady() {
  *
  * Derived from the main list query - no additional API call needed
  */
+
 export function usePreOpSummary() {
   const { data, isLoading, error } = usePreOpCases();
 
@@ -168,4 +169,25 @@ export function usePreOpSummary() {
     isLoading,
     error,
   };
+}
+
+/**
+ * Hook for checking inventory status for a specific surgical case
+ * 
+ * @param caseId - The surgical case ID
+ * @param enabled - Whether to run the query (e.g. only when expanded or visible)
+ */
+export function useInventoryStatus(caseId: string, enabled = false) {
+  return useQuery({
+    queryKey: ['nurse', 'pre-op', 'inventory', caseId],
+    queryFn: async () => {
+      const response = await nurseApi.getInventoryStatus(caseId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to check inventory status');
+      }
+      return response.data;
+    },
+    enabled: enabled && !!caseId,
+    staleTime: 1000 * 60, // 1 minute
+  });
 }

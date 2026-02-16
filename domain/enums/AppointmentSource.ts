@@ -7,7 +7,7 @@
  * === SOURCE → STATUS MAPPING ===
  * 
  * PATIENT_REQUESTED     → PENDING_DOCTOR_CONFIRMATION (doctor must confirm)
- * FRONTDESK_SCHEDULED   → SCHEDULED (clinic staff = trusted)
+ * FRONTDESK_SCHEDULED   → PENDING_DOCTOR_CONFIRMATION (doctor must confirm)
  * DOCTOR_FOLLOW_UP      → SCHEDULED (doctor created it = auto-confirmed)
  * ADMIN_SCHEDULED       → SCHEDULED (admin = trusted)
  */

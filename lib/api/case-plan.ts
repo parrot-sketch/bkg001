@@ -22,6 +22,16 @@ export interface CasePlanResponseDto {
         id: string;
         status: string;
         urgency: string;
+        staffInvites?: Array<{
+            id: string;
+            invitedUser: {
+                firstName: string;
+                lastName: string;
+                role: string;
+            };
+            invitedRole: string;
+            status: string;
+        }>;
     };
 
     // Relations (Mapped from backend)
@@ -73,6 +83,16 @@ export interface CasePlanDetailDto {
     id: string;
     status: string;
     urgency: string;
+    staffInvites?: Array<{
+        id: string;
+        invitedUser: {
+            firstName: string;
+            lastName: string;
+            role: string;
+        };
+        invitedRole: string;
+        status: string;
+    }>;
     diagnosis: string | null;
     procedureName: string | null;
     side: string | null;
@@ -191,6 +211,9 @@ export const casePlanApi = {
             specialInstructions: string;
             estimatedDurationMinutes: number | null;
             readinessStatus: string;
+            procedureName: string;
+            side: string;
+            diagnosis: string;
         }>,
     ): Promise<ApiResponse<CasePlanDetailDto>> => {
         return apiClient.patch<CasePlanDetailDto>(`/doctor/surgical-cases/${caseId}/plan`, data);
@@ -238,5 +261,52 @@ export const casePlanApi = {
     /** Remove a staff member from the case */
     removeStaff: async (caseId: string, staffId: number): Promise<ApiResponse<any>> => {
         return apiClient.post(`/doctor/surgical-cases/${caseId}/team`, { action: 'remove', staffId });
+    },
+
+    /** Invite a staff member to the case */
+    inviteStaff: async (
+        caseId: string,
+        data: { invitedUserId: string; invitedRole: string; procedureRecordId?: string }
+    ): Promise<ApiResponse<any>> => {
+        return apiClient.post(`/doctor/surgical-cases/${caseId}/team/invite`, data);
+    },
+
+    /** Cancel a staff invitation */
+    cancelInvite: async (caseId: string, inviteId: string): Promise<ApiResponse<any>> => {
+        return apiClient.delete(`/doctor/surgical-cases/${caseId}/team/invite/${inviteId}`);
+    },
+
+    /** Search for eligible staff */
+    getEligibleStaff: async (params: {
+        caseId: string;
+        surgicalRole: string;
+        q?: string;
+        page?: number;
+        pageSize?: number;
+    }): Promise<ApiResponse<{
+        items: Array<{
+            id: string;
+            fullName: string;
+            email: string;
+            role: string;
+            specialization?: string;
+            department?: string;
+        }>;
+        meta: {
+            page: number;
+            pageSize: number;
+            total: number;
+            totalPages: number;
+        };
+    }>> => {
+        const queryParams = new URLSearchParams({
+            caseId: params.caseId,
+            surgicalRole: params.surgicalRole,
+            page: (params.page || 1).toString(),
+            pageSize: (params.pageSize || 20).toString(),
+        });
+        if (params.q) queryParams.append('q', params.q);
+
+        return apiClient.get(`/doctor/staff/eligible?${queryParams.toString()}`);
     },
 };

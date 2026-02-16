@@ -205,8 +205,29 @@ export const nurseApi = {
   /**
    * Get patient's medical records
    */
+  // ============================================
+  // Patient Records
+  // ============================================
+
+  /**
+   * Get patient's medical records
+   */
   async getPatientRecords(patientId: string): Promise<ApiResponse<any[]>> {
     return apiClient.get<any[]>(`/patients/${patientId}/records`);
+  },
+
+  /**
+   * Get patient's vital signs history
+   */
+  async getPatientVitals(patientId: string): Promise<ApiResponse<any[]>> {
+    return apiClient.get<any[]>(`/patients/${patientId}/vitals`);
+  },
+
+  /**
+   * Get patient's care notes history
+   */
+  async getPatientCareNotes(patientId: string): Promise<ApiResponse<any[]>> {
+    return apiClient.get<any[]>(`/patients/${patientId}/care-notes`);
   },
 
   // ============================================
@@ -255,4 +276,84 @@ export const nurseApi = {
       surgicalCaseStatus: 'READY_FOR_SCHEDULING',
     });
   },
+
+  // ============================================
+  // Intra-Op / Theatre Support
+  // ============================================
+
+  async getIntraOpSurgicalCases(): Promise<ApiResponse<IntraOpCasesResponse>> {
+    return apiClient.get<IntraOpCasesResponse>('/nurse/intra-op');
+  },
+
+  // ============================================
+  // Recovery & Discharge
+  // ============================================
+
+  async getRecoverySurgicalCases(): Promise<ApiResponse<RecoveryCasesResponse>> {
+    return apiClient.get<RecoveryCasesResponse>('/nurse/recovery');
+  },
+
+  /**
+   * Check inventory status for a surgical case
+   */
+  async getInventoryStatus(caseId: string): Promise<ApiResponse<InventoryStatusResponse>> {
+    return apiClient.get<InventoryStatusResponse>(`/nurse/surgical-cases/${caseId}/inventory-status`);
+  },
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Inventory Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface InventoryStatusResponse {
+  status: 'AVAILABLE' | 'UNAVAILABLE' | 'NOT_REQUIRED' | 'UNKNOWN' | 'OUT_OF_STOCK';
+  required: string | any; // Can be string or parsed JSON object
+  matches: Array<{
+    id: number;
+    name: string;
+    quantity: number;
+    sku: string | null;
+  }>;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Intra-Op Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface IntraOpSurgicalCase {
+  id: string;
+  status: SurgicalCaseStatus;
+  urgency: string;
+  procedureName?: string;
+  patient: PreOpCasePatient | null;
+  primarySurgeon: PreOpCaseSurgeon | null;
+  theaterName?: string;
+  startTime?: Date;
+}
+
+export interface IntraOpCasesResponse {
+  cases: IntraOpSurgicalCase[];
+  summary: {
+    total: number;
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Recovery Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface RecoverySurgicalCase {
+  id: string;
+  status: SurgicalCaseStatus;
+  urgency: string;
+  procedureName?: string;
+  patient: PreOpCasePatient | null;
+  primarySurgeon: PreOpCaseSurgeon | null;
+}
+
+export interface RecoveryCasesResponse {
+  cases: RecoverySurgicalCase[];
+  summary: {
+    total: number;
+  };
+}

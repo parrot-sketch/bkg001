@@ -6,7 +6,7 @@
  * Uses the UnifiedSidebar component for consistent design.
  */
 
-import { LayoutDashboard, Users, FileText, User, ClipboardCheck, Bell } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, User, ClipboardCheck, Bell, Activity, HeartPulse } from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { useAuth } from '@/hooks/patient/useAuth';
 
@@ -22,14 +22,19 @@ const navItems: NavItem[] = [
     icon: Users,
   },
   {
-    name: 'Pre-Op Cases',
-    href: '/nurse/pre-op-cases',
+    name: 'Ward Prep',
+    href: '/nurse/ward-prep',
     icon: ClipboardCheck,
   },
   {
-    name: 'Recovery Care',
-    href: '/nurse/pre-post-op',
-    icon: FileText,
+    name: 'Theatre Support',
+    href: '/nurse/theatre-support',
+    icon: Activity,
+  },
+  {
+    name: 'Recovery & Discharge',
+    href: '/nurse/recovery-discharge',
+    icon: HeartPulse,
   },
   {
     name: 'Notifications',

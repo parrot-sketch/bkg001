@@ -10,6 +10,8 @@
 
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
+import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -46,6 +48,7 @@ interface AvailableDoctorsPanelProps {
 export function AvailableDoctorsPanel({ selectedDate }: AvailableDoctorsPanelProps) {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [viewDate] = useState(selectedDate || new Date());
 
   // State for Quick Booking Dialog
@@ -249,9 +252,16 @@ export function AvailableDoctorsPanel({ selectedDate }: AvailableDoctorsPanelPro
           doctor={selectedDoctor}
           open={isQuickBookOpen}
           onOpenChange={setIsQuickBookOpen}
-          onSuccess={() => {
+          onSuccess={(appointmentId, date) => {
             refetch();
             queryClient.invalidateQueries({ queryKey: ['frontdesk', 'schedule'] });
+            if (appointmentId) {
+              let url = `/frontdesk/appointments?highlight=${appointmentId}`;
+              if (date) {
+                url += `&date=${format(date, 'yyyy-MM-dd')}`;
+              }
+              router.push(url);
+            }
           }}
         />
       )}

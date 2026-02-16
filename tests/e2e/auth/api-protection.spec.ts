@@ -45,9 +45,7 @@ test.describe('API Endpoint Protection', () => {
       
       // If API calls were made, they should include auth header
       // (This depends on dashboard making API calls)
-      if (authHeaderFound) {
-        expect(authHeaderFound).toBeTruthy();
-      }
+      expect(authHeaderFound).toBe(true);
     });
 
     test('should return 401 for requests without token', async ({ page }) => {

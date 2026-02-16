@@ -192,14 +192,16 @@ describe('ITimeService Interface', () => {
     it('should return same date regardless of time of day', () => {
       const service = new MockTimeService();
 
-      // Set different times on the same day
-      service.setFixedTime(new Date('2025-01-15T00:00:00Z'));
+      // Use local-timezone dates to avoid UTC offset issues
+      const base = new Date(2025, 0, 15); // Jan 15, 2025 local midnight
+
+      service.setFixedTime(new Date(2025, 0, 15, 0, 0, 0));
       const today1 = service.today();
 
-      service.setFixedTime(new Date('2025-01-15T12:00:00Z'));
+      service.setFixedTime(new Date(2025, 0, 15, 12, 0, 0));
       const today2 = service.today();
 
-      service.setFixedTime(new Date('2025-01-15T23:59:59Z'));
+      service.setFixedTime(new Date(2025, 0, 15, 23, 59, 59));
       const today3 = service.today();
 
       // All should be the same date (midnight of that day)

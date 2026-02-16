@@ -132,3 +132,46 @@ export function useConfirmAppointment() {
         },
     });
 }
+
+/**
+ * Hook to reschedule an appointment
+ */
+export function useRescheduleAppointment() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({
+            appointmentId,
+            newDate,
+            newTime,
+            reason
+        }: {
+            appointmentId: number;
+            newDate: Date | string;
+            newTime: string;
+            reason?: string;
+        }) => {
+            const response = await apiClient.post<any>(`/appointments/${appointmentId}/reschedule`, {
+                newDate,
+                newTime,
+                reason
+            });
+
+            if (!response.success) {
+                throw new Error(response.error || 'Failed to reschedule appointment');
+            }
+
+            return response.data;
+        },
+        onSuccess: () => {
+            // Invalidate all relevant queries
+            queryClient.invalidateQueries({ queryKey: ['doctor'] });
+            queryClient.invalidateQueries({ queryKey: ['appointments'] });
+            queryClient.invalidateQueries({ queryKey: ['frontdesk'] });
+            toast.success('Appointment rescheduled successfully');
+        },
+        onError: (error: Error) => {
+            toast.error(error.message || 'Failed to reschedule appointment');
+        },
+    });
+}

@@ -1,4 +1,4 @@
-import { PrismaClient, SurgicalCase, SurgicalCaseStatus, SurgicalUrgency } from '@prisma/client';
+import { PrismaClient, SurgicalCase, SurgicalCaseStatus, SurgicalUrgency, SurgicalRole } from '@prisma/client';
 import { ISurgicalCaseRepository } from '@/domain/interfaces/repositories/ISurgicalCaseRepository';
 
 /**
@@ -190,6 +190,31 @@ export class PrismaSurgicalCaseRepository implements ISurgicalCaseRepository {
     return this.prisma.surgicalCase.update({
       where: { id },
       data,
+    });
+  }
+
+  async addStaff(data: {
+    procedureRecordId: number;
+    userId: string;
+    role: SurgicalRole;
+  }): Promise<void> {
+    // Check if user is already assigned to this role in this record
+    const existing = await this.prisma.surgicalStaff.findFirst({
+      where: {
+        procedure_record_id: data.procedureRecordId,
+        user_id: data.userId,
+        role: data.role,
+      },
+    });
+
+    if (existing) return;
+
+    await this.prisma.surgicalStaff.create({
+      data: {
+        procedure_record_id: data.procedureRecordId,
+        user_id: data.userId,
+        role: data.role,
+      },
     });
   }
 }
