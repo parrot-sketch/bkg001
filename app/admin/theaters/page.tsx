@@ -60,6 +60,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { BookTheaterSlotDialog } from '@/components/admin/theaters/BookTheaterSlotDialog';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -169,6 +170,10 @@ export default function AdminTheatersPage() {
   const [selectedTheater, setSelectedTheater] = useState<Theater | null>(null);
   const [formData, setFormData] = useState<TheaterFormData>(EMPTY_FORM);
 
+  // Booking Dialog State
+  const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
+  const [bookingTheater, setBookingTheater] = useState<Theater | null>(null);
+
   // ── Fetch ────────────────────────────────────────────────────────────────
 
   const fetchTheaters = useCallback(async () => {
@@ -233,6 +238,13 @@ export default function AdminTheatersPage() {
   const openDetailDialog = (theater: Theater) => {
     setSelectedTheater(theater);
     setDetailDialogOpen(true);
+  };
+
+  const openBookingDialog = (theater: Theater) => {
+    setBookingTheater(theater);
+    setBookingDialogOpen(true);
+    // Optional: Close detail dialog if open?
+    // setDetailDialogOpen(false); 
   };
 
   const handleSave = async () => {
@@ -475,7 +487,25 @@ export default function AdminTheatersPage() {
         open={detailDialogOpen}
         onOpenChange={setDetailDialogOpen}
         theater={selectedTheater}
+        onBookSlot={() => selectedTheater && openBookingDialog(selectedTheater)}
       />
+
+      {/* ─── Booking Dialog ─────────────────────────────────────────────── */}
+      {bookingTheater && (
+        <BookTheaterSlotDialog
+          open={bookingDialogOpen}
+          onOpenChange={setBookingDialogOpen}
+          theater={bookingTheater}
+          onSuccess={() => {
+            fetchTheaters();
+            // If detail dialog is open, maybe refresh it too? 
+            // fetchTheaters updates the state `theaters`. `selectedTheater` is a separate state.
+            // We might need to update selectedTheater if it's currently open to show the new booking.
+            // For now, let's just close the detail dialog if it was open to force refresh when reopened, or just leave it.
+            // Ideally we update selectedTheater with the new data from `theaters`.
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -941,10 +971,12 @@ function TheaterDetailDialog({
   open,
   onOpenChange,
   theater,
+  onBookSlot
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   theater: Theater | null;
+  onBookSlot: () => void;
 }) {
   if (!theater) return null;
 
@@ -988,6 +1020,10 @@ function TheaterDetailDialog({
                 </Badge>
               </div>
             </div>
+            <Button size="sm" onClick={onBookSlot} className="ml-auto gap-2 bg-indigo-600 hover:bg-indigo-700">
+              <CalendarDays className="h-4 w-4" />
+              Book Slot
+            </Button>
           </div>
         </DialogHeader>
 
@@ -1078,7 +1114,7 @@ function ScheduleBookingCard({ booking }: { booking: TheaterBooking }) {
   const durationMin = Math.round(
     (new Date(booking.end_time).getTime() -
       new Date(booking.start_time).getTime()) /
-      60000
+    60000
   );
 
   return (

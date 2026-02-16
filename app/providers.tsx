@@ -8,9 +8,10 @@
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useState, ReactNode } from 'react';
+import { useState } from 'react';
+import { AuthProvider } from "@/contexts/AuthContext";
 
-export function Providers({ children }: { children: ReactNode }) {
+export function Providers({ children }: { children: React.ReactNode }) {
   // Create QueryClient with sensible defaults for clinical workstation
   // CRITICAL FIX: Disabled refetchOnWindowFocus to prevent "Connection closed" errors
   // The API client now handles cache-busting, so we don't need aggressive refetching
@@ -42,7 +43,9 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
+      <AuthProvider>
+        {children}
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

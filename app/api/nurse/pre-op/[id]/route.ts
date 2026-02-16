@@ -12,8 +12,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import db from '@/lib/db';
-import { CaseReadinessStatus, SurgicalCaseStatus } from '@prisma/client';
+import { CaseReadinessStatus, ClinicalFormStatus, SurgicalCaseStatus } from '@prisma/client';
 import { getMissingPlanningItems } from '@/domain/helpers/planningReadiness';
+import { TEMPLATE_KEY, TEMPLATE_VERSION } from '@/domain/clinical-forms/NursePreopWardChecklist';
 
 /**
  * GET /api/nurse/pre-op/:id
@@ -315,9 +316,24 @@ export async function PATCH(
           },
         });
 
-        // DUAL READINESS: Only transition to READY_FOR_SCHEDULING if BOTH
-        // nurse readiness is complete AND doctor planning is complete.
+        // DUAL READINESS: Only transition to READY_FOR_SCHEDULING if BOTH:
+        // 1. Nurse pre-op ward checklist is FINAL (form engine)
+        // 2. Doctor planning items are complete
         if (nurseMarksReady) {
+          // Check nurse form engine checklist
+          const nurseForm = await tx.clinicalFormResponse.findUnique({
+            where: {
+              template_key_template_version_surgical_case_id: {
+                template_key: TEMPLATE_KEY,
+                template_version: TEMPLATE_VERSION,
+                surgical_case_id: params.id,
+              },
+            },
+            select: { status: true },
+          });
+
+          const nurseFormFinalized = nurseForm?.status === ClinicalFormStatus.FINAL;
+
           // Fetch full plan with consents + images for doctor readiness check
           const fullPlan = await tx.casePlan.findUnique({
             where: { id: surgicalCase.case_plan.id },
@@ -335,15 +351,14 @@ export async function PATCH(
             preOpPhotoCount: fullPlan?.images?.filter(i => i.timepoint === 'PRE_OP').length ?? 0,
           });
 
-          if (doctorReadiness.isComplete) {
-            // Both nurse and doctor are ready — transition
+          if (doctorReadiness.isComplete && nurseFormFinalized) {
+            // Both nurse form and doctor plan are ready — transition
             await tx.surgicalCase.update({
               where: { id: params.id },
               data: { status: SurgicalCaseStatus.READY_FOR_SCHEDULING },
             });
           }
-          // If doctor plan is incomplete, nurse marks ready but case stays in current status.
-          // The doctor must complete planning before the case can advance.
+          // If either is incomplete, nurse marks ready_for_surgery but case stays in current status.
         }
       }
 

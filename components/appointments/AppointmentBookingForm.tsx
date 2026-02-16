@@ -40,7 +40,7 @@ interface AppointmentBookingFormProps {
     parentAppointmentId?: number;
     /** Parent consultation ID for follow-up linkage */
     parentConsultationId?: number;
-    onSuccess?: () => void;
+    onSuccess?: (appointmentId?: number, date?: Date) => void;
     onCancel?: () => void;
 }
 
@@ -268,10 +268,7 @@ export function AppointmentBookingForm({
         try {
             const api = userRole === 'doctor' ? doctorApi : frontdeskApi;
 
-            // Note: If doctorApi doesn't have scheduleAppointment yet, this will error at compile time
-            // So we need to ensure doctorApi has it, OR cast it
-
-            const response = await (api as any).scheduleAppointment({
+            const response = await api.scheduleAppointment({
                 patientId: formData.patientId,
                 doctorId: formData.doctorId,
                 appointmentDate: new Date(formData.appointmentDate),
@@ -290,7 +287,7 @@ export function AppointmentBookingForm({
                     : 'Appointment scheduled successfully'
                 );
                 if (onSuccess) {
-                    onSuccess();
+                    onSuccess(response.data?.id, new Date(formData.appointmentDate));
                 } else {
                     router.back();
                 }

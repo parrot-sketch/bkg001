@@ -22,14 +22,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  ArrowLeft, 
-  User, 
-  Calendar, 
-  Phone, 
-  Mail, 
-  MapPin, 
-  FileText, 
+import {
+  ArrowLeft,
+  User,
+  Calendar,
+  Phone,
+  Mail,
+  MapPin,
+  FileText,
   Activity,
   Heart,
   Pill,
@@ -116,7 +116,7 @@ export default function NursePatientProfilePage() {
   const loadPatientData = async () => {
     try {
       setLoading(true);
-      
+
       // Load patient details
       const patientResponse = await nurseApi.getPatient(patientId);
       if (patientResponse.success && patientResponse.data) {
@@ -138,13 +138,13 @@ export default function NursePatientProfilePage() {
       }
 
       // Load vital signs
-      const vitalsResponse = await apiClient.get<VitalSign[]>(`/patients/${patientId}/vitals`);
+      const vitalsResponse = await nurseApi.getPatientVitals(patientId);
       if (vitalsResponse.success && vitalsResponse.data) {
         setVitalSigns(vitalsResponse.data);
       }
 
       // Load care notes
-      const notesResponse = await apiClient.get<CareNote[]>(`/patients/${patientId}/care-notes`);
+      const notesResponse = await nurseApi.getPatientCareNotes(patientId);
       if (notesResponse.success && notesResponse.data) {
         setCareNotes(notesResponse.data);
       }
@@ -251,6 +251,39 @@ export default function NursePatientProfilePage() {
           </div>
         </CardHeader>
       </Card>
+
+      {/* Workflow Actions - Contextual Actions based on Appointment Type */}
+      {appointment && (
+        <Card className="bg-slate-50 dark:bg-slate-800/50 border-dashed">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center">
+              <CheckCircle2 className="mr-2 h-5 w-5 text-primary" />
+              Recommended Actions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-4">
+              {/* General Actions */}
+              <Button onClick={() => setShowVitalsDialog(true)} variant="secondary">
+                <Activity className="mr-2 h-4 w-4" /> Record Vitals
+              </Button>
+              <Button onClick={() => setShowCareNoteDialog(true)} variant="secondary">
+                <FileText className="mr-2 h-4 w-4" /> Add Note
+              </Button>
+
+              {/* Pre-Op Workflow */}
+              {appointment.type === 'Hysteroscopy' || appointment.type === 'Laparoscopy' || appointment.type.includes('Surgery') ? (
+                <Link href={`/nurse/ward-prep`}>
+                  <Button className="bg-amber-600 hover:bg-amber-700 text-white">
+                    <CheckCircle2 className="mr-2 h-4 w-4" /> Go to Ward Prep
+                  </Button>
+                </Link>
+              ) : null}
+              {/* Note: In a real app, we'd check if a surgical case exists for this patient */}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Today's Appointment Alert */}
       {appointment && (
@@ -632,8 +665,8 @@ export default function NursePatientProfilePage() {
                         <div className="flex items-center space-x-2">
                           <Badge variant={
                             note.noteType === 'PRE_OP' ? 'default' :
-                            note.noteType === 'POST_OP' ? 'secondary' :
-                            'outline'
+                              note.noteType === 'POST_OP' ? 'secondary' :
+                                'outline'
                           }>
                             {note.noteType.replace('_', '-')}
                           </Badge>

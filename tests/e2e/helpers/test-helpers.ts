@@ -48,7 +48,7 @@ export async function selectDropdownOption(page: Page, label: string, optionText
 /**
  * Click button by text (with retry)
  */
-export async function clickButtonByText(page: Page, text: string, exact: boolean = false): Promise<void> {
+export async function clickButtonByText(page: Page | Locator, text: string, exact: boolean = false): Promise<void> {
   const button = exact
     ? page.locator(`button:has-text("${text}")`).filter({ hasText: new RegExp(`^${text}$`) })
     : page.locator(`button:has-text("${text}")`).first();

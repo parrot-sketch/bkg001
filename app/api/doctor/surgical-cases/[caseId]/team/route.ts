@@ -143,6 +143,15 @@ export async function POST(
                 return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
             }
 
+            // Enforce Domain Eligibility
+            const { isEligibleForSurgicalRole } = await import('@/lib/domain/policies/team-eligibility');
+            if (!isEligibleForSurgicalRole(targetUser.role as any, role as any)) { // Casts for strict typing if needed
+                return NextResponse.json({
+                    success: false,
+                    error: `User role '${targetUser.role}' is not eligible for surgical role '${role}'`
+                }, { status: 400 });
+            }
+
             // Check for duplicate assignment (same user + same role)
             const existing = await db.surgicalStaff.findFirst({
                 where: {

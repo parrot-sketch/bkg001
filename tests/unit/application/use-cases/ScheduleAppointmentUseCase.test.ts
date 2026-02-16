@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
-import { ScheduleAppointmentUseCase } from '../../../../application/use-cases/ScheduleAppointmentUseCase';
 import { ScheduleAppointmentDto } from '../../../../application/dtos/ScheduleAppointmentDto';
 import type { IAppointmentRepository } from '../../../../domain/interfaces/repositories/IAppointmentRepository';
 import type { IPatientRepository } from '../../../../domain/interfaces/repositories/IPatientRepository';
@@ -14,6 +13,26 @@ import { AppointmentStatus } from '../../../../domain/enums/AppointmentStatus';
 import { Gender } from '../../../../domain/enums/Gender';
 import { DomainException } from '../../../../domain/exceptions/DomainException';
 
+// Mock ValidateAppointmentAvailabilityUseCase to avoid deep nested dependency issues
+// (getBlocks, sessions, AvailabilityService etc.)
+const mockValidateExecute = vi.fn().mockResolvedValue({ isAvailable: true });
+vi.mock('../../../../application/use-cases/ValidateAppointmentAvailabilityUseCase', () => ({
+  ValidateAppointmentAvailabilityUseCase: vi.fn().mockImplementation(function (this: any) {
+    this.execute = mockValidateExecute;
+  }),
+}));
+
+// Mock UseCaseFactory to prevent importing @/lib/db (which creates a real PrismaClient)
+vi.mock('@/lib/use-case-factory', () => ({
+  UseCaseFactory: {
+    validatePrismaClient: vi.fn(),
+    getPrismaClient: vi.fn(),
+  },
+}));
+
+// Import after mocks are set up
+import { ScheduleAppointmentUseCase } from '../../../../application/use-cases/ScheduleAppointmentUseCase';
+
 describe('ScheduleAppointmentUseCase', () => {
   let mockAppointmentRepository: {
     findById: Mock;
@@ -21,6 +40,7 @@ describe('ScheduleAppointmentUseCase', () => {
     findByDoctor: Mock;
     save: Mock;
     update: Mock;
+    hasConflict: Mock;
   };
   let mockPatientRepository: {
     findById: Mock;
@@ -31,6 +51,7 @@ describe('ScheduleAppointmentUseCase', () => {
   let mockNotificationService: {
     sendEmail: Mock;
     sendSMS: Mock;
+    sendInApp: Mock;
   };
   let mockAuditService: {
     recordEvent: Mock;
@@ -51,6 +72,9 @@ describe('ScheduleAppointmentUseCase', () => {
     deleteBreak: Mock;
     getSlotConfiguration: Mock;
     saveSlotConfiguration: Mock;
+    getBlocks: Mock;
+    createBlock: Mock;
+    deleteBlock: Mock;
   };
   let mockPrisma: PrismaClient;
   let useCase: ScheduleAppointmentUseCase;
@@ -58,8 +82,8 @@ describe('ScheduleAppointmentUseCase', () => {
   const validDto: ScheduleAppointmentDto = {
     patientId: 'patient-1',
     doctorId: 'doctor-1',
-    appointmentDate: new Date('2025-12-31'),
-    time: '10:00 AM',
+    appointmentDate: new Date('2027-06-15'),
+    time: '10:00',
     type: 'Consultation',
   };
 
@@ -83,12 +107,18 @@ describe('ScheduleAppointmentUseCase', () => {
   });
 
   beforeEach(() => {
+    vi.clearAllMocks();
+
+    // Reset the validate mock to default (available)
+    mockValidateExecute.mockResolvedValue({ isAvailable: true });
+
     mockAppointmentRepository = {
       findById: vi.fn(),
       findByPatient: vi.fn().mockResolvedValue([]),
       findByDoctor: vi.fn().mockResolvedValue([]),
-      save: vi.fn(),
+      save: vi.fn().mockResolvedValue(1),
       update: vi.fn(),
+      hasConflict: vi.fn().mockResolvedValue(false),
     };
 
     mockPatientRepository = {
@@ -101,6 +131,7 @@ describe('ScheduleAppointmentUseCase', () => {
     mockNotificationService = {
       sendEmail: vi.fn().mockResolvedValue(undefined),
       sendSMS: vi.fn(),
+      sendInApp: vi.fn().mockResolvedValue(undefined),
     };
 
     mockAuditService = {
@@ -108,8 +139,8 @@ describe('ScheduleAppointmentUseCase', () => {
     };
 
     mockTimeService = {
-      now: vi.fn().mockReturnValue(new Date('2025-01-01')),
-      today: vi.fn().mockReturnValue(new Date('2025-01-01')),
+      now: vi.fn().mockReturnValue(new Date('2026-01-01')),
+      today: vi.fn().mockReturnValue(new Date('2026-01-01')),
     };
 
     mockAvailabilityRepository = {
@@ -122,12 +153,34 @@ describe('ScheduleAppointmentUseCase', () => {
       getBreaks: vi.fn().mockResolvedValue([]),
       createBreak: vi.fn(),
       deleteBreak: vi.fn().mockResolvedValue(undefined),
-      getSlotConfiguration: vi.fn().mockResolvedValue(null),
+      getSlotConfiguration: vi.fn().mockResolvedValue({
+        id: 'slot-1',
+        doctorId: 'doctor-1',
+        defaultDuration: 30,
+        bufferTime: 0,
+        slotInterval: 15,
+      }),
       saveSlotConfiguration: vi.fn(),
+      getBlocks: vi.fn().mockResolvedValue([]),
+      createBlock: vi.fn(),
+      deleteBlock: vi.fn(),
     };
 
-    // Create a mock PrismaClient - in real tests, you'd use a test database
-    mockPrisma = {} as PrismaClient;
+    // Mock PrismaClient with $transaction that invokes the callback
+    // and doctor.findUnique for notification lookup
+    mockPrisma = {
+      $transaction: vi.fn().mockImplementation(async (cb: (tx: any) => Promise<any>, _opts?: any) => {
+        const tx = {
+          appointment: {
+            update: vi.fn().mockResolvedValue({}),
+          },
+        };
+        return cb(tx);
+      }),
+      doctor: {
+        findUnique: vi.fn().mockResolvedValue({ user_id: 'user-doctor-1' }),
+      },
+    } as unknown as PrismaClient;
 
     useCase = new ScheduleAppointmentUseCase(
       mockAppointmentRepository as unknown as IAppointmentRepository,
@@ -143,21 +196,21 @@ describe('ScheduleAppointmentUseCase', () => {
   describe('execute', () => {
     it('should schedule appointment successfully', async () => {
       // Arrange
+      // The default status for PATIENT_REQUESTED source is PENDING_DOCTOR_CONFIRMATION
       const savedAppointment = Appointment.create({
         id: 1,
         patientId: 'patient-1',
         doctorId: 'doctor-1',
-        appointmentDate: new Date('2025-12-31'),
-        time: '10:00 AM',
-        status: AppointmentStatus.PENDING,
+        appointmentDate: new Date('2027-06-15'),
+        time: '10:00',
+        status: AppointmentStatus.PENDING_DOCTOR_CONFIRMATION,
         type: 'Consultation',
         createdAt: new Date(),
       });
 
-      mockAppointmentRepository.findByPatient.mockResolvedValueOnce([]); // No conflicts
-      mockAppointmentRepository.findByDoctor.mockResolvedValueOnce([]); // No conflicts
-      mockAppointmentRepository.save.mockResolvedValue(undefined);
-      mockAppointmentRepository.findByPatient.mockResolvedValueOnce([savedAppointment]); // After save
+      mockAppointmentRepository.findByPatient.mockResolvedValue([]); // No patient conflicts inside transaction
+      mockAppointmentRepository.save.mockResolvedValue(1); // Return saved ID
+      mockAppointmentRepository.findById.mockResolvedValue(savedAppointment); // After transaction retrieval
 
       // Act
       const result = await useCase.execute(validDto, 'user-1');
@@ -166,13 +219,44 @@ describe('ScheduleAppointmentUseCase', () => {
       expect(result).toBeDefined();
       expect(result.patientId).toBe('patient-1');
       expect(result.doctorId).toBe('doctor-1');
-      expect(result.status).toBe(AppointmentStatus.PENDING);
+      expect(result.status).toBe(AppointmentStatus.PENDING_DOCTOR_CONFIRMATION);
 
       // Verify repository calls
       expect(mockPatientRepository.findById).toHaveBeenCalledWith('patient-1');
       expect(mockAppointmentRepository.save).toHaveBeenCalledOnce();
       expect(mockNotificationService.sendEmail).toHaveBeenCalledOnce();
       expect(mockAuditService.recordEvent).toHaveBeenCalledOnce();
+    });
+
+    it('should set status to PENDING_DOCTOR_CONFIRMATION for FRONTDESK_SCHEDULED source', async () => {
+      // Arrange
+      const frontdeskDto: ScheduleAppointmentDto = {
+        ...validDto,
+        source: 'FRONTDESK_SCHEDULED' as any,
+      };
+
+      const savedAppointment = Appointment.create({
+        id: 1,
+        patientId: 'patient-1',
+        doctorId: 'doctor-1',
+        appointmentDate: new Date('2027-06-15'),
+        time: '10:00',
+        status: AppointmentStatus.PENDING_DOCTOR_CONFIRMATION,
+        type: 'Consultation',
+        createdAt: new Date(),
+      });
+
+      mockAppointmentRepository.findByPatient.mockResolvedValue([]);
+      mockAppointmentRepository.save.mockResolvedValue(1);
+      mockAppointmentRepository.findById.mockResolvedValue(savedAppointment);
+
+      // Act
+      const result = await useCase.execute(frontdeskDto, 'user-frontdesk-1');
+
+      // Assert
+      expect(result).toBeDefined();
+      expect(result.status).toBe(AppointmentStatus.PENDING_DOCTOR_CONFIRMATION);
+      expect(mockAppointmentRepository.save).toHaveBeenCalledOnce();
     });
 
     it('should throw DomainException if patient does not exist', async () => {
@@ -203,19 +287,19 @@ describe('ScheduleAppointmentUseCase', () => {
     });
 
     it('should throw DomainException if patient double booking detected', async () => {
-      // Arrange
+      // Arrange: inside the transaction, findByPatient returns a conflicting appointment
       const conflictingAppointment = Appointment.create({
         id: 2,
         patientId: 'patient-1',
         doctorId: 'doctor-1',
-        appointmentDate: new Date('2025-12-31'),
-        time: '10:00 AM',
+        appointmentDate: new Date('2027-06-15'),
+        time: '10:00',
         status: AppointmentStatus.SCHEDULED,
         type: 'Follow-up',
       });
 
+      // findByPatient is called inside the transaction for patient conflict check
       mockAppointmentRepository.findByPatient.mockResolvedValue([conflictingAppointment]);
-      mockAppointmentRepository.findByDoctor.mockResolvedValue([]);
 
       // Act & Assert
       await expect(useCase.execute(validDto, 'user-1')).rejects.toThrow(DomainException);
@@ -227,19 +311,9 @@ describe('ScheduleAppointmentUseCase', () => {
     });
 
     it('should throw DomainException if doctor double booking detected', async () => {
-      // Arrange
-      const conflictingAppointment = Appointment.create({
-        id: 2,
-        patientId: 'patient-2', // Different patient
-        doctorId: 'doctor-1',
-        appointmentDate: new Date('2025-12-31'),
-        time: '10:00 AM',
-        status: AppointmentStatus.SCHEDULED,
-        type: 'Follow-up',
-      });
-
+      // Arrange: hasConflict returns true for doctor conflict (inside transaction)
+      mockAppointmentRepository.hasConflict.mockResolvedValue(true);
       mockAppointmentRepository.findByPatient.mockResolvedValue([]); // No patient conflict
-      mockAppointmentRepository.findByDoctor.mockResolvedValue([conflictingAppointment]); // Doctor conflict
 
       // Act & Assert
       await expect(useCase.execute(validDto, 'user-1')).rejects.toThrow(DomainException);
@@ -256,8 +330,8 @@ describe('ScheduleAppointmentUseCase', () => {
         id: 2,
         patientId: 'patient-1',
         doctorId: 'doctor-1',
-        appointmentDate: new Date('2025-12-31'),
-        time: '10:00 AM',
+        appointmentDate: new Date('2027-06-15'),
+        time: '10:00',
         status: AppointmentStatus.CANCELLED,
         type: 'Follow-up',
       });
@@ -266,17 +340,17 @@ describe('ScheduleAppointmentUseCase', () => {
         id: 1,
         patientId: 'patient-1',
         doctorId: 'doctor-1',
-        appointmentDate: new Date('2025-12-31'),
-        time: '10:00 AM',
-        status: AppointmentStatus.PENDING,
+        appointmentDate: new Date('2027-06-15'),
+        time: '10:00',
+        status: AppointmentStatus.PENDING_DOCTOR_CONFIRMATION,
         type: 'Consultation',
         createdAt: new Date(),
       });
 
-      mockAppointmentRepository.findByPatient.mockResolvedValueOnce([cancelledAppointment]); // Before save
-      mockAppointmentRepository.findByDoctor.mockResolvedValueOnce([]); // No conflicts
-      mockAppointmentRepository.save.mockResolvedValue(undefined);
-      mockAppointmentRepository.findByPatient.mockResolvedValueOnce([savedAppointment]); // After save
+      // Inside transaction: findByPatient returns cancelled appointment (should not conflict)
+      mockAppointmentRepository.findByPatient.mockResolvedValue([cancelledAppointment]);
+      mockAppointmentRepository.save.mockResolvedValue(1);
+      mockAppointmentRepository.findById.mockResolvedValue(savedAppointment);
 
       // Act
       const result = await useCase.execute(validDto, 'user-1');
@@ -292,17 +366,16 @@ describe('ScheduleAppointmentUseCase', () => {
         id: 1,
         patientId: 'patient-1',
         doctorId: 'doctor-1',
-        appointmentDate: new Date('2025-12-31'),
-        time: '10:00 AM',
-        status: AppointmentStatus.PENDING,
+        appointmentDate: new Date('2027-06-15'),
+        time: '10:00',
+        status: AppointmentStatus.PENDING_DOCTOR_CONFIRMATION,
         type: 'Consultation',
         createdAt: new Date(),
       });
 
-      mockAppointmentRepository.findByPatient.mockResolvedValueOnce([]);
-      mockAppointmentRepository.findByDoctor.mockResolvedValueOnce([]);
-      mockAppointmentRepository.save.mockResolvedValue(undefined);
-      mockAppointmentRepository.findByPatient.mockResolvedValueOnce([savedAppointment]);
+      mockAppointmentRepository.findByPatient.mockResolvedValue([]);
+      mockAppointmentRepository.save.mockResolvedValue(1);
+      mockAppointmentRepository.findById.mockResolvedValue(savedAppointment);
       mockNotificationService.sendEmail.mockRejectedValue(new Error('Email service down'));
 
       // Act - Should not throw
@@ -322,9 +395,11 @@ describe('ScheduleAppointmentUseCase', () => {
         new ScheduleAppointmentUseCase(
           null as unknown as IAppointmentRepository,
           mockPatientRepository as unknown as IPatientRepository,
+          mockAvailabilityRepository as unknown as IAvailabilityRepository,
           mockNotificationService as unknown as INotificationService,
           mockAuditService as unknown as IAuditService,
           mockTimeService as unknown as ITimeService,
+          mockPrisma,
         );
       }).toThrow('AppointmentRepository is required');
     });

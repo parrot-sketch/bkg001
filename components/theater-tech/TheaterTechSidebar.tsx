@@ -7,13 +7,18 @@
  * Provides navigation for theater technician operations.
  */
 
-import { LayoutDashboard, User } from 'lucide-react';
+import { Activity, LayoutDashboard, User } from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { useAuth } from '@/hooks/patient/useAuth';
 
 const navItems: NavItem[] = [
   {
-    name: 'Today Board',
+    name: 'Dayboard',
+    href: '/theater-tech/dayboard',
+    icon: Activity,
+  },
+  {
+    name: 'Legacy Board',
     href: '/theater-tech/dashboard',
     icon: LayoutDashboard,
   },

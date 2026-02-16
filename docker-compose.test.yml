@@ -1,0 +1,31 @@
+version: '3.8'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Docker Compose for INTEGRATION tests
+#
+# Usage:
+#   pnpm test:integration        (starts, runs tests, tears down)
+#   docker compose -f docker-compose.test.yml up -d   (manual start)
+#   docker compose -f docker-compose.test.yml down     (manual teardown)
+#
+# Uses port 5434 to avoid conflict with dev postgres on 5433.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: healthcare-test-db
+    restart: "no"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: test_db
+    ports:
+      - "5434:5432"
+    tmpfs:
+      - /var/lib/postgresql/data  # RAM-backed for speed
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 10

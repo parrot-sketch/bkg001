@@ -18,6 +18,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Camera, Upload, ImageIcon, Loader2, Plus } from 'lucide-react';
 import { CasePlanResponseDto } from '@/lib/api/case-plan';
 import { useAddPhoto } from '@/hooks/doctor/useCasePlan';
+import { ImageUpload } from '@/components/ui/image-upload';
 
 interface PhotosTabProps {
     casePlan?: CasePlanResponseDto | null;
@@ -182,11 +183,12 @@ export function PhotosTab({ casePlan, caseId }: PhotosTabProps) {
                     </DialogHeader>
                     <div className="space-y-4 py-2">
                         <div className="space-y-1.5">
-                            <Label className="text-sm font-medium">Image URL</Label>
-                            <Input
+                            <ImageUpload
                                 value={imageUrl}
-                                onChange={(e) => setImageUrl(e.target.value)}
-                                placeholder="https://storage.example.com/image.jpg"
+                                onChange={setImageUrl}
+                                label="Clinical Photo"
+                                subtitle="Upload standard view"
+                                variant="rect"
                             />
                         </div>
 

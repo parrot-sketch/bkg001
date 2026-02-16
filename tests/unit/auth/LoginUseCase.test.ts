@@ -65,7 +65,7 @@ describe('LoginUseCase', () => {
       const mockUser = User.create({
         id: 'user-123',
         email,
-        passwordHash: 'hashed-password',
+        passwordHash: '$argon2id$v=19$m=65536,t=3,p=4$mock-hashed-password',
         role: Role.PATIENT,
         status: Status.ACTIVE,
         createdAt: new Date(),
@@ -121,7 +121,7 @@ describe('LoginUseCase', () => {
       const mockUser = User.create({
         id: 'doctor-123',
         email,
-        passwordHash: 'hashed',
+        passwordHash: '$argon2id$v=19$m=65536,t=3,p=4$mock-hashed',
         role: Role.DOCTOR,
         status: Status.ACTIVE,
         firstName: 'John',
@@ -217,7 +217,7 @@ describe('LoginUseCase', () => {
       const mockUser = User.create({
         id: 'user-456',
         email,
-        passwordHash: 'hash',
+        passwordHash: '$argon2id$v=19$m=65536,t=3,p=4$mock-hash',
         role: Role.NURSE,
         status: Status.ACTIVE,
         createdAt: new Date(),

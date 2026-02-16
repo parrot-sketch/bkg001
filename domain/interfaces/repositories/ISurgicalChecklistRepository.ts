@@ -43,6 +43,17 @@ export interface ISurgicalChecklistRepository {
   ): Promise<SurgicalChecklist>;
 
   /**
+   * Save draft items for a phase WITHOUT setting completedAt.
+   * Allows partial confirmations to be persisted.
+   * Throws if phase is already completed (immutable after finalization).
+   */
+  saveDraftItems(
+    surgicalCaseId: string,
+    phase: 'SIGN_IN' | 'TIME_OUT' | 'SIGN_OUT',
+    items: ChecklistItemConfirmation[]
+  ): Promise<SurgicalChecklist>;
+
+  /**
    * Check whether a specific phase is completed.
    * This avoids loading the full checklist just to check a gate.
    */

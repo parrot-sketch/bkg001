@@ -14,23 +14,16 @@
  *   - Context menu for details, resolve, cancel
  */
 
-import { useState } from 'react';
-import {
-  CheckCircle,
-  Clock,
-  MoreVertical,
-  User,
-  AlertTriangle,
-  ExternalLink,
-  XCircle,
-  CheckCheck,
-  Stethoscope,
-  CalendarClock,
-  UserCheck,
-} from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { AppointmentStatus, canCheckIn } from '@/domain/enums/AppointmentStatus';
+import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import { frontdeskApi } from '@/lib/api/frontdesk';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -48,16 +41,23 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { AppointmentStatus, canCheckIn, isAwaitingConfirmation } from '@/domain/enums/AppointmentStatus';
-import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
-import { cn } from '@/lib/utils';
-import { frontdeskApi } from '@/lib/api/frontdesk';
-import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import {
+  Clock,
+  CalendarClock,
+  CheckCircle,
+  CheckCheck,
+  XCircle,
+  AlertTriangle,
+  UserCheck,
+  Stethoscope,
+  MoreVertical,
+  ExternalLink,
+} from 'lucide-react';
 
 interface FrontdeskAppointmentCardProps {
   appointment: AppointmentResponseDto;
   onCheckIn: (appointment: AppointmentResponseDto) => void;
+  isHighlighted?: boolean;
 }
 
 /**
@@ -168,12 +168,33 @@ const STATUS_CONFIG: Record<AppointmentStatus, StatusConfig> = {
   },
 };
 
-export function FrontdeskAppointmentCard({ appointment, onCheckIn }: FrontdeskAppointmentCardProps) {
+export function FrontdeskAppointmentCard({ appointment, onCheckIn, isHighlighted }: FrontdeskAppointmentCardProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [showResolveDialog, setShowResolveDialog] = useState(false);
   const [resolveAction, setResolveAction] = useState<'complete' | 'cancel' | null>(null);
   const [isResolving, setIsResolving] = useState(false);
+
+  // Highlight Effect
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [activeHighlight, setActiveHighlight] = useState(!!isHighlighted);
+
+  useEffect(() => {
+    if (isHighlighted) {
+      setActiveHighlight(true);
+      // Scroll into view
+      if (cardRef.current) {
+        cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+
+      // Remove highlight after 5 seconds
+      const timer = setTimeout(() => {
+        setActiveHighlight(false);
+      }, 5000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [isHighlighted, appointment.id]);
 
   const isOverdue = isAppointmentOverdue(appointment);
   const isStaleConsultation = appointment.status === AppointmentStatus.IN_CONSULTATION && isOverdue;
@@ -225,8 +246,10 @@ export function FrontdeskAppointmentCard({ appointment, onCheckIn }: FrontdeskAp
   return (
     <>
       <div
+        ref={cardRef}
         className={cn(
-          'group relative flex items-stretch bg-white border rounded-xl overflow-hidden hover:shadow-md transition-all duration-200 min-h-[72px]',
+          'group relative flex items-stretch bg-white border rounded-xl overflow-hidden hover:shadow-md transition-all duration-500 min-h-[72px]',
+          activeHighlight ? 'bg-emerald-50/80 border-emerald-300 ring-2 ring-emerald-200 ring-offset-2' : '',
           isStaleConsultation
             ? 'border-amber-300 bg-amber-50/30'
             : isTerminal
@@ -311,16 +334,7 @@ export function FrontdeskAppointmentCard({ appointment, onCheckIn }: FrontdeskAp
             </div>
 
             {/* CTA */}
-            {isAwaitingConfirmation(appointment.status as AppointmentStatus) ? (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100">
-                <CalendarClock className="h-3.5 w-3.5" />
-                <span className="text-[10px] font-bold whitespace-nowrap">
-                  {appointment.status === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION
-                    ? 'Awaiting Doctor'
-                    : 'Pending'}
-                </span>
-              </div>
-            ) : canCheckIn(appointment.status as AppointmentStatus) ? (
+            {canCheckIn(appointment.status as AppointmentStatus) ? (
               <Button
                 onClick={() => onCheckIn(appointment)}
                 size="sm"

@@ -63,8 +63,10 @@ interface QuickBookingDialogProps {
   doctor: DoctorResponseDto;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess?: () => void;
+  onSuccess?: (appointmentId?: number, date?: Date) => void;
 }
+// ...
+
 
 interface TimeSlot {
   date: Date;
@@ -277,11 +279,12 @@ export function QuickBookingDialog({
         time: selectedSlot.time,
         type: appointmentType,
         note: notes,
+        source: 'FRONTDESK_SCHEDULED', // Explicitly identify as Frontdesk source
       });
 
       if (response.success) {
         onOpenChange(false);
-        onSuccess?.();
+        onSuccess?.(response.data?.id, selectedSlot.date);
       } else {
         toast.error(response.error || 'Failed to book appointment');
         if (response.error?.includes('booked')) {
@@ -639,9 +642,9 @@ export function QuickBookingDialog({
                     value={
                       selectedSlot
                         ? `${selectedSlot.displayDate === 'Today' || selectedSlot.displayDate === 'Tomorrow'
-                            ? selectedSlot.displayDate + ', ' + format(selectedSlot.date, 'MMM d')
-                            : selectedSlot.displayDate
-                          } at ${selectedSlot.displayTime}`
+                          ? selectedSlot.displayDate + ', ' + format(selectedSlot.date, 'MMM d')
+                          : selectedSlot.displayDate
+                        } at ${selectedSlot.displayTime}`
                         : ''
                     }
                   />

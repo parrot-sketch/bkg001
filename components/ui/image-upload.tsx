@@ -16,9 +16,19 @@ interface ImageUploadProps {
     value?: string;
     onChange: (url: string) => void;
     disabled?: boolean;
+    label?: string;
+    subtitle?: string;
+    variant?: 'avatar' | 'rect';
 }
 
-export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
+export function ImageUpload({
+    value,
+    onChange,
+    disabled,
+    label = 'Profile Image',
+    subtitle = 'Current image preview',
+    variant = 'avatar'
+}: ImageUploadProps) {
     const [isDragging, setIsDragging] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [preview, setPreview] = useState<string | null>(value || null);
@@ -116,15 +126,26 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
             {/* Preview */}
             {preview && (
                 <div className="flex items-center gap-4">
-                    <Avatar className="h-24 w-24">
-                        <AvatarImage src={preview} alt="Profile preview" />
-                        <AvatarFallback>
-                            <ImageIcon className="h-8 w-8" />
-                        </AvatarFallback>
-                    </Avatar>
+                    {variant === 'avatar' ? (
+                        <Avatar className="h-24 w-24">
+                            <AvatarImage src={preview} alt="Preview" />
+                            <AvatarFallback>
+                                <ImageIcon className="h-8 w-8" />
+                            </AvatarFallback>
+                        </Avatar>
+                    ) : (
+                        <div className="relative h-40 w-full max-w-[240px] rounded-lg overflow-hidden border bg-muted">
+                            <img
+                                src={preview}
+                                alt="Preview"
+                                className="h-full w-full object-cover"
+                            />
+                        </div>
+                    )}
+
                     <div className="flex-1">
-                        <p className="text-sm font-medium">Profile Image</p>
-                        <p className="text-xs text-muted-foreground">Current image preview</p>
+                        <p className="text-sm font-medium">{label}</p>
+                        <p className="text-xs text-muted-foreground">{subtitle}</p>
                     </div>
                     {!disabled && (
                         <Button
@@ -171,7 +192,7 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
                         <Upload className="h-8 w-8 text-muted-foreground" />
                         <div>
                             <p className="text-sm font-medium">
-                                {preview ? 'Change Image' : 'Upload Profile Image'}
+                                {preview ? 'Change Image' : label}
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">
                                 Drag and drop or click to browse

@@ -445,26 +445,108 @@ function CaseCard({
         : 'Unknown Patient';
     const action = getCasePrimaryAction(sc);
 
+    // Urgency Strip Color
+    const urgencyColor = sc.urgency === 'EMERGENCY' ? 'bg-red-500' :
+        sc.urgency === 'URGENT' ? 'bg-amber-500' :
+            'bg-slate-200';
+
     return (
-        <Card className="shadow-sm hover:shadow-md transition-shadow group">
-            <CardContent className="p-4">
-                <div className="flex items-start gap-4">
-                    {/* ── Left: Info ── */}
-                    <div className="flex-1 min-w-0 space-y-2">
-                        {/* Row 1: Badges */}
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <Badge
-                                variant="secondary"
-                                className={cn('text-xs gap-1 font-medium', status.bg, status.color)}
-                            >
-                                <StatusIcon className="h-3 w-3" />
-                                {status.label}
-                            </Badge>
-                            {sc.urgency !== 'ELECTIVE' && (
-                                <Badge variant="outline" className={cn('text-[10px]', urgency.className)}>
-                                    {urgency.label}
+        <Card className="group relative overflow-hidden transition-all hover:shadow-md border-l-0">
+            {/* Urgency Strip */}
+            <div className={cn("absolute left-0 top-0 bottom-0 w-1.5", urgencyColor)} />
+
+            <CardContent className="p-4 pl-5">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+
+                    {/* ── Section 1: Header & Patient (Col span 4) ── */}
+                    <div className="md:col-span-4 flex flex-col justify-between h-full space-y-2">
+                        <div>
+                            <div className="flex items-center gap-2 mb-1.5">
+                                <Badge
+                                    variant="secondary"
+                                    className={cn('text-[10px] px-1.5 py-0 h-5 gap-1 font-medium', status.bg, status.color)}
+                                >
+                                    <StatusIcon className="h-3 w-3" />
+                                    {status.label}
                                 </Badge>
+                                {sc.urgency !== 'ELECTIVE' && (
+                                    <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 h-5', urgency.className)}>
+                                        {urgency.label}
+                                    </Badge>
+                                )}
+                            </div>
+                            <h3 className="font-semibold text-base text-foreground leading-tight line-clamp-1" title={sc.procedureName || 'Procedure recommended'}>
+                                {sc.procedureName || 'Procedure recommended'}
+                            </h3>
+                            <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
+                                <span className="flex items-center gap-1 font-medium text-foreground/80">
+                                    <User className="h-3.5 w-3.5" />
+                                    {patientName}
+                                </span>
+                                {sc.patient?.fileNumber && (
+                                    <span className="font-mono text-[10px] bg-muted px-1.5 rounded-sm">
+                                        {sc.patient.fileNumber}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Mobile-only spacer/divider could go here if needed */}
+                    </div>
+
+                    {/* ── Section 2: Clinical Details (Col span 5) ── */}
+                    <div className="md:col-span-5 flex flex-col gap-3 justify-center border-l md:pl-4 border-dashed md:border-solid border-slate-100">
+                        {/* Diagnosis with better clamping */}
+                        <div className="space-y-1">
+                            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Diagnosis</span>
+                            <p className="text-xs text-foreground/90 leading-relaxed line-clamp-2" title={sc.diagnosis || 'No diagnosis recorded'}>
+                                {sc.diagnosis || <span className="text-muted-foreground italic">No diagnosis recorded</span>}
+                            </p>
+                        </div>
+
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            {sc.side && (
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] uppercase font-semibold text-slate-400">Side:</span>
+                                    <Badge variant="outline" className="text-[10px] font-mono h-5 px-1.5">
+                                        {sc.side}
+                                    </Badge>
+                                </div>
                             )}
+                            {sc.casePlan?.plannedAnesthesia && (
+                                <div className="flex items-center gap-1.5">
+                                    <Stethoscope className="h-3 w-3" />
+                                    <span>{sc.casePlan.plannedAnesthesia.replace(/_/g, ' ')}</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* ── Section 3: Logistics & Action (Col span 3) ── */}
+                    <div className="md:col-span-3 flex flex-col justify-between items-end gap-3 md:pl-2">
+
+                        {/* Theater Info */}
+                        <div className="w-full text-right">
+                            {sc.theaterBooking ? (
+                                <div className="inline-flex flex-col items-end">
+                                    <div className="flex items-center gap-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 px-2 py-1 rounded-md mb-1">
+                                        <Calendar className="h-3 w-3" />
+                                        {format(new Date(sc.theaterBooking.startTime), 'MMM d, HH:mm')}
+                                    </div>
+                                    <div className="text-[10px] text-muted-foreground">
+                                        {sc.theaterBooking.theaterName}
+                                    </div>
+                                </div>
+                            ) : (
+                                <span className="text-[10px] text-slate-400 italic flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    No booking
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Actions Row */}
+                        <div className="flex items-center gap-2 w-full justify-end mt-auto">
                             {sc.casePlan && (
                                 <ReadinessIndicator
                                     readinessStatus={sc.casePlan.readinessStatus}
@@ -474,121 +556,39 @@ function CaseCard({
                                     images={sc.casePlan.imageCount}
                                 />
                             )}
-                            {sc.side && (
-                                <span className="text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                                    {sc.side}
-                                </span>
-                            )}
-                        </div>
 
-                        {/* Row 2: Procedure + Patient */}
-                        <div>
-                            <h3 className="font-semibold text-sm text-foreground leading-snug">
-                                {sc.procedureName || 'Procedure recommended'}
-                            </h3>
-                            <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
-                                <span className="flex items-center gap-1">
-                                    <User className="h-3 w-3 shrink-0" />
-                                    {patientName}
-                                </span>
-                                {sc.patient?.fileNumber && (
-                                    <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-[10px]">
-                                        {sc.patient.fileNumber}
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Row 3: Diagnosis (if any) */}
-                        {sc.diagnosis && (
-                            <p className="text-xs text-muted-foreground truncate">
-                                <span className="font-medium">Dx:</span> {sc.diagnosis}
-                            </p>
-                        )}
-
-                        {/* Row 4: Theater booking or anesthesia */}
-                        <div className="flex items-center gap-4 flex-wrap">
-                            {sc.theaterBooking && (
-                                <div className="flex items-center gap-1.5 text-xs text-indigo-700 bg-indigo-50 rounded-md px-2.5 py-1">
-                                    <Calendar className="h-3 w-3 shrink-0" />
-                                    <span>
-                                        {format(new Date(sc.theaterBooking.startTime), 'MMM d, yyyy • HH:mm')}
-                                        {sc.theaterBooking.theaterName && ` — ${sc.theaterBooking.theaterName}`}
-                                    </span>
-                                </div>
-                            )}
-                            {sc.casePlan?.plannedAnesthesia && (
-                                <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                                    <Stethoscope className="h-3 w-3" />
-                                    {sc.casePlan.plannedAnesthesia.replace(/_/g, ' ')}
-                                </span>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* ── Right: Time + Actions ── */}
-                    <div className="flex flex-col items-end gap-2 shrink-0">
-                        <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                            {sc.updatedAt
-                                ? formatDistanceToNow(new Date(sc.updatedAt), { addSuffix: true })
-                                : format(new Date(sc.createdAt), 'MMM d')}
-                        </span>
-
-                        <div className="flex items-center gap-1.5">
-                            {/* Mark Ready — PLANNING only */}
+                            {/* Mark Ready Button */}
                             {sc.status === 'PLANNING' && onMarkReady && (
                                 <Button
                                     size="sm"
-                                    variant="outline"
-                                    className="text-xs h-7 gap-1"
+                                    variant="ghost"
+                                    className="h-7 w-7 p-0 rounded-full text-blue-600 hover:bg-blue-50"
                                     disabled={markingReady}
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         onMarkReady();
                                     }}
+                                    title="Mark Ready for Scheduling"
                                 >
                                     {markingReady ? (
                                         <span className="h-3 w-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
                                     ) : (
-                                        <Send className="h-3 w-3" />
+                                        <Send className="h-4 w-4" />
                                     )}
-                                    Mark Ready
                                 </Button>
                             )}
 
-                            {/* Primary CTA */}
-                            {action.disabled ? (
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <span tabIndex={0}>
-                                            <Button
-                                                size="sm"
-                                                variant={action.variant}
-                                                className="text-xs h-7 gap-1"
-                                                disabled
-                                            >
-                                                {action.label}
-                                                <ArrowRight className="h-3 w-3" />
-                                            </Button>
-                                        </span>
-                                    </TooltipTrigger>
-                                    {action.reason && (
-                                        <TooltipContent side="left" className="max-w-[220px]">
-                                            <p>{action.reason}</p>
-                                        </TooltipContent>
-                                    )}
-                                </Tooltip>
-                            ) : (
-                                <Button
-                                    size="sm"
-                                    variant={action.variant}
-                                    className="text-xs h-7 gap-1"
-                                    onClick={() => action.href && onNavigate(action.href)}
-                                >
-                                    {action.label}
-                                    <ArrowRight className="h-3 w-3" />
-                                </Button>
-                            )}
+                            {/* Main Action */}
+                            <Button
+                                size="sm"
+                                variant={action.variant}
+                                className={cn("text-xs h-7 gap-1.5 shadow-sm transition-all", action.variant === 'default' && "bg-slate-900 hover:bg-slate-800")}
+                                onClick={() => action.href && onNavigate(action.href)}
+                                disabled={action.disabled}
+                            >
+                                {action.label}
+                                <ArrowRight className="h-3 w-3 opacity-70" />
+                            </Button>
                         </div>
                     </div>
                 </div>

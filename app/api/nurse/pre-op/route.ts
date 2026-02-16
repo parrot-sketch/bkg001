@@ -58,10 +58,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       statusFilter && Object.values(SurgicalCaseStatus).includes(statusFilter as SurgicalCaseStatus)
         ? { status: statusFilter as SurgicalCaseStatus }
         : {
-            status: {
-              in: [SurgicalCaseStatus.DRAFT, SurgicalCaseStatus.PLANNING],
-            },
-          };
+          status: {
+            in: [
+              SurgicalCaseStatus.DRAFT,
+              SurgicalCaseStatus.PLANNING,
+              SurgicalCaseStatus.READY_FOR_SCHEDULING,
+              SurgicalCaseStatus.SCHEDULED,
+              SurgicalCaseStatus.IN_PREP,
+            ],
+          },
+        };
 
     // 5. Fetch surgical cases pending pre-op
     const surgicalCases = await db.surgicalCase.findMany({
@@ -158,34 +164,34 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         createdAt: surgicalCase.created_at,
         patient: surgicalCase.patient
           ? {
-              id: surgicalCase.patient.id,
-              fullName: `${surgicalCase.patient.first_name} ${surgicalCase.patient.last_name}`,
-              fileNumber: surgicalCase.patient.file_number,
-              phone: surgicalCase.patient.phone,
-              email: surgicalCase.patient.email,
-              dateOfBirth: surgicalCase.patient.date_of_birth,
-            }
+            id: surgicalCase.patient.id,
+            fullName: `${surgicalCase.patient.first_name} ${surgicalCase.patient.last_name}`,
+            fileNumber: surgicalCase.patient.file_number,
+            phone: surgicalCase.patient.phone,
+            email: surgicalCase.patient.email,
+            dateOfBirth: surgicalCase.patient.date_of_birth,
+          }
           : null,
         primarySurgeon: surgicalCase.primary_surgeon
           ? {
-              id: surgicalCase.primary_surgeon.id,
-              name: surgicalCase.primary_surgeon.name,
-              specialty: surgicalCase.primary_surgeon.specialization,
-            }
+            id: surgicalCase.primary_surgeon.id,
+            name: surgicalCase.primary_surgeon.name,
+            specialty: surgicalCase.primary_surgeon.specialization,
+          }
           : null,
         casePlan: casePlan
           ? {
-              id: casePlan.id,
-              readinessStatus: casePlan.readiness_status,
-              readyForSurgery: casePlan.ready_for_surgery,
-              procedurePlan: casePlan.procedure_plan,
-              preOpNotes: casePlan.pre_op_notes,
-              riskFactors: casePlan.risk_factors,
-              implantDetails: casePlan.implant_details,
-              photosCount: casePlan.images?.length ?? 0,
-              consentsCount: casePlan.consents?.length ?? 0,
-              signedConsentsCount: casePlan.consents?.filter((c) => c.signed_at !== null).length ?? 0,
-            }
+            id: casePlan.id,
+            readinessStatus: casePlan.readiness_status,
+            readyForSurgery: casePlan.ready_for_surgery,
+            procedurePlan: casePlan.procedure_plan,
+            preOpNotes: casePlan.pre_op_notes,
+            riskFactors: casePlan.risk_factors,
+            implantDetails: casePlan.implant_details,
+            photosCount: casePlan.images?.length ?? 0,
+            consentsCount: casePlan.consents?.length ?? 0,
+            signedConsentsCount: casePlan.consents?.filter((c) => c.signed_at !== null).length ?? 0,
+          }
           : null,
         theaterBooking: surgicalCase.theater_booking,
         consultation: surgicalCase.consultation,

@@ -43,7 +43,8 @@ describe('Email Value Object', () => {
     });
 
     it('should accept maximum length email', () => {
-      const maxEmail = 'a'.repeat(244) + '@example.com'; // Exactly 254 characters
+      // '@example.com' is 12 chars, so 254 - 12 = 242 local-part chars
+      const maxEmail = 'a'.repeat(242) + '@example.com'; // Exactly 254 characters
       const email = Email.create(maxEmail);
       expect(email.getValue()).toBe(maxEmail.toLowerCase());
     });

@@ -1,4 +1,4 @@
-import { SurgicalCase, SurgicalCaseStatus, CasePlan } from '@prisma/client';
+import { SurgicalCase, SurgicalCaseStatus, CasePlan, PrismaClient } from '@prisma/client';
 import { ISurgicalCaseRepository } from '@/domain/interfaces/repositories/ISurgicalCaseRepository';
 import { ICasePlanRepository } from '@/domain/interfaces/repositories/ICasePlanRepository';
 import { getMissingPlanningItems, PlanningReadinessInput, PlanningReadinessItem } from '@/domain/helpers/planningReadiness';
@@ -38,7 +38,8 @@ export class SurgicalCaseService {
     constructor(
         private repository: ISurgicalCaseRepository,
         private casePlanRepository?: ICasePlanRepository,
-    ) {}
+        private db?: PrismaClient,
+    ) { }
 
     /**
      * Validates and executes a state transition
@@ -157,14 +158,11 @@ export class SurgicalCaseService {
 
         const readiness = getMissingPlanningItems(input);
 
-        // Add nurse readiness as an extra item
-        const nurseItem: PlanningReadinessItem = {
-            key: 'nurse_checklist',
-            label: 'Nurse Pre-Op Checklist',
-            required: true,
-            done: !!casePlan.ready_for_surgery,
-        };
-        const allItems = [...readiness.items, nurseItem];
+        // Nurse Pre-Op Ward Checklist is checking day-of-surgery readiness
+        // It should NOT block "Ready for Scheduling" state (which is done days/weeks before).
+        // Removing this check to fix logical deadlock for elective cases.
+
+        const allItems = [...readiness.items];
         const allMissing = allItems.filter(i => i.required && !i.done);
 
         if (allMissing.length > 0) {

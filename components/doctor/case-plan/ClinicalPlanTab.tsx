@@ -68,6 +68,7 @@ export function ClinicalPlanTab({ casePlan, onSave, saving }: ClinicalPlanTabPro
     const { services } = useServices();
 
     // Form State
+    const [procedureName, setProcedureName] = useState('');
     const [procedurePlan, setProcedurePlan] = useState('');
     const [selectedServiceId, setSelectedServiceId] = useState<string>('');
     const [riskFactors, setRiskFactors] = useState('');
@@ -80,6 +81,7 @@ export function ClinicalPlanTab({ casePlan, onSave, saving }: ClinicalPlanTabPro
 
     useEffect(() => {
         if (casePlan) {
+            // Plan data
             setProcedurePlan(casePlan.procedurePlan || '');
             setRiskFactors(casePlan.riskFactors || '');
             setPreOpNotes(casePlan.preOpNotes || '');
@@ -90,12 +92,29 @@ export function ClinicalPlanTab({ casePlan, onSave, saving }: ClinicalPlanTabPro
                 (casePlan as any).estimatedDurationMinutes?.toString() || ''
             );
             setReadinessStatus(casePlan.readinessStatus as CaseReadinessStatus);
+
+            // Case data (from surgicalCase relation)
+            if (casePlan.surgicalCase) {
+                // @ts-ignore - procedureName exists on the DTO but might not be typed in current interface
+                setProcedureName((casePlan.surgicalCase as any).procedureName || '');
+            }
         }
     }, [casePlan]);
+
+    // Auto-populate procedure name when service is selected
+    useEffect(() => {
+        if (selectedServiceId && selectedServiceId !== 'custom') {
+            const service = services.find(s => s.id.toString() === selectedServiceId);
+            if (service && !procedureName) {
+                setProcedureName(service.service_name);
+            }
+        }
+    }, [selectedServiceId, services, procedureName]);
 
     const handleSave = () => {
         const durMinutes = estimatedDurationMinutes ? parseInt(estimatedDurationMinutes, 10) : null;
         onSave({
+            procedureName,
             procedurePlan: procedurePlan || services.find(s => s.id.toString() === selectedServiceId)?.service_name,
             procedureIds: selectedServiceId ? [parseInt(selectedServiceId)] : [],
             riskFactors,
@@ -106,6 +125,25 @@ export function ClinicalPlanTab({ casePlan, onSave, saving }: ClinicalPlanTabPro
             estimatedDurationMinutes: durMinutes && !isNaN(durMinutes) ? durMinutes : null,
             readinessStatus,
         });
+    };
+
+    const insertPreOpTemplate = () => {
+        const template = `
+            <p><strong>Chief Complaint:</strong></p>
+            <p>Patient presents for...</p>
+            <p><strong>Examination:</strong></p>
+            <p>Key findings...</p>
+            <p><strong>Assessment:</strong></p>
+            <p>Diagnosis confirmed as...</p>
+            <p><strong>Plan:</strong></p>
+            <p>Proceed with surgical intervention...</p>
+        `;
+        if (preOpNotes && preOpNotes.length > 10) {
+            if (!confirm('This will append the template to your existing notes. Continue?')) return;
+            setPreOpNotes(prev => prev + template);
+        } else {
+            setPreOpNotes(template);
+        }
     };
 
     // Helpers
@@ -178,7 +216,7 @@ export function ClinicalPlanTab({ casePlan, onSave, saving }: ClinicalPlanTabPro
                             className={cn(
                                 "bg-background",
                                 readinessStatus === CaseReadinessStatus.READY &&
-                                    "border-emerald-300 bg-emerald-50 text-emerald-700"
+                                "border-emerald-300 bg-emerald-50 text-emerald-700"
                             )}
                         >
                             <SelectValue />
@@ -191,6 +229,17 @@ export function ClinicalPlanTab({ casePlan, onSave, saving }: ClinicalPlanTabPro
                             <SelectItem value={CaseReadinessStatus.READY}>Ready for Surgery</SelectItem>
                         </SelectContent>
                     </Select>
+                </div>
+                <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        Procedure Name (for print summary)
+                    </Label>
+                    <Input
+                        value={procedureName}
+                        onChange={(e) => setProcedureName(e.target.value)}
+                        placeholder="e.g. Total Knee Replacement"
+                        className="bg-background font-medium"
+                    />
                 </div>
             </div>
 
@@ -240,12 +289,23 @@ export function ClinicalPlanTab({ casePlan, onSave, saving }: ClinicalPlanTabPro
                             />
                         </div>
                         <div>
-                            <Label className="text-sm font-medium mb-2 block">Pre-operative Notes</Label>
+                            <div className="flex items-center justify-between mb-2">
+                                <Label className="text-sm font-medium block">Pre-operative Notes</Label>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-6 text-xs gap-1.5"
+                                    onClick={insertPreOpTemplate}
+                                >
+                                    <Plus className="h-3 w-3" />
+                                    Insert Template
+                                </Button>
+                            </div>
                             <RichTextEditor
                                 placeholder="Instructions for patient, specific clearance…"
                                 content={preOpNotes}
                                 onChange={setPreOpNotes}
-                                minHeight="120px"
+                                minHeight="200px"
                             />
                         </div>
                     </AccordionContent>

@@ -46,6 +46,7 @@ export function useDoctorSurgicalCases(params: SurgicalCaseQueryParams = {}) {
             return response.data;
         },
         placeholderData: keepPreviousData,
+        staleTime: 1000 * 30, // 30s — clinical list, moderate freshness
     });
 }
 

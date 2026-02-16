@@ -285,7 +285,7 @@ describe('Phase 0: Appointment Scheduling Infrastructure', () => {
         .withPatientId(patientId)
         .withDoctorId(doctorId)
         .scheduledFor(futureDate, timeSlot)
-        .withConsultStatus(ConsultStatus.APPROVED)
+        .withConsultStatus(ConsultStatus.OPEN)
         .withDurationMinutes(60)
         .withNotes('Patient has specific needs')
         .build();

@@ -24,14 +24,14 @@ import type { AppointmentResponseDto } from '@/application/dtos/AppointmentRespo
  * @param enabled - Whether the query should run (default: true)
  */
 export function useTodayCheckedInPatients(enabled = true) {
-  return useQuery({
+  return useQuery<AppointmentResponseDto[], Error>({
     queryKey: ['nurse', 'patients', 'checked-in', 'today'],
     queryFn: async () => {
       const response = await nurseApi.getTodayCheckedInPatients();
       if (!response.success) {
         throw new Error(response.error || 'Failed to load checked-in patients');
       }
-      return response.data;
+      return response.data || [];
     },
     staleTime: 1000 * 30, // 30 seconds - moderate freshness for clinical workflows
     gcTime: 1000 * 60 * 5, // 5 minutes
@@ -51,14 +51,14 @@ export function useTodayCheckedInPatients(enabled = true) {
  * @param enabled - Whether the query should run (default: true)
  */
 export function usePreOpPatients(enabled = true) {
-  return useQuery({
+  return useQuery<AppointmentResponseDto[], Error>({
     queryKey: ['nurse', 'patients', 'pre-op'],
     queryFn: async () => {
       const response = await nurseApi.getPreOpPatients();
       if (!response.success) {
         throw new Error(response.error || 'Failed to load pre-op patients');
       }
-      return response.data;
+      return response.data || [];
     },
     staleTime: 1000 * 30, // 30 seconds
     gcTime: 1000 * 60 * 5, // 5 minutes
@@ -78,14 +78,14 @@ export function usePreOpPatients(enabled = true) {
  * @param enabled - Whether the query should run (default: true)
  */
 export function usePostOpPatients(enabled = true) {
-  return useQuery({
+  return useQuery<AppointmentResponseDto[], Error>({
     queryKey: ['nurse', 'patients', 'post-op'],
     queryFn: async () => {
       const response = await nurseApi.getPostOpPatients();
       if (!response.success) {
         throw new Error(response.error || 'Failed to load post-op patients');
       }
-      return response.data;
+      return response.data || [];
     },
     staleTime: 1000 * 30, // 30 seconds
     gcTime: 1000 * 60 * 5, // 5 minutes

@@ -9,6 +9,8 @@
  *   ?status=READY_FOR_SCHEDULING  (default)
  *   ?status=SCHEDULED
  *   ?status=PLANNING
+ *   ?page=1            (default 1)
+ *   ?pageSize=50       (default 50, max 100)
  *
  * Security:
  * - Requires authentication
@@ -19,8 +21,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { SurgicalCaseStatus } from '@prisma/client';
 import db from '@/lib/db';
+import { endpointTimer } from '@/lib/observability/endpointLogger';
 
 const ALLOWED_STATUSES = new Set(Object.values(SurgicalCaseStatus));
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_SIZE = 50;
+const MAX_PAGE_SIZE = 100;
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
     try {
@@ -41,9 +47,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             );
         }
 
-        // 3. Parse status filter
+        // 3. Parse query params
         const { searchParams } = new URL(request.url);
         const statusParam = searchParams.get('status') || 'READY_FOR_SCHEDULING';
+        const page = Math.max(1, parseInt(searchParams.get('page') || '', 10) || DEFAULT_PAGE);
+        const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(searchParams.get('pageSize') || '', 10) || DEFAULT_PAGE_SIZE));
 
         if (!ALLOWED_STATUSES.has(statusParam as SurgicalCaseStatus)) {
             return NextResponse.json(
@@ -52,55 +60,68 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             );
         }
 
-        // 4. Fetch cases
-        const cases = await db.surgicalCase.findMany({
-            where: {
-                status: statusParam as SurgicalCaseStatus,
-            },
-            orderBy: { created_at: 'asc' },
-            include: {
-                patient: {
-                    select: {
-                        id: true,
-                        first_name: true,
-                        last_name: true,
-                        file_number: true,
-                        date_of_birth: true,
-                        gender: true,
-                        allergies: true,
+        const where = { status: statusParam as SurgicalCaseStatus };
+
+        // 4. Fetch cases with select (no include) + pagination
+        const timer = endpointTimer('GET /api/admin/surgical-cases');
+        const [cases, total] = await Promise.all([
+            db.surgicalCase.findMany({
+                where,
+                orderBy: { created_at: 'asc' },
+                skip: (page - 1) * pageSize,
+                take: pageSize,
+                select: {
+                    id: true,
+                    status: true,
+                    urgency: true,
+                    diagnosis: true,
+                    procedure_name: true,
+                    created_at: true,
+                    patient: {
+                        select: {
+                            id: true,
+                            first_name: true,
+                            last_name: true,
+                            file_number: true,
+                            date_of_birth: true,
+                            gender: true,
+                            allergies: true,
+                        },
                     },
-                },
-                primary_surgeon: {
-                    select: {
-                        id: true,
-                        name: true,
-                        specialization: true,
+                    primary_surgeon: {
+                        select: {
+                            id: true,
+                            name: true,
+                            specialization: true,
+                        },
                     },
-                },
-                case_plan: {
-                    select: {
-                        id: true,
-                        readiness_status: true,
-                        ready_for_surgery: true,
-                        procedure_plan: true,
-                        planned_anesthesia: true,
-                        special_instructions: true,
-                        appointment_id: true,
+                    case_plan: {
+                        select: {
+                            id: true,
+                            readiness_status: true,
+                            ready_for_surgery: true,
+                            procedure_plan: true,
+                            planned_anesthesia: true,
+                            special_instructions: true,
+                            appointment_id: true,
+                        },
                     },
-                },
-                theater_booking: {
-                    select: {
-                        id: true,
-                        start_time: true,
-                        end_time: true,
-                        status: true,
-                        theater: {
-                            select: { id: true, name: true, type: true },
+                    theater_booking: {
+                        select: {
+                            id: true,
+                            start_time: true,
+                            end_time: true,
+                            status: true,
+                            theater: {
+                                select: { id: true, name: true, type: true },
+                            },
                         },
                     },
                 },
-            },
-        });
+            }),
+            db.surgicalCase.count({ where }),
+        ]);
+        timer.end({ status: statusParam, total, page });
 
         // 5. Map to response DTO
         const mapped = cases.map((sc) => ({
@@ -150,7 +171,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                 : null,
         }));
 
-        return NextResponse.json({ success: true, data: mapped });
+        return NextResponse.json({
+            success: true,
+            data: mapped,
+            meta: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
+        });
     } catch (error) {
         console.error('[API] GET /api/admin/surgical-cases - Error:', error);
         return NextResponse.json(

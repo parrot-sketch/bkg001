@@ -26,6 +26,7 @@ describe('GetDoctorProfileUseCase', () => {
         mockDoctorRepository = {
             findById: vi.fn(),
             findByUserId: vi.fn(),
+            findBySlug: vi.fn(),
             update: vi.fn(),
             isLicenseUnique: vi.fn(),
         };

@@ -352,7 +352,7 @@ export class Appointment {
   confirmWithDoctor(confirmation: DoctorConfirmation): Appointment {
     // Can only confirm if pending confirmation
     if (this.status !== AppointmentStatus.PENDING &&
-        this.status !== AppointmentStatus.PENDING_DOCTOR_CONFIRMATION) {
+      this.status !== AppointmentStatus.PENDING_DOCTOR_CONFIRMATION) {
       throw new DomainException(
         `Cannot confirm appointment in ${this.status} status`,
         { appointmentId: this.id, currentStatus: this.status }
@@ -405,7 +405,7 @@ export class Appointment {
   rejectByDoctor(rejection: AppointmentRejection): Appointment {
     // Can only reject if pending confirmation
     if (this.status !== AppointmentStatus.PENDING &&
-        this.status !== AppointmentStatus.PENDING_DOCTOR_CONFIRMATION) {
+      this.status !== AppointmentStatus.PENDING_DOCTOR_CONFIRMATION) {
       throw new DomainException(
         `Cannot reject appointment in ${this.status} status`,
         { appointmentId: this.id, currentStatus: this.status }
@@ -442,6 +442,51 @@ export class Appointment {
       this.noShowInfo,
       this.doctorConfirmation,
       this.doctorRejection,
+      this.rescheduledToAppointmentId,
+      this.createdAt,
+      new Date(),
+    );
+  }
+
+  /**
+   * Reschedules the appointment
+   * 
+   * @param newDate - New date
+   * @param newTime - New time
+   * @param status - New status (default to SCHEDULED)
+   * @returns New Appointment entity
+   */
+  reschedule(newDate: Date, newTime: string, status: AppointmentStatus = AppointmentStatus.SCHEDULED): Appointment {
+    // Cannot reschedule if completed or cancelled (unless we want to reactivate? strictly speaking, no)
+    if (this.status === AppointmentStatus.COMPLETED) {
+      throw new DomainException('Cannot reschedule a completed appointment', { appointmentId: this.id });
+    }
+
+    // Allow rescheduling cancelled appointments? Usually yes, if it's a "revival".
+    // But for now, let's assume we are mostly rescheduling pending/scheduled ones.
+
+    return new Appointment(
+      this.id,
+      this.patientId,
+      this.doctorId,
+      newDate,
+      newTime,
+      status,
+      this.type,
+      newDate, // Update scheduled_at
+      new Date(), // Update status_changed_at
+      this.statusChangedBy,
+      new Date(), // Implicitly confirmed by doctor if they are rescheduling it?
+      'DOCTOR', // Hardcoded for now, ideally passed in
+      undefined, // Clear rejection reason
+      undefined, // Clear no-show
+      this.durationMinutes,
+      this.note,
+      this.reason,
+      undefined, // Clear check-in
+      undefined, // Clear no-show info
+      undefined, // Clear explicit confirmation object if we rely on status/dates
+      undefined, // Clear rejection object
       this.rescheduledToAppointmentId,
       this.createdAt,
       new Date(),

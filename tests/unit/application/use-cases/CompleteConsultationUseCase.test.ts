@@ -12,6 +12,27 @@ import { Gender } from '../../../../domain/enums/Gender';
 import { ConsultationOutcomeType } from '../../../../domain/enums/ConsultationOutcomeType';
 import { DomainException } from '../../../../domain/exceptions/DomainException';
 
+// Mock the direct db import used by the use case for billing / doctor lookup
+vi.mock('@/lib/db', () => ({
+  default: {
+    appointment: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      update: vi.fn().mockResolvedValue({}),
+    },
+    patientBill: {
+      deleteMany: vi.fn().mockResolvedValue({}),
+      create: vi.fn().mockResolvedValue({ id: 1 }),
+    },
+    payment: {
+      update: vi.fn().mockResolvedValue({}),
+      create: vi.fn().mockResolvedValue({ id: 1 }),
+    },
+    doctor: {
+      findUnique: vi.fn().mockResolvedValue({ consultation_fee: 5000 }),
+    },
+  },
+}));
+
 describe('CompleteConsultationUseCase', () => {
   let mockAppointmentRepository: {
     findById: Mock;
@@ -123,12 +144,16 @@ describe('CompleteConsultationUseCase', () => {
 
     it('should schedule follow-up appointment if provided', async () => {
       // Arrange
+      // Use a future date that won't expire
+      const futureFollowUpDate = new Date();
+      futureFollowUpDate.setMonth(futureFollowUpDate.getMonth() + 3);
+
       const scheduledAppointment = Appointment.create({
         id: 1,
         patientId: 'patient-1',
         doctorId: 'doctor-1',
         appointmentDate: new Date('2025-12-31'),
-        time: '10:00 AM',
+        time: '10:00',
         status: AppointmentStatus.SCHEDULED,
         type: 'Consultation',
       });
@@ -137,8 +162,8 @@ describe('CompleteConsultationUseCase', () => {
         id: 2,
         patientId: 'patient-1',
         doctorId: 'doctor-1',
-        appointmentDate: new Date('2026-01-15'),
-        time: '2:00 PM',
+        appointmentDate: futureFollowUpDate,
+        time: '14:00',
         status: AppointmentStatus.PENDING,
         type: 'Follow-up',
         note: `Follow-up appointment for appointment 1`,
@@ -147,8 +172,8 @@ describe('CompleteConsultationUseCase', () => {
 
       const dtoWithFollowUp: CompleteConsultationDto = {
         ...validDto,
-        followUpDate: new Date('2026-01-15'),
-        followUpTime: '2:00 PM',
+        followUpDate: futureFollowUpDate,
+        followUpTime: '14:00',
         followUpType: 'Follow-up',
       };
 

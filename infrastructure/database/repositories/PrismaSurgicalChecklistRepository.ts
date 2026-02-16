@@ -85,6 +85,35 @@ export class PrismaSurgicalChecklistRepository implements ISurgicalChecklistRepo
     });
   }
 
+  async saveDraftItems(
+    surgicalCaseId: string,
+    phase: 'SIGN_IN' | 'TIME_OUT' | 'SIGN_OUT',
+    items: ChecklistItemConfirmation[]
+  ): Promise<SurgicalChecklist> {
+    // Ensure checklist row exists
+    await this.ensureExists(surgicalCaseId);
+
+    const columns = this.phaseColumns(phase);
+
+    // Guard: cannot save draft if phase already finalized
+    const existing = await this.prisma.surgicalChecklist.findUnique({
+      where: { surgical_case_id: surgicalCaseId },
+      select: { [columns.completedAt]: true },
+    });
+
+    if (existing && existing[columns.completedAt as keyof typeof existing] !== null) {
+      throw new Error(`Cannot save draft: ${phase} is already finalized`);
+    }
+
+    // Save items JSON without setting completedAt
+    return this.prisma.surgicalChecklist.update({
+      where: { surgical_case_id: surgicalCaseId },
+      data: {
+        [columns.items]: JSON.stringify(items),
+      },
+    });
+  }
+
   async isPhaseCompleted(
     surgicalCaseId: string,
     phase: 'SIGN_IN' | 'TIME_OUT' | 'SIGN_OUT'

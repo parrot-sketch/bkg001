@@ -17,6 +17,7 @@ import { JwtMiddleware } from '@/lib/auth/middleware';
 import db from '@/lib/db';
 import { AnesthesiaType, CaseReadinessStatus, SurgicalCaseStatus } from '@prisma/client';
 import { getMissingPlanningItems } from '@/domain/helpers/planningReadiness';
+import { endpointTimer } from '@/lib/observability/endpointLogger';
 
 // ─── Validation ──────────────────────────────────────────────────────────
 
@@ -101,6 +102,16 @@ function mapCasePlanResponse(sc: any) {
         id: sc.id,
         status: sc.status,
         urgency: sc.urgency,
+        staffInvites: (sc.staff_invites ?? []).map((invite: any) => ({
+            id: invite.id,
+            status: invite.status,
+            invitedRole: invite.invited_role,
+            invitedUser: {
+                firstName: invite.invited_user.first_name,
+                lastName: invite.invited_user.last_name,
+                role: invite.invited_user.role,
+            }
+        })),
         diagnosis: sc.diagnosis,
         procedureName: sc.procedure_name,
         side: sc.side,
@@ -110,14 +121,14 @@ function mapCasePlanResponse(sc: any) {
         // Patient
         patient: sc.patient
             ? {
-                  id: sc.patient.id,
-                  firstName: sc.patient.first_name,
-                  lastName: sc.patient.last_name,
-                  fileNumber: sc.patient.file_number,
-                  gender: sc.patient.gender,
-                  dateOfBirth: sc.patient.date_of_birth,
-                  allergies: sc.patient.allergies,
-              }
+                id: sc.patient.id,
+                firstName: sc.patient.first_name,
+                lastName: sc.patient.last_name,
+                fileNumber: sc.patient.file_number,
+                gender: sc.patient.gender,
+                dateOfBirth: sc.patient.date_of_birth,
+                allergies: sc.patient.allergies,
+            }
             : null,
 
         // Surgeon
@@ -133,74 +144,74 @@ function mapCasePlanResponse(sc: any) {
         // Theater Booking
         theaterBooking: sc.theater_booking
             ? {
-                  id: sc.theater_booking.id,
-                  startTime: sc.theater_booking.start_time,
-                  endTime: sc.theater_booking.end_time,
-                  status: sc.theater_booking.status,
-                  theaterName: sc.theater_booking.theater?.name ?? null,
-              }
+                id: sc.theater_booking.id,
+                startTime: sc.theater_booking.start_time,
+                endTime: sc.theater_booking.end_time,
+                status: sc.theater_booking.status,
+                theaterName: sc.theater_booking.theater?.name ?? null,
+            }
             : null,
 
         // Case Plan (the main planning data)
         casePlan: cp
             ? {
-                  id: cp.id,
-                  appointmentId: cp.appointment_id,
-                  procedurePlan: cp.procedure_plan,
-                  riskFactors: cp.risk_factors,
-                  preOpNotes: cp.pre_op_notes,
-                  implantDetails: cp.implant_details,
-                  anesthesiaPlan: cp.planned_anesthesia,
-                  specialInstructions: cp.special_instructions,
-                  estimatedDurationMinutes: cp.estimated_duration_minutes,
-                  readinessStatus: cp.readiness_status,
-                  readyForSurgery: cp.ready_for_surgery,
-                  updatedAt: cp.updated_at,
+                id: cp.id,
+                appointmentId: cp.appointment_id,
+                procedurePlan: cp.procedure_plan,
+                riskFactors: cp.risk_factors,
+                preOpNotes: cp.pre_op_notes,
+                implantDetails: cp.implant_details,
+                anesthesiaPlan: cp.planned_anesthesia,
+                specialInstructions: cp.special_instructions,
+                estimatedDurationMinutes: cp.estimated_duration_minutes,
+                readinessStatus: cp.readiness_status,
+                readyForSurgery: cp.ready_for_surgery,
+                updatedAt: cp.updated_at,
 
-                  // Consent forms
-                  consents: (cp.consents ?? []).map((c: any) => ({
-                      id: c.id,
-                      title: c.title,
-                      type: c.type,
-                      status: c.status,
-                      signedAt: c.signed_at,
-                      createdAt: c.created_at,
-                  })),
+                // Consent forms
+                consents: (cp.consents ?? []).map((c: any) => ({
+                    id: c.id,
+                    title: c.title,
+                    type: c.type,
+                    status: c.status,
+                    signedAt: c.signed_at,
+                    createdAt: c.created_at,
+                })),
 
-                  // Patient images
-                  images: (cp.images ?? []).map((img: any) => ({
-                      id: img.id,
-                      imageUrl: img.image_url,
-                      thumbnailUrl: img.thumbnail_url,
-                      angle: img.angle,
-                      timepoint: img.timepoint,
-                      description: img.description,
-                      consentForMarketing: img.consent_for_marketing,
-                      takenAt: img.taken_at,
-                  })),
+                // Patient images
+                images: (cp.images ?? []).map((img: any) => ({
+                    id: img.id,
+                    imageUrl: img.image_url,
+                    thumbnailUrl: img.thumbnail_url,
+                    angle: img.angle,
+                    timepoint: img.timepoint,
+                    description: img.description,
+                    consentForMarketing: img.consent_for_marketing,
+                    takenAt: img.taken_at,
+                })),
 
-                  // Procedure record + team
-                  procedureRecord: cp.procedure_record
-                      ? {
-                            id: cp.procedure_record.id,
-                            anesthesiaType: cp.procedure_record.anesthesia_type,
-                            urgency: cp.procedure_record.urgency,
-                            staff: (cp.procedure_record.staff ?? []).map((s: any) => ({
-                                id: s.id,
-                                role: s.role,
-                                userId: s.user_id,
-                                user: s.user
-                                    ? {
-                                          id: s.user.id,
-                                          firstName: s.user.first_name,
-                                          lastName: s.user.last_name,
-                                          role: s.user.role,
-                                      }
-                                    : null,
-                            })),
-                        }
-                      : null,
-              }
+                // Procedure record + team
+                procedureRecord: cp.procedure_record
+                    ? {
+                        id: cp.procedure_record.id,
+                        anesthesiaType: cp.procedure_record.anesthesia_type,
+                        urgency: cp.procedure_record.urgency,
+                        staff: (cp.procedure_record.staff ?? []).map((s: any) => ({
+                            id: s.id,
+                            role: s.role,
+                            userId: s.user_id,
+                            user: s.user
+                                ? {
+                                    id: s.user.id,
+                                    firstName: s.user.first_name,
+                                    lastName: s.user.last_name,
+                                    role: s.user.role,
+                                }
+                                : null,
+                        })),
+                    }
+                    : null,
+            }
             : null,
 
         // Readiness truth from data — used by UI checklist
@@ -229,10 +240,20 @@ export async function GET(
         }
 
         const { caseId } = await context.params;
+        const timer = endpointTimer('GET /api/doctor/surgical-cases/plan');
 
         const sc = await db.surgicalCase.findUnique({
             where: { id: caseId },
-            include: {
+            select: {
+                id: true,
+                status: true,
+                urgency: true,
+                diagnosis: true,
+                procedure_name: true,
+                side: true,
+                created_at: true,
+                updated_at: true,
+                primary_surgeon_id: true,
                 patient: {
                     select: {
                         id: true,
@@ -247,16 +268,46 @@ export async function GET(
                 primary_surgeon: { select: { id: true, name: true } },
                 consultation: { select: { id: true, appointment_id: true } },
                 theater_booking: {
-                    include: { theater: { select: { name: true } } },
+                    select: {
+                        id: true,
+                        start_time: true,
+                        end_time: true,
+                        status: true,
+                        theater: { select: { name: true } },
+                    },
                 },
                 case_plan: {
-                    include: {
-                        consents: { orderBy: { created_at: 'desc' } },
-                        images: { orderBy: { taken_at: 'desc' } },
+                    select: {
+                        id: true,
+                        appointment_id: true,
+                        procedure_plan: true,
+                        risk_factors: true,
+                        pre_op_notes: true,
+                        implant_details: true,
+                        planned_anesthesia: true,
+                        special_instructions: true,
+                        estimated_duration_minutes: true,
+                        readiness_status: true,
+                        ready_for_surgery: true,
+                        updated_at: true,
+                        consents: {
+                            select: { id: true, title: true, type: true, status: true, signed_at: true, created_at: true },
+                            orderBy: { created_at: 'desc' },
+                        },
+                        images: {
+                            select: { id: true, image_url: true, thumbnail_url: true, angle: true, timepoint: true, description: true, consent_for_marketing: true, taken_at: true },
+                            orderBy: { taken_at: 'desc' },
+                        },
                         procedure_record: {
-                            include: {
+                            select: {
+                                id: true,
+                                anesthesia_type: true,
+                                urgency: true,
                                 staff: {
-                                    include: {
+                                    select: {
+                                        id: true,
+                                        role: true,
+                                        user_id: true,
                                         user: {
                                             select: { id: true, first_name: true, last_name: true, role: true },
                                         },
@@ -265,6 +316,20 @@ export async function GET(
                             },
                         },
                     },
+                },
+                staff_invites: {
+                    select: {
+                        id: true,
+                        status: true,
+                        invited_role: true,
+                        invited_user: {
+                            select: {
+                                first_name: true,
+                                last_name: true,
+                                role: true,
+                            }
+                        }
+                    }
                 },
             },
         });
@@ -278,6 +343,7 @@ export async function GET(
             return NextResponse.json({ success: false, error: 'Forbidden: You are not the primary surgeon' }, { status: 403 });
         }
 
+        timer.end({ caseId });
         return NextResponse.json({ success: true, data: mapCasePlanResponse(sc) });
     } catch (error) {
         console.error('[API] GET /api/doctor/surgical-cases/[caseId]/plan - Error:', error);
@@ -383,6 +449,19 @@ export async function PATCH(
                 },
             });
 
+            // Update Surgical Case fields if provided
+            if (body.procedureName !== undefined || body.side !== undefined || body.diagnosis !== undefined) {
+                const caseUpdate: any = {};
+                if (body.procedureName !== undefined) caseUpdate.procedure_name = body.procedureName;
+                if (body.side !== undefined) caseUpdate.side = body.side;
+                if (body.diagnosis !== undefined) caseUpdate.diagnosis = body.diagnosis;
+
+                await tx.surgicalCase.update({
+                    where: { id: caseId },
+                    data: caseUpdate,
+                });
+            }
+
             // Ensure plan is linked to case
             if (!sc.case_plan) {
                 await tx.casePlan.update({
@@ -426,6 +505,20 @@ export async function PATCH(
                 primary_surgeon: { select: { id: true, name: true } },
                 consultation: { select: { id: true, appointment_id: true } },
                 theater_booking: { include: { theater: { select: { name: true } } } },
+                staff_invites: {
+                    select: {
+                        id: true,
+                        status: true,
+                        invited_role: true,
+                        invited_user: {
+                            select: {
+                                first_name: true,
+                                last_name: true,
+                                role: true,
+                            }
+                        }
+                    }
+                },
                 case_plan: {
                     include: {
                         consents: { orderBy: { created_at: 'desc' } },

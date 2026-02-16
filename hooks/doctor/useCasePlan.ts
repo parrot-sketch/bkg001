@@ -39,6 +39,7 @@ export function useCasePlanDetail(caseId: string) {
             return response.data;
         },
         enabled: !!caseId,
+        staleTime: 1000 * 60, // 1 min — plan detail, less volatile
     });
 }
 
@@ -210,5 +211,67 @@ export function useRemoveStaff(caseId: string) {
         onError: (error: Error) => {
             toast.error(error.message);
         },
+    });
+}
+/** Invite a staff member */
+export function useInviteStaff(caseId: string) {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (data: { invitedUserId: string; invitedRole: string; procedureRecordId?: string }) => {
+            const response = await casePlanApi.inviteStaff(caseId, data);
+            if (!response.success) {
+                throw new Error(response.error || 'Failed to invite staff');
+            }
+            return response.data;
+        },
+        onSuccess: () => {
+            toast.success('Invitation sent');
+            queryClient.invalidateQueries({ queryKey: casePlanKeys.detail(caseId) });
+        },
+        onError: (error: Error) => {
+            toast.error(error.message);
+        },
+    });
+}
+
+/** Cancel a staff invitation */
+export function useCancelInvite(caseId: string) {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (inviteId: string) => {
+            const response = await casePlanApi.cancelInvite(caseId, inviteId);
+            if (!response.success) {
+                throw new Error(response.error || 'Failed to cancel invitation');
+            }
+            return response.data;
+        },
+        onSuccess: () => {
+            toast.success('Invitation cancelled');
+            queryClient.invalidateQueries({ queryKey: casePlanKeys.detail(caseId) });
+        },
+        onError: (error: Error) => {
+            toast.error(error.message);
+        },
+    });
+}
+
+/** Search eligible staff hook */
+export function useEligibleStaffSearch(
+    params: { caseId: string; surgicalRole: string; q?: string },
+    enabled: boolean = false
+) {
+    return useQuery({
+        queryKey: ['staff-eligible', params.caseId, params.surgicalRole, params.q],
+        queryFn: async () => {
+            const response = await casePlanApi.getEligibleStaff(params);
+            if (!response.success) {
+                throw new Error(response.error || 'Failed to fetch eligible staff');
+            }
+            return response.data;
+        },
+        enabled: enabled && !!params.caseId && !!params.surgicalRole,
+        staleTime: 1000 * 60 * 5, // 5 minutes
     });
 }

@@ -27,6 +27,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import db from '@/lib/db';
 import { Prisma, SurgicalCaseStatus, SurgicalUrgency } from '@prisma/client';
+import { endpointTimer } from '@/lib/observability/endpointLogger';
 
 // ─── Constants ──────────────────────────────────────────────────────────
 const DEFAULT_PAGE = 1;
@@ -231,6 +232,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const safePage = Math.min(page, totalPages);
 
         // 8. Fetch filtered + paginated cases
+        const timer = endpointTimer('GET /api/doctor/surgical-cases');
         const cases = await db.surgicalCase.findMany({
             where,
             orderBy: [
@@ -310,6 +312,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             // Within same priority: newest updated first
             return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
         });
+
+        timer.end({ page: safePage, pageSize, total, results: sorted.length });
 
         // 10. Map to DTO
         const items = sorted.map(mapCaseToDto);
