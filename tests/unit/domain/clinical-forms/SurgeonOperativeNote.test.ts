@@ -45,6 +45,8 @@ const VALID_FINAL_DATA: SurgeonOperativeNoteData = {
         assistants: [
             { userId: 'user-456', name: 'Dr. Jones', role: 'FIRST_ASSISTANT' },
         ],
+        anesthesiologistId: 'doc-anes',
+        anesthesiologistName: 'Dr. Anesthesia',
         anesthesiaType: 'GENERAL',
     },
     findingsAndSteps: {
