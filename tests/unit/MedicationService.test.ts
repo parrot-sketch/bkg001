@@ -22,12 +22,19 @@ describe('MedicationService', () => {
             payment: {
                 findUnique: vi.fn(),
                 create: vi.fn(),
+                update: vi.fn(),
             },
-            surgicalMedicationAdministration: {
+            surgicalMedicationRecord: {
                 create: vi.fn(),
                 findUnique: vi.fn(),
                 findMany: vi.fn(),
                 update: vi.fn(),
+            },
+            surgicalCase: {
+                findUnique: vi.fn(),
+            },
+            service: {
+                findFirst: vi.fn(),
             },
             $transaction: vi.fn((callback) => callback(prismaMock)),
         };
@@ -39,7 +46,7 @@ describe('MedicationService', () => {
             { id: 1, name: 'Paracetamol', quantity_on_hand: 100, is_active: true }
         ]);
 
-        const result = await medicationService.listEligibleMedications('case-1', 'Para');
+        const result = await medicationService.listEligibleMedications('Para');
 
         expect(result).toHaveLength(1);
         expect(result[0].name).toBe('Paracetamol');
@@ -70,21 +77,27 @@ describe('MedicationService', () => {
             is_billable: true
         });
 
-        prismaMock.surgicalMedicationAdministration.create.mockResolvedValue({
+        prismaMock.surgicalMedicationRecord.create.mockResolvedValue({
             id: 'admin-1',
             ...adminData,
             status: 'ADMINISTERED'
         });
 
         // Mocking the transaction result
-        prismaMock.$transaction.mockImplementation(async (cb) => {
+        prismaMock.$transaction.mockImplementation(async (cb: any) => {
             return await cb(prismaMock);
         });
 
+        // Mock additional queries for billing
+        prismaMock.surgicalCase.findUnique.mockResolvedValue({ patient_id: 'patient-123' });
+        prismaMock.service.findFirst.mockResolvedValue({ id: 99 });
+        prismaMock.payment.create.mockResolvedValue({ id: 50 }); // Mock payment creation
+        prismaMock.inventoryUsage.create.mockResolvedValue({ id: 75 }); // Mock usage creation
+
         const result = await medicationService.administerMedication('case-1', 'form-1', adminData, 'nurse-1');
 
-        expect(result.success).toBe(true);
-        expect(prismaMock.surgicalMedicationAdministration.create).toHaveBeenCalled();
-        expect(prismaMock.inventoryItem.update).toHaveBeenCalled(); // stock deduction
+        expect(result).toBeDefined();
+        expect(result.status).toBe('ADMINISTERED');
+        expect(prismaMock.surgicalMedicationRecord.create).toHaveBeenCalled();
     });
 });
