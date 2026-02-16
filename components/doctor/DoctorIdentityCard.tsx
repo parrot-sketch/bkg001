@@ -73,11 +73,6 @@ export function DoctorIdentityCard({
                   <Award className="h-4 w-4 mr-1.5" />
                   {doctor.specialization}
                 </span>
-                {doctor.licenseNumber && (
-                  <span className="text-sm text-muted-foreground">
-                    License: {doctor.licenseNumber}
-                  </span>
-                )}
               </div>
             </div>
 
