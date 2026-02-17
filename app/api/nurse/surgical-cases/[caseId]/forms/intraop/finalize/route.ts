@@ -1,28 +1,11 @@
-/**
- * API Route: POST /api/nurse/surgical-cases/[caseId]/forms/intraop/finalize
- *
- * Validates all required fields and marks the intra-op record as FINAL.
- * Sets signedByUserId + signedAt. Emits audit event.
- *
- * Critical safety validation:
- * - Final counts must be completed
- * - Sign-out must be completed
- * - If count discrepancy flagged, notes must be provided
- *
- * Security: NURSE only.
- * Uses a transaction for atomicity.
- */
-
 import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import db from '@/lib/db';
 import { ClinicalFormStatus } from '@prisma/client';
 import {
-    INTRAOP_TEMPLATE_KEY,
-    INTRAOP_TEMPLATE_VERSION,
     nurseIntraOpRecordFinalSchema,
-    getMissingIntraOpItems,
+    checkNurseRecoveryGateCompliance,
 } from '@/domain/clinical-forms/NurseIntraOpRecord';
 
 export async function POST(
@@ -41,115 +24,84 @@ export async function POST(
             return NextResponse.json({ success: false, error: 'Only nurses can finalize the intra-op record' }, { status: 403 });
         }
 
-        const userId = authResult.user.userId;
-
-        // 2. Find existing form response
-        const existing = await db.clinicalFormResponse.findUnique({
+        // 2. Load existing record
+        const record = await db.clinicalFormResponse.findUnique({
             where: {
                 template_key_template_version_surgical_case_id: {
-                    template_key: INTRAOP_TEMPLATE_KEY,
-                    template_version: INTRAOP_TEMPLATE_VERSION,
+                    template_key: 'NURSE_INTRAOP_RECORD',
+                    template_version: 2,
                     surgical_case_id: caseId,
-                },
-            },
+                }
+            }
         });
 
-        if (!existing) {
-            return NextResponse.json(
-                { success: false, error: 'No intra-op record draft found. Start the record first.' },
-                { status: 404 },
-            );
+        if (!record) {
+            return NextResponse.json({ success: false, error: 'Intra-op record not found' }, { status: 404 });
         }
 
-        if (existing.status === ClinicalFormStatus.FINAL) {
-            return NextResponse.json(
-                { success: false, error: 'Intra-op record is already finalized.' },
-                { status: 409 },
-            );
+        if (record.status === ClinicalFormStatus.FINAL) {
+            return NextResponse.json({ success: false, error: 'Intra-op record is already finalized' }, { status: 400 });
         }
 
-        // 3. Parse current data and validate with FINAL schema
-        let currentData: unknown;
+        // 3. Validate for finalization
+        let currentData: any;
         try {
-            currentData = JSON.parse(existing.data_json);
-        } catch {
-            return NextResponse.json(
-                { success: false, error: 'Stored form data is corrupted.' },
-                { status: 500 },
-            );
+            currentData = JSON.parse(record.data_json);
+        } catch (e) {
+            return NextResponse.json({ success: false, error: 'Corrupted form data' }, { status: 500 });
         }
 
-        const parsed = nurseIntraOpRecordFinalSchema.safeParse(currentData);
-        if (!parsed.success) {
-            const missingItems = getMissingIntraOpItems(currentData as any);
-            return NextResponse.json(
-                {
-                    success: false,
-                    error: 'Cannot finalize: required fields are missing.',
-                    missingItems,
-                    details: parsed.error.issues.map((i) => ({
-                        path: i.path.join('.'),
-                        message: i.message,
-                    })),
-                },
-                { status: 422 },
-            );
+        // Domain validation (Zod)
+        const validation = nurseIntraOpRecordFinalSchema.safeParse(currentData);
+        if (!validation.success) {
+            return NextResponse.json({
+                success: false,
+                error: 'Validation failed',
+                details: validation.error.format()
+            }, { status: 400 });
         }
 
-        // 4. Transaction: finalize + audit
-        const now = new Date();
+        // Custom clinical gates (e.g. counts must be correct)
+        const missingItems = checkNurseRecoveryGateCompliance(currentData as any);
+        if (missingItems.length > 0) {
+            return NextResponse.json({
+                success: false,
+                error: 'Clinical gate failure',
+                missingItems
+            }, { status: 400 });
+        }
 
-        const finalized = await db.$transaction(async (tx) => {
-            const updated = await tx.clinicalFormResponse.update({
-                where: { id: existing.id },
+        // 4. Update to FINAL status and Record Signature
+        await db.$transaction(async (tx) => {
+            await tx.clinicalFormResponse.update({
+                where: { id: record.id },
                 data: {
                     status: ClinicalFormStatus.FINAL,
-                    data_json: JSON.stringify(parsed.data),
-                    signed_by_user_id: userId,
-                    signed_at: now,
-                    updated_by_user_id: userId,
-                },
+                    signed_by_user_id: authResult.user?.userId,
+                    signed_at: new Date(),
+                    updated_by_user_id: authResult.user?.userId,
+                }
             });
 
+            // 5. Audit Trail entry — Corrected to ClinicalAuditEvent
             await tx.clinicalAuditEvent.create({
                 data: {
-                    actor_user_id: userId,
-                    action_type: 'INTRAOP_RECORD_FINALIZED',
+                    actor_user_id: authResult.user?.userId || 'system',
+                    action_type: 'FORM_FINALIZED',
                     entity_type: 'ClinicalFormResponse',
-                    entity_id: updated.id,
+                    entity_id: record.id,
                     metadata: JSON.stringify({
-                        surgicalCaseId: caseId,
-                        templateKey: INTRAOP_TEMPLATE_KEY,
-                        templateVersion: INTRAOP_TEMPLATE_VERSION,
-                        countDiscrepancy: parsed.data.counts.countDiscrepancy,
+                        template: 'NURSE_INTRAOP_RECORD',
+                        version: 2,
+                        caseId
                     }),
-                },
+                }
             });
-
-            await tx.auditLog.create({
-                data: {
-                    user_id: userId,
-                    record_id: caseId,
-                    action: 'FINALIZE',
-                    model: 'NurseIntraOpRecord',
-                    details: `Intra-operative nurse record finalized for surgical case ${caseId}`,
-                },
-            });
-
-            return updated;
         });
 
-        return NextResponse.json({
-            success: true,
-            data: {
-                id: finalized.id,
-                status: finalized.status,
-                signedAt: finalized.signed_at,
-                signedByUserId: finalized.signed_by_user_id,
-            },
-            message: 'Intra-op record finalized successfully',
-        });
-    } catch (error) {
+        return NextResponse.json({ success: true });
+
+    } catch (error: any) {
         console.error('[API] POST intraop finalize error:', error);
         return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
     }

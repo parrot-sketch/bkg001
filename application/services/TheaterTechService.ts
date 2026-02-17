@@ -24,7 +24,7 @@ import { DomainException } from '@/domain/exceptions/DomainException';
 import {
   INTRAOP_TEMPLATE_KEY,
   INTRAOP_TEMPLATE_VERSION,
-  getRecoveryGateItems,
+  checkNurseRecoveryGateCompliance,
 } from '@/domain/clinical-forms/NurseIntraOpRecord';
 import {
   RECOVERY_TEMPLATE_KEY,
@@ -86,7 +86,7 @@ export class TheaterTechService {
     private readonly surgicalCaseService: SurgicalCaseService,
     private readonly checklistRepo: ISurgicalChecklistRepository,
     private readonly auditRepo: IClinicalAuditRepository
-  ) {}
+  ) { }
 
   // ==========================================================================
   // DAYBOARD (OPTIMIZED) — single lean query for the day-of dashboard
@@ -214,17 +214,17 @@ export class TheaterTechService {
 
     const blockerForms = caseIds.length > 0
       ? await this.prisma.clinicalFormResponse.findMany({
-          where: {
-            surgical_case_id: { in: caseIds },
-            template_key: { in: [INTRAOP_TEMPLATE_KEY, RECOVERY_TEMPLATE_KEY] },
-            status: 'FINAL',
-          },
-          select: {
-            surgical_case_id: true,
-            template_key: true,
-            data_json: true,
-          },
-        })
+        where: {
+          surgical_case_id: { in: caseIds },
+          template_key: { in: [INTRAOP_TEMPLATE_KEY, RECOVERY_TEMPLATE_KEY] },
+          status: 'FINAL',
+        },
+        select: {
+          surgical_case_id: true,
+          template_key: true,
+          data_json: true,
+        },
+      })
       : [];
 
     // Build lookup: caseId → { intraOpDiscrepancy, dischargeReady }
@@ -235,7 +235,7 @@ export class TheaterTechService {
       if (form.template_key === INTRAOP_TEMPLATE_KEY) {
         try {
           const d = JSON.parse(form.data_json);
-          entry.intraOpDiscrepancy = d?.counts?.countDiscrepancy === true;
+          entry.intraOpDiscrepancy = d?.counts?.countCorrect === false;
         } catch { /* corrupted data */ }
       } else if (form.template_key === RECOVERY_TEMPLATE_KEY) {
         try {
@@ -372,13 +372,13 @@ export class TheaterTechService {
         hasProcedureRecord: sc.procedure_record != null,
         timeline: sc.procedure_record
           ? {
-              wheelsIn: sc.procedure_record.wheels_in?.toISOString() ?? null,
-              anesthesiaStart: sc.procedure_record.anesthesia_start?.toISOString() ?? null,
-              anesthesiaEnd: sc.procedure_record.anesthesia_end?.toISOString() ?? null,
-              incisionTime: sc.procedure_record.incision_time?.toISOString() ?? null,
-              closureTime: sc.procedure_record.closure_time?.toISOString() ?? null,
-              wheelsOut: sc.procedure_record.wheels_out?.toISOString() ?? null,
-            }
+            wheelsIn: sc.procedure_record.wheels_in?.toISOString() ?? null,
+            anesthesiaStart: sc.procedure_record.anesthesia_start?.toISOString() ?? null,
+            anesthesiaEnd: sc.procedure_record.anesthesia_end?.toISOString() ?? null,
+            incisionTime: sc.procedure_record.incision_time?.toISOString() ?? null,
+            closureTime: sc.procedure_record.closure_time?.toISOString() ?? null,
+            wheelsOut: sc.procedure_record.wheels_out?.toISOString() ?? null,
+          }
           : null,
       };
 
@@ -868,7 +868,7 @@ export class TheaterTechService {
       );
     }
 
-    const missingItems = getRecoveryGateItems(data as any);
+    const missingItems = checkNurseRecoveryGateCompliance(data as any);
     if (missingItems.length > 0) {
       throw new DomainException(
         `Cannot transition to RECOVERY: ${missingItems.length} safety item(s) incomplete in intra-op record`,

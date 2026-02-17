@@ -1339,6 +1339,10 @@ model SurgicalProcedureRecord {
   closure_time     DateTime?
   wheels_out       DateTime?
 
+  // Fluid Balance (New for Intra-Op Redesign)
+  estimated_blood_loss Int? // ml
+  urine_output         Int? // ml
+
   // Prep Details
   shaving_required Boolean @default(false)
   shaving_extent   String?
