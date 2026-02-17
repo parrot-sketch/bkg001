@@ -388,6 +388,20 @@ async function main() {
       role_owner: Role.NURSE,
       schema_json: '{}',
       ui_json: '{}',
+      is_active: false, // Retired version 1
+    }
+  });
+
+  await prisma.clinicalFormTemplate.upsert({
+    where: { key_version: { key: 'NURSE_INTRAOP_RECORD', version: 2 } },
+    update: {},
+    create: {
+      key: 'NURSE_INTRAOP_RECORD',
+      version: 2,
+      title: 'Intra-Operative Nurse Record (V2 Redesign)',
+      role_owner: Role.NURSE,
+      schema_json: '{}',
+      ui_json: '{}',
       is_active: true,
     }
   });

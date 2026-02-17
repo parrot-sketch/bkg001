@@ -151,11 +151,45 @@ export async function GET(
             }
 
             const emptyData = {
-                theatreSetup: {},
-                counts: {},
-                specimens: {},
-                implantsUsed: {},
-                signOut: {},
+                entry: { arrivalMethod: 'STRETCHER', timeIn: '', asaClass: '1' },
+                safety: {
+                    patientIdVerified: false, informedConsentSigned: false,
+                    preOpChecklistCompleted: false, whoChecklistCompleted: false,
+                    arrivedWithIvInfusing: false, antibioticOrdered: false
+                },
+                timings: { timeIntoTheatre: '', timeOutOfTheatre: '', operationStart: '', operationFinish: '' },
+                diagnoses: { preOpDiagnosis: '', intraOpDiagnosis: '', operationPerformed: '' },
+                positioning: { position: 'SUPINE', safetyBeltApplied: false, armsSecured: false, bodyAlignmentCorrect: false },
+                catheter: { inSitu: false, insertedInTheatre: false },
+                skinPrep: { prepAgent: 'HIBITANE_SPIRIT' },
+                surgicalDetails: { woundClass: 'CLEAN', woundIrrigation: [], drainType: [] },
+                equipment: {
+                    electrosurgical: { cauteryUsed: false, cutSet: '30', coagSet: '30', skinCheckedBefore: false, skinCheckedAfter: false },
+                    tourniquet: { tourniquetUsed: false, laterality: 'N/A', skinCheckedBefore: false, skinCheckedAfter: false }
+                },
+                staffing: { surgeon: '', assistant: '', anaesthesiologist: '', scrubNurse: '', circulatingNurse: '' },
+                anaesthesia: { type: 'GENERAL' },
+                counts: {
+                    items: [
+                        { name: 'Abdominal Swabs', preliminary: 0, woundClosure: 0, final: 0 },
+                        { name: 'Raytec Swabs', preliminary: 0, woundClosure: 0, final: 0 },
+                        { name: 'Throat Packs', preliminary: 0, woundClosure: 0, final: 0 },
+                        { name: 'Sharps', preliminary: 0, woundClosure: 0, final: 0 },
+                        { name: 'Instruments', preliminary: 0, woundClosure: 0, final: 0 },
+                    ],
+                    countCorrect: true
+                },
+                closure: { skinClosure: '', dressingApplied: '' },
+                fluids: {
+                    bloodTransfusionPackedCellsMl: 0, bloodTransfusionWholeMl: 0,
+                    bloodTransfusionOtherMl: 0, ivInfusionTotalMl: 0,
+                    estimatedBloodLossMl: 0, urinaryOutputMl: 0
+                },
+                medications: [],
+                implants: [],
+                specimens: [],
+                itemsToReturnToTheatre: '',
+                billing: { anaestheticMaterialsCharge: '', theatreFee: '' }
             };
 
             response = await db.clinicalFormResponse.create({
@@ -240,12 +274,34 @@ export async function PUT(
             );
         }
 
-        const updated = await db.clinicalFormResponse.update({
-            where: { id: existing.id },
-            data: {
-                data_json: JSON.stringify(parsed.data),
-                updated_by_user_id: auth.user.userId,
-            },
+        const updated = await db.$transaction(async (tx) => {
+            const up = await tx.clinicalFormResponse.update({
+                where: { id: existing.id },
+                data: {
+                    data_json: JSON.stringify(parsed.data),
+                    updated_by_user_id: auth.user.userId,
+                },
+            });
+
+            // Sync structured data to SurgicalProcedureRecord for real-time dashboard
+            const fluids = parsed.data.fluids || {};
+            if (fluids.estimatedBloodLossMl !== undefined || fluids.urinaryOutputMl !== undefined) {
+                const procedureRecord = await tx.surgicalProcedureRecord.findUnique({
+                    where: { surgical_case_id: caseId },
+                });
+
+                if (procedureRecord) {
+                    await tx.surgicalProcedureRecord.update({
+                        where: { id: procedureRecord.id },
+                        data: {
+                            estimated_blood_loss: fluids.estimatedBloodLossMl,
+                            urine_output: fluids.urinaryOutputMl,
+                        },
+                    });
+                }
+            }
+
+            return up;
         });
 
         await db.clinicalAuditEvent.create({

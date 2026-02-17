@@ -26,7 +26,7 @@ import {
 import type {
     NurseIntraOpRecordDraft,
     SpecimenItem,
-    ImplantUsedItem,
+    ImplantItem,
 } from '@/domain/clinical-forms/NurseIntraOpRecord';
 import { INTRAOP_SECTIONS } from '@/domain/clinical-forms/NurseIntraOpRecord';
 import { Card, CardContent } from '@/components/ui/card';
@@ -73,6 +73,20 @@ import {
     Trash2,
     Timer,
     Clock,
+    UserCheck,
+    Sparkles,
+    Zap,
+    Droplet,
+    Bandage,
+    Printer,
+    LogIn,
+    ShieldCheck,
+    Stethoscope,
+    Users,
+    Droplets,
+    Activity,
+    ListCheck,
+    Table,
 } from 'lucide-react';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
@@ -88,11 +102,20 @@ import type { TimelineResultDto } from '@/application/dtos/TheaterTechDtos';
 // ──────────────────────────────────────────────────────────────────────
 
 const SECTION_ICONS: Record<string, React.ElementType> = {
-    Settings,
-    Hash,
-    FlaskConical,
-    Package,
-    ClipboardCheck,
+    entry: LogIn,
+    safety: ShieldCheck,
+    timings: Clock,
+    staffing: Users,
+    diagnoses: Stethoscope,
+    positioning: UserCheck,
+    catheter: Droplets,
+    skinPrep: Sparkles,
+    equipment: Zap,
+    surgicalDetails: Activity,
+    counts: ListCheck,
+    closure: Bandage,
+    fluids: Droplet,
+    tables: Table,
 };
 
 // ──────────────────────────────────────────────────────────────────────
@@ -225,371 +248,601 @@ interface SectionProps {
     disabled: boolean;
 }
 
-function TheatreSetupSection({ data, onChange, disabled }: SectionProps) {
-    const d = data.theatreSetup ?? {};
+// ──────────────────────────────────────────────────────────────────────
+// Section Renderers 1-5
+// ──────────────────────────────────────────────────────────────────────
+
+function ArrivalSection({ data, onChange, disabled }: SectionProps) {
+    const d = data.entry ?? {};
     const set = (field: string, value: any) =>
-        onChange({ ...data, theatreSetup: { ...d, [field]: value } });
+        onChange({ ...data, entry: { ...d, [field]: value } });
 
     return (
-        <div className="space-y-5">
-            {/* Core Setup */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <TextField label="Patient Positioning" value={d.positioning} onChange={(v) => set('positioning', v)} disabled={disabled} />
-                <TextField label="Skin Prep Agent" value={d.skinPrepAgent} onChange={(v) => set('skinPrepAgent', v)} disabled={disabled} />
-                <TextField label="Drape Type" value={d.drapeType} onChange={(v) => set('drapeType', v)} disabled={disabled} />
+        <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
-                    <Label className="text-sm">Wound Classification</Label>
-                    <Select
-                        value={d.woundClass || ''}
-                        onValueChange={(v) => set('woundClass', v)}
-                        disabled={disabled}
-                    >
-                        <SelectTrigger className="h-9">
-                            <SelectValue placeholder="Select wound class" />
-                        </SelectTrigger>
+                    <Label className="text-sm">Arrival Method</Label>
+                    <Select value={d.arrivalMethod || ''} onValueChange={(v) => set('arrivalMethod', v)} disabled={disabled}>
+                        <SelectTrigger className="h-9"><SelectValue placeholder="Method" /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="CLEAN">Clean</SelectItem>
-                            <SelectItem value="CLEAN_CONTAMINATED">Clean-Contaminated</SelectItem>
-                            <SelectItem value="CONTAMINATED">Contaminated</SelectItem>
-                            <SelectItem value="DIRTY_INFECTED">Dirty / Infected</SelectItem>
+                            <SelectItem value="STRETCHER">Stretcher</SelectItem>
+                            <SelectItem value="WHEELCHAIR">Wheelchair</SelectItem>
+                            <SelectItem value="WALKING">Walking</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                <TimeField label="Time In" value={d.timeIn} onChange={(v) => set('timeIn', v)} disabled={disabled} />
+                <div className="space-y-1.5">
+                    <Label className="text-sm">ASA Class</Label>
+                    <Select value={d.asaClass || ''} onValueChange={(v) => set('asaClass', v)} disabled={disabled}>
+                        <SelectTrigger className="h-9"><SelectValue placeholder="ASA" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="1">ASA 1</SelectItem>
+                            <SelectItem value="2">ASA 2</SelectItem>
+                            <SelectItem value="3">ASA 3</SelectItem>
+                            <SelectItem value="4">ASA 4</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
             </div>
+            <TextField label="Allergies" value={d.allergies} onChange={(v) => set('allergies', v)} disabled={disabled} placeholder="Nil known / Specific allergies" />
+            <TextField label="General Comments" value={d.comments} onChange={(v) => set('comments', v)} disabled={disabled} />
+        </div>
+    );
+}
 
-            <Separator />
+function SafetyChecklistSection({ data, onChange, disabled }: SectionProps) {
+    const d = data.safety ?? {};
+    const set = (field: string, value: any) =>
+        onChange({ ...data, safety: { ...d, [field]: value } });
 
-            {/* Tourniquet */}
-            <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                    <Switch checked={!!d.tourniquetUsed} onCheckedChange={(v) => set('tourniquetUsed', v)} disabled={disabled} />
-                    <Label className="text-sm font-medium">Tourniquet Used</Label>
-                </div>
-                {d.tourniquetUsed && (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pl-8 animate-in slide-in-from-top-2 duration-200">
-                        <NumberField label="Pressure" value={d.tourniquetPressure} onChange={(v) => set('tourniquetPressure', v)} min={0} max={500} unit="mmHg" disabled={disabled} />
-                        <TimeField label="Time On" value={d.tourniquetTimeOn} onChange={(v) => set('tourniquetTimeOn', v)} disabled={disabled} />
-                        <TimeField label="Time Off" value={d.tourniquetTimeOff} onChange={(v) => set('tourniquetTimeOff', v)} disabled={disabled} />
-                    </div>
-                )}
+    return (
+        <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
+                <BooleanField label="Patient ID Verified with Reg No." value={d.patientIdVerified} onChange={(v) => set('patientIdVerified', v)} disabled={disabled} />
+                <BooleanField label="Informed Consent Signed" value={d.informedConsentSigned} onChange={(v) => set('informedConsentSigned', v)} disabled={disabled} />
+                <BooleanField label="Pre-op Checklist Completed" value={d.preOpChecklistCompleted} onChange={(v) => set('preOpChecklistCompleted', v)} disabled={disabled} />
+                <BooleanField label="WHO Checklist Completed" value={d.whoChecklistCompleted} onChange={(v) => set('whoChecklistCompleted', v)} disabled={disabled} />
+                <BooleanField label="Arrived with IV infusing" value={d.arrivedWithIvInfusing} onChange={(v) => set('arrivedWithIvInfusing', v)} disabled={disabled} />
             </div>
-
             <Separator />
-
-            {/* Cautery */}
-            <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                    <Switch checked={!!d.cauteryUsed} onCheckedChange={(v) => set('cauteryUsed', v)} disabled={disabled} />
-                    <Label className="text-sm font-medium">Cautery / Diathermy Used</Label>
-                </div>
-                {d.cauteryUsed && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-8 animate-in slide-in-from-top-2 duration-200">
-                        <TextField label="Cut Setting" value={d.cauterySettingsCut} onChange={(v) => set('cauterySettingsCut', v)} disabled={disabled} />
-                        <TextField label="Coag Setting" value={d.cauterySettingsCoag} onChange={(v) => set('cauterySettingsCoag', v)} disabled={disabled} />
-                    </div>
-                )}
-            </div>
-
-            <Separator />
-
-            {/* Drains */}
-            <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                    <Switch checked={!!d.drainsUsed} onCheckedChange={(v) => set('drainsUsed', v)} disabled={disabled} />
-                    <Label className="text-sm font-medium">Drains Used</Label>
-                </div>
-                {d.drainsUsed && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-8 animate-in slide-in-from-top-2 duration-200">
-                        <TextField label="Drain Type" value={d.drainType} onChange={(v) => set('drainType', v)} disabled={disabled} />
-                        <TextField label="Drain Location" value={d.drainLocation} onChange={(v) => set('drainLocation', v)} disabled={disabled} />
-                    </div>
-                )}
-            </div>
-
-            <Separator />
-
-            {/* Irrigation */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <TextField label="Irrigation Type" value={d.irrigationType} onChange={(v) => set('irrigationType', v)} disabled={disabled} />
-                <NumberField label="Irrigation Volume" value={d.irrigationVolumeMl} onChange={(v) => set('irrigationVolumeMl', v)} min={0} unit="mL" disabled={disabled} />
+                <TextField label="IV Started by" value={d.ivStartedBy} onChange={(v) => set('ivStartedBy', v)} disabled={disabled} />
+                <TimeField label="IV Start Time" value={d.ivStartTime} onChange={(v) => set('ivStartTime', v)} disabled={disabled} />
             </div>
+            <Separator />
+            <div className="space-y-3">
+                <BooleanField label="Antibiotic ordered" value={d.antibioticOrdered} onChange={(v) => set('antibioticOrdered', v)} disabled={disabled} />
+                {d.antibioticOrdered && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pl-8 animate-in slide-in-from-top-1">
+                        <TextField label="Type" value={d.antibioticType} onChange={(v) => set('antibioticType', v)} disabled={disabled} />
+                        <TextField label="Ordered by" value={d.antibioticOrderedBy} onChange={(v) => set('antibioticOrderedBy', v)} disabled={disabled} />
+                        <TimeField label="Time" value={d.antibioticTime} onChange={(v) => set('antibioticTime', v)} disabled={disabled} />
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function TimingsSection({ data, onChange, disabled }: SectionProps) {
+    const d = data.timings ?? {};
+    const set = (field: string, value: any) =>
+        onChange({ ...data, timings: { ...d, [field]: value } });
+
+    return (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <TimeField label="Time in Theatre" value={d.timeIntoTheatre} onChange={(v) => set('timeIntoTheatre', v)} disabled={disabled} />
+            <TimeField label="Time out of Theatre" value={d.timeOutOfTheatre} onChange={(v) => set('timeOutOfTheatre', v)} disabled={disabled} />
+            <TimeField label="Operation Start" value={d.operationStart} onChange={(v) => set('operationStart', v)} disabled={disabled} />
+            <TimeField label="Operation Finish" value={d.operationFinish} onChange={(v) => set('operationFinish', v)} disabled={disabled} />
+        </div>
+    );
+}
+
+function StaffingSection({ data, onChange, disabled }: SectionProps) {
+    const d = data.staffing ?? {};
+    const set = (field: string, value: any) =>
+        onChange({ ...data, staffing: { ...d, [field]: value } });
+
+    return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <TextField label="Surgeon" value={d.surgeon} onChange={(v) => set('surgeon', v)} disabled={disabled} />
+            <TextField label="Assistant" value={d.assistant} onChange={(v) => set('assistant', v)} disabled={disabled} />
+            <TextField label="Anaesthesiologist" value={d.anaesthesiologist} onChange={(v) => set('anaesthesiologist', v)} disabled={disabled} />
+            <TextField label="Scrub Nurse" value={d.scrubNurse} onChange={(v) => set('scrubNurse', v)} disabled={disabled} />
+            <TextField label="Circulating Nurse" value={d.circulatingNurse} onChange={(v) => set('circulatingNurse', v)} disabled={disabled} />
+            <TextField label="Observers / Other" value={d.observers} onChange={(v) => set('observers', v)} disabled={disabled} />
+        </div>
+    );
+}
+
+function DiagnosesSection({ data, onChange, disabled }: SectionProps) {
+    const d = data.diagnoses ?? {};
+    const set = (field: string, value: any) =>
+        onChange({ ...data, diagnoses: { ...d, [field]: value } });
+
+    return (
+        <div className="space-y-4">
+            <TextField label="Pre-op Diagnosis" value={d.preOpDiagnosis} onChange={(v) => set('preOpDiagnosis', v)} disabled={disabled} />
+            <TextField label="Intra-op Diagnosis" value={d.intraOpDiagnosis} onChange={(v) => set('intraOpDiagnosis', v)} disabled={disabled} />
+            <TextField label="Operation(s) Performed" value={d.operationPerformed} onChange={(v) => set('operationPerformed', v)} disabled={disabled} />
+        </div>
+    );
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Section Renderers 6-10
+// ──────────────────────────────────────────────────────────────────────
+
+function PositioningSection({ data, onChange, disabled }: SectionProps) {
+    const d = data.positioning ?? {};
+    const set = (field: string, value: any) =>
+        onChange({ ...data, positioning: { ...d, [field]: value } });
+
+    return (
+        <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                    <Label className="text-sm">Patient Position (tick)</Label>
+                    <Select value={d.position || ''} onValueChange={(v) => set('position', v)} disabled={disabled}>
+                        <SelectTrigger className="h-9"><SelectValue placeholder="Position" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="PRONE">Prone</SelectItem>
+                            <SelectItem value="SUPINE">Supine</SelectItem>
+                            <SelectItem value="LATERAL">Lateral</SelectItem>
+                            <SelectItem value="LITHOTOMY">Lithotomy</SelectItem>
+                            <SelectItem value="OTHER">Other</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                {d.position === 'OTHER' && <TextField label="Other Position" value={d.otherPosition} onChange={(v) => set('otherPosition', v)} disabled={disabled} />}
+            </div>
+            <Separator />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
+                <div className="space-y-2">
+                    <BooleanField label="Safety belt applied" value={d.safetyBeltApplied} onChange={(v) => set('safetyBeltApplied', v)} disabled={disabled} />
+                    {d.safetyBeltApplied && <TextField label="Belt Position" value={d.safetyBeltPosition} onChange={(v) => set('safetyBeltPosition', v)} disabled={disabled} />}
+                </div>
+                <div className="space-y-2">
+                    <BooleanField label="Arms secured" value={d.armsSecured} onChange={(v) => set('armsSecured', v)} disabled={disabled} />
+                    {d.armsSecured && <TextField label="Arms Position" value={d.armsPosition} onChange={(v) => set('armsPosition', v)} disabled={disabled} />}
+                </div>
+                <BooleanField label="Patient in proper body alignment" value={d.bodyAlignmentCorrect} onChange={(v) => set('bodyAlignmentCorrect', v)} disabled={disabled} />
+                <TextField label="Pressure points (describe)" value={d.pressurePointsDescribe} onChange={(v) => set('pressurePointsDescribe', v)} disabled={disabled} />
+            </div>
+        </div>
+    );
+}
+
+function CatheterSection({ data, onChange, disabled }: SectionProps) {
+    const d = data.catheter ?? {};
+    const set = (field: string, value: any) =>
+        onChange({ ...data, catheter: { ...d, [field]: value } });
+
+    return (
+        <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <BooleanField label="Urinary catheter in-situ" value={d.inSitu} onChange={(v) => set('inSitu', v)} disabled={disabled} />
+                <BooleanField label="Urinary catheter inserted in theatre" value={d.insertedInTheatre} onChange={(v) => set('insertedInTheatre', v)} disabled={disabled} />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <TextField label="Type" value={d.type} onChange={(v) => set('type', v)} disabled={disabled} />
+                <TextField label="Size" value={d.size} onChange={(v) => set('size', v)} disabled={disabled} />
+            </div>
+        </div>
+    );
+}
+
+function SkinPrepSection({ data, onChange, disabled }: SectionProps) {
+    const d = data.skinPrep ?? {};
+    const set = (field: string, value: any) =>
+        onChange({ ...data, skinPrep: { ...d, [field]: value } });
+
+    return (
+        <div className="space-y-4">
+            <TextField label="Shaved by" value={d.shavedBy} onChange={(v) => set('shavedBy', v)} disabled={disabled} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                    <Label className="text-sm">Prep Agent</Label>
+                    <Select value={d.prepAgent || ''} onValueChange={(v) => set('prepAgent', v)} disabled={disabled}>
+                        <SelectTrigger className="h-9"><SelectValue placeholder="Agent" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="HIBITANE_SPIRIT">Hibitane in spirit</SelectItem>
+                            <SelectItem value="POVIDONE_IODINE">Povidone Iodine</SelectItem>
+                            <SelectItem value="HIBITANE_WATER">Hibitane in water</SelectItem>
+                            <SelectItem value="OTHER">Other</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                {d.prepAgent === 'OTHER' && <TextField label="Other Agent" value={d.otherPrepAgent} onChange={(v) => set('otherPrepAgent', v)} disabled={disabled} />}
+            </div>
+        </div>
+    );
+}
+
+function EquipmentSection({ data, onChange, disabled }: SectionProps) {
+    const el = data.equipment?.electrosurgical ?? {};
+    const tq = data.equipment?.tourniquet ?? {};
+
+    const setEl = (field: string, value: any) =>
+        onChange({ ...data, equipment: { ...data.equipment, electrosurgical: { ...el, [field]: value } } });
+    const setTq = (field: string, value: any) =>
+        onChange({ ...data, equipment: { ...data.equipment, tourniquet: { ...tq, [field]: value } } });
+
+    return (
+        <div className="space-y-6">
+            <div className="space-y-4 p-4 bg-slate-50/50 rounded-lg border border-slate-100">
+                <div className="flex items-center gap-2 mb-2">
+                    <Zap className="h-4 w-4 text-amber-500" />
+                    <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-700">Electrosurgical / Cautery</h4>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <BooleanField label="Cautery Used" value={el.cauteryUsed} onChange={(v) => setEl('cauteryUsed', v)} disabled={disabled} />
+                    <TextField label="Unit No." value={el.unitNo} onChange={(v) => setEl('unitNo', v)} disabled={disabled} />
+                    <TextField label="Mode" value={el.mode} onChange={(v) => setEl('mode', v)} disabled={disabled} />
+                    <div className="grid grid-cols-2 gap-4">
+                        <TextField label="Cut Set" value={el.cutSet} onChange={(v) => setEl('cutSet', v)} disabled={disabled} />
+                        <TextField label="Coag Set" value={el.coagSet} onChange={(v) => setEl('coagSet', v)} disabled={disabled} />
+                    </div>
+                </div>
+                <div className="flex items-center gap-8 mt-2">
+                    <BooleanField label="Skin Checked (Before)" value={el.skinCheckedBefore} onChange={(v) => setEl('skinCheckedBefore', v)} disabled={disabled} />
+                    <BooleanField label="Skin Checked (After)" value={el.skinCheckedAfter} onChange={(v) => setEl('skinCheckedAfter', v)} disabled={disabled} />
+                </div>
+            </div>
+
+            <div className="space-y-4 p-4 bg-slate-50/50 rounded-lg border border-slate-100">
+                <div className="flex items-center gap-2 mb-2">
+                    <Activity className="h-4 w-4 text-blue-500" />
+                    <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-700">Tourniquet</h4>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <BooleanField label="Tourniquet Used" value={tq.tourniquetUsed} onChange={(v) => setTq('tourniquetUsed', v)} disabled={disabled} />
+                    <TextField label="Type" value={tq.type} onChange={(v) => setTq('type', v)} disabled={disabled} />
+                    <TextField label="Site" value={tq.site} onChange={(v) => setTq('site', v)} disabled={disabled} />
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                            <Label className="text-sm">Laterality</Label>
+                            <Select value={tq.laterality || ''} onValueChange={(v) => setTq('laterality', v)} disabled={disabled}>
+                                <SelectTrigger className="h-9"><SelectValue placeholder="Side" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="RT">Right (Rt)</SelectItem>
+                                    <SelectItem value="LT">Left (Lt)</SelectItem>
+                                    <SelectItem value="N/A">N/A</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <TextField label="Pressure" value={tq.pressure} onChange={(v) => setTq('pressure', v)} disabled={disabled} />
+                    </div>
+                    <TimeField label="Time On" value={tq.timeOn} onChange={(v) => setTq('timeOn', v)} disabled={disabled} />
+                    <TimeField label="Time Off" value={tq.timeOff} onChange={(v) => setTq('timeOff', v)} disabled={disabled} />
+                </div>
+                <div className="flex items-center gap-8 mt-2">
+                    <BooleanField label="Skin Checked (Before)" value={tq.skinCheckedBefore} onChange={(v) => setTq('skinCheckedBefore', v)} disabled={disabled} />
+                    <BooleanField label="Skin Checked (After)" value={tq.skinCheckedAfter} onChange={(v) => setTq('skinCheckedAfter', v)} disabled={disabled} />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function SurgicalDetailsSection({ data, onChange, disabled }: SectionProps) {
+    const d = data.surgicalDetails ?? {};
+    const set = (field: string, value: any) =>
+        onChange({ ...data, surgicalDetails: { ...d, [field]: value } });
+
+    const toggle = (listKey: string, val: string) => {
+        const current = Array.isArray((d as any)[listKey]) ? (d as any)[listKey] : [];
+        const next = current.includes(val) ? current.filter((x: string) => x !== val) : [...current, val];
+        set(listKey, next);
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                <div className="space-y-3">
+                    <Label className="text-sm font-semibold uppercase tracking-wider text-slate-500">Drain Type</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                        {['CORRUGATED', 'PORTOVAC', 'UWS', 'NG'].map(t => (
+                            <div key={t} className="flex items-center gap-2">
+                                <Checkbox checked={d.drainType?.includes(t as any)} onCheckedChange={() => toggle('drainType', t)} disabled={disabled} />
+                                <Label className="text-xs font-normal">{t}</Label>
+                            </div>
+                        ))}
+                    </div>
+                    <TextField label="Other Drain Type" value={d.otherDrainType} onChange={(v) => set('otherDrainType', v)} disabled={disabled} />
+                </div>
+                <div className="space-y-3">
+                    <Label className="text-sm font-semibold uppercase tracking-wider text-slate-500">Wound Irrigation</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                        {['SALINE', 'WATER', 'POVIDONE_IODINE', 'ANTIBIOTIC'].map(t => (
+                            <div key={t} className="flex items-center gap-2">
+                                <Checkbox checked={d.woundIrrigation?.includes(t as any)} onCheckedChange={() => toggle('woundIrrigation', t)} disabled={disabled} />
+                                <Label className="text-xs font-normal">{t.replace('_', ' ')}</Label>
+                            </div>
+                        ))}
+                    </div>
+                    <TextField label="Other Irrigation" value={d.otherIrrigation} onChange={(v) => set('otherIrrigation', v)} disabled={disabled} />
+                </div>
+            </div>
+            <Separator />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <TextField label="Wound Pack Type" value={d.woundPackType} onChange={(v) => set('woundPackType', v)} disabled={disabled} />
+                <TextField label="Wound Pack Site" value={d.woundPackSite} onChange={(v) => set('woundPackSite', v)} disabled={disabled} />
+            </div>
+            <Separator />
+            <div className="space-y-3">
+                <Label className="text-sm font-semibold uppercase tracking-wider text-slate-500">Wound Class</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {['CLEAN', 'CLEAN_CONTAMINATED', 'CONTAMINATED', 'INFECTED'].map(c => (
+                        <div key={c} className="flex items-center gap-2">
+                            <Checkbox checked={d.woundClass === c} onCheckedChange={() => set('woundClass', c)} disabled={disabled} />
+                            <Label className="text-xs font-normal">{c.replace('_', ' ')}</Label>
+                        </div>
+                    ))}
+                </div>
+            </div>
+            <Separator />
+            <TextField label="Intra-op X-Rays taken" value={d.intraOpXraysTaken} onChange={(v) => set('intraOpXraysTaken', v)} disabled={disabled} />
         </div>
     );
 }
 
 function CountsSection({ data, onChange, disabled }: SectionProps) {
     const d = data.counts ?? {};
+    const items = Array.isArray(d.items) ? d.items : [];
     const set = (field: string, value: any) =>
         onChange({ ...data, counts: { ...d, [field]: value } });
 
-    const hasDiscrepancy = !!d.countDiscrepancy;
-    const hasMismatch = (init?: number, final?: number) =>
-        init !== undefined && final !== undefined && init !== final;
+    const updateItem = (index: number, field: string, value: number) => {
+        const next = [...items];
+        next[index] = { ...next[index], [field]: value };
+        set('items', next);
+    };
 
     return (
         <div className="space-y-6">
-            {/* Count Discrepancy Warning */}
-            {hasDiscrepancy && (
-                <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg animate-in fade-in duration-300">
-                    <ShieldAlert className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
-                    <div>
-                        <p className="text-sm font-semibold text-red-800">⚠ COUNT DISCREPANCY FLAGGED</p>
-                        <p className="text-xs text-red-600 mt-0.5">
-                            A discrepancy has been identified. This must be resolved and documented before the case can proceed to RECOVERY.
-                        </p>
-                    </div>
-                </div>
-            )}
-
-            {/* Initial Counts */}
-            <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-blue-500" />
-                    Initial Counts
-                </h4>
-                <BooleanField label="Initial counts completed" value={d.initialCountsCompleted} onChange={(v) => set('initialCountsCompleted', v)} disabled={disabled} />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <TextField label="Recorded by" value={d.initialCountsRecordedBy} onChange={(v) => set('initialCountsRecordedBy', v)} disabled={disabled} />
-                    <TimeField label="Time" value={d.initialCountsTime} onChange={(v) => set('initialCountsTime', v)} disabled={disabled} />
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                    <NumberField label="Swabs" value={d.swabsInitial} onChange={(v) => set('swabsInitial', v)} min={0} disabled={disabled} />
-                    <NumberField label="Sharps" value={d.sharpsInitial} onChange={(v) => set('sharpsInitial', v)} min={0} disabled={disabled} />
-                    <NumberField label="Instruments" value={d.instrumentsInitial} onChange={(v) => set('instrumentsInitial', v)} min={0} disabled={disabled} />
-                </div>
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+                <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider">
+                        <tr>
+                            <th className="px-4 py-3 font-semibold">Item</th>
+                            <th className="px-4 py-3 font-semibold text-center">Preliminary</th>
+                            <th className="px-4 py-3 font-semibold text-center">Wound Closure</th>
+                            <th className="px-4 py-3 font-semibold text-center">Final Count</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                        {(items as any[]).map((item: any, idx: number) => (
+                            <tr key={item.name} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="px-4 py-3 font-medium text-slate-700">{item.name}</td>
+                                <td className="px-4 py-3">
+                                    <Input type="number" value={item.preliminary} onChange={(e) => updateItem(idx, 'preliminary', parseInt(e.target.value) || 0)} disabled={disabled} className="h-8 w-20 mx-auto text-center" />
+                                </td>
+                                <td className="px-4 py-3">
+                                    <Input type="number" value={item.woundClosure} onChange={(e) => updateItem(idx, 'woundClosure', parseInt(e.target.value) || 0)} disabled={disabled} className="h-8 w-20 mx-auto text-center" />
+                                </td>
+                                <td className="px-4 py-3">
+                                    <Input type="number" value={item.final} onChange={(e) => updateItem(idx, 'final', parseInt(e.target.value) || 0)} disabled={disabled} className="h-8 w-20 mx-auto text-center font-semibold text-blue-600" />
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             </div>
 
-            <Separator />
-
-            {/* Final Counts */}
-            <div className="space-y-3">
-                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                    Final Counts
-                </h4>
-                <BooleanField label="Final counts completed" value={d.finalCountsCompleted} onChange={(v) => set('finalCountsCompleted', v)} disabled={disabled} />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <TextField label="Recorded by" value={d.finalCountsRecordedBy} onChange={(v) => set('finalCountsRecordedBy', v)} disabled={disabled} />
-                    <TimeField label="Time" value={d.finalCountsTime} onChange={(v) => set('finalCountsTime', v)} disabled={disabled} />
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                    <div>
-                        <NumberField label="Swabs" value={d.swabsFinal} onChange={(v) => set('swabsFinal', v)} min={0} disabled={disabled} />
-                        {hasMismatch(d.swabsInitial, d.swabsFinal) && (
-                            <p className="text-xs text-amber-600 mt-1">⚠ Mismatch: initial {d.swabsInitial} ≠ final {d.swabsFinal}</p>
-                        )}
-                    </div>
-                    <div>
-                        <NumberField label="Sharps" value={d.sharpsFinal} onChange={(v) => set('sharpsFinal', v)} min={0} disabled={disabled} />
-                        {hasMismatch(d.sharpsInitial, d.sharpsFinal) && (
-                            <p className="text-xs text-amber-600 mt-1">⚠ Mismatch: initial {d.sharpsInitial} ≠ final {d.sharpsFinal}</p>
-                        )}
-                    </div>
-                    <div>
-                        <NumberField label="Instruments" value={d.instrumentsFinal} onChange={(v) => set('instrumentsFinal', v)} min={0} disabled={disabled} />
-                        {hasMismatch(d.instrumentsInitial, d.instrumentsFinal) && (
-                            <p className="text-xs text-amber-600 mt-1">⚠ Mismatch: initial {d.instrumentsInitial} ≠ final {d.instrumentsFinal}</p>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            <Separator />
-
-            {/* Discrepancy */}
-            <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                    <Switch
-                        checked={!!d.countDiscrepancy}
-                        onCheckedChange={(v) => set('countDiscrepancy', v)}
-                        disabled={disabled}
-                        className={hasDiscrepancy ? 'data-[state=checked]:bg-red-500' : ''}
-                    />
-                    <Label className="text-sm font-medium">Count Discrepancy</Label>
-                </div>
-                {hasDiscrepancy && (
-                    <div className="pl-8 animate-in slide-in-from-top-2 duration-200">
-                        <Label className="text-sm text-red-700">Discrepancy Notes (required)</Label>
-                        <textarea
-                            className="mt-1.5 w-full rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-red-500 focus:outline-none disabled:opacity-50"
-                            rows={3}
-                            value={d.discrepancyNotes || ''}
-                            onChange={(e) => set('discrepancyNotes', e.target.value)}
-                            disabled={disabled}
-                            placeholder="Describe the discrepancy, actions taken, and resolution..."
-                        />
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
-
-function SpecimensSection({ data, onChange, disabled }: SectionProps) {
-    const specimens = data.specimens?.specimens ?? [];
-    const setSpecimens = (newSpecimens: Partial<SpecimenItem>[]) =>
-        onChange({ ...data, specimens: { ...data.specimens, specimens: newSpecimens as SpecimenItem[] } });
-
-    const addSpecimen = () => {
-        setSpecimens([...specimens, { specimenType: '', site: '', destinationLab: '', timeSent: '', notes: '' }]);
-    };
-
-    const removeSpecimen = (index: number) => {
-        setSpecimens(specimens.filter((_, i) => i !== index));
-    };
-
-    const updateSpecimen = (index: number, field: string, value: string) => {
-        const updated = [...specimens];
-        updated[index] = { ...updated[index], [field]: value };
-        setSpecimens(updated);
-    };
-
-    return (
-        <div className="space-y-4">
-            {specimens.length === 0 && (
-                <p className="text-sm text-muted-foreground italic">No specimens recorded yet.</p>
-            )}
-            {specimens.map((specimen, idx) => (
-                <div key={idx} className="relative border rounded-lg p-4 space-y-3 bg-slate-50/50">
-                    <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                            Specimen #{idx + 1}
-                        </span>
-                        {!disabled && (
-                            <Button variant="ghost" size="sm" onClick={() => removeSpecimen(idx)} className="h-7 text-destructive hover:text-destructive">
-                                <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                        )}
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <TextField label="Specimen Type" value={specimen.specimenType} onChange={(v) => updateSpecimen(idx, 'specimenType', v)} disabled={disabled} />
-                        <TextField label="Site" value={specimen.site} onChange={(v) => updateSpecimen(idx, 'site', v)} disabled={disabled} />
-                        <TextField label="Destination Lab" value={specimen.destinationLab} onChange={(v) => updateSpecimen(idx, 'destinationLab', v)} disabled={disabled} />
-                        <TimeField label="Time Sent" value={specimen.timeSent} onChange={(v) => updateSpecimen(idx, 'timeSent', v)} disabled={disabled} />
-                    </div>
-                    <TextField label="Notes" value={specimen.notes} onChange={(v) => updateSpecimen(idx, 'notes', v)} disabled={disabled} />
-                </div>
-            ))}
-            {!disabled && (
-                <Button variant="outline" size="sm" onClick={addSpecimen} className="gap-1.5">
-                    <Plus className="h-3.5 w-3.5" />
-                    Add Specimen
-                </Button>
-            )}
-        </div>
-    );
-}
-
-function ImplantsUsedSection({ data, onChange, disabled }: SectionProps) {
-    const d = data.implantsUsed ?? {};
-    const items = d.items ?? [];
-    const setImplantsUsed = (updates: Partial<typeof d>) =>
-        onChange({ ...data, implantsUsed: { ...d, ...updates } });
-
-    const addImplant = () => {
-        setImplantsUsed({
-            items: [...items, { name: '', manufacturer: '', lotNumber: '', serialNumber: '', expiryDate: '', used: true, notes: '' }],
-        });
-    };
-
-    const removeImplant = (index: number) => {
-        setImplantsUsed({ items: items.filter((_, i) => i !== index) });
-    };
-
-    const updateImplant = (index: number, field: string, value: any) => {
-        const updated = [...items];
-        updated[index] = { ...updated[index], [field]: value };
-        setImplantsUsed({ items: updated });
-    };
-
-    return (
-        <div className="space-y-4">
-            <BooleanField
-                label="Implants / prostheses confirmed with surgical team"
-                value={d.implantsConfirmed}
-                onChange={(v) => setImplantsUsed({ implantsConfirmed: v })}
-                disabled={disabled}
-            />
-
-            <Separator />
-
-            {items.length === 0 && (
-                <p className="text-sm text-muted-foreground italic">No implants recorded.</p>
-            )}
-            {items.map((item, idx) => (
-                <div key={idx} className="relative border rounded-lg p-4 space-y-3 bg-slate-50/50">
-                    <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                            Implant #{idx + 1}
-                        </span>
-                        {!disabled && (
-                            <Button variant="ghost" size="sm" onClick={() => removeImplant(idx)} className="h-7 text-destructive hover:text-destructive">
-                                <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                        )}
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <TextField label="Implant Name" value={item.name} onChange={(v) => updateImplant(idx, 'name', v)} disabled={disabled} />
-                        <TextField label="Manufacturer" value={item.manufacturer} onChange={(v) => updateImplant(idx, 'manufacturer', v)} disabled={disabled} />
-                        <TextField label="Lot Number" value={item.lotNumber} onChange={(v) => updateImplant(idx, 'lotNumber', v)} disabled={disabled} />
-                        <TextField label="Serial Number" value={item.serialNumber} onChange={(v) => updateImplant(idx, 'serialNumber', v)} disabled={disabled} />
-                        <TextField label="Expiry Date" value={item.expiryDate} onChange={(v) => updateImplant(idx, 'expiryDate', v)} placeholder="YYYY-MM-DD" disabled={disabled} />
-                        <div className="flex items-center gap-3 pt-6">
-                            <Switch checked={!!item.used} onCheckedChange={(v) => updateImplant(idx, 'used', v)} disabled={disabled} />
-                            <Label className="text-sm">Used in procedure</Label>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="flex items-center gap-4">
+                    <Label className="text-sm font-semibold">Count Correct?</Label>
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <Checkbox checked={d.countCorrect === true} onCheckedChange={() => set('countCorrect', true)} disabled={disabled} />
+                            <Label className="text-sm">Yes</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Checkbox checked={d.countCorrect === false} onCheckedChange={() => set('countCorrect', false)} disabled={disabled} />
+                            <Label className="text-sm">No</Label>
                         </div>
                     </div>
-                    <TextField label="Notes" value={item.notes} onChange={(v) => updateImplant(idx, 'notes', v)} disabled={disabled} />
                 </div>
-            ))}
-            {!disabled && (
-                <Button variant="outline" size="sm" onClick={addImplant} className="gap-1.5">
-                    <Plus className="h-3.5 w-3.5" />
-                    Add Implant
-                </Button>
-            )}
+                {!d.countCorrect && <TextField label="Action taken" value={d.actionIfIncorrect} onChange={(v) => set('actionIfIncorrect', v)} disabled={disabled} placeholder="Describe corrective action..." />}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <TextField label="Scrub Nurse Signature (Name)" value={d.scrubNurseSignature} onChange={(v) => set('scrubNurseSignature', v)} disabled={disabled} />
+                <TextField label="Circulating Nurse Signature (Name)" value={d.circulatingNurseSignature} onChange={(v) => set('circulatingNurseSignature', v)} disabled={disabled} />
+            </div>
         </div>
     );
 }
 
-function SignOutSection({ data, onChange, disabled }: SectionProps) {
-    const d = data.signOut ?? {};
+function FluidsSection({ data, onChange, disabled }: SectionProps) {
+    const d = data.fluids ?? {};
     const set = (field: string, value: any) =>
-        onChange({ ...data, signOut: { ...d, [field]: value } });
+        onChange({ ...data, fluids: { ...d, [field]: value } });
+
+    return (
+        <div className="space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                    <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Intravenous Infusion / Transfusions</h4>
+                    <div className="space-y-4">
+                        <div className="p-3 bg-red-50/50 rounded-lg border border-red-100 space-y-3">
+                            <Label className="text-[10px] font-bold text-red-600 uppercase">Blood Transfusion (mL)</Label>
+                            <div className="grid grid-cols-3 gap-2">
+                                <NumberField label="Packed Cells" value={d.bloodTransfusionPackedCellsMl} onChange={(v) => set('bloodTransfusionPackedCellsMl', v || 0)} disabled={disabled} />
+                                <NumberField label="Whole" value={d.bloodTransfusionWholeMl} onChange={(v) => set('bloodTransfusionWholeMl', v || 0)} disabled={disabled} />
+                                <NumberField label="Others" value={d.bloodTransfusionOtherMl} onChange={(v) => set('bloodTransfusionOtherMl', v || 0)} disabled={disabled} />
+                            </div>
+                        </div>
+                        <NumberField label="Intravenous Infusion" value={d.ivInfusionTotalMl} onChange={(v) => set('ivInfusionTotalMl', v || 0)} unit="mL" disabled={disabled} />
+                    </div>
+                </div>
+                <div className="space-y-4">
+                    <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Clinical Measurements</h4>
+                    <div className="space-y-4">
+                        <NumberField label="Estimated Blood Loss" value={d.estimatedBloodLossMl} onChange={(v) => set('estimatedBloodLossMl', v || 0)} unit="mL" disabled={disabled} />
+                        <NumberField label="Urinary Output" value={d.urinaryOutputMl} onChange={(v) => set('urinaryOutputMl', v || 0)} unit="mL" disabled={disabled} />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function DynamicTableSection({ data, onChange, disabled }: SectionProps) {
+    // This section handles Medications, Implants, and Specimens
+    const medications = Array.isArray(data.medications) ? data.medications : [];
+    const implants = Array.isArray(data.implants) ? data.implants : [];
+    const specimens = Array.isArray(data.specimens) ? data.specimens : [];
+
+    const setMeds = (v: any[]) => onChange({ ...data, medications: v });
+    const setImplants = (v: any[]) => onChange({ ...data, implants: v });
+    const setSpecimens = (v: any[]) => onChange({ ...data, specimens: v });
+
+    return (
+        <div className="space-y-12">
+            {/* Medications */}
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-700">Medications</h4>
+                    <Button variant="outline" size="sm" onClick={() => setMeds([...medications, { drug: '', route: '', time: '', sign: '' }])} disabled={disabled}>
+                        <Plus className="h-4 w-4 mr-2" /> Add Medication
+                    </Button>
+                </div>
+                <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                        <thead className="bg-slate-50 h-10">
+                            <tr>
+                                <th className="px-3 font-medium text-left">Medication/Drug</th>
+                                <th className="px-3 font-medium text-left">Route</th>
+                                <th className="px-3 font-medium text-left w-32">Time</th>
+                                <th className="px-3 font-medium text-left w-32">Sign</th>
+                                <th className="w-10"></th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                            {medications.map((item, idx) => (
+                                <tr key={idx}>
+                                    <td className="p-2"><Input value={item.drug} onChange={(e) => { const n = [...medications]; n[idx].drug = e.target.value; setMeds(n); }} disabled={disabled} className="h-8" /></td>
+                                    <td className="p-2"><Input value={item.route} onChange={(e) => { const n = [...medications]; n[idx].route = e.target.value; setMeds(n); }} disabled={disabled} className="h-8" /></td>
+                                    <td className="p-2"><Input type="time" value={item.time} onChange={(e) => { const n = [...medications]; n[idx].time = e.target.value; setMeds(n); }} disabled={disabled} className="h-8" /></td>
+                                    <td className="p-2"><Input value={item.sign} onChange={(e) => { const n = [...medications]; n[idx].sign = e.target.value; setMeds(n); }} disabled={disabled} className="h-8" /></td>
+                                    <td className="p-2"><Button variant="ghost" size="icon" onClick={() => setMeds(medications.filter((_, i) => i !== idx))} disabled={disabled}><Trash2 className="h-4 w-4 text-red-500" /></Button></td>
+                                </tr>
+                            ))}
+                            {medications.length === 0 && <tr><td colSpan={5} className="p-4 text-center text-muted-foreground italic">No medications recorded</td></tr>}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Implants */}
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-700">Surgical Implants / Prosthesis</h4>
+                    <Button variant="outline" size="sm" onClick={() => setImplants([...implants, { item: '', lotNo: '', size: '' }])} disabled={disabled}>
+                        <Plus className="h-4 w-4 mr-2" /> Add Implant
+                    </Button>
+                </div>
+                <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                        <thead className="bg-slate-50 h-10">
+                            <tr>
+                                <th className="px-3 font-medium text-left">Item</th>
+                                <th className="px-3 font-medium text-left">Lot No.</th>
+                                <th className="px-3 font-medium text-left">Size</th>
+                                <th className="w-10"></th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                            {implants.map((item, idx) => (
+                                <tr key={idx}>
+                                    <td className="p-2"><Input value={item.item} onChange={(e) => { const n = [...implants]; n[idx].item = e.target.value; setImplants(n); }} disabled={disabled} className="h-8" /></td>
+                                    <td className="p-2"><Input value={item.lotNo} onChange={(e) => { const n = [...implants]; n[idx].lotNo = e.target.value; setImplants(n); }} disabled={disabled} className="h-8" /></td>
+                                    <td className="p-2"><Input value={item.size} onChange={(e) => { const n = [...implants]; n[idx].size = e.target.value; setImplants(n); }} disabled={disabled} className="h-8" /></td>
+                                    <td className="p-2"><Button variant="ghost" size="icon" onClick={() => setImplants(implants.filter((_, i) => i !== idx))} disabled={disabled}><Trash2 className="h-4 w-4 text-red-500" /></Button></td>
+                                </tr>
+                            ))}
+                            {implants.length === 0 && <tr><td colSpan={4} className="p-4 text-center text-muted-foreground italic">No implants recorded</td></tr>}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Specimens */}
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-700">Specimens</h4>
+                    <Button variant="outline" size="sm" onClick={() => setSpecimens([...specimens, { type: '', histology: false, cytology: false, notForAnalysis: false, disposition: '' }])} disabled={disabled}>
+                        <Plus className="h-4 w-4 mr-2" /> Add Specimen
+                    </Button>
+                </div>
+                <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                        <thead className="bg-slate-50 h-10">
+                            <tr>
+                                <th className="px-3 font-medium text-left">Type</th>
+                                <th className="px-3 font-medium text-center">Hist</th>
+                                <th className="px-3 font-medium text-center">Cyto</th>
+                                <th className="px-3 font-medium text-center">N.A.</th>
+                                <th className="px-3 font-medium text-left">Disposition</th>
+                                <th className="w-10"></th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                            {specimens.map((item, idx) => (
+                                <tr key={idx}>
+                                    <td className="p-2"><Input value={item.type} onChange={(e) => { const n = [...specimens]; n[idx].type = e.target.value; setSpecimens(n); }} disabled={disabled} className="h-8" /></td>
+                                    <td className="p-2 text-center"><Checkbox checked={item.histology} onCheckedChange={(v) => { const n = [...specimens]; n[idx].histology = !!v; setSpecimens(n); }} disabled={disabled} /></td>
+                                    <td className="p-2 text-center"><Checkbox checked={item.cytology} onCheckedChange={(v) => { const n = [...specimens]; n[idx].cytology = !!v; setSpecimens(n); }} disabled={disabled} /></td>
+                                    <td className="p-2 text-center"><Checkbox checked={item.notForAnalysis} onCheckedChange={(v) => { const n = [...specimens]; n[idx].notForAnalysis = !!v; setSpecimens(n); }} disabled={disabled} /></td>
+                                    <td className="p-2"><Input value={item.disposition} onChange={(e) => { const n = [...specimens]; n[idx].disposition = e.target.value; setSpecimens(n); }} disabled={disabled} className="h-8" /></td>
+                                    <td className="p-2"><Button variant="ghost" size="icon" onClick={() => setSpecimens(specimens.filter((_, i) => i !== idx))} disabled={disabled}><Trash2 className="h-4 w-4 text-red-500" /></Button></td>
+                                </tr>
+                            ))}
+                            {specimens.length === 0 && <tr><td colSpan={6} className="p-4 text-center text-muted-foreground italic">No specimens recorded</td></tr>}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <Separator />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                <TextField label="Items to be returned to theatre" value={data.itemsToReturnToTheatre} onChange={(v) => onChange({ ...data, itemsToReturnToTheatre: v })} disabled={disabled} />
+                <div className="space-y-4">
+                    <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-700">Billing Information</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                        <TextField label="Anaesthetic Materials Charge" value={data.billing?.anaestheticMaterialsCharge} onChange={(v) => onChange({ ...data, billing: { ...data.billing, anaestheticMaterialsCharge: v } })} disabled={disabled} />
+                        <TextField label="Theatre Fee" value={data.billing?.theatreFee} onChange={(v) => onChange({ ...data, billing: { ...data.billing, theatreFee: v } })} disabled={disabled} />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function ClosureAndFinalSection({ data, onChange, disabled }: SectionProps) {
+    const d = data.closure ?? {};
+    const set = (field: string, value: any) =>
+        onChange({ ...data, closure: { ...d, [field]: value } });
 
     return (
         <div className="space-y-4">
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800 font-medium">WHO Surgical Safety Sign-Out</p>
-                <p className="text-xs text-blue-600 mt-0.5">
-                    Confirm all sign-out items before the patient leaves the operating theatre.
-                </p>
-            </div>
-
-            <BooleanField label="Sign-Out completed" value={d.signOutCompleted} onChange={(v) => set('signOutCompleted', v)} disabled={disabled} />
-
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <TimeField label="Sign-Out Time" value={d.signOutTime} onChange={(v) => set('signOutTime', v)} disabled={disabled} />
-                <TextField label="Nurse Name (for sign-out)" value={d.signOutNurseName} onChange={(v) => set('signOutNurseName', v)} disabled={disabled} />
-            </div>
-
-            <Separator />
-
-            <BooleanField label="Post-operative instructions confirmed with team" value={d.postopInstructionsConfirmed} onChange={(v) => set('postopInstructionsConfirmed', v)} disabled={disabled} />
-            <BooleanField label="All specimens correctly labeled" value={d.specimensLabeledConfirmed} onChange={(v) => set('specimensLabeledConfirmed', v)} disabled={disabled} />
-
-            <Separator />
-
-            <div className="space-y-1.5">
-                <Label className="text-sm">Additional Notes</Label>
-                <textarea
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:ring-2 focus:ring-ring focus:outline-none disabled:opacity-50"
-                    rows={3}
-                    value={d.additionalNotes || ''}
-                    onChange={(e) => set('additionalNotes', e.target.value)}
-                    disabled={disabled}
-                    placeholder="Any other notes for the intra-operative record..."
-                />
+                <div className="space-y-1.5">
+                    <Label className="text-sm">Skin Closure</Label>
+                    <Select value={d.skinClosure || ''} onValueChange={(v) => set('skinClosure', v)} disabled={disabled}>
+                        <SelectTrigger className="h-9"><SelectValue placeholder="Closure method" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="NON_ABSORBABLE">Non-Absorbable</SelectItem>
+                            <SelectItem value="ABSORBABLE">Absorbable</SelectItem>
+                            <SelectItem value="OTHER">Other</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                <TextField label="Dressing Applied" value={d.dressingApplied} onChange={(v) => set('dressingApplied', v)} disabled={disabled} />
             </div>
         </div>
     );
@@ -600,11 +853,20 @@ function SignOutSection({ data, onChange, disabled }: SectionProps) {
 // ──────────────────────────────────────────────────────────────────────
 
 const SECTION_RENDERERS: Record<string, React.FC<SectionProps>> = {
-    theatreSetup: TheatreSetupSection,
+    entry: ArrivalSection,
+    safety: SafetyChecklistSection,
+    timings: TimingsSection,
+    staffing: StaffingSection,
+    diagnoses: DiagnosesSection,
+    positioning: PositioningSection,
+    catheter: CatheterSection,
+    skinPrep: SkinPrepSection,
+    equipment: EquipmentSection,
+    surgicalDetails: SurgicalDetailsSection,
     counts: CountsSection,
-    specimens: SpecimensSection,
-    implantsUsed: ImplantsUsedSection,
-    signOut: SignOutSection,
+    closure: ClosureAndFinalSection,
+    fluids: FluidsSection,
+    tables: DynamicTableSection,
 };
 
 // ──────────────────────────────────────────────────────────────────────
@@ -735,11 +997,10 @@ function OperativeTimelinePanel({ caseId, userRole }: { caseId: string; userRole
                                 return (
                                     <div
                                         key={field}
-                                        className={`rounded-md border px-2.5 py-2 ${
-                                            value
-                                                ? 'bg-emerald-50/50 border-emerald-200'
-                                                : 'bg-white border-slate-200'
-                                        }`}
+                                        className={`rounded-md border px-2.5 py-2 ${value
+                                            ? 'bg-emerald-50/50 border-emerald-200'
+                                            : 'bg-white border-slate-200'
+                                            }`}
                                     >
                                         <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
                                             {TIMELINE_FIELD_LABELS[field]}
@@ -835,11 +1096,30 @@ export default function NurseIntraOpRecordPage() {
     const finalizeMutation = useFinalizeIntraOpRecord(caseId);
 
     const [formData, setFormData] = useState<NurseIntraOpRecordDraft>({
-        theatreSetup: {},
-        counts: {},
-        specimens: {},
-        implantsUsed: {},
-        signOut: {},
+        entry: {},
+        safety: {},
+        timings: {},
+        diagnoses: {},
+        positioning: {},
+        catheter: {},
+        skinPrep: {},
+        surgicalDetails: {},
+        equipment: {
+            electrosurgical: {},
+            tourniquet: {},
+        },
+        staffing: {},
+        counts: { items: [] },
+        closure: {},
+        fluids: {},
+        medications: [],
+        implants: [],
+        specimens: [],
+        itemsToReturnToTheatre: '',
+        billing: {
+            anaestheticMaterialsCharge: '',
+            theatreFee: '',
+        },
     });
     const [isDirty, setIsDirty] = useState(false);
     const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
@@ -893,7 +1173,7 @@ export default function NurseIntraOpRecordPage() {
     const progressPercent = totalSections > 0 ? Math.round((completedSections / totalSections) * 100) : 0;
 
     // Count discrepancy warning
-    const hasDiscrepancy = !!(formData.counts as any)?.countDiscrepancy;
+    const hasDiscrepancy = formData.counts?.countCorrect === false;
 
     // ── Loading / Error / Auth states ────────────────────────────────
 
@@ -940,11 +1220,18 @@ export default function NurseIntraOpRecordPage() {
     return (
         <div className="max-w-4xl mx-auto space-y-5 pb-16 animate-in fade-in duration-500">
             {/* ── Navigation ──────────────────────────────────────── */}
-            <Button variant="ghost" size="sm" asChild>
-                <Link href="/nurse/dashboard">
-                    <ArrowLeft className="w-4 h-4 mr-2" /> Back to Dashboard
-                </Link>
-            </Button>
+            <div className="flex items-center justify-between">
+                <Button variant="ghost" className="pl-0 hover:pl-2 transition-all" asChild>
+                    <Link href="/nurse/dashboard">
+                        <ArrowLeft className="w-4 h-4 mr-2" /> Back to Dashboard
+                    </Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild>
+                    <Link href={`/nurse/intra-op-cases/${caseId}/record/print`} target="_blank">
+                        <Printer className="w-4 h-4 mr-2" /> Print Record
+                    </Link>
+                </Button>
+            </div>
 
             {/* ── Patient Header ──────────────────────────────────── */}
             <Card>
@@ -985,24 +1272,28 @@ export default function NurseIntraOpRecordPage() {
                     </div>
 
                     {/* Allergies alert */}
-                    {patient.allergies && (
-                        <div className="mt-3 flex items-start gap-2 p-2.5 bg-destructive/10 border border-destructive/20 rounded-lg">
-                            <ShieldAlert className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                            <p className="text-sm text-destructive">
-                                <strong>Allergies:</strong> {patient.allergies}
-                            </p>
-                        </div>
-                    )}
+                    {
+                        patient.allergies && (
+                            <div className="mt-3 flex items-start gap-2 p-2.5 bg-destructive/10 border border-destructive/20 rounded-lg">
+                                <ShieldAlert className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                                <p className="text-sm text-destructive">
+                                    <strong>Allergies:</strong> {patient.allergies}
+                                </p>
+                            </div>
+                        )
+                    }
 
                     {/* Count discrepancy global alert */}
-                    {hasDiscrepancy && !isFinalized && (
-                        <div className="mt-3 flex items-start gap-2 p-2.5 bg-red-50 border border-red-200 rounded-lg">
-                            <AlertTriangle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
-                            <p className="text-sm text-red-700">
-                                <strong>Count Discrepancy:</strong> A swab/instrument/sharps count discrepancy has been flagged. This will block transition to RECOVERY until resolved.
-                            </p>
-                        </div>
-                    )}
+                    {
+                        hasDiscrepancy && !isFinalized && (
+                            <div className="mt-3 flex items-start gap-2 p-2.5 bg-red-50 border border-red-200 rounded-lg">
+                                <AlertTriangle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                                <p className="text-sm text-red-700">
+                                    <strong>Count Discrepancy:</strong> A swab/instrument/sharps count discrepancy has been flagged. This will block transition to RECOVERY until resolved.
+                                </p>
+                            </div>
+                        )
+                    }
 
                     {/* Progress bar */}
                     <div className="mt-4">
@@ -1016,66 +1307,71 @@ export default function NurseIntraOpRecordPage() {
                     </div>
 
                     {/* Finalized info */}
-                    {isFinalized && response.form?.signedAt && (
-                        <div className="mt-3 text-xs text-muted-foreground flex items-center gap-1">
-                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                            Finalized on {format(new Date(response.form.signedAt), 'MMM d, yyyy HH:mm')}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                    {
+                        isFinalized && response.form?.signedAt && (
+                            <div className="mt-3 text-xs text-muted-foreground flex items-center gap-1">
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                                Finalized on {format(new Date(response.form.signedAt), 'MMM d, yyyy HH:mm')}
+                            </div>
+                        )
+                    }
+                </CardContent >
+            </Card >
 
             {/* ── Title + Actions ─────────────────────────────────── */}
-            <div className="flex items-center justify-between">
+            < div className="flex items-center justify-between" >
                 <h2 className="text-xl font-bold tracking-tight">Intra-Operative Nurse Record</h2>
-                {!isFinalized && (
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleSave}
-                            disabled={saveMutation.isPending || !isDirty}
-                            className="gap-1.5"
-                        >
-                            {saveMutation.isPending ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                                <Save className="h-3.5 w-3.5" />
-                            )}
-                            Save Draft
-                        </Button>
-                        <Button
-                            size="sm"
-                            onClick={() => {
-                                if (isDirty) {
-                                    saveMutation.mutate(formData, {
-                                        onSuccess: () => {
-                                            setIsDirty(false);
-                                            setShowFinalizeDialog(true);
-                                        },
-                                    });
-                                } else {
-                                    setShowFinalizeDialog(true);
-                                }
-                            }}
-                            disabled={finalizeMutation.isPending}
-                            className="gap-1.5 bg-emerald-600 hover:bg-emerald-700"
-                        >
-                            <Lock className="h-3.5 w-3.5" />
-                            Finalize Record
-                        </Button>
-                    </div>
-                )}
-            </div>
+                {
+                    !isFinalized && (
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleSave}
+                                disabled={saveMutation.isPending || !isDirty}
+                                className="gap-1.5"
+                            >
+                                {saveMutation.isPending ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                    <Save className="h-3.5 w-3.5" />
+                                )}
+                                Save Draft
+                            </Button>
+                            <Button
+                                size="sm"
+                                onClick={() => {
+                                    if (isDirty) {
+                                        saveMutation.mutate(formData, {
+                                            onSuccess: () => {
+                                                setIsDirty(false);
+                                                setShowFinalizeDialog(true);
+                                            },
+                                        });
+                                    } else {
+                                        setShowFinalizeDialog(true);
+                                    }
+                                }}
+                                disabled={finalizeMutation.isPending}
+                                className="gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+                            >
+                                <Lock className="h-3.5 w-3.5" />
+                                Finalize Record
+                            </Button>
+                        </div>
+                    )
+                }
+            </div >
 
             {/* ── Operative Timeline Panel ──────────────────────── */}
-            <OperativeTimelinePanel caseId={caseId} userRole={user?.role || ''} />
+            < OperativeTimelinePanel caseId={caseId} userRole={user?.role || ''
+            } />
 
             {/* ── Accordion Sections ─────────────────────────────── */}
             <Accordion type="multiple" defaultValue={INTRAOP_SECTIONS.map((s) => s.key)} className="space-y-3">
                 {INTRAOP_SECTIONS.map((section) => {
                     const SectionRenderer = SECTION_RENDERERS[section.key];
-                    const Icon = SECTION_ICONS[section.icon] || Circle;
+                    const Icon = SECTION_ICONS[section.key] || Circle;
                     const completion = sectionCompletion[section.key];
                     const isComplete = completion?.complete ?? false;
 
@@ -1083,19 +1379,17 @@ export default function NurseIntraOpRecordPage() {
                         <AccordionItem
                             key={section.key}
                             value={section.key}
-                            className={`border rounded-lg px-4 data-[state=open]:shadow-sm transition-shadow ${
-                                section.isCritical ? 'border-amber-200 bg-amber-50/30' : ''
-                            }`}
+                            className={`border rounded-lg px-4 data-[state=open]:shadow-sm transition-shadow ${section.isCritical ? 'border-amber-200 bg-amber-50/30' : ''
+                                }`}
                         >
                             <AccordionTrigger className="hover:no-underline py-3">
                                 <div className="flex items-center gap-3 flex-1">
-                                    <div className={`flex items-center justify-center w-7 h-7 rounded-full shrink-0 ${
-                                        isComplete
-                                            ? 'bg-emerald-100 text-emerald-600'
-                                            : section.isCritical
+                                    <div className={`flex items-center justify-center w-7 h-7 rounded-full shrink-0 ${isComplete
+                                        ? 'bg-emerald-100 text-emerald-600'
+                                        : section.isCritical
                                             ? 'bg-amber-100 text-amber-600'
                                             : 'bg-slate-100 text-slate-400'
-                                    }`}>
+                                        }`}>
                                         {isComplete ? (
                                             <CheckCircle2 className="h-4 w-4" />
                                         ) : (
@@ -1120,44 +1414,46 @@ export default function NurseIntraOpRecordPage() {
             </Accordion>
 
             {/* ── Bottom Action Bar ──────────────────────────────── */}
-            {!isFinalized && (
-                <div className="sticky bottom-0 bg-background/95 backdrop-blur border-t py-3 px-4 -mx-4 flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground">
-                        {isDirty ? 'You have unsaved changes' : 'All changes saved'}
-                    </p>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleSave}
-                            disabled={saveMutation.isPending || !isDirty}
-                        >
-                            {saveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
-                            Save Draft
-                        </Button>
-                        <Button
-                            size="sm"
-                            className="bg-emerald-600 hover:bg-emerald-700"
-                            onClick={() => {
-                                if (isDirty) {
-                                    saveMutation.mutate(formData, {
-                                        onSuccess: () => {
-                                            setIsDirty(false);
-                                            setShowFinalizeDialog(true);
-                                        },
-                                    });
-                                } else {
-                                    setShowFinalizeDialog(true);
-                                }
-                            }}
-                            disabled={finalizeMutation.isPending}
-                        >
-                            <Lock className="h-3.5 w-3.5 mr-1.5" />
-                            Finalize
-                        </Button>
+            {
+                !isFinalized && (
+                    <div className="sticky bottom-0 bg-background/95 backdrop-blur border-t py-3 px-4 -mx-4 flex items-center justify-between">
+                        <p className="text-xs text-muted-foreground">
+                            {isDirty ? 'You have unsaved changes' : 'All changes saved'}
+                        </p>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleSave}
+                                disabled={saveMutation.isPending || !isDirty}
+                            >
+                                {saveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
+                                Save Draft
+                            </Button>
+                            <Button
+                                size="sm"
+                                className="bg-emerald-600 hover:bg-emerald-700"
+                                onClick={() => {
+                                    if (isDirty) {
+                                        saveMutation.mutate(formData, {
+                                            onSuccess: () => {
+                                                setIsDirty(false);
+                                                setShowFinalizeDialog(true);
+                                            },
+                                        });
+                                    } else {
+                                        setShowFinalizeDialog(true);
+                                    }
+                                }}
+                                disabled={finalizeMutation.isPending}
+                            >
+                                <Lock className="h-3.5 w-3.5 mr-1.5" />
+                                Finalize
+                            </Button>
+                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* ── Finalize Confirmation Dialog ───────────────────── */}
             <Dialog open={showFinalizeDialog} onOpenChange={setShowFinalizeDialog}>
@@ -1229,6 +1525,6 @@ export default function NurseIntraOpRecordPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div>
+        </div >
     );
 }

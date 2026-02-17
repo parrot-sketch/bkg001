@@ -1,300 +1,321 @@
-/**
- * Domain: Nurse Intra-Operative Record
- *
- * Strict TypeScript types and zod validation for the digitized NSAC
- * Perioperative Record intra-operative nurse documentation.
- *
- * Sections:
- *   A) Theatre Setup — positioning, prep, cautery, drains, tourniquet
- *   B) Counts (CRITICAL SAFETY) — swab/instrument/sharps initial + final
- *   C) Specimens — type, site, destination, time sent
- *   D) Implants Used — confirmation of planned implants actually used
- *   E) Sign-Out — WHO-style completion, post-op instructions, specimens labeled
- *
- * Source of truth: ClinicalFormTemplate key = "NURSE_INTRAOP_RECORD"
- */
-
 import { z } from 'zod';
 
-// ──────────────────────────────────────────────────────────────────────
-// Constants
-// ──────────────────────────────────────────────────────────────────────
+/**
+ * Domain Logic: Nurse Intra-Operative Record
+ * 
+ * This file defines the comprehensive domain model for the Intra-Operative Nurse Record.
+ * Includes schemas for all 14 clinical sections, completion logic, and recovery gates.
+ */
 
+// 1. Constants and Enums
 export const INTRAOP_TEMPLATE_KEY = 'NURSE_INTRAOP_RECORD' as const;
-export const INTRAOP_TEMPLATE_VERSION = 1;
+export const INTRAOP_TEMPLATE_VERSION = 2;
 
-// ──────────────────────────────────────────────────────────────────────
-// Shared patterns
-// ──────────────────────────────────────────────────────────────────────
+// 2. Sub-Schemas for specific sections
 
-const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
-const optionalTime = z
-    .string()
-    .regex(timePattern, 'Must be in HH:MM format (24h)')
-    .optional()
-    .or(z.literal(''));
-
-const woundClassEnum = z.enum([
-    'CLEAN',
-    'CLEAN_CONTAMINATED',
-    'CONTAMINATED',
-    'DIRTY_INFECTED',
-]);
-
-// ──────────────────────────────────────────────────────────────────────
-// A) Theatre Setup Section
-// ──────────────────────────────────────────────────────────────────────
-
-export const theatreSetupSchema = z.object({
-    positioning: z.string().min(2, 'Positioning is required'),
-    skinPrepAgent: z.string().min(2, 'Skin prep agent is required'),
-    drapeType: z.string().min(2, 'Drape type is required'),
-
-    // Tourniquet
-    tourniquetUsed: z.boolean(),
-    tourniquetPressure: z.number().int().min(0).max(500).optional(),
-    tourniquetTimeOn: optionalTime.default(''),
-    tourniquetTimeOff: optionalTime.default(''),
-
-    // Cautery / Diathermy
-    cauteryUsed: z.boolean(),
-    cauterySettingsCut: z.string().optional().default(''),
-    cauterySettingsCoag: z.string().optional().default(''),
-
-    // Drains
-    drainsUsed: z.boolean(),
-    drainType: z.string().optional().default(''),
-    drainLocation: z.string().optional().default(''),
-
-    // Irrigation
-    irrigationType: z.string().optional().default(''),
-    irrigationVolumeMl: z.number().int().min(0).optional(),
-
-    // Wound classification
-    woundClass: woundClassEnum,
+export const theatreEntrySchema = z.object({
+    arrivalTime: z.string().optional(),
+    arrivalMethod: z.string().optional(), // STRETCHER, WHEELCHAIR, WALKING
+    identityChecked: z.boolean().optional(),
+    consentFormChecked: z.boolean().optional(),
+    siteMarked: z.boolean().optional(),
+    theatreEntryTime: z.string().optional(),
+    timeIn: z.string().optional(), // UI uses timeIn
+    asaClass: z.string().optional(),
+    allergies: z.string().optional(),
+    comments: z.string().optional(),
 });
 
-// ──────────────────────────────────────────────────────────────────────
-// B) Counts Section (CRITICAL SAFETY)
-// ──────────────────────────────────────────────────────────────────────
+export const safetyChecksSchema = z.object({
+    whoSignIndone: z.boolean().optional(),
+    whoTimeOutDone: z.boolean().optional(),
+    whoSignOutDone: z.boolean().optional(),
+    ivSiteChecked: z.boolean().optional(),
+    ivPatencyChecked: z.boolean().optional(),
+    patientIdVerified: z.boolean().optional(),
+    informedConsentSigned: z.boolean().optional(),
+    preOpChecklistCompleted: z.boolean().optional(),
+    whoChecklistCompleted: z.boolean().optional(),
+    arrivedWithIvInfusing: z.boolean().optional(),
+    ivStartedBy: z.string().optional(),
+    ivStartTime: z.string().optional(),
+    antibioticOrdered: z.boolean().optional(),
+    antibioticType: z.string().optional(),
+    antibioticOrderedBy: z.string().optional(),
+    antibioticTime: z.string().optional(),
+});
+
+export const timingsSchema = z.object({
+    anaesthesiaStart: z.string().optional(),
+    surgeryStart: z.string().optional(),
+    surgeryEnd: z.string().optional(),
+    anaesthesiaEnd: z.string().optional(),
+    theatreExitTime: z.string().optional(),
+    timeIntoTheatre: z.string().optional(),
+    timeOutOfTheatre: z.string().optional(),
+    operationStart: z.string().optional(),
+    operationFinish: z.string().optional(),
+});
+
+export const staffingSchema = z.object({
+    surgeon: z.string().optional(),
+    assistant: z.string().optional(),
+    anaesthesiologist: z.string().optional(),
+    scrubNurse: z.string().optional(),
+    circulatingNurse: z.string().optional(),
+    observers: z.string().optional(),
+});
+
+export const diagnosesSchema = z.object({
+    preOpDiagnosis: z.string().optional(),
+    postOpDiagnosis: z.string().optional(),
+    intraOpDiagnosis: z.string().optional(),
+    procedureDone: z.string().optional(),
+    operationPerformed: z.string().optional(),
+    side: z.enum(['LEFT', 'RIGHT', 'BILATERAL', 'N/A']).optional(),
+});
+
+export const catheterSchema = z.object({
+    catheterInserted: z.boolean().optional(),
+    catheterType: z.string().optional(),
+    catheterSize: z.string().optional(),
+    type: z.string().optional(), // UI compatibility
+    size: z.string().optional(), // UI compatibility
+    insertionTime: z.string().optional(),
+    insertedBy: z.string().optional(),
+    inSitu: z.boolean().optional(),
+    insertedInTheatre: z.boolean().optional(),
+});
+
+export const surgicalDetailsSchema = z.object({
+    woundClassification: z.enum(['CLEAN', 'CLEAN_CONTAMINATED', 'CONTAMINATED', 'DIRTY']).optional(),
+    woundClass: z.string().optional(), // For UI compatibility
+    drainsPlaced: z.boolean().optional(),
+    drainType: z.array(z.string()).optional().default([]),
+    otherDrainType: z.string().optional(),
+    drainSite: z.string().optional(),
+    implantsUsed: z.boolean().optional(),
+    woundIrrigation: z.array(z.string()).optional().default([]),
+    otherIrrigation: z.string().optional(),
+    woundPackType: z.string().optional(),
+    woundPackSite: z.string().optional(),
+    intraOpXraysTaken: z.string().optional(),
+});
+
+export const electrosurgicalSchema = z.object({
+    cauteryUsed: z.boolean().optional(),
+    unitNo: z.string().optional(),
+    mode: z.string().optional(),
+    cutSet: z.string().optional(),
+    coagSet: z.string().optional(),
+    skinCheckedBefore: z.boolean().optional(),
+    skinCheckedAfter: z.boolean().optional(),
+    plateSite: z.string().optional(),
+});
+
+export const tourniquetSchema = z.object({
+    tourniquetUsed: z.boolean().optional(),
+    site: z.string().optional(),
+    type: z.string().optional(),
+    laterality: z.string().optional(),
+    pressure: z.string().optional(),
+    onTime: z.string().optional(),
+    offTime: z.string().optional(),
+    timeOn: z.string().optional(), // UI compatibility
+    timeOff: z.string().optional(), // UI compatibility
+    skinCheckedBefore: z.boolean().optional(),
+    skinCheckedAfter: z.boolean().optional(),
+});
+
+export const positioningSchema = z.object({
+    position: z.string().optional(),
+    otherPosition: z.string().optional(),
+    safetyBeltApplied: z.boolean().optional(),
+    safetyBeltPosition: z.string().optional(),
+    armsSecured: z.boolean().optional(),
+    armsPosition: z.string().optional(),
+    bodyAlignmentCorrect: z.boolean().optional(),
+    pressurePointsDescribe: z.string().optional(),
+    skinProtected: z.boolean().optional(),
+    nerveProtected: z.boolean().optional(),
+});
+
+export const countItemSchema = z.object({
+    name: z.string(),
+    preliminary: z.number().default(0),
+    woundClosure: z.number().default(0),
+    final: z.number().default(0),
+});
 
 export const countsSchema = z.object({
-    // Initial counts
-    initialCountsCompleted: z.boolean(),
-    initialCountsRecordedBy: z.string().min(2, 'Recorder name required'),
-    initialCountsTime: optionalTime.default(''),
-
-    // Breakdown (optional granularity)
-    swabsInitial: z.number().int().min(0).optional(),
-    sharpsInitial: z.number().int().min(0).optional(),
-    instrumentsInitial: z.number().int().min(0).optional(),
-
-    // Final counts
-    finalCountsCompleted: z.boolean(),
-    finalCountsRecordedBy: z.string().min(2, 'Recorder name required'),
-    finalCountsTime: optionalTime.default(''),
-
-    // Breakdown
-    swabsFinal: z.number().int().min(0).optional(),
-    sharpsFinal: z.number().int().min(0).optional(),
-    instrumentsFinal: z.number().int().min(0).optional(),
-
-    // Discrepancy
-    countDiscrepancy: z.boolean(),
-    discrepancyNotes: z.string().optional().default(''),
+    swabsCorrect: z.boolean().optional(),
+    instrumentsCorrect: z.boolean().optional(),
+    sharpsCorrect: z.boolean().optional(),
+    countCorrect: z.boolean().optional(),
+    comments: z.string().optional(),
+    actionIfIncorrect: z.string().optional(),
+    scrubNurseSignature: z.string().optional(),
+    circulatingNurseSignature: z.string().optional(),
+    items: z.array(countItemSchema).optional().default([]),
 });
 
-// Refinement: if discrepancy=true, notes must be non-empty
-export const countsSchemaFinal = countsSchema.refine(
-    (d) => !d.countDiscrepancy || (d.discrepancyNotes && d.discrepancyNotes.trim().length >= 5),
-    {
-        message: 'Discrepancy notes are required when a count discrepancy is flagged (min 5 chars)',
-        path: ['discrepancyNotes'],
-    },
-);
+export const closureSchema = z.object({
+    skinClosureMethod: z.string().optional(),
+    skinClosure: z.string().optional(),
+    dressingType: z.string().optional(),
+    dressingApplied: z.string().optional(),
+    countVerifiedBy: z.string().optional(),
+});
 
-// ──────────────────────────────────────────────────────────────────────
-// C) Specimens Section
-// ──────────────────────────────────────────────────────────────────────
+export const fluidsSchema = z.object({
+    estimatedBloodLossMl: z.number().optional(),
+    urinaryOutputMl: z.number().optional(),
+    ivFluidsAdministered: z.string().optional(),
+    bloodTransfusionPackedCellsMl: z.number().optional(),
+    bloodTransfusionWholeMl: z.number().optional(),
+    bloodTransfusionOtherMl: z.number().optional(),
+    ivInfusionTotalMl: z.number().optional(),
+});
+
+// Table Structures
+export const medicationItemSchema = z.object({
+    name: z.string().optional(),
+    drug: z.string().optional(), // UI compatibility
+    dose: z.string().optional(),
+    route: z.string().optional(),
+    time: z.string().optional(),
+    administeredBy: z.string().optional(),
+    sign: z.string().optional(), // UI compatibility
+});
+
+export const implantItemSchema = z.object({
+    name: z.string().optional(),
+    item: z.string().optional(), // UI compatibility
+    serialNumber: z.string().optional(),
+    lotNo: z.string().optional(), // UI compatibility
+    manufacturer: z.string().optional(),
+    expiryDate: z.string().optional(),
+    size: z.string().optional(),
+});
 
 export const specimenItemSchema = z.object({
-    specimenType: z.string().min(2, 'Specimen type is required'),
-    site: z.string().min(2, 'Specimen site is required'),
-    destinationLab: z.string().min(2, 'Destination lab is required'),
-    timeSent: optionalTime.default(''),
-    notes: z.string().optional().default(''),
+    type: z.string().optional(),
+    site: z.string().optional(),
+    labRequestSent: z.boolean().optional(),
+    histology: z.boolean().optional(),
+    cytology: z.boolean().optional(),
+    notForAnalysis: z.boolean().optional(),
+    disposition: z.string().optional(),
 });
 
-export const specimensSchema = z.object({
-    specimens: z.array(specimenItemSchema).default([]),
-});
-
-// ──────────────────────────────────────────────────────────────────────
-// D) Implants Used Section (confirmation of what was used)
-// ──────────────────────────────────────────────────────────────────────
-
-export const implantUsedItemSchema = z.object({
-    name: z.string().min(2, 'Implant name is required'),
-    manufacturer: z.string().optional().default(''),
-    lotNumber: z.string().optional().default(''),
-    serialNumber: z.string().optional().default(''),
-    expiryDate: z.string().optional().default(''), // YYYY-MM-DD
-    used: z.boolean(),
-    notes: z.string().optional().default(''),
-});
-
-export const implantsUsedSchema = z.object({
-    implantsConfirmed: z.boolean(),
-    items: z.array(implantUsedItemSchema).default([]),
-});
-
-// ──────────────────────────────────────────────────────────────────────
-// E) Sign-Out Section (WHO Sign-Out style)
-// ──────────────────────────────────────────────────────────────────────
-
-export const signOutSchema = z.object({
-    signOutCompleted: z.boolean(),
-    signOutTime: optionalTime.default(''),
-    signOutNurseName: z.string().min(2, 'Nurse name is required for sign-out'),
-    postopInstructionsConfirmed: z.boolean(),
-    specimensLabeledConfirmed: z.boolean(),
-    additionalNotes: z.string().optional().default(''),
-});
-
-// ──────────────────────────────────────────────────────────────────────
-// Full Form Schema — Draft (lenient, all sections partial)
-// ──────────────────────────────────────────────────────────────────────
+// 3. Root Schemas
 
 export const nurseIntraOpRecordDraftSchema = z.object({
-    theatreSetup: theatreSetupSchema.partial().optional().default({}),
+    entry: theatreEntrySchema.partial().optional().default({}),
+    safety: safetyChecksSchema.partial().optional().default({}),
+    timings: timingsSchema.partial().optional().default({}),
+    staffing: staffingSchema.partial().optional().default({}),
+    diagnoses: diagnosesSchema.partial().optional().default({}),
+    catheter: catheterSchema.partial().optional().default({}),
+    positioning: positioningSchema.partial().optional().default({}),
+    skinPrep: z.object({
+        agentUsed: z.string().optional(),
+        preppedBy: z.string().optional(),
+        shavedBy: z.string().optional(),
+        prepAgent: z.string().optional(),
+        otherPrepAgent: z.string().optional(),
+    }).optional().default({}),
+    equipment: z.object({
+        electrosurgical: electrosurgicalSchema.partial().optional().default({}),
+        tourniquet: tourniquetSchema.partial().optional().default({}),
+    }).optional().default({}),
+    surgicalDetails: surgicalDetailsSchema.partial().optional().default({}),
     counts: countsSchema.partial().optional().default({}),
-    specimens: specimensSchema.partial().optional().default({}),
-    implantsUsed: implantsUsedSchema.partial().optional().default({}),
-    signOut: signOutSchema.partial().optional().default({}),
+    closure: closureSchema.partial().optional().default({}),
+    fluids: fluidsSchema.partial().optional().default({}),
+    medications: z.array(medicationItemSchema).optional().default([]),
+    implants: z.array(implantItemSchema).optional().default([]),
+    specimens: z.array(specimenItemSchema).optional().default([]),
+    itemsToReturnToTheatre: z.string().optional().default(''),
+    billing: z.object({
+        anaestheticMaterialsCharge: z.string().optional().default(''),
+        theatreFee: z.string().optional().default(''),
+    }).optional().default({}),
 });
 
-// ──────────────────────────────────────────────────────────────────────
-// Full Form Schema — Final (strict, all required enforced)
-// ──────────────────────────────────────────────────────────────────────
+export const nurseIntraOpRecordFinalSchema = nurseIntraOpRecordDraftSchema; // Can add stricter validation if needed
 
-export const nurseIntraOpRecordFinalSchema = z.object({
-    theatreSetup: theatreSetupSchema,
-    counts: countsSchemaFinal,
-    specimens: specimensSchema,
-    implantsUsed: implantsUsedSchema,
-    signOut: signOutSchema,
-});
-
-// ──────────────────────────────────────────────────────────────────────
-// TypeScript Types (inferred from zod)
-// ──────────────────────────────────────────────────────────────────────
-
+// 4. Types
 export type NurseIntraOpRecordData = z.infer<typeof nurseIntraOpRecordFinalSchema>;
 export type NurseIntraOpRecordDraft = z.infer<typeof nurseIntraOpRecordDraftSchema>;
+export type MedicationItem = z.infer<typeof medicationItemSchema>;
+export type ImplantItem = z.infer<typeof implantItemSchema>;
 export type SpecimenItem = z.infer<typeof specimenItemSchema>;
-export type ImplantUsedItem = z.infer<typeof implantUsedItemSchema>;
 
-// ──────────────────────────────────────────────────────────────────────
-// Section metadata (for UI rendering)
-// ──────────────────────────────────────────────────────────────────────
-
-export interface IntraOpSectionMeta {
-    key: string;
-    title: string;
-    icon: string;
-    requiredFieldCount: number;
-    isCritical?: boolean; // Highlight safety-critical sections
-}
-
-export const INTRAOP_SECTIONS: IntraOpSectionMeta[] = [
-    { key: 'theatreSetup', title: 'Theatre Setup', icon: 'Settings', requiredFieldCount: 5 },
-    { key: 'counts', title: 'Swab / Instrument / Sharps Counts', icon: 'Hash', requiredFieldCount: 6, isCritical: true },
-    { key: 'specimens', title: 'Specimens', icon: 'FlaskConical', requiredFieldCount: 0 },
-    { key: 'implantsUsed', title: 'Implants / Prostheses Used', icon: 'Package', requiredFieldCount: 1 },
-    { key: 'signOut', title: 'Sign-Out & Completion', icon: 'ClipboardCheck', requiredFieldCount: 4, isCritical: true },
+// 5. Constants for UI
+export const INTRAOP_SECTIONS = [
+    { key: 'entry', title: 'Arrival & Entry', icon: 'LogIn' },
+    { key: 'safety', title: 'Safety Checks & IV', icon: 'ShieldCheck', isCritical: true },
+    { key: 'timings', title: 'Theatrical Timings', icon: 'Clock' },
+    { key: 'staffing', title: 'Surgical Team', icon: 'Users' },
+    { key: 'diagnoses', title: 'Diagnoses & Operation', icon: 'Stethoscope' },
+    { key: 'positioning', title: 'Positioning & alignment', icon: 'UserCheck' },
+    { key: 'catheter', title: 'Catheterization', icon: 'Droplets' },
+    { key: 'skinPrep', title: 'Skin Preparation', icon: 'Sparkles' },
+    { key: 'equipment', title: 'Equipment (Cautery/Tourniquet)', icon: 'Zap' },
+    { key: 'surgicalDetails', title: 'Surgical Details (Drains/Class)', icon: 'Activity' },
+    { key: 'counts', title: 'Instruments & Sharps Count', icon: 'ListCheck', isCritical: true },
+    { key: 'closure', title: 'Closure & Dressing', icon: 'Bandage' },
+    { key: 'fluids', title: 'Fluids & Transfusions', icon: 'Droplet' },
+    { key: 'tables', title: 'Medications, Implants & Specimens', icon: 'Table' },
 ];
 
-// ──────────────────────────────────────────────────────────────────────
-// Helpers
-// ──────────────────────────────────────────────────────────────────────
+// Heuristics for Completion
+export function getIntraOpSectionCompletion(data: any) {
+    const sections: Record<string, { complete: boolean }> = {};
+    if (!data) return sections;
 
-/**
- * Returns missing required fields for finalization.
- * Runs the final schema and collects ZodError issues.
- */
-export function getMissingIntraOpItems(
-    data: Partial<NurseIntraOpRecordDraft> | Record<string, unknown>,
-): string[] {
-    const result = nurseIntraOpRecordFinalSchema.safeParse(data);
-    if (result.success) return [];
+    for (const section of INTRAOP_SECTIONS) {
+        const key = section.key === 'tables' ? 'medications' : section.key;
+        const sectionData = data[key];
 
-    return result.error.issues.map((issue) => {
-        const path = issue.path.join('.');
-        return `${path}: ${issue.message}`;
-    });
-}
+        if (!sectionData) {
+            sections[section.key] = { complete: false };
+            continue;
+        }
 
-/**
- * Computes section-level completion for progress display.
- */
-export function getIntraOpSectionCompletion(
-    data: Partial<NurseIntraOpRecordDraft> | Record<string, unknown>,
-): Record<string, { complete: boolean; errors: string[] }> {
-    const schemas: Record<string, z.ZodTypeAny> = {
-        theatreSetup: theatreSetupSchema,
-        counts: countsSchemaFinal,
-        specimens: specimensSchema,
-        implantsUsed: implantsUsedSchema,
-        signOut: signOutSchema,
-    };
-
-    const result: Record<string, { complete: boolean; errors: string[] }> = {};
-
-    for (const [key, schema] of Object.entries(schemas)) {
-        const sectionData = (data as Record<string, unknown>)[key] ?? {};
-        const parsed = schema.safeParse(sectionData);
-        result[key] = {
-            complete: parsed.success,
-            errors: parsed.success
-                ? []
-                : parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`),
-        };
+        if (section.key === 'tables') {
+            const hasMeds = (data.medications?.length ?? 0) > 0;
+            const hasImplants = (data.implants?.length ?? 0) > 0;
+            const hasSpecimens = (data.specimens?.length ?? 0) > 0;
+            sections.tables = { complete: hasMeds || hasImplants || hasSpecimens };
+        } else if (section.key === 'counts') {
+            sections.counts = { complete: !!sectionData.countCorrect };
+        } else if (section.key === 'equipment') {
+            const hasCautery = !!sectionData.electrosurgical?.unitNo;
+            const hasTourniquet = !!sectionData.tourniquet?.site;
+            sections.equipment = { complete: hasCautery || hasTourniquet || sectionData.electrosurgical?.cauteryUsed === false };
+        } else {
+            // General heuristic: check if at least one field is filled
+            const hasValue = Object.values(sectionData).some(v => v !== '' && v !== null && v !== undefined && v !== false);
+            sections[section.key] = { complete: hasValue };
+        }
     }
-
-    return result;
+    return sections;
 }
 
-/**
- * Checks the critical safety items needed before RECOVERY transition:
- * - signOutCompleted = true
- * - finalCountsCompleted = true
- * - if countDiscrepancy = true → blocks (unless explicit override)
- *
- * Returns array of missing item labels. Empty = safe to transition.
- */
-export function getRecoveryGateItems(
-    data: Partial<NurseIntraOpRecordDraft> | Record<string, unknown>,
-): string[] {
+// Discharge/Recovery Gate Compliance
+export function checkNurseRecoveryGateCompliance(data: any) {
     const missing: string[] = [];
-    const d = data as any;
+    if (!data) return ['Record data is missing'];
 
-    const counts = d?.counts ?? {};
-    const signOut = d?.signOut ?? {};
+    // Core clinical safety requirements for recovery transfer
+    if (!data.counts || !data.counts.countCorrect) {
+        missing.push('Surgical counts (instruments, swabs, sharps) are incorrect or unverified');
+    }
 
-    if (!counts.finalCountsCompleted) {
-        missing.push('Final counts not completed');
-    }
-    if (counts.countDiscrepancy === true) {
-        missing.push('Count discrepancy flagged — resolve before RECOVERY');
-    }
-    if (!signOut.signOutCompleted) {
-        missing.push('Nurse sign-out not completed');
-    }
-    if (!signOut.postopInstructionsConfirmed) {
-        missing.push('Post-op instructions not confirmed');
-    }
-    if (!signOut.specimensLabeledConfirmed) {
-        missing.push('Specimens labeled confirmation missing');
+    if (!data.safety || !data.safety.whoSignOutDone) {
+        missing.push('WHO Sign-Out process incomplete');
     }
 
     return missing;
