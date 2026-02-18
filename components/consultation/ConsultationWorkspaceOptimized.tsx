@@ -13,7 +13,8 @@
  * This is the main editing area where doctors document consultations.
  */
 
-import { useState, useCallback, useMemo, memo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { use, Suspense, useState, useCallback, useMemo, memo } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -167,9 +168,9 @@ const StepNav = memo(function StepNav({
   onTabChange: (id: string) => void;
 }) {
   return (
-    <div className="border-b bg-slate-50/80">
+    <div className="bg-white/50 backdrop-blur-md border-b border-slate-200">
       {/* Desktop: Full step navigation */}
-      <div className="hidden md:flex items-center px-2 py-2">
+      <div className="hidden md:flex items-center px-4 py-3 gap-2 max-w-[1200px] mx-auto">
         {tabs.map((tab, index) => {
           const Icon = tab.icon;
           const isActive = index === activeIndex;
@@ -181,51 +182,50 @@ const StepNav = memo(function StepNav({
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
               className={cn(
-                'group relative flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all text-left flex-1 min-w-0',
+                'group relative flex items-center gap-3 px-4 py-2 rounded-xl transition-all text-left flex-1 min-w-0 border',
                 isActive
-                  ? 'bg-white shadow-sm ring-1 ring-slate-200/80'
-                  : 'hover:bg-white/60',
+                  ? 'bg-indigo-600/5 border-indigo-200 shadow-sm'
+                  : 'bg-transparent border-transparent hover:bg-slate-100/80',
               )}
             >
               {/* Step indicator */}
               <div className={cn(
-                'flex items-center justify-center h-7 w-7 rounded-full shrink-0 text-xs font-semibold transition-all',
+                'flex items-center justify-center h-8 w-8 rounded-lg shrink-0 text-xs font-bold transition-all duration-300',
                 isActive
-                  ? 'bg-slate-900 text-white'
+                  ? 'bg-indigo-600 text-white shadow-sm'
                   : isComplete
-                    ? 'bg-emerald-100 text-emerald-700'
+                    ? 'bg-emerald-100 text-emerald-600'
                     : isPast
-                      ? 'bg-slate-200 text-slate-600'
-                      : 'bg-slate-100 text-slate-400',
+                      ? 'bg-slate-100 text-slate-500'
+                      : 'bg-slate-50 text-slate-400',
               )}>
                 {isComplete ? (
-                  <Check className="h-3.5 w-3.5" />
+                  <Check className="h-4 w-4 stroke-[3]" />
                 ) : (
-                  <Icon className="h-3.5 w-3.5" />
+                  <Icon className="h-4 w-4" />
                 )}
               </div>
 
               <div className="min-w-0">
                 <p className={cn(
-                  'text-xs font-semibold truncate transition-colors',
-                  isActive ? 'text-slate-900' : 'text-slate-600 group-hover:text-slate-800',
+                  'text-[11px] font-bold uppercase tracking-widest truncate transition-colors font-bold',
+                  isActive ? 'text-indigo-600' : 'text-slate-500 group-hover:text-slate-900',
                 )}>
                   {tab.shortLabel}
                 </p>
                 <p className={cn(
-                  'text-[10px] truncate transition-colors',
-                  isActive ? 'text-slate-500' : 'text-slate-400',
+                  'text-[10px] truncate transition-colors font-medium',
+                  isActive ? 'text-slate-600' : 'text-slate-400 group-hover:text-slate-600',
                 )}>
                   {tab.description}
                 </p>
               </div>
 
-              {/* Connector line */}
-              {index < tabs.length - 1 && (
-                <div className={cn(
-                  'absolute right-0 top-1/2 -translate-y-1/2 w-px h-5',
-                  'bg-slate-200',
-                )} />
+              {isActive && (
+                <motion.div
+                  layoutId="step-indicator"
+                  className="absolute -bottom-[1px] left-4 right-4 h-0.5 bg-indigo-600 rounded-full"
+                />
               )}
             </button>
           );
@@ -344,179 +344,201 @@ export function ConsultationWorkspaceOptimized() {
   const currentTab = TABS[currentTabIndex];
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      {/* Step Navigation */}
-      <StepNav
-        tabs={TABS}
-        activeIndex={currentTabIndex}
-        completedFields={completedFields}
-        onTabChange={handleTabChange}
-      />
+    <div className="flex flex-col h-full bg-slate-50/50 overflow-hidden">
+      {/* Step Navigation - Fixed at top of workspace column */}
+      <div className="bg-white/60 backdrop-blur-md border-b border-slate-200 px-6 shrink-0 z-20 shadow-sm">
+        <StepNav
+          tabs={TABS}
+          activeIndex={currentTabIndex}
+          completedFields={completedFields}
+          onTabChange={handleTabChange}
+        />
+      </div>
 
-      {/* Tab Content Area */}
-      <div className="flex-1 overflow-y-auto">
+      {/* Tab Content Area - The only scrollable part of the workspace */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar-light relative">
         <Tabs value={activeTab} className="h-full">
-          {/* Chief Complaint */}
-          <TabsContent value="chief" className="mt-0 h-full p-0">
-            <LazyTab isActive={activeTab === 'chief'}>
-              <PatientGoalsTab
-                initialValue={state.notes.chiefComplaint || ''}
-                onChange={handleNoteChange('chiefComplaint')}
-                isReadOnly={isReadOnly}
-              />
-            </LazyTab>
-          </TabsContent>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="h-full p-6 lg:p-8"
+            >
+              <div className="max-w-[1000px] mx-auto h-full">
+                {/* Chief Complaint */}
+                <TabsContent value="chief" className="m-0 h-full border-none shadow-none bg-transparent">
+                  <LazyTab isActive={activeTab === 'chief'}>
+                    <PatientGoalsTab
+                      initialValue={state.notes.chiefComplaint || ''}
+                      onChange={handleNoteChange('chiefComplaint')}
+                      isReadOnly={isReadOnly}
+                    />
+                  </LazyTab>
+                </TabsContent>
 
-          {/* Examination */}
-          <TabsContent value="exam" className="mt-0 h-full p-0">
-            <LazyTab isActive={activeTab === 'exam'}>
-              <ExaminationTab
-                initialValue={state.notes.examination || ''}
-                onChange={handleNoteChange('examination')}
-                isReadOnly={isReadOnly}
-              />
-            </LazyTab>
-          </TabsContent>
+                {/* Examination */}
+                <TabsContent value="exam" className="m-0 h-full border-none shadow-none bg-transparent">
+                  <LazyTab isActive={activeTab === 'exam'}>
+                    <ExaminationTab
+                      initialValue={state.notes.examination || ''}
+                      onChange={handleNoteChange('examination')}
+                      isReadOnly={isReadOnly}
+                    />
+                  </LazyTab>
+                </TabsContent>
 
-          {/* Assessment */}
-          <TabsContent value="assessment" className="mt-0 h-full p-0">
-            <LazyTab isActive={activeTab === 'assessment'}>
-              <RecommendationsTab
-                consultation={state.consultation}
-                currentOutcome={state.outcomeType}
-                currentPatientDecision={state.patientDecision}
-                onOutcomeChange={setOutcome}
-                onPatientDecisionChange={setPatientDecision}
-                onAssessmentChange={handleNoteChange('assessment')}
-                isReadOnly={isReadOnly}
-              />
-            </LazyTab>
-          </TabsContent>
+                {/* Assessment */}
+                <TabsContent value="assessment" className="m-0 h-full border-none shadow-none bg-transparent">
+                  <LazyTab isActive={activeTab === 'assessment'}>
+                    <RecommendationsTab
+                      consultation={state.consultation}
+                      currentOutcome={state.outcomeType}
+                      currentPatientDecision={state.patientDecision}
+                      onOutcomeChange={setOutcome}
+                      onPatientDecisionChange={setPatientDecision}
+                      onAssessmentChange={handleNoteChange('assessment')}
+                      isReadOnly={isReadOnly}
+                    />
+                  </LazyTab>
+                </TabsContent>
 
-          {/* Treatment Plan */}
-          <TabsContent value="plan" className="mt-0 h-full p-0">
-            <LazyTab isActive={activeTab === 'plan'}>
-              <TreatmentPlanTab
-                consultation={state.consultation}
-                hasCasePlan={state.consultation?.hasCasePlan || false}
-                onPlanChange={handleNoteChange('plan')}
-                isReadOnly={isReadOnly}
-              />
-            </LazyTab>
-          </TabsContent>
+                {/* Treatment Plan */}
+                <TabsContent value="plan" className="m-0 h-full border-none shadow-none bg-transparent">
+                  <LazyTab isActive={activeTab === 'plan'}>
+                    <TreatmentPlanTab
+                      consultation={state.consultation}
+                      hasCasePlan={state.consultation?.hasCasePlan || false}
+                      onPlanChange={handleNoteChange('plan')}
+                      isReadOnly={isReadOnly}
+                    />
+                  </LazyTab>
+                </TabsContent>
 
-          {/* Billing */}
-          <TabsContent value="billing" className="mt-0 h-full p-0">
-            <LazyTab isActive={activeTab === 'billing'}>
-              <BillingTab
-                appointmentId={state.appointment?.id}
-                isReadOnly={false}
-              />
-            </LazyTab>
-          </TabsContent>
+                {/* Billing */}
+                <TabsContent value="billing" className="m-0 h-full border-none shadow-none bg-transparent">
+                  <LazyTab isActive={activeTab === 'billing'}>
+                    <BillingTab
+                      appointmentId={state.appointment?.id}
+                      isReadOnly={false}
+                    />
+                  </LazyTab>
+                </TabsContent>
+              </div>
+            </motion.div>
+          </AnimatePresence>
         </Tabs>
       </div>
 
-      {/* ─── Navigation Footer ─── */}
-      <div className="border-t bg-white/95 backdrop-blur-sm px-4 lg:px-6 py-3">
-        <div className="flex items-center justify-between">
-          {/* Left: Previous */}
+      {/* ─── Sticky Footer Navigation ─── */}
+      <div className="border-t border-white/5 bg-slate-950/40 backdrop-blur-xl px-6 py-4 flex items-center justify-between z-20">
+        <motion.div whileHover={{ x: -2 }} whileTap={{ scale: 0.98 }}>
           <Button
             variant="ghost"
             onClick={handlePrevious}
             disabled={isFirstTab}
-            className="gap-1.5 text-slate-600 hover:text-slate-900"
+            className="text-slate-500 hover:text-white hover:bg-white/5 gap-2 px-4 transition-all"
           >
             <ChevronLeft className="h-4 w-4" />
-            <span className="hidden sm:inline">Previous</span>
+            Previous Section
           </Button>
+        </motion.div>
 
-          {/* Center: Progress + Save status */}
-          <div className="flex items-center gap-4">
-            {/* Step counter */}
-            <span className="text-xs text-slate-400 font-medium">
-              {currentTabIndex + 1} / {TABS.length}
-            </span>
+        {/* Center: Progress + Save status */}
+        <div className="flex items-center gap-4">
+          {/* Step counter */}
+          <span className="text-xs text-slate-500 font-bold tracking-tight uppercase tracking-[0.2em] hidden sm:block">
+            STEP {currentTabIndex + 1} OF {TABS.length}
+          </span>
 
-            {/* Progress bar */}
-            <div className="hidden sm:flex items-center gap-1">
-              {TABS.map((tab, index) => (
-                <button
-                  key={tab.id}
-                  onClick={() => handleTabChange(tab.id)}
-                  aria-label={tab.label}
-                  className={cn(
-                    'h-1.5 rounded-full transition-all',
-                    index === currentTabIndex
-                      ? 'w-6 bg-slate-900'
-                      : tab.noteField && completedFields.has(tab.noteField)
-                        ? 'w-3 bg-emerald-400'
-                        : index < currentTabIndex
-                          ? 'w-3 bg-slate-300'
-                          : 'w-3 bg-slate-200',
-                  )}
-                />
-              ))}
-            </div>
-
-            {/* Unsaved indicator */}
-            {state.workflow.isDirty && !state.isSaving && (
-              <span className="text-[11px] text-amber-600 font-medium hidden sm:block">
-                Unsaved changes
-              </span>
-            )}
+          {/* Progress bar */}
+          <div className="hidden sm:flex items-center gap-2">
+            {TABS.map((tab, index) => (
+              <button
+                key={tab.id}
+                onClick={() => handleTabChange(tab.id)}
+                aria-label={tab.label}
+                className={cn(
+                  'h-1.5 rounded-full transition-all duration-300',
+                  index === currentTabIndex
+                    ? 'w-10 bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)]'
+                    : tab.noteField && completedFields.has(tab.noteField)
+                      ? 'w-3 bg-emerald-500/50'
+                      : index < currentTabIndex
+                        ? 'w-3 bg-slate-700'
+                        : 'w-3 bg-slate-800',
+                )}
+              />
+            ))}
           </div>
 
-          {/* Right: Next / Save / Complete */}
-          <div className="flex items-center gap-2">
-            {/* Contextual save */}
-            {!isLastTab && state.workflow.isDirty && (
+          <AnimatePresence>
+            {state.workflow.isDirty && !state.isSaving && (
+              <motion.span
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="text-[10px] text-amber-500 font-bold uppercase tracking-widest hidden lg:block"
+              >
+                UNSAVED
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Right: Next / Save / Complete */}
+        <div className="flex items-center gap-3">
+          {/* Contextual save */}
+          {!isLastTab && state.workflow.isDirty && (
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleSave}
                 disabled={!canSave || state.isSaving}
-                className="gap-1 text-slate-500 hover:text-slate-900 hidden sm:flex"
+                className="h-9 gap-2 text-slate-400 hover:text-white hidden sm:flex font-bold text-[11px] uppercase tracking-wider"
               >
-                <Save className="h-3.5 w-3.5" />
-                Save
+                {state.isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                Quick Save
               </Button>
-            )}
+            </motion.div>
+          )}
 
-            {isLastTab ? (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={handleSave}
-                  disabled={!canSave || state.isSaving}
-                  className="gap-1.5"
-                >
-                  {state.isSaving ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="h-4 w-4" />
-                  )}
-                  <span className="hidden sm:inline">Save</span>
-                </Button>
+          {isLastTab ? (
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                onClick={handleSave}
+                disabled={!canSave || state.isSaving}
+                className="h-10 gap-2 border-white/10 bg-white/5 hover:bg-white/10 text-slate-300 font-bold text-[11px] uppercase tracking-widest"
+              >
+                {state.isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Draft
+              </Button>
+              <motion.div whileHover={{ scale: 1.02, y: -1 }} whileTap={{ scale: 0.98 }}>
                 <Button
                   onClick={openCompleteDialog}
                   disabled={!canComplete}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 shadow-sm"
+                  className="h-10 bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-8 shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all border-none uppercase tracking-widest text-[11px]"
                 >
-                  <CheckCircle className="h-4 w-4" />
-                  <span className="hidden sm:inline">Complete</span>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Conclude Session
                 </Button>
-              </>
-            ) : (
+              </motion.div>
+            </div>
+          ) : (
+            <motion.div whileHover={{ x: 2 }} whileTap={{ scale: 0.98 }}>
               <Button
                 onClick={handleNext}
-                className="gap-1.5 bg-slate-900 hover:bg-slate-800 text-white"
+                className="h-10 bg-blue-600 hover:bg-blue-500 text-white font-bold gap-3 px-8 shadow-[0_0_20px_rgba(37,99,235,0.3)] border-none uppercase tracking-widest text-[11px] flex items-center"
               >
-                <span className="hidden sm:inline">Next</span>
+                Next Section
                 <ChevronRight className="h-4 w-4" />
               </Button>
-            )}
-          </div>
+            </motion.div>
+          )}
         </div>
       </div>
     </div>

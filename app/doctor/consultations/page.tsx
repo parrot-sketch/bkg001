@@ -1,21 +1,15 @@
 'use client';
 
 /**
- * Doctor Consultations Page
+ * Doctor Consultations Page - Enhanced Premium Version
  * 
  * Consultation history and active sessions for the doctor.
  * 
- * A "Consultation" is the clinical session that occurs when a doctor sees a patient.
- * In the DB, the Consultation record (1:1 with Appointment) is created when the doctor
- * starts the consultation from a checked-in appointment.
- * 
- * This page shows:
- * - Active consultations (IN_CONSULTATION) with "Continue" action
- * - Completed consultations with outcome, duration, notes preview
- * - Filtering by state, search, date grouping
- * 
- * Data source: Appointments with status IN_CONSULTATION or COMPLETED,
- * which have consultation tracking fields (started_at, ended_at, duration).
+ * ENHANCED: 
+ * - Deep dark theme for professional focus
+ * - Glassmorphism effects with backdrop-blur
+ * - Framer-motion for silken-smooth staggered entry
+ * - Interactive hover states and layout animations
  */
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -25,7 +19,7 @@ import { doctorApi } from '@/lib/api/doctor';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
 import {
     FileText,
     Calendar,
@@ -69,6 +63,25 @@ const FILTER_TABS: { key: FilterKey; label: string; icon: React.ElementType }[] 
     { key: 'active', label: 'Active', icon: Activity },
     { key: 'completed', label: 'Completed', icon: CheckCircle },
 ];
+
+const containerVariants: Variants = {
+    hidden: { opacity: 0 },
+    visible: {
+        opacity: 1,
+        transition: {
+            staggerChildren: 0.05
+        }
+    }
+};
+
+const itemVariants: Variants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+        opacity: 1,
+        y: 0,
+        transition: { type: 'spring', stiffness: 300, damping: 24 }
+    }
+};
 
 // ============================================================================
 // MAIN PAGE
@@ -117,7 +130,7 @@ export default function DoctorConsultationsPage() {
 
     // ── Derived data ─────────────────────────────────────────────────────
 
-    const { activeList, completedList, stats, filteredList, groupedList } = useMemo(() => {
+    const { activeList, completedList, stats, groupedList } = useMemo(() => {
         const active = consultations.filter(
             (c) => c.status === AppointmentStatus.IN_CONSULTATION
         );
@@ -134,13 +147,12 @@ export default function DoctorConsultationsPage() {
         const totalDuration = completed.reduce((sum, c) => sum + (c.consultationDuration || 0), 0);
         const avgDuration = completed.length > 0 ? Math.round(totalDuration / completed.length) : 0;
 
-        // Apply filter
+        // Apply filter & search
         let list: AppointmentResponseDto[];
         if (activeFilter === 'active') list = active;
         else if (activeFilter === 'completed') list = completed;
         else list = [...active, ...completed];
 
-        // Apply search
         if (searchQuery.trim()) {
             const q = searchQuery.toLowerCase().trim();
             list = list.filter((c) => {
@@ -153,11 +165,12 @@ export default function DoctorConsultationsPage() {
 
         // Group by date bucket for completed
         const groups: { label: string; items: AppointmentResponseDto[] }[] = [];
-        if (activeFilter !== 'completed' && active.length > 0) {
-            groups.push({ label: 'Active Sessions', items: active });
+
+        const filteredActive = list.filter(c => c.status === AppointmentStatus.IN_CONSULTATION);
+        if (filteredActive.length > 0) {
+            groups.push({ label: 'Active Sessions', items: filteredActive });
         }
 
-        // Group completed by time period
         const completedInList = list.filter((c) => c.status === AppointmentStatus.COMPLETED);
         if (completedInList.length > 0) {
             const today: AppointmentResponseDto[] = [];
@@ -191,7 +204,6 @@ export default function DoctorConsultationsPage() {
                 completed: completed.length,
                 avgDuration,
             },
-            filteredList: list,
             groupedList: groups,
         };
     }, [consultations, activeFilter, searchQuery]);
@@ -201,9 +213,9 @@ export default function DoctorConsultationsPage() {
     if (!isAuthenticated || !user) {
         return (
             <div className="flex items-center justify-center h-screen bg-slate-50">
-                <div className="text-center space-y-3">
-                    <div className="h-10 w-10 bg-slate-200 rounded-full mx-auto animate-pulse" />
-                    <p className="text-sm text-slate-400">Authenticating...</p>
+                <div className="text-center space-y-4">
+                    <Loader2 className="h-10 w-10 text-indigo-500 mx-auto animate-spin" />
+                    <p className="text-sm text-slate-500 font-medium tracking-wide">Authenticating Clinical Session...</p>
                 </div>
             </div>
         );
@@ -212,197 +224,217 @@ export default function DoctorConsultationsPage() {
     // ── Render ─────────────────────────────────────────────────────────────
 
     return (
-        <ClinicalDashboardShell>
-            <div className="space-y-5 animate-in fade-in duration-500 pb-8">
+        <ClinicalDashboardShell className="bg-[#f8fafc] text-slate-900 min-h-screen selection:bg-indigo-500/10">
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-12">
 
                 {/* ─── Header ──────────────────────────────────────────── */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+                <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 px-1">
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-2 mb-1">
+                            <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-sm animate-pulse" />
+                            <span className="text-[10px] uppercase font-black tracking-widest text-emerald-600">Clinical Operations</span>
+                        </div>
+                        <h1 className="text-3xl font-black text-slate-900 tracking-tight">
                             Consultation Room
                         </h1>
-                        <p className="text-sm text-slate-500 mt-0.5">
-                            Active sessions & consultation history
+                        <p className="text-sm text-slate-500 font-medium italic">
+                            Orchestrating patient outcomes through clinical excellence
                         </p>
                     </div>
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="text-xs text-slate-500 gap-1.5 self-start sm:self-auto"
+                        className="text-xs text-slate-500 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 rounded-full gap-2 px-4 h-9 transition-all"
                         onClick={() => loadConsultations(true)}
                         disabled={refreshing}
                     >
                         <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
-                        Refresh
+                        Refresh Registry
                     </Button>
-                </div>
+                </header>
 
-                {/* ─── Ready State Banner (no active sessions) ──────────── */}
+                {/* ─── Ready State Banner ──────────── */}
                 {!loading && activeList.length === 0 && (
-                    <div className="relative overflow-hidden rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-6">
-                        <div className="absolute top-0 right-0 p-6 opacity-5">
-                            <Stethoscope className="h-28 w-28" />
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="relative overflow-hidden rounded-[32px] border border-slate-200 bg-white p-8 shadow-sm group"
+                    >
+                        <div className="absolute top-0 right-0 p-12 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity duration-700">
+                            <Stethoscope className="h-48 w-48 text-indigo-900 rotate-12" />
                         </div>
-                        <div className="relative z-10 flex items-center gap-4">
-                            <div className="h-12 w-12 rounded-xl bg-emerald-100 flex items-center justify-center">
-                                <CheckCircle className="h-6 w-6 text-emerald-600" />
+                        <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
+                            <div className="h-16 w-16 rounded-2xl bg-emerald-50 flex items-center justify-center border border-emerald-100 shadow-sm">
+                                <CheckCircle className="h-8 w-8 text-emerald-600" />
                             </div>
-                            <div>
-                                <h2 className="text-base font-bold text-slate-900">
-                                    Consultation Room — Ready
+                            <div className="text-center md:text-left space-y-1">
+                                <h2 className="text-xl font-black text-slate-900">
+                                    Queue Clear • Ready for Admission
                                 </h2>
-                                <p className="text-sm text-slate-500 mt-0.5">
-                                    No active sessions. Start a consultation from the appointments page when a patient is checked in.
+                                <p className="text-sm text-slate-500 font-medium leading-relaxed max-w-lg">
+                                    No active consultations detected. Initialize a clinical session by admitting a checked-in patient from the scheduling board.
                                 </p>
                             </div>
-                            <Link href="/doctor/appointments" className="ml-auto shrink-0">
-                                <Button size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white">
-                                    <Calendar className="h-3.5 w-3.5" />
-                                    View Appointments
+                            <Link href="/doctor/appointments" className="md:ml-auto w-full md:w-auto">
+                                <Button size="lg" className="w-full md:w-auto gap-2.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-[20px] font-bold px-8 h-14 shadow-md transition-all active:scale-[0.98]">
+                                    <Calendar className="h-4 w-4" />
+                                    Launch Scheduler
+                                    <ArrowRight className="h-4 w-4 opacity-50" />
                                 </Button>
                             </Link>
                         </div>
-                    </div>
+                    </motion.div>
                 )}
 
-                {/* ─── Stats Strip ─────────────────────────────────────── */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {/* ─── Stats Matrix ─────────────────────────────────────── */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     {[
-                        { label: 'Total Sessions', value: stats.total, color: 'text-slate-900', bg: 'bg-white', icon: FileText },
-                        { label: 'Active Now', value: stats.active, color: 'text-violet-700', bg: 'bg-violet-50', icon: Activity },
-                        { label: 'Completed', value: stats.completed, color: 'text-emerald-700', bg: 'bg-emerald-50', icon: CheckCircle },
-                        { label: 'Avg Duration', value: `${stats.avgDuration}m`, color: 'text-blue-700', bg: 'bg-blue-50', icon: Timer },
-                    ].map((stat) => (
-                        <div
+                        { label: 'Total Volume', value: stats.total, color: 'text-slate-900', bg: 'bg-white', icon: FileText, iconBg: 'bg-slate-100', iconColor: 'text-slate-600' },
+                        { label: 'Active Sessions', value: stats.active, color: 'text-indigo-600', bg: 'bg-white', icon: Activity, iconBg: 'bg-indigo-50', iconColor: 'text-indigo-600' },
+                        { label: 'Completed', value: stats.completed, color: 'text-emerald-600', bg: 'bg-white', icon: CheckCircle, iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600' },
+                        { label: 'Average Velocity', value: `${stats.avgDuration}m`, color: 'text-sky-600', bg: 'bg-white', icon: Timer, iconBg: 'bg-sky-50', iconColor: 'text-sky-600' },
+                    ].map((stat, idx) => (
+                        <motion.div
                             key={stat.label}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: idx * 0.1 }}
+                            whileHover={{ y: -4, boxShadow: '0 12px 20px -10px rgba(0,0,0,0.1)' }}
                             className={cn(
-                                "flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-100",
+                                "relative flex flex-col justify-between p-6 rounded-[24px] border border-slate-200 transition-all duration-300 shadow-sm",
                                 stat.bg
                             )}
                         >
-                            <stat.icon className={cn("h-4 w-4 flex-shrink-0", stat.color)} />
                             <div>
-                                <p className={cn("text-lg font-bold leading-none", stat.color)}>
-                                    {loading ? '–' : stat.value}
-                                </p>
-                                <p className="text-[10px] text-slate-500 font-medium mt-0.5">{stat.label}</p>
+                                <div className={cn("text-3xl font-black tracking-tighter", stat.color)}>
+                                    {loading ? <Skeleton className="h-8 w-12" /> : stat.value}
+                                </div>
+                                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1.5 opacity-60 group-hover:opacity-100 transition-opacity">{stat.label}</p>
                             </div>
-                        </div>
+                        </motion.div>
                     ))}
                 </div>
 
-                {/* ─── Filter Bar + Search ────────────────────────────── */}
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                    {/* Filter Tabs */}
-                    <div className="flex items-center bg-slate-100 rounded-lg p-0.5 gap-0.5">
-                        {FILTER_TABS.map((tab) => {
-                            const count = tab.key === 'all' ? consultations.length
-                                : tab.key === 'active' ? activeList.length
-                                    : completedList.length;
-                            return (
-                                <button
-                                    key={tab.key}
-                                    onClick={() => setActiveFilter(tab.key)}
-                                    className={cn(
-                                        "px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5",
-                                        activeFilter === tab.key
-                                            ? "bg-white text-slate-900 shadow-sm"
-                                            : "text-slate-500 hover:text-slate-700"
-                                    )}
-                                >
-                                    <tab.icon className="h-3 w-3" />
-                                    {tab.label}
-                                    <span className={cn(
-                                        "text-[10px] px-1.5 py-0.5 rounded-full font-bold",
-                                        activeFilter === tab.key ? "bg-slate-900 text-white" : "bg-slate-200 text-slate-500"
-                                    )}>
-                                        {loading ? '–' : count}
-                                    </span>
-                                </button>
-                            );
-                        })}
+                {/* ─── Control Deck ────────────────────────────── */}
+                <div className="sticky top-4 z-30 flex flex-col sm:flex-row sm:items-center gap-4 bg-white/80 backdrop-blur-xl p-3 rounded-[24px] border border-slate-200 shadow-sm">
+                    {/* Filter Segment */}
+                    <div className="flex bg-slate-100 rounded-[14px] p-1 gap-1 border border-slate-200/50">
+                        {FILTER_TABS.map((tab) => (
+                            <button
+                                key={tab.key}
+                                onClick={() => setActiveFilter(tab.key)}
+                                className={cn(
+                                    "relative px-5 py-2 rounded-[10px] text-[11px] font-bold tracking-wide transition-all flex items-center gap-2 overflow-hidden group",
+                                    activeFilter === tab.key
+                                        ? "text-white"
+                                        : "text-slate-500 hover:text-slate-900"
+                                )}
+                            >
+                                {activeFilter === tab.key && (
+                                    <motion.div
+                                        layoutId="activeTab"
+                                        className="absolute inset-0 bg-indigo-600"
+                                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                    />
+                                )}
+                                <tab.icon className={cn("h-3.5 w-3.5 relative z-10", activeFilter === tab.key && "text-white")} />
+                                <span className="relative z-10 uppercase">{tab.label}</span>
+                                <span className={cn(
+                                    "relative z-10 text-[9px] px-1.5 py-0.5 rounded-full font-black min-w-[18px]",
+                                    activeFilter === tab.key ? "bg-white/20 text-white" : "bg-white text-slate-400 border border-slate-200 shadow-sm"
+                                )}>
+                                    {loading ? '·' : (tab.key === 'all' ? consultations.length : tab.key === 'active' ? activeList.length : completedList.length)}
+                                </span>
+                            </button>
+                        ))}
                     </div>
 
-                    {/* Search */}
-                    <div className="relative flex-1 max-w-xs">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                    {/* Dynamic Search */}
+                    <div className="relative flex-1 group">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
                         <Input
-                            placeholder="Search patient, type, or notes..."
+                            placeholder="Patient name, procedure type, or record ID..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-8 h-8 text-xs bg-white border-slate-200 rounded-lg"
+                            className="pl-11 h-12 text-sm bg-white border-slate-200 rounded-[16px] placeholder:text-slate-400 focus:bg-white focus:border-indigo-300 focus:ring-4 focus:ring-indigo-500/5 transition-all outline-none shadow-sm"
                         />
                     </div>
                 </div>
 
-                {/* ─── Consultation List ───────────────────────────────── */}
-                {loading ? (
-                    <div className="space-y-2">
-                        {[1, 2, 3, 4].map((i) => (
-                            <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-white border border-slate-100">
-                                <Skeleton className="h-9 w-9 rounded-lg" />
-                                <div className="flex-1 space-y-1.5">
-                                    <Skeleton className="h-4 w-40" />
-                                    <Skeleton className="h-3 w-24" />
-                                </div>
-                                <Skeleton className="h-6 w-20 rounded-full" />
-                            </div>
-                        ))}
-                    </div>
-                ) : groupedList.length > 0 ? (
-                    <div className="space-y-5">
-                        {groupedList.map((group) => (
-                            <div key={group.label}>
-                                {/* Group Header */}
-                                <div className="flex items-center gap-2 mb-2">
-                                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                                        {group.label}
-                                    </h3>
-                                    <div className="flex-1 h-px bg-slate-100" />
-                                    <span className="text-[10px] text-slate-400 font-medium">
-                                        {group.items.length}
-                                    </span>
-                                </div>
+                {/* ─── Registry List ───────────────────────────────── */}
+                <div className="px-1">
+                    {loading ? (
+                        <div className="space-y-3">
+                            {[1, 2, 3, 4, 5].map((i) => (
+                                <div key={i} className="h-20 w-full rounded-[20px] bg-white border border-slate-200 animate-pulse" />
+                            ))}
+                        </div>
+                    ) : groupedList.length > 0 ? (
+                        <AnimatePresence mode="popLayout">
+                            <motion.div
+                                key={activeFilter + searchQuery}
+                                variants={containerVariants}
+                                initial="hidden"
+                                animate="visible"
+                                className="space-y-8"
+                            >
+                                {groupedList.map((group) => (
+                                    <div key={group.label} className="space-y-4">
+                                        <div className="flex items-center gap-4">
+                                            <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] whitespace-nowrap opacity-60">
+                                                {group.label}
+                                            </h3>
+                                            <div className="h-px flex-1 bg-gradient-to-r from-slate-200 to-transparent" />
+                                            <span className="text-[10px] text-slate-500 font-black tracking-tighter">
+                                                {String(group.items.length).padStart(2, '0')} RECS
+                                            </span>
+                                        </div>
 
-                                {/* Items */}
-                                <div className="space-y-1.5">
-                                    {group.items.map((consultation) => (
-                                        <ConsultationRow
-                                            key={consultation.id}
-                                            consultation={consultation}
-                                        />
-                                    ))}
-                                </div>
+                                        <div className="grid gap-2">
+                                            {group.items.map((consultation) => (
+                                                <motion.div key={consultation.id} variants={itemVariants}>
+                                                    <ConsultationRow consultation={consultation} />
+                                                </motion.div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </motion.div>
+                        </AnimatePresence>
+                    ) : (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="flex flex-col items-center justify-center py-24 bg-white rounded-[32px] border border-dashed border-slate-200 shadow-sm"
+                        >
+                            <div className="h-20 w-20 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center mb-6">
+                                <Search className="h-8 w-8 text-slate-300" />
                             </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-slate-200">
-                        <Stethoscope className="h-8 w-8 text-slate-300 mb-3" />
-                        <h3 className="text-sm font-semibold text-slate-700">
-                            {searchQuery ? 'No matching consultations' : 'No consultations yet'}
-                        </h3>
-                        <p className="text-xs text-slate-400 max-w-xs text-center mt-1">
-                            {searchQuery
-                                ? 'Try adjusting your search criteria.'
-                                : 'Consultations appear here when you start seeing patients. Check in a patient from the appointments page to begin.'
-                            }
-                        </p>
-                        <Link href="/doctor/appointments" className="mt-4">
-                            <Button size="sm" variant="outline" className="text-xs gap-1.5">
-                                <Calendar className="h-3.5 w-3.5" />
-                                Go to Appointments
-                            </Button>
-                        </Link>
-                    </div>
-                )}
+                            <h3 className="text-lg font-bold text-slate-900 tracking-tight">
+                                {searchQuery ? 'Zero Result Match' : 'Registry Empty'}
+                            </h3>
+                            <p className="text-sm text-slate-500 max-w-xs text-center mt-2 font-medium leading-relaxed italic opacity-60">
+                                {searchQuery
+                                    ? 'The search parameters provided do not match any existing clinical records. Adjust your parameters.'
+                                    : 'Clinical history is currently offline. Admission logs will synchronize once consultation sessions initiated.'
+                                }
+                            </p>
+                            <Link href="/doctor/appointments" className="mt-8">
+                                <Button variant="outline" className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-full text-xs font-bold uppercase tracking-wider px-8 h-10 transition-all shadow-sm">
+                                    <Calendar className="h-3.5 w-3.5 mr-2" />
+                                    Launch Scheduler
+                                </Button>
+                            </Link>
+                        </motion.div>
+                    )}
+                </div>
             </div>
         </ClinicalDashboardShell>
     );
 }
 
 // ============================================================================
-// CONSULTATION ROW — Compact inline card
+// CONSULTATION ROW — Premium interactive entry
 // ============================================================================
 
 function ConsultationRow({
@@ -412,21 +444,19 @@ function ConsultationRow({
 }) {
     const router = useRouter();
     const isActive = consultation.status === AppointmentStatus.IN_CONSULTATION;
-    const isCompleted = consultation.status === AppointmentStatus.COMPLETED;
 
     const patientName = consultation.patient
         ? `${consultation.patient.firstName} ${consultation.patient.lastName}`
-        : 'Patient';
+        : 'Confidential Patient';
     const patientInitials = consultation.patient
         ? `${consultation.patient.firstName?.[0] || ''}${consultation.patient.lastName?.[0] || ''}`.toUpperCase()
-        : 'P';
+        : '?';
 
     const duration = consultation.consultationDuration;
     const durationLabel = duration
         ? duration >= 60 ? `${Math.floor(duration / 60)}h ${duration % 60}m` : `${duration}m`
         : null;
 
-    // Time-aware: check if active consultation is overdue
     const isOverdue = useMemo(() => {
         if (!isActive) return false;
         const now = new Date();
@@ -438,7 +468,6 @@ function ConsultationRow({
         return now > end;
     }, [consultation, isActive]);
 
-    // Running duration for active
     const runningDuration = useMemo(() => {
         if (!isActive || !consultation.consultationStartedAt) return null;
         const started = new Date(consultation.consultationStartedAt);
@@ -446,9 +475,8 @@ function ConsultationRow({
         return mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`;
     }, [isActive, consultation.consultationStartedAt]);
 
-    // Notes preview
     const notesPreview = consultation.note
-        ? consultation.note.length > 80 ? consultation.note.substring(0, 80) + '…' : consultation.note
+        ? consultation.note.length > 50 ? consultation.note.substring(0, 50) + '…' : consultation.note
         : null;
 
     const handleClick = () => {
@@ -460,112 +488,142 @@ function ConsultationRow({
     };
 
     return (
-        <div
+        <motion.div
+            whileHover={{ scale: 1.002, x: 2, backgroundColor: 'rgba(255,255,255,0.8)' }}
+            whileTap={{ scale: 0.998 }}
             className={cn(
-                "group flex items-center gap-3 p-3 rounded-xl bg-white border transition-all cursor-pointer",
-                isActive
-                    ? "border-violet-200 hover:border-violet-300 hover:shadow-sm border-l-[3px] border-l-violet-500"
-                    : "border-slate-100 hover:border-slate-200 hover:shadow-sm"
+                "group relative flex items-center gap-6 p-4 rounded-[20px] bg-white border border-slate-200 transition-all cursor-pointer shadow-sm",
+                isActive && "border-indigo-200 ring-1 ring-indigo-50 bg-indigo-50/10 shadow-md"
             )}
             onClick={handleClick}
         >
-            {/* Time */}
-            <div className="flex-shrink-0 text-center w-14">
-                <p className="text-sm font-bold text-slate-900 leading-none">{consultation.time}</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">
-                    {isToday(new Date(consultation.appointmentDate))
-                        ? 'Today'
-                        : format(new Date(consultation.appointmentDate), 'MMM d')
-                    }
-                </p>
-            </div>
-
-            {/* Status Indicator */}
+            {/* Left Accents */}
             <div className={cn(
-                "w-1.5 h-8 rounded-full flex-shrink-0",
-                isActive ? "bg-violet-500" : "bg-slate-300"
+                "absolute inset-y-4 left-0 w-1 rounded-full transition-all group-hover:inset-y-3 shadow-sm",
+                isActive ? "bg-indigo-500" : "bg-slate-200 group-hover:bg-slate-300"
             )} />
 
-            {/* Patient Avatar */}
-            <Avatar className="h-8 w-8 rounded-lg flex-shrink-0">
-                <AvatarImage src={consultation.patient?.img ?? undefined} alt={patientName} />
-                <AvatarFallback className="rounded-lg bg-slate-100 text-slate-500 text-[10px] font-bold">
-                    {patientInitials}
-                </AvatarFallback>
-            </Avatar>
+            {/* Time / Period */}
+            <div className="flex-shrink-0 flex flex-col items-center justify-center w-20 px-2 border-r border-slate-100 select-none">
+                <p className="text-base font-black text-slate-900 leading-none tracking-tighter">{consultation.time}</p>
+                <div className="flex items-center gap-1.5 mt-2 opacity-50 group-hover:opacity-100 transition-opacity">
+                    <Calendar className="h-2.5 w-2.5" />
+                    <p className="text-[9px] font-black uppercase tracking-tighter">
+                        {isToday(new Date(consultation.appointmentDate)) ? 'TDY' : format(new Date(consultation.appointmentDate), 'MMM d')}
+                    </p>
+                </div>
+            </div>
 
-            {/* Patient + Details */}
+            {/* Profile Avatar */}
+            <div className="relative flex-shrink-0">
+                <Avatar className="h-12 w-12 rounded-2xl border border-slate-100 group-hover:border-indigo-200 transition-all shadow-sm">
+                    <AvatarImage src={consultation.patient?.img ?? undefined} alt={patientName} className="object-cover" />
+                    <AvatarFallback className="rounded-2xl bg-slate-50 text-slate-400 text-sm font-black border border-slate-100">
+                        {patientInitials}
+                    </AvatarFallback>
+                </Avatar>
+                {isActive && (
+                    <motion.div
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-indigo-500 border-2 border-white shadow-sm"
+                    />
+                )}
+            </div>
+
+            {/* Identification & Intel */}
             <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-slate-800 truncate leading-tight">
+                <div className="flex items-center gap-3 mb-1">
+                    <p className="text-base font-bold text-slate-900 tracking-tight group-hover:text-indigo-600 transition-colors">
                         {patientName}
                     </p>
                     {isActive && (
-                        <Badge className="bg-violet-100 text-violet-700 border-violet-200 text-[10px] font-bold px-1.5 py-0 h-4 border">
-                            <div className="w-1.5 h-1.5 rounded-full bg-violet-500 mr-1 animate-pulse" />
-                            Live
-                        </Badge>
+                        <div className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-indigo-50 border border-indigo-100 text-[9px] font-bold uppercase text-indigo-600">
+                            Live Session
+                        </div>
                     )}
                 </div>
-                <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[11px] text-slate-400 truncate">{consultation.type}</span>
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100/50">
+                        <Stethoscope className="h-3 w-3 text-slate-400" />
+                        <span className="text-[10px] uppercase font-bold tracking-widest text-slate-500">{consultation.type}</span>
+                    </div>
                     {notesPreview && !isActive && (
-                        <>
-                            <span className="text-slate-200">·</span>
-                            <span className="text-[11px] text-slate-400 truncate italic">{notesPreview}</span>
-                        </>
+                        <span className="text-xs text-slate-400 truncate italic opacity-70 group-hover:opacity-100 transition-opacity">
+                            {notesPreview}
+                        </span>
                     )}
                 </div>
             </div>
 
-            {/* Duration / Running Time */}
+            {/* Metrics */}
             {(durationLabel || runningDuration) && (
                 <div className={cn(
-                    "flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium flex-shrink-0",
+                    "hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase border select-none transition-all",
                     isActive
                         ? isOverdue
-                            ? "bg-amber-50 text-amber-700"
-                            : "bg-violet-50 text-violet-700"
-                        : "bg-slate-50 text-slate-500"
+                            ? "bg-amber-50 text-amber-600 border-amber-100"
+                            : "bg-emerald-50 text-emerald-600 border-emerald-100 shadow-sm"
+                        : "bg-slate-50 text-slate-400 border-slate-100"
                 )}>
-                    <Timer className="h-3 w-3" />
+                    <Timer className="h-3.5 w-3.5" />
                     {isActive ? runningDuration : durationLabel}
                 </div>
             )}
 
-            {/* Overdue indicator */}
+            {/* Status / Global Warning */}
             {isOverdue && (
-                <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                <div className="p-2 bg-amber-50 rounded-full animate-pulse shadow-sm">
+                    <AlertTriangle className="h-4 w-4 text-amber-500" />
+                </div>
             )}
 
-            {/* Action */}
-            <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+            {/* Execution / Terminal Action */}
+            <div className="flex-shrink-0 px-2" onClick={(e) => e.stopPropagation()}>
                 {isActive ? (
                     <Button
                         size="sm"
                         className={cn(
-                            "h-7 px-3 text-[11px] font-semibold rounded-lg gap-1",
+                            "h-9 px-6 text-[11px] font-black uppercase rounded-[12px] gap-2 transition-all shadow-sm active:scale-95",
                             isOverdue
                                 ? "bg-amber-600 hover:bg-amber-700 text-white"
-                                : "bg-violet-600 hover:bg-violet-700 text-white"
+                                : "bg-indigo-600 hover:bg-indigo-700 text-white"
                         )}
                         onClick={() => router.push(`/doctor/consultations/${consultation.id}/session`)}
                     >
-                        <Play className="h-3 w-3" />
-                        Continue
+                        <Play className="h-3.5 w-3.5 fill-current" />
+                        Enter Session
                     </Button>
                 ) : (
                     <Button
                         size="sm"
                         variant="ghost"
-                        className="h-7 px-2 text-[11px] text-slate-400 hover:text-slate-600"
+                        className="h-9 w-9 p-0 rounded-full text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-all"
                         onClick={() => router.push(`/doctor/appointments/${consultation.id}`)}
                     >
-                        <FileText className="h-3 w-3 mr-1" />
-                        View
+                        <ChevronRight className="h-5 w-5" />
                     </Button>
                 )}
             </div>
-        </div>
+        </motion.div>
     );
+}
+
+function Loader2(props: any) {
+    return (
+        <svg
+            {...props}
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        >
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+        </svg>
+    )
 }

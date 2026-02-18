@@ -102,12 +102,12 @@ export function RichTextEditor({
 
   return (
     <div className={cn(
-      'rounded-xl border border-slate-200 overflow-hidden bg-white transition-shadow',
-      !readOnly && 'focus-within:border-slate-300 focus-within:shadow-sm focus-within:ring-1 focus-within:ring-slate-200/50',
+      'rounded-xl border border-slate-200 overflow-hidden bg-white transition-all duration-200',
+      !readOnly && 'focus-within:border-indigo-300 focus-within:shadow-[0_0_15px_-5px_rgba(79,70,229,0.1)] ring-0',
     )}>
       {/* Toolbar */}
       {!readOnly && (
-        <div className="border-b border-slate-100 bg-slate-50/60 px-3 py-2 flex flex-wrap items-center gap-0.5">
+        <div className="border-b border-slate-100 bg-slate-50/50 px-3 py-2 flex flex-wrap items-center gap-0.5">
           {/* Formatting group */}
           <ToolbarGroup>
             <ToolbarButton
@@ -204,9 +204,9 @@ export function RichTextEditor({
       <EditorContent
         editor={editor}
         className={cn(
-          'prose-headings:font-semibold prose-headings:text-slate-900',
-          'prose-p:text-slate-700 prose-p:leading-relaxed',
-          'prose-strong:text-slate-900 prose-strong:font-semibold',
+          'prose-headings:font-bold prose-headings:text-slate-900 prose-headings:tracking-tight',
+          'prose-p:text-slate-700 prose-p:leading-relaxed prose-p:text-[14px]',
+          'prose-strong:text-slate-900 prose-strong:font-bold',
           'prose-ul:text-slate-700 prose-ol:text-slate-700',
           'prose-li:text-slate-700',
           readOnly && 'cursor-default',
@@ -225,7 +225,7 @@ function ToolbarGroup({ children }: { children: React.ReactNode }) {
 }
 
 function ToolbarDivider() {
-  return <div className="w-px h-5 bg-slate-200 mx-1.5" />;
+  return <div className="w-px h-4 bg-slate-200 mx-1.5" />;
 }
 
 interface ToolbarButtonProps {
@@ -250,11 +250,11 @@ function ToolbarButton({
       disabled={disabled}
       title={title}
       className={cn(
-        'inline-flex items-center justify-center h-7 w-7 rounded-md transition-colors',
+        'inline-flex items-center justify-center h-7 w-7 rounded-lg transition-all',
         isActive
-          ? 'bg-slate-200/80 text-slate-900'
-          : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700',
-        disabled && 'opacity-40 cursor-not-allowed hover:bg-transparent',
+          ? 'bg-indigo-50 text-indigo-600 font-bold'
+          : 'text-slate-400 hover:bg-slate-100 hover:text-slate-900',
+        disabled && 'opacity-30 cursor-not-allowed hover:bg-transparent',
       )}
     >
       {children}

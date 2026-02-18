@@ -14,9 +14,6 @@ export interface DashboardStats {
     expectedPatients: number;
     checkedInPatients: number;
     pendingCheckIns: number;
-    newInquiries: number;
-    awaitingClarification: number;
-    awaitingScheduling: number;
     pendingIntakeCount: number;
 }
 

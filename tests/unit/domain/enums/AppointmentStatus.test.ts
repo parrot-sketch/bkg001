@@ -4,9 +4,9 @@
  * Verifies the single source of truth for the source → status mapping.
  */
 import { describe, it, expect } from 'vitest';
-import { 
-  AppointmentStatus, 
-  getDefaultStatusForSource 
+import {
+  AppointmentStatus,
+  getDefaultStatusForSource
 } from '../../../../domain/enums/AppointmentStatus';
 
 describe('getDefaultStatusForSource', () => {
@@ -15,9 +15,9 @@ describe('getDefaultStatusForSource', () => {
       .toBe(AppointmentStatus.PENDING_DOCTOR_CONFIRMATION);
   });
 
-  it('FRONTDESK_SCHEDULED → SCHEDULED', () => {
+  it('FRONTDESK_SCHEDULED → PENDING_DOCTOR_CONFIRMATION (Hardened Workflow)', () => {
     expect(getDefaultStatusForSource('FRONTDESK_SCHEDULED'))
-      .toBe(AppointmentStatus.SCHEDULED);
+      .toBe(AppointmentStatus.PENDING_DOCTOR_CONFIRMATION);
   });
 
   it('DOCTOR_FOLLOW_UP → SCHEDULED', () => {
@@ -25,9 +25,9 @@ describe('getDefaultStatusForSource', () => {
       .toBe(AppointmentStatus.SCHEDULED);
   });
 
-  it('ADMIN_SCHEDULED → SCHEDULED', () => {
+  it('ADMIN_SCHEDULED → PENDING_DOCTOR_CONFIRMATION', () => {
     expect(getDefaultStatusForSource('ADMIN_SCHEDULED'))
-      .toBe(AppointmentStatus.SCHEDULED);
+      .toBe(AppointmentStatus.PENDING_DOCTOR_CONFIRMATION);
   });
 
   it('unknown source → PENDING_DOCTOR_CONFIRMATION (defensive)', () => {

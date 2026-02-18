@@ -168,13 +168,13 @@ export const closureSchema = z.object({
 });
 
 export const fluidsSchema = z.object({
-    estimatedBloodLossMl: z.number().optional(),
-    urinaryOutputMl: z.number().optional(),
+    estimatedBloodLossMl: z.number(),
+    urinaryOutputMl: z.number(),
     ivFluidsAdministered: z.string().optional(),
-    bloodTransfusionPackedCellsMl: z.number().optional(),
-    bloodTransfusionWholeMl: z.number().optional(),
-    bloodTransfusionOtherMl: z.number().optional(),
-    ivInfusionTotalMl: z.number().optional(),
+    bloodTransfusionPackedCellsMl: z.number().optional().default(0),
+    bloodTransfusionWholeMl: z.number().optional().default(0),
+    bloodTransfusionOtherMl: z.number().optional().default(0),
+    ivInfusionTotalMl: z.number().optional().default(0),
 });
 
 // Table Structures
@@ -210,6 +210,41 @@ export const specimenItemSchema = z.object({
 
 // 3. Root Schemas
 
+// Strict schema for Finalization
+export const nurseIntraOpRecordFinalSchema = z.object({
+    entry: theatreEntrySchema,
+    safety: safetyChecksSchema,
+    timings: timingsSchema,
+    staffing: staffingSchema,
+    diagnoses: diagnosesSchema,
+    catheter: catheterSchema,
+    positioning: positioningSchema,
+    skinPrep: z.object({
+        agentUsed: z.string().optional(),
+        preppedBy: z.string().optional(),
+        shavedBy: z.string().optional(),
+        prepAgent: z.string().optional(),
+        otherPrepAgent: z.string().optional(),
+    }),
+    equipment: z.object({
+        electrosurgical: electrosurgicalSchema,
+        tourniquet: tourniquetSchema,
+    }),
+    surgicalDetails: surgicalDetailsSchema,
+    counts: countsSchema,
+    closure: closureSchema,
+    fluids: fluidsSchema,
+    medications: z.array(medicationItemSchema).default([]),
+    implants: z.array(implantItemSchema).default([]),
+    specimens: z.array(specimenItemSchema).default([]),
+    itemsToReturnToTheatre: z.string().default(''),
+    billing: z.object({
+        anaestheticMaterialsCharge: z.string().default(''),
+        theatreFee: z.string().default(''),
+    }),
+});
+
+// Draft schema allows everything to be optional
 export const nurseIntraOpRecordDraftSchema = z.object({
     entry: theatreEntrySchema.partial().optional().default({}),
     safety: safetyChecksSchema.partial().optional().default({}),
@@ -224,11 +259,11 @@ export const nurseIntraOpRecordDraftSchema = z.object({
         shavedBy: z.string().optional(),
         prepAgent: z.string().optional(),
         otherPrepAgent: z.string().optional(),
-    }).optional().default({}),
+    }).partial().optional().default({}),
     equipment: z.object({
-        electrosurgical: electrosurgicalSchema.partial().optional().default({}),
-        tourniquet: tourniquetSchema.partial().optional().default({}),
-    }).optional().default({}),
+        electrosurgical: electrosurgicalSchema.partial(),
+        tourniquet: tourniquetSchema.partial(),
+    }).partial().optional().default({}),
     surgicalDetails: surgicalDetailsSchema.partial().optional().default({}),
     counts: countsSchema.partial().optional().default({}),
     closure: closureSchema.partial().optional().default({}),
@@ -240,10 +275,8 @@ export const nurseIntraOpRecordDraftSchema = z.object({
     billing: z.object({
         anaestheticMaterialsCharge: z.string().optional().default(''),
         theatreFee: z.string().optional().default(''),
-    }).optional().default({}),
+    }).partial().optional().default({}),
 });
-
-export const nurseIntraOpRecordFinalSchema = nurseIntraOpRecordDraftSchema; // Can add stricter validation if needed
 
 // 4. Types
 export type NurseIntraOpRecordData = z.infer<typeof nurseIntraOpRecordFinalSchema>;

@@ -5,6 +5,8 @@ import {
   reviewSchema,
 } from "@/components/dialogs/review-form";
 import db from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth/server-auth";
+import { Role } from "@/domain/enums/Role";
 
 export async function deleteDataById(
   id: string,
@@ -57,6 +59,17 @@ export async function deleteDataById(
 
 export async function createReview(values: ReviewFormValues) {
   try {
+    const user = await getCurrentUser();
+
+    // RBAC: Frontdesk is not allowed to create reviews
+    if (!user || user.role === Role.FRONTDESK) {
+      return {
+        success: false,
+        message: "Unauthorized: Frontdesk cannot create reviews",
+        status: 403,
+      };
+    }
+
     const validatedFields = reviewSchema.parse(values);
 
     await db.rating.create({

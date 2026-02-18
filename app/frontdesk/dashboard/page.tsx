@@ -31,7 +31,6 @@ import {
   ArrowRight,
   User,
   Activity,
-  Inbox,
   ClipboardList,
 } from 'lucide-react';
 
@@ -93,7 +92,7 @@ export default function FrontdeskDashboardPage() {
               {/* Online indicator */}
               <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white" />
             </div>
-            
+
             {/* Name & Context */}
             <div className="flex flex-col">
               <h1 className="text-base font-semibold text-slate-900 leading-tight">
@@ -112,9 +111,9 @@ export default function FrontdeskDashboardPage() {
               <span className="h-1.5 w-1.5 rounded-full bg-cyan-500 animate-pulse" />
               <span className="text-[10px] font-medium text-cyan-700">On Duty</span>
             </div>
-            
+
             <NotificationBell />
-            
+
             {/* Quick Profile Link */}
             <Link href="/frontdesk/profile">
               <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full hover:bg-slate-100">
@@ -124,22 +123,11 @@ export default function FrontdeskDashboardPage() {
           </div>
         </div>
       </header>
-      
+
       <div className="space-y-6">
         {/* Quick Actions Row - Urgent Items First */}
         <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-          {/* New Inquiries - Most Urgent */}
-          {stats.newInquiries > 0 && (
-            <QuickActionTile
-              title="New Inquiries"
-              count={stats.newInquiries}
-              icon={Inbox}
-              color="blue"
-              href="/frontdesk/consultations?status=SUBMITTED,PENDING_REVIEW"
-              loading={loading}
-              pulse
-            />
-          )}
+
 
           {/* Pending Check-ins */}
           {stats.pendingCheckIns > 0 && (
@@ -154,17 +142,7 @@ export default function FrontdeskDashboardPage() {
             />
           )}
 
-          {/* Ready to Schedule */}
-          {stats.awaitingScheduling > 0 && (
-            <QuickActionTile
-              title="Ready to Schedule"
-              count={stats.awaitingScheduling}
-              icon={Calendar}
-              color="emerald"
-              href="/frontdesk/consultations?status=APPROVED"
-              loading={loading}
-            />
-          )}
+
 
           {/* New Walk-in */}
           <QuickActionTile
@@ -206,12 +184,7 @@ export default function FrontdeskDashboardPage() {
             icon={Clock}
             color="amber"
           />
-          <StatCard
-            title="New Inquiries"
-            value={stats.newInquiries}
-            icon={AlertCircle}
-            color="blue"
-          />
+
         </section>
 
         {/* Main Content: Doctors Panel */}
@@ -236,7 +209,6 @@ export default function FrontdeskDashboardPage() {
                   <NavLink href="/frontdesk/appointments" icon={Calendar} label="All Appointments" />
                   <NavLink href="/frontdesk/patients" icon={Users} label="Patient Registry" />
                   <NavLink href="/frontdesk/billing" icon={FileText} label="Billing & Payments" />
-                  <NavLink href="/frontdesk/consultation-requests" icon={Inbox} label="Consultation Requests" />
                 </div>
               </CardContent>
             </Card>
@@ -263,20 +235,20 @@ export default function FrontdeskDashboardPage() {
                     <span className="text-xs text-slate-400">Pending</span>
                     <span className="text-lg font-bold text-amber-400">{stats.pendingCheckIns}</span>
                   </div>
-                  
+
                   {/* Progress Bar */}
                   <div className="pt-2">
                     <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
-                      <div 
+                      <div
                         className="h-full bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-full transition-all duration-500"
-                        style={{ 
-                          width: `${stats.expectedPatients > 0 ? (stats.checkedInPatients / stats.expectedPatients * 100) : 0}%` 
+                        style={{
+                          width: `${stats.expectedPatients > 0 ? (stats.checkedInPatients / stats.expectedPatients * 100) : 0}%`
                         }}
                       />
                     </div>
                     <p className="text-[10px] text-slate-500 mt-1.5 text-center">
-                      {stats.expectedPatients > 0 
-                        ? `${Math.round(stats.checkedInPatients / stats.expectedPatients * 100)}% processed` 
+                      {stats.expectedPatients > 0
+                        ? `${Math.round(stats.checkedInPatients / stats.expectedPatients * 100)}% processed`
                         : 'No appointments today'}
                     </p>
                   </div>
@@ -292,12 +264,12 @@ export default function FrontdeskDashboardPage() {
 
 /* Sub-components */
 
-function QuickActionTile({ 
-  title, 
-  count, 
-  icon: Icon, 
-  color, 
-  href, 
+function QuickActionTile({
+  title,
+  count,
+  icon: Icon,
+  color,
+  href,
   loading = false,
   pulse = false,
   subtitle
@@ -337,7 +309,7 @@ function QuickActionTile({
               <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
             )}
           </div>
-          
+
           <div>
             <p className="text-[10px] uppercase tracking-wide font-semibold text-slate-400 mb-0.5">{title}</p>
             {count !== undefined ? (
@@ -352,7 +324,7 @@ function QuickActionTile({
               <p className={cn("text-xs font-medium", styles.text)}>{subtitle}</p>
             ) : null}
           </div>
-          
+
           <div className={cn("mt-2 flex items-center text-[10px] font-medium opacity-0 group-hover:opacity-100 transition-opacity", styles.text)}>
             View <ArrowRight className="h-3 w-3 ml-0.5" />
           </div>
@@ -362,15 +334,15 @@ function QuickActionTile({
   );
 }
 
-function StatCard({ 
-  title, 
-  value, 
-  icon: Icon, 
-  color 
-}: { 
-  title: string; 
-  value: number; 
-  icon: any; 
+function StatCard({
+  title,
+  value,
+  icon: Icon,
+  color
+}: {
+  title: string;
+  value: number;
+  icon: any;
   color: 'slate' | 'emerald' | 'amber' | 'blue';
 }) {
   const colorClasses: Record<string, { bg: string; icon: string }> = {

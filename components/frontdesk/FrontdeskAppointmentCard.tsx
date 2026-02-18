@@ -100,7 +100,7 @@ const STATUS_CONFIG: Record<AppointmentStatus, StatusConfig> = {
     bar: 'bg-amber-400',
     text: 'text-amber-700',
     bg: 'bg-amber-50',
-    label: 'Inquiry',
+    label: 'Pending',
     icon: Clock,
   },
   [AppointmentStatus.PENDING_DOCTOR_CONFIRMATION]: {

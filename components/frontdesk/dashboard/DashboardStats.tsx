@@ -44,12 +44,7 @@ export const DashboardStats = React.memo<DashboardStatsProps>(({ stats }) => {
                         icon={Clock}
                         color="amber"
                     />
-                    <StatusCard
-                        label="New Inquiries"
-                        value={stats.newInquiries}
-                        icon={AlertCircle}
-                        color="indigo"
-                    />
+
                 </div>
             </CardContent>
         </Card>
