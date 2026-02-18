@@ -338,9 +338,16 @@ export async function GET(
             return NextResponse.json({ success: false, error: 'Surgical case not found' }, { status: 404 });
         }
 
-        // Authorization: doctor must be primary surgeon
-        if (sc.primary_surgeon_id !== doctorId) {
-            return NextResponse.json({ success: false, error: 'Forbidden: You are not the primary surgeon' }, { status: 403 });
+        // Authorization: doctor must be primary surgeon OR have an accepted invite
+        const isPrimary = sc.primary_surgeon_id === doctorId;
+        const hasAcceptedInvite = sc.staff_invites.some(
+            (invite: any) =>
+                invite.invited_user.id === authResult.user?.userId &&
+                invite.status === 'ACCEPTED'
+        );
+
+        if (!isPrimary && !hasAcceptedInvite) {
+            return NextResponse.json({ success: false, error: 'Forbidden: You are not authorized to view this surgical plan' }, { status: 403 });
         }
 
         timer.end({ caseId });
@@ -399,8 +406,10 @@ export async function PATCH(
         if (!sc) {
             return NextResponse.json({ success: false, error: 'Surgical case not found' }, { status: 404 });
         }
+
+        // Authorization: only the primary surgeon can modify the core plan
         if (sc.primary_surgeon_id !== doctorId) {
-            return NextResponse.json({ success: false, error: 'Forbidden: You are not the primary surgeon' }, { status: 403 });
+            return NextResponse.json({ success: false, error: 'Forbidden: Only the primary surgeon can modify the surgical plan' }, { status: 403 });
         }
 
         // Determine the appointment ID (from existing plan or consultation)
