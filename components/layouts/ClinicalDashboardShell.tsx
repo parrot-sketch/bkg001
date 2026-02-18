@@ -15,20 +15,30 @@ import { cn } from '@/lib/utils';
 interface ClinicalDashboardShellProps {
     children: ReactNode;
     className?: string;
+    variant?: 'default' | 'immersive';
 }
 
-export function ClinicalDashboardShell({ children, className }: ClinicalDashboardShellProps) {
+export function ClinicalDashboardShell({
+    children,
+    className,
+    variant = 'default'
+}: ClinicalDashboardShellProps) {
+    const isImmersive = variant === 'immersive';
+
     return (
         <main className={cn(
-            "flex-1 relative overflow-y-auto overscroll-contain focus:outline-none",
-            "bg-gradient-to-b from-slate-50/80 via-white to-slate-50/40",
-            "scroll-smooth"
+            "flex-1 relative overflow-hidden focus:outline-none h-full",
+            !isImmersive && "bg-gradient-to-b from-slate-50/80 via-white to-slate-50/40 overflow-y-auto overscroll-contain scroll-smooth",
+            isImmersive && "bg-transparent",
         )}>
-            <div className="w-full min-h-full">
+            <div className={cn(
+                "w-full h-full",
+                !isImmersive && "min-h-full"
+            )}>
                 <div className={cn(
-                    "mx-auto w-full max-w-[1600px]",
-                    // Refined padding - tighter on mobile, comfortable on desktop
-                    "px-4 py-5 sm:px-5 sm:py-6 lg:px-8 lg:py-7 xl:px-10 xl:py-8",
+                    "w-full",
+                    !isImmersive && "mx-auto max-w-[1600px] px-4 py-5 sm:px-5 sm:py-6 lg:px-8 lg:py-7 xl:px-10 xl:py-8",
+                    isImmersive && "h-full",
                     className
                 )}>
                     {children}

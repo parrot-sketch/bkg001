@@ -291,13 +291,21 @@ function ArrivalSection({ data, onChange, disabled }: SectionProps) {
     );
 }
 
-function SafetyChecklistSection({ data, onChange, disabled }: SectionProps) {
+function SafetyChecklistSection({ data, onChange, disabled, procedureName, side }: SectionProps & { procedureName?: string; side?: string }) {
     const d = data.safety ?? {};
     const set = (field: string, value: any) =>
         onChange({ ...data, safety: { ...d, [field]: value } });
 
     return (
         <div className="space-y-4">
+            {(procedureName || side) && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg mb-2">
+                    <p className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-1">Time-Out Verification</p>
+                    <p className="text-sm font-semibold text-amber-900">
+                        Goal: Confirm {procedureName || 'Procedure'} {side ? `on ${side.toUpperCase()} side` : ''}
+                    </p>
+                </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
                 <BooleanField label="Patient ID Verified with Reg No." value={d.patientIdVerified} onChange={(v) => set('patientIdVerified', v)} disabled={disabled} />
                 <BooleanField label="Informed Consent Signed" value={d.informedConsentSigned} onChange={(v) => set('informedConsentSigned', v)} disabled={disabled} />
@@ -1057,6 +1065,64 @@ function OperativeTimelinePanel({ caseId, userRole }: { caseId: string; userRole
     );
 }
 
+function SurgicalPlanReferencePanel({ casePlan }: { casePlan: any }) {
+    if (!casePlan) return null;
+
+    return (
+        <Card className="border-indigo-200 bg-indigo-50/20">
+            <CardContent className="p-4 space-y-4">
+                <div className="flex items-center gap-2">
+                    <ClipboardCheck className="h-4 w-4 text-indigo-600" />
+                    <span className="text-sm font-semibold text-slate-800">Surgical Plan Reference</span>
+                </div>
+
+                <Accordion type="single" collapsible className="w-full">
+                    {casePlan.procedure_plan && (
+                        <AccordionItem value="plan" className="border-b-0">
+                            <AccordionTrigger className="py-2 text-xs font-medium hover:no-underline">Procedure Plan</AccordionTrigger>
+                            <AccordionContent>
+                                <div
+                                    className="text-sm prose prose-sm max-w-none text-slate-600 bg-white/50 p-3 rounded border border-indigo-100"
+                                    dangerouslySetInnerHTML={{ __html: casePlan.procedure_plan }}
+                                />
+                            </AccordionContent>
+                        </AccordionItem>
+                    )}
+                    {casePlan.special_instructions && (
+                        <AccordionItem value="instructions" className="border-b-0">
+                            <AccordionTrigger className="py-2 text-xs font-medium hover:no-underline">Special Instructions</AccordionTrigger>
+                            <AccordionContent>
+                                <div
+                                    className="text-sm prose prose-sm max-w-none text-slate-600 bg-white/50 p-3 rounded border border-indigo-100"
+                                    dangerouslySetInnerHTML={{ __html: casePlan.special_instructions }}
+                                />
+                            </AccordionContent>
+                        </AccordionItem>
+                    )}
+                    {casePlan.pre_op_notes && (
+                        <AccordionItem value="notes" className="border-b-0">
+                            <AccordionTrigger className="py-2 text-xs font-medium hover:no-underline">Pre-op Notes</AccordionTrigger>
+                            <AccordionContent>
+                                <div
+                                    className="text-sm prose prose-sm max-w-none text-slate-600 bg-white/50 p-3 rounded border border-indigo-100"
+                                    dangerouslySetInnerHTML={{ __html: casePlan.pre_op_notes }}
+                                />
+                            </AccordionContent>
+                        </AccordionItem>
+                    )}
+                </Accordion>
+
+                {casePlan.planned_anesthesia && (
+                    <div className="pt-2 border-t border-indigo-100">
+                        <p className="text-[10px] font-medium text-muted-foreground uppercase">Planned Anesthesia</p>
+                        <p className="text-xs font-semibold text-slate-700">{casePlan.planned_anesthesia}</p>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
 // ──────────────────────────────────────────────────────────────────────
 
 function SectionStatus({ complete, label, isCritical }: { complete: boolean; label: string; isCritical?: boolean }) {
@@ -1363,9 +1429,10 @@ export default function NurseIntraOpRecordPage() {
                 }
             </div >
 
-            {/* ── Operative Timeline Panel ──────────────────────── */}
-            < OperativeTimelinePanel caseId={caseId} userRole={user?.role || ''
-            } />
+            <OperativeTimelinePanel caseId={caseId} userRole={user?.role || ''} />
+
+            {/* ── Surgical Plan Reference ──────────────────────── */}
+            <SurgicalPlanReferencePanel casePlan={response.casePlan} />
 
             {/* ── Accordion Sections ─────────────────────────────── */}
             <Accordion type="multiple" defaultValue={INTRAOP_SECTIONS.map((s) => s.key)} className="space-y-3">
@@ -1405,6 +1472,7 @@ export default function NurseIntraOpRecordPage() {
                                         data={formData}
                                         onChange={handleChange}
                                         disabled={isDisabled}
+                                        {...(section.key === 'safety' ? { procedureName: response.procedureName, side: response.side } : {})}
                                     />
                                 )}
                             </AccordionContent>

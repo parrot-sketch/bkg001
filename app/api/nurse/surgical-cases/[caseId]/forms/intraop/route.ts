@@ -55,6 +55,7 @@ async function getSurgicalCaseWithPatient(caseId: string) {
             status: true,
             procedure_name: true,
             side: true,
+            diagnosis: true,
             patient: {
                 select: {
                     id: true,
@@ -67,6 +68,15 @@ async function getSurgicalCaseWithPatient(caseId: string) {
             primary_surgeon: {
                 select: { name: true },
             },
+            case_plan: {
+                select: {
+                    procedure_plan: true,
+                    pre_op_notes: true,
+                    special_instructions: true,
+                    planned_anesthesia: true,
+                    implant_details: true,
+                }
+            }
         },
     });
 }
@@ -151,14 +161,23 @@ export async function GET(
             }
 
             const emptyData = {
-                entry: { arrivalMethod: 'STRETCHER', timeIn: '', asaClass: '1' },
+                entry: {
+                    arrivalMethod: 'STRETCHER',
+                    timeIn: '',
+                    asaClass: '1',
+                    allergies: surgicalCase.patient.allergies || ''
+                },
                 safety: {
                     patientIdVerified: false, informedConsentSigned: false,
                     preOpChecklistCompleted: false, whoChecklistCompleted: false,
                     arrivedWithIvInfusing: false, antibioticOrdered: false
                 },
                 timings: { timeIntoTheatre: '', timeOutOfTheatre: '', operationStart: '', operationFinish: '' },
-                diagnoses: { preOpDiagnosis: '', intraOpDiagnosis: '', operationPerformed: '' },
+                diagnoses: {
+                    preOpDiagnosis: surgicalCase.diagnosis || '',
+                    intraOpDiagnosis: '',
+                    operationPerformed: surgicalCase.procedure_name || ''
+                },
                 positioning: { position: 'SUPINE', safetyBeltApplied: false, armsSecured: false, bodyAlignmentCorrect: false },
                 catheter: { inSitu: false, insertedInTheatre: false },
                 skinPrep: { prepAgent: 'HIBITANE_SPIRIT' },
@@ -167,7 +186,13 @@ export async function GET(
                     electrosurgical: { cauteryUsed: false, cutSet: '30', coagSet: '30', skinCheckedBefore: false, skinCheckedAfter: false },
                     tourniquet: { tourniquetUsed: false, laterality: 'N/A', skinCheckedBefore: false, skinCheckedAfter: false }
                 },
-                staffing: { surgeon: '', assistant: '', anaesthesiologist: '', scrubNurse: '', circulatingNurse: '' },
+                staffing: {
+                    surgeon: surgicalCase.primary_surgeon?.name || '',
+                    assistant: '',
+                    anaesthesiologist: '',
+                    scrubNurse: '',
+                    circulatingNurse: ''
+                },
                 anaesthesia: { type: 'GENERAL' },
                 counts: {
                     items: [
@@ -214,8 +239,8 @@ export async function GET(
                 patient: surgicalCase.patient,
                 caseStatus: surgicalCase.status,
                 procedureName: surgicalCase.procedure_name,
-                side: surgicalCase.side,
                 surgeonName: surgicalCase.primary_surgeon?.name,
+                casePlan: surgicalCase.case_plan,
             },
         });
     } catch (error) {
@@ -284,22 +309,23 @@ export async function PUT(
             });
 
             // Sync structured data to SurgicalProcedureRecord for real-time dashboard
-            const fluids = parsed.data.fluids || {};
-            if (fluids.estimatedBloodLossMl !== undefined || fluids.urinaryOutputMl !== undefined) {
-                const procedureRecord = await tx.surgicalProcedureRecord.findUnique({
-                    where: { surgical_case_id: caseId },
-                });
-
-                if (procedureRecord) {
-                    await tx.surgicalProcedureRecord.update({
-                        where: { id: procedureRecord.id },
-                        data: {
-                            estimated_blood_loss: fluids.estimatedBloodLossMl,
-                            urine_output: fluids.urinaryOutputMl,
-                        },
-                    });
-                }
-            }
+            // Note: estimated_blood_loss and urine_output are currently not in schema
+            // const fluids = parsed.data.fluids || {};
+            // if (fluids.estimatedBloodLossMl !== undefined || fluids.urinaryOutputMl !== undefined) {
+            //     const procedureRecord = await tx.surgicalProcedureRecord.findUnique({
+            //         where: { surgical_case_id: caseId },
+            //     });
+            //
+            //     if (procedureRecord) {
+            //         await tx.surgicalProcedureRecord.update({
+            //             where: { id: procedureRecord.id },
+            //             data: {
+            //                 estimated_blood_loss: fluids.estimatedBloodLossMl,
+            //                 urine_output: fluids.urinaryOutputMl,
+            //             },
+            //         });
+            //     }
+            // }
 
             return up;
         });

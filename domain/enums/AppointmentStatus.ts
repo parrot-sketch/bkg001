@@ -62,9 +62,9 @@ export function getDefaultStatusForSource(source: string): AppointmentStatus {
   switch (source) {
     case 'PATIENT_REQUESTED':
     case 'FRONTDESK_SCHEDULED':
+    case 'ADMIN_SCHEDULED':
       return AppointmentStatus.PENDING_DOCTOR_CONFIRMATION;
     case 'DOCTOR_FOLLOW_UP':
-    case 'ADMIN_SCHEDULED':
       return AppointmentStatus.SCHEDULED;
     default:
       // Defensive: unknown sources require confirmation

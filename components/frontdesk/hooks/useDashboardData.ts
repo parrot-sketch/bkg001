@@ -8,8 +8,8 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/patient/useAuth';
-import { useTodayAppointments, usePendingConsultations } from '@/hooks/appointments/useAppointments';
-import { ConsultationStats } from '@/utils/consultation-filters';
+import { useTodayAppointments } from '@/hooks/appointments/useAppointments';
+
 import type { DashboardStats, UseDashboardDataReturn } from '@/types/dashboard';
 
 export function useDashboardData(): UseDashboardDataReturn {
@@ -45,11 +45,7 @@ export function useDashboardData(): UseDashboardDataReturn {
         refetch: refetchAppointments,
     } = useTodayAppointments(isAuthenticated && !!user);
 
-    const {
-        data: pendingConsultations = [],
-        isLoading: loadingConsultations,
-        refetch: refetchConsultations,
-    } = usePendingConsultations(isAuthenticated && !!user);
+
 
     // Calculate stats
     const stats: DashboardStats = useMemo(() => {
@@ -65,22 +61,18 @@ export function useDashboardData(): UseDashboardDataReturn {
             expectedPatients,
             checkedInPatients,
             pendingCheckIns,
-            newInquiries: ConsultationStats.countNewInquiries(pendingConsultations),
-            awaitingClarification: ConsultationStats.countAwaitingClarification(pendingConsultations),
-            awaitingScheduling: ConsultationStats.countAwaitingScheduling(pendingConsultations),
             pendingIntakeCount,
         };
-    }, [todayAppointments, pendingConsultations, pendingIntakeCount]);
+    }, [todayAppointments, pendingIntakeCount]);
 
     // Aggregate loading state
-    const loading = loadingAppointments || loadingConsultations || loadingIntakes;
+    const loading = loadingAppointments || loadingIntakes;
 
     // Refetch all data
     const refetch = useCallback(() => {
         refetchAppointments();
-        refetchConsultations();
         refetchIntakes();
-    }, [refetchAppointments, refetchConsultations, refetchIntakes]);
+    }, [refetchAppointments, refetchIntakes]);
 
     return {
         stats,

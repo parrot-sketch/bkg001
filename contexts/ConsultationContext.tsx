@@ -19,15 +19,15 @@
  * - Workflow state (loading, active, completing, etc.)
  */
 
-import React, { 
-  createContext, 
-  useContext, 
-  useReducer, 
-  useCallback, 
+import React, {
+  createContext,
+  useContext,
+  useReducer,
+  useCallback,
   useEffect,
   useRef,
   useMemo,
-  type ReactNode 
+  type ReactNode
 } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
@@ -72,18 +72,18 @@ export interface StructuredNotes {
 interface ConsultationProviderState {
   // Workflow state
   workflow: ConsultationWorkflowContext;
-  
+
   // Data (null when not loaded)
   appointment: AppointmentResponseDto | null;
   patient: PatientResponseDto | null;
   consultation: ConsultationResponseDto | null;
   doctorId: string | null;
-  
+
   // Notes state (local, synced via auto-save)
   notes: StructuredNotes;
   outcomeType: ConsultationOutcomeType | null;
   patientDecision: PatientDecision | null;
-  
+
   // UI state
   isLoading: boolean;
   isSaving: boolean;
@@ -121,13 +121,13 @@ function consultationReducer(state: ConsultationProviderState, action: Consultat
         ...state,
         workflow: { ...state.workflow, state: action.payload },
       };
-      
+
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload };
-      
+
     case 'SET_SAVING':
       return { ...state, isSaving: action.payload };
-      
+
     case 'SET_DATA':
       return {
         ...state,
@@ -140,7 +140,7 @@ function consultationReducer(state: ConsultationProviderState, action: Consultat
           patientId: action.payload.patient.id,
         },
       };
-      
+
     case 'SET_CONSULTATION':
       return {
         ...state,
@@ -150,50 +150,50 @@ function consultationReducer(state: ConsultationProviderState, action: Consultat
           consultationId: action.payload?.id ?? null,
         },
       };
-      
+
     case 'SET_NOTES':
       return {
         ...state,
         notes: action.payload,
         workflow: { ...state.workflow, isDirty: true },
       };
-      
+
     case 'UPDATE_NOTE_FIELD':
       return {
         ...state,
         notes: { ...state.notes, [action.payload.field]: action.payload.value },
         workflow: { ...state.workflow, isDirty: true },
       };
-      
+
     case 'SET_OUTCOME':
       return {
         ...state,
         outcomeType: action.payload,
         workflow: { ...state.workflow, isDirty: true },
       };
-      
+
     case 'SET_PATIENT_DECISION':
       return {
         ...state,
         patientDecision: action.payload,
         workflow: { ...state.workflow, isDirty: true },
       };
-      
+
     case 'SET_AUTO_SAVE_STATUS':
       return { ...state, autoSaveStatus: action.payload };
-      
+
     case 'SET_DIRTY':
       return {
         ...state,
         workflow: { ...state.workflow, isDirty: action.payload },
       };
-      
+
     case 'SHOW_COMPLETE_DIALOG':
       return { ...state, showCompleteDialog: action.payload };
-      
+
     case 'SHOW_START_DIALOG':
       return { ...state, showStartDialog: action.payload };
-      
+
     case 'SET_ERROR':
       return {
         ...state,
@@ -203,16 +203,16 @@ function consultationReducer(state: ConsultationProviderState, action: Consultat
           error: action.payload,
         },
       };
-      
+
     case 'CLEAR_ERROR':
       return {
         ...state,
         workflow: { ...state.workflow, error: null },
       };
-      
+
     case 'RESET':
       return createInitialState();
-      
+
     default:
       return state;
   }
@@ -243,14 +243,14 @@ function createInitialState(appointmentId?: number): ConsultationProviderState {
 interface ConsultationContextValue {
   // State
   state: ConsultationProviderState;
-  
+
   // Computed
   isActive: boolean;
   isReadOnly: boolean;
   canSave: boolean;
   canComplete: boolean;
   waitingQueue: AppointmentResponseDto[];
-  
+
   // Actions
   loadAppointment: (appointmentId: number) => Promise<void>;
   startConsultation: () => Promise<void>;
@@ -280,28 +280,28 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  
+
   const [state, dispatch] = useReducer(
     consultationReducer,
     createInitialState(initialAppointmentId)
   );
-  
+
   // External hooks
   const saveDraftMutation = useSaveConsultationDraft();
   const { data: todayAppointments = [] } = useDoctorTodayAppointments(user?.id, !!user);
-  
+
   // Refs for debounced save
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Waiting queue (excluding current appointment)
   const waitingQueue = useMemo(() => {
-    return todayAppointments.filter(apt => 
+    return todayAppointments.filter(apt =>
       apt.id !== state.appointment?.id &&
-      (apt.status === AppointmentStatus.CHECKED_IN || 
-       apt.status === AppointmentStatus.READY_FOR_CONSULTATION)
+      (apt.status === AppointmentStatus.CHECKED_IN ||
+        apt.status === AppointmentStatus.READY_FOR_CONSULTATION)
     );
   }, [todayAppointments, state.appointment?.id]);
-  
+
   // Computed properties
   // Ground truth: appointment status trumps consultation record state.
   // Old consultations completed before our updates may have a Consultation record
@@ -314,55 +314,58 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
     state.consultation?.state === ConsultationState.COMPLETED;
   const canSave = isActive && state.workflow.isDirty;
   const canComplete = isActive && !state.isSaving;
-  
+
   // ========== ACTIONS ==========
-  
+
   const loadAppointment = useCallback(async (appointmentId: number) => {
     if (!user) return;
-    
+
     dispatch({ type: 'SET_LOADING', payload: true });
     dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.LOADING });
-    
+
     try {
       // Load appointment
       const appointmentResponse = await doctorApi.getAppointment(appointmentId);
       if (!appointmentResponse.success || !appointmentResponse.data) {
         throw new Error('Appointment not found');
       }
-      
+
       const apt = appointmentResponse.data;
-      
+
       // Load patient
       const patientResponse = await doctorApi.getPatient(apt.patientId);
       if (!patientResponse.success || !patientResponse.data) {
         throw new Error('Patient not found');
       }
-      
+
       // Get doctor ID
       const doctorResponse = await doctorApi.getDoctorByUserId(user.id);
-      const doctorId = doctorResponse.success && doctorResponse.data 
-        ? doctorResponse.data.id 
+      const doctorId = doctorResponse.success && doctorResponse.data
+        ? doctorResponse.data.id
         : user.id;
-      
-      dispatch({ 
-        type: 'SET_DATA', 
-        payload: { 
-          appointment: apt, 
+
+      dispatch({
+        type: 'SET_DATA',
+        payload: {
+          appointment: apt,
           patient: patientResponse.data,
           doctorId,
-        } 
+        }
       });
-      
+
       // Load consultation if exists
       const consultationResponse = await consultationApi.getConsultation(appointmentId);
       if (consultationResponse.success && consultationResponse.data) {
         dispatch({ type: 'SET_CONSULTATION', payload: consultationResponse.data });
-        
+
         // Restore notes from consultation
         if (consultationResponse.data.notes?.structured) {
           dispatch({ type: 'SET_NOTES', payload: consultationResponse.data.notes.structured });
+        } else if (consultationResponse.data.notes?.fullText) {
+          // Fallback for legacy raw notes (display in chief complaint)
+          dispatch({ type: 'SET_NOTES', payload: { chiefComplaint: consultationResponse.data.notes.fullText } });
         }
-        
+
         // Restore outcome/decision
         if (consultationResponse.data.outcomeType) {
           dispatch({ type: 'SET_OUTCOME', payload: consultationResponse.data.outcomeType });
@@ -371,16 +374,16 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
           dispatch({ type: 'SET_PATIENT_DECISION', payload: consultationResponse.data.patientDecision });
         }
       }
-      
+
       // Determine workflow state based on appointment/consultation status.
       // If the appointment is already IN_CONSULTATION, go straight to the 
       // workspace — no start dialog. This is the normal path when navigating
       // from a "Start Consultation" button that already called the API.
-      const hasActiveConsultation = consultationResponse.success && 
+      const hasActiveConsultation = consultationResponse.success &&
         consultationResponse.data?.state === ConsultationState.IN_PROGRESS;
-      
-      if (apt.status === AppointmentStatus.COMPLETED || 
-          apt.status === AppointmentStatus.CANCELLED) {
+
+      if (apt.status === AppointmentStatus.COMPLETED ||
+        apt.status === AppointmentStatus.CANCELLED) {
         // Already completed or cancelled — read-only view, no dialogs
         dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.READY });
         dispatch({ type: 'SHOW_START_DIALOG', payload: false });
@@ -389,16 +392,16 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
         dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.ACTIVE });
         // Explicitly ensure the dialog is closed (defensive)
         dispatch({ type: 'SHOW_START_DIALOG', payload: false });
-      } else if (apt.status === AppointmentStatus.CHECKED_IN || 
-                 apt.status === AppointmentStatus.READY_FOR_CONSULTATION) {
+      } else if (apt.status === AppointmentStatus.CHECKED_IN ||
+        apt.status === AppointmentStatus.READY_FOR_CONSULTATION) {
         dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.READY });
         dispatch({ type: 'SHOW_START_DIALOG', payload: true });
       } else {
         dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.READY });
       }
-      
+
       dispatch({ type: 'SET_DIRTY', payload: false });
-      
+
     } catch (error: any) {
       console.error('Failed to load appointment:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message || 'Failed to load appointment' });
@@ -407,27 +410,27 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
       dispatch({ type: 'SET_LOADING', payload: false });
     }
   }, [user]);
-  
+
   const startConsultation = useCallback(async () => {
     if (!user || !state.appointment) return;
-    
+
     dispatch({ type: 'SET_LOADING', payload: true });
-    
+
     try {
       const response = await doctorApi.startConsultation({
         appointmentId: state.appointment.id,
         doctorId: state.doctorId || user.id,
         userId: user.id,
       });
-      
+
       if (!response.success) {
         // Handle "already in progress" gracefully — another code path
         // (dashboard, appointment detail) may have started it first.
         const errorMsg = (response.error || '').toLowerCase();
-        const isAlreadyStarted = errorMsg.includes('in progress') || 
-                                 errorMsg.includes('in_consultation') ||
-                                 errorMsg.includes('already');
-        
+        const isAlreadyStarted = errorMsg.includes('in progress') ||
+          errorMsg.includes('in_consultation') ||
+          errorMsg.includes('already');
+
         if (isAlreadyStarted) {
           // Not an error — just proceed to the workspace
           console.info('[ConsultationContext] Consultation already in progress, proceeding to workspace');
@@ -435,21 +438,21 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
           throw new Error(response.error || 'Failed to start consultation');
         }
       }
-      
+
       // Refresh consultation data regardless (it may exist from a prior start)
       const consultationResponse = await consultationApi.getConsultation(state.appointment.id);
       if (consultationResponse.success && consultationResponse.data) {
         dispatch({ type: 'SET_CONSULTATION', payload: consultationResponse.data });
       }
-      
+
       dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.ACTIVE });
       dispatch({ type: 'SHOW_START_DIALOG', payload: false });
-      
+
       // Invalidate queries to refresh dashboard
       queryClient.invalidateQueries({ queryKey: ['doctor', user.id, 'appointments'] });
-      
+
       toast.success('Consultation started');
-      
+
     } catch (error: any) {
       console.error('Failed to start consultation:', error);
       toast.error(error.message || 'Failed to start consultation');
@@ -457,13 +460,13 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
       dispatch({ type: 'SET_LOADING', payload: false });
     }
   }, [user, state.appointment, state.doctorId, queryClient]);
-  
+
   const saveDraft = useCallback(async () => {
     if (!state.appointment || !state.doctorId || !state.consultation || !canSave) return;
-    
+
     dispatch({ type: 'SET_SAVING', payload: true });
     dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'saving' });
-    
+
     try {
       await saveDraftMutation.mutateAsync({
         appointmentId: state.appointment.id,
@@ -475,15 +478,15 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
         outcomeType: state.outcomeType ?? undefined,
         patientDecision: state.patientDecision ?? undefined,
       });
-      
+
       dispatch({ type: 'SET_DIRTY', payload: false });
       dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'saved' });
-      
+
       // Reset status after 2 seconds
       setTimeout(() => {
         dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'idle' });
       }, 2000);
-      
+
     } catch (error: any) {
       console.error('Failed to save draft:', error);
       dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'error' });
@@ -491,40 +494,40 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
       dispatch({ type: 'SET_SAVING', payload: false });
     }
   }, [state.appointment, state.doctorId, state.consultation, state.notes, state.outcomeType, state.patientDecision, canSave, saveDraftMutation]);
-  
+
   const updateNotes = useCallback((field: keyof StructuredNotes, value: string) => {
     dispatch({ type: 'UPDATE_NOTE_FIELD', payload: { field, value } });
   }, []);
-  
+
   const setOutcome = useCallback((outcome: ConsultationOutcomeType) => {
     dispatch({ type: 'SET_OUTCOME', payload: outcome });
   }, []);
-  
+
   const setPatientDecision = useCallback((decision: PatientDecision) => {
     dispatch({ type: 'SET_PATIENT_DECISION', payload: decision });
   }, []);
-  
+
   const openCompleteDialog = useCallback(() => {
     dispatch({ type: 'SHOW_COMPLETE_DIALOG', payload: true });
     dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.COMPLETING });
   }, []);
-  
+
   const closeCompleteDialog = useCallback(() => {
     dispatch({ type: 'SHOW_COMPLETE_DIALOG', payload: false });
     dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.ACTIVE });
   }, []);
-  
+
   const completeConsultation = useCallback(async (redirectPath?: string) => {
     if (!state.appointment) return;
-    
+
     const completedAppointmentId = state.appointment.id;
-    
+
     dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.TRANSITIONING });
     dispatch({ type: 'SHOW_COMPLETE_DIALOG', payload: false });
-    
+
     // Full state reset — prevent stale patient data from leaking into next session
     dispatch({ type: 'RESET' });
-    
+
     // Aggressively invalidate all related caches
     queryClient.invalidateQueries({ queryKey: ['consultation', completedAppointmentId] });
     queryClient.invalidateQueries({ queryKey: ['consultation'] });
@@ -532,7 +535,7 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
     queryClient.invalidateQueries({ queryKey: ['appointments'] });
     queryClient.invalidateQueries({ queryKey: ['billing'] });
     queryClient.invalidateQueries({ queryKey: ['appointment-billing'] });
-    
+
     // Navigate: explicit redirect > next in queue > back to consultations list
     if (redirectPath) {
       router.push(redirectPath);
@@ -544,7 +547,7 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
       router.push('/doctor/consultations');
     }
   }, [state.appointment, waitingQueue, queryClient, router]);
-  
+
   const switchToPatient = useCallback((appointmentId: number) => {
     if (state.workflow.isDirty) {
       // Save before switching
@@ -555,42 +558,42 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
       router.push(`/doctor/consultations/${appointmentId}/session`);
     }
   }, [state.workflow.isDirty, saveDraft, router]);
-  
+
   const goToSurgeryPlanning = useCallback(() => {
     if (!state.appointment) return;
     router.push(`/doctor/operative/plan/${state.appointment.id}/new`);
   }, [state.appointment, router]);
-  
+
   // ========== EFFECTS ==========
-  
+
   // Auto-save with debouncing
   useEffect(() => {
     if (!isActive || !state.workflow.isDirty) return;
-    
+
     // Clear existing timeout
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
-    
+
     // Set new timeout for auto-save (3 seconds)
     saveTimeoutRef.current = setTimeout(() => {
       saveDraft();
     }, 3000);
-    
+
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
     };
   }, [state.notes, isActive, state.workflow.isDirty, saveDraft]);
-  
+
   // Load initial appointment
   useEffect(() => {
     if (initialAppointmentId && user) {
       loadAppointment(initialAppointmentId);
     }
   }, [initialAppointmentId, user, loadAppointment]);
-  
+
   // Warn before leaving with unsaved changes
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -599,13 +602,13 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
         e.returnValue = '';
       }
     };
-    
+
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [state.workflow.isDirty]);
-  
+
   // ========== CONTEXT VALUE ==========
-  
+
   const value: ConsultationContextValue = {
     state,
     isActive,
@@ -625,7 +628,7 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
     switchToPatient,
     goToSurgeryPlanning,
   };
-  
+
   return (
     <ConsultationContext.Provider value={value}>
       {children}
@@ -651,7 +654,7 @@ export function useConsultationContext() {
 
 function generateFullText(notes: StructuredNotes): string {
   const parts: string[] = [];
-  
+
   if (notes.chiefComplaint) {
     parts.push(`Chief Complaint: ${notes.chiefComplaint}`);
   }
@@ -664,6 +667,6 @@ function generateFullText(notes: StructuredNotes): string {
   if (notes.plan) {
     parts.push(`Plan: ${notes.plan}`);
   }
-  
+
   return parts.join('\n\n');
 }

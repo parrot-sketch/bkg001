@@ -54,6 +54,8 @@ async function getSurgicalCaseWithPatient(caseId: string) {
             patient_id: true,
             status: true,
             procedure_name: true,
+            side: true,
+            diagnosis: true,
             patient: {
                 select: {
                     id: true,
@@ -63,6 +65,18 @@ async function getSurgicalCaseWithPatient(caseId: string) {
                     allergies: true,
                 },
             },
+            primary_surgeon: {
+                select: { name: true },
+            },
+            case_plan: {
+                select: {
+                    procedure_plan: true,
+                    pre_op_notes: true,
+                    special_instructions: true,
+                    planned_anesthesia: true,
+                    implant_details: true,
+                }
+            }
         },
     });
 }
@@ -154,7 +168,10 @@ export async function GET(
                 documentation: {},
                 bloodResults: {},
                 medications: {},
-                allergiesNpo: {},
+                allergiesNpo: {
+                    allergiesDetails: surgicalCase.patient.allergies || '',
+                    allergiesDocumented: !!surgicalCase.patient.allergies
+                },
                 preparation: {},
                 prosthetics: {},
                 vitals: {},
@@ -183,6 +200,9 @@ export async function GET(
                 patient: surgicalCase.patient,
                 caseStatus: surgicalCase.status,
                 procedureName: surgicalCase.procedure_name,
+                side: surgicalCase.side,
+                surgeonName: surgicalCase.primary_surgeon?.name,
+                casePlan: surgicalCase.case_plan,
             },
         });
     } catch (error) {

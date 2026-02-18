@@ -49,6 +49,15 @@ export interface PreopWardFormResponse {
     patient: PreopWardFormPatient;
     caseStatus: string;
     procedureName: string | null;
+    side: string | null;
+    surgeonName: string | null;
+    casePlan?: {
+        procedure_plan: string | null;
+        pre_op_notes: string | null;
+        special_instructions: string | null;
+        planned_anesthesia: string | null;
+        implant_details: string | null;
+    } | null;
 }
 
 export interface FinalizeResult {
@@ -187,6 +196,13 @@ export interface IntraOpFormResponse {
     procedureName: string | null;
     side: string | null;
     surgeonName: string | null;
+    casePlan?: {
+        procedure_plan: string | null;
+        pre_op_notes: string | null;
+        special_instructions: string | null;
+        planned_anesthesia: string | null;
+        implant_details: string | null;
+    } | null;
 }
 
 // ──────────────────────────────────────────────────────────────────────

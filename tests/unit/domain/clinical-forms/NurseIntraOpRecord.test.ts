@@ -5,72 +5,80 @@ describe('NurseIntraOpRecord Schema', () => {
     describe('Final Schema Validation', () => {
         it('should validate a complete record', () => {
             const validData = {
+                entry: {
+                    timeIn: '10:00',
+                    arrivalMethod: 'STRETCHER',
+                    identityChecked: true,
+                    consentFormChecked: true,
+                    siteMarked: true,
+                },
+                safety: {
+                    whoSignIndone: true,
+                    whoTimeOutDone: true,
+                    whoSignOutDone: true,
+                    patientIdVerified: true,
+                },
+                timings: {
+                    anaesthesiaStart: '10:15',
+                    surgeryStart: '10:30',
+                },
+                staffing: {
+                    surgeon: 'Dr. Smith',
+                    scrubNurse: 'Nurse A',
+                },
+                diagnoses: {
+                    preOpDiagnosis: 'Appendicitis',
+                    operationPerformed: 'Appendectomy',
+                    side: 'N/A',
+                },
                 positioning: {
                     position: 'SUPINE',
                     armsSecured: true,
                     safetyBeltApplied: true,
-                    pressurePointsPaddingChecked: true,
-                    diathermyPlateChecked: true,
-                    bodyAlignmentChecked: true,
-                    positionNotes: 'Standard positioning',
+                    bodyAlignmentCorrect: true,
+                },
+                catheter: {
+                    catheterInserted: false,
                 },
                 skinPrep: {
-                    prepAgent: 'HIBITANE_SPIRIT',
-                    prepArea: 'Abdomen',
-                    prepPerformedBy: 'Nurse A',
-                    shavingPerformed: false,
+                    agentUsed: 'Betadine',
+                    preppedBy: 'Nurse A',
                 },
-                electrosurgery: {
-                    cauteryUsed: true,
-                    cauterySettingsCut: '30',
-                    cauterySettingsCoag: '30',
-                    skinCheckBefore: true,
-                    skinCheckAfter: true,
+                equipment: {
+                    electrosurgical: {
+                        cauteryUsed: true,
+                        unitNo: 'E-123',
+                        cutSet: '30',
+                        coagSet: '30',
+                    },
+                    tourniquet: {
+                        tourniquetUsed: false,
+                    },
                 },
-                tourniquet: {
-                    tourniquetUsed: false,
-                },
-                fluids: {
-                    ivFluidsTotal: 1000,
-                    urineOutput: 200,
-                    estimatedBloodLoss: 50,
-                    bloodTransfusionUnits: 0,
-                },
-                closure: {
-                    woundClass: 'CLEAN',
-                    closureType: 'NON_ABSORBABLE',
-                    dressingType: 'GAUZE',
-                    drainsUsed: false,
-                    packInserted: false,
+                surgicalDetails: {
+                    woundClassification: 'CLEAN',
+                    implantsUsed: false,
                 },
                 counts: {
-                    initialCountsCompleted: true,
-                    swabsInitial: 10,
-                    swabsFinal: 10,
-                    sharpsInitial: 5,
-                    sharpsFinal: 5,
-                    instrumentsInitial: 20,
-                    instrumentsFinal: 20,
-                    countDiscrepancy: false,
-                    initialCountsRecordedBy: 'Nurse A',
-                    initialCountsTime: '10:00',
-                    finalCountsCompleted: true,
-                    finalCountsRecordedBy: 'Nurse B',
-                    finalCountsTime: '12:00',
+                    countCorrect: true,
+                    scrubNurseSignature: 'Nurse A',
+                    circulatingNurseSignature: 'Nurse B',
                 },
-                specimens: {
-                    specimens: [],
+                closure: {
+                    skinClosure: 'Staples',
+                    dressingApplied: 'Gauze',
                 },
-                implantsUsed: {
-                    implantsConfirmed: true,
-                    items: [],
+                fluids: {
+                    estimatedBloodLossMl: 50,
+                    urinaryOutputMl: 200,
                 },
-                signOut: {
-                    signOutCompleted: true,
-                    signOutTime: '12:30',
-                    signOutNurseName: 'Nurse A',
-                    postopInstructionsConfirmed: true,
-                    specimensLabeledConfirmed: true,
+                medications: [],
+                implants: [],
+                specimens: [],
+                itemsToReturnToTheatre: '',
+                billing: {
+                    anaestheticMaterialsCharge: '',
+                    theatreFee: '',
                 },
             };
 

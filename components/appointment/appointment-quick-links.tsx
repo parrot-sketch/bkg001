@@ -5,6 +5,7 @@ import { ReviewForm } from "../dialogs/review-form";
 
 const AppointmentQuickLinks = async ({ staffId }: { staffId: string }) => {
   const isPatient = await checkRole("PATIENT");
+  const isFrontdesk = await checkRole("FRONTDESK");
 
   return (
     <Card className="w-full rounded-xl bg-white shadow-none">
@@ -67,7 +68,7 @@ const AppointmentQuickLinks = async ({ staffId }: { staffId: string }) => {
           Vital Signs
         </Link>
 
-        {!isPatient && <ReviewForm staffId={staffId} />}
+        {!isPatient && !isFrontdesk && <ReviewForm staffId={staffId} />}
       </CardContent>
     </Card>
   );

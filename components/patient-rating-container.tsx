@@ -1,25 +1,29 @@
-import db from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth/server-auth";
+import { getRatingById } from "@/utils/services/doctor";
 import React from "react";
 import { RatingList } from "./rating-list";
+import { RatingChart } from "./charts/rating-chart";
+import { getCurrentUser } from "@/lib/auth/server-auth";
+import { Role } from "@/domain/enums/Role";
 
-export const PatientRatingContainer = async ({ id }: { id?: string }) => {
+export const PatientRatingContainer = async ({ id }: { id: string }) => {
   const user = await getCurrentUser();
-  const userId = user?.userId;
 
-  const data = await db.rating.findMany({
-    take: 10,
+  // RBAC: Frontdesk is not allowed to see ratings/reviews
+  if (!user || user.role === Role.FRONTDESK) {
+    return null;
+  }
 
-    where: { patient_id: id ? id : userId! },
-    include: { patient: { select: { last_name: true, first_name: true } } },
-    orderBy: { created_at: "desc" },
-  });
+  const { ratings, totalRatings, averageRating } = await getRatingById(id);
 
-  if (!data) return null;
+  if (!ratings) return null;
 
   return (
-    <div>
-      <RatingList data={data} />
+    <div className="space-y-4">
+      <RatingChart
+        totalRatings={totalRatings!}
+        averageRating={Number(averageRating!)}
+      />
+      <RatingList data={ratings} />
     </div>
   );
 };

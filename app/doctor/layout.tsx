@@ -13,6 +13,7 @@ import { DoctorSidebar } from '@/components/doctor/DoctorSidebar';
 import { Menu } from 'lucide-react';
 import { ReactNode } from 'react';
 import { ClinicalDashboardShell } from '@/components/layouts/ClinicalDashboardShell';
+import { usePathname } from 'next/navigation';
 
 interface DoctorLayoutProps {
   children: ReactNode;
@@ -20,9 +21,13 @@ interface DoctorLayoutProps {
 
 export default function DoctorLayout({ children }: DoctorLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Check if current route is a consultation session
+  const isConsultationSession = pathname?.includes('/consultations/') && pathname?.includes('/session');
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
       {/* Mobile Menu Button */}
       <button
         onClick={() => setSidebarOpen(true)}
@@ -37,7 +42,7 @@ export default function DoctorLayout({ children }: DoctorLayoutProps) {
 
       {/* Content Area - Using the shared ClinicalDashboardShell */}
       <div className="flex-1 lg:ml-72 flex flex-col min-w-0 h-full overflow-hidden">
-        <ClinicalDashboardShell>
+        <ClinicalDashboardShell variant={isConsultationSession ? 'immersive' : 'default'}>
           {children}
         </ClinicalDashboardShell>
       </div>

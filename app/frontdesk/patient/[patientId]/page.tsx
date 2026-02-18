@@ -1,5 +1,4 @@
 import { MedicalHistoryContainer } from "@/components/medical-history-container";
-import { PatientRatingContainer } from "@/components/patient-rating-container";
 import { ProfileImage } from "@/components/profile-image";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPatientFullDataById } from "@/utils/services/patient";
@@ -41,7 +40,7 @@ const FrontdeskPatientProfile = async (props: ParamsProps) => {
           <h1 className="text-3xl font-semibold text-foreground tracking-tight">Patient Profile</h1>
           <p className="text-sm text-muted-foreground">Complete patient information and medical history</p>
         </div>
-        <Link 
+        <Link
           href="/frontdesk/patients"
           className="text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
@@ -197,6 +196,13 @@ const FrontdeskPatientProfile = async (props: ParamsProps) => {
                 <p className="text-xs text-muted-foreground">View medical history</p>
               </Link>
               <Link
+                href={`/frontdesk/billing?q=${data?.first_name}+${data?.last_name}`}
+                className="block w-full text-left p-3 rounded-lg border border-border hover:bg-muted/50 hover:border-brand-primary/50 transition-colors"
+              >
+                <p className="text-sm font-medium text-foreground">Billing & Payments</p>
+                <p className="text-xs text-muted-foreground">View patient&apos;s billing and payments</p>
+              </Link>
+              <Link
                 href={`/frontdesk/appointments?patientId=${id}&action=schedule`}
                 className="block w-full text-left p-3 rounded-lg border border-border hover:bg-muted/50 hover:border-brand-primary/50 transition-colors"
               >
@@ -205,9 +211,6 @@ const FrontdeskPatientProfile = async (props: ParamsProps) => {
               </Link>
             </CardContent>
           </Card>
-
-          {/* Patient Ratings */}
-          <PatientRatingContainer id={id!} />
         </div>
       </div>
     </div>
