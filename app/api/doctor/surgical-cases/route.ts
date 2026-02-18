@@ -76,48 +76,48 @@ function mapCaseToDto(sc: any) {
         updatedAt: sc.updated_at,
         patient: sc.patient
             ? {
-                  id: sc.patient.id,
-                  firstName: sc.patient.first_name,
-                  lastName: sc.patient.last_name,
-                  fileNumber: sc.patient.file_number,
-                  gender: sc.patient.gender,
-                  dateOfBirth: sc.patient.date_of_birth,
-              }
+                id: sc.patient.id,
+                firstName: sc.patient.first_name,
+                lastName: sc.patient.last_name,
+                fileNumber: sc.patient.file_number,
+                gender: sc.patient.gender,
+                dateOfBirth: sc.patient.date_of_birth,
+            }
             : null,
         primarySurgeon: sc.primary_surgeon
             ? {
-                  id: sc.primary_surgeon.id,
-                  name: sc.primary_surgeon.name,
-              }
+                id: sc.primary_surgeon.id,
+                name: sc.primary_surgeon.name,
+            }
             : null,
         casePlan: sc.case_plan
             ? {
-                  id: sc.case_plan.id,
-                  appointmentId: sc.case_plan.appointment_id,
-                  readinessStatus: sc.case_plan.readiness_status,
-                  readyForSurgery: sc.case_plan.ready_for_surgery,
-                  hasProcedurePlan: !!sc.case_plan.procedure_plan,
-                  hasRiskFactors: !!sc.case_plan.risk_factors,
-                  plannedAnesthesia: sc.case_plan.planned_anesthesia,
-                  estimatedDurationMinutes: sc.case_plan.estimated_duration_minutes,
-                  consentCount: sc.case_plan._count?.consents ?? 0,
-                  imageCount: sc.case_plan._count?.images ?? 0,
-              }
+                id: sc.case_plan.id,
+                appointmentId: sc.case_plan.appointment_id,
+                readinessStatus: sc.case_plan.readiness_status,
+                readyForSurgery: sc.case_plan.ready_for_surgery,
+                hasProcedurePlan: !!sc.case_plan.procedure_plan,
+                hasRiskFactors: !!sc.case_plan.risk_factors,
+                plannedAnesthesia: sc.case_plan.planned_anesthesia,
+                estimatedDurationMinutes: sc.case_plan.estimated_duration_minutes,
+                consentCount: sc.case_plan._count?.consents ?? 0,
+                imageCount: sc.case_plan._count?.images ?? 0,
+            }
             : null,
         theaterBooking: sc.theater_booking
             ? {
-                  id: sc.theater_booking.id,
-                  startTime: sc.theater_booking.start_time,
-                  endTime: sc.theater_booking.end_time,
-                  status: sc.theater_booking.status,
-                  theaterName: sc.theater_booking.theater?.name ?? null,
-              }
+                id: sc.theater_booking.id,
+                startTime: sc.theater_booking.start_time,
+                endTime: sc.theater_booking.end_time,
+                status: sc.theater_booking.status,
+                theaterName: sc.theater_booking.theater?.name ?? null,
+            }
             : null,
         consultation: sc.consultation
             ? {
-                  id: sc.consultation.id,
-                  appointmentId: sc.consultation.appointment_id,
-              }
+                id: sc.consultation.id,
+                appointmentId: sc.consultation.appointment_id,
+            }
             : null,
     };
 }
@@ -165,9 +165,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const rawPageSize = parseIntParam(searchParams.get('pageSize'), DEFAULT_PAGE_SIZE);
         const pageSize = Math.min(rawPageSize, MAX_PAGE_SIZE);
 
-        // 5. Build WHERE clause
+        // 5. Build WHERE clause (Own cases + Invited cases)
         const where: Prisma.SurgicalCaseWhereInput = {
-            primary_surgeon_id: doctorProfile.id,
+            OR: [
+                { primary_surgeon_id: doctorProfile.id },
+                {
+                    staff_invites: {
+                        some: {
+                            invited_user_id: authResult.user.userId,
+                            status: 'ACCEPTED'
+                        }
+                    }
+                }
+            ]
         };
 
         // Status filter
@@ -201,7 +211,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         //    Single aggregation query with groupBy
         const statusCounts = await db.surgicalCase.groupBy({
             by: ['status'],
-            where: { primary_surgeon_id: doctorProfile.id },
+            where: {
+                OR: [
+                    { primary_surgeon_id: doctorProfile.id },
+                    {
+                        staff_invites: {
+                            some: {
+                                invited_user_id: authResult.user.userId,
+                                status: 'ACCEPTED'
+                            }
+                        }
+                    }
+                ]
+            },
             _count: { _all: true },
         });
 

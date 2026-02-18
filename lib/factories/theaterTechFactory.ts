@@ -14,6 +14,9 @@ import { PrismaSurgicalCaseRepository } from '@/infrastructure/database/reposito
 import { PrismaSurgicalChecklistRepository } from '@/infrastructure/database/repositories/PrismaSurgicalChecklistRepository';
 import { PrismaClinicalAuditRepository } from '@/infrastructure/database/repositories/PrismaClinicalAuditRepository';
 import { PrismaCasePlanRepository } from '@/infrastructure/database/repositories/PrismaCasePlanRepository';
+import { TheaterDashboardService } from '@/application/services/TheaterDashboardService';
+import { SurgicalChecklistService } from '@/application/services/SurgicalChecklistService';
+import { ProcedureTimelineService } from '@/application/services/ProcedureTimelineService';
 
 // Repository instances (singleton per process)
 const surgicalCaseRepo = new PrismaSurgicalCaseRepository(db);
@@ -28,10 +31,18 @@ const surgicalCaseService = new SurgicalCaseService(surgicalCaseRepo, casePlanRe
 export { surgicalCaseService };
 export { surgicalCaseRepo };
 
+// Sub-services
+const theaterDashboardService = new TheaterDashboardService(db);
+const surgicalChecklistService = new SurgicalChecklistService(db, checklistRepo, auditRepo);
+const procedureTimelineService = new ProcedureTimelineService(db, auditRepo);
+
 // Application service
 export const theaterTechService = new TheaterTechService(
   db,
   surgicalCaseService,
   checklistRepo,
-  auditRepo
+  auditRepo,
+  theaterDashboardService,
+  surgicalChecklistService,
+  procedureTimelineService
 );

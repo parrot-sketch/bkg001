@@ -32,6 +32,7 @@ import {
   Highlighter,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { DictationControl } from './DictationControl';
 
 interface RichTextEditorProps {
   content: string;
@@ -191,6 +192,18 @@ export function RichTextEditor({
             >
               <Redo className="h-3.5 w-3.5" />
             </ToolbarButton>
+          </ToolbarGroup>
+
+          <ToolbarDivider />
+
+          {/* AI / Voice Intelligence Group */}
+          <ToolbarGroup>
+            <DictationControl
+              onTranscription={(text: string) => {
+                editor.chain().focus().insertContent(text + ' ').run();
+              }}
+              context={placeholder?.includes('complaint') ? 'Chief Complaint' : placeholder?.includes('examination') ? 'Examination' : 'default'}
+            />
           </ToolbarGroup>
 
           {/* Character Count */}

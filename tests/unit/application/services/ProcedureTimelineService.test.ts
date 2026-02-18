@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
-import { TheaterTechService } from '../../../../application/services/TheaterTechService';
-import { SurgicalCaseService } from '../../../../application/services/SurgicalCaseService';
+import { ProcedureTimelineService } from '../../../../application/services/ProcedureTimelineService';
 import { DomainException } from '../../../../domain/exceptions/DomainException';
 
 // ============================================================================
@@ -26,21 +25,6 @@ function createMockPrisma() {
   });
 
   return mockPrisma;
-}
-
-const mockSurgicalCaseService = {
-  transitionTo: vi.fn(),
-} as unknown as SurgicalCaseService;
-
-function createMockChecklistRepo() {
-  return {
-    findByCaseId: vi.fn(),
-    findById: vi.fn(),
-    ensureExists: vi.fn(),
-    completePhase: vi.fn(),
-    saveDraftItems: vi.fn(),
-    isPhaseCompleted: vi.fn(),
-  };
 }
 
 function createMockAuditRepo() {
@@ -93,22 +77,18 @@ function completeProcedureRecord(baseMinutesAgo = 120, id = 1) {
 // TESTS: updateTimeline — PATCH validation
 // ============================================================================
 
-describe('TheaterTechService.updateTimeline — PATCH validation', () => {
+describe('ProcedureTimelineService.updateTimeline — PATCH validation', () => {
   let mockPrisma: ReturnType<typeof createMockPrisma>;
   let mockAuditRepo: ReturnType<typeof createMockAuditRepo>;
-  let mockChecklistRepo: ReturnType<typeof createMockChecklistRepo>;
-  let service: TheaterTechService;
+  let service: ProcedureTimelineService;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockPrisma = createMockPrisma();
     mockAuditRepo = createMockAuditRepo();
-    mockChecklistRepo = createMockChecklistRepo();
-    service = new TheaterTechService(
+    service = new ProcedureTimelineService(
       mockPrisma,
-      mockSurgicalCaseService,
-      mockChecklistRepo,
-      mockAuditRepo,
+      mockAuditRepo as any
     );
   });
 
@@ -223,7 +203,6 @@ describe('TheaterTechService.updateTimeline — PATCH validation', () => {
   });
 
   it('should reject when wheelsOut is set before existing anesthesiaEnd', async () => {
-    // anesthesiaEnd and wheelsOut are adjacent in chronological order
     const anesthesiaEnd = minutesFromNow(-20);
     const wheelsOutBefore = minutesFromNow(-30); // before anesthesiaEnd
 
@@ -393,7 +372,7 @@ describe('TheaterTechService.updateTimeline — PATCH validation', () => {
       status: 'COMPLETED',
       procedure_record: record,
     });
-    // The update call returns the same record (no changes — just testing reading)
+    // The update call returns the same record
     const wheelsInUpdate = minutesFromNow(-120);
     mockPrisma.surgicalProcedureRecord.update.mockResolvedValue({
       ...record,
@@ -407,7 +386,6 @@ describe('TheaterTechService.updateTimeline — PATCH validation', () => {
       'THEATER_TECHNICIAN',
     );
 
-    // OR time should be computed (wheelsIn → wheelsOut)
     expect(result.durations).toBeDefined();
     expect(result.durations.orTimeMinutes).toBeTypeOf('number');
   });
@@ -435,7 +413,6 @@ describe('TheaterTechService.updateTimeline — PATCH validation', () => {
       'THEATER_TECHNICIAN',
     );
 
-    // Should have missing items for IN_THEATER status
     expect(result.missingItems).toBeDefined();
     expect(result.missingItems.length).toBeGreaterThan(0);
     const missingFields = result.missingItems.map((m: any) => m.field);
@@ -447,22 +424,18 @@ describe('TheaterTechService.updateTimeline — PATCH validation', () => {
 // TESTS: getTimeline — GET endpoint
 // ============================================================================
 
-describe('TheaterTechService.getTimeline', () => {
+describe('ProcedureTimelineService.getTimeline', () => {
   let mockPrisma: ReturnType<typeof createMockPrisma>;
   let mockAuditRepo: ReturnType<typeof createMockAuditRepo>;
-  let mockChecklistRepo: ReturnType<typeof createMockChecklistRepo>;
-  let service: TheaterTechService;
+  let service: ProcedureTimelineService;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockPrisma = createMockPrisma();
     mockAuditRepo = createMockAuditRepo();
-    mockChecklistRepo = createMockChecklistRepo();
-    service = new TheaterTechService(
+    service = new ProcedureTimelineService(
       mockPrisma,
-      mockSurgicalCaseService,
-      mockChecklistRepo,
-      mockAuditRepo,
+      mockAuditRepo as any
     );
   });
 
@@ -496,7 +469,7 @@ describe('TheaterTechService.getTimeline', () => {
     expect(result.timeline.wheelsIn).toBeNull();
     expect(result.timeline.wheelsOut).toBeNull();
     expect(result.durations.orTimeMinutes).toBeNull();
-    expect(result.missingItems).toHaveLength(0); // IN_PREP has no expected items
+    expect(result.missingItems).toHaveLength(0);
   });
 
   it('should throw if case not found', async () => {
