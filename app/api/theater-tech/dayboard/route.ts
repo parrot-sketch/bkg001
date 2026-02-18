@@ -18,7 +18,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
-import { theaterTechService } from '@/lib/factories/theaterTechFactory';
+import { getTheaterTechService } from '@/lib/factories/theaterTechFactory';
 import { endpointTimer } from '@/lib/observability/endpointLogger';
 
 const ALLOWED_ROLES = new Set([
@@ -62,6 +62,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // 4. Fetch dayboard data
     const timer = endpointTimer('GET /api/theater-tech/dayboard');
+    const theaterTechService = getTheaterTechService();
     const dayboard = await theaterTechService.getDayboard(date, theaterId);
     const totalCases = dayboard.theaters.reduce((s, t) => s + t.cases.length, 0);
     timer.end({ cases: totalCases, theaters: dayboard.theaters.length });

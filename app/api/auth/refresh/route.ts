@@ -19,15 +19,15 @@ import { RefreshTokenDto } from '@/application/dtos/RefreshTokenDto';
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { AuthFactory } from '@/infrastructure/auth/AuthFactory';
 
-// Initialize authentication use cases using factory
-const { refreshTokenUseCase } = AuthFactory.create(db);
-
 /**
  * POST /api/auth/refresh
  * 
  * Handles token refresh request.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  // Initialize authentication use cases using factory lazily inside handler
+  const { refreshTokenUseCase } = AuthFactory.create(db);
+
   try {
     // Parse request body
     let body: RefreshTokenDto;

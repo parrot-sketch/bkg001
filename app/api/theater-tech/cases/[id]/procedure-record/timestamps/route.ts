@@ -18,7 +18,7 @@ import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { ProcedureTimestampSchema } from '@/application/validation/theaterTechSchemas';
-import { theaterTechService } from '@/lib/factories/theaterTechFactory';
+import { getTheaterTechService } from '@/lib/factories/theaterTechFactory';
 
 const ALLOWED_ROLES = new Set([Role.THEATER_TECHNICIAN, Role.ADMIN]);
 
@@ -60,6 +60,7 @@ export async function PATCH(
 
     // 4. Update timestamps
     const { id: caseId } = await params;
+    const theaterTechService = getTheaterTechService();
     const result = await theaterTechService.updateProcedureTimestamps(
       caseId,
       validation.data,

@@ -21,7 +21,7 @@ import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { ChecklistUpdateSchema } from '@/application/validation/theaterTechSchemas';
-import { theaterTechService } from '@/lib/factories/theaterTechFactory';
+import { getTheaterTechService } from '@/lib/factories/theaterTechFactory';
 
 const ALLOWED_ROLES = new Set([Role.THEATER_TECHNICIAN, Role.ADMIN]);
 
@@ -49,10 +49,11 @@ export async function GET(
 
     // 3. Fetch checklist status
     const { id: caseId } = await params;
-    const status = await theaterTechService.getChecklistStatus(caseId);
+    const theaterTechService = getTheaterTechService();
+    const checklist = await theaterTechService.getChecklist(caseId);
 
     return NextResponse.json(
-      { success: true, data: status },
+      { success: true, data: checklist },
       { status: 200 }
     );
   } catch (error) {
@@ -110,7 +111,8 @@ export async function PATCH(
     const { id: caseId } = await params;
     const { phase, items } = validation.data;
 
-    const result = await theaterTechService.completeChecklistPhase(
+    const theaterTechService = getTheaterTechService();
+    const result = await theaterTechService.finalizeChecklistPhase(
       caseId,
       phase,
       items,

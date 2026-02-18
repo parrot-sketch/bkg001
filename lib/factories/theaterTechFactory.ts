@@ -18,31 +18,63 @@ import { TheaterDashboardService } from '@/application/services/TheaterDashboard
 import { SurgicalChecklistService } from '@/application/services/SurgicalChecklistService';
 import { ProcedureTimelineService } from '@/application/services/ProcedureTimelineService';
 
-// Repository instances (singleton per process)
-const surgicalCaseRepo = new PrismaSurgicalCaseRepository(db);
-const casePlanRepo = new PrismaCasePlanRepository(db);
-const checklistRepo = new PrismaSurgicalChecklistRepository(db);
-const auditRepo = new PrismaClinicalAuditRepository(db);
+// Lazy singleton instances
+let surgicalCaseRepo: PrismaSurgicalCaseRepository;
+let casePlanRepo: PrismaCasePlanRepository;
+let checklistRepo: PrismaSurgicalChecklistRepository;
+let auditRepo: PrismaClinicalAuditRepository;
+let surgicalCaseService: SurgicalCaseService;
+let theaterDashboardService: TheaterDashboardService;
+let surgicalChecklistService: SurgicalChecklistService;
+let procedureTimelineService: ProcedureTimelineService;
+let theaterTechService: TheaterTechService;
 
-// Domain service (with CasePlan repo for readiness validation + DB for form engine checks)
-const surgicalCaseService = new SurgicalCaseService(surgicalCaseRepo, casePlanRepo, db);
+function initialize() {
+  if (theaterTechService) return;
 
-// Exported for reuse by doctor surgical case API routes
-export { surgicalCaseService };
-export { surgicalCaseRepo };
+  surgicalCaseRepo = new PrismaSurgicalCaseRepository(db);
+  casePlanRepo = new PrismaCasePlanRepository(db);
+  checklistRepo = new PrismaSurgicalChecklistRepository(db);
+  auditRepo = new PrismaClinicalAuditRepository(db);
 
-// Sub-services
-const theaterDashboardService = new TheaterDashboardService(db);
-const surgicalChecklistService = new SurgicalChecklistService(db, checklistRepo, auditRepo);
-const procedureTimelineService = new ProcedureTimelineService(db, auditRepo);
+  surgicalCaseService = new SurgicalCaseService(surgicalCaseRepo, casePlanRepo, db);
 
-// Application service
-export const theaterTechService = new TheaterTechService(
-  db,
-  surgicalCaseService,
-  checklistRepo,
-  auditRepo,
-  theaterDashboardService,
-  surgicalChecklistService,
-  procedureTimelineService
-);
+  theaterDashboardService = new TheaterDashboardService(db);
+  surgicalChecklistService = new SurgicalChecklistService(db, checklistRepo, auditRepo);
+  procedureTimelineService = new ProcedureTimelineService(db, auditRepo);
+
+  theaterTechService = new TheaterTechService(
+    db,
+    surgicalCaseService,
+    checklistRepo,
+    auditRepo,
+    theaterDashboardService,
+    surgicalChecklistService,
+    procedureTimelineService
+  );
+}
+
+export function getSurgicalCaseService() {
+  initialize();
+  return surgicalCaseService;
+}
+
+export function getTheaterTechService() {
+  initialize();
+  return theaterTechService;
+}
+
+export function getSurgicalCaseRepo() {
+  initialize();
+  return surgicalCaseRepo;
+}
+
+export function getSurgicalChecklistRepo() {
+  initialize();
+  return checklistRepo;
+}
+
+export function getAuditRepo() {
+  initialize();
+  return auditRepo;
+}

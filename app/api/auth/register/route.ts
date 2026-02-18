@@ -16,21 +16,21 @@ import { PublicRegisterUserDto } from '@/application/dtos/PublicRegisterUserDto'
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { AuthFactory } from '@/infrastructure/auth/AuthFactory';
 
-// Initialize authentication use cases using factory
-const { registerPublicUserUseCase } = AuthFactory.create(db);
-
 /**
  * POST /api/auth/register
  * 
  * Handles public user registration (for backward compatibility with existing frontend).
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  // Initialize authentication use cases using factory lazily inside handler
+  const { registerPublicUserUseCase } = AuthFactory.create(db);
+
   try {
     // Parse request body
     let body: PublicRegisterUserDto;
     try {
       const rawBody = await request.json();
-      
+
       // If body has 'id' or 'role', ignore them (public registration doesn't accept them)
       // Extract only fields that PublicRegisterUserDto accepts
       body = {

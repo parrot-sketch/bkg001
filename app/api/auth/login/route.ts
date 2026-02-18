@@ -19,15 +19,15 @@ import { LoginDto } from '@/application/dtos/LoginDto';
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { AuthFactory } from '@/infrastructure/auth/AuthFactory';
 
-// Initialize authentication use cases using factory
-const { loginUseCase } = AuthFactory.create(db);
-
 /**
  * POST /api/auth/login
  * 
  * Handles user login request.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  // Initialize authentication use cases using factory lazily inside handler
+  const { loginUseCase } = AuthFactory.create(db);
+
   try {
     // Parse request body
     let body: LoginDto;

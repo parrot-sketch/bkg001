@@ -19,7 +19,7 @@ import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { checklistItemSchema } from '@/domain/clinical-forms/WhoSurgicalChecklist';
-import { theaterTechService } from '@/lib/factories/theaterTechFactory';
+import { getTheaterTechService } from '@/lib/factories/theaterTechFactory';
 import { z } from 'zod';
 
 const ALLOWED_ROLES = new Set([Role.THEATER_TECHNICIAN, Role.ADMIN]);
@@ -64,6 +64,7 @@ export async function POST(
     const { caseId } = await params;
     const { items } = validation.data;
 
+    const theaterTechService = getTheaterTechService();
     const result = await theaterTechService.finalizeChecklistPhase(
       caseId,
       'TIME_OUT',
