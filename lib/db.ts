@@ -45,7 +45,12 @@ const prismaClientSingleton = () => {
     process.env.NODE_ENV === 'production' ||
     process.env.VERCEL_ENV === 'production';
 
-  const databaseUrl = process.env.DATABASE_URL || '';
+  const isBuilding = process.env.NEXT_PHASE === 'phase-production-build';
+  const databaseUrl = process.env.DATABASE_URL || (isBuilding ? 'postgresql://dummy:dummy@localhost:5432/dummy' : '');
+
+  if (!databaseUrl && !isBuilding) {
+    console.error(`${LOG_PREFIX} DATABASE_URL is not defined`);
+  }
 
   // FORCE local dev to be direct connection only
   if (!isProduction) {

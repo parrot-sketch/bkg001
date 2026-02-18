@@ -542,4 +542,12 @@ export class TheaterTechService {
   async getChecklistStatus(caseId: string): Promise<ChecklistStatusDto> {
     return this.checklistService.getChecklistStatus(caseId);
   }
+
+  async getChecklist(caseId: string): Promise<ChecklistStatusDto> {
+    return this.checklistService.getChecklistStatus(caseId);
+  }
+
+  async getChecklistByCaseId(caseId: string): Promise<ChecklistStatusDto> {
+    return this.checklistService.getChecklistStatus(caseId);
+  }
 }

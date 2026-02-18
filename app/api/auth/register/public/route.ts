@@ -23,15 +23,15 @@ import { ControllerRequest, ControllerResponse } from '@/lib/auth/types';
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { AuthFactory } from '@/infrastructure/auth/AuthFactory';
 
-// Initialize authentication use cases using factory
-const { registerPublicUserUseCase } = AuthFactory.create(db);
-
 /**
  * POST /api/auth/register/public
  * 
  * Handles public user registration.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  // Initialize authentication use cases lazily inside handler (avoids build-time env var issues)
+  const { registerPublicUserUseCase } = AuthFactory.create(db);
+
   try {
     // Parse request body
     let body: PublicRegisterUserDto;
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     };
 
     // Execute use case via AuthController pattern (direct call for simplicity)
-    const response: ControllerResponse = await handleRegisterPublic(controllerRequest);
+    const response: ControllerResponse = await handleRegisterPublic(controllerRequest, registerPublicUserUseCase);
 
     // Return response
     return NextResponse.json(response.body, { status: response.status });
@@ -75,7 +75,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
  * Handles public registration request (extracted for clarity)
  */
 async function handleRegisterPublic(
-  req: ControllerRequest
+  req: ControllerRequest,
+  registerPublicUserUseCase: { execute: (body: PublicRegisterUserDto) => Promise<unknown> }
 ): Promise<ControllerResponse> {
   try {
     // 1. Validate request body
@@ -113,7 +114,7 @@ async function handleRegisterPublic(
         status: 400,
         body: {
           success: false,
-          error: error.message, // Use case ensures generic messages
+          error: (error as DomainException).message, // Use case ensures generic messages
         },
       };
     }

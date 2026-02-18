@@ -21,7 +21,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { SurgicalCaseStatus } from '@prisma/client';
 import db from '@/lib/db';
-import { surgicalCaseService, surgicalCaseRepo } from '@/lib/factories/theaterTechFactory';
+import { getSurgicalCaseService, getSurgicalCaseRepo } from '@/lib/factories/theaterTechFactory';
 import { ReadinessValidationError } from '@/application/services/SurgicalCaseService';
 
 export async function POST(
@@ -60,15 +60,17 @@ export async function POST(
             );
         }
 
-        const surgicalCase = await surgicalCaseRepo.findById(caseId);
-        if (!surgicalCase) {
+        // 3. Basic existence check
+        const surgicalCaseRepo = getSurgicalCaseRepo();
+        const currentCase = await surgicalCaseRepo.findById(caseId);
+        if (!currentCase) {
             return NextResponse.json(
                 { success: false, error: 'Surgical case not found' },
                 { status: 404 },
             );
         }
 
-        if ((surgicalCase as any).primary_surgeon_id !== doctorProfile.id) {
+        if ((currentCase as any).primary_surgeon_id !== doctorProfile.id) {
             return NextResponse.json(
                 { success: false, error: 'Forbidden: You are not the primary surgeon on this case' },
                 { status: 403 },
@@ -76,6 +78,7 @@ export async function POST(
         }
 
         // 4. Execute the transition (includes readiness validation)
+        const surgicalCaseService = getSurgicalCaseService();
         const updated = await surgicalCaseService.transitionTo(
             caseId,
             SurgicalCaseStatus.READY_FOR_SCHEDULING,
@@ -89,7 +92,7 @@ export async function POST(
                 record_id: caseId,
                 action: 'UPDATE',
                 model: 'SurgicalCase',
-                details: `Case marked READY_FOR_SCHEDULING. Previous status: ${(surgicalCase as any).status}`,
+                details: `Case marked READY_FOR_SCHEDULING. Previous status: ${(currentCase as any).status}`,
             },
         });
 
@@ -98,7 +101,7 @@ export async function POST(
             data: {
                 id: updated.id,
                 status: updated.status,
-                previousStatus: (surgicalCase as any).status,
+                previousStatus: (currentCase as any).status,
                 transitionedAt: new Date().toISOString(),
             },
             message: 'Case marked as ready for scheduling',

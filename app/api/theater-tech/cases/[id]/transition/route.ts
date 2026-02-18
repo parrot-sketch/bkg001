@@ -20,7 +20,7 @@ import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { CaseTransitionSchema } from '@/application/validation/theaterTechSchemas';
-import { theaterTechService } from '@/lib/factories/theaterTechFactory';
+import { getTheaterTechService } from '@/lib/factories/theaterTechFactory';
 import { endpointTimer } from '@/lib/observability/endpointLogger';
 
 const ALLOWED_ROLES = new Set([Role.THEATER_TECHNICIAN, Role.ADMIN]);
@@ -61,10 +61,11 @@ export async function POST(
       );
     }
 
-    // 4. Execute transition
+    // 4. Process transition
     const { id: caseId } = await params;
     const { action, reason } = validation.data;
 
+    const theaterTechService = getTheaterTechService();
     const timer = endpointTimer('POST /api/theater-tech/cases/[id]/transition');
     const result = await theaterTechService.transitionCase(
       caseId,

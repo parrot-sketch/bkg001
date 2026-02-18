@@ -30,11 +30,15 @@ export function getAuthConfig(): AuthConfig {
   const jwtSecret = process.env.JWT_SECRET;
   const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET;
 
+  const isBuilding = process.env.NEXT_PHASE === 'phase-production-build';
+
   if (!jwtSecret || jwtSecret.trim().length === 0) {
+    if (isBuilding) return { jwtSecret: 'dummy', jwtRefreshSecret: 'dummy', accessTokenExpiresIn: 0, refreshTokenExpiresIn: 0, saltRounds: 0 };
     throw new Error('JWT_SECRET environment variable is required');
   }
 
   if (!jwtRefreshSecret || jwtRefreshSecret.trim().length === 0) {
+    if (isBuilding) return { jwtSecret: 'dummy', jwtRefreshSecret: 'dummy', accessTokenExpiresIn: 0, refreshTokenExpiresIn: 0, saltRounds: 0 };
     throw new Error('JWT_REFRESH_SECRET environment variable is required');
   }
 

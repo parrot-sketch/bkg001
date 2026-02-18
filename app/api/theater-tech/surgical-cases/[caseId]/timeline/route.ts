@@ -12,7 +12,7 @@ import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { TimelinePatchSchema } from '@/domain/helpers/operativeTimeline';
-import { theaterTechService } from '@/lib/factories/theaterTechFactory';
+import { getTheaterTechService } from '@/lib/factories/theaterTechFactory';
 import { endpointTimer } from '@/lib/observability/endpointLogger';
 
 const READ_ROLES = new Set([Role.THEATER_TECHNICIAN, Role.NURSE, Role.ADMIN, Role.DOCTOR]);
@@ -41,6 +41,7 @@ export async function GET(
     }
 
     const { caseId } = await params;
+    const theaterTechService = getTheaterTechService();
     const timer = endpointTimer('GET /api/theater-tech/timeline');
     const result = await theaterTechService.getTimeline(caseId);
     timer.end({ caseId });
@@ -105,6 +106,7 @@ export async function PATCH(
     }
 
     const { caseId } = await params;
+    const theaterTechService = getTheaterTechService();
     const result = await theaterTechService.updateTimeline(
       caseId,
       validation.data,

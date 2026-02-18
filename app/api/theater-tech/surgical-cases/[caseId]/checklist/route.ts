@@ -17,7 +17,7 @@ import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { checklistDraftSchema } from '@/domain/clinical-forms/WhoSurgicalChecklist';
-import { theaterTechService } from '@/lib/factories/theaterTechFactory';
+import { getTheaterTechService } from '@/lib/factories/theaterTechFactory';
 import { endpointTimer } from '@/lib/observability/endpointLogger';
 
 const READ_ROLES = new Set([
@@ -51,10 +51,11 @@ export async function GET(
 
     const { caseId } = await params;
     const timer = endpointTimer('GET /api/theater-tech/checklist');
-    const status = await theaterTechService.getChecklistStatus(caseId);
+    const theaterTechService = getTheaterTechService();
+    const checklist = await theaterTechService.getChecklistByCaseId(caseId);
     timer.end({ caseId });
 
-    return NextResponse.json({ success: true, data: status }, { status: 200 });
+    return NextResponse.json({ success: true, data: checklist }, { status: 200 });
   } catch (error) {
     console.error('[API] GET /api/theater-tech/surgical-cases/[caseId]/checklist - Error:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
@@ -107,6 +108,7 @@ export async function PUT(
     const { caseId } = await params;
     const { phase, items } = validation.data;
 
+    const theaterTechService = getTheaterTechService();
     const result = await theaterTechService.saveChecklistDraft(
       caseId,
       phase,

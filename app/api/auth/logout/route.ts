@@ -18,9 +18,6 @@ import db from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth/jwt-helper';
 import { AuthFactory } from '@/infrastructure/auth/AuthFactory';
 
-// Initialize authentication use cases using factory
-const { logoutUseCase } = AuthFactory.create(db);
-
 /**
  * POST /api/auth/logout
  * 
@@ -29,6 +26,9 @@ const { logoutUseCase } = AuthFactory.create(db);
  * Requires authentication - user must be logged in to logout.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  // Initialize authentication use cases using factory lazily inside handler
+  const { logoutUseCase } = AuthFactory.create(db);
+
   try {
     // 1. Authenticate request
     const authResult = await authenticateRequest(request);
