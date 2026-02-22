@@ -18,11 +18,6 @@ const navItems: NavItem[] = [
     icon: Activity,
   },
   {
-    name: 'Legacy Board',
-    href: '/theater-tech/dashboard',
-    icon: LayoutDashboard,
-  },
-  {
     name: 'My Profile',
     href: '/theater-tech/profile',
     icon: User,
@@ -60,7 +55,7 @@ export function TheaterTechSidebar({ isOpen, onClose }: TheaterTechSidebarProps)
       navItems={navItems}
       userInfo={userInfo}
       onLogout={handleLogout}
-      dashboardHref="/theater-tech/dashboard"
+      dashboardHref="/theater-tech/dayboard"
     />
   );
 }

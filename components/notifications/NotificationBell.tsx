@@ -86,8 +86,11 @@ export function NotificationBell() {
         else if (pathname.startsWith('/frontdesk')) rolePrefix = '/frontdesk';
         else if (pathname.startsWith('/nurse')) rolePrefix = '/nurse';
 
-        // Navigate based on resource type
-        if (metadata?.resourceType === 'appointment' && metadata?.resourceId) {
+        // Navigate based on resource type or custom navigateTo field
+        if (metadata?.navigateTo) {
+            // Custom navigation path (e.g., for rescheduled appointments with date/highlight params)
+            router.push(metadata.navigateTo);
+        } else if (metadata?.resourceType === 'appointment' && metadata?.resourceId) {
             router.push(`${rolePrefix}/appointments/${metadata.resourceId}`);
         }
     };

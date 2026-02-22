@@ -6,11 +6,13 @@
 
 import { apiClient, ApiResponse } from './client';
 import type { LoginDto, LoginResponseDto } from '../../application/dtos/LoginDto';
-import type { RegisterUserDto, RegisterUserResponseDto } from '../../application/dtos/RegisterUserDto';
 import type { RefreshTokenDto, RefreshTokenResponseDto } from '../../application/dtos/RefreshTokenDto';
 
 /**
  * Authentication API client
+ * 
+ * Bounded context: Login-only authentication (no self-registration).
+ * All users are internal and created/admin-managed.
  */
 export const authApi = {
   /**
@@ -18,13 +20,6 @@ export const authApi = {
    */
   async login(dto: LoginDto): Promise<ApiResponse<LoginResponseDto>> {
     return apiClient.post<LoginResponseDto>('/auth/login', dto);
-  },
-
-  /**
-   * Register a new user
-   */
-  async register(dto: RegisterUserDto): Promise<ApiResponse<RegisterUserResponseDto>> {
-    return apiClient.post<RegisterUserResponseDto>('/auth/register', dto);
   },
 
   /**

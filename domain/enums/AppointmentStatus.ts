@@ -52,8 +52,8 @@ export function isAppointmentStatus(value: string): value is AppointmentStatus {
  * 
  * This is the SINGLE SOURCE OF TRUTH for the source → status mapping.
  * 
- * Rule: Only PATIENT_REQUESTED requires doctor confirmation.
- *       All staff-initiated appointments are auto-scheduled.
+ * Rule: All appointments require doctor confirmation before being scheduled.
+ *       Only DOCTOR_FOLLOW_UP (doctor scheduling their own follow-up) is auto-scheduled.
  * 
  * @param source - The appointment source (who created it)
  * @returns The default appointment status
@@ -63,8 +63,10 @@ export function getDefaultStatusForSource(source: string): AppointmentStatus {
     case 'PATIENT_REQUESTED':
     case 'FRONTDESK_SCHEDULED':
     case 'ADMIN_SCHEDULED':
+      // All require doctor confirmation
       return AppointmentStatus.PENDING_DOCTOR_CONFIRMATION;
     case 'DOCTOR_FOLLOW_UP':
+      // Doctor scheduling their own follow-up is auto-confirmed
       return AppointmentStatus.SCHEDULED;
     default:
       // Defensive: unknown sources require confirmation

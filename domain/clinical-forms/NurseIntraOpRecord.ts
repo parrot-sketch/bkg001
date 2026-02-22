@@ -104,13 +104,18 @@ export const surgicalDetailsSchema = z.object({
 
 export const electrosurgicalSchema = z.object({
     cauteryUsed: z.boolean().optional(),
-    unitNo: z.string().optional(),
+    cauteryUnitNumber: z.string().optional(),
+    unitNo: z.string().optional(), // Legacy field
     mode: z.string().optional(),
     cutSet: z.string().optional(),
     coagSet: z.string().optional(),
+    skinCheckBefore: z.boolean().optional(),
+    skinCheckAfter: z.boolean().optional(),
+    patientEarthPlateChecked: z.boolean().optional(),
+    plateSite: z.string().optional(),
+    // Legacy fields for backward compatibility
     skinCheckedBefore: z.boolean().optional(),
     skinCheckedAfter: z.boolean().optional(),
-    plateSite: z.string().optional(),
 });
 
 export const tourniquetSchema = z.object({
@@ -128,11 +133,15 @@ export const tourniquetSchema = z.object({
 });
 
 export const positioningSchema = z.object({
-    position: z.string().optional(),
+    position: z.enum(['SUPINE', 'PRONE', 'LATERAL', 'LITHOTOMY', 'OTHER']).optional(),
     otherPosition: z.string().optional(),
-    safetyBeltApplied: z.boolean().optional(),
-    safetyBeltPosition: z.string().optional(),
     armsSecured: z.boolean().optional(),
+    safetyBeltApplied: z.boolean().optional(),
+    pressurePointsPaddingChecked: z.boolean().optional(),
+    bodyAlignmentChecked: z.boolean().optional(),
+    notes: z.string().optional(),
+    // Legacy fields for backward compatibility
+    safetyBeltPosition: z.string().optional(),
     armsPosition: z.string().optional(),
     bodyAlignmentCorrect: z.boolean().optional(),
     pressurePointsDescribe: z.string().optional(),
@@ -160,16 +169,21 @@ export const countsSchema = z.object({
 });
 
 export const closureSchema = z.object({
+    closureType: z.enum(['ABSORBABLE', 'NON_ABSORBABLE', 'STAPLES', 'GLUE']).optional(),
+    dressingType: z.string().optional(),
+    // Legacy fields for backward compatibility
     skinClosureMethod: z.string().optional(),
     skinClosure: z.string().optional(),
-    dressingType: z.string().optional(),
     dressingApplied: z.string().optional(),
     countVerifiedBy: z.string().optional(),
 });
 
 export const fluidsSchema = z.object({
-    estimatedBloodLossMl: z.number(),
-    urinaryOutputMl: z.number(),
+    estimatedBloodLossMl: z.number().optional().default(0), // ml (sync to DB)
+    urinaryOutputMl: z.number().optional().default(0), // ml (sync to DB)
+    ivFluidsTotalMl: z.number().optional().default(0), // ml
+    bloodTransfusionUnits: z.number().optional().default(0), // units
+    // Legacy fields for backward compatibility
     ivFluidsAdministered: z.string().optional(),
     bloodTransfusionPackedCellsMl: z.number().optional().default(0),
     bloodTransfusionWholeMl: z.number().optional().default(0),
@@ -220,11 +234,14 @@ export const nurseIntraOpRecordFinalSchema = z.object({
     catheter: catheterSchema,
     positioning: positioningSchema,
     skinPrep: z.object({
+        prepAgent: z.enum(['HIBITANE_SPIRIT', 'HIBITANE_WATER', 'POVIDONE_IODINE', 'OTHER']).optional(),
+        prepArea: z.string().optional(), // "Abdomen", "Face", etc.
+        prepPerformedBy: z.string().optional(), // Free text or linked name
+        otherPrepAgent: z.string().optional(),
+        // Legacy fields for backward compatibility
         agentUsed: z.string().optional(),
         preppedBy: z.string().optional(),
         shavedBy: z.string().optional(),
-        prepAgent: z.string().optional(),
-        otherPrepAgent: z.string().optional(),
     }),
     equipment: z.object({
         electrosurgical: electrosurgicalSchema,
@@ -254,11 +271,14 @@ export const nurseIntraOpRecordDraftSchema = z.object({
     catheter: catheterSchema.partial().optional().default({}),
     positioning: positioningSchema.partial().optional().default({}),
     skinPrep: z.object({
+        prepAgent: z.enum(['HIBITANE_SPIRIT', 'HIBITANE_WATER', 'POVIDONE_IODINE', 'OTHER']).optional(),
+        prepArea: z.string().optional(),
+        prepPerformedBy: z.string().optional(),
+        otherPrepAgent: z.string().optional(),
+        // Legacy fields for backward compatibility
         agentUsed: z.string().optional(),
         preppedBy: z.string().optional(),
         shavedBy: z.string().optional(),
-        prepAgent: z.string().optional(),
-        otherPrepAgent: z.string().optional(),
     }).partial().optional().default({}),
     equipment: z.object({
         electrosurgical: electrosurgicalSchema.partial(),

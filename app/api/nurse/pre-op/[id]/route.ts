@@ -75,7 +75,7 @@ export async function GET(
             theater: true,
           },
         },
-        procedure_record: true,
+        // procedure_record removed - not used in response and causes DB errors if columns don't exist
       },
     });
 

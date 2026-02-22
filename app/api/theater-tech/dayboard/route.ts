@@ -20,6 +20,8 @@ import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import { getTheaterTechService } from '@/lib/factories/theaterTechFactory';
 import { endpointTimer } from '@/lib/observability/endpointLogger';
+import { handleApiError, handleApiSuccess } from '@/app/api/_utils/handleApiError';
+import { ForbiddenError, ValidationError } from '@/application/errors';
 
 const ALLOWED_ROLES = new Set([
   Role.THEATER_TECHNICIAN,
@@ -33,18 +35,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // 1. Authenticate
     const authResult = await JwtMiddleware.authenticate(request);
     if (!authResult.success || !authResult.user) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
+      return handleApiError(new ForbiddenError('Authentication required'));
     }
 
     // 2. Authorize
     if (!ALLOWED_ROLES.has(authResult.user.role as Role)) {
-      return NextResponse.json(
-        { success: false, error: 'Access denied: insufficient role' },
-        { status: 403 }
-      );
+      return handleApiError(new ForbiddenError('Access denied: insufficient role'));
     }
 
     // 3. Parse query parameters
@@ -54,9 +50,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const date = dateParam ? new Date(dateParam) : new Date();
     if (isNaN(date.getTime())) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid date parameter. Use YYYY-MM-DD format.' },
-        { status: 400 }
+      return handleApiError(
+        new ValidationError('Invalid date parameter. Use YYYY-MM-DD format.', [
+          { field: 'date', message: 'Invalid date format. Use YYYY-MM-DD.' },
+        ])
       );
     }
 
@@ -67,26 +64,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const totalCases = dayboard.theaters.reduce((s, t) => s + t.cases.length, 0);
     timer.end({ cases: totalCases, theaters: dayboard.theaters.length });
 
-    return NextResponse.json(
-      { success: true, data: dayboard },
-      {
-        status: 200,
-        headers: {
-          'Cache-Control': 'private, no-cache, no-store, must-revalidate',
-        },
-      }
-    );
+    const response = handleApiSuccess(dayboard);
+    response.headers.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+    return response;
   } catch (error) {
-    console.error('[API] /api/theater-tech/dayboard - Error:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json(
-      {
-        success: false,
-        error: process.env.NODE_ENV === 'development'
-          ? `Internal server error: ${message}`
-          : 'Internal server error',
-      },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }

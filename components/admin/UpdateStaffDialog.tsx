@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import type { UserResponseDto } from '@/application/dtos/UserResponseDto';
-import type { RegisterUserDto } from '@/application/dtos/RegisterUserDto';
+import type { CreateStaffDto } from '@/application/dtos/CreateStaffDto';
 import { Role } from '@/domain/enums/Role';
 
 interface UpdateStaffDialogProps {
@@ -37,8 +37,7 @@ export function UpdateStaffDialog({
   onSuccess,
   staff,
 }: UpdateStaffDialogProps) {
-  const [formData, setFormData] = useState<Partial<RegisterUserDto>>({
-    id: staff.id,
+  const [formData, setFormData] = useState<Partial<CreateStaffDto>>({
     email: staff.email,
     role: staff.role,
     firstName: staff.firstName || '',
@@ -51,7 +50,6 @@ export function UpdateStaffDialog({
   useEffect(() => {
     if (open) {
       setFormData({
-        id: staff.id,
         email: staff.email,
         role: staff.role,
         firstName: staff.firstName || '',
@@ -73,7 +71,7 @@ export function UpdateStaffDialog({
     setIsSubmitting(true);
 
     try {
-      const updates: Partial<RegisterUserDto> = {
+      const updates: Partial<CreateStaffDto> = {
         email: formData.email,
         role: formData.role,
         firstName: formData.firstName || undefined,

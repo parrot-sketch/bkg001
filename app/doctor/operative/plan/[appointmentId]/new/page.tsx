@@ -25,14 +25,20 @@ import {
     ExternalLink,
     CalendarCheck,
     Send,
+    Heart,
+    Activity,
+    Phone,
+    Mail,
 } from 'lucide-react';
 import { CreateCasePlanDto } from '@/application/dtos/CreateCasePlanDto';
 import { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import { ProfileImage } from '@/components/profile-image';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { useMarkCaseReady } from '@/hooks/doctor/useSurgicalCases';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 // Tabs
 import { ClinicalPlanTab } from '@/components/doctor/case-plan/ClinicalPlanTab';
@@ -97,6 +103,7 @@ export default function OperativePlanPage() {
 
     const [appointment, setAppointment] = useState<AppointmentResponseDto | null>(null);
     const [casePlan, setCasePlan] = useState<CasePlanResponseDto | null>(null);
+    const [patientDetails, setPatientDetails] = useState<PatientResponseDto | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [activeTab, setActiveTab] = useState('clinical');
@@ -116,6 +123,14 @@ export default function OperativePlanPage() {
             const apptResponse = await doctorApi.getAppointment(parseInt(appointmentId));
             if (apptResponse.success && apptResponse.data) {
                 setAppointment(apptResponse.data);
+                
+                // Load full patient details for comprehensive medical info
+                if (apptResponse.data.patientId) {
+                    const patientResponse = await doctorApi.getPatient(apptResponse.data.patientId);
+                    if (patientResponse.success && patientResponse.data) {
+                        setPatientDetails(patientResponse.data);
+                    }
+                }
             } else {
                 toast.error('Failed to load appointment details');
                 return;
@@ -346,7 +361,18 @@ export default function OperativePlanPage() {
                 </div>
             </div>
 
-            {/* ── Tabbed Workspace (Full Width) ──────────────────── */}
+            {/* ── Main Content: Patient Info Panel + Tabbed Workspace ───── */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Left Sidebar: Patient Information Panel */}
+                <div className="lg:col-span-4 xl:col-span-3 space-y-4">
+                    <PatientInfoPanel 
+                        patient={patientDetails || appointment?.patient} 
+                        appointment={appointment}
+                    />
+                </div>
+
+                {/* Right Content: Tabbed Workspace */}
+                <div className="lg:col-span-8 xl:col-span-9">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="w-full justify-start gap-1 p-1 bg-muted/40 rounded-lg h-auto">
                     <NavTab value="clinical" icon={FileText} label="Clinical Plan" />
@@ -377,6 +403,134 @@ export default function OperativePlanPage() {
                     </TabsContent>
                 </div>
             </Tabs>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ─── Patient Information Panel Component ──────────────────────────────────
+function PatientInfoPanel({ 
+    patient, 
+    appointment 
+}: { 
+    patient?: PatientResponseDto | AppointmentResponseDto['patient'] | null;
+    appointment: AppointmentResponseDto | null;
+}) {
+    if (!patient) return null;
+
+    // Type guard: check if it's a full PatientResponseDto
+    const isFullPatient = (p: typeof patient): p is PatientResponseDto => {
+        return 'bloodGroup' in p || 'medicalHistory' in p || 'medicalConditions' in p || 'emergencyContactName' in p;
+    };
+
+    const fullPatient = isFullPatient(patient) ? patient : null;
+    const hasAllergies = !!(fullPatient?.allergies || (patient as any)?.allergies) && 
+        (fullPatient?.allergies || (patient as any)?.allergies || '').trim().length > 0;
+    const allergies = fullPatient?.allergies || (patient as any)?.allergies || '';
+    const hasMedicalConditions = !!fullPatient?.medicalConditions && fullPatient.medicalConditions.trim().length > 0;
+    const hasMedicalHistory = !!fullPatient?.medicalHistory && fullPatient.medicalHistory.trim().length > 0;
+
+    return (
+        <div className="space-y-4">
+            {/* Medical Summary Card */}
+            <Card className="border-slate-200">
+                <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <Activity className="h-4 w-4 text-slate-400" />
+                        Medical Summary
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                    {fullPatient?.bloodGroup && (
+                        <div className="flex items-center justify-between">
+                            <span className="text-slate-500">Blood Group</span>
+                            <Badge variant="outline" className="font-bold">
+                                <Heart className="h-3 w-3 mr-1 text-red-500" />
+                                {fullPatient.bloodGroup}
+                            </Badge>
+                        </div>
+                    )}
+                    <div className="flex items-center justify-between">
+                        <span className="text-slate-500">Allergies</span>
+                        {hasAllergies ? (
+                            <Badge variant="destructive" className="text-xs">{allergies}</Badge>
+                        ) : (
+                            <span className="text-emerald-600 text-xs font-medium">None known</span>
+                        )}
+                    </div>
+                    {hasMedicalConditions && fullPatient && (
+                        <div className="pt-2 border-t">
+                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Conditions</p>
+                            <p className="text-slate-700 text-sm line-clamp-3">{fullPatient.medicalConditions}</p>
+                        </div>
+                    )}
+                    {hasMedicalHistory && fullPatient && (
+                        <div className="pt-2 border-t">
+                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Medical History</p>
+                            <p className="text-slate-700 text-sm line-clamp-4">{fullPatient.medicalHistory}</p>
+                        </div>
+                    )}
+                    {!hasMedicalConditions && !hasMedicalHistory && !fullPatient?.bloodGroup && !hasAllergies && (
+                        <div className="text-center py-4">
+                            <FileText className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                            <p className="text-slate-400 text-xs">No medical records</p>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Contact Information Card */}
+            <Card className="border-slate-200">
+                <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Contact Information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2.5 text-sm">
+                    {(fullPatient?.phone || (patient as any)?.phone) && (
+                        <div className="flex items-center gap-2.5 text-slate-600">
+                            <Phone className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                            <a href={`tel:${fullPatient?.phone || (patient as any)?.phone}`} className="hover:text-slate-900 transition-colors">
+                                {fullPatient?.phone || (patient as any)?.phone}
+                            </a>
+                        </div>
+                    )}
+                    {(fullPatient?.email || (patient as any)?.email) && (
+                        <div className="flex items-center gap-2.5 text-slate-600">
+                            <Mail className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                            <a href={`mailto:${fullPatient?.email || (patient as any)?.email}`} className="hover:text-slate-900 transition-colors truncate">
+                                {fullPatient?.email || (patient as any)?.email}
+                            </a>
+                        </div>
+                    )}
+                    {fullPatient?.emergencyContactName && (
+                        <div className="pt-2 border-t">
+                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Emergency Contact</p>
+                            <div className="p-2.5 rounded-lg bg-slate-50">
+                                <p className="font-medium text-slate-900 text-sm">{fullPatient.emergencyContactName}</p>
+                                {fullPatient.relation && (
+                                    <p className="text-slate-500 text-xs capitalize">{fullPatient.relation}</p>
+                                )}
+                                {fullPatient.emergencyContactNumber && (
+                                    <a href={`tel:${fullPatient.emergencyContactNumber}`} className="text-blue-600 hover:text-blue-700 text-xs mt-1 inline-flex items-center gap-1">
+                                        <Phone className="h-3 w-3" />
+                                        {fullPatient.emergencyContactNumber}
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Quick Link to Full Profile */}
+            {appointment?.patientId && (
+                <Link href={`/doctor/patients/${appointment.patientId}`}>
+                    <Button variant="outline" className="w-full gap-2 text-sm">
+                        <ExternalLink className="h-4 w-4" />
+                        View Full Patient Profile
+                    </Button>
+                </Link>
+            )}
         </div>
     );
 }

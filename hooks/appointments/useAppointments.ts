@@ -14,6 +14,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api/client';
 import { frontdeskApi } from '@/lib/api/frontdesk';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 
@@ -95,6 +96,35 @@ export function useAppointmentsByDate(date: Date, enabled = true) {
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     refetchOnWindowFocus: true,
     enabled,
+  });
+}
+
+/**
+ * Hook for fetching all appointments for a specific patient
+ *
+ * Used by: Frontdesk patient profile appointments tab
+ *
+ * @param patientId - The patient's UUID
+ * @param enabled   - Whether the query should run (default: true)
+ */
+export function usePatientAppointments(patientId: string, enabled = true) {
+  return useQuery({
+    queryKey: ['appointments', 'patient', patientId],
+    queryFn: async () => {
+      // Use frontdeskApi which properly handles authentication
+      // Same pattern as useAppointmentsByDate which works correctly
+      const response = await frontdeskApi.getPatientAppointments(patientId);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to load patient appointments');
+      }
+      return response.data ?? [];
+    },
+    staleTime: 1000 * 60 * 2, // 2 minutes - same as useAppointmentsByDate
+    gcTime: 1000 * 60 * 10, // 10 minutes
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    refetchOnWindowFocus: true, // Refetch on focus for clinical safety
+    enabled: enabled && !!patientId,
   });
 }
 

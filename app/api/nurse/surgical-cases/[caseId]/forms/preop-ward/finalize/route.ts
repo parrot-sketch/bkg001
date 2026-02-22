@@ -23,6 +23,7 @@ import {
     nursePreopWardChecklistFinalSchema,
     getMissingChecklistItems,
 } from '@/domain/clinical-forms/NursePreopWardChecklist';
+import { SurgicalCaseStatusTransitionService } from '@/application/services/SurgicalCaseStatusTransitionService';
 
 export async function POST(
     request: NextRequest,
@@ -95,7 +96,7 @@ export async function POST(
             );
         }
 
-        // 4. Transaction: finalize + audit
+        // 4. Transaction: finalize + audit + status transition
         const now = new Date();
 
         const finalized = await db.$transaction(async (tx) => {
@@ -138,6 +139,49 @@ export async function POST(
 
             return updated;
         });
+
+        // 5. Auto-transition case status: Pre-op finalized → patient ready for theater
+        // Note: Status stays IN_PREP until patient actually enters theater
+        try {
+            const statusTransitionService = new SurgicalCaseStatusTransitionService(db);
+            await statusTransitionService.transitionToReadyForTheater(caseId, userId);
+            
+            // 6. Notify frontdesk that case is ready for theater booking
+            const { createNotificationForRole } = await import('@/lib/notifications/createNotification');
+            const surgicalCase = await db.surgicalCase.findUnique({
+                where: { id: caseId },
+                include: {
+                    patient: { 
+                        select: { 
+                            first_name: true, 
+                            last_name: true, 
+                            file_number: true 
+                        } 
+                    },
+                    case_plan: { select: { procedure_plan: true } },
+                },
+            });
+            
+            if (surgicalCase?.patient) {
+                const procedureName = (surgicalCase.case_plan?.procedure_plan as any)?.procedureName || 'Surgical procedure';
+                const patientFullName = surgicalCase.patient 
+                    ? `${surgicalCase.patient.first_name} ${surgicalCase.patient.last_name}`.trim()
+                    : 'Patient';
+                await createNotificationForRole(Role.FRONTDESK, {
+                    type: 'IN_APP',
+                    subject: 'Case Ready for Theater Booking',
+                    message: `${patientFullName} (${surgicalCase.patient?.file_number || 'N/A'}) - ${procedureName} is ready for theater scheduling. Pre-op checklist completed.`,
+                    metadata: {
+                        surgicalCaseId: caseId,
+                        patientId: surgicalCase.patient_id,
+                        event: 'PREOP_CHECKLIST_FINALIZED',
+                    },
+                });
+            }
+        } catch (error) {
+            // Log but don't fail - status transition and notifications are best effort
+            console.error('[API] Pre-op finalize: Status transition/notification error:', error);
+        }
 
         return NextResponse.json({
             success: true,

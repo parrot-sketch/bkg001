@@ -19,7 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
-import { Loader2, Save, CheckCircle2, AlertCircle, FileCheck } from 'lucide-react';
+import { Loader2, Save, CheckCircle2, AlertCircle, FileCheck, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ClinicalFormStatus } from '@prisma/client';
 
@@ -27,6 +27,168 @@ interface NursePreOpChecklistProps {
     caseId: string;
     onClose?: () => void;
 }
+
+// ─── Option types ────────────────────────────────────────────────────────────
+
+type LabStatus = 'Normal' | 'Low' | 'High' | 'Abnormal' | 'Not Done' | 'Pending';
+type UrinalysisStatus = 'Normal' | 'Abnormal' | 'Trace' | 'Not Done' | 'N/A';
+
+const LAB_STATUS_OPTIONS: { value: LabStatus; label: string; color: string }[] = [
+    { value: 'Normal', label: 'Normal', color: 'bg-emerald-100 text-emerald-700 border-emerald-300 hover:bg-emerald-200' },
+    { value: 'Low', label: 'Low', color: 'bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-200' },
+    { value: 'High', label: 'High', color: 'bg-orange-100 text-orange-700 border-orange-300 hover:bg-orange-200' },
+    { value: 'Abnormal', label: 'Abnormal', color: 'bg-rose-100 text-rose-700 border-rose-300 hover:bg-rose-200' },
+    { value: 'Pending', label: 'Pending', color: 'bg-blue-100 text-blue-700 border-blue-300 hover:bg-blue-200' },
+    { value: 'Not Done', label: 'Not Done', color: 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200' },
+];
+
+const URINALYSIS_OPTIONS: { value: UrinalysisStatus; label: string; color: string }[] = [
+    { value: 'Normal', label: 'Normal', color: 'bg-emerald-100 text-emerald-700 border-emerald-300 hover:bg-emerald-200' },
+    { value: 'Trace', label: 'Trace', color: 'bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-200' },
+    { value: 'Abnormal', label: 'Abnormal', color: 'bg-rose-100 text-rose-700 border-rose-300 hover:bg-rose-200' },
+    { value: 'Not Done', label: 'Not Done', color: 'bg-slate-100 text-slate-600 border-slate-300 hover:bg-slate-200' },
+    { value: 'N/A', label: 'N/A', color: 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200' },
+];
+
+const COMMON_ALLERGENS = [
+    'Penicillin', 'Sulfa drugs', 'NSAIDs', 'Aspirin', 'Latex',
+    'Iodine / Betadine', 'Morphine', 'Codeine', 'Contrast dye', 'Pollen',
+];
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+/** Pill-style radio selector */
+function StatusSelector<T extends string>({
+    label,
+    value,
+    options,
+    onChange,
+    disabled,
+}: {
+    label: string;
+    value: T | undefined;
+    options: { value: T; label: string; color: string }[];
+    onChange: (v: T) => void;
+    disabled?: boolean;
+}) {
+    return (
+        <div className="space-y-2 py-2">
+            <Label className="text-sm font-medium text-slate-700">{label}</Label>
+            <div className="flex flex-wrap gap-2">
+                {options.map((opt) => (
+                    <button
+                        key={opt.value}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => onChange(opt.value)}
+                        className={cn(
+                            'px-3 py-1.5 rounded-full text-xs font-medium border transition-all',
+                            opt.color,
+                            value === opt.value
+                                ? 'ring-2 ring-offset-1 ring-current shadow-sm scale-105'
+                                : 'opacity-70',
+                            disabled && 'cursor-not-allowed opacity-50'
+                        )}
+                    >
+                        {opt.label}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+/** Allergen quick-pick chips + free-text input */
+function AllergyInput({
+    value,
+    onChange,
+    disabled,
+}: {
+    value: string;
+    onChange: (v: string) => void;
+    disabled?: boolean;
+}) {
+    const selected = value
+        ? value.split(',').map((s) => s.trim()).filter(Boolean)
+        : [];
+
+    const toggle = (allergen: string) => {
+        if (disabled) return;
+        const next = selected.includes(allergen)
+            ? selected.filter((a) => a !== allergen)
+            : [...selected, allergen];
+        onChange(next.join(', '));
+    };
+
+    const removeChip = (allergen: string) => {
+        if (disabled) return;
+        onChange(selected.filter((a) => a !== allergen).join(', '));
+    };
+
+    return (
+        <div className="space-y-3 py-2">
+            <Label className="text-sm font-medium text-slate-700">Allergy Details</Label>
+
+            {/* Quick-pick chips */}
+            <div>
+                <p className="text-xs text-slate-400 mb-2">Quick-add common allergens:</p>
+                <div className="flex flex-wrap gap-1.5">
+                    {COMMON_ALLERGENS.map((a) => (
+                        <button
+                            key={a}
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => toggle(a)}
+                            className={cn(
+                                'px-2.5 py-1 rounded-full text-xs border transition-all',
+                                selected.includes(a)
+                                    ? 'bg-rose-100 text-rose-700 border-rose-300 font-medium'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400',
+                                disabled && 'cursor-not-allowed opacity-50'
+                            )}
+                        >
+                            {selected.includes(a) ? '✓ ' : '+ '}{a}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Selected chips display */}
+            {selected.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                    {selected.map((a) => (
+                        <span
+                            key={a}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-full text-xs font-medium"
+                        >
+                            {a}
+                            {!disabled && (
+                                <button
+                                    type="button"
+                                    onClick={() => removeChip(a)}
+                                    className="hover:text-rose-900"
+                                >
+                                    <X className="w-3 h-3" />
+                                </button>
+                            )}
+                        </span>
+                    ))}
+                </div>
+            )}
+
+            {/* Free-text for anything not in the list */}
+            <Input
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                placeholder="Or type custom allergy details…"
+                disabled={disabled}
+                className="bg-white text-sm"
+            />
+        </div>
+    );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export function NursePreOpChecklist({ caseId, onClose }: NursePreOpChecklistProps) {
     const queryClient = useQueryClient();
@@ -67,7 +229,7 @@ export function NursePreOpChecklist({ caseId, onClose }: NursePreOpChecklistProp
             }));
             toast.success('Draft saved');
         },
-        onError: (error) => {
+        onError: () => {
             toast.error('Failed to save draft');
             setIsSaving(false);
         },
@@ -104,11 +266,6 @@ export function NursePreOpChecklist({ caseId, onClose }: NursePreOpChecklistProp
         });
     }, []);
 
-    // Debounced save could be implemented here, but for now we'll rely on manual "Save Draft" or save on section change?
-    // Let's implement a manual "Save" button for clarity, or auto-save on blur. 
-    // For simplicity in this iteration, we'll use a manual Save button at the bottom, 
-    // but update local state immediately.
-
     if (isLoading) {
         return <div className="flex justify-center p-8"><Loader2 className="animate-spin h-8 w-8 text-slate-400" /></div>;
     }
@@ -119,29 +276,43 @@ export function NursePreOpChecklist({ caseId, onClose }: NursePreOpChecklistProp
 
     const isFinalized = formRes.form.status === ClinicalFormStatus.FINAL;
 
-    const renderField = (section: string, field: string, label: string, type: 'checkbox' | 'text' | 'time' | 'number' = 'text', placeholder = '') => {
-        const sectionData = (localDraft as any)[section] || {};
-        const value = sectionData[field];
+    // ── Generic field renderers ──────────────────────────────────────────────
 
-        if (type === 'checkbox') {
-            return (
-                <div className="flex items-center space-x-2 py-2">
-                    <Checkbox
-                        id={`${section}-${field}`}
-                        checked={!!value}
-                        onCheckedChange={(checked) => handleFieldChange(section as keyof NursePreopWardChecklistDraft, field, checked)}
-                        disabled={isFinalized}
-                    />
-                    <Label htmlFor={`${section}-${field}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                        {label}
-                    </Label>
-                </div>
-            );
-        }
+    const renderCheckbox = (section: string, field: string, label: string) => {
+        const value = (localDraft as any)[section]?.[field];
+        return (
+            <div className="flex items-center space-x-2 py-2">
+                <Checkbox
+                    id={`${section}-${field}`}
+                    checked={!!value}
+                    onCheckedChange={(checked) =>
+                        handleFieldChange(section as keyof NursePreopWardChecklistDraft, field, checked)
+                    }
+                    disabled={isFinalized}
+                />
+                <Label
+                    htmlFor={`${section}-${field}`}
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                    {label}
+                </Label>
+            </div>
+        );
+    };
 
+    const renderInput = (
+        section: string,
+        field: string,
+        label: string,
+        type: 'text' | 'time' | 'number' = 'text',
+        placeholder = ''
+    ) => {
+        const value = (localDraft as any)[section]?.[field];
         return (
             <div className="space-y-1 py-2">
-                <Label htmlFor={`${section}-${field}`} className="text-sm font-medium text-slate-700">{label}</Label>
+                <Label htmlFor={`${section}-${field}`} className="text-sm font-medium text-slate-700">
+                    {label}
+                </Label>
                 <Input
                     id={`${section}-${field}`}
                     type={type}
@@ -157,6 +328,53 @@ export function NursePreOpChecklist({ caseId, onClose }: NursePreOpChecklistProp
             </div>
         );
     };
+
+    const renderTextarea = (section: string, field: string, label: string, placeholder = '') => {
+        const value = (localDraft as any)[section]?.[field];
+        return (
+            <div className="space-y-1 py-2">
+                <Label className="text-sm font-medium text-slate-700">{label}</Label>
+                <Textarea
+                    value={value || ''}
+                    onChange={(e) =>
+                        handleFieldChange(section as keyof NursePreopWardChecklistDraft, field, e.target.value)
+                    }
+                    placeholder={placeholder}
+                    disabled={isFinalized}
+                    className="bg-white text-sm resize-none"
+                    rows={2}
+                />
+            </div>
+        );
+    };
+
+    const renderLabStatus = (section: string, field: string, label: string) => {
+        const value = (localDraft as any)[section]?.[field];
+        return (
+            <StatusSelector
+                label={label}
+                value={value as LabStatus}
+                options={LAB_STATUS_OPTIONS}
+                onChange={(v) => handleFieldChange(section as keyof NursePreopWardChecklistDraft, field, v)}
+                disabled={isFinalized}
+            />
+        );
+    };
+
+    const renderUrinalysis = (section: string, field: string) => {
+        const value = (localDraft as any)[section]?.[field];
+        return (
+            <StatusSelector
+                label="Urinalysis Result"
+                value={value as UrinalysisStatus}
+                options={URINALYSIS_OPTIONS}
+                onChange={(v) => handleFieldChange(section as keyof NursePreopWardChecklistDraft, field, v)}
+                disabled={isFinalized}
+            />
+        );
+    };
+
+    // ── Render ───────────────────────────────────────────────────────────────
 
     return (
         <div className="flex flex-col min-h-[calc(100vh-4rem)]">
@@ -209,13 +427,13 @@ export function NursePreOpChecklist({ caseId, onClose }: NursePreOpChecklistProp
                                     <span>Documentation</span>
                                 </div>
                             </AccordionTrigger>
-                            <AccordionContent className="pt-2 pb-4 space-y-4">
-                                {renderField('documentation', 'documentationComplete', 'History/Physical Exam/Admission Notes Complete?', 'checkbox')}
-                                {renderField('documentation', 'correctConsent', 'Consent form correct & signed?', 'checkbox')}
+                            <AccordionContent className="pt-2 pb-4 space-y-1">
+                                {renderCheckbox('documentation', 'documentationComplete', 'History / Physical Exam / Admission Notes complete?')}
+                                {renderCheckbox('documentation', 'correctConsent', 'Consent form correct & signed?')}
                             </AccordionContent>
                         </AccordionItem>
 
-                        {/* 2. BLOOD RESULTS */}
+                        {/* 2. BLOOD & LAB RESULTS */}
                         <AccordionItem value="bloodResults" className="border rounded-lg bg-white mb-4 px-4">
                             <AccordionTrigger className="hover:no-underline">
                                 <div className="flex items-center gap-3">
@@ -223,13 +441,41 @@ export function NursePreOpChecklist({ caseId, onClose }: NursePreOpChecklistProp
                                     <span>Blood & Lab Results</span>
                                 </div>
                             </AccordionTrigger>
-                            <AccordionContent className="pt-2 pb-4 space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    {renderField('bloodResults', 'hbPcv', 'Hb / PCV')}
-                                    {renderField('bloodResults', 'uecs', 'U&ECs / Others')}
+                            <AccordionContent className="pt-2 pb-4 space-y-2">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+                                    {renderLabStatus('bloodResults', 'hbPcv', 'Hb / PCV')}
+                                    {renderLabStatus('bloodResults', 'uecs', 'U&ECs / Others')}
                                 </div>
-                                {renderField('bloodResults', 'xMatchUnitsAvailable', 'X-Match (Units Available)', 'number')}
-                                {renderField('bloodResults', 'otherLabResults', 'Other Results')}
+
+                                <div className="space-y-1 py-2">
+                                    <Label className="text-sm font-medium text-slate-700">
+                                        X-Match — Units Available
+                                    </Label>
+                                    <div className="flex items-center gap-3">
+                                        {[0, 1, 2, 3, 4, 5, 6].map((n) => (
+                                            <button
+                                                key={n}
+                                                type="button"
+                                                disabled={isFinalized}
+                                                onClick={() =>
+                                                    handleFieldChange('bloodResults', 'xMatchUnitsAvailable', n)
+                                                }
+                                                className={cn(
+                                                    'w-9 h-9 rounded-full border text-sm font-medium transition-all',
+                                                    localDraft.bloodResults?.xMatchUnitsAvailable === n
+                                                        ? 'bg-cyan-600 text-white border-cyan-600 shadow-sm scale-110'
+                                                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400',
+                                                    isFinalized && 'cursor-not-allowed opacity-50'
+                                                )}
+                                            >
+                                                {n}
+                                            </button>
+                                        ))}
+                                        <span className="text-xs text-slate-400">units</span>
+                                    </div>
+                                </div>
+
+                                {renderTextarea('bloodResults', 'otherLabResults', 'Other Lab Results / Notes', 'e.g. Coagulation, LFTs, ECG findings…')}
                             </AccordionContent>
                         </AccordionItem>
 
@@ -250,9 +496,14 @@ export function NursePreOpChecklist({ caseId, onClose }: NursePreOpChecklistProp
                                 />
 
                                 <div className="mt-6 pt-4 border-t border-slate-100">
-                                    <p className="text-xs text-slate-400 mb-4 uppercase tracking-wider font-semibold">Additional Medication Flags</p>
-                                    {renderField('medications', 'preMedGiven', 'Pre-medication confirmed given?', 'checkbox')}
-                                    {renderField('medications', 'periOpMedsGiven', 'Peri-operative meds confirmed given?', 'checkbox')}
+                                    <p className="text-xs text-slate-400 mb-4 uppercase tracking-wider font-semibold">
+                                        Additional Medication Flags
+                                    </p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+                                        {renderCheckbox('medications', 'preMedGiven', 'Pre-medication confirmed given?')}
+                                        {renderCheckbox('medications', 'periOpMedsGiven', 'Peri-operative meds confirmed given?')}
+                                        {renderCheckbox('medications', 'regularMedsConfirmed', 'Regular medications confirmed?')}
+                                    </div>
                                 </div>
                             </AccordionContent>
                         </AccordionItem>
@@ -265,15 +516,26 @@ export function NursePreOpChecklist({ caseId, onClose }: NursePreOpChecklistProp
                                     <span>Allergies & NPO Status</span>
                                 </div>
                             </AccordionTrigger>
-                            <AccordionContent className="pt-2 pb-4 space-y-4">
-                                {renderField('allergiesNpo', 'allergiesDocumented', 'Allergies Checked & Documented?', 'checkbox')}
-                                {renderField('allergiesNpo', 'allergiesDetails', 'Allergy Details')}
-                                {renderField('allergiesNpo', 'npoStatus', 'Patient is NPO?', 'checkbox')}
-                                {localDraft.allergiesNpo?.npoStatus && renderField('allergiesNpo', 'npoFastedFromTime', 'Fasted From (HH:MM)', 'time')}
+                            <AccordionContent className="pt-2 pb-4 space-y-2">
+                                {renderCheckbox('allergiesNpo', 'allergiesDocumented', 'Allergies checked & documented?')}
+
+                                <AllergyInput
+                                    value={localDraft.allergiesNpo?.allergiesDetails || ''}
+                                    onChange={(v) => handleFieldChange('allergiesNpo', 'allergiesDetails', v)}
+                                    disabled={isFinalized}
+                                />
+
+                                {renderCheckbox('allergiesNpo', 'npoStatus', 'Patient is nil by mouth (NPO)?')}
+
+                                {localDraft.allergiesNpo?.npoStatus && (
+                                    <div className="pl-6 border-l-2 border-slate-200 ml-1">
+                                        {renderInput('allergiesNpo', 'npoFastedFromTime', 'Fasted from (time)', 'time')}
+                                    </div>
+                                )}
                             </AccordionContent>
                         </AccordionItem>
 
-                        {/* 5. PREPARATION */}
+                        {/* 5. PATIENT PREPARATION */}
                         <AccordionItem value="preparation" className="border rounded-lg bg-white mb-4 px-4">
                             <AccordionTrigger className="hover:no-underline">
                                 <div className="flex items-center gap-3">
@@ -281,16 +543,18 @@ export function NursePreOpChecklist({ caseId, onClose }: NursePreOpChecklistProp
                                     <span>Patient Preparation</span>
                                 </div>
                             </AccordionTrigger>
-                            <AccordionContent className="pt-2 pb-4 space-y-4">
-                                {renderField('preparation', 'bathGown', 'Patient bathed & in theatre gown?', 'checkbox')}
-                                {renderField('preparation', 'shaveSkinPrep', 'Shave / Skin Prep done?', 'checkbox')}
-                                {renderField('preparation', 'idBandOn', 'ID Band confirmed correct?', 'checkbox')}
-                                {renderField('preparation', 'makeupNailPolishRemoved', 'Makeup / Nail Polish removed?', 'checkbox')}
-                                {renderField('preparation', 'jewelryRemoved', 'Jewelry removed (or taped)?', 'checkbox')}
+                            <AccordionContent className="pt-2 pb-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+                                    {renderCheckbox('preparation', 'bathGown', 'Patient bathed & in theatre gown?')}
+                                    {renderCheckbox('preparation', 'shaveSkinPrep', 'Shave / skin prep done?')}
+                                    {renderCheckbox('preparation', 'idBandOn', 'ID band confirmed correct?')}
+                                    {renderCheckbox('preparation', 'makeupNailPolishRemoved', 'Makeup / nail polish removed?')}
+                                    {renderCheckbox('preparation', 'jewelryRemoved', 'Jewelry removed (or taped)?')}
+                                </div>
                             </AccordionContent>
                         </AccordionItem>
 
-                        {/* 6. VITALS */}
+                        {/* 6. VITALS & OBSERVATIONS */}
                         <AccordionItem value="vitals" className="border rounded-lg bg-white mb-4 px-4">
                             <AccordionTrigger className="hover:no-underline">
                                 <div className="flex items-center gap-3">
@@ -299,24 +563,37 @@ export function NursePreOpChecklist({ caseId, onClose }: NursePreOpChecklistProp
                                 </div>
                             </AccordionTrigger>
                             <AccordionContent className="pt-2 pb-4 space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    {renderField('vitals', 'bpSystolic', 'BP Systolic', 'number')}
-                                    {renderField('vitals', 'bpDiastolic', 'BP Diastolic', 'number')}
+                                {/* Blood Pressure */}
+                                <div>
+                                    <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-2">Blood Pressure (mmHg)</p>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        {renderInput('vitals', 'bpSystolic', 'Systolic', 'number', '120')}
+                                        {renderInput('vitals', 'bpDiastolic', 'Diastolic', 'number', '80')}
+                                    </div>
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    {renderField('vitals', 'pulse', 'Pulse (bpm)', 'number')}
-                                    {renderField('vitals', 'respiratoryRate', 'Resp Rate', 'number')}
+
+                                {/* Other numeric vitals */}
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                    {renderInput('vitals', 'pulse', 'Pulse (bpm)', 'number', '72')}
+                                    {renderInput('vitals', 'respiratoryRate', 'Resp. Rate (/min)', 'number', '16')}
+                                    {renderInput('vitals', 'temperature', 'Temp (°C)', 'number', '36.5')}
                                 </div>
+
                                 <div className="grid grid-cols-2 gap-4">
-                                    {renderField('vitals', 'temperature', 'Temp (°C)', 'number')}
-                                    {renderField('vitals', 'weight', 'Weight (kg)', 'number')}
+                                    {renderInput('vitals', 'weight', 'Weight (kg)', 'number')}
+                                    {renderInput('vitals', 'height', 'Height (cm)', 'number')}
                                 </div>
-                                {renderField('vitals', 'bladderEmptied', 'Bladder Emptied?', 'checkbox')}
-                                {renderField('vitals', 'urinalysis', 'Urinalysis Result')}
+
+                                {renderCheckbox('vitals', 'bladderEmptied', 'Bladder emptied?')}
+
+                                {/* Urinalysis — pill selector */}
+                                {renderUrinalysis('vitals', 'urinalysis')}
+
+                                {renderTextarea('vitals', 'otherNotes', 'Other observations / notes', 'Any additional pre-op observations…')}
                             </AccordionContent>
                         </AccordionItem>
 
-                        {/* 7. PROSTHETICS */}
+                        {/* 7. PROSTHETICS & IMPLANTS */}
                         <AccordionItem value="prosthetics" className="border rounded-lg bg-white mb-4 px-4">
                             <AccordionTrigger className="hover:no-underline">
                                 <div className="flex items-center gap-3">
@@ -324,10 +601,14 @@ export function NursePreOpChecklist({ caseId, onClose }: NursePreOpChecklistProp
                                     <span>Prosthetics & Implants</span>
                                 </div>
                             </AccordionTrigger>
-                            <AccordionContent className="pt-2 pb-4 space-y-4">
-                                {renderField('prosthetics', 'denturesRemoved', 'Dentures Removed?', 'checkbox')}
-                                {renderField('prosthetics', 'contactLensRemoved', 'Contact Lenses Removed?', 'checkbox')}
-                                {renderField('prosthetics', 'hearingAidRemoved', 'Hearing Aids Removed?', 'checkbox')}
+                            <AccordionContent className="pt-2 pb-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+                                    {renderCheckbox('prosthetics', 'denturesRemoved', 'Dentures removed?')}
+                                    {renderCheckbox('prosthetics', 'contactLensRemoved', 'Contact lenses removed?')}
+                                    {renderCheckbox('prosthetics', 'hearingAidRemoved', 'Hearing aids removed?')}
+                                    {renderCheckbox('prosthetics', 'crownsNoted', 'Crowns / bridgework noted?')}
+                                </div>
+                                {renderTextarea('prosthetics', 'prostheticNotes', 'Prosthetic notes', 'Any notes about prosthetics or implants…')}
                             </AccordionContent>
                         </AccordionItem>
 

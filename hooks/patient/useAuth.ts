@@ -14,15 +14,6 @@ interface UseAuthReturn {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (dto: {
-    id: string;
-    email: string;
-    password: string;
-    role: Role;
-    firstName?: string;
-    lastName?: string;
-    phone?: string;
-  }) => Promise<void>;
   logout: () => Promise<void>;
   refreshToken: () => Promise<void>;
 }

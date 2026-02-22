@@ -34,6 +34,7 @@ export interface ValidateAvailabilityDto {
   readonly date: Date;
   readonly time: string; // HH:mm
   readonly duration: number; // minutes
+  readonly excludeAppointmentId?: number; // Optional: exclude this appointment from conflict check (for rescheduling)
 }
 
 export interface ValidateAvailabilityResult {
@@ -122,10 +123,16 @@ export class ValidateAppointmentAvailabilityUseCase {
     
     // Filter to only active appointments that occupy time slots for the exact date
     // Exclude: CANCELLED, COMPLETED (these don't block slots)
+    // Exclude: The appointment being rescheduled (if excludeAppointmentId is provided)
     // Include: PENDING, SCHEDULED (these block slots)
     // Note: Using string literals because Prisma enum only has PENDING, SCHEDULED, CANCELLED, COMPLETED
     const excludedStatuses = ['CANCELLED', 'COMPLETED'];
     const dateAppointments = doctorAppointments.filter((apt) => {
+      // Exclude the appointment being rescheduled
+      if (dto.excludeAppointmentId && apt.getId() === dto.excludeAppointmentId) {
+        return false;
+      }
+      
       const aptDate = new Date(apt.getAppointmentDate());
       aptDate.setHours(0, 0, 0, 0);
       const requestDateNormalized = new Date(requestDate);
@@ -138,9 +145,11 @@ export class ValidateAppointmentAvailabilityUseCase {
       doctorId: dto.doctorId,
       date: requestDate.toISOString(),
       time: dto.time,
+      excludeAppointmentId: dto.excludeAppointmentId,
       totalAppointments: doctorAppointments.length,
       dateAppointments: dateAppointments.length,
       dateAppointmentsDetails: dateAppointments.map(apt => ({
+        id: apt.getId(),
         time: apt.getTime(),
         status: apt.getStatus(),
         date: apt.getAppointmentDate().toISOString(),

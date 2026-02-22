@@ -12,6 +12,9 @@
  * - Section-level completion indicators
  * - "Finalize Checklist" with validation
  * - Locked read-only view after finalization
+ * - Structured skin prep agent/area dropdowns
+ * - SpO₂ field with soft warning badges
+ * - Urinalysis enum dropdown with custom fallback
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -22,9 +25,23 @@ import {
     useSavePreopWardChecklist,
     useFinalizePreopWardChecklist,
     FinalizeValidationError,
+    preopWardChecklistKeys,
 } from '@/hooks/nurse/usePreopWardChecklist';
+import { useQueryClient } from '@tanstack/react-query';
+import { nurseFormsApi } from '@/lib/api/nurse-forms';
 import type { NursePreopWardChecklistDraft } from '@/domain/clinical-forms/NursePreopWardChecklist';
-import { CHECKLIST_SECTIONS } from '@/domain/clinical-forms/NursePreopWardChecklist';
+import {
+    CHECKLIST_SECTIONS,
+    SkinPrepAgent,
+    SkinPrepArea,
+    UrinalysisResult,
+    SKIN_PREP_AGENT_LABELS,
+    SKIN_PREP_AREA_LABELS,
+    URINALYSIS_LABELS,
+    normalizeLegacyChecklistData,
+} from '@/domain/clinical-forms/NursePreopWardChecklist';
+import type { UrinalysisValue } from '@/domain/clinical-forms/NursePreopWardChecklist';
+import { getVitalsWarningMap } from '@/domain/helpers/vitalsWarnings';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +52,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import {
     Accordion,
     AccordionContent,
@@ -67,10 +91,16 @@ import {
     User2,
     ShieldAlert,
     ClipboardCheck,
+    Printer,
+    AlertCircle,
+    FilePen,
 } from 'lucide-react';
+import { Textarea as UITextarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 import { MedicationAdministrationList } from '@/components/nurse/MedicationAdministrationList';
+
 
 // ──────────────────────────────────────────────────────────────────────
 // Icon Map
@@ -178,6 +208,7 @@ function NumberField({
     step,
     unit,
     disabled,
+    warning,
 }: {
     label: string;
     value: number | undefined;
@@ -187,25 +218,239 @@ function NumberField({
     step?: number;
     unit?: string;
     disabled: boolean;
+    warning?: { message: string; severity: 'warning' | 'critical' };
 }) {
     return (
         <div className="space-y-1.5">
             <Label className="text-sm">
                 {label} {unit && <span className="text-muted-foreground font-normal">({unit})</span>}
             </Label>
-            <Input
-                type="number"
-                value={value ?? ''}
-                onChange={(e) => onChange(e.target.value ? Number(e.target.value) : undefined)}
-                min={min}
-                max={max}
-                step={step || 1}
-                disabled={disabled}
-                className="h-9 max-w-[150px]"
-            />
+            <div className="flex items-center gap-2">
+                <Input
+                    type="number"
+                    value={value ?? ''}
+                    onChange={(e) => onChange(e.target.value ? Number(e.target.value) : undefined)}
+                    min={min}
+                    max={max}
+                    step={step || 1}
+                    disabled={disabled}
+                    className={`h-9 max-w-[150px] ${warning
+                        ? warning.severity === 'critical'
+                            ? 'border-red-400 focus-visible:ring-red-400'
+                            : 'border-amber-400 focus-visible:ring-amber-400'
+                        : ''
+                        }`}
+                />
+                {warning && (
+                    <div className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-md font-medium ${warning.severity === 'critical'
+                        ? 'bg-red-50 text-red-700 border border-red-200'
+                        : 'bg-amber-50 text-amber-700 border border-amber-200'
+                        }`}>
+                        <AlertCircle className="w-3 h-3 shrink-0" />
+                        {warning.message}
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
+
+/**
+ * Generic Select wrapper for string/enum fields.
+ */
+function SelectField<T extends string>({
+    label,
+    value,
+    onChange,
+    options,
+    disabled,
+    placeholder,
+}: {
+    label: string;
+    value: T | undefined;
+    onChange: (v: T) => void;
+    options: { value: T; label: string }[];
+    disabled: boolean;
+    placeholder?: string;
+}) {
+    return (
+        <div className="space-y-1.5">
+            <Label className="text-sm">{label}</Label>
+            <Select
+                value={value ?? ''}
+                onValueChange={(v) => onChange(v as T)}
+                disabled={disabled}
+            >
+                <SelectTrigger className="h-9 w-full max-w-[260px]">
+                    <SelectValue placeholder={placeholder ?? `Select ${label}`} />
+                </SelectTrigger>
+                <SelectContent>
+                    {options.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                        </SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+        </div>
+    );
+}
+
+/**
+ * SelectOrCustomField — enum dropdown with free-text fallback when OTHER selected.
+ * Value is `UrinalysisResult | { custom: string }`.
+ */
+function SelectOrCustomField({
+    label,
+    value,
+    onChange,
+    options,
+    disabled,
+}: {
+    label: string;
+    value: UrinalysisValue | undefined;
+    onChange: (v: UrinalysisValue | undefined) => void;
+    options: { value: UrinalysisResult; label: string }[];
+    disabled: boolean;
+}) {
+    // Determine the currently selected enum key.
+    // Use '__none__' as the sentinel for "no selection" — Radix forbids empty string item values.
+    const NONE_VALUE = '__none__';
+    const currentEnum = value === undefined
+        ? NONE_VALUE
+        : typeof value === 'string'
+            ? value
+            : UrinalysisResult.OTHER;
+
+    const customText = value && typeof value === 'object' ? value.custom : '';
+
+    return (
+        <div className="space-y-1.5">
+            <Label className="text-sm">{label}</Label>
+            <div className="flex flex-wrap items-start gap-3">
+                <Select
+                    value={currentEnum}
+                    onValueChange={(v) => {
+                        if (v === NONE_VALUE || v === '') {
+                            onChange(undefined);
+                        } else if (v === UrinalysisResult.OTHER) {
+                            onChange({ custom: customText });
+                        } else {
+                            onChange(v as UrinalysisResult);
+                        }
+                    }}
+                    disabled={disabled}
+                >
+                    <SelectTrigger className="h-9 w-[220px]">
+                        <SelectValue placeholder="Select result" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value={NONE_VALUE}>— Not recorded —</SelectItem>
+                        {options.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+
+                {currentEnum === UrinalysisResult.OTHER && (
+                    <Input
+                        className="h-9 flex-1 min-w-[160px]"
+                        placeholder="Specify result..."
+                        value={customText}
+                        disabled={disabled}
+                        onChange={(e) => onChange({ custom: e.target.value })}
+                    />
+                )}
+            </div>
+        </div>
+    );
+}
+
+/**
+ * SkinPrepSubSection — shown when nurse indicates skin prep was done.
+ */
+function SkinPrepSubSection({
+    value,
+    onChange,
+    disabled,
+}: {
+    value: {
+        agent?: SkinPrepAgent;
+        area?: SkinPrepArea;
+        agentOther?: string;
+        areaOther?: string;
+        performerName?: string;
+    } | undefined;
+    onChange: (v: NonNullable<typeof value>) => void;
+    disabled: boolean;
+}) {
+    const sp = value ?? {};
+    const set = (field: string, val: unknown) => onChange({ ...sp, [field]: val });
+
+    const agentOptions = Object.values(SkinPrepAgent).map((a) => ({
+        value: a,
+        label: SKIN_PREP_AGENT_LABELS[a],
+    }));
+
+    const areaOptions = Object.values(SkinPrepArea).map((a) => ({
+        value: a,
+        label: SKIN_PREP_AREA_LABELS[a],
+    }));
+
+    return (
+        <div className="ml-7 mt-3 p-3 border border-slate-200 rounded-lg bg-slate-50/60 space-y-4">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Skin Prep Details</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <SelectField<SkinPrepAgent>
+                    label="Prep Agent"
+                    value={sp.agent}
+                    onChange={(v) => set('agent', v)}
+                    options={agentOptions}
+                    disabled={disabled}
+                    placeholder="Select agent"
+                />
+                {sp.agent === SkinPrepAgent.OTHER && (
+                    <TextField
+                        label="Agent (specify)"
+                        value={sp.agentOther}
+                        onChange={(v) => set('agentOther', v)}
+                        placeholder="e.g. Chlorhexidine 2%"
+                        disabled={disabled}
+                    />
+                )}
+
+                <SelectField<SkinPrepArea>
+                    label="Prep Area"
+                    value={sp.area}
+                    onChange={(v) => set('area', v)}
+                    options={areaOptions}
+                    disabled={disabled}
+                    placeholder="Select area"
+                />
+                {sp.area === SkinPrepArea.OTHER && (
+                    <TextField
+                        label="Area (specify)"
+                        value={sp.areaOther}
+                        onChange={(v) => set('areaOther', v)}
+                        placeholder="e.g. Shoulder"
+                        disabled={disabled}
+                    />
+                )}
+
+                <TextField
+                    label="Performed by (name)"
+                    value={sp.performerName}
+                    onChange={(v) => set('performerName', v)}
+                    placeholder="Nurse / tech name"
+                    disabled={disabled}
+                />
+            </div>
+        </div>
+    );
+}
+
 
 // ──────────────────────────────────────────────────────────────────────
 // Section Renderers
@@ -225,12 +470,154 @@ function DocumentationSection({ data, onChange, disabled }: SectionProps) {
 function BloodResultsSection({ data, onChange, disabled }: SectionProps) {
     const d = data.bloodResults ?? {};
     const set = (field: string, value: any) => onChange({ ...data, bloodResults: { ...d, [field]: value } });
+
+    // Hb/PCV common ranges (g/dL for Hb, % for PCV)
+    const hbPcvOptions = [
+        { value: 'NORMAL', label: 'Normal (Hb ≥12g/dL, PCV ≥36%)' },
+        { value: 'MILD_ANEMIA', label: 'Mild Anemia (Hb 10-11.9g/dL, PCV 30-35%)' },
+        { value: 'MODERATE_ANEMIA', label: 'Moderate Anemia (Hb 8-9.9g/dL, PCV 24-29%)' },
+        { value: 'SEVERE_ANEMIA', label: 'Severe Anemia (Hb <8g/dL, PCV <24%)' },
+        { value: 'CUSTOM', label: 'Enter Custom Value' },
+    ];
+
+    // UECs status options
+    const uecsStatusOptions = [
+        { value: 'NORMAL', label: 'Normal' },
+        { value: 'ABNORMAL', label: 'Abnormal' },
+        { value: 'PENDING', label: 'Pending' },
+        { value: 'NOT_DONE', label: 'Not Done' },
+        { value: 'CUSTOM', label: 'Enter Custom Value' },
+    ];
+
+    // Determine if custom value is being used (check if value doesn't match any option)
+    const hbPcvIsCustom = d.hbPcv && !hbPcvOptions.some(opt => opt.value === d.hbPcv);
+    const uecsIsCustom = d.uecs && !uecsStatusOptions.some(opt => opt.value === d.uecs);
+
+    // Check if structured option is selected (to show custom notes field)
+    const hbPcvHasStructuredValue = d.hbPcv && !hbPcvIsCustom && d.hbPcv !== 'CUSTOM';
+    const uecsHasStructuredValue = d.uecs && !uecsIsCustom && d.uecs !== 'CUSTOM';
+
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <TextField label="Hb / PCV" value={d.hbPcv} onChange={(v) => set('hbPcv', v)} disabled={disabled} />
-            <TextField label="UECs" value={d.uecs} onChange={(v) => set('uecs', v)} disabled={disabled} />
-            <NumberField label="X-match units available" value={d.xMatchUnitsAvailable} onChange={(v) => set('xMatchUnitsAvailable', v)} min={0} disabled={disabled} />
-            <TextField label="Other lab results / notes" value={d.otherLabResults} onChange={(v) => set('otherLabResults', v)} disabled={disabled} />
+        <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Hb / PCV with select + custom value/notes */}
+                <div className="space-y-1.5">
+                    <Label className="text-sm">Hb / PCV</Label>
+                    <Select
+                        value={hbPcvIsCustom ? 'CUSTOM' : (d.hbPcv || '')}
+                        onValueChange={(v) => {
+                            if (v === 'CUSTOM') {
+                                // Keep existing custom value or clear
+                                if (!hbPcvIsCustom) {
+                                    set('hbPcv', '');
+                                }
+                            } else {
+                                set('hbPcv', v);
+                            }
+                        }}
+                        disabled={disabled}
+                    >
+                        <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Select status or enter custom" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {hbPcvOptions.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    {/* Show custom input if CUSTOM selected OR if existing value doesn't match options */}
+                    {(hbPcvIsCustom || d.hbPcv === 'CUSTOM') && (
+                        <Input
+                            value={hbPcvIsCustom ? d.hbPcv : ''}
+                            onChange={(e) => set('hbPcv', e.target.value)}
+                            placeholder="Enter Hb/PCV value (e.g., 12.5g/dL / 38%)"
+                            disabled={disabled}
+                            className="h-9 mt-1.5"
+                        />
+                    )}
+                    {/* Allow custom notes even when structured option is selected */}
+                    {hbPcvHasStructuredValue && (
+                        <Input
+                            value={d.hbPcvNotes || ''}
+                            onChange={(e) => set('hbPcvNotes', e.target.value)}
+                            placeholder="Additional notes (optional)"
+                            disabled={disabled}
+                            className="h-9 mt-1.5 text-xs"
+                        />
+                    )}
+                </div>
+
+                {/* UECs with select + custom value/notes */}
+                <div className="space-y-1.5">
+                    <Label className="text-sm">UECs (Urea, Electrolytes, Creatinine)</Label>
+                    <Select
+                        value={uecsIsCustom ? 'CUSTOM' : (d.uecs || '')}
+                        onValueChange={(v) => {
+                            if (v === 'CUSTOM') {
+                                // Keep existing custom value or clear
+                                if (!uecsIsCustom) {
+                                    set('uecs', '');
+                                }
+                            } else {
+                                set('uecs', v);
+                            }
+                        }}
+                        disabled={disabled}
+                    >
+                        <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Select status or enter custom" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {uecsStatusOptions.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    {/* Show custom input if CUSTOM selected OR if existing value doesn't match options */}
+                    {(uecsIsCustom || d.uecs === 'CUSTOM') && (
+                        <Input
+                            value={uecsIsCustom ? d.uecs : ''}
+                            onChange={(e) => set('uecs', e.target.value)}
+                            placeholder="Enter UECs details or values"
+                            disabled={disabled}
+                            className="h-9 mt-1.5"
+                        />
+                    )}
+                    {/* Allow custom notes even when structured option is selected */}
+                    {uecsHasStructuredValue && (
+                        <Input
+                            value={d.uecsNotes || ''}
+                            onChange={(e) => set('uecsNotes', e.target.value)}
+                            placeholder="Additional notes (optional)"
+                            disabled={disabled}
+                            className="h-9 mt-1.5 text-xs"
+                        />
+                    )}
+                </div>
+
+                {/* X-match units - keep as number field */}
+                <NumberField 
+                    label="X-match units available" 
+                    value={d.xMatchUnitsAvailable} 
+                    onChange={(v) => set('xMatchUnitsAvailable', v)} 
+                    min={0} 
+                    disabled={disabled} 
+                />
+
+                {/* Other lab results - keep as text field for flexibility */}
+                <TextField 
+                    label="Other lab results / notes" 
+                    value={d.otherLabResults} 
+                    onChange={(v) => set('otherLabResults', v)} 
+                    disabled={disabled} 
+                    placeholder="Any other lab results, special notes, or observations"
+                />
+            </div>
         </div>
     );
 }
@@ -291,10 +678,21 @@ function AllergiesNpoSection({ data, onChange, disabled, patientAllergies }: Sec
 function PreparationSection({ data, onChange, disabled }: SectionProps) {
     const d = data.preparation ?? {};
     const set = (field: string, value: any) => onChange({ ...data, preparation: { ...d, [field]: value } });
+
+    // Show skin prep details if legacy shaveSkinPrep OR if skinPrep already exists
+    const showSkinPrepDetails = !!d.shaveSkinPrep || !!d.skinPrep;
+
     return (
         <div className="space-y-3">
             <BooleanField label="Bath / shower and gown" value={d.bathGown} onChange={(v) => set('bathGown', v)} disabled={disabled} />
             <BooleanField label="Shave / skin prep done" value={d.shaveSkinPrep} onChange={(v) => set('shaveSkinPrep', v)} disabled={disabled} />
+            {showSkinPrepDetails && (
+                <SkinPrepSubSection
+                    value={d.skinPrep as any}
+                    onChange={(v) => set('skinPrep', v)}
+                    disabled={disabled}
+                />
+            )}
             <BooleanField label="ID band on" value={d.idBandOn} onChange={(v) => set('idBandOn', v)} disabled={disabled} />
             <BooleanField label="Correct positioning verified" value={d.correctPositioning} onChange={(v) => set('correctPositioning', v)} disabled={disabled} />
             <BooleanField label="Jewelry removed" value={d.jewelryRemoved} onChange={(v) => set('jewelryRemoved', v)} disabled={disabled} />
@@ -320,14 +718,43 @@ function ProstheticsSection({ data, onChange, disabled }: SectionProps) {
 function VitalsSection({ data, onChange, disabled }: SectionProps) {
     const d = data.vitals ?? {};
     const set = (field: string, value: any) => onChange({ ...data, vitals: { ...d, [field]: value } });
+
+    const warningMap = getVitalsWarningMap({
+        bpSystolic: d.bpSystolic,
+        bpDiastolic: d.bpDiastolic,
+        pulse: d.pulse,
+        respiratoryRate: d.respiratoryRate,
+        temperature: d.temperature,
+        spo2: d.spo2,
+    });
+
+    const urinalysisOptions = Object.values(UrinalysisResult).map((r) => ({
+        value: r,
+        label: URINALYSIS_LABELS[r],
+    }));
+
     return (
         <div className="space-y-5">
+            {warningMap.size > 0 && (
+                <div className="p-3 rounded-lg border border-amber-200 bg-amber-50 space-y-1">
+                    <p className="text-xs font-semibold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
+                        <AlertCircle className="w-3.5 h-3.5" />Vitals Advisory
+                    </p>
+                    {Array.from(warningMap.values()).map((w) => (
+                        <p key={w.field} className={`text-xs ${w.severity === 'critical' ? 'text-red-700 font-medium' : 'text-amber-700'
+                            }`}>
+                            <span className="font-semibold">{w.label}:</span> {w.message}
+                        </p>
+                    ))}
+                </div>
+            )}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                <NumberField label="BP Systolic" value={d.bpSystolic} onChange={(v) => set('bpSystolic', v)} min={60} max={260} unit="mmHg" disabled={disabled} />
-                <NumberField label="BP Diastolic" value={d.bpDiastolic} onChange={(v) => set('bpDiastolic', v)} min={30} max={160} unit="mmHg" disabled={disabled} />
-                <NumberField label="Pulse" value={d.pulse} onChange={(v) => set('pulse', v)} min={30} max={220} unit="bpm" disabled={disabled} />
-                <NumberField label="Respiratory Rate" value={d.respiratoryRate} onChange={(v) => set('respiratoryRate', v)} min={6} max={60} unit="/min" disabled={disabled} />
-                <NumberField label="Temperature" value={d.temperature} onChange={(v) => set('temperature', v)} min={34} max={42} step={0.1} unit="°C" disabled={disabled} />
+                <NumberField label="BP Systolic" value={d.bpSystolic} onChange={(v) => set('bpSystolic', v)} min={60} max={260} unit="mmHg" disabled={disabled} warning={warningMap.get('bpSystolic')} />
+                <NumberField label="BP Diastolic" value={d.bpDiastolic} onChange={(v) => set('bpDiastolic', v)} min={30} max={160} unit="mmHg" disabled={disabled} warning={warningMap.get('bpDiastolic')} />
+                <NumberField label="Pulse" value={d.pulse} onChange={(v) => set('pulse', v)} min={30} max={220} unit="bpm" disabled={disabled} warning={warningMap.get('pulse')} />
+                <NumberField label="Respiratory Rate" value={d.respiratoryRate} onChange={(v) => set('respiratoryRate', v)} min={6} max={60} unit="/min" disabled={disabled} warning={warningMap.get('respiratoryRate')} />
+                <NumberField label="Temperature" value={d.temperature} onChange={(v) => set('temperature', v)} min={34} max={42} step={0.1} unit="°C" disabled={disabled} warning={warningMap.get('temperature')} />
+                <NumberField label="SpO₂" value={d.spo2} onChange={(v) => set('spo2', v)} min={50} max={100} unit="%" disabled={disabled} warning={warningMap.get('spo2')} />
                 <TextField label="CVP (if applicable)" value={d.cvp} onChange={(v) => set('cvp', v)} disabled={disabled} />
             </div>
             <Separator />
@@ -337,7 +764,13 @@ function VitalsSection({ data, onChange, disabled }: SectionProps) {
                 <NumberField label="Weight" value={d.weight} onChange={(v) => set('weight', v)} min={2} max={350} unit="kg" disabled={disabled} />
             </div>
             <Separator />
-            <TextField label="Urinalysis results" value={d.urinalysis} onChange={(v) => set('urinalysis', v)} disabled={disabled} />
+            <SelectOrCustomField
+                label="Urinalysis results"
+                value={d.urinalysis as UrinalysisValue | undefined}
+                onChange={(v) => set('urinalysis', v)}
+                options={urinalysisOptions}
+                disabled={disabled}
+            />
             <BooleanField label="X-rays / scans present" value={d.xRaysScansPresent} onChange={(v) => set('xRaysScansPresent', v)} disabled={disabled} />
             <TextField label="Other forms required / notes" value={d.otherFormsRequired} onChange={(v) => set('otherFormsRequired', v)} disabled={disabled} />
         </div>
@@ -470,6 +903,7 @@ export default function NursePreopWardChecklistPage() {
     const router = useRouter();
     const { user, isAuthenticated } = useAuth();
     const caseId = params?.id as string;
+    const queryClient = useQueryClient();
 
     const { data: response, isLoading, error } = usePreopWardChecklist(caseId);
     const saveMutation = useSavePreopWardChecklist(caseId);
@@ -486,20 +920,93 @@ export default function NursePreopWardChecklistPage() {
         handover: {},
     });
     const [isDirty, setIsDirty] = useState(false);
+    const [isAutoSaving, setIsAutoSaving] = useState(false);
+    const [lastAutoSaved, setLastAutoSaved] = useState<Date | null>(null);
     const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
     const [showMissingItems, setShowMissingItems] = useState(false);
     const [missingItemsList, setMissingItemsList] = useState<string[]>([]);
 
-    // Initialize form data from server
+    // Amendment state
+    const [showAmendDialog, setShowAmendDialog] = useState(false);
+    const [amendReason, setAmendReason] = useState('');
+    const [isAmending, setIsAmending] = useState(false);
+    const [amendError, setAmendError] = useState('');
+
+    // Initialize form data from server — apply normalizer for backward compat
     useEffect(() => {
         if (response?.form?.data) {
-            setFormData(response.form.data);
+            setFormData(normalizeLegacyChecklistData(response.form.data));
             setIsDirty(false);
         }
     }, [response?.form?.data]);
 
-    const isFinalized = response?.form?.status === 'FINAL';
+    const formStatus = response?.form?.status;
+    const isFinalized = formStatus === 'FINAL';
+    const isAmendment = formStatus === 'AMENDMENT';
+    // Locked only when truly FINAL. DRAFT and AMENDMENT are both editable.
     const isDisabled = isFinalized || !isAuthenticated;
+
+    // Auto-save: Debounced save after 2s of inactivity
+    useEffect(() => {
+        if (!isDirty || isFinalized || !isAuthenticated || saveMutation.isPending) {
+            setIsAutoSaving(false);
+            return;
+        }
+
+        setIsAutoSaving(true);
+        const timer = setTimeout(() => {
+            saveMutation.mutate(formData, {
+                onSuccess: () => {
+                    setIsDirty(false);
+                    setIsAutoSaving(false);
+                    setLastAutoSaved(new Date());
+                },
+                onError: () => {
+                    setIsAutoSaving(false);
+                    // Silently fail - user can manually save if needed
+                    // Error toast is already handled by the mutation
+                },
+            });
+        }, 2000); // 2 second debounce
+
+        return () => {
+            clearTimeout(timer);
+            setIsAutoSaving(false);
+        };
+    }, [formData, isDirty, isFinalized, isAuthenticated, saveMutation]);
+
+    // Amendment submit handler
+    const handleStartAmendment = async () => {
+        if (amendReason.trim().length < 10) {
+            setAmendError('Please provide a reason of at least 10 characters.');
+            return;
+        }
+        setAmendError('');
+        setIsAmending(true);
+        try {
+            const response = await nurseFormsApi.startPreopWardChecklistAmendment(caseId, amendReason);
+            
+            if (!response.success) {
+                setAmendError(response.error || 'Failed to start amendment.');
+            } else {
+                setShowAmendDialog(false);
+                setAmendReason('');
+                // Invalidate and refetch the checklist data to get the updated AMENDMENT status
+                await queryClient.invalidateQueries({ 
+                    queryKey: preopWardChecklistKeys.detail(caseId) 
+                });
+                await queryClient.refetchQueries({ 
+                    queryKey: preopWardChecklistKeys.detail(caseId) 
+                });
+                toast.success('Amendment started. You can now edit the checklist.');
+            }
+        } catch (err) {
+            console.error('Amendment error:', err);
+            setAmendError('Network error. Please try again.');
+        } finally {
+            setIsAmending(false);
+        }
+    };
 
     // Form change handler
     const handleChange = useCallback((newData: NursePreopWardChecklistDraft) => {
@@ -613,14 +1120,57 @@ export default function NursePreopWardChecklistPage() {
                                     <Lock className="h-3 w-3" />
                                     Finalized
                                 </Badge>
+                            ) : isAmendment ? (
+                                <Badge className="bg-amber-100 text-amber-800 border-amber-200 gap-1">
+                                    <FilePen className="h-3 w-3" />
+                                    Amendment
+                                </Badge>
                             ) : (
                                 <Badge variant="secondary" className="gap-1">
                                     <Circle className="h-3 w-3" />
                                     Draft
                                 </Badge>
                             )}
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1.5 h-8"
+                                asChild
+                            >
+                                <a
+                                    href={`/nurse/ward-prep/${caseId}/checklist/print`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    <Printer className="h-3.5 w-3.5" />
+                                    Print
+                                </a>
+                            </Button>
+                            {/* Create Amendment button — only on FINAL */}
+                            {isFinalized && (
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-1.5 h-8 border-amber-300 text-amber-700 hover:bg-amber-50"
+                                    onClick={() => setShowAmendDialog(true)}
+                                >
+                                    <FilePen className="h-3.5 w-3.5" />
+                                    Amend
+                                </Button>
+                            )}
                         </div>
                     </div>
+
+                    {/* Amendment in-progress banner */}
+                    {isAmendment && (
+                        <div className="mt-3 flex items-start gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg">
+                            <FilePen className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                            <p className="text-sm text-amber-800">
+                                <strong>Amendment in Progress</strong> — This record was previously finalized.
+                                Make your corrections and re-finalize when ready.
+                            </p>
+                        </div>
+                    )}
 
                     {/* Allergies alert */}
                     {patient.allergies && (
@@ -656,7 +1206,7 @@ export default function NursePreopWardChecklistPage() {
             {/* ── Title ──────────────────────────────────────────── */}
             <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold tracking-tight">Pre-Operative Ward Checklist</h2>
-                {!isFinalized && (
+                {(isAmendment || !isFinalized) && (
                     <div className="flex items-center gap-2">
                         <Button
                             variant="outline"
@@ -676,7 +1226,6 @@ export default function NursePreopWardChecklistPage() {
                             size="sm"
                             onClick={() => {
                                 if (isDirty) {
-                                    // Save first, then finalize
                                     saveMutation.mutate(formData, {
                                         onSuccess: () => {
                                             setIsDirty(false);
@@ -688,10 +1237,10 @@ export default function NursePreopWardChecklistPage() {
                                 }
                             }}
                             disabled={finalizeMutation.isPending}
-                            className="gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+                            className={`gap-1.5 ${isAmendment ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
                         >
                             <Lock className="h-3.5 w-3.5" />
-                            Finalize Checklist
+                            {isAmendment ? 'Re-Finalize' : 'Finalize Checklist'}
                         </Button>
                     </div>
                 )}
@@ -700,8 +1249,46 @@ export default function NursePreopWardChecklistPage() {
             {/* ── Surgical Plan Reference ──────────────────────── */}
             <SurgicalPlanReferencePanel casePlan={response.casePlan} />
 
+            {/* ── Section Jump Navigation (Floating Sidebar) ────── */}
+            <div className="fixed right-4 top-1/2 -translate-y-1/2 z-50 hidden lg:block">
+                <div className="bg-white border rounded-lg shadow-lg p-2 space-y-1 max-h-[60vh] overflow-y-auto">
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-2 py-1 mb-1">
+                        Sections
+                    </p>
+                    {CHECKLIST_SECTIONS.map((section) => {
+                        const completion = sectionCompletion[section.key];
+                        const isComplete = completion?.complete ?? false;
+                        const Icon = SECTION_ICONS[section.icon] || Circle;
+
+                        return (
+                            <button
+                                key={section.key}
+                                onClick={() => {
+                                    const element = document.querySelector(`[data-section="${section.key}"]`);
+                                    element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                }}
+                                className="text-xs px-2 py-1.5 hover:bg-slate-100 rounded flex items-center gap-2 w-full text-left transition-colors"
+                                title={section.title}
+                            >
+                                {isComplete ? (
+                                    <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
+                                ) : (
+                                    <Icon className="h-3 w-3 text-slate-400 shrink-0" />
+                                )}
+                                <span className="truncate">{section.title}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
             {/* ── Accordion Sections ─────────────────────────────── */}
-            <Accordion type="multiple" defaultValue={CHECKLIST_SECTIONS.map((s) => s.key)} className="space-y-3">
+            {/* Smart expansion: Critical sections expanded by default */}
+            <Accordion 
+                type="multiple" 
+                defaultValue={['allergiesNpo', 'vitals', 'documentation']} 
+                className="space-y-3"
+            >
                 {CHECKLIST_SECTIONS.map((section) => {
                     const SectionRenderer = SECTION_RENDERERS[section.key];
                     const Icon = SECTION_ICONS[section.icon] || Circle;
@@ -712,6 +1299,7 @@ export default function NursePreopWardChecklistPage() {
                         <AccordionItem
                             key={section.key}
                             value={section.key}
+                            data-section={section.key}
                             className="border rounded-lg px-4 data-[state=open]:shadow-sm transition-shadow"
                         >
                             <AccordionTrigger className="hover:no-underline py-3">
@@ -748,11 +1336,28 @@ export default function NursePreopWardChecklistPage() {
             </Accordion>
 
             {/* ── Bottom Action Bar ──────────────────────────────── */}
-            {!isFinalized && (
+            {(isAmendment || !isFinalized) && (
                 <div className="sticky bottom-0 bg-background/95 backdrop-blur border-t py-3 px-4 -mx-4 flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground">
-                        {isDirty ? 'You have unsaved changes' : 'All changes saved'}
-                    </p>
+                    <div className="flex items-center gap-3">
+                        <p className="text-xs text-muted-foreground">
+                            {isAmendment && <span className="text-amber-600 font-medium mr-2">⚠ Amendment in progress</span>}
+                            {isAutoSaving ? (
+                                <span className="text-blue-600 font-medium flex items-center gap-1.5">
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    Auto-saving...
+                                </span>
+                            ) : isDirty ? (
+                                <span className="text-amber-600">You have unsaved changes</span>
+                            ) : lastAutoSaved ? (
+                                <span className="text-emerald-600 flex items-center gap-1.5">
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    Auto-saved {format(lastAutoSaved, 'HH:mm:ss')}
+                                </span>
+                            ) : (
+                                <span className="text-muted-foreground">All changes saved</span>
+                            )}
+                        </p>
+                    </div>
                     <div className="flex items-center gap-2">
                         <Button
                             variant="outline"
@@ -765,7 +1370,7 @@ export default function NursePreopWardChecklistPage() {
                         </Button>
                         <Button
                             size="sm"
-                            className="bg-emerald-600 hover:bg-emerald-700"
+                            className={isAmendment ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'}
                             onClick={() => {
                                 if (isDirty) {
                                     saveMutation.mutate(formData, {
@@ -781,7 +1386,7 @@ export default function NursePreopWardChecklistPage() {
                             disabled={finalizeMutation.isPending}
                         >
                             <Lock className="h-3.5 w-3.5 mr-1.5" />
-                            Finalize
+                            {isAmendment ? 'Re-Finalize' : 'Finalize'}
                         </Button>
                     </div>
                 </div>
@@ -845,6 +1450,61 @@ export default function NursePreopWardChecklistPage() {
                     <DialogFooter>
                         <Button onClick={() => setShowMissingItems(false)}>
                             Close & Fix Issues
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* ── Amendment Dialog ─────────────────────────────────── */}
+            <Dialog open={showAmendDialog} onOpenChange={(open) => { setShowAmendDialog(open); if (!open) { setAmendReason(''); setAmendError(''); } }}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <FilePen className="h-5 w-5 text-amber-600" />
+                            Create Amendment
+                        </DialogTitle>
+                        <DialogDescription>
+                            This checklist is finalized. Provide a reason for amendment.
+                            The existing record will be preserved in the audit trail.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3 py-2">
+                        <Label htmlFor="amend-reason" className="text-sm font-medium">
+                            Reason for Amendment <span className="text-destructive">*</span>
+                        </Label>
+                        <UITextarea
+                            id="amend-reason"
+                            placeholder="Describe why this record needs correction (min 10 characters)..."
+                            value={amendReason}
+                            onChange={(e) => { setAmendReason(e.target.value); setAmendError(''); }}
+                            rows={3}
+                            className="resize-none"
+                        />
+                        {amendError && (
+                            <p className="text-sm text-destructive flex items-center gap-1">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                {amendError}
+                            </p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                            After amendment, the checklist will be editable again.
+                            You must re-finalize once corrections are complete.
+                        </p>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => { setShowAmendDialog(false); setAmendReason(''); setAmendError(''); }}>
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleStartAmendment}
+                            disabled={isAmending || amendReason.trim().length < 10}
+                            className="bg-amber-600 hover:bg-amber-700"
+                        >
+                            {isAmending ? (
+                                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Opening...</>
+                            ) : (
+                                <><FilePen className="h-4 w-4 mr-2" />Start Amendment</>
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

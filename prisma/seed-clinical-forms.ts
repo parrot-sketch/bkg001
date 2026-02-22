@@ -62,6 +62,28 @@ const NURSE_PREOP_WARD_CHECKLIST_SCHEMA = {
             fields: {
                 bathGown: { type: 'boolean', label: 'Bath / shower and gown', required: true },
                 shaveSkinPrep: { type: 'boolean', label: 'Shave / skin prep done', required: false },
+                skinPrep: {
+                    type: 'object',
+                    label: 'Skin Prep Details',
+                    required: false,
+                    subFields: {
+                        agent: {
+                            type: 'enum',
+                            label: 'Prep Agent',
+                            required: true,
+                            options: ['HIBITANE_SPIRIT', 'HIBITANE_WATER', 'POVIDONE_IODINE', 'ALCOHOL', 'OTHER'],
+                        },
+                        agentOther: { type: 'string', label: 'Agent (specify)', required: false, showIf: { agent: 'OTHER' } },
+                        area: {
+                            type: 'enum',
+                            label: 'Prep Area',
+                            required: true,
+                            options: ['FACE', 'ABDOMEN', 'BREAST', 'EXTREMITY', 'NECK', 'PERINEUM', 'BACK', 'OTHER'],
+                        },
+                        areaOther: { type: 'string', label: 'Area (specify)', required: false, showIf: { area: 'OTHER' } },
+                        performerName: { type: 'string', label: 'Prep performed by', required: false },
+                    },
+                },
                 idBandOn: { type: 'boolean', label: 'ID band on', required: true },
                 correctPositioning: { type: 'boolean', label: 'Correct positioning verified', required: false },
                 jewelryRemoved: { type: 'boolean', label: 'Jewelry removed', required: true },
@@ -86,11 +108,18 @@ const NURSE_PREOP_WARD_CHECKLIST_SCHEMA = {
                 pulse: { type: 'number', label: 'Pulse (bpm)', required: true, min: 30, max: 220 },
                 respiratoryRate: { type: 'number', label: 'Respiratory rate (/min)', required: true, min: 6, max: 60 },
                 temperature: { type: 'number', label: 'Temperature (°C)', required: true, min: 34.0, max: 42.0 },
+                spo2: { type: 'number', label: 'SpO₂ (%)', required: false, min: 50, max: 100 },
                 cvp: { type: 'string', label: 'CVP (if applicable)', required: false },
                 bladderEmptied: { type: 'boolean', label: 'Bladder emptied', required: true },
                 height: { type: 'number', label: 'Height (cm)', required: false, min: 50, max: 250 },
                 weight: { type: 'number', label: 'Weight (kg)', required: true, min: 2, max: 350 },
-                urinalysis: { type: 'string', label: 'Urinalysis results', required: false },
+                urinalysis: {
+                    type: 'enum',
+                    label: 'Urinalysis results',
+                    required: false,
+                    options: ['CLEAR', 'CLOUDY', 'BLOOD_TRACE', 'GLUCOSE', 'PROTEIN', 'OTHER'],
+                    allowCustom: true,
+                },
                 xRaysScansPresent: { type: 'boolean', label: 'X-rays / scans present', required: false },
                 otherFormsRequired: { type: 'string', label: 'Other forms required / notes', required: false },
             },
@@ -183,28 +212,32 @@ const NURSE_INTRAOP_RECORD_SCHEMA = {
         specimens: {
             title: 'Specimens',
             fields: {
-                specimens: { type: 'array', label: 'Specimen Items', required: false, itemFields: {
-                    specimenType: { type: 'string', label: 'Specimen Type', required: true },
-                    site: { type: 'string', label: 'Site', required: true },
-                    destinationLab: { type: 'string', label: 'Destination Lab', required: true },
-                    timeSent: { type: 'string', label: 'Time Sent', required: false, format: 'HH:MM' },
-                    notes: { type: 'string', label: 'Notes', required: false },
-                }},
+                specimens: {
+                    type: 'array', label: 'Specimen Items', required: false, itemFields: {
+                        specimenType: { type: 'string', label: 'Specimen Type', required: true },
+                        site: { type: 'string', label: 'Site', required: true },
+                        destinationLab: { type: 'string', label: 'Destination Lab', required: true },
+                        timeSent: { type: 'string', label: 'Time Sent', required: false, format: 'HH:MM' },
+                        notes: { type: 'string', label: 'Notes', required: false },
+                    }
+                },
             },
         },
         implantsUsed: {
             title: 'Implants / Prostheses Used',
             fields: {
                 implantsConfirmed: { type: 'boolean', label: 'Implants Confirmed', required: true },
-                items: { type: 'array', label: 'Implant Items', required: false, itemFields: {
-                    name: { type: 'string', label: 'Implant Name', required: true },
-                    manufacturer: { type: 'string', label: 'Manufacturer', required: false },
-                    lotNumber: { type: 'string', label: 'Lot Number', required: false },
-                    serialNumber: { type: 'string', label: 'Serial Number', required: false },
-                    expiryDate: { type: 'string', label: 'Expiry Date', required: false },
-                    used: { type: 'boolean', label: 'Used', required: true },
-                    notes: { type: 'string', label: 'Notes', required: false },
-                }},
+                items: {
+                    type: 'array', label: 'Implant Items', required: false, itemFields: {
+                        name: { type: 'string', label: 'Implant Name', required: true },
+                        manufacturer: { type: 'string', label: 'Manufacturer', required: false },
+                        lotNumber: { type: 'string', label: 'Lot Number', required: false },
+                        serialNumber: { type: 'string', label: 'Serial Number', required: false },
+                        expiryDate: { type: 'string', label: 'Expiry Date', required: false },
+                        used: { type: 'boolean', label: 'Used', required: true },
+                        notes: { type: 'string', label: 'Notes', required: false },
+                    }
+                },
             },
         },
         signOut: {
@@ -354,11 +387,13 @@ const SURGEON_OPERATIVE_NOTE_SCHEMA = {
                 side: { type: 'string', label: 'Laterality / Side', required: false },
                 surgeonId: { type: 'string', label: 'Surgeon ID', required: true },
                 surgeonName: { type: 'string', label: 'Surgeon Name', required: false },
-                assistants: { type: 'array', label: 'Assistants', required: false, itemFields: {
-                    userId: { type: 'string', label: 'User ID', required: false },
-                    name: { type: 'string', label: 'Name', required: true },
-                    role: { type: 'string', label: 'Role', required: false },
-                }},
+                assistants: {
+                    type: 'array', label: 'Assistants', required: false, itemFields: {
+                        userId: { type: 'string', label: 'User ID', required: false },
+                        name: { type: 'string', label: 'Name', required: true },
+                        role: { type: 'string', label: 'Role', required: false },
+                    }
+                },
                 anesthesiaType: { type: 'enum', label: 'Anesthesia Type', required: true, options: ['GENERAL', 'REGIONAL', 'LOCAL', 'SEDATION', 'TIVA', 'MAC'] },
             },
         },
@@ -381,24 +416,28 @@ const SURGEON_OPERATIVE_NOTE_SCHEMA = {
         implantsUsed: {
             title: 'Implants Used',
             fields: {
-                implantsUsed: { type: 'array', label: 'Implants / Prostheses', required: false, itemFields: {
-                    name: { type: 'string', label: 'Implant Name', required: true },
-                    manufacturer: { type: 'string', label: 'Manufacturer', required: false },
-                    lotNumber: { type: 'string', label: 'Lot Number', required: false },
-                    serialNumber: { type: 'string', label: 'Serial Number', required: false },
-                    expiryDate: { type: 'string', label: 'Expiry Date', required: false },
-                }},
+                implantsUsed: {
+                    type: 'array', label: 'Implants / Prostheses', required: false, itemFields: {
+                        name: { type: 'string', label: 'Implant Name', required: true },
+                        manufacturer: { type: 'string', label: 'Manufacturer', required: false },
+                        lotNumber: { type: 'string', label: 'Lot Number', required: false },
+                        serialNumber: { type: 'string', label: 'Serial Number', required: false },
+                        expiryDate: { type: 'string', label: 'Expiry Date', required: false },
+                    }
+                },
             },
         },
         specimens: {
             title: 'Specimens',
             fields: {
-                specimens: { type: 'array', label: 'Specimen Items', required: false, itemFields: {
-                    type: { type: 'string', label: 'Specimen Type', required: true },
-                    site: { type: 'string', label: 'Site', required: true },
-                    destinationLab: { type: 'string', label: 'Destination Lab', required: true },
-                    timeSent: { type: 'string', label: 'Time Sent', required: false, format: 'HH:MM' },
-                }},
+                specimens: {
+                    type: 'array', label: 'Specimen Items', required: false, itemFields: {
+                        type: { type: 'string', label: 'Specimen Type', required: true },
+                        site: { type: 'string', label: 'Site', required: true },
+                        destinationLab: { type: 'string', label: 'Destination Lab', required: true },
+                        timeSent: { type: 'string', label: 'Time Sent', required: false, format: 'HH:MM' },
+                    }
+                },
             },
         },
         complications: {

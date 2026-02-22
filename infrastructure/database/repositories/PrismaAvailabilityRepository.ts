@@ -75,10 +75,16 @@ export class PrismaAvailabilityRepository implements IAvailabilityRepository {
       const startTime = daySlots[0].start_time;
       const endTime = daySlots[daySlots.length - 1].end_time;
 
+      // Ensure dayIndex is valid (0-6) and map to day name
+      // Note: dayIndex 0 = Sunday, which is valid, so we need to check explicitly
+      const dayName = (dayIndex >= 0 && dayIndex < daysOfWeek.length) 
+        ? daysOfWeek[dayIndex] 
+        : 'Monday'; // Fallback only if dayIndex is out of range
+      
       workingDays.push({
         id: workingDayId,
         doctorId: doctorId,
-        day: daysOfWeek[dayIndex] || 'Monday',
+        day: dayName,
         startTime,
         endTime,
         isAvailable: true,
@@ -192,12 +198,13 @@ export class PrismaAvailabilityRepository implements IAvailabilityRepository {
   }
 
   async saveWorkingDays(doctorId: string, workingDays: WorkingDay[]): Promise<void> {
-    // 1. Find or create template
+    // 1. Find existing template (active or inactive) or create new one
     let template = await this.prisma.availabilityTemplate.findFirst({
-      where: { doctor_id: doctorId, is_active: true }
+      where: { doctor_id: doctorId }
     });
 
     if (!template) {
+      // Create new template if none exists
       template = await this.prisma.availabilityTemplate.create({
         data: {
           doctor_id: doctorId,
@@ -205,6 +212,20 @@ export class PrismaAvailabilityRepository implements IAvailabilityRepository {
           is_active: true
         }
       });
+    } else if (!template.is_active) {
+      // Activate existing template if it was inactive
+      // Also deactivate any other active templates for this doctor
+      await this.prisma.$transaction([
+        this.prisma.availabilityTemplate.updateMany({
+          where: { doctor_id: doctorId, is_active: true },
+          data: { is_active: false }
+        }),
+        this.prisma.availabilityTemplate.update({
+          where: { id: template.id },
+          data: { is_active: true }
+        })
+      ]);
+      template.is_active = true;
     }
 
     const daysMap: Record<string, number> = {

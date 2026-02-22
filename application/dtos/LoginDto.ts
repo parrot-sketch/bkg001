@@ -3,17 +3,29 @@
  * 
  * Data transfer object for user login request.
  */
-export interface LoginDto {
-  /**
-   * User's email address
-   */
-  email: string;
 
-  /**
-   * User's plain text password
-   */
-  password: string;
-}
+import { z } from 'zod';
+
+/**
+ * Zod schema for login request validation
+ */
+export const loginDtoSchema = z.object({
+  email: z
+    .string()
+    .min(1, 'Email is required')
+    .email('Please enter a valid email address')
+    .toLowerCase()
+    .trim(),
+  password: z
+    .string()
+    .min(1, 'Password is required')
+    .min(8, 'Password must be at least 8 characters'),
+});
+
+/**
+ * Type inferred from Zod schema
+ */
+export type LoginDto = z.infer<typeof loginDtoSchema>;
 
 /**
  * DTO: LoginResponseDto

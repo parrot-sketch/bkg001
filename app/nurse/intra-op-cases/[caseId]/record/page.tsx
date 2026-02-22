@@ -246,6 +246,8 @@ interface SectionProps {
     data: NurseIntraOpRecordDraft;
     onChange: (data: NurseIntraOpRecordDraft) => void;
     disabled: boolean;
+    /** Server-side staffing suggestions from accepted StaffInvites */
+    suggestedStaffing?: Record<string, string>;
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -348,19 +350,65 @@ function TimingsSection({ data, onChange, disabled }: SectionProps) {
     );
 }
 
-function StaffingSection({ data, onChange, disabled }: SectionProps) {
+function StaffingSection({ data, onChange, disabled, suggestedStaffing }: SectionProps) {
     const d = data.staffing ?? {};
     const set = (field: string, value: any) =>
         onChange({ ...data, staffing: { ...d, [field]: value } });
 
+    // Show import banner if suggestions exist and staffing fields are mostly empty
+    const staffingEmpty =
+        !d.surgeon && !d.assistant && !d.anaesthesiologist && !d.scrubNurse && !d.circulatingNurse;
+    const hasAnySuggestion = suggestedStaffing &&
+        Object.values(suggestedStaffing).some((v) => v && v.trim());
+    const showImportBanner = !disabled && hasAnySuggestion && staffingEmpty;
+
+    const handleImport = () => {
+        if (!suggestedStaffing) return;
+        onChange({
+            ...data,
+            staffing: {
+                ...d,
+                surgeon: suggestedStaffing.surgeon || d.surgeon || '',
+                assistant: suggestedStaffing.assistant || d.assistant || '',
+                anaesthesiologist: suggestedStaffing.anaesthesiologist || d.anaesthesiologist || '',
+                scrubNurse: suggestedStaffing.scrubNurse || d.scrubNurse || '',
+                circulatingNurse: suggestedStaffing.circulatingNurse || d.circulatingNurse || '',
+            },
+        });
+    };
+
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <TextField label="Surgeon" value={d.surgeon} onChange={(v) => set('surgeon', v)} disabled={disabled} />
-            <TextField label="Assistant" value={d.assistant} onChange={(v) => set('assistant', v)} disabled={disabled} />
-            <TextField label="Anaesthesiologist" value={d.anaesthesiologist} onChange={(v) => set('anaesthesiologist', v)} disabled={disabled} />
-            <TextField label="Scrub Nurse" value={d.scrubNurse} onChange={(v) => set('scrubNurse', v)} disabled={disabled} />
-            <TextField label="Circulating Nurse" value={d.circulatingNurse} onChange={(v) => set('circulatingNurse', v)} disabled={disabled} />
-            <TextField label="Observers / Other" value={d.observers} onChange={(v) => set('observers', v)} disabled={disabled} />
+        <div className="space-y-4">
+            {showImportBanner && (
+                <div className="flex items-center justify-between gap-3 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <Users className="h-4 w-4 text-indigo-600 shrink-0" />
+                        <div className="text-sm text-indigo-800 leading-tight">
+                            <span className="font-semibold">Surgical plan team available.</span>
+                            <span className="text-indigo-600 ml-1 text-xs">
+                                Dr. {suggestedStaffing?.surgeon || '—'}{suggestedStaffing?.scrubNurse ? ` · Scrub: ${suggestedStaffing.scrubNurse}` : ''}
+                            </span>
+                        </div>
+                    </div>
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0 border-indigo-300 text-indigo-700 hover:bg-indigo-100 text-xs h-7 px-2"
+                        onClick={handleImport}
+                    >
+                        Import Team
+                    </Button>
+                </div>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <TextField label="Surgeon" value={d.surgeon} onChange={(v) => set('surgeon', v)} disabled={disabled} />
+                <TextField label="Assistant" value={d.assistant} onChange={(v) => set('assistant', v)} disabled={disabled} />
+                <TextField label="Anaesthesiologist" value={d.anaesthesiologist} onChange={(v) => set('anaesthesiologist', v)} disabled={disabled} />
+                <TextField label="Scrub Nurse" value={d.scrubNurse} onChange={(v) => set('scrubNurse', v)} disabled={disabled} />
+                <TextField label="Circulating Nurse" value={d.circulatingNurse} onChange={(v) => set('circulatingNurse', v)} disabled={disabled} />
+                <TextField label="Observers / Other" value={d.observers} onChange={(v) => set('observers', v)} disabled={disabled} />
+            </div>
         </div>
     );
 }
@@ -409,16 +457,20 @@ function PositioningSection({ data, onChange, disabled }: SectionProps) {
             <Separator />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
                 <div className="space-y-2">
-                    <BooleanField label="Safety belt applied" value={d.safetyBeltApplied} onChange={(v) => set('safetyBeltApplied', v)} disabled={disabled} />
-                    {d.safetyBeltApplied && <TextField label="Belt Position" value={d.safetyBeltPosition} onChange={(v) => set('safetyBeltPosition', v)} disabled={disabled} />}
-                </div>
-                <div className="space-y-2">
                     <BooleanField label="Arms secured" value={d.armsSecured} onChange={(v) => set('armsSecured', v)} disabled={disabled} />
                     {d.armsSecured && <TextField label="Arms Position" value={d.armsPosition} onChange={(v) => set('armsPosition', v)} disabled={disabled} />}
                 </div>
+                <div className="space-y-2">
+                    <BooleanField label="Safety belt applied" value={d.safetyBeltApplied} onChange={(v) => set('safetyBeltApplied', v)} disabled={disabled} />
+                    {d.safetyBeltApplied && <TextField label="Belt Position" value={d.safetyBeltPosition} onChange={(v) => set('safetyBeltPosition', v)} disabled={disabled} />}
+                </div>
+                <BooleanField label="Pressure points padding checked" value={d.pressurePointsPaddingChecked} onChange={(v) => set('pressurePointsPaddingChecked', v)} disabled={disabled} />
+                <BooleanField label="Body alignment checked" value={d.bodyAlignmentChecked} onChange={(v) => set('bodyAlignmentChecked', v)} disabled={disabled} />
+                {/* Legacy fields for backward compatibility */}
                 <BooleanField label="Patient in proper body alignment" value={d.bodyAlignmentCorrect} onChange={(v) => set('bodyAlignmentCorrect', v)} disabled={disabled} />
                 <TextField label="Pressure points (describe)" value={d.pressurePointsDescribe} onChange={(v) => set('pressurePointsDescribe', v)} disabled={disabled} />
             </div>
+            <TextField label="Notes" value={d.notes} onChange={(v) => set('notes', v)} disabled={disabled} placeholder="Additional positioning notes..." />
         </div>
     );
 }
@@ -449,7 +501,6 @@ function SkinPrepSection({ data, onChange, disabled }: SectionProps) {
 
     return (
         <div className="space-y-4">
-            <TextField label="Shaved by" value={d.shavedBy} onChange={(v) => set('shavedBy', v)} disabled={disabled} />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                     <Label className="text-sm">Prep Agent</Label>
@@ -457,14 +508,20 @@ function SkinPrepSection({ data, onChange, disabled }: SectionProps) {
                         <SelectTrigger className="h-9"><SelectValue placeholder="Agent" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="HIBITANE_SPIRIT">Hibitane in spirit</SelectItem>
-                            <SelectItem value="POVIDONE_IODINE">Povidone Iodine</SelectItem>
                             <SelectItem value="HIBITANE_WATER">Hibitane in water</SelectItem>
+                            <SelectItem value="POVIDONE_IODINE">Povidone Iodine</SelectItem>
                             <SelectItem value="OTHER">Other</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
                 {d.prepAgent === 'OTHER' && <TextField label="Other Agent" value={d.otherPrepAgent} onChange={(v) => set('otherPrepAgent', v)} disabled={disabled} />}
             </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <TextField label="Prep Area" value={d.prepArea} onChange={(v) => set('prepArea', v)} disabled={disabled} placeholder="e.g., Abdomen, Face" />
+                <TextField label="Prepped By" value={d.prepPerformedBy} onChange={(v) => set('prepPerformedBy', v)} disabled={disabled} placeholder="Name of person who prepped" />
+            </div>
+            {/* Legacy fields for backward compatibility */}
+            <TextField label="Shaved by" value={d.shavedBy} onChange={(v) => set('shavedBy', v)} disabled={disabled} />
         </div>
     );
 }
@@ -487,7 +544,7 @@ function EquipmentSection({ data, onChange, disabled }: SectionProps) {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <BooleanField label="Cautery Used" value={el.cauteryUsed} onChange={(v) => setEl('cauteryUsed', v)} disabled={disabled} />
-                    <TextField label="Unit No." value={el.unitNo} onChange={(v) => setEl('unitNo', v)} disabled={disabled} />
+                    <TextField label="Unit Number" value={el.cauteryUnitNumber || el.unitNo} onChange={(v) => setEl('cauteryUnitNumber', v)} disabled={disabled} />
                     <TextField label="Mode" value={el.mode} onChange={(v) => setEl('mode', v)} disabled={disabled} />
                     <div className="grid grid-cols-2 gap-4">
                         <TextField label="Cut Set" value={el.cutSet} onChange={(v) => setEl('cutSet', v)} disabled={disabled} />
@@ -495,8 +552,9 @@ function EquipmentSection({ data, onChange, disabled }: SectionProps) {
                     </div>
                 </div>
                 <div className="flex items-center gap-8 mt-2">
-                    <BooleanField label="Skin Checked (Before)" value={el.skinCheckedBefore} onChange={(v) => setEl('skinCheckedBefore', v)} disabled={disabled} />
-                    <BooleanField label="Skin Checked (After)" value={el.skinCheckedAfter} onChange={(v) => setEl('skinCheckedAfter', v)} disabled={disabled} />
+                    <BooleanField label="Skin Checked (Before)" value={el.skinCheckBefore || el.skinCheckedBefore} onChange={(v) => setEl('skinCheckBefore', v)} disabled={disabled} />
+                    <BooleanField label="Skin Checked (After)" value={el.skinCheckAfter || el.skinCheckedAfter} onChange={(v) => setEl('skinCheckAfter', v)} disabled={disabled} />
+                    <BooleanField label="Patient Earth Plate Checked" value={el.patientEarthPlateChecked} onChange={(v) => setEl('patientEarthPlateChecked', v)} disabled={disabled} />
                 </div>
             </div>
 
@@ -665,13 +723,68 @@ function CountsSection({ data, onChange, disabled }: SectionProps) {
     );
 }
 
+// ── Closure type enums (inline — mirrors domain labels) ────────────
+const SKIN_CLOSURE_OPTIONS = [
+    { value: 'SUTURES', label: 'Sutures' },
+    { value: 'STAPLES', label: 'Staples' },
+    { value: 'STERI_STRIPS', label: 'Steri-Strips' },
+    { value: 'GLUE', label: 'Tissue Glue' },
+    { value: 'SECONDARY', label: 'Secondary Closure' },
+    { value: 'OTHER', label: 'Other' },
+];
+const SKIN_CLOSURE_VALUES = SKIN_CLOSURE_OPTIONS.map((o) => o.value);
+
+const DRESSING_TYPE_OPTIONS = [
+    { value: 'DRY', label: 'Dry Dressing' },
+    { value: 'WET', label: 'Wet Dressing' },
+    { value: 'TRANSPARENT', label: 'Transparent Film' },
+    { value: 'PRESSURE', label: 'Pressure Dressing' },
+    { value: 'TULLE', label: 'Tulle Gras' },
+    { value: 'OTHER', label: 'Other' },
+];
+const DRESSING_TYPE_VALUES = DRESSING_TYPE_OPTIONS.map((o) => o.value);
+
 function FluidsSection({ data, onChange, disabled }: SectionProps) {
     const d = data.fluids ?? {};
     const set = (field: string, value: any) =>
         onChange({ ...data, fluids: { ...d, [field]: value } });
 
+    const ebl = typeof d.estimatedBloodLossMl === 'number' ? d.estimatedBloodLossMl : 0;
+    const urine = typeof d.urinaryOutputMl === 'number' ? d.urinaryOutputMl : 0;
+    const catheterInserted = !!(data.catheter?.inSitu || data.catheter?.insertedInTheatre || data.catheter?.catheterInserted);
+
+    const eblCritical = ebl > 1500;
+    const eblWarning = !eblCritical && ebl > 500;
+    const urineLow = catheterInserted && urine < 30 && urine >= 0;
+
     return (
         <div className="space-y-6">
+            {/* ── Soft Warning Banners ───────────────────────────── */}
+            {eblCritical && (
+                <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-300 rounded-lg">
+                    <span className="text-red-600 font-bold text-sm shrink-0">🔴 Critical</span>
+                    <p className="text-sm text-red-700">
+                        <strong>Blood loss ≥ 1500 mL</strong> — Verify transfusion records and notify surgeon. Check haemostasis status.
+                    </p>
+                </div>
+            )}
+            {eblWarning && (
+                <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-300 rounded-lg">
+                    <span className="text-amber-600 font-bold text-sm shrink-0">⚠ Warning</span>
+                    <p className="text-sm text-amber-800">
+                        <strong>Blood loss &gt; 500 mL</strong> — Ensure transfusion record is up to date.
+                    </p>
+                </div>
+            )}
+            {urineLow && (
+                <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-300 rounded-lg">
+                    <span className="text-amber-600 font-bold text-sm shrink-0">⚠ Warning</span>
+                    <p className="text-sm text-amber-800">
+                        <strong>Urine output &lt; 30 mL</strong> — Consider oliguria protocol. Notify anaesthetist.
+                    </p>
+                </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 <div className="space-y-4">
                     <h4 className="text-xs font-bold uppercase tracking-widest text-slate-400">Intravenous Infusion / Transfusions</h4>
@@ -836,22 +949,84 @@ function ClosureAndFinalSection({ data, onChange, disabled }: SectionProps) {
     const set = (field: string, value: any) =>
         onChange({ ...data, closure: { ...d, [field]: value } });
 
+    // Backward compat: if stored value is not in enum, show as "OTHER" with free text
+    const skinClosureValue = SKIN_CLOSURE_VALUES.includes(d.skinClosure || '') ? (d.skinClosure || '') : (d.skinClosure ? 'OTHER' : '');
+    const dressingValue = DRESSING_TYPE_VALUES.includes(d.dressingApplied || '') ? (d.dressingApplied || '') : (d.dressingApplied ? 'OTHER' : '');
+
     return (
         <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Skin Closure Type */}
                 <div className="space-y-1.5">
-                    <Label className="text-sm">Skin Closure</Label>
-                    <Select value={d.skinClosure || ''} onValueChange={(v) => set('skinClosure', v)} disabled={disabled}>
-                        <SelectTrigger className="h-9"><SelectValue placeholder="Closure method" /></SelectTrigger>
+                    <Label className="text-sm">Closure Type</Label>
+                    <Select
+                        value={d.closureType || skinClosureValue || ''}
+                        onValueChange={(v) => {
+                            if (['ABSORBABLE', 'NON_ABSORBABLE', 'STAPLES', 'GLUE'].includes(v)) {
+                                set('closureType', v);
+                            } else {
+                                // Legacy support
+                                set('skinClosure', v);
+                                if (v !== 'OTHER') set('skinClosureOther', undefined);
+                            }
+                        }}
+                        disabled={disabled}
+                    >
+                        <SelectTrigger className="h-9"><SelectValue placeholder="Select closure type" /></SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="NON_ABSORBABLE">Non-Absorbable</SelectItem>
                             <SelectItem value="ABSORBABLE">Absorbable</SelectItem>
-                            <SelectItem value="OTHER">Other</SelectItem>
+                            <SelectItem value="NON_ABSORBABLE">Non-Absorbable</SelectItem>
+                            <SelectItem value="STAPLES">Staples</SelectItem>
+                            <SelectItem value="GLUE">Glue</SelectItem>
+                            {/* Legacy options for backward compatibility */}
+                            {SKIN_CLOSURE_OPTIONS.filter(opt => !['ABSORBABLE', 'NON_ABSORBABLE', 'STAPLES', 'GLUE'].includes(opt.value)).map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
+                    {skinClosureValue === 'OTHER' && !d.closureType && (
+                        <input
+                            type="text"
+                            className="mt-1 w-full border rounded-md h-9 px-3 text-sm"
+                            placeholder="Specify closure method..."
+                            defaultValue={SKIN_CLOSURE_VALUES.includes(d.skinClosure || '') ? '' : (d.skinClosure || '')}
+                            onChange={(e) => set('skinClosure', e.target.value || 'OTHER')}
+                            disabled={disabled}
+                        />
+                    )}
                 </div>
-                <TextField label="Dressing Applied" value={d.dressingApplied} onChange={(v) => set('dressingApplied', v)} disabled={disabled} />
+
+                {/* Dressing Type */}
+                <div className="space-y-1.5">
+                    <Label className="text-sm">Dressing Applied</Label>
+                    <Select
+                        value={dressingValue}
+                        onValueChange={(v) => {
+                            set('dressingApplied', v);
+                            if (v !== 'OTHER') set('dressingOther', undefined);
+                        }}
+                        disabled={disabled}
+                    >
+                        <SelectTrigger className="h-9"><SelectValue placeholder="Select dressing" /></SelectTrigger>
+                        <SelectContent>
+                            {DRESSING_TYPE_OPTIONS.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    {dressingValue === 'OTHER' && (
+                        <input
+                            type="text"
+                            className="mt-1 w-full border rounded-md h-9 px-3 text-sm"
+                            placeholder="Specify dressing type..."
+                            defaultValue={DRESSING_TYPE_VALUES.includes(d.dressingApplied || '') ? '' : (d.dressingApplied || '')}
+                            onChange={(e) => set('dressingApplied', e.target.value || 'OTHER')}
+                            disabled={disabled}
+                        />
+                    )}
+                </div>
             </div>
+            <TextField label="Count Verified By" value={d.countVerifiedBy} onChange={(v) => set('countVerifiedBy', v)} disabled={disabled} />
         </div>
     );
 }

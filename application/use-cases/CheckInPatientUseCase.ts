@@ -95,8 +95,39 @@ export class CheckInPatientUseCase {
       );
     }
 
-    // Step 3: Calculate if patient is late
+    // Step 3: Validate appointment date (prevent early check-in)
     const now = this.timeService.now();
+    const appointmentDate = new Date(appointment.getAppointmentDate());
+    
+    // Normalize dates to midnight in local timezone for accurate comparison
+    // This handles timezone issues where dates might be stored in UTC but compared in local time
+    const appointmentDateOnly = new Date(
+      appointmentDate.getFullYear(),
+      appointmentDate.getMonth(),
+      appointmentDate.getDate()
+    );
+    const todayOnly = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    );
+
+    // Prevent checking in for future appointments
+    // Allow same-day check-ins even if appointment time hasn't arrived yet
+    if (appointmentDateOnly.getTime() > todayOnly.getTime()) {
+      const daysUntil = Math.ceil((appointmentDateOnly.getTime() - todayOnly.getTime()) / (1000 * 60 * 60 * 24));
+      throw new DomainException(
+        `Cannot check in patient for a future appointment. This appointment is scheduled for ${appointmentDate.toLocaleDateString()} (${daysUntil} day${daysUntil !== 1 ? 's' : ''} from now). Please check in the patient on or after the appointment date.`,
+        {
+          appointmentId: dto.appointmentId,
+          appointmentDate: appointmentDate.toISOString(),
+          currentDate: now.toISOString(),
+          daysUntil,
+        }
+      );
+    }
+
+    // Step 4: Calculate if patient is late (only for same-day appointments)
     const appointmentDateTime = new Date(appointment.getAppointmentDate());
     const [hours, minutes] = appointment.getTime().split(':').map(Number);
     appointmentDateTime.setHours(hours, minutes, 0, 0);
@@ -106,7 +137,7 @@ export class CheckInPatientUseCase {
       ? Math.floor((now.getTime() - appointmentDateTime.getTime()) / (1000 * 60))
       : null;
 
-    // Step 4: Update appointment status to CHECKED_IN
+    // Step 5: Update appointment status to CHECKED_IN
     // If already CHECKED_IN, checking idempotent behavior (just update notes/timestamp if needed)
     let updatedAppointment = appointment;
     const currentStatus = appointment.getStatus();
@@ -119,10 +150,10 @@ export class CheckInPatientUseCase {
         AppointmentStatus.CHECKED_IN,
       );
 
-      // Step 5: Save updated appointment status
+      // Step 6: Save updated appointment status
       await this.appointmentRepository.update(updatedAppointment);
 
-      // Step 6: Update check-in tracking fields directly via Prisma
+      // Step 7: Update check-in tracking fields directly via Prisma
       await db.appointment.update({
         where: { id: dto.appointmentId },
         data: {
@@ -136,7 +167,7 @@ export class CheckInPatientUseCase {
         } as any,
       });
 
-      // Step 7: Record audit event
+      // Step 8: Record audit event
       const lateMessage = isLate ? ` (${lateByMinutes} minutes late)` : '';
       await this.auditService.recordEvent({
         userId: dto.userId,
@@ -172,7 +203,7 @@ export class CheckInPatientUseCase {
       });
     }
 
-    // Step 6: Map domain entity to response DTO
+    // Step 9: Map domain entity to response DTO
     return ApplicationAppointmentMapper.toResponseDto(updatedAppointment);
   }
 }

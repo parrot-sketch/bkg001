@@ -20,7 +20,6 @@ import { ConsoleAuditService } from '@/infrastructure/services/ConsoleAuditServi
 import { LoginUseCase } from '@/application/use-cases/LoginUseCase';
 import { RefreshTokenUseCase } from '@/application/use-cases/RefreshTokenUseCase';
 import { LogoutUseCase } from '@/application/use-cases/LogoutUseCase';
-import { RegisterPublicUserUseCase } from '@/application/use-cases/RegisterPublicUserUseCase';
 import { PrismaClient } from '@prisma/client';
 
 /**
@@ -73,7 +72,6 @@ export function createAuthUseCases(
   loginUseCase: LoginUseCase;
   refreshTokenUseCase: RefreshTokenUseCase;
   logoutUseCase: LogoutUseCase;
-  registerPublicUserUseCase: RegisterPublicUserUseCase;
 } {
   const userRepository = new PrismaUserRepository(prisma);
   const auditService = new ConsoleAuditService();
@@ -83,11 +81,6 @@ export function createAuthUseCases(
     loginUseCase: new LoginUseCase(authService, userRepository, auditService),
     refreshTokenUseCase: new RefreshTokenUseCase(authService),
     logoutUseCase: new LogoutUseCase(authService, auditService),
-    registerPublicUserUseCase: new RegisterPublicUserUseCase(
-      authService,
-      userRepository,
-      auditService
-    ),
   };
 }
 

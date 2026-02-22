@@ -9,6 +9,10 @@ import { AppointmentResponseDto } from '../dtos/AppointmentResponseDto';
 import { AppointmentMapper } from '../mappers/AppointmentMapper';
 import { DomainException } from '../../domain/exceptions/DomainException';
 import { ValidateAppointmentAvailabilityUseCase } from './ValidateAppointmentAvailabilityUseCase';
+import { PrismaClient } from '@prisma/client';
+import { createNotification } from '@/lib/notifications/createNotification';
+import { Role } from '@/domain/enums/Role';
+import { format } from 'date-fns';
 
 /**
  * Use Case: RescheduleAppointmentUseCase
@@ -31,6 +35,7 @@ export class RescheduleAppointmentUseCase {
         private readonly auditService: IAuditService,
         private readonly timeService: ITimeService,
         private readonly validateAvailabilityUseCase: ValidateAppointmentAvailabilityUseCase,
+        private readonly prisma: PrismaClient,
     ) {
         if (!appointmentRepository) throw new Error('AppointmentRepository is required');
         if (!patientRepository) throw new Error('PatientRepository is required');
@@ -38,6 +43,7 @@ export class RescheduleAppointmentUseCase {
         if (!auditService) throw new Error('AuditService is required');
         if (!timeService) throw new Error('TimeService is required');
         if (!validateAvailabilityUseCase) throw new Error('ValidateAvailabilityUseCase is required');
+        if (!prisma) throw new Error('PrismaClient is required');
     }
 
     async execute(dto: RescheduleAppointmentDto, userId: string): Promise<AppointmentResponseDto> {
@@ -54,23 +60,16 @@ export class RescheduleAppointmentUseCase {
         // 2. Validate new slot availability
         const newDate = typeof dto.newDate === 'string' ? new Date(dto.newDate) : dto.newDate;
 
-        // We assume default duration from appointment type or existing duration? 
-        // Appointment entity doesn't seem to store duration directly, usually derived from slots.
-        // For now, let's assume 30 mins or fetch from slot config. 
-        // Ideally we should get this from the appointment or doctor config.
-        // ValidateAppointmentAvailabilityUseCase requires duration.
-        // Let's default to 15 mins (standard slot) or try to adhere to existing.
-        // Given we don't have easy access to duration here without doctor config, 
-        // and this is an "Override" by doctor, we might trust the doctor's choice 
-        // BUT the requirement is to lock the slot.
-        // Let's use a safe default of 15 or 30 mins. 
-        const duration = 30; // Standard consultation duration
+        // Use the appointment's actual duration, or default to 30 minutes
+        // The duration is stored in the appointment entity from when it was created
+        const duration = appointment.getDurationMinutes() || 30;
 
         const availabilityResult = await this.validateAvailabilityUseCase.execute({
             doctorId: appointment.getDoctorId(),
             date: newDate,
             time: dto.newTime,
-            duration: duration
+            duration: duration,
+            excludeAppointmentId: appointment.getId() // Exclude the appointment being rescheduled from conflict check
         });
 
         if (!availabilityResult.isAvailable) {
@@ -107,6 +106,74 @@ export class RescheduleAppointmentUseCase {
             } catch (error) {
                 console.error('Failed to send reschedule notification', error);
             }
+        }
+
+        // 5b. Notify Frontdesk User (if appointment was created by frontdesk)
+        try {
+            const rawAppointment = await this.prisma.appointment.findUnique({
+                where: { id: dto.appointmentId },
+                include: {
+                    created_by_user: {
+                        select: {
+                            id: true,
+                            role: true,
+                            first_name: true,
+                            last_name: true,
+                        },
+                    },
+                    patient: {
+                        select: {
+                            first_name: true,
+                            last_name: true,
+                            file_number: true,
+                        },
+                    },
+                    doctor: {
+                        select: {
+                            name: true,
+                        },
+                    },
+                },
+            });
+
+            // If appointment was created by a frontdesk user, notify them
+            if (
+                rawAppointment?.created_by_user_id &&
+                rawAppointment.created_by_user &&
+                rawAppointment.created_by_user.role === Role.FRONTDESK
+            ) {
+                const patientName = rawAppointment.patient
+                    ? `${rawAppointment.patient.first_name} ${rawAppointment.patient.last_name}`
+                    : 'Patient';
+                const doctorName = rawAppointment.doctor?.name || 'Doctor';
+
+                await createNotification({
+                    userId: rawAppointment.created_by_user_id,
+                    type: 'IN_APP',
+                    subject: 'Appointment Rescheduled',
+                    message: `${patientName} (File: ${rawAppointment.patient?.file_number || 'N/A'}) appointment with ${doctorName} has been rescheduled.\n\n` +
+                        `Old Time: ${oldDate.toLocaleDateString()} at ${oldTime}\n` +
+                        `New Time: ${newDate.toLocaleDateString()} at ${dto.newTime}\n\n` +
+                        `Please update your records and prepare for check-in on the new date.`,
+                    metadata: {
+                        resourceType: 'appointment',
+                        resourceId: dto.appointmentId,
+                        appointmentId: dto.appointmentId,
+                        oldDate: oldDate.toISOString(),
+                        oldTime,
+                        newDate: newDate.toISOString(),
+                        newDateFormatted: format(newDate, 'yyyy-MM-dd'),
+                        newTime: dto.newTime,
+                        reason: dto.reason,
+                        // Add navigation hint for frontdesk appointments page
+                        navigateTo: `/frontdesk/appointments?date=${format(newDate, 'yyyy-MM-dd')}&highlight=${dto.appointmentId}`,
+                    },
+                    senderId: userId,
+                });
+            }
+        } catch (error) {
+            console.error('Failed to notify frontdesk user of reschedule:', error);
+            // Don't throw - notification failure shouldn't break rescheduling
         }
 
         // 6. Audit

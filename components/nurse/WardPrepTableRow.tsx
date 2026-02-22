@@ -31,8 +31,10 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { useMarkCaseReady, useInventoryStatus } from '@/hooks/nurse/usePreOpCases';
+import { useMarkInTheater } from '@/hooks/nurse/useMarkInTheater';
 import type { PreOpSurgicalCase } from '@/lib/api/nurse';
 import { InventoryReadinessIndicator } from './InventoryReadinessIndicator';
+import { DoorOpen } from 'lucide-react';
 
 interface WardPrepTableRowProps {
     surgicalCase: PreOpSurgicalCase;
@@ -41,6 +43,7 @@ interface WardPrepTableRowProps {
 export function WardPrepTableRow({ surgicalCase }: WardPrepTableRowProps) {
     const router = useRouter();
     const markReady = useMarkCaseReady();
+    const markInTheater = useMarkInTheater();
     const readiness = surgicalCase.readiness;
 
     // Fetch inventory status
@@ -58,11 +61,20 @@ export function WardPrepTableRow({ surgicalCase }: WardPrepTableRowProps) {
         });
     };
 
-    const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
+    const handleMarkInTheater = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        markInTheater.mutate(surgicalCase.id);
+    };
+
+    const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive'; className?: string }> = {
         DRAFT: { label: 'Draft', variant: 'secondary' },
         PLANNING: { label: 'Planning', variant: 'default' },
-        READY_FOR_SCHEDULING: { label: 'Ready', variant: 'default' },
-        SCHEDULED: { label: 'Scheduled', variant: 'outline' },
+        READY_FOR_SCHEDULING: { label: 'Ready for Scheduling', variant: 'default', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+        SCHEDULED: { label: 'Scheduled', variant: 'outline', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+        IN_PREP: { label: 'In Pre-Op', variant: 'outline', className: 'bg-amber-50 text-amber-700 border-amber-200' },
+        IN_THEATER: { label: 'In Theater', variant: 'outline', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+        RECOVERY: { label: 'Recovery', variant: 'outline', className: 'bg-purple-50 text-purple-700 border-purple-200' },
+        COMPLETED: { label: 'Completed', variant: 'outline', className: 'bg-slate-50 text-slate-700 border-slate-200' },
     };
 
     const urgencyConfig: Record<string, { label: string; className: string }> = {
@@ -94,13 +106,22 @@ export function WardPrepTableRow({ surgicalCase }: WardPrepTableRowProps) {
             <TableCell>
                 <div className="flex flex-col gap-1.5">
                     <div className="flex items-center gap-1.5">
-                        <Badge variant={status.variant} className="text-[10px] px-1.5 py-0 h-5 font-medium border-slate-200">
+                        <Badge 
+                            variant={status.variant} 
+                            className={`text-[10px] px-1.5 py-0 h-5 font-medium ${status.className || 'border-slate-200'}`}
+                        >
                             {status.label}
                         </Badge>
                         <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${urgency.className}`}>
                             {urgency.label}
                         </span>
                     </div>
+                    {surgicalCase.status === 'IN_PREP' && (
+                        <span className="text-[10px] text-amber-600 font-medium flex items-center gap-1 mt-0.5">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Ready for theater
+                        </span>
+                    )}
                 </div>
             </TableCell>
 
@@ -202,6 +223,19 @@ export function WardPrepTableRow({ surgicalCase }: WardPrepTableRowProps) {
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem onClick={handleMarkReady} className="text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50">
                                         <CheckCircle2 className="mr-2 h-4 w-4" /> Mark as Ready
+                                    </DropdownMenuItem>
+                                </>
+                            )}
+                            {surgicalCase.status === 'IN_PREP' && (
+                                <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem 
+                                        onClick={handleMarkInTheater} 
+                                        className="text-amber-600 focus:text-amber-700 focus:bg-amber-50"
+                                        disabled={markInTheater.isPending}
+                                    >
+                                        <DoorOpen className="mr-2 h-4 w-4" /> 
+                                        {markInTheater.isPending ? 'Marking...' : 'Mark in Theater'}
                                     </DropdownMenuItem>
                                 </>
                             )}

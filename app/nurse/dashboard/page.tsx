@@ -9,9 +9,10 @@
 
 import { useAuth } from '@/hooks/patient/useAuth';
 import { useTodayCheckedInPatients } from '@/hooks/nurse/useNurseDashboard';
-import { usePreOpSummary } from '@/hooks/nurse/usePreOpCases';
+import { usePreOpSummary, usePreOpCases } from '@/hooks/nurse/usePreOpCases';
 import { useIntraOpCases } from '@/hooks/nurse/useIntraOpCases';
 import { useRecoveryCases } from '@/hooks/nurse/useRecoveryCases';
+import { useMarkInTheater } from '@/hooks/nurse/useMarkInTheater';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -21,7 +22,9 @@ import {
   Users,
   Calendar,
   ArrowRight,
-  Clock
+  Clock,
+  DoorOpen,
+  CheckCircle2
 } from 'lucide-react';
 import Link from 'next/link';
 import { NursePageHeader } from '@/components/nurse/NursePageHeader';
@@ -44,6 +47,17 @@ export default function NurseDashboardPage() {
     isLoading: loadingPreOp
   } = usePreOpSummary();
 
+  // Pre-op cases for "Ready for Theater" section
+  const {
+    data: preOpCasesData,
+    isLoading: loadingPreOpCases
+  } = usePreOpCases();
+
+  // Filter cases in IN_PREP status (ready for theater)
+  const readyForTheaterCases = preOpCasesData?.cases.filter(
+    (c) => c.status === 'IN_PREP'
+  ) || [];
+
   // 3. Theatre Support (Intra-Op Cases)
   const {
     data: intraOpData,
@@ -55,6 +69,9 @@ export default function NurseDashboardPage() {
     data: recoveryData,
     isLoading: loadingRecovery
   } = useRecoveryCases();
+
+  // Mark in theater mutation
+  const markInTheater = useMarkInTheater();
 
   if (authLoading) {
     return (
@@ -140,6 +157,82 @@ export default function NurseDashboardPage() {
           {/* Left Column: Active Surgeries & Clinic Flow (8 cols) */}
           <div className="xl:col-span-8 space-y-6">
 
+            {/* Ready for Theater Section - NEW */}
+            {readyForTheaterCases.length > 0 && (
+              <section className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/80 rounded-xl shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-amber-200/50 flex items-center justify-between bg-amber-50/50">
+                  <div className="flex items-center gap-2.5">
+                    <DoorOpen className="h-4 w-4 text-amber-600" />
+                    <h2 className="text-sm font-semibold text-slate-800">Ready for Theater</h2>
+                    <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300 text-[10px]">
+                      {readyForTheaterCases.length}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="p-4 space-y-3">
+                  {readyForTheaterCases.slice(0, 3).map((c) => (
+                    <div
+                      key={c.id}
+                      className="bg-white rounded-lg border border-amber-200/50 p-3 hover:shadow-sm transition-all"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-start gap-3">
+                          <div className="h-9 w-9 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-xs">
+                            {c.patient?.fullName?.split(' ').map(n => n[0]).join('').substring(0, 2) || 'P'}
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-medium text-slate-900">
+                              {c.patient?.fullName || 'Unknown Patient'}
+                            </h3>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-normal bg-slate-100 text-slate-600">
+                                {c.procedureName}
+                              </Badge>
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-emerald-50 text-emerald-700 border-emerald-200">
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                Pre-op Complete
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          className="h-8 text-xs bg-amber-600 hover:bg-amber-700"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markInTheater.mutate(c.id);
+                          }}
+                          disabled={markInTheater.isPending}
+                        >
+                          {markInTheater.isPending ? (
+                            <>
+                              <Clock className="h-3 w-3 mr-1 animate-spin" />
+                              Marking...
+                            </>
+                          ) : (
+                            <>
+                              <DoorOpen className="h-3 w-3 mr-1" />
+                              Mark in Theater
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  {readyForTheaterCases.length > 3 && (
+                    <div className="text-center pt-2">
+                      <Button variant="ghost" size="sm" className="text-xs" asChild>
+                        <Link href="/nurse/ward-prep">
+                          View {readyForTheaterCases.length - 3} more <ArrowRight className="ml-1 h-3 w-3" />
+                        </Link>
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
             {/* Active Surgeries Section */}
             <section className="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
               <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -184,6 +277,9 @@ export default function NurseDashboardPage() {
                               <div className="flex items-center gap-2 mt-1">
                                 <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 font-normal bg-slate-100 text-slate-600 border-slate-200">
                                   {c.procedureName}
+                                </Badge>
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-blue-50 text-blue-700 border-blue-200">
+                                  IN_THEATER
                                 </Badge>
                                 <span className="text-[10px] text-slate-400 flex items-center gap-1">
                                   <Clock className="h-3 w-3" /> Started {c.startTime ? format(new Date(c.startTime), 'HH:mm') : '--:--'}

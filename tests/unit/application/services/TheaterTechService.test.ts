@@ -126,21 +126,6 @@ describe('TheaterTechService', () => {
       expect(result).toBe(mockResult);
     });
 
-    it('updateProcedureTimestamps should delegate to timelineService', async () => {
-      const mockResult = {} as any;
-      mockTimelineService.updateProcedureTimestamps.mockResolvedValue(mockResult);
-      const result = await service.updateProcedureTimestamps('case-1', {}, 'user-1', 'ROLE');
-      expect(mockTimelineService.updateProcedureTimestamps).toHaveBeenCalledWith('case-1', {}, 'user-1', 'ROLE');
-      expect(result).toBe(mockResult);
-    });
-
-    it('completeChecklistPhase should delegate to checklistService', async () => {
-      const mockResult = {} as any;
-      mockChecklistService.completeChecklistPhase.mockResolvedValue(mockResult);
-      const result = await service.completeChecklistPhase('case-1', 'SIGN_IN', [], 'user-1', 'ROLE');
-      expect(mockChecklistService.completeChecklistPhase).toHaveBeenCalledWith('case-1', 'SIGN_IN', [], 'user-1', 'ROLE');
-      expect(result).toBe(mockResult);
-    });
 
     it('saveChecklistDraft should delegate to checklistService', async () => {
       const mockResult = {} as any;

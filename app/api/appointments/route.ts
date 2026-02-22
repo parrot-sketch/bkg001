@@ -14,14 +14,20 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
-import { authenticateRequest } from '@/lib/auth/jwt-helper';
+import { JwtMiddleware } from '@/lib/auth/middleware';
 import { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { extractConsultationRequestFields } from '@/infrastructure/mappers/ConsultationRequestMapper';
 import { ConsultationRequestStatus } from '@/domain/enums/ConsultationRequestStatus';
 import { DomainException } from '@/domain/exceptions/DomainException';
-import { isAppointmentSource } from '@/domain/enums/AppointmentSource';
+import { AppointmentSource, isAppointmentSource } from '@/domain/enums/AppointmentSource';
+import { BookingChannel, isBookingChannel } from '@/domain/enums/BookingChannel';
 import { subDays } from 'date-fns';
-import type { CreateAppointmentRequest } from '@/types/api-requests';
+import { createAppointmentRequestSchema, type CreateAppointmentRequest } from '@/application/dtos/CreateAppointmentRequest';
+import { handleApiSuccess, handleApiError } from '@/app/api/_utils/handleApiError';
+import { ValidationError } from '@/application/errors/ValidationError';
+import { ForbiddenError } from '@/application/errors/ForbiddenError';
+import { NotFoundError } from '@/application/errors/NotFoundError';
+import { Role } from '@/domain/enums/Role';
 
 /**
  * GET /api/appointments
@@ -34,15 +40,9 @@ import type { CreateAppointmentRequest } from '@/types/api-requests';
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     // 1. Authenticate request
-    const authResult = await authenticateRequest(request);
+    const authResult = await JwtMiddleware.authenticate(request);
     if (!authResult.success || !authResult.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: authResult.error || 'Authentication required',
-        },
-        { status: 401 }
-      );
+      return handleApiError(new ForbiddenError('Authentication required'));
     }
 
     const userId = authResult.user.userId;
@@ -95,9 +95,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       where.patient_id = patientIdParam;
     }
 
-    // Status filtering
+    // Status filtering (supports comma-separated values)
     if (statusParam) {
-      where.status = statusParam;
+      const statuses = statusParam.split(',').map(s => s.trim());
+      if (statuses.length === 1) {
+        // Single status value
+        where.status = statuses[0];
+      } else {
+        // Multiple status values - use 'in' operator
+        where.status = {
+          in: statuses,
+        };
+      }
     }
 
     // Consultation request status filtering
@@ -111,12 +120,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Date filtering
     if (dateParam) {
       // Filter by specific date (start and end of that day)
+      // Parse date string (YYYY-MM-DD) in local timezone to avoid UTC conversion issues
       try {
-        const targetDate = new Date(dateParam);
-        const startOfDay = new Date(targetDate);
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(targetDate);
-        endOfDay.setHours(23, 59, 59, 999);
+        const [year, month, day] = dateParam.split('-').map(Number);
+        if (isNaN(year) || isNaN(month) || isNaN(day)) {
+          throw new Error('Invalid date format');
+        }
+        
+        // Create date in local timezone (not UTC)
+        const startOfDay = new Date(year, month - 1, day, 0, 0, 0, 0);
+        const endOfDay = new Date(year, month - 1, day, 23, 59, 59, 999);
 
         where.appointment_date = {
           gte: startOfDay,
@@ -138,8 +151,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
       if (startDateParam) {
         try {
-          const startDate = new Date(startDateParam);
-          startDate.setHours(0, 0, 0, 0);
+          // Parse date string (YYYY-MM-DD) in local timezone
+          const [year, month, day] = startDateParam.split('-').map(Number);
+          if (isNaN(year) || isNaN(month) || isNaN(day)) {
+            throw new Error('Invalid date format');
+          }
+          const startDate = new Date(year, month - 1, day, 0, 0, 0, 0);
           dateRange.gte = startDate;
         } catch (error) {
           return NextResponse.json(
@@ -154,8 +171,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
       if (endDateParam) {
         try {
-          const endDate = new Date(endDateParam);
-          endDate.setHours(23, 59, 59, 999);
+          // Parse date string (YYYY-MM-DD) in local timezone
+          const [year, month, day] = endDateParam.split('-').map(Number);
+          if (isNaN(year) || isNaN(month) || isNaN(day)) {
+            throw new Error('Invalid date format');
+          }
+          const endDate = new Date(year, month - 1, day, 23, 59, 59, 999);
           dateRange.lte = endDate;
         } catch (error) {
           return NextResponse.json(
@@ -174,10 +195,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     } else if (upcomingParam === 'true') {
       // Filter for upcoming appointments (future dates)
+      // Use start of today in local timezone
       const now = new Date();
-      now.setHours(0, 0, 0, 0);
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
       where.appointment_date = {
-        gte: now,
+        gte: todayStart,
       };
       hasExplicitDateFilter = true;
     } else {
@@ -185,8 +207,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // This prevents unbounded queries that could return thousands of historical records
       // Default: last 90 days (reasonable for most use cases)
       const defaultSince = subDays(new Date(), DEFAULT_DATE_RANGE_DAYS);
+      // Set to start of day in local timezone
+      const defaultSinceStart = new Date(defaultSince.getFullYear(), defaultSince.getMonth(), defaultSince.getDate(), 0, 0, 0, 0);
       where.appointment_date = {
-        gte: defaultSince,
+        gte: defaultSinceStart,
       };
     }
 
@@ -323,50 +347,34 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     // 1. Authenticate request
-    const authResult = await authenticateRequest(request);
+    const authResult = await JwtMiddleware.authenticate(request);
     if (!authResult.success || !authResult.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: authResult.error || 'Authentication required',
-        },
-        { status: 401 }
-      );
+      return handleApiError(new ForbiddenError('Authentication required'));
     }
 
     const userId = authResult.user.userId;
-    const userRole = authResult.user.role;
+    const userRole = authResult.user.role as Role;
 
-    // 2. Parse request body
-    let body: CreateAppointmentRequest;
+    // 2. Parse and validate request body with Zod
+    let rawBody: unknown;
     try {
-      body = await request.json() as CreateAppointmentRequest;
+      rawBody = await request.json();
     } catch (error) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Invalid JSON in request body',
-        },
-        { status: 400 }
-      );
+      return handleApiError(new ValidationError('Invalid JSON in request body'));
     }
 
-    // 3. Validate required fields
-    if (!body || !body.patientId || !body.doctorId || !body.appointmentDate || !body.time || !body.type) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Required fields: patientId, doctorId, appointmentDate, time, type',
-        },
-        { status: 400 }
-      );
+    const validation = createAppointmentRequestSchema.safeParse(rawBody);
+    if (!validation.success) {
+      return handleApiError(ValidationError.fromZodError(validation.error));
     }
 
-    // 4. Resolve Patient ID from User ID if needed
+    const body = validation.data;
+
+    // 3. Resolve Patient ID from User ID if needed
     // If user role is PATIENT, find their Patient record by user_id
     let patientId = body.patientId;
 
-    if (userRole === 'PATIENT') {
+    if (userRole === Role.PATIENT) {
       // For patients, ensure they're creating appointment for themselves
       const patient = await db.patient.findUnique({
         where: { user_id: userId },
@@ -376,14 +384,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       if (patient) {
         patientId = patient.id;
       } else {
-        // If no patient record found, return error
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Patient profile not found. Please complete your profile first.',
-          },
-          { status: 404 }
-        );
+        return handleApiError(new NotFoundError('Patient profile not found. Please complete your profile first.', 'Patient'));
       }
     } else {
       // For non-patient users (frontdesk, admin), patientId should already be a Patient ID
@@ -394,25 +395,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       });
 
       if (!patient) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: `Patient with ID ${body.patientId} not found`,
-          },
-          { status: 404 }
-        );
+        return handleApiError(new NotFoundError(`Patient with ID ${body.patientId} not found`, 'Patient', body.patientId));
       }
     }
 
-    // 5. Validate and resolve source field
-    let source = body.source || 'PATIENT_REQUESTED';
+    // 4. Validate and resolve source field
+    let source: AppointmentSource = body.source || AppointmentSource.PATIENT_REQUESTED;
 
-    // Validate source enum value
+    // Validate source enum value (already validated by Zod, but double-check)
     if (body.source && !isAppointmentSource(body.source)) {
-      return NextResponse.json(
-        { success: false, error: `Invalid appointment source: ${body.source}` },
-        { status: 400 }
-      );
+      return handleApiError(new ValidationError(`Invalid appointment source: ${body.source}`));
+    }
+
+    // Validate booking channel if provided
+    if (body.bookingChannel && !isBookingChannel(body.bookingChannel)) {
+      return handleApiError(new ValidationError(`Invalid booking channel: ${body.bookingChannel}`));
     }
 
     // Role-based source restrictions:
@@ -420,99 +417,46 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // - Doctors can create DOCTOR_FOLLOW_UP or PATIENT_REQUESTED
     // - Frontdesk can create FRONTDESK_SCHEDULED or PATIENT_REQUESTED
     // - Admins can create any source
-    if (userRole === 'PATIENT' && source !== 'PATIENT_REQUESTED') {
-      return NextResponse.json(
-        { success: false, error: 'Patients can only create patient-requested appointments' },
-        { status: 403 }
-      );
+    if (userRole === Role.PATIENT && source !== AppointmentSource.PATIENT_REQUESTED) {
+      return handleApiError(new ForbiddenError('Patients can only create patient-requested appointments'));
     }
-    if (userRole === 'DOCTOR' && source !== 'DOCTOR_FOLLOW_UP' && source !== 'PATIENT_REQUESTED') {
-      return NextResponse.json(
-        { success: false, error: 'Doctors can only create follow-up or patient-requested appointments' },
-        { status: 403 }
-      );
+    if (userRole === Role.DOCTOR && source !== AppointmentSource.DOCTOR_FOLLOW_UP && source !== AppointmentSource.PATIENT_REQUESTED) {
+      return handleApiError(new ForbiddenError('Doctors can only create follow-up or patient-requested appointments'));
     }
-    if (userRole === 'FRONTDESK' && source === 'DOCTOR_FOLLOW_UP') {
-      return NextResponse.json(
-        { success: false, error: 'Frontdesk cannot create doctor follow-up appointments' },
-        { status: 403 }
-      );
+    if (userRole === Role.FRONTDESK && source === AppointmentSource.DOCTOR_FOLLOW_UP) {
+      return handleApiError(new ForbiddenError('Frontdesk cannot create doctor follow-up appointments'));
     }
 
     // Default source for roles when not explicitly provided
     if (!body.source) {
-      if (userRole === 'FRONTDESK') source = 'FRONTDESK_SCHEDULED';
-      else if (userRole === 'ADMIN') source = 'ADMIN_SCHEDULED';
-      else if (userRole === 'PATIENT') source = 'PATIENT_REQUESTED';
+      if (userRole === Role.FRONTDESK) source = AppointmentSource.FRONTDESK_SCHEDULED;
+      else if (userRole === Role.ADMIN) source = AppointmentSource.ADMIN_SCHEDULED;
+      else if (userRole === Role.PATIENT) source = AppointmentSource.PATIENT_REQUESTED;
       // For DOCTOR, keep PATIENT_REQUESTED unless explicitly set (backward compat)
     }
 
-    // 6. Use ScheduleAppointmentUseCase to create appointment
+    // 5. Use ScheduleAppointmentUseCase to create appointment
     const { getScheduleAppointmentUseCase } = await import('@/lib/use-cases');
     const scheduleAppointmentUseCase = getScheduleAppointmentUseCase();
 
     const result = await scheduleAppointmentUseCase.execute({
       patientId: patientId,
       doctorId: body.doctorId,
-      appointmentDate: typeof body.appointmentDate === 'string'
-        ? new Date(body.appointmentDate)
-        : body.appointmentDate,
+      appointmentDate: body.appointmentDate,
       time: body.time,
       type: body.type,
       note: body.note,
+      reason: body.reason,
+      durationMinutes: body.durationMinutes,
       source,
+      bookingChannel: body.bookingChannel,
       parentAppointmentId: body.parentAppointmentId,
       parentConsultationId: body.parentConsultationId,
-    }, userId);
+    }, userId, userRole);
 
-    // 7. Map to response DTO format
-    const responseDto: AppointmentResponseDto = {
-      id: result.id,
-      patientId: result.patientId,
-      doctorId: result.doctorId,
-      appointmentDate: result.appointmentDate,
-      time: result.time,
-      status: result.status,
-      type: result.type,
-      note: result.note,
-      reason: result.reason,
-      consultationRequestStatus: result.consultationRequestStatus,
-      reviewedBy: result.reviewedBy,
-      reviewedAt: result.reviewedAt,
-      reviewNotes: result.reviewNotes,
-      createdAt: result.createdAt,
-      updatedAt: result.updatedAt,
-    };
-
-    // 8. Return success response
-    return NextResponse.json(
-      {
-        success: true,
-        data: responseDto,
-        message: 'Appointment created successfully',
-      },
-      { status: 201 }
-    );
+    // 6. Return success response (201 Created)
+    return handleApiSuccess(result, 201);
   } catch (error) {
-    // Handle domain exceptions
-    if (error instanceof DomainException) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: error.message,
-        },
-        { status: 400 }
-      );
-    }
-
-    // Unexpected error - log and return generic error
-    console.error('[API] POST /api/appointments - Unexpected error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Internal server error',
-      },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }

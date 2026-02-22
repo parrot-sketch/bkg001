@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 // Lazy-load the settings panel — it bundles its own react-big-calendar
 // instance, so we only pay for that JS when the doctor opens the tab.
 const ScheduleSettingsPanel = dynamic(
-    () => import('@/components/doctor/schedule/ScheduleSettingsPanel').then(m => ({ default: m.ScheduleSettingsPanel })),
+    () => import('@/components/doctor/schedule/ScheduleSettingsPanelV2').then(m => ({ default: m.ScheduleSettingsPanelV2 })),
     {
         ssr: false,
         loading: () => (
@@ -112,6 +112,7 @@ export function ScheduleTabs({ initialSchedule, currentUser }: ScheduleTabsProps
             <TabsContent value="settings" className="mt-0">
                 <ScheduleSettingsPanel
                     initialWorkingDays={scheduleData?.workingDays || []}
+                    initialSlotConfig={scheduleData?.slotConfig || null}
                     userId={currentUser.id}
                 />
             </TabsContent>

@@ -53,6 +53,13 @@ import {
   MoreVertical,
   ExternalLink,
 } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { format, isAfter, startOfDay } from 'date-fns';
 
 interface FrontdeskAppointmentCardProps {
   appointment: AppointmentResponseDto;
@@ -83,6 +90,45 @@ function isAppointmentOverdue(appointment: AppointmentResponseDto): boolean {
   const overdueThreshold = new Date(appointmentDate.getTime() + 60 * 60 * 1000);
 
   return now > overdueThreshold;
+}
+
+/**
+ * Check if an appointment can be checked in (status AND date validation)
+ * 
+ * @param appointment - The appointment to check
+ * @returns Object with canCheckIn boolean and reason if disabled
+ */
+function canCheckInAppointment(appointment: AppointmentResponseDto): {
+  canCheckIn: boolean;
+  reason?: string;
+  daysUntil?: number;
+} {
+  // First check status
+  if (!canCheckIn(appointment.status as AppointmentStatus)) {
+    return {
+      canCheckIn: false,
+      reason: appointment.status === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION
+        ? 'Awaiting doctor confirmation'
+        : 'Appointment not confirmed',
+    };
+  }
+
+  // Then check date - prevent checking in for future appointments
+  const now = new Date();
+  const appointmentDate = new Date(appointment.appointmentDate);
+  const appointmentDateOnly = startOfDay(appointmentDate);
+  const todayOnly = startOfDay(now);
+
+  if (isAfter(appointmentDateOnly, todayOnly)) {
+    const daysUntil = Math.ceil((appointmentDateOnly.getTime() - todayOnly.getTime()) / (1000 * 60 * 60 * 24));
+    return {
+      canCheckIn: false,
+      reason: `Appointment is scheduled for ${format(appointmentDate, 'MMM d, yyyy')} (${daysUntil} day${daysUntil !== 1 ? 's' : ''} away). Please check in on or after the appointment date.`,
+      daysUntil,
+    };
+  }
+
+  return { canCheckIn: true };
 }
 
 /* ═══ Status Color Config ═══ */
@@ -198,6 +244,7 @@ export function FrontdeskAppointmentCard({ appointment, onCheckIn, isHighlighted
 
   const isOverdue = isAppointmentOverdue(appointment);
   const isStaleConsultation = appointment.status === AppointmentStatus.IN_CONSULTATION && isOverdue;
+  const checkInStatus = canCheckInAppointment(appointment);
 
   const config = STATUS_CONFIG[appointment.status as AppointmentStatus] || STATUS_CONFIG[AppointmentStatus.PENDING];
   const StatusIcon = config.icon;
@@ -334,7 +381,7 @@ export function FrontdeskAppointmentCard({ appointment, onCheckIn, isHighlighted
             </div>
 
             {/* CTA */}
-            {canCheckIn(appointment.status as AppointmentStatus) ? (
+            {checkInStatus.canCheckIn ? (
               <Button
                 onClick={() => onCheckIn(appointment)}
                 size="sm"
@@ -343,6 +390,27 @@ export function FrontdeskAppointmentCard({ appointment, onCheckIn, isHighlighted
                 <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
                 Check In
               </Button>
+            ) : canCheckIn(appointment.status as AppointmentStatus) && !checkInStatus.canCheckIn ? (
+              // Status allows check-in but date doesn't - show disabled button with tooltip
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <Button
+                        disabled
+                        size="sm"
+                        className="h-8 px-3.5 bg-slate-300 text-slate-500 text-xs font-semibold rounded-lg cursor-not-allowed"
+                      >
+                        <CalendarClock className="mr-1.5 h-3.5 w-3.5" />
+                        Check In
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs">
+                    <p className="text-xs font-medium">{checkInStatus.reason}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             ) : appointment.status === AppointmentStatus.CHECKED_IN ||
               appointment.status === AppointmentStatus.READY_FOR_CONSULTATION ? (
               <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100">

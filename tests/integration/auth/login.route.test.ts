@@ -156,13 +156,13 @@ describe('POST /api/auth/login', () => {
     });
   });
 
-  describe('Request Validation', () => {
+  describe('Request Validation (Zod)', () => {
     it('should return 400 for missing email', async () => {
       // Arrange
       const request = new NextRequest('http://localhost:3000/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({
-          password: 'password',
+          password: 'password123',
         }),
         headers: {
           'Content-Type': 'application/json',
@@ -199,6 +199,52 @@ describe('POST /api/auth/login', () => {
       expect(response.status).toBe(400);
       expect(data.success).toBe(false);
       expect(data.error).toContain('required');
+    });
+
+    it('should return 400 for invalid email format', async () => {
+      // Arrange
+      const request = new NextRequest('http://localhost:3000/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: 'invalid-email-format',
+          password: 'password123',
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      // Act
+      const response = await POST(request);
+      const data = await response.json();
+
+      // Assert
+      expect(response.status).toBe(400);
+      expect(data.success).toBe(false);
+      expect(data.error).toContain('valid email');
+    });
+
+    it('should return 400 for password too short', async () => {
+      // Arrange
+      const request = new NextRequest('http://localhost:3000/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: 'test@example.com',
+          password: 'short',
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      // Act
+      const response = await POST(request);
+      const data = await response.json();
+
+      // Assert
+      expect(response.status).toBe(400);
+      expect(data.success).toBe(false);
+      expect(data.error).toContain('8 characters');
     });
 
     it('should return 400 for invalid JSON', async () => {

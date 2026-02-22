@@ -77,7 +77,6 @@ describe('AuthFactory', () => {
       expect(useCases.loginUseCase).toBeDefined();
       expect(useCases.refreshTokenUseCase).toBeDefined();
       expect(useCases.logoutUseCase).toBeDefined();
-      expect(useCases.registerPublicUserUseCase).toBeDefined();
     });
 
     it('should accept custom config', () => {
@@ -94,7 +93,6 @@ describe('AuthFactory', () => {
       expect(useCases.loginUseCase).toBeDefined();
       expect(useCases.refreshTokenUseCase).toBeDefined();
       expect(useCases.logoutUseCase).toBeDefined();
-      expect(useCases.registerPublicUserUseCase).toBeDefined();
     });
   });
 
@@ -103,7 +101,7 @@ describe('AuthFactory', () => {
       process.env.JWT_SECRET = 'test-secret';
       process.env.JWT_REFRESH_SECRET = 'test-refresh-secret';
 
-      const mockUserRepository = {} as any;
+      const mockUserRepository = {} as unknown as import('@/domain/interfaces/repositories/IUserRepository').IUserRepository;
 
       const authService = AuthFactory.createAuthService(
         mockUserRepository,

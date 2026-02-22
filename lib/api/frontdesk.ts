@@ -1,221 +1,292 @@
 /**
- * Frontdesk API endpoints
- * 
- * Type-safe API client methods for frontdesk-related operations.
+ * Frontdesk API Client
+ *
+ * API methods for frontdesk operations including theater scheduling.
  */
 
 import { apiClient, ApiResponse } from './client';
-import type { AppointmentResponseDto } from '../../application/dtos/AppointmentResponseDto';
-import type { PatientResponseDto } from '../../application/dtos/PatientResponseDto';
-import type { CreatePatientDto } from '../../application/dtos/CreatePatientDto';
-import type { CheckInPatientDto } from '../../application/dtos/CheckInPatientDto';
-import type { DoctorAvailabilityResponseDto } from '../../application/dtos/DoctorAvailabilityResponseDto';
-import type { CreateConsultationFromFrontdeskDto } from '../../application/dtos/CreateConsultationFromFrontdeskDto';
+import type { DoctorAvailabilityResponseDto } from '@/application/dtos/DoctorAvailabilityResponseDto';
+import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 
-/**
- * Frontdesk API client
- */
+export interface TheaterSchedulingCase {
+    id: string;
+    status: string;
+    patient: {
+        id: string;
+        name: string;
+        fileNumber: string | null;
+        dateOfBirth: Date | null;
+        gender: string | null;
+    } | null;
+    surgeon: {
+        id: string;
+        name: string;
+        specialization: string | null;
+    } | null;
+    procedure: string;
+    urgency: string;
+    preOpChecklistFinalized: boolean;
+    preOpChecklistFinalizedAt: Date | null;
+    existingBooking: {
+        id: string;
+        theaterId: string;
+        startTime: Date;
+        endTime: Date;
+        status: string;
+    } | null;
+    createdAt: Date;
+}
+
+export interface TheaterSchedulingResponse {
+    cases: TheaterSchedulingCase[];
+    count: number;
+}
+
+export interface Theater {
+    id: string;
+    name: string;
+    type: string;
+    isActive: boolean;
+    bookings: TheaterBooking[];
+}
+
+export interface TheaterBooking {
+    id: string;
+    caseId: string;
+    startTime: Date;
+    endTime: Date;
+    status: string;
+    lockedBy: string | null;
+    lockedAt: Date | null;
+    lockExpiresAt: Date | null;
+}
+
+export interface TheatersResponse {
+    theaters: Theater[];
+    date: string;
+}
+
+export interface BookTheaterRequest {
+    theaterId: string;
+    startTime: string; // ISO datetime string
+    endTime: string; // ISO datetime string
+}
+
+export interface BookTheaterResponse {
+    bookingId: string;
+    status: string;
+    theaterId: string;
+    startTime: Date;
+    endTime: Date;
+    lockedAt: Date | null;
+    lockExpiresAt: Date | null;
+}
+
+export interface ConfirmBookingRequest {
+    bookingId: string;
+}
+
+export interface ConfirmBookingResponse {
+    bookingId: string;
+    status: string;
+    theaterId: string;
+    startTime: Date;
+    endTime: Date;
+    confirmedAt: Date | null;
+    caseStatus: string;
+}
+
 export const frontdeskApi = {
-  /**
-   * Get today's appointments (all patients)
-   * Optional: Filter by doctor ID
-   */
-  async getTodaysSchedule(doctorId?: string): Promise<ApiResponse<AppointmentResponseDto[]>> {
-    let url = '/frontdesk/schedule/today';
-    if (doctorId) {
-      url += `?doctorId=${doctorId}`;
-    }
-    return apiClient.get<AppointmentResponseDto[]>(url);
-  },
+    /**
+     * Get surgical cases ready for theater booking
+     */
+    async getTheaterSchedulingQueue(): Promise<{ success: boolean; data?: TheaterSchedulingResponse; error?: string }> {
+        return apiClient.get<TheaterSchedulingResponse>('/frontdesk/theater-scheduling');
+    },
 
-  /**
-   * Get today's appointments (Legacy - can be deprecated or mapped to above)
-   */
-  async getTodayAppointments(): Promise<ApiResponse<AppointmentResponseDto[]>> {
-    return apiClient.get<AppointmentResponseDto[]>('/appointments/today');
-  },
+    /**
+     * Get available theaters with bookings for a date
+     */
+    async getTheaters(date?: string): Promise<{ success: boolean; data?: TheatersResponse; error?: string }> {
+        const url = date ? `/frontdesk/theater-scheduling/theaters?date=${date}` : '/frontdesk/theater-scheduling/theaters';
+        return apiClient.get<TheatersResponse>(url);
+    },
 
-  /**
-   * Get upcoming appointments (future dates)
-   */
-  async getUpcomingAppointments(): Promise<ApiResponse<AppointmentResponseDto[]>> {
-    return apiClient.get<AppointmentResponseDto[]>('/appointments?upcoming=true');
-  },
+    /**
+     * Lock a theater slot (provisional booking)
+     */
+    async bookTheater(caseId: string, request: BookTheaterRequest): Promise<{ success: boolean; data?: BookTheaterResponse; error?: string }> {
+        return apiClient.post<BookTheaterResponse>(`/frontdesk/theater-scheduling/${caseId}/book`, request);
+    },
 
-  /**
-   * Get appointments by date
-   * 
-   * @param date - Date to filter appointments (will filter for that specific day)
-   */
-  async getAppointmentsByDate(date: Date): Promise<ApiResponse<AppointmentResponseDto[]>> {
-    const dateStr = date.toISOString().split('T')[0]; // Format: YYYY-MM-DD
-    return apiClient.get<AppointmentResponseDto[]>(`/appointments?date=${dateStr}`);
-  },
+    /**
+     * Confirm a provisional theater booking
+     */
+    async confirmBooking(caseId: string, request: ConfirmBookingRequest): Promise<{ success: boolean; data?: ConfirmBookingResponse; error?: string }> {
+        return apiClient.post<ConfirmBookingResponse>(`/frontdesk/theater-scheduling/${caseId}/confirm`, request);
+    },
 
-  /**
-   * Get appointments by status
-   * 
-   * @param status - Appointment status to filter by
-   */
-  async getAppointmentsByStatus(status: string): Promise<ApiResponse<AppointmentResponseDto[]>> {
-    return apiClient.get<AppointmentResponseDto[]>(`/appointments?status=${encodeURIComponent(status)}`);
-  },
+    /**
+     * Get doctors availability for a date range
+     */
+    async getDoctorsAvailability(startDate: Date, endDate: Date): Promise<{ success: boolean; data?: DoctorAvailabilityResponseDto[]; error?: string }> {
+        // Format dates as YYYY-MM-DD for the API
+        const formatDate = (date: Date) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+        const start = formatDate(startDate);
+        const end = formatDate(endDate);
+        return apiClient.get<DoctorAvailabilityResponseDto[]>(`/doctors/availability?startDate=${start}&endDate=${end}`);
+    },
 
-  /**
-   * Get appointments by date range
-   * 
-   * @param startDate - Start date (inclusive)
-   * @param endDate - End date (inclusive)
-   */
-  async getAppointmentsByDateRange(
-    startDate: Date,
-    endDate: Date
-  ): Promise<ApiResponse<AppointmentResponseDto[]>> {
-    const startStr = startDate.toISOString().split('T')[0];
-    const endStr = endDate.toISOString().split('T')[0];
-    return apiClient.get<AppointmentResponseDto[]>(`/appointments?startDate=${startStr}&endDate=${endStr}`);
-  },
+    /**
+     * Get appointment by ID
+     */
+    async getAppointment(appointmentId: number): Promise<ApiResponse<AppointmentResponseDto>> {
+        return apiClient.get<AppointmentResponseDto>(`/appointments/${appointmentId}`);
+    },
 
-  /**
-   * Get appointment by ID
-   */
-  async getAppointment(appointmentId: number): Promise<ApiResponse<AppointmentResponseDto>> {
-    return apiClient.get<AppointmentResponseDto>(`/appointments/${appointmentId}`);
-  },
+    /**
+     * Schedule a new appointment
+     */
+    async scheduleAppointment(dto: import('../../application/dtos/ScheduleAppointmentDto').ScheduleAppointmentDto): Promise<ApiResponse<AppointmentResponseDto>> {
+        return apiClient.post<AppointmentResponseDto>('/appointments', dto);
+    },
 
-  /**
-   * Check in a patient for an appointment
-   */
-  async checkInPatient(appointmentId: number, options?: { userId?: string, notes?: string }): Promise<ApiResponse<AppointmentResponseDto>> {
-    const dto: any = { // Using any as DTO interface might be strict on userId but API route handles it
-      appointmentId,
-      userId: options?.userId || '', // Backend extracts real userId from token
-      notes: options?.notes,
-    };
-    return apiClient.post<AppointmentResponseDto>(`/appointments/${appointmentId}/checkin`, dto);
-  },
+    /**
+     * Get pending consultation requests
+     */
+    async getPendingConsultations(): Promise<ApiResponse<AppointmentResponseDto[]>> {
+        return apiClient.get<AppointmentResponseDto[]>('/appointments?consultationRequestStatus=SUBMITTED,PENDING_REVIEW');
+    },
 
-  /**
-   * Create a new patient
-   */
-  async createPatient(dto: CreatePatientDto): Promise<ApiResponse<PatientResponseDto>> {
-    return apiClient.post<PatientResponseDto>('/patients', dto);
-  },
+    /**
+     * Search patients by query
+     */
+    async searchPatients(query: string): Promise<ApiResponse<PatientResponseDto[]>> {
+        return apiClient.get<PatientResponseDto[]>(`/patients/search?q=${encodeURIComponent(query)}`);
+    },
 
-  /**
-   * Get patient by ID
-   */
-  async getPatient(patientId: string): Promise<ApiResponse<PatientResponseDto>> {
-    return apiClient.get<PatientResponseDto>(`/patients/${patientId}`);
-  },
+    /**
+     * Get patient by ID
+     */
+    async getPatient(patientId: string): Promise<ApiResponse<PatientResponseDto>> {
+        return apiClient.get<PatientResponseDto>(`/patients/${patientId}`);
+    },
 
-  /**
-   * Search patients by email or phone
-   */
-  async searchPatients(query: string): Promise<ApiResponse<PatientResponseDto[]>> {
-    return apiClient.get<PatientResponseDto[]>(`/patients/search?q=${encodeURIComponent(query)}`);
-  },
+    /**
+     * Create a new patient
+     */
+    async createPatient(dto: import('../../application/dtos/CreatePatientDto').CreatePatientDto): Promise<ApiResponse<PatientResponseDto>> {
+        return apiClient.post<PatientResponseDto>('/patients', dto);
+    },
 
-  /**
-   * Get patients with pagination and search
-   * 
-   * @param params - Pagination and search params
-   */
-  async getPatients(params: { page: number; limit: number; q?: string }): Promise<ApiResponse<PatientResponseDto[]>> {
-    const query = new URLSearchParams({
-      page: params.page.toString(),
-      limit: params.limit.toString(),
-    });
-    if (params.q) query.append('q', params.q);
+    /**
+     * Review consultation request
+     */
+    async reviewConsultation(
+        appointmentId: number,
+        action: 'approve' | 'decline' | 'request_info' | 'reject' | 'needs_more_info',
+        data?: { reviewNotes?: string; proposedDate?: Date; proposedTime?: string }
+    ): Promise<ApiResponse<AppointmentResponseDto>> {
+        // Map UI action names to API action names
+        const apiAction = action === 'reject' ? 'decline' : action === 'needs_more_info' ? 'request_info' : action;
+        return apiClient.post<AppointmentResponseDto>(`/consultations/${appointmentId}/review`, {
+            action: apiAction,
+            ...data,
+        });
+    },
 
-    return apiClient.get<PatientResponseDto[]>(`/frontdesk/patients?${query.toString()}`);
-  },
+    /**
+     * Resolve stale appointment (complete or cancel)
+     */
+    async resolveStaleAppointment(
+        appointmentId: number,
+        action: 'complete' | 'cancel'
+    ): Promise<ApiResponse<AppointmentResponseDto>> {
+        return apiClient.post<AppointmentResponseDto>(`/appointments/${appointmentId}/resolve`, {
+            action,
+        });
+    },
 
+    /**
+     * Get today's appointments
+     */
+    async getTodayAppointments(): Promise<ApiResponse<AppointmentResponseDto[]>> {
+        const today = new Date().toISOString().split('T')[0];
+        return apiClient.get<AppointmentResponseDto[]>(`/appointments?date=${today}`);
+    },
 
-  /**
-   * Get pending consultation requests (SUBMITTED, PENDING_REVIEW)
-   */
-  async getPendingConsultations(): Promise<ApiResponse<(AppointmentResponseDto & { daysSinceSubmission?: number })[]>> {
-    return apiClient.get<(AppointmentResponseDto & { daysSinceSubmission?: number })[]>('/consultations/pending');
-  },
+    /**
+     * Get appointments by date
+     */
+    async getAppointmentsByDate(date: Date): Promise<ApiResponse<AppointmentResponseDto[]>> {
+        const dateStr = date.toISOString().split('T')[0];
+        return apiClient.get<AppointmentResponseDto[]>(`/appointments?date=${dateStr}`);
+    },
 
-  /**
-   * Get consultations by consultation request status
-   * 
-   * @param statuses - Array of consultation request statuses to filter by
-   */
-  async getConsultationsByStatus(statuses: string[]): Promise<ApiResponse<AppointmentResponseDto[]>> {
-    const queryParams = new URLSearchParams();
-    queryParams.append('consultationRequestStatus', statuses.join(','));
-    return apiClient.get<AppointmentResponseDto[]>(`/appointments?${queryParams.toString()}`);
-  },
+    /**
+     * Get upcoming appointments
+     */
+    async getUpcomingAppointments(): Promise<ApiResponse<AppointmentResponseDto[]>> {
+        return apiClient.get<AppointmentResponseDto[]>('/appointments?status=SCHEDULED,CONFIRMED&upcoming=true');
+    },
 
-  /**
-   * Review consultation request (approve, request more info, or reject)
-   */
-  async reviewConsultation(
-    appointmentId: number,
-    action: 'approve' | 'needs_more_info' | 'reject',
-    options?: {
-      reviewNotes?: string;
-      proposedDate?: Date;
-      proposedTime?: string;
-    }
-  ): Promise<ApiResponse<AppointmentResponseDto>> {
-    return apiClient.post<AppointmentResponseDto>(`/consultations/${appointmentId}/review`, {
-      action,
-      reviewNotes: options?.reviewNotes,
-      proposedDate: options?.proposedDate,
-      proposedTime: options?.proposedTime,
-    });
-  },
+    /**
+     * Get appointments for a specific patient
+     */
+    async getPatientAppointments(patientId: string): Promise<ApiResponse<AppointmentResponseDto[]>> {
+        return apiClient.get<AppointmentResponseDto[]>(`/appointments?patientId=${patientId}`);
+    },
 
-  /**
-   * Get all doctors' availability for a date range
-   * Used by front desk to view availability when scheduling appointments
-   * 
-   * @param startDate - Start date (inclusive)
-   * @param endDate - End date (inclusive)
-   * @param specialization - Optional specialization filter
-   */
-  async getDoctorsAvailability(
-    startDate: Date,
-    endDate: Date,
-    specialization?: string
-  ): Promise<ApiResponse<DoctorAvailabilityResponseDto[]>> {
-    const startStr = startDate.toISOString().split('T')[0];
-    const endStr = endDate.toISOString().split('T')[0];
-    const params = new URLSearchParams({
-      startDate: startStr,
-      endDate: endStr,
-    });
-    if (specialization) {
-      params.append('specialization', specialization);
-    }
-    return apiClient.get<DoctorAvailabilityResponseDto[]>(`/doctors/availability?${params.toString()}`);
-  },
+    /**
+     * Get patients with pagination
+     */
+    async getPatients(params: { page: number; limit: number; q?: string }): Promise<ApiResponse<PatientResponseDto[]>> {
+        const queryParams = new URLSearchParams({
+            page: params.page.toString(),
+            limit: params.limit.toString(),
+        });
+        if (params.q) {
+            queryParams.set('q', params.q);
+        }
+        return apiClient.get<PatientResponseDto[]>(`/frontdesk/patients?${queryParams.toString()}`);
+    },
 
-  /**
-   * Schedule an appointment (for self or on behalf of patient)
-   */
-  async scheduleAppointment(dto: import('../../application/dtos/ScheduleAppointmentDto').ScheduleAppointmentDto): Promise<ApiResponse<AppointmentResponseDto>> {
-    return apiClient.post<AppointmentResponseDto>('/appointments', dto);
-  },
+    /**
+     * Get today's schedule
+     */
+    async getTodaysSchedule(doctorId?: string): Promise<ApiResponse<AppointmentResponseDto[]>> {
+        const today = new Date().toISOString().split('T')[0];
+        const url = doctorId 
+            ? `/appointments?date=${today}&doctorId=${doctorId}`
+            : `/appointments?date=${today}`;
+        return apiClient.get<AppointmentResponseDto[]>(url);
+    },
 
-  /**
-   * Create a consultation request (Frontdesk only)
-   */
-  async createConsultation(dto: CreateConsultationFromFrontdeskDto): Promise<ApiResponse<AppointmentResponseDto>> {
-    return apiClient.post<AppointmentResponseDto>('/consultations/frontdesk/create', dto);
-  },
+    /**
+     * Check in a patient
+     */
+    async checkInPatient(appointmentId: number, data?: { notes?: string }): Promise<ApiResponse<AppointmentResponseDto>> {
+        return apiClient.post<AppointmentResponseDto>(`/appointments/${appointmentId}/check-in`, data || {});
+    },
 
-  /**
-   * Resolve a stale/overdue appointment (mark as completed or cancel)
-   */
-  async resolveStaleAppointment(
-    appointmentId: number, 
-    action: 'complete' | 'cancel'
-  ): Promise<ApiResponse<AppointmentResponseDto>> {
-    return apiClient.post<AppointmentResponseDto>(`/appointments/${appointmentId}/resolve`, { action });
-  },
+    /**
+     * Get consultations by status
+     */
+    async getConsultationsByStatus(statuses: string[]): Promise<ApiResponse<AppointmentResponseDto[]>> {
+        const statusParam = statuses.join(',');
+        return apiClient.get<AppointmentResponseDto[]>(`/appointments?consultationRequestStatus=${statusParam}`);
+    },
+
+    /**
+     * Create consultation from frontdesk
+     */
+    async createConsultation(dto: import('../../application/dtos/CreateConsultationFromFrontdeskDto').CreateConsultationFromFrontdeskDto): Promise<ApiResponse<AppointmentResponseDto>> {
+        return apiClient.post<AppointmentResponseDto>('/consultations/frontdesk/create', dto);
+    },
 };

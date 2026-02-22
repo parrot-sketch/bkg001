@@ -26,6 +26,20 @@ export class TheaterService {
      * Two-phase booking: 1. Lock/Provisional -> 2. Confirm
      */
     async lockSlot(caseId: string, theaterId: string, startTime: Date, endTime: Date, userId: string): Promise<TheaterBooking> {
+        // Validate case is in READY_FOR_THEATER_BOOKING status
+        const surgicalCase = await this.prisma.surgicalCase.findUnique({
+            where: { id: caseId },
+            select: { status: true },
+        });
+
+        if (!surgicalCase) {
+            throw new Error('Surgical case not found');
+        }
+
+        if (surgicalCase.status !== 'READY_FOR_THEATER_BOOKING') {
+            throw new Error(`Cannot lock slot: Case must be in READY_FOR_THEATER_BOOKING status (current: ${surgicalCase.status})`);
+        }
+
         const LOCK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
         const now = new Date();
         const lockExpiration = new Date(now.getTime() - LOCK_TIMEOUT_MS);
@@ -163,6 +177,20 @@ export class TheaterService {
                 }
             });
 
+            // Validate case is in READY_FOR_THEATER_BOOKING status
+            const surgicalCase = await tx.surgicalCase.findUnique({
+                where: { id: booking.surgical_case_id },
+                select: { status: true },
+            });
+
+            if (!surgicalCase) {
+                throw new Error('Surgical case not found');
+            }
+
+            if (surgicalCase.status !== 'READY_FOR_THEATER_BOOKING') {
+                throw new Error(`Cannot confirm booking: Case must be in READY_FOR_THEATER_BOOKING status (current: ${surgicalCase.status})`);
+            }
+
             // Update Case to SCHEDULED
             await tx.surgicalCase.update({
                 where: { id: booking.surgical_case_id },
@@ -202,7 +230,21 @@ export class TheaterService {
             throw new Error('Theater is already booked for this time slot');
         }
 
-        // 2. Wrap in transaction: Create booking & Update Case Status
+        // 2. Validate case is in READY_FOR_THEATER_BOOKING status
+        const surgicalCase = await this.prisma.surgicalCase.findUnique({
+            where: { id: caseId },
+            select: { status: true },
+        });
+
+        if (!surgicalCase) {
+            throw new Error('Surgical case not found');
+        }
+
+        if (surgicalCase.status !== 'READY_FOR_THEATER_BOOKING') {
+            throw new Error(`Cannot book theater: Case must be in READY_FOR_THEATER_BOOKING status (current: ${surgicalCase.status})`);
+        }
+
+        // 3. Wrap in transaction: Create booking & Update Case Status
         return this.prisma.$transaction(async (tx) => {
             // Cleanup previous booking for this case
             await tx.theaterBooking.deleteMany({
@@ -246,10 +288,10 @@ export class TheaterService {
                 data: { status: 'CANCELLED' }
             });
 
-            // Revert Case to READY_FOR_SCHEDULING
+            // Revert Case to READY_FOR_THEATER_BOOKING
             await tx.surgicalCase.update({
                 where: { id: booking.surgical_case_id },
-                data: { status: 'READY_FOR_SCHEDULING' }
+                data: { status: 'READY_FOR_THEATER_BOOKING' }
             });
         });
     }

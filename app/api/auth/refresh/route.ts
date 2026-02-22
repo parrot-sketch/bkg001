@@ -13,60 +13,78 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import db from '@/lib/db';
-import { RefreshTokenDto } from '@/application/dtos/RefreshTokenDto';
+import { RefreshTokenDto, refreshTokenDtoSchema, RefreshTokenResponseDto } from '@/application/dtos/RefreshTokenDto';
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { AuthFactory } from '@/infrastructure/auth/AuthFactory';
+import type { ApiResponse } from '@/lib/api/client';
+
+/**
+ * Standardized API error response
+ */
+type ApiErrorResponse = ApiResponse<never>;
 
 /**
  * POST /api/auth/refresh
  * 
- * Handles token refresh request.
+ * Handles token refresh request with Zod validation and standardized response.
+ * 
+ * Error Codes:
+ * - 400: Invalid request (malformed JSON, validation errors)
+ * - 401: Invalid or expired refresh token
+ * - 500: Internal server error
  */
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export async function POST(request: NextRequest): Promise<NextResponse<ApiErrorResponse | ApiResponse<RefreshTokenResponseDto>>> {
   // Initialize authentication use cases using factory lazily inside handler
   const { refreshTokenUseCase } = AuthFactory.create(db);
 
   try {
     // Parse request body
-    let body: RefreshTokenDto;
+    let rawBody: unknown;
     try {
-      body = await request.json();
+      rawBody = await request.json();
     } catch (error) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Invalid JSON in request body',
-        },
-        { status: 400 }
-      );
+      const errorResponse: ApiErrorResponse = {
+        success: false,
+        error: 'Invalid JSON in request body',
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
     }
 
-    // Validate required fields
-    if (!body || !body.refreshToken) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Refresh token is required',
-        },
-        { status: 400 }
-      );
+    // Validate with Zod schema
+    const validationResult = refreshTokenDtoSchema.safeParse(rawBody);
+    if (!validationResult.success) {
+      const firstError = validationResult.error.errors[0];
+      const errorResponse: ApiErrorResponse = {
+        success: false,
+        error: firstError?.message || 'Invalid request data',
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
     }
+
+    const body: RefreshTokenDto = validationResult.data;
 
     // Execute refresh token use case
     const response = await refreshTokenUseCase.execute({
       refreshToken: body.refreshToken,
     });
 
-    // Create response with JSON data
-    const nextResponse = NextResponse.json(
-      {
-        success: true,
-        data: response,
-      },
-      { status: 200 }
-    );
+    // Validate response structure
+    if (!response || !response.accessToken || !response.refreshToken) {
+      const errorResponse: ApiErrorResponse = {
+        success: false,
+        error: 'Internal server error: Invalid response from authentication service',
+      };
+      return NextResponse.json(errorResponse, { status: 500 });
+    }
+
+    // Create success response with standardized ApiResponse format
+    const successResponse: ApiResponse<RefreshTokenResponseDto> = {
+      success: true,
+      data: response,
+    };
+
+    const nextResponse = NextResponse.json(successResponse, { status: 200 });
 
     // Set access token cookie on the response
     const safeExpiresIn = typeof response.expiresIn === 'number' ? response.expiresIn : 900;
@@ -89,26 +107,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
 
     return nextResponse;
-  } catch (error) {
+  } catch (error: unknown) {
     // Handle domain exceptions (e.g., invalid or expired refresh token)
     if (error instanceof DomainException) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: error.message,
-        },
-        { status: 401 }
-      );
+      const errorResponse: ApiErrorResponse = {
+        success: false,
+        error: error.message || 'Invalid or expired refresh token',
+      };
+      return NextResponse.json(errorResponse, { status: 401 });
     }
 
     // Unexpected error - log and return generic error
-    console.error('[API] /api/auth/refresh - Unexpected error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Internal server error',
-      },
-      { status: 500 }
-    );
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[API] /api/auth/refresh - Unexpected error:', errorMessage, error);
+    
+    const errorResponse: ApiErrorResponse = {
+      success: false,
+      error: 'Internal server error',
+    };
+    return NextResponse.json(errorResponse, { status: 500 });
   }
 }

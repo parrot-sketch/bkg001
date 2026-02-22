@@ -422,7 +422,7 @@ function FrontdeskPatientsContent() {
                                 View
                               </Button>
                             </Link>
-                            <Link href={`/frontdesk/appointments/new?patientId=${patient.id}`}>
+                            <Link href={`/frontdesk/appointments/new?patientId=${patient.id}&source=patients`}>
                               <Button
                                 size="sm"
                                 className="h-8 px-2.5 text-xs rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white shadow-sm shadow-cyan-200/30"
@@ -505,7 +505,7 @@ function FrontdeskPatientsContent() {
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                router.push(`/frontdesk/appointments/new?patientId=${patient.id}`);
+                                router.push(`/frontdesk/appointments/new?patientId=${patient.id}&source=patients`);
                               }}
                             >
                               <Calendar className="h-3 w-3 mr-1" />

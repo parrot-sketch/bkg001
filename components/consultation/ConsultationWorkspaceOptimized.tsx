@@ -97,9 +97,9 @@ interface TabConfig {
 
 const TABS: TabConfig[] = [
   {
-    id: 'chief',
-    label: 'Chief Complaint',
-    shortLabel: 'Chief',
+    id: 'goals',
+    label: 'Aesthetic Goals',
+    shortLabel: 'Goals',
     icon: FileText,
     noteField: 'chiefComplaint',
     description: 'Primary concern & goals',
@@ -287,7 +287,7 @@ export function ConsultationWorkspaceOptimized() {
     openCompleteDialog,
   } = useConsultationContext();
 
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'chief');
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'goals');
 
   // Current tab index
   const currentTabIndex = useMemo(
@@ -368,9 +368,9 @@ export function ConsultationWorkspaceOptimized() {
               className="h-full p-6 lg:p-8"
             >
               <div className="max-w-[1000px] mx-auto h-full">
-                {/* Chief Complaint */}
-                <TabsContent value="chief" className="m-0 h-full border-none shadow-none bg-transparent">
-                  <LazyTab isActive={activeTab === 'chief'}>
+                {/* Aesthetic Goals */}
+                <TabsContent value="goals" className="m-0 h-full border-none shadow-none bg-transparent">
+                  <LazyTab isActive={activeTab === 'goals'}>
                     <PatientGoalsTab
                       initialValue={state.notes.chiefComplaint || ''}
                       onChange={handleNoteChange('chiefComplaint')}

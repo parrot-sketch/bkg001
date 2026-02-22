@@ -235,9 +235,16 @@ export class AvailabilityService {
       const slotEnd = new Date(currentTime);
       slotEnd.setMinutes(slotEnd.getMinutes() + slotConfig.defaultDuration);
 
-      if (slotEnd > endTime) {
-        break; // Slot would extend beyond session
+      // Allow slots that start before endTime, even if they end slightly after
+      // This handles night shifts that go until 23:59 - we want to generate slots
+      // that start at 23:30 (ending at 24:00) as long as they start before 23:59
+      // Only break if the slot would start at or after the end time
+      if (currentTime >= endTime) {
+        break; // Slot starts at or after end time
       }
+      
+      // If slot would extend beyond end time, we still generate it if it starts before end time
+      // This ensures we get the last possible slot before the end time
 
       // Check if slot conflicts with breaks
       const conflictsWithBreak = dayBreaks.some((br) => {
@@ -428,7 +435,8 @@ export class AvailabilityService {
     requestedEnd.setMinutes(requestedEnd.getMinutes() + duration);
 
     // Check if requested time matches an available slot
-    const matchingSlot = availableSlots.find((slot) => {
+    // First try exact match (preferred for performance)
+    const exactMatchingSlot = availableSlots.find((slot) => {
       return (
         slot.startTime.getTime() === requestedStart.getTime() &&
         slot.duration === duration &&
@@ -436,7 +444,30 @@ export class AvailabilityService {
       );
     });
 
-    if (matchingSlot) {
+    if (exactMatchingSlot) {
+      return { isAvailable: true };
+    }
+
+    // If no exact match, check if requested time falls within any available slot's time range
+    // This handles cases where the UI shows slots but user selects a time that's slightly off
+    // or when duration differs but still fits within the slot
+    const overlappingAvailableSlot = availableSlots.find((slot) => {
+      if (!slot.isAvailable) return false;
+      
+      // Check if requested time starts within the slot's time range
+      const slotStart = slot.startTime.getTime();
+      const slotEnd = slot.endTime.getTime();
+      const requestedEndTime = requestedEnd.getTime();
+      
+      // Requested time must start at or after slot start, and end before or at slot end
+      return (
+        requestedStart.getTime() >= slotStart &&
+        requestedStart.getTime() < slotEnd &&
+        requestedEndTime <= slotEnd
+      );
+    });
+
+    if (overlappingAvailableSlot) {
       return { isAvailable: true };
     }
 

@@ -18,6 +18,7 @@ import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import db from '@/lib/db';
 import { ClinicalFormStatus } from '@prisma/client';
+import { SurgicalCaseStatusTransitionService } from '@/application/services/SurgicalCaseStatusTransitionService';
 import {
     RECOVERY_TEMPLATE_KEY,
     RECOVERY_TEMPLATE_VERSION,
@@ -149,6 +150,15 @@ export async function POST(
 
             return updated;
         });
+
+        // Auto-transition case status: Recovery finalized → COMPLETED
+        try {
+            const statusTransitionService = new SurgicalCaseStatusTransitionService(db);
+            await statusTransitionService.transitionToCompleted(caseId, userId);
+        } catch (error) {
+            // Log but don't fail - status transition is best effort
+            console.error('[API] Recovery finalize: Status transition error:', error);
+        }
 
         return NextResponse.json({
             success: true,

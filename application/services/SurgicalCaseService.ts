@@ -28,8 +28,9 @@ export class ReadinessValidationError extends Error {
  * Transition map:
  *   DRAFT → PLANNING | CANCELLED
  *   PLANNING → READY_FOR_SCHEDULING | DRAFT | CANCELLED
- *   READY_FOR_SCHEDULING → SCHEDULED | PLANNING | CANCELLED
- *   SCHEDULED → IN_PREP | READY_FOR_SCHEDULING | CANCELLED
+ *   READY_FOR_SCHEDULING → READY_FOR_THEATER_BOOKING | PLANNING | CANCELLED
+ *   READY_FOR_THEATER_BOOKING → SCHEDULED | READY_FOR_SCHEDULING | CANCELLED
+ *   SCHEDULED → IN_PREP | READY_FOR_THEATER_BOOKING | CANCELLED
  *   IN_PREP → IN_THEATER
  *   IN_THEATER → RECOVERY
  *   RECOVERY → COMPLETED
@@ -94,13 +95,19 @@ export class SurgicalCaseService {
 
         // 3. READY_FOR_SCHEDULING transitions
         if (current === 'READY_FOR_SCHEDULING') {
-            if (['SCHEDULED', 'PLANNING', 'CANCELLED'].includes(target)) return;
+            if (['READY_FOR_THEATER_BOOKING', 'PLANNING', 'CANCELLED'].includes(target)) return;
             throw new Error(`Cannot transition from READY_FOR_SCHEDULING to ${target}`);
         }
 
-        // 4. SCHEDULED transitions
+        // 4. READY_FOR_THEATER_BOOKING transitions
+        if (current === 'READY_FOR_THEATER_BOOKING') {
+            if (['SCHEDULED', 'READY_FOR_SCHEDULING', 'CANCELLED'].includes(target)) return;
+            throw new Error(`Cannot transition from READY_FOR_THEATER_BOOKING to ${target}`);
+        }
+
+        // 5. SCHEDULED transitions
         if (current === 'SCHEDULED') {
-            if (['IN_PREP', 'READY_FOR_SCHEDULING', 'CANCELLED'].includes(target)) return;
+            if (['IN_PREP', 'READY_FOR_THEATER_BOOKING', 'CANCELLED'].includes(target)) return;
             throw new Error(`Cannot transition from SCHEDULED to ${target}`);
         }
 
