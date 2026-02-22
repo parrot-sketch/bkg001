@@ -12,6 +12,7 @@
 
 import { useAuth } from '@/hooks/patient/useAuth';
 import { useDashboardData } from '@/components/frontdesk/hooks/useDashboardData';
+import { useTheaterSchedulingQueue } from '@/hooks/frontdesk/useTheaterScheduling';
 import { AvailableDoctorsPanel } from '@/components/frontdesk/AvailableDoctorsPanel';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,11 +33,13 @@ import {
   User,
   Activity,
   ClipboardList,
+  Building2,
 } from 'lucide-react';
 
 export default function FrontdeskDashboardPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { stats, loading } = useDashboardData();
+  const { data: theaterSchedulingData, isLoading: loadingTheaterScheduling } = useTheaterSchedulingQueue(isAuthenticated && !!user);
 
   // Loading state
   if (authLoading) {
@@ -128,6 +131,18 @@ export default function FrontdeskDashboardPage() {
         {/* Quick Actions Row - Urgent Items First */}
         <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
 
+          {/* Theater Scheduling Queue */}
+          {theaterSchedulingData && theaterSchedulingData.count > 0 && (
+            <QuickActionTile
+              title="Theater Scheduling"
+              count={theaterSchedulingData.count}
+              icon={Building2}
+              color="blue"
+              href="/frontdesk/theater-scheduling"
+              loading={loadingTheaterScheduling}
+              pulse
+            />
+          )}
 
           {/* Pending Check-ins */}
           {stats.pendingCheckIns > 0 && (

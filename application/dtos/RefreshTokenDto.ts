@@ -3,12 +3,22 @@
  * 
  * Data transfer object for token refresh request.
  */
-export interface RefreshTokenDto {
-  /**
-   * Refresh token string
-   */
-  refreshToken: string;
-}
+
+import { z } from 'zod';
+
+/**
+ * Zod schema for refresh token request validation
+ */
+export const refreshTokenDtoSchema = z.object({
+  refreshToken: z
+    .string()
+    .min(1, 'Refresh token is required'),
+});
+
+/**
+ * Type inferred from Zod schema
+ */
+export type RefreshTokenDto = z.infer<typeof refreshTokenDtoSchema>;
 
 /**
  * DTO: RefreshTokenResponseDto

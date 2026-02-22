@@ -7,6 +7,7 @@ import {
     nurseIntraOpRecordFinalSchema,
     checkNurseRecoveryGateCompliance,
 } from '@/domain/clinical-forms/NurseIntraOpRecord';
+import { SurgicalCaseStatusTransitionService } from '@/application/services/SurgicalCaseStatusTransitionService';
 
 export async function POST(
     request: NextRequest,
@@ -83,7 +84,25 @@ export async function POST(
                 }
             });
 
-            // 5. Audit Trail entry — Corrected to ClinicalAuditEvent
+            // 5. Sync fluid totals to SurgicalProcedureRecord
+            const fluids = currentData.fluids || {};
+            if (fluids.estimatedBloodLossMl !== undefined || fluids.urinaryOutputMl !== undefined) {
+                const procedureRecord = await tx.surgicalProcedureRecord.findUnique({
+                    where: { surgical_case_id: caseId },
+                });
+
+                if (procedureRecord) {
+                    await tx.surgicalProcedureRecord.update({
+                        where: { id: procedureRecord.id },
+                        data: {
+                            estimated_blood_loss: fluids.estimatedBloodLossMl ?? null,
+                            urine_output: fluids.urinaryOutputMl ?? null,
+                        },
+                    });
+                }
+            }
+
+            // 6. Audit Trail entry — Corrected to ClinicalAuditEvent
             await tx.clinicalAuditEvent.create({
                 data: {
                     actor_user_id: authResult.user?.userId || 'system',
@@ -98,6 +117,15 @@ export async function POST(
                 }
             });
         });
+
+        // 7. Auto-transition case status: Intra-op finalized → RECOVERY
+        try {
+            const statusTransitionService = new SurgicalCaseStatusTransitionService(db);
+            await statusTransitionService.transitionToRecovery(caseId, authResult.user?.userId || 'system');
+        } catch (error) {
+            // Log but don't fail - status transition is best effort
+            console.error('[API] Intra-op finalize: Status transition error:', error);
+        }
 
         return NextResponse.json({ success: true });
 

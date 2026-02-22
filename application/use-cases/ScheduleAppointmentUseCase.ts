@@ -12,6 +12,8 @@ import { AppointmentResponseDto } from '../dtos/AppointmentResponseDto';
 import { AppointmentMapper as ApplicationAppointmentMapper } from '../mappers/AppointmentMapper';
 import { ValidateAppointmentAvailabilityUseCase } from './ValidateAppointmentAvailabilityUseCase';
 import { DomainException } from '../../domain/exceptions/DomainException';
+import { NotFoundError } from '../errors/NotFoundError';
+import { ConflictError } from '../errors/ConflictError';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { UseCaseFactory } from '@/lib/use-case-factory';
 
@@ -92,10 +94,13 @@ export class ScheduleAppointmentUseCase {
    * 
    * @param dto - ScheduleAppointmentDto with appointment scheduling data
    * @param userId - User ID performing the action (for audit purposes)
+   * @param userRole - User role (for determining created_by_user_id and source defaults)
    * @returns Promise resolving to AppointmentResponseDto with created appointment data
-   * @throws DomainException if validation fails or appointment conflicts exist
+   * @throws NotFoundError if patient/doctor not found
+   * @throws ConflictError if appointment slot is already booked
+   * @throws DomainException for other validation failures
    */
-  async execute(dto: ScheduleAppointmentDto, userId: string): Promise<AppointmentResponseDto> {
+  async execute(dto: ScheduleAppointmentDto, userId: string, userRole?: string): Promise<AppointmentResponseDto> {
     // Step 0: Validate required fields
     if (!dto.doctorId || dto.doctorId.trim().length === 0) {
       throw new DomainException('Doctor ID is required. Please select a surgeon.', {
@@ -106,9 +111,7 @@ export class ScheduleAppointmentUseCase {
     // Step 1: Validate patient exists
     const patient = await this.patientRepository.findById(dto.patientId);
     if (!patient) {
-      throw new DomainException(`Patient with ID ${dto.patientId} not found`, {
-        patientId: dto.patientId,
-      });
+      throw new NotFoundError(`Patient with ID ${dto.patientId} not found`, 'Patient', dto.patientId);
     }
 
     // Step 2: Validate appointment date is not in the past
@@ -131,7 +134,7 @@ export class ScheduleAppointmentUseCase {
     // Uses Phase 1 temporal fields for efficient conflict detection
     // Leverages indexes on (doctor_id, scheduled_at) for O(n) performance
     const slotConfig = await this.availabilityRepository.getSlotConfiguration(dto.doctorId);
-    const appointmentDuration = slotConfig?.defaultDuration || 30; // Default 30 minutes
+    const appointmentDuration = dto.durationMinutes || slotConfig?.defaultDuration || 30; // Use DTO duration if provided, else slot config, else default 30 minutes
 
     // PHASE 1 INTEGRATION: appointmentDuration stored as Phase 1 field (duration_minutes)
     // This enables quick conflict detection without joins
@@ -143,22 +146,16 @@ export class ScheduleAppointmentUseCase {
     });
 
     if (!availabilityCheck.isAvailable) {
-      throw new DomainException(
-        `Appointment time is not available: ${availabilityCheck.reason}`,
-        {
-          doctorId: dto.doctorId,
-          date: dto.appointmentDate,
-          time: dto.time,
-          reason: availabilityCheck.reason,
-        }
+      throw new ConflictError(
+        `Appointment time is not available: ${availabilityCheck.reason || 'Slot is already booked'}`
       );
     }
 
     // Step 3: Create appointment domain entity (validates business rules)
     // Note: ID will be 0 temporarily, database will assign actual ID
     // Status is determined by source:
-    //   PATIENT_REQUESTED → PENDING_DOCTOR_CONFIRMATION (requires doctor review)
-    //   FRONTDESK_SCHEDULED, DOCTOR_FOLLOW_UP, ADMIN_SCHEDULED → SCHEDULED (auto-confirmed)
+    //   PATIENT_REQUESTED, FRONTDESK_SCHEDULED, ADMIN_SCHEDULED → PENDING_DOCTOR_CONFIRMATION (requires doctor review)
+    //   DOCTOR_FOLLOW_UP → SCHEDULED (auto-confirmed, doctor scheduling their own follow-up)
     const appointmentSource = dto.source || AppointmentSource.PATIENT_REQUESTED;
     const defaultStatus = getDefaultStatusForSource(appointmentSource);
 
@@ -185,39 +182,82 @@ export class ScheduleAppointmentUseCase {
         );
 
         if (hasDoctorConflict) {
-          throw new DomainException(
-            `Appointment conflict: Doctor ${dto.doctorId} already has an appointment on ${dto.appointmentDate.toISOString()} at ${dto.time}`,
-            {
-              doctorId: dto.doctorId,
-              appointmentDate: dto.appointmentDate,
-              time: dto.time,
-            },
+          throw new ConflictError(
+            `Appointment conflict: Doctor already has an appointment on ${dto.appointmentDate.toISOString()} at ${dto.time}`
           );
         }
 
-        // Step 4.2: Check for patient conflict
+        // Step 4.2: Check for patient conflicts
         const patientAppointments = await this.appointmentRepository.findByPatient(dto.patientId, tx);
         const excludedStatuses = ['CANCELLED', 'COMPLETED'];
-        const patientConflict = patientAppointments.find((apt) => {
+        
+        // Normalize appointment date to midnight for date-only comparison
+        const appointmentDateOnly = new Date(dto.appointmentDate);
+        appointmentDateOnly.setHours(0, 0, 0, 0);
+        
+        // Check for exact duplicate (same patient, doctor, date, and time)
+        const exactDuplicate = patientAppointments.find((apt) => {
           const aptDate = new Date(apt.getAppointmentDate());
           aptDate.setHours(0, 0, 0, 0);
           return (
-            aptDate.getTime() === appointmentDateTime.getTime() &&
+            aptDate.getTime() === appointmentDateOnly.getTime() &&
             apt.getDoctorId() === dto.doctorId &&
             apt.getTime() === dto.time &&
             !excludedStatuses.includes(apt.getStatus() as string)
           );
         });
 
-        if (patientConflict) {
-          throw new DomainException(
-            `Appointment conflict: Patient already has an appointment with doctor ${dto.doctorId} on ${dto.appointmentDate.toISOString()} at ${dto.time}`,
-            {
-              patientId: dto.patientId,
-              doctorId: dto.doctorId,
-              appointmentDate: dto.appointmentDate,
-              time: dto.time,
-            },
+        if (exactDuplicate) {
+          throw new ConflictError(
+            `Appointment conflict: Patient already has an appointment with this doctor on ${dto.appointmentDate.toLocaleDateString()} at ${dto.time}`
+          );
+        }
+
+        // Check for same patient, same doctor, same day (different time)
+        // This prevents scheduling multiple appointments with the same doctor on the same day
+        const sameDaySameDoctor = patientAppointments.find((apt) => {
+          const aptDate = new Date(apt.getAppointmentDate());
+          aptDate.setHours(0, 0, 0, 0);
+          return (
+            aptDate.getTime() === appointmentDateOnly.getTime() &&
+            apt.getDoctorId() === dto.doctorId &&
+            !excludedStatuses.includes(apt.getStatus() as string)
+          );
+        });
+
+        if (sameDaySameDoctor) {
+          const existingTime = sameDaySameDoctor.getTime();
+          const existingDate = sameDaySameDoctor.getAppointmentDate();
+          const formattedDate = existingDate.toLocaleDateString('en-US', { 
+            month: 'long', 
+            day: 'numeric', 
+            year: 'numeric' 
+          });
+          throw new ConflictError(
+            `This patient already has an appointment with this doctor on ${formattedDate} at ${existingTime}. ` +
+            `To avoid scheduling conflicts, please choose a different date or reschedule the existing appointment first.`
+          );
+        }
+
+        // Check for same patient, same day, different doctors (warn but allow)
+        // This is allowed but we'll log it for awareness (e.g., patient seeing multiple specialists)
+        const sameDayDifferentDoctor = patientAppointments.filter((apt) => {
+          const aptDate = new Date(apt.getAppointmentDate());
+          aptDate.setHours(0, 0, 0, 0);
+          return (
+            aptDate.getTime() === appointmentDateOnly.getTime() &&
+            apt.getDoctorId() !== dto.doctorId &&
+            !excludedStatuses.includes(apt.getStatus() as string)
+          );
+        });
+
+        if (sameDayDifferentDoctor.length > 0) {
+          // Allow but log for awareness - patient might be seeing multiple specialists
+          // This is a valid scenario (e.g., cardiologist in morning, dermatologist in afternoon)
+          const otherDoctors = sameDayDifferentDoctor.map(apt => apt.getDoctorId()).join(', ');
+          console.info(
+            `[ScheduleAppointment] Patient ${dto.patientId} has ${sameDayDifferentDoctor.length} other appointment(s) on ${dto.appointmentDate.toLocaleDateString()} ` +
+            `with different doctor(s): ${otherDoctors}. This is allowed (patient may be seeing multiple specialists).`
           );
         }
 
@@ -228,6 +268,10 @@ export class ScheduleAppointmentUseCase {
         const appointmentDateWithTime = new Date(dto.appointmentDate);
         const [hours, minutes] = dto.time.split(':').map(Number);
         appointmentDateWithTime.setHours(hours, minutes, 0, 0);
+
+        // Determine created_by_user_id: set for staff roles (FRONTDESK, ADMIN, DOCTOR), null for PATIENT
+        const shouldSetCreatedBy = userRole && ['FRONTDESK', 'ADMIN', 'DOCTOR'].includes(userRole);
+        const createdByUserId = shouldSetCreatedBy ? userId : null;
 
         await tx.appointment.update({
           where: { id: id },
@@ -240,6 +284,10 @@ export class ScheduleAppointmentUseCase {
             status_changed_by: userId,
             // Source tracking
             source: appointmentSource as any,
+            // Audit trail: created_by_user_id for staff-created appointments
+            created_by_user_id: createdByUserId,
+            // Booking channel (UI entry point tracking)
+            booking_channel: dto.bookingChannel as any || null,
             parent_appointment_id: dto.parentAppointmentId || null,
             parent_consultation_id: dto.parentConsultationId || null,
             // Auto-confirm for non-patient sources
@@ -263,14 +311,8 @@ export class ScheduleAppointmentUseCase {
         const target = error.meta?.target;
         const targetArray = Array.isArray(target) ? target : (typeof target === 'string' ? [target] : []);
         if (targetArray.some(t => String(t).includes('appointment_no_double_booking') || String(t).includes('unique_doctor_scheduled_slot'))) {
-          throw new DomainException(
-            `Appointment conflict: Doctor ${dto.doctorId} already has an appointment on ${dto.appointmentDate.toISOString()} at ${dto.time}`,
-            {
-              doctorId: dto.doctorId,
-              appointmentDate: dto.appointmentDate,
-              time: dto.time,
-              error: 'Database constraint violation',
-            },
+          throw new ConflictError(
+            `Appointment conflict: Doctor already has an appointment on ${dto.appointmentDate.toISOString()} at ${dto.time}`
           );
         }
       }
@@ -300,7 +342,7 @@ export class ScheduleAppointmentUseCase {
     }
 
     // Step 7: Send in-app notification to Doctor for confirmation
-    // Only send "needs confirmation" for patient-requested appointments
+    // Send notification for all appointments requiring doctor confirmation
     if (defaultStatus === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION) {
       try {
         const doctorUser = await this.prisma.doctor.findUnique({
@@ -309,10 +351,16 @@ export class ScheduleAppointmentUseCase {
         });
 
         if (doctorUser) {
+          const sourceLabel = appointmentSource === AppointmentSource.FRONTDESK_SCHEDULED
+            ? 'Frontdesk has scheduled'
+            : appointmentSource === AppointmentSource.ADMIN_SCHEDULED
+            ? 'Admin has scheduled'
+            : 'Patient has requested';
+          
           await this.notificationService.sendInApp(
             doctorUser.user_id,
-            'New Appointment Request',
-            `${patient.getFullName()} has been booked for ${dto.appointmentDate.toLocaleDateString()} at ${dto.time}. Please confirm or reschedule.`,
+            'Appointment Requires Confirmation',
+            `${sourceLabel} an appointment for ${patient.getFullName()} on ${dto.appointmentDate.toLocaleDateString()} at ${dto.time}. Please confirm, cancel, or reschedule.`,
             'warning',
             {
               resourceType: 'appointment',

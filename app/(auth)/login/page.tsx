@@ -319,19 +319,6 @@ export default function LoginPage() {
         </Button>
       </form>
 
-      {/* Register Link */}
-      <div className="text-center pt-5 border-t border-gray-100">
-        <p className="text-sm text-slate-500">
-          Don&apos;t have an account?{' '}
-          <Link
-            href="/patient/register"
-            className="font-semibold text-brand-primary hover:text-brand-primary/80 hover:underline transition-colors focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-1 rounded"
-          >
-            Create account
-          </Link>
-        </p>
-      </div>
-
       {/* Footer Link */}
       <div className="text-center pt-2">
         <Link

@@ -16,7 +16,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import db from '@/lib/db';
-import { ClinicalFormStatus } from '@prisma/client';
+import { ClinicalFormStatus, SurgicalRole } from '@prisma/client';
 import { endpointTimer } from '@/lib/observability/endpointLogger';
 import {
     INTRAOP_TEMPLATE_KEY,
@@ -76,9 +76,65 @@ async function getSurgicalCaseWithPatient(caseId: string) {
                     planned_anesthesia: true,
                     implant_details: true,
                 }
-            }
+            },
+            // Fetch accepted staff invites to pre-populate the staffing section
+            staff_invites: {
+                where: { status: 'ACCEPTED' },
+                select: {
+                    invited_role: true,
+                    invited_user: {
+                        select: { first_name: true, last_name: true },
+                    },
+                },
+            },
         },
     });
+}
+
+/**
+ * Build a staffing snapshot from accepted StaffInvites.
+ * Maps SurgicalRole → staffing field name expected by the intra-op form.
+ */
+function buildSuggestedStaffing(surgicalCase: {
+    primary_surgeon: { name: string } | null;
+    staff_invites: Array<{ invited_role: SurgicalRole; invited_user: { first_name: string | null; last_name: string | null } }>;
+}) {
+    const fullName = (u: { first_name: string | null; last_name: string | null }) =>
+        `${u.first_name || ''} ${u.last_name || ''}`.trim();
+
+    // Start with the surgeon from case record (always present)
+    const staffing: Record<string, string> = {
+        surgeon: surgicalCase.primary_surgeon?.name || '',
+        assistant: '',
+        anaesthesiologist: '',
+        scrubNurse: '',
+        circulatingNurse: '',
+    };
+
+    // Override / fill from accepted invites
+    for (const inv of surgicalCase.staff_invites) {
+        switch (inv.invited_role) {
+            case 'SURGEON':
+                staffing.surgeon = fullName(inv.invited_user);
+                break;
+            case 'ASSISTANT_SURGEON':
+                staffing.assistant = fullName(inv.invited_user);
+                break;
+            case 'ANESTHESIOLOGIST':
+            case 'ANESTHETIST_NURSE':
+                if (!staffing.anaesthesiologist) {
+                    staffing.anaesthesiologist = fullName(inv.invited_user);
+                }
+                break;
+            case 'SCRUB_NURSE':
+                staffing.scrubNurse = fullName(inv.invited_user);
+                break;
+            case 'CIRCULATING_NURSE':
+                staffing.circulatingNurse = fullName(inv.invited_user);
+                break;
+        }
+    }
+    return staffing;
 }
 
 function mapResponseDto(response: {
@@ -186,13 +242,7 @@ export async function GET(
                     electrosurgical: { cauteryUsed: false, cutSet: '30', coagSet: '30', skinCheckedBefore: false, skinCheckedAfter: false },
                     tourniquet: { tourniquetUsed: false, laterality: 'N/A', skinCheckedBefore: false, skinCheckedAfter: false }
                 },
-                staffing: {
-                    surgeon: surgicalCase.primary_surgeon?.name || '',
-                    assistant: '',
-                    anaesthesiologist: '',
-                    scrubNurse: '',
-                    circulatingNurse: ''
-                },
+                staffing: buildSuggestedStaffing(surgicalCase),
                 anaesthesia: { type: 'GENERAL' },
                 counts: {
                     items: [
@@ -231,6 +281,7 @@ export async function GET(
             });
         }
 
+        const suggestedStaffing = buildSuggestedStaffing(surgicalCase);
         timer.end({ caseId });
         return NextResponse.json({
             success: true,
@@ -241,6 +292,8 @@ export async function GET(
                 procedureName: surgicalCase.procedure_name,
                 surgeonName: surgicalCase.primary_surgeon?.name,
                 casePlan: surgicalCase.case_plan,
+                // Pre-populated team from accepted StaffInvites + primary surgeon
+                suggestedStaffing,
             },
         });
     } catch (error) {
@@ -309,23 +362,22 @@ export async function PUT(
             });
 
             // Sync structured data to SurgicalProcedureRecord for real-time dashboard
-            // Note: estimated_blood_loss and urine_output are currently not in schema
-            // const fluids = parsed.data.fluids || {};
-            // if (fluids.estimatedBloodLossMl !== undefined || fluids.urinaryOutputMl !== undefined) {
-            //     const procedureRecord = await tx.surgicalProcedureRecord.findUnique({
-            //         where: { surgical_case_id: caseId },
-            //     });
-            //
-            //     if (procedureRecord) {
-            //         await tx.surgicalProcedureRecord.update({
-            //             where: { id: procedureRecord.id },
-            //             data: {
-            //                 estimated_blood_loss: fluids.estimatedBloodLossMl,
-            //                 urine_output: fluids.urinaryOutputMl,
-            //             },
-            //         });
-            //     }
-            // }
+            const fluids = parsed.data.fluids || {};
+            if (fluids.estimatedBloodLossMl !== undefined || fluids.urinaryOutputMl !== undefined) {
+                const procedureRecord = await tx.surgicalProcedureRecord.findUnique({
+                    where: { surgical_case_id: caseId },
+                });
+
+                if (procedureRecord) {
+                    await tx.surgicalProcedureRecord.update({
+                        where: { id: procedureRecord.id },
+                        data: {
+                            estimated_blood_loss: fluids.estimatedBloodLossMl ?? null,
+                            urine_output: fluids.urinaryOutputMl ?? null,
+                        },
+                    });
+                }
+            }
 
             return up;
         });

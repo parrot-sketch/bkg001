@@ -360,6 +360,9 @@ export async function getPatientFullDataById(id: string) {
         emergency_contact_name: true, // Preserved for UI
         emergency_contact_number: true, // Preserved for UI
         relation: true, // Preserved for UI
+        allergies: true, // Medical information
+        medical_conditions: true, // Medical information
+        medical_history: true, // Medical information
         created_at: true,
         updated_at: true,
         _count: {

@@ -17,9 +17,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
-import { DomainException } from '@/domain/exceptions/DomainException';
 import { checklistItemSchema } from '@/domain/clinical-forms/WhoSurgicalChecklist';
 import { getTheaterTechService } from '@/lib/factories/theaterTechFactory';
+import { handleApiError, handleApiSuccess } from '@/app/api/_utils/handleApiError';
+import { ForbiddenError } from '@/application/errors';
 import { z } from 'zod';
 
 const ALLOWED_ROLES = new Set([Role.THEATER_TECHNICIAN, Role.ADMIN]);
@@ -35,30 +36,19 @@ export async function POST(
   try {
     const authResult = await JwtMiddleware.authenticate(request);
     if (!authResult.success || !authResult.user) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
+      return handleApiError(new ForbiddenError('Authentication required'));
     }
 
     if (!ALLOWED_ROLES.has(authResult.user.role as Role)) {
-      return NextResponse.json(
-        { success: false, error: 'Access denied: Theater Technician or Admin role required' },
-        { status: 403 }
+      return handleApiError(
+        new ForbiddenError('Access denied: Theater Technician or Admin role required')
       );
     }
 
     const body = await request.json();
     const validation = bodySchema.safeParse(body);
     if (!validation.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Validation failed',
-          details: validation.error.flatten().fieldErrors,
-        },
-        { status: 400 }
-      );
+      return handleApiError(validation.error);
     }
 
     const { caseId } = await params;
@@ -73,27 +63,8 @@ export async function POST(
       authResult.user.role
     );
 
-    return NextResponse.json({ success: true, data: result }, { status: 200 });
+    return handleApiSuccess(result);
   } catch (error) {
-    console.error('[API] POST .../checklist/sign-in/finalize - Error:', error);
-
-    if (error instanceof DomainException) {
-      return NextResponse.json(
-        { success: false, error: error.message, metadata: error.metadata },
-        { status: 422 }
-      );
-    }
-
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          process.env.NODE_ENV === 'development'
-            ? `Internal server error: ${message}`
-            : 'Internal server error',
-      },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }

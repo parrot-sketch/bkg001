@@ -104,6 +104,19 @@ export const nurseFormsApi = {
     },
 
     /**
+     * Start an amendment for a finalized checklist.
+     */
+    async startPreopWardChecklistAmendment(
+        caseId: string,
+        reason: string,
+    ): Promise<ApiResponse<{ id: string; status: ClinicalFormStatus; amendmentCount: number }>> {
+        return apiClient.post<{ id: string; status: ClinicalFormStatus; amendmentCount: number }>(
+            `/nurse/surgical-cases/${caseId}/forms/preop-ward/amend`,
+            { reason },
+        );
+    },
+
+    /**
      * Get all medication administrations for a surgical case.
      */
     async getMedicationAdministrations(caseId: string): Promise<ApiResponse<MedicationAdministration[]>> {

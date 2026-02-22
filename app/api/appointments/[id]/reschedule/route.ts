@@ -32,7 +32,8 @@ const rescheduleAppointmentUseCase = new RescheduleAppointmentUseCase(
     notificationService,
     auditService,
     timeService,
-    validateAvailabilityUseCase
+    validateAvailabilityUseCase,
+    db
 );
 
 /**

@@ -13,46 +13,57 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import db, { withRetry } from '@/lib/db';
-import { LoginDto } from '@/application/dtos/LoginDto';
+import { LoginDto, loginDtoSchema, LoginResponseDto } from '@/application/dtos/LoginDto';
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { AuthFactory } from '@/infrastructure/auth/AuthFactory';
+import type { ApiResponse } from '@/lib/api/client';
+
+/**
+ * Standardized API error response
+ */
+type ApiErrorResponse = ApiResponse<never>;
 
 /**
  * POST /api/auth/login
  * 
- * Handles user login request.
+ * Handles user login request with Zod validation and standardized response.
+ * 
+ * Error Codes:
+ * - 400: Invalid request (malformed JSON, validation errors)
+ * - 401: Invalid credentials (generic message to prevent user enumeration)
+ * - 429: Rate limit exceeded (if implemented)
+ * - 500: Internal server error
  */
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export async function POST(request: NextRequest): Promise<NextResponse<ApiErrorResponse | ApiResponse<LoginResponseDto>>> {
   // Initialize authentication use cases using factory lazily inside handler
   const { loginUseCase } = AuthFactory.create(db);
 
   try {
     // Parse request body
-    let body: LoginDto;
+    let rawBody: unknown;
     try {
-      body = await request.json();
+      rawBody = await request.json();
     } catch (error) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Invalid JSON in request body',
-        },
-        { status: 400 }
-      );
+      const errorResponse: ApiErrorResponse = {
+        success: false,
+        error: 'Invalid JSON in request body',
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
     }
 
-    // Validate required fields
-    if (!body || !body.email || !body.password) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Email and password are required',
-        },
-        { status: 400 }
-      );
+    // Validate with Zod schema
+    const validationResult = loginDtoSchema.safeParse(rawBody);
+    if (!validationResult.success) {
+      const firstError = validationResult.error.errors[0];
+      const errorResponse: ApiErrorResponse = {
+        success: false,
+        error: firstError?.message || 'Invalid request data',
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
     }
+
+    const body: LoginDto = validationResult.data;
 
     // Execute login use case with retry logic for connection errors
     const response = await withRetry(async () => {
@@ -62,14 +73,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       });
     });
 
-    // Create response with JSON data
-    const nextResponse = NextResponse.json(
-      {
-        success: true,
-        data: response,
-      },
-      { status: 200 }
-    );
+    // Validate response structure
+    if (!response || !response.accessToken || !response.refreshToken) {
+      const errorResponse: ApiErrorResponse = {
+        success: false,
+        error: 'Internal server error: Invalid response from authentication service',
+      };
+      return NextResponse.json(errorResponse, { status: 500 });
+    }
+
+    // Create success response with standardized ApiResponse format
+    const successResponse: ApiResponse<LoginResponseDto> = {
+      success: true,
+      data: response,
+    };
+
+    const nextResponse = NextResponse.json(successResponse, { status: 200 });
 
     // Set access token cookie on the response
     const safeExpiresIn = typeof response.expiresIn === 'number' ? response.expiresIn : 900;
@@ -92,27 +111,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
 
     return nextResponse;
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Handle domain exceptions (e.g., invalid credentials)
     if (error instanceof DomainException) {
       // Generic error message - prevents user enumeration
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Invalid email or password. Please try again.',
-        },
-        { status: 401 }
-      );
+      const errorResponse: ApiErrorResponse = {
+        success: false,
+        error: 'Invalid email or password. Please try again.',
+      };
+      return NextResponse.json(errorResponse, { status: 401 });
     }
 
     // Unexpected error - log and return generic error
-    console.error('[API] /api/auth/login - Unexpected error:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Internal server error',
-      },
-      { status: 500 }
-    );
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[API] /api/auth/login - Unexpected error:', errorMessage, error);
+    
+    const errorResponse: ApiErrorResponse = {
+      success: false,
+      error: 'Internal server error',
+    };
+    return NextResponse.json(errorResponse, { status: 500 });
   }
 }

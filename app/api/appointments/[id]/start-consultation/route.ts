@@ -117,12 +117,20 @@ export async function POST(
             );
         }
 
+        // Get appointment's slot duration for consultation time tracking
+        // Priority: duration_minutes > slot_duration > default 30 minutes
+        const slotDuration = appointment.duration_minutes || appointment.slot_duration || 30;
+
         // Update appointment status to IN_CONSULTATION
+        // Also set consultation_started_at for duration tracking
+        const consultationStartedAt = new Date();
         const updatedAppointment = await db.appointment.update({
             where: { id: appointmentId },
             data: {
                 status: AppointmentStatus.IN_CONSULTATION,
-                consultation_started_at: new Date(),
+                consultation_started_at: consultationStartedAt,
+                // Store slot duration for consultation time tracking
+                consultation_duration: slotDuration,
             },
             include: {
                 patient: true,

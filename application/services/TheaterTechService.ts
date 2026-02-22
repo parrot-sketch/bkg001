@@ -24,6 +24,7 @@ import { TheaterDashboardService } from '@/application/services/TheaterDashboard
 import { SurgicalChecklistService } from '@/application/services/SurgicalChecklistService';
 import { ProcedureTimelineService } from '@/application/services/ProcedureTimelineService';
 import { DomainException } from '@/domain/exceptions/DomainException';
+import { GateBlockedError, NotFoundError } from '@/application/errors';
 import {
   INTRAOP_TEMPLATE_KEY,
   INTRAOP_TEMPLATE_VERSION,
@@ -34,6 +35,10 @@ import {
   RECOVERY_TEMPLATE_VERSION,
   getCompletionGateItems,
 } from '@/domain/clinical-forms/NurseRecoveryRecord';
+import {
+  parseIntraOpRecordForGate,
+  parseRecoveryRecordForGate,
+} from '@/lib/parsers/clinicalFormParsers';
 import {
   OPERATIVE_NOTE_TEMPLATE_KEY,
 } from '@/domain/clinical-forms/SurgeonOperativeNote';
@@ -161,7 +166,7 @@ export class TheaterTechService {
       where: { id: caseId },
     });
     if (!surgicalCase) {
-      throw new DomainException('Surgical case not found', { caseId });
+      throw new NotFoundError('Surgical case not found', 'SurgicalCase', caseId);
     }
 
     const previousStatus = surgicalCase.status;
@@ -267,16 +272,10 @@ export class TheaterTechService {
           },
         });
 
-        throw new DomainException(
+        throw new GateBlockedError(
           'Cannot transition to IN_THEATER: WHO Sign-In checklist must be finalized',
-          {
-            caseId,
-            gate: 'WHO_CHECKLIST',
-            blockingCategory: 'WHO_CHECKLIST',
-            missingItems: missingItems.length > 0
-              ? missingItems
-              : ['Sign-In checklist not finalized'],
-          }
+          'WHO_CHECKLIST',
+          missingItems.length > 0 ? missingItems : ['Sign-In checklist not finalized']
         );
       }
     }
@@ -306,16 +305,10 @@ export class TheaterTechService {
           },
         });
 
-        throw new DomainException(
+        throw new GateBlockedError(
           'Cannot transition to RECOVERY: WHO Sign-Out checklist must be finalized',
-          {
-            caseId,
-            gate: 'WHO_CHECKLIST',
-            blockingCategory: 'WHO_CHECKLIST',
-            missingItems: missingItems.length > 0
-              ? missingItems
-              : ['Sign-Out checklist not finalized'],
-          }
+          'WHO_CHECKLIST',
+          missingItems.length > 0 ? missingItems : ['Sign-Out checklist not finalized']
         );
       }
 
@@ -359,48 +352,31 @@ export class TheaterTechService {
 
     // If no intra-op record exists at all
     if (!intraOpRecord) {
-      throw new DomainException(
+      throw new GateBlockedError(
         'Cannot transition to RECOVERY: Nurse intra-operative record has not been started',
-        {
-          caseId,
-          gate: 'NURSE_INTRAOP_RECORD',
-          missingItems: ['Nurse intra-operative record not started'],
-        }
+        'NURSE_INTRAOP_RECORD',
+        ['Nurse intra-operative record not started']
       );
     }
 
     // Record must be FINAL
     if (intraOpRecord.status !== ClinicalFormStatus.FINAL) {
-      throw new DomainException(
+      throw new GateBlockedError(
         'Cannot transition to RECOVERY: Nurse intra-operative record must be finalized',
-        {
-          caseId,
-          gate: 'NURSE_INTRAOP_RECORD',
-          missingItems: ['Nurse intra-operative record not finalized'],
-        }
+        'NURSE_INTRAOP_RECORD',
+        ['Nurse intra-operative record not finalized']
       );
     }
 
     // Check safety-critical items in the finalized data
-    let data: unknown;
-    try {
-      data = JSON.parse(intraOpRecord.data_json);
-    } catch {
-      throw new DomainException(
-        'Cannot transition to RECOVERY: Nurse intra-operative record data is corrupted',
-        { caseId, gate: 'NURSE_INTRAOP_RECORD' }
-      );
-    }
-
-    const missingItems = checkNurseRecoveryGateCompliance(data as any);
+    // Use validated parser to ensure type safety
+    const data = parseIntraOpRecordForGate(intraOpRecord.data_json);
+    const missingItems = checkNurseRecoveryGateCompliance(data);
     if (missingItems.length > 0) {
-      throw new DomainException(
+      throw new GateBlockedError(
         `Cannot transition to RECOVERY: ${missingItems.length} safety item(s) incomplete in intra-op record`,
-        {
-          caseId,
-          gate: 'NURSE_INTRAOP_RECORD',
-          missingItems,
-        }
+        'NURSE_INTRAOP_RECORD',
+        missingItems
       );
     }
   }
@@ -432,48 +408,31 @@ export class TheaterTechService {
 
     // If no recovery record exists at all
     if (!recoveryRecord) {
-      throw new DomainException(
+      throw new GateBlockedError(
         'Cannot transition to COMPLETED: Nurse recovery record has not been started',
-        {
-          caseId,
-          gate: 'RECOVERY_DOCUMENTATION',
-          missingItems: ['Nurse recovery record not started'],
-        }
+        'RECOVERY_DOCUMENTATION',
+        ['Nurse recovery record not started']
       );
     }
 
     // Record must be FINAL
     if (recoveryRecord.status !== ClinicalFormStatus.FINAL) {
-      throw new DomainException(
+      throw new GateBlockedError(
         'Cannot transition to COMPLETED: Nurse recovery record must be finalized',
-        {
-          caseId,
-          gate: 'RECOVERY_DOCUMENTATION',
-          missingItems: ['Nurse recovery record not finalized'],
-        }
+        'RECOVERY_DOCUMENTATION',
+        ['Nurse recovery record not finalized']
       );
     }
 
     // Check gate items in the finalized data
-    let data: unknown;
-    try {
-      data = JSON.parse(recoveryRecord.data_json);
-    } catch {
-      throw new DomainException(
-        'Cannot transition to COMPLETED: Nurse recovery record data is corrupted',
-        { caseId, gate: 'RECOVERY_DOCUMENTATION' }
-      );
-    }
-
-    const missingGateItems = getCompletionGateItems(data as any);
+    // Use validated parser to ensure type safety
+    const data = parseRecoveryRecordForGate(recoveryRecord.data_json);
+    const missingGateItems = getCompletionGateItems(data);
     if (missingGateItems.length > 0) {
-      throw new DomainException(
+      throw new GateBlockedError(
         `Cannot transition to COMPLETED: ${missingGateItems.length} recovery item(s) incomplete`,
-        {
-          caseId,
-          gate: 'RECOVERY_DOCUMENTATION',
-          missingItems: missingGateItems,
-        }
+        'RECOVERY_DOCUMENTATION',
+        missingGateItems
       );
     }
   }
@@ -493,30 +452,6 @@ export class TheaterTechService {
     userRole: string
   ): Promise<TimelineResultDto> {
     return this.timelineService.updateTimeline(caseId, timestamps, userId, userRole);
-  }
-
-  async updateProcedureTimestamps(
-    caseId: string,
-    timestamps: {
-      anesthesiaStart?: string;
-      incisionTime?: string;
-      closureTime?: string;
-      wheelsOut?: string;
-    },
-    userId: string,
-    userRole: string
-  ): Promise<ProcedureTimestampResultDto> {
-    return this.timelineService.updateProcedureTimestamps(caseId, timestamps, userId, userRole);
-  }
-
-  async completeChecklistPhase(
-    caseId: string,
-    phase: 'SIGN_IN' | 'TIME_OUT' | 'SIGN_OUT',
-    items: ChecklistItemConfirmation[],
-    userId: string,
-    userRole: string
-  ): Promise<ChecklistStatusDto> {
-    return this.checklistService.completeChecklistPhase(caseId, phase, items, userId, userRole);
   }
 
   async saveChecklistDraft(
@@ -539,15 +474,12 @@ export class TheaterTechService {
     return this.checklistService.finalizeChecklistPhase(caseId, phase, items, userId, userRole);
   }
 
+  /**
+   * Get WHO checklist status for a surgical case.
+   * Returns status for all three phases (Sign-In, Time-Out, Sign-Out).
+   */
   async getChecklistStatus(caseId: string): Promise<ChecklistStatusDto> {
     return this.checklistService.getChecklistStatus(caseId);
   }
 
-  async getChecklist(caseId: string): Promise<ChecklistStatusDto> {
-    return this.checklistService.getChecklistStatus(caseId);
-  }
-
-  async getChecklistByCaseId(caseId: string): Promise<ChecklistStatusDto> {
-    return this.checklistService.getChecklistStatus(caseId);
-  }
 }

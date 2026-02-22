@@ -20,7 +20,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import type { RegisterUserDto } from '@/application/dtos/RegisterUserDto';
+import type { CreateStaffDto } from '@/application/dtos/CreateStaffDto';
 import { Role } from '@/domain/enums/Role';
 
 interface CreateStaffDialogProps {
@@ -30,8 +30,7 @@ interface CreateStaffDialogProps {
 }
 
 export function CreateStaffDialog({ open, onClose, onSuccess }: CreateStaffDialogProps) {
-  const [formData, setFormData] = useState<Partial<RegisterUserDto>>({
-    id: crypto.randomUUID(),
+  const [formData, setFormData] = useState<Partial<CreateStaffDto>>({
     email: '',
     password: '',
     role: Role.DOCTOR,
@@ -52,8 +51,7 @@ export function CreateStaffDialog({ open, onClose, onSuccess }: CreateStaffDialo
     setIsSubmitting(true);
 
     try {
-      const dto: RegisterUserDto = {
-        id: formData.id!,
+      const dto: CreateStaffDto = {
         email: formData.email!,
         password: formData.password!,
         role: formData.role!,
@@ -69,7 +67,6 @@ export function CreateStaffDialog({ open, onClose, onSuccess }: CreateStaffDialo
         onSuccess();
         // Reset form
         setFormData({
-          id: crypto.randomUUID(),
           email: '',
           password: '',
           role: Role.DOCTOR,

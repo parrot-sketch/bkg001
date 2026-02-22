@@ -21,19 +21,21 @@ export async function POST(request: NextRequest) {
         }
 
         // Validate file type
-        const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
-        if (!validTypes.includes(file.type)) {
+        const isImage = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'].includes(file.type);
+        const isPDF = file.type === 'application/pdf';
+        
+        if (!isImage && !isPDF) {
             return NextResponse.json(
-                { success: false, error: 'Invalid file type. Only JPEG, PNG, and WebP are allowed.' },
+                { success: false, error: 'Invalid file type. Only images (JPEG, PNG, WebP) and PDFs are allowed.' },
                 { status: 400 }
             );
         }
 
-        // Validate file size (max 5MB)
-        const maxSize = 5 * 1024 * 1024; // 5MB
+        // Validate file size (max 10MB for PDFs, 5MB for images)
+        const maxSize = isPDF ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
         if (file.size > maxSize) {
             return NextResponse.json(
-                { success: false, error: 'File size exceeds 5MB limit' },
+                { success: false, error: `File size exceeds ${isPDF ? '10MB' : '5MB'} limit` },
                 { status: 400 }
             );
         }
@@ -44,20 +46,36 @@ export async function POST(request: NextRequest) {
 
         // Upload to Cloudinary
         const result = await new Promise<any>((resolve, reject) => {
-            cloudinary.uploader.upload_stream(
-                {
-                    folder: 'doctors',
-                    resource_type: 'image',
-                    transformation: [
-                        { width: 500, height: 500, crop: 'fill', gravity: 'face' },
-                        { quality: 'auto', fetch_format: 'auto' }
-                    ]
-                },
-                (error, result) => {
-                    if (error) reject(error);
-                    else resolve(result);
-                }
-            ).end(buffer);
+            if (isPDF) {
+                // Upload PDF as raw resource
+                cloudinary.uploader.upload_stream(
+                    {
+                        folder: 'consent-templates',
+                        resource_type: 'raw',
+                        format: 'pdf',
+                    },
+                    (error, result) => {
+                        if (error) reject(error);
+                        else resolve(result);
+                    }
+                ).end(buffer);
+            } else {
+                // Upload image with transformations
+                cloudinary.uploader.upload_stream(
+                    {
+                        folder: 'doctors',
+                        resource_type: 'image',
+                        transformation: [
+                            { width: 500, height: 500, crop: 'fill', gravity: 'face' },
+                            { quality: 'auto', fetch_format: 'auto' }
+                        ]
+                    },
+                    (error, result) => {
+                        if (error) reject(error);
+                        else resolve(result);
+                    }
+                ).end(buffer);
+            }
         });
 
         return NextResponse.json({

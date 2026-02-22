@@ -4,6 +4,14 @@ import { db } from '@/lib/db';
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
 import { AppointmentStatus } from '@prisma/client';
+import { WorkingDay, SlotConfigurationDto } from '@/domain/types/schedule';
+import { 
+  mapAvailabilitySlotToDomain,
+  mapSlotConfigurationToDomain,
+  mapSlotConfigurationToDto,
+  mapSlotConfigurationDtoToPrisma,
+  mapAvailabilityTemplateToDomain,
+} from '@/infrastructure/mappers/ScheduleMapper';
 
 // ============================================================================
 // SCHEMAS
@@ -29,11 +37,42 @@ const UpdateAvailabilitySchema = z.object({
     templateName: z.string().optional().default("Standard"),
     slots: z.array(z.object({
         dayOfWeek: z.number().min(0).max(6),
-        startTime: z.string(),
-        endTime: z.string(),
-        type: z.string().optional(),
+        startTime: z.string().regex(/^\d{2}:\d{2}$/),
+        endTime: z.string().regex(/^\d{2}:\d{2}$/),
+        type: z.enum(['CLINIC', 'SURGERY', 'ADMIN']).optional(),
     })),
 });
+
+const UpdateSlotConfigurationSchema = z.object({
+    doctorId: z.string(),
+    defaultDuration: z.number().min(15).max(120),
+    slotInterval: z.number().min(5).max(60),
+    bufferTime: z.number().min(0).max(30),
+}).refine(
+    (data) => {
+        // Prevent extreme overlap: interval should be at least 30% of duration
+        if (data.slotInterval < data.defaultDuration * 0.3) {
+            return false;
+        }
+        return true;
+    },
+    {
+        message: "Slot interval is too small relative to duration. This creates excessive overlap.",
+        path: ["slotInterval"],
+    }
+).refine(
+    (data) => {
+        // For 30+ minute appointments, minimum interval is 10 minutes
+        if (data.defaultDuration >= 30 && data.slotInterval < 10) {
+            return false;
+        }
+        return true;
+    },
+    {
+        message: "For 30+ minute appointments, minimum interval is 10 minutes.",
+        path: ["slotInterval"],
+    }
+);
 
 // ============================================================================
 // ACTIONS
@@ -45,7 +84,7 @@ export async function getDoctorSchedule(userId: string, start: Date, end: Date) 
     const doctorId = doctor ? doctor.id : userId;
 
     // ── Run all independent queries in parallel (was sequential waterfall) ──
-    const [template, overrides, blocks, appointments] = await Promise.all([
+    const [template, overrides, blocks, appointments, slotConfig] = await Promise.all([
         // 1. Availability template (active first, then any)
         db.availabilityTemplate.findFirst({
             where: { doctor_id: doctorId, is_active: true },
@@ -92,16 +131,33 @@ export async function getDoctorSchedule(userId: string, start: Date, end: Date) 
                 locked_at: true,
             },
         }),
+        // 5. Slot Configuration
+        db.slotConfiguration.findUnique({
+            where: { doctor_id: doctorId },
+        }),
     ]);
 
-    const workingDays = template ? template.slots.map(slot => ({
-        dayOfWeek: slot.day_of_week,
-        startTime: slot.start_time,
-        endTime: slot.end_time,
-        type: slot.slot_type,
-    })) : [];
+    // Map to domain types
+    const workingDays: WorkingDay[] = template 
+        ? template.slots.map(slot => ({
+            dayOfWeek: slot.day_of_week as WorkingDay['dayOfWeek'],
+            startTime: slot.start_time,
+            endTime: slot.end_time,
+            type: (slot.slot_type || 'CLINIC') as WorkingDay['type'],
+        }))
+        : [];
 
-    return { workingDays, overrides, blocks, appointments };
+    const slotConfigDto: SlotConfigurationDto | null = slotConfig
+        ? mapSlotConfigurationToDto(mapSlotConfigurationToDomain(slotConfig))
+        : null;
+
+    return { 
+        workingDays, 
+        overrides, 
+        blocks, 
+        appointments,
+        slotConfig: slotConfigDto,
+    };
 }
 
 export async function moveAppointment(data: z.infer<typeof MoveAppointmentSchema>) {
@@ -207,6 +263,46 @@ export async function updateAvailability(data: z.infer<typeof UpdateAvailability
                 }))
             });
         }
+    });
+
+    revalidatePath('/doctor/schedule');
+    return { success: true };
+}
+
+export async function updateSlotConfiguration(data: z.infer<typeof UpdateSlotConfigurationSchema>) {
+    const validated = UpdateSlotConfigurationSchema.parse(data);
+    const { doctorId: userIdOrDoctorId, defaultDuration, slotInterval, bufferTime } = validated;
+
+    // Resolve Doctor ID
+    const doctor = await db.doctor.findUnique({ where: { user_id: userIdOrDoctorId } });
+    const doctorId = doctor ? doctor.id : userIdOrDoctorId;
+
+    // Additional server-side validation
+    const overlapRatio = defaultDuration / slotInterval;
+    const slotsPerDuration = Math.ceil(overlapRatio);
+
+    // Hard validation: prevent extreme configurations
+    if (slotsPerDuration > 4) {
+        throw new Error(
+            `Configuration creates ${slotsPerDuration}x overlapping slots, which is too complex. ` +
+            `Please increase interval to at least ${Math.ceil(defaultDuration * 0.3)} minutes.`
+        );
+    }
+
+    // Save to database
+    await db.slotConfiguration.upsert({
+        where: { doctor_id: doctorId },
+        create: {
+            doctor_id: doctorId,
+            default_duration: defaultDuration,
+            slot_interval: slotInterval,
+            buffer_time: bufferTime,
+        },
+        update: {
+            default_duration: defaultDuration,
+            slot_interval: slotInterval,
+            buffer_time: bufferTime,
+        },
     });
 
     revalidatePath('/doctor/schedule');

@@ -5,14 +5,57 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
     Calendar, CheckCircle, Clock, Search, MoreVertical,
-    User, Filter, ArrowRight, Loader2, Stethoscope
+    User, Filter, ArrowRight, Loader2, Stethoscope, CalendarClock
 } from 'lucide-react';
 import { CheckInDialog } from './CheckInDialog';
 import { useTodaysSchedule } from '@/hooks/frontdesk/useTodaysSchedule';
 import { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
-import { format } from 'date-fns';
+import { format, isAfter, startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { AppointmentStatus, canCheckIn } from '@/domain/enums/AppointmentStatus';
+
+/**
+ * Check if an appointment can be checked in (status AND date validation)
+ */
+function canCheckInAppointment(appointment: AppointmentResponseDto): {
+  canCheckIn: boolean;
+  reason?: string;
+  daysUntil?: number;
+} {
+  // First check status
+  if (!canCheckIn(appointment.status as AppointmentStatus)) {
+    return {
+      canCheckIn: false,
+      reason: appointment.status === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION
+        ? 'Awaiting doctor confirmation'
+        : 'Appointment not confirmed',
+    };
+  }
+
+  // Then check date - prevent checking in for future appointments
+  const now = new Date();
+  const appointmentDate = new Date(appointment.appointmentDate);
+  const appointmentDateOnly = startOfDay(appointmentDate);
+  const todayOnly = startOfDay(now);
+
+  if (isAfter(appointmentDateOnly, todayOnly)) {
+    const daysUntil = Math.ceil((appointmentDateOnly.getTime() - todayOnly.getTime()) / (1000 * 60 * 60 * 24));
+    return {
+      canCheckIn: false,
+      reason: `Appointment is scheduled for ${format(appointmentDate, 'MMM d, yyyy')} (${daysUntil} day${daysUntil !== 1 ? 's' : ''} away). Please check in on or after the appointment date.`,
+      daysUntil,
+    };
+  }
+
+  return { canCheckIn: true };
+}
 
 export function TodaysSchedule() {
     const { data: schedule, isLoading, error } = useTodaysSchedule();
@@ -21,6 +64,12 @@ export function TodaysSchedule() {
     const [searchQuery, setSearchQuery] = useState('');
 
     const handleCheckInClick = (appointment: AppointmentResponseDto) => {
+        // Double-check before opening dialog
+        const checkInStatus = canCheckInAppointment(appointment);
+        if (!checkInStatus.canCheckIn) {
+            // This shouldn't happen if UI is correct, but safety check
+            return;
+        }
         setSelectedAppointment(appointment);
         setIsCheckInOpen(true);
     };
@@ -103,21 +152,46 @@ export function TodaysSchedule() {
                             icon={Clock}
                             emptyMessage="No scheduled appointments pending arrival."
                         >
-                            {scheduled.map(apt => (
-                                <AppointmentRow
-                                    key={apt.id}
-                                    appointment={apt}
-                                    action={
-                                        <Button
-                                            size="sm"
-                                            onClick={() => handleCheckInClick(apt)}
-                                            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-sm shadow-indigo-200"
-                                        >
-                                            Check In
-                                        </Button>
-                                    }
-                                />
-                            ))}
+                            {scheduled.map(apt => {
+                                const checkInStatus = canCheckInAppointment(apt);
+                                return (
+                                    <AppointmentRow
+                                        key={apt.id}
+                                        appointment={apt}
+                                        action={
+                                            checkInStatus.canCheckIn ? (
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() => handleCheckInClick(apt)}
+                                                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-sm shadow-indigo-200"
+                                                >
+                                                    Check In
+                                                </Button>
+                                            ) : (
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <span>
+                                                                <Button
+                                                                    size="sm"
+                                                                    disabled
+                                                                    className="bg-slate-300 text-slate-500 font-semibold rounded-lg cursor-not-allowed"
+                                                                >
+                                                                    <CalendarClock className="mr-1.5 h-3.5 w-3.5" />
+                                                                    Check In
+                                                                </Button>
+                                                            </span>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent side="top" className="max-w-xs">
+                                                            <p className="text-xs font-medium">{checkInStatus.reason}</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            )
+                                        }
+                                    />
+                                );
+                            })}
                         </Section>
 
                         {/* Checked In Section */}

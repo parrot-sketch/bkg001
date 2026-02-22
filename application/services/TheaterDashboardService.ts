@@ -18,6 +18,10 @@ import {
     RECOVERY_TEMPLATE_VERSION,
 } from '@/domain/clinical-forms/NurseRecoveryRecord';
 import {
+    parseIntraOpRecordData,
+    parseRecoveryRecordData,
+} from '@/lib/parsers/clinicalFormParsers';
+import {
     OPERATIVE_NOTE_TEMPLATE_KEY,
 } from '@/domain/clinical-forms/SurgeonOperativeNote';
 import {
@@ -149,24 +153,28 @@ export class TheaterDashboardService {
 
             if (form.template_key === INTRAOP_TEMPLATE_KEY) {
                 try {
-                    const d = JSON.parse(form.data_json);
-                    entry.intraOpDiscrepancy = d?.counts?.countCorrect === false;
-                } catch { /* corrupted data */ }
+                    const d = parseIntraOpRecordData(form.data_json, false);
+                    entry.intraOpDiscrepancy = d.counts?.countCorrect === false;
+                } catch {
+                    // Invalid data - skip this form, leave defaults
+                }
             } else if (form.template_key === RECOVERY_TEMPLATE_KEY) {
                 try {
-                    const d = JSON.parse(form.data_json);
-                    const dr = d?.dischargeReadiness;
+                    const d = parseRecoveryRecordData(form.data_json, false);
+                    const dr = d.dischargeReadiness;
                     const decision = dr?.dischargeDecision;
-                    const c = dr?.dischargeCriteria ?? {};
+                    const c = dr?.dischargeCriteria;
                     entry.dischargeReady =
                         decision !== 'HOLD' &&
                         !!decision &&
-                        !!c.vitalsStable &&
-                        !!c.painControlled &&
-                        !!c.nauseaControlled &&
-                        !!c.bleedingControlled &&
-                        !!c.airwayStable;
-                } catch { /* corrupted data */ }
+                        !!c?.vitalsStable &&
+                        !!c?.painControlled &&
+                        !!c?.nauseaControlled &&
+                        !!c?.bleedingControlled &&
+                        !!c?.airwayStable;
+                } catch {
+                    // Invalid data - skip this form, leave defaults
+                }
             }
 
             blockerSummary.set(form.surgical_case_id, entry);

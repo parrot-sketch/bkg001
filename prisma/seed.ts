@@ -32,6 +32,39 @@ function randomItem<T>(items: T[]): T {
   return items[Math.floor(Math.random() * items.length)];
 }
 
+// Helper function to create or update user (handles existing users)
+async function createOrUpdateUser(data: {
+  email: string;
+  password_hash: string;
+  role: Role;
+  status?: Status;
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+}) {
+  return prisma.user.upsert({
+    where: { email: data.email },
+    update: {
+      password_hash: data.password_hash,
+      role: data.role,
+      status: data.status || Status.ACTIVE,
+      first_name: data.first_name,
+      last_name: data.last_name,
+      phone: data.phone,
+    },
+    create: {
+      id: uuid(),
+      email: data.email,
+      password_hash: data.password_hash,
+      role: data.role,
+      status: data.status || Status.ACTIVE,
+      first_name: data.first_name,
+      last_name: data.last_name,
+      phone: data.phone,
+    },
+  });
+}
+
 async function main() {
   console.log('🌱 Starting Operational Validation Seed...\n');
 
@@ -39,24 +72,51 @@ async function main() {
   // 1. CLEAN SLATE
   // ============================================================================
   console.log('🧹 Clearing existing data...');
+  
+  // Disable foreign key checks temporarily for clean truncate
+  try {
+    await prisma.$executeRawUnsafe(`SET session_replication_role = 'replica';`);
+  } catch (e) {
+    // Ignore if not supported
+  }
+
+  // Order matters: delete child tables first, then parent tables
   const tableNames = [
+    // Child tables first (depend on other tables)
     'Notification', 'AuditLog', 'Rating', 'PatientBill', 'Payment', 'Service',
     'LabTest', 'Diagnosis', 'VitalSign', 'MedicalRecord', 'CareNote', 'NurseAssignment',
     'ClinicalAuditEvent', 'SurgicalChecklist', 'SurgicalStaff', 'SurgicalProcedureRecord',
     'TheaterBooking', 'SurgicalCase', 'ConsentForm', 'PatientImage', 'CasePlan',
     'ConsultationMessage', 'ConsultationAttachment', 'DoctorConsultation',
-    'Consultation', 'Appointment', 'AvailabilitySlot', 'AvailabilityTemplate', 'ScheduleSession', 'ScheduleBlock',
+    'Consultation', 'Appointment', 'AvailabilitySlot', 'AvailabilityTemplate', 'ScheduleBlock',
     'AvailabilityOverride', 'AvailabilityBreak', 'SlotConfiguration', 'RefreshToken',
+    'ConsentSigningSession', // Add this if it exists
+    // Parent tables (referenced by others)
     'Patient', 'Doctor', 'User', 'Theater', 'Clinic', 'ConsentTemplate', 'IntakeSubmission', 'IntakeSession'
   ];
 
   for (const tableName of tableNames) {
     try {
-      await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${tableName}" CASCADE;`);
-    } catch (e) {
-      // Ignore table not found if schema changed significantly
+      // Use TRUNCATE with RESTART IDENTITY CASCADE to handle foreign keys
+      await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${tableName}" RESTART IDENTITY CASCADE;`);
+    } catch (e: any) {
+      // If TRUNCATE fails, try DELETE
+      try {
+        await prisma.$executeRawUnsafe(`DELETE FROM "${tableName}";`);
+      } catch (deleteError) {
+        // Ignore table not found if schema changed significantly
+        console.log(`   ⚠️  Could not clear ${tableName}: ${deleteError instanceof Error ? deleteError.message : 'Unknown error'}`);
+      }
     }
   }
+
+  // Re-enable foreign key checks
+  try {
+    await prisma.$executeRawUnsafe(`SET session_replication_role = 'origin';`);
+  } catch (e) {
+    // Ignore if not supported
+  }
+
   console.log('✅ Cleared all data\n');
 
 
@@ -116,16 +176,13 @@ async function main() {
 
   // --- Admin ---
   const adminPassword = await hashPassword('admin123');
-  const adminUser = await prisma.user.create({
-    data: {
-      id: uuid(),
-      email: 'admin@nairobisculpt.com',
-      password_hash: adminPassword,
-      role: Role.ADMIN,
-      status: Status.ACTIVE,
-      first_name: 'System',
-      last_name: 'Administrator',
-    },
+  const adminUser = await createOrUpdateUser({
+    email: 'admin@nairobisculpt.com',
+    password_hash: adminPassword,
+    role: Role.ADMIN,
+    status: Status.ACTIVE,
+    first_name: 'System',
+    last_name: 'Administrator',
   });
 
   // --- Doctors (Real Nairobi Sculpt Surgeons) ---
@@ -237,15 +294,12 @@ async function main() {
 
   for (const doc of doctorData) {
     const password = await hashPassword('doctor123');
-    const user = await prisma.user.create({
-      data: {
-        id: uuid(),
-        email: doc.email,
-        password_hash: password,
-        role: Role.DOCTOR,
-        first_name: doc.firstName,
-        last_name: doc.lastName,
-      }
+    const user = await createOrUpdateUser({
+      email: doc.email,
+      password_hash: password,
+      role: Role.DOCTOR,
+      first_name: doc.firstName,
+      last_name: doc.lastName,
     });
 
     const doctorProfile = await prisma.doctor.create({
@@ -284,43 +338,34 @@ async function main() {
   const nurses = [];
   for (const nurse of nurseData) {
     const password = await hashPassword('nurse123');
-    const user = await prisma.user.create({
-      data: {
-        id: uuid(),
-        email: nurse.email,
-        password_hash: password,
-        role: Role.NURSE,
-        first_name: nurse.name.split(' ')[0],
-        last_name: nurse.name.split(' ')[1],
-      }
+    const user = await createOrUpdateUser({
+      email: nurse.email,
+      password_hash: password,
+      role: Role.NURSE,
+      first_name: nurse.name.split(' ')[0],
+      last_name: nurse.name.split(' ')[1],
     });
     nurses.push(user);
   }
 
   // --- Frontdesk ---
   const frontdeskPassword = await hashPassword('frontdesk123');
-  const frontdeskUser = await prisma.user.create({
-    data: {
-      id: uuid(),
-      email: 'reception@nairobisculpt.com',
-      password_hash: frontdeskPassword,
-      role: Role.FRONTDESK,
-      first_name: 'David',
-      last_name: 'Omondi',
-    }
+  const frontdeskUser = await createOrUpdateUser({
+    email: 'reception@nairobisculpt.com',
+    password_hash: frontdeskPassword,
+    role: Role.FRONTDESK,
+    first_name: 'David',
+    last_name: 'Omondi',
   });
 
   // --- Theater Technician ---
   const theaterTechPassword = await hashPassword('theatertech123');
-  const theaterTechUser = await prisma.user.create({
-    data: {
-      id: uuid(),
-      email: 'theater@nairobisculpt.com',
-      password_hash: theaterTechPassword,
-      role: Role.THEATER_TECHNICIAN,
-      first_name: 'Samuel',
-      last_name: 'Kiprop',
-    }
+  const theaterTechUser = await createOrUpdateUser({
+    email: 'theater@nairobisculpt.com',
+    password_hash: theaterTechPassword,
+    role: Role.THEATER_TECHNICIAN,
+    first_name: 'Samuel',
+    last_name: 'Kiprop',
   });
 
   console.log('✅ Staff accounts created\n');
@@ -331,31 +376,73 @@ async function main() {
   // ============================================================================
   console.log('📜 Creating Consent Templates...');
 
-  await prisma.consentTemplate.createMany({
-    data: [
-      {
-        title: 'General Surgery Consent',
-        type: ConsentType.GENERAL_PROCEDURE,
-        content: '# Informed Consent for Surgery\n\nI hereby authorize Dr. [Doctor Name] to perform...',
-        version: 1,
-        created_by: adminUser.id
-      },
-      {
-        title: 'Anesthesia Consent',
-        type: ConsentType.ANESTHESIA,
-        content: '# Informed Consent for Anesthesia\n\nI understand the risks associated with anesthesia...',
-        version: 1,
-        created_by: adminUser.id
-      },
-      {
-        title: 'Photography Release',
-        type: ConsentType.PHOTOGRAPHY,
-        content: '# Medical Photography Release\n\nI consent to photographs being taken for medical records...',
-        version: 1,
-        created_by: adminUser.id
+  // Check if template_format column exists (for backward compatibility)
+  let hasTemplateFormat = false;
+  try {
+    const result = await prisma.$queryRaw<Array<{ column_name: string }>>`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_schema = 'public' 
+        AND table_name = 'ConsentTemplate' 
+        AND column_name = 'template_format'
+    `;
+    hasTemplateFormat = Array.isArray(result) && result.length > 0;
+    if (!hasTemplateFormat) {
+      console.log('   ⚠️  template_format column not found, creating templates without it');
+    }
+  } catch (e: any) {
+    // Column doesn't exist, will create without it
+    console.log(`   ⚠️  template_format column not found (${e.message}), creating templates without it`);
+    hasTemplateFormat = false;
+  }
+
+  const baseTemplateData = [
+    {
+      title: 'General Surgery Consent',
+      type: ConsentType.GENERAL_PROCEDURE,
+      content: '# Informed Consent for Surgery\n\nI hereby authorize Dr. [Doctor Name] to perform...',
+      version: 1,
+      created_by: adminUser.id,
+    },
+    {
+      title: 'Anesthesia Consent',
+      type: ConsentType.ANESTHESIA,
+      content: '# Informed Consent for Anesthesia\n\nI understand the risks associated with anesthesia...',
+      version: 1,
+      created_by: adminUser.id,
+    },
+    {
+      title: 'Photography Release',
+      type: ConsentType.PHOTOGRAPHY,
+      content: '# Medical Photography Release\n\nI consent to photographs being taken for medical records...',
+      version: 1,
+      created_by: adminUser.id,
+    }
+  ];
+
+  // Only add template_format if column actually exists
+  const templateData = hasTemplateFormat
+    ? baseTemplateData.map(t => ({ ...t, template_format: 'HTML' as const }))
+    : baseTemplateData;
+
+  // Use individual creates to avoid type issues
+  for (const template of templateData) {
+    try {
+      await prisma.consentTemplate.create({
+        data: template as any
+      });
+    } catch (error: any) {
+      // If it fails due to template_format, try without it
+      if (error.message?.includes('template_format')) {
+        const { template_format, ...templateWithoutFormat } = template as any;
+        await prisma.consentTemplate.create({
+          data: templateWithoutFormat
+        });
+      } else {
+        throw error;
       }
-    ]
-  });
+    }
+  }
   console.log('✅ Consent Templates created\n');
 
 
@@ -444,15 +531,12 @@ async function main() {
 
   // Patient 1: Millicent (Post-op)
   const p1Password = await hashPassword('patient123');
-  const p1User = await prisma.user.create({
-    data: {
-      id: uuid(),
-      email: 'millicent@example.com',
-      role: Role.PATIENT,
-      password_hash: p1Password,
-      first_name: 'Millicent',
-      last_name: 'Wanjiku'
-    }
+  const p1User = await createOrUpdateUser({
+    email: 'millicent@example.com',
+    password_hash: p1Password,
+    role: Role.PATIENT,
+    first_name: 'Millicent',
+    last_name: 'Wanjiku'
   });
 
   const p1 = await prisma.patient.create({
@@ -476,15 +560,12 @@ async function main() {
 
   // Patient 2: Rhoda
   const p2Password = await hashPassword('patient123');
-  const p2User = await prisma.user.create({
-    data: {
-      id: uuid(),
-      email: 'rhoda@example.com',
-      role: Role.PATIENT,
-      password_hash: p2Password,
-      first_name: 'Rhoda',
-      last_name: 'Atieno'
-    }
+  const p2User = await createOrUpdateUser({
+    email: 'rhoda@example.com',
+    password_hash: p2Password,
+    role: Role.PATIENT,
+    first_name: 'Rhoda',
+    last_name: 'Atieno'
   });
 
   const p2 = await prisma.patient.create({
@@ -523,15 +604,12 @@ async function main() {
   console.log('👥 Seeding Test Patients...');
 
   // --- Test Patient: "Rita CheckIn" ---
-  const userRita = await prisma.user.create({
-    data: {
-      id: uuid(),
-      email: 'rita.checkin@example.com',
-      role: Role.PATIENT,
-      password_hash: await hashPassword('password123'),
-      first_name: 'Rita',
-      last_name: 'CheckIn'
-    }
+  const userRita = await createOrUpdateUser({
+    email: 'rita.checkin@example.com',
+    password_hash: await hashPassword('password123'),
+    role: Role.PATIENT,
+    first_name: 'Rita',
+    last_name: 'CheckIn'
   });
   await prisma.patient.create({
     data: {
@@ -552,15 +630,12 @@ async function main() {
   });
 
   // --- Test Patient: "Carl Consult" ---
-  const userCarl = await prisma.user.create({
-    data: {
-      id: uuid(),
-      email: 'carl.consult@example.com',
-      role: Role.PATIENT,
-      password_hash: await hashPassword('password123'),
-      first_name: 'Carl',
-      last_name: 'Consult'
-    }
+  const userCarl = await createOrUpdateUser({
+    email: 'carl.consult@example.com',
+    password_hash: await hashPassword('password123'),
+    role: Role.PATIENT,
+    first_name: 'Carl',
+    last_name: 'Consult'
   });
   await prisma.patient.create({
     data: {
@@ -581,15 +656,12 @@ async function main() {
   });
 
   // --- Test Patient: "Fiona Fresh" ---
-  const userFiona = await prisma.user.create({
-    data: {
-      id: uuid(),
-      email: 'fiona.fresh@example.com',
-      role: Role.PATIENT,
-      password_hash: await hashPassword('password123'),
-      first_name: 'Fiona',
-      last_name: 'Fresh'
-    }
+  const userFiona = await createOrUpdateUser({
+    email: 'fiona.fresh@example.com',
+    password_hash: await hashPassword('password123'),
+    role: Role.PATIENT,
+    first_name: 'Fiona',
+    last_name: 'Fresh'
   });
   await prisma.patient.create({
     data: {
@@ -610,15 +682,12 @@ async function main() {
   });
 
   // --- Test Patient: "Uma Upcoming" ---
-  const userUma = await prisma.user.create({
-    data: {
-      id: uuid(),
-      email: 'uma.upcoming@example.com',
-      role: Role.PATIENT,
-      password_hash: await hashPassword('password123'),
-      first_name: 'Uma',
-      last_name: 'Upcoming'
-    }
+  const userUma = await createOrUpdateUser({
+    email: 'uma.upcoming@example.com',
+    password_hash: await hashPassword('password123'),
+    role: Role.PATIENT,
+    first_name: 'Uma',
+    last_name: 'Upcoming'
   });
   await prisma.patient.create({
     data: {
@@ -647,8 +716,12 @@ async function main() {
   console.log('👥 Seeding Additional Test Patients...');
 
   // --- Test Patient: Alice ---
-  const userA = await prisma.user.create({
-    data: { id: uuid(), email: 'alice.test@example.com', role: Role.PATIENT, password_hash: await hashPassword('password123'), first_name: 'Alice', last_name: 'Wanjiru' }
+  const userA = await createOrUpdateUser({
+    email: 'alice.test@example.com',
+    password_hash: await hashPassword('password123'),
+    role: Role.PATIENT,
+    first_name: 'Alice',
+    last_name: 'Wanjiru'
   });
   await prisma.patient.create({
     data: {
@@ -659,8 +732,12 @@ async function main() {
   });
 
   // --- Test Patient: Bob ---
-  const userB = await prisma.user.create({
-    data: { id: uuid(), email: 'bob.test@example.com', role: Role.PATIENT, password_hash: await hashPassword('password123'), first_name: 'Bob', last_name: 'Ochieng' }
+  const userB = await createOrUpdateUser({
+    email: 'bob.test@example.com',
+    password_hash: await hashPassword('password123'),
+    role: Role.PATIENT,
+    first_name: 'Bob',
+    last_name: 'Ochieng'
   });
   await prisma.patient.create({
     data: {
@@ -671,8 +748,12 @@ async function main() {
   });
 
   // --- Test Patient: Charlie ---
-  const userC = await prisma.user.create({
-    data: { id: uuid(), email: 'charlie.test@example.com', role: Role.PATIENT, password_hash: await hashPassword('password123'), first_name: 'Charlie', last_name: 'Kamau' }
+  const userC = await createOrUpdateUser({
+    email: 'charlie.test@example.com',
+    password_hash: await hashPassword('password123'),
+    role: Role.PATIENT,
+    first_name: 'Charlie',
+    last_name: 'Kamau'
   });
   await prisma.patient.create({
     data: {
@@ -683,8 +764,12 @@ async function main() {
   });
 
   // --- Test Patient: Diana ---
-  const userD = await prisma.user.create({
-    data: { id: uuid(), email: 'diana.test@example.com', role: Role.PATIENT, password_hash: await hashPassword('password123'), first_name: 'Diana', last_name: 'Nyambura' }
+  const userD = await createOrUpdateUser({
+    email: 'diana.test@example.com',
+    password_hash: await hashPassword('password123'),
+    role: Role.PATIENT,
+    first_name: 'Diana',
+    last_name: 'Nyambura'
   });
   await prisma.patient.create({
     data: {
@@ -695,8 +780,12 @@ async function main() {
   });
 
   // --- Test Patient: Eve (with medical history) ---
-  const userE = await prisma.user.create({
-    data: { id: uuid(), email: 'eve.test@example.com', role: Role.PATIENT, password_hash: await hashPassword('password123'), first_name: 'Eve', last_name: 'Akinyi' }
+  const userE = await createOrUpdateUser({
+    email: 'eve.test@example.com',
+    password_hash: await hashPassword('password123'),
+    role: Role.PATIENT,
+    first_name: 'Eve',
+    last_name: 'Akinyi'
   });
   await prisma.patient.create({
     data: {

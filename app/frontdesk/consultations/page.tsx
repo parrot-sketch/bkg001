@@ -57,7 +57,7 @@ function FrontdeskConsultationsContent() {
   };
 
   // Filter appointments by status
-  const filteredAppointments = appointments.filter(apt => 
+  const filteredAppointments = appointments.filter((apt: AppointmentResponseDto) => 
     apt.consultationRequestStatus && statuses.includes(apt.consultationRequestStatus)
   );
 
@@ -145,7 +145,7 @@ function FrontdeskConsultationsContent() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredAppointments.map((appointment) => {
+              {filteredAppointments.map((appointment: AppointmentResponseDto) => {
                 const needsReview = appointment.consultationRequestStatus === ConsultationRequestStatus.SUBMITTED ||
                                    appointment.consultationRequestStatus === ConsultationRequestStatus.PENDING_REVIEW;
                 const canSchedule = appointment.consultationRequestStatus === ConsultationRequestStatus.APPROVED;

@@ -7,7 +7,7 @@
 import { apiClient, ApiResponse } from './client';
 import type { PatientResponseDto } from '../../application/dtos/PatientResponseDto';
 import type { AppointmentResponseDto } from '../../application/dtos/AppointmentResponseDto';
-import type { RegisterUserDto } from '../../application/dtos/RegisterUserDto';
+import type { CreateStaffDto } from '../../application/dtos/CreateStaffDto';
 import type { UserResponseDto } from '../../application/dtos/UserResponseDto';
 import type { InviteDoctorDto, InviteDoctorResponseDto } from '../../application/dtos/InviteDoctorDto';
 import { Role } from '../../domain/enums/Role';
@@ -118,14 +118,14 @@ export const adminApi = {
   /**
    * Create new staff member
    */
-  async createStaff(dto: RegisterUserDto): Promise<ApiResponse<UserResponseDto>> {
+  async createStaff(dto: CreateStaffDto): Promise<ApiResponse<UserResponseDto>> {
     return apiClient.post<UserResponseDto>('/admin/staff', dto);
   },
 
   /**
    * Update staff member
    */
-  async updateStaff(userId: string, updates: Partial<RegisterUserDto>): Promise<ApiResponse<UserResponseDto>> {
+  async updateStaff(userId: string, updates: Partial<CreateStaffDto>): Promise<ApiResponse<UserResponseDto>> {
     return apiClient.put<UserResponseDto>(`/admin/staff/${userId}`, updates);
   },
 

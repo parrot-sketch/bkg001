@@ -17,7 +17,7 @@
 
 import { useState, useMemo, useEffect, Suspense } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
-import { useAppointmentsByDate } from '@/hooks/appointments/useAppointments';
+import { useAppointmentsByDate, useUpcomingAppointments } from '@/hooks/appointments/useAppointments';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -42,10 +42,14 @@ import {
   Loader2,
   CalendarDays,
   Filter,
+  ArrowLeft,
+  UserCircle,
+  CalendarClock,
+  ExternalLink,
 } from 'lucide-react';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
-import { format, addDays, subDays, isToday, isTomorrow, isYesterday } from 'date-fns';
+import { format, addDays, subDays, isToday, isTomorrow, isYesterday, isAfter } from 'date-fns';
 import { CheckInDialog } from '@/components/frontdesk/CheckInDialog';
 import { FrontdeskAppointmentCard } from '@/components/frontdesk/FrontdeskAppointmentCard';
 import { cn } from '@/lib/utils';
@@ -156,13 +160,18 @@ function FrontdeskAppointmentsContent() {
 
   // Parse query params
   const dateParam = searchParams.get('date');
+  const statusParam = searchParams.get('status');
   const highlightedId = searchParams.get('highlight') ? parseInt(searchParams.get('highlight')!) : null;
+  const patientIdFilter = searchParams.get('patientId');
 
-  // Date state
+  // Date state - parse date string properly to avoid timezone issues
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
     if (dateParam) {
-      const parsed = new Date(dateParam);
-      return isNaN(parsed.getTime()) ? new Date() : parsed;
+      // Parse YYYY-MM-DD format in local timezone
+      const [year, month, day] = dateParam.split('-').map(Number);
+      if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+        return new Date(year, month - 1, day);
+      }
     }
     return new Date();
   });
@@ -181,8 +190,17 @@ function FrontdeskAppointmentsContent() {
     }
   }, [selectedDate, searchParams, highlightedId, router]);
 
-  // Filter state
-  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  // Filter state - initialize from URL if present
+  const [statusFilter, setStatusFilter] = useState<string>(() => {
+    // Check if status param is a valid status key
+    if (statusParam) {
+      const validStatus = STATUS_CHIPS.find(chip => chip.key === statusParam);
+      if (validStatus) {
+        return statusParam;
+      }
+    }
+    return 'ALL';
+  });
   const [searchQuery, setSearchQuery] = useState('');
 
   // Check-in dialog state
@@ -197,19 +215,44 @@ function FrontdeskAppointmentsContent() {
     refetch,
   } = useAppointmentsByDate(selectedDate, isAuthenticated && !!user);
 
+  // Fetch upcoming appointments to detect rescheduled ones
+  const {
+    data: upcomingAppointments = [],
+  } = useUpcomingAppointments(isAuthenticated && !!user && isToday(selectedDate));
+
+  // Find appointments that were rescheduled to future dates (created by current user)
+  const rescheduledAppointments = useMemo(() => {
+    if (!user || !isToday(selectedDate)) return [];
+    
+    return upcomingAppointments.filter((apt: AppointmentResponseDto) => {
+      // Check if appointment was created by current frontdesk user
+      // Note: We'd need to add created_by_user_id to AppointmentResponseDto or fetch it separately
+      // For now, we'll show a banner if there are upcoming appointments when viewing today
+      const aptDate = apt.appointmentDate instanceof Date ? apt.appointmentDate : new Date(apt.appointmentDate);
+      return apt.status === AppointmentStatus.SCHEDULED && 
+             apt.appointmentDate && 
+             isAfter(aptDate, new Date());
+    });
+  }, [upcomingAppointments, user, selectedDate]);
+
   /* ── Filtering ── */
   const filteredAppointments = useMemo(() => {
     let filtered = appointments;
 
+    // Patient filter — when arriving from a patient profile
+    if (patientIdFilter) {
+      filtered = filtered.filter((apt: AppointmentResponseDto) => apt.patientId === patientIdFilter);
+    }
+
     // Status filter
     if (statusFilter !== 'ALL') {
-      filtered = filtered.filter((apt) => apt.status === statusFilter);
+      filtered = filtered.filter((apt: AppointmentResponseDto) => apt.status === statusFilter);
     }
 
     // Text search — match patient name, doctor name, type, time
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      filtered = filtered.filter((apt) => {
+      filtered = filtered.filter((apt: AppointmentResponseDto) => {
         const patientName = apt.patient
           ? `${apt.patient.firstName} ${apt.patient.lastName}`.toLowerCase()
           : '';
@@ -229,7 +272,7 @@ function FrontdeskAppointmentsContent() {
     }
 
     return filtered;
-  }, [appointments, statusFilter, searchQuery]);
+  }, [appointments, statusFilter, searchQuery, patientIdFilter]);
 
   /* ── Status counts ── */
   const statusCounts = useMemo(() => {
@@ -310,23 +353,90 @@ function FrontdeskAppointmentsContent() {
     );
   }
 
+  // Derive patient name from filtered appointments (if patientId is set)
+  const patientNameFromFilter = patientIdFilter && filteredAppointments.length > 0
+    ? `${filteredAppointments[0].patient?.firstName ?? ''} ${filteredAppointments[0].patient?.lastName ?? ''}`.trim()
+    : null;
+
   return (
     <div className="space-y-5 animate-in fade-in duration-500">
+      {/* ═══ Patient Context Banner ═══ */}
+      {patientIdFilter && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-primary/5 border border-primary/20">
+          <Link
+            href={`/frontdesk/patient/${patientIdFilter}`}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary/80 transition-colors shrink-0"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Patient Profile
+          </Link>
+          <div className="h-4 w-px bg-border" />
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <UserCircle className="h-4 w-4" />
+            <span>
+              Showing appointments for{' '}
+              <span className="font-semibold text-foreground">
+                {patientNameFromFilter || 'this patient'}
+              </span>
+            </span>
+          </div>
+          <Link
+            href="/frontdesk/appointments"
+            className="ml-auto text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            View all appointments
+          </Link>
+        </div>
+      )}
+
       {/* ═══ Page Header ═══ */}
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Appointments</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Manage bookings, check-ins, and patient flow
+            {patientIdFilter
+              ? `Filtered to ${patientNameFromFilter || 'selected patient'}`
+              : 'Manage bookings, check-ins, and patient flow'}
           </p>
         </div>
-        <Link href="/frontdesk/appointments/new">
+        <Link href={`/frontdesk/appointments/new${patientIdFilter ? `?patientId=${patientIdFilter}` : ''}`}>
           <Button className="bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl shadow-sm shadow-cyan-200/50 h-10 px-5">
             <Plus className="h-4 w-4 mr-2" />
             New Appointment
           </Button>
         </Link>
       </header>
+
+      {/* ═══ Rescheduled Appointments Alert ═══ */}
+      {isToday(selectedDate) && rescheduledAppointments.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0 mt-0.5">
+              <CalendarClock className="h-5 w-5 text-amber-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm font-semibold text-amber-900 mb-1">
+                Rescheduled Appointments
+              </h3>
+              <p className="text-xs text-amber-700 mb-2">
+                {rescheduledAppointments.length} appointment{rescheduledAppointments.length !== 1 ? 's' : ''} you created {rescheduledAppointments.length === 1 ? 'has' : 'have'} been rescheduled to future dates. Check your notifications for details.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // Navigate to upcoming appointments view or show a modal
+                  router.push('/frontdesk/appointments?status=SCHEDULED');
+                }}
+                className="text-xs h-7 bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-900"
+              >
+                <ExternalLink className="h-3 w-3 mr-1.5" />
+                View Upcoming
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ═══ Pipeline Stats ═══ */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -517,7 +627,7 @@ function FrontdeskAppointmentsContent() {
           />
         ) : (
           <div className="space-y-2">
-            {filteredAppointments.map((appointment) => (
+            {filteredAppointments.map((appointment: AppointmentResponseDto) => (
               <FrontdeskAppointmentCard
                 key={appointment.id}
                 appointment={appointment}

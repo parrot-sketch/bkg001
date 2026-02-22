@@ -141,7 +141,12 @@ export function ScheduleSettingsPanel({ initialWorkingDays = [], userId }: Sched
             const result = await updateAvailability({
                 doctorId: userId,
                 templateName: 'Standard Week',
-                slots
+                slots: slots.map(s => ({
+                    dayOfWeek: s.dayOfWeek,
+                    startTime: s.startTime,
+                    endTime: s.endTime,
+                    type: s.type as 'CLINIC' | 'SURGERY' | 'ADMIN' | undefined,
+                }))
             });
 
             if (result.success) {

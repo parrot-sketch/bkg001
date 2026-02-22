@@ -157,8 +157,23 @@ export class GetAvailableSlotsForDateUseCase {
 
     // Step 8: Map to DTOs (preserving isAvailable flag from AvailabilityService)
     // Filter out non-CLINIC slots (e.g. SURGERY)
+    // Also filter out past slots for today (but keep all slots for future dates)
+    // Note: 'now' was normalized to start of day, so we need a fresh Date for time comparison
+    const currentTimestamp = new Date(); // Full timestamp for comparing with slot times
+    const isToday = requestDate.toDateString() === currentTimestamp.toDateString();
+    
     return slots
-      .filter(slot => !slot.sessionType || slot.sessionType === 'CLINIC')
+      .filter(slot => {
+        // Filter out non-CLINIC slots
+        if (slot.sessionType && slot.sessionType !== 'CLINIC') {
+          return false;
+        }
+        // For today, filter out slots that have already passed
+        if (isToday && slot.startTime < currentTimestamp) {
+          return false;
+        }
+        return true;
+      })
       .map((slot) => ({
         startTime: this.formatTime(slot.startTime),
         endTime: this.formatTime(slot.endTime),
@@ -270,7 +285,22 @@ export class GetAvailableSlotsForDateUseCase {
           slotConfig
         );
 
-        if (slots.length > 0) {
+        // Filter slots: exclude non-CLINIC and past slots for today
+        const currentTimestamp = new Date(); // Full timestamp for comparing with slot times
+        const isToday = currentDate.toDateString() === currentTimestamp.toDateString();
+        const validSlots = slots.filter(slot => {
+          // Filter out non-CLINIC slots
+          if (slot.sessionType && slot.sessionType !== 'CLINIC') {
+            return false;
+          }
+          // For today, filter out slots that have already passed
+          if (isToday && slot.startTime < currentTimestamp) {
+            return false;
+          }
+          return true;
+        });
+
+        if (validSlots.length > 0) {
           availableDates.push(currentDate.toISOString().split('T')[0]);
         }
       } catch (e) {

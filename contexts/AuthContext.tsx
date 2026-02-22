@@ -14,15 +14,6 @@ interface AuthContextType {
     isAuthenticated: boolean;
     isLoading: boolean;
     login: (email: string, password: string) => Promise<void>;
-    register: (dto: {
-        id: string;
-        email: string;
-        password: string;
-        role: Role;
-        firstName?: string;
-        lastName?: string;
-        phone?: string;
-    }) => Promise<void>;
     logout: () => Promise<void>;
     refreshToken: () => Promise<void>;
 }
@@ -111,30 +102,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, []);
 
-    const register = useCallback(
-        async (dto: {
-            id: string;
-            email: string;
-            password: string;
-            role: Role;
-            firstName?: string;
-            lastName?: string;
-            phone?: string;
-        }) => {
-            setIsLoading(true);
-            try {
-                const response = await authApi.register(dto);
-
-                if (!response.success) {
-                    throw new Error(response.error || 'Registration failed');
-                }
-            } finally {
-                setIsLoading(false);
-            }
-        },
-        []
-    );
-
     const logout = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -184,11 +151,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             isAuthenticated: !!user && tokenStorage.isAuthenticated(),
             isLoading,
             login,
-            register,
             logout,
             refreshToken,
         }),
-        [user, isLoading, login, register, logout, refreshToken]
+        [user, isLoading, login, logout, refreshToken]
     );
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

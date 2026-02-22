@@ -1,29 +1,34 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
     ArrowLeft, CheckCircle, User,
-    FileText, ChevronsRight
+    FileText, ChevronsRight, Sun, Sunset, Moon, Loader2, Calendar, Stethoscope
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PatientCombobox } from '@/components/frontdesk/PatientCombobox';
 import { DoctorSelect } from '@/components/patient/DoctorSelect';
-import { useAvailableSlots } from '@/hooks/useAvailableSlots';
-import { useDoctorAvailableDates } from '@/hooks/useDoctorAvailableDates';
 import { frontdeskApi } from '@/lib/api/frontdesk';
 import { patientApi } from '@/lib/api/patient';
 import { doctorApi } from '@/lib/api/doctor';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { format, addMonths, startOfMonth, endOfMonth } from 'date-fns';
+import { format, addMonths, endOfMonth, isToday, isTomorrow, startOfDay, isAfter } from 'date-fns';
 import { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';
 import { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
+import type { AvailableSlotResponseDto } from '@/application/dtos/AvailableSlotResponseDto';
+import { AppointmentSource } from '@/domain/enums/AppointmentSource';
+import { BookingChannel } from '@/domain/enums/BookingChannel';
+import { usePatientAppointments } from '@/hooks/appointments/useAppointments';
+import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertTriangle, Info } from 'lucide-react';
+import { useDoctorAvailableDates, useDoctorAvailableSlots, getDefaultAvailabilityDateRange } from '@/hooks/schedule/useDoctorAvailability';
 
 interface AppointmentBookingFormProps {
     mode?: 'full' | 'quick'; // NEW: Determines workflow behavior
@@ -35,7 +40,9 @@ interface AppointmentBookingFormProps {
     userRole?: 'doctor' | 'frontdesk';
     lockDoctor?: boolean; // NEW: Prevents changing doctor selection
     /** Appointment source (PATIENT_REQUESTED, FRONTDESK_SCHEDULED, DOCTOR_FOLLOW_UP) */
-    source?: string;
+    source?: AppointmentSource | string;
+    /** Booking channel (UI entry point) for analytics */
+    bookingChannel?: BookingChannel;
     /** Parent appointment ID for follow-up linkage */
     parentAppointmentId?: number;
     /** Parent consultation ID for follow-up linkage */
@@ -54,6 +61,7 @@ export function AppointmentBookingForm({
     userRole = 'frontdesk',
     lockDoctor = false,
     source,
+    bookingChannel,
     parentAppointmentId,
     parentConsultationId,
     onSuccess,
@@ -61,7 +69,7 @@ export function AppointmentBookingForm({
 }: AppointmentBookingFormProps) {
     const router = useRouter();
 
-    const isFollowUp = source === 'DOCTOR_FOLLOW_UP' || initialType === 'Follow-up';
+    const isFollowUp = source === AppointmentSource.DOCTOR_FOLLOW_UP || source === 'DOCTOR_FOLLOW_UP' || initialType === 'Follow-up';
 
     // Steps: 1. Patient, 2. Doctor, 3. DateTime, 4. Details/Review
     const [currentStep, setCurrentStep] = useState(1);
@@ -107,21 +115,44 @@ export function AppointmentBookingForm({
     // Load available dates
     const today = new Date();
     const dateRangeEnd = endOfMonth(addMonths(today, 2));
-    const { data: availableDates = [], isLoading: loadingAvailableDates } = useDoctorAvailableDates({
-        doctorId: formData.doctorId || null,
-        startDate: today,
-        endDate: dateRangeEnd,
-        enabled: !!formData.doctorId && currentStep === 3,
-    });
-    const availableDatesSet = new Set(availableDates);
 
-    // Load slots
-    const selectedDateObj = formData.appointmentDate ? new Date(formData.appointmentDate) : null;
-    const { slots, loading: loadingSlots, error: slotsError, refetch: refetchSlots } = useAvailableSlots({
-        doctorId: formData.doctorId || null,
-        date: selectedDateObj,
-        enabled: !!formData.doctorId && !!formData.appointmentDate && currentStep === 3,
-    });
+    // Check for existing appointments on selected date
+    const { data: patientAppointments = [] } = usePatientAppointments(
+        formData.patientId,
+        !!formData.patientId && !!formData.appointmentDate
+    );
+
+    // Check for conflicts on selected date
+    const existingAppointmentsOnDate = useMemo(() => {
+        if (!formData.appointmentDate || !formData.patientId) return [];
+        
+        const selectedDateOnly = startOfDay(new Date(formData.appointmentDate));
+        const excludedStatuses = [AppointmentStatus.CANCELLED, AppointmentStatus.COMPLETED];
+        
+        return patientAppointments.filter((apt) => {
+            const aptDate = startOfDay(new Date(apt.appointmentDate));
+            return (
+                aptDate.getTime() === selectedDateOnly.getTime() &&
+                !excludedStatuses.includes(apt.status as AppointmentStatus)
+            );
+        });
+    }, [patientAppointments, formData.appointmentDate, formData.patientId]);
+
+    // Check for same-doctor conflict (will be blocked by backend, but show warning)
+    const sameDoctorConflict = useMemo(() => {
+        if (!formData.doctorId || existingAppointmentsOnDate.length === 0) return null;
+        return existingAppointmentsOnDate.find(
+            apt => apt.doctorId === formData.doctorId
+        );
+    }, [existingAppointmentsOnDate, formData.doctorId]);
+
+    // Check for different-doctor appointments (allowed but show info)
+    const differentDoctorAppointments = useMemo(() => {
+        if (!formData.doctorId || existingAppointmentsOnDate.length === 0) return [];
+        return existingAppointmentsOnDate.filter(
+            apt => apt.doctorId !== formData.doctorId
+        );
+    }, [existingAppointmentsOnDate, formData.doctorId]);
 
     // Effects
     useEffect(() => {
@@ -264,6 +295,15 @@ export function AppointmentBookingForm({
             return;
         }
 
+        // Prevent submission if there's a same-doctor conflict (backend will also block, but UX is better)
+        if (sameDoctorConflict) {
+            toast.warning(
+                `This patient already has an appointment with this doctor on ${format(new Date(formData.appointmentDate), 'MMMM d, yyyy')} at ${sameDoctorConflict.time}. Please choose a different date.`,
+                { duration: 5000 }
+            );
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             const api = userRole === 'doctor' ? doctorApi : frontdeskApi;
@@ -276,7 +316,8 @@ export function AppointmentBookingForm({
                 type: formData.type,
                 note: formData.note,
                 // Source-aware fields for follow-up linkage
-                ...(source ? { source } : {}),
+                ...(source ? { source: typeof source === 'string' ? source : source } : {}),
+                ...(bookingChannel ? { bookingChannel } : {}),
                 ...(parentAppointmentId ? { parentAppointmentId } : {}),
                 ...(parentConsultationId ? { parentConsultationId } : {}),
             });
@@ -293,9 +334,6 @@ export function AppointmentBookingForm({
                 }
             } else {
                 toast.error(response.error || 'Failed to schedule appointment');
-                if (response.error?.includes('booked')) {
-                    refetchSlots();
-                }
             }
         } catch (error) {
             console.error('Booking error', error);
@@ -305,48 +343,91 @@ export function AppointmentBookingForm({
         }
     };
 
-    // Render Steps
-    const renderStepIndicator = () => (
-        <div className="flex items-center justify-center mb-8">
-            {[1, 2, 3, 4].map((step) => (
-                <div key={step} className="flex items-center">
-                    <div className={cn(
-                        "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium border-2 transition-all",
-                        currentStep === step ? "border-primary bg-primary text-primary-foreground" :
-                            currentStep > step ? "border-primary bg-primary text-primary-foreground" :
-                                "border-muted-foreground/30 text-muted-foreground"
-                    )}>
-                        {currentStep > step ? <CheckCircle className="h-5 w-5" /> : step}
-                    </div>
-                    {step < 4 && (
-                        <div className={cn(
-                            "w-12 h-0.5 mx-2",
-                            currentStep > step ? "bg-primary" : "bg-muted-foreground/30"
-                        )} />
-                    )}
-                </div>
-            ))}
-        </div>
-    );
+    // Enhanced Step Indicator with Labels
+    const stepLabels = [
+        { number: 1, label: 'Patient', icon: User },
+        { number: 2, label: 'Doctor', icon: Stethoscope },
+        { number: 3, label: 'Date & Time', icon: Calendar },
+        { number: 4, label: 'Review', icon: FileText },
+    ];
 
-    return (
-        <div className="max-w-3xl mx-auto space-y-6 pb-12">
-            <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" onClick={onCancel || (() => router.back())}>
-                    <ArrowLeft className="h-4 w-4" />
-                </Button>
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">
-                        {isFollowUp ? 'Schedule Follow-up' : 'Book Appointment'}
-                    </h1>
-                    <p className="text-muted-foreground">
-                        {isFollowUp
-                            ? 'Select a date and time for the patient\'s follow-up visit'
-                            : 'Schedule a new appointment'
-                        }
-                    </p>
+    const renderStepIndicator = () => {
+        const progressPercentage = ((currentStep - 1) / 3) * 100;
+        
+        return (
+            <div className="mb-8">
+                {/* Progress Bar */}
+                <div className="relative h-1.5 bg-slate-200 rounded-full mb-6 overflow-hidden">
+                    <div 
+                        className="absolute top-0 left-0 h-full bg-gradient-to-r from-primary to-primary/80 rounded-full transition-all duration-500 ease-out"
+                        style={{ width: `${progressPercentage}%` }}
+                    />
+                </div>
+
+                {/* Step Indicators */}
+                <div className="flex items-start justify-between relative px-2 sm:px-0">
+                    {stepLabels.map((step, index) => {
+                        const Icon = step.icon;
+                        const isActive = currentStep === step.number;
+                        const isCompleted = currentStep > step.number;
+                        const isUpcoming = currentStep < step.number;
+
+                        return (
+                            <div key={step.number} className="flex flex-col items-center flex-1 relative z-10 min-w-0">
+                                {/* Step Circle */}
+                                <div className={cn(
+                                    "relative w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center text-sm font-semibold border-2 transition-all duration-300 shadow-sm",
+                                    isActive && "border-primary bg-primary text-primary-foreground scale-110 shadow-md",
+                                    isCompleted && "border-primary bg-primary text-primary-foreground",
+                                    isUpcoming && "border-slate-300 bg-white text-slate-400"
+                                )}>
+                                    {isCompleted ? (
+                                        <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6" />
+                                    ) : (
+                                        <>
+                                            <Icon className={cn(
+                                                "h-4 w-4 sm:h-5 sm:w-5",
+                                                isActive ? "text-primary-foreground" : "text-slate-400"
+                                            )} />
+                                            {isUpcoming && (
+                                                <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
+                                                    {step.number}
+                                                </span>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+
+                                {/* Step Label */}
+                                <div className="mt-2 sm:mt-3 text-center min-w-0 px-1">
+                                    <p className={cn(
+                                        "text-[10px] sm:text-xs font-semibold transition-colors truncate",
+                                        isActive ? "text-primary" : isCompleted ? "text-slate-700" : "text-slate-400"
+                                    )}>
+                                        {step.label}
+                                    </p>
+                                    {isActive && (
+                                        <p className="text-[9px] sm:text-[10px] text-slate-500 mt-0.5 hidden sm:block">Current</p>
+                                    )}
+                                </div>
+
+                                {/* Connector Line - Hidden on mobile */}
+                                {index < stepLabels.length - 1 && (
+                                    <div className={cn(
+                                        "hidden sm:block absolute top-5 sm:top-6 left-[60%] w-[80%] h-0.5 transition-colors duration-300",
+                                        isCompleted ? "bg-primary" : "bg-slate-200"
+                                    )} />
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
+        );
+    };
+
+    return (
+        <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8 pb-8 sm:pb-12 px-4 sm:px-0">
 
             {/* Follow-up context banner */}
             {isFollowUp && parentConsultationId && (
@@ -367,22 +448,24 @@ export function AppointmentBookingForm({
 
             {renderStepIndicator()}
 
-            <Card className="border-2 shadow-sm">
-                <CardHeader>
-                    <CardTitle>
-                        {currentStep === 1 && "Select Patient"}
-                        {currentStep === 2 && "Select Doctor"}
-                        {currentStep === 3 && "Select Date & Time"}
-                        {currentStep === 4 && (isFollowUp ? "Review & Schedule" : "Review & Confirm")}
-                    </CardTitle>
-                    <CardDescription>
-                        {currentStep === 1 && "Search for the patient."}
-                        {currentStep === 2 && "Choose a doctor."}
-                        {currentStep === 3 && "View availability and select a time slot."}
-                        {currentStep === 4 && (isFollowUp ? "Review and schedule the follow-up." : "Confirm booking details.")}
-                    </CardDescription>
+            <Card className="border border-slate-200 shadow-lg overflow-hidden bg-white">
+                <CardHeader className="border-b bg-gradient-to-br from-slate-50 via-white to-slate-50/50 pb-6 px-6 sm:px-8 pt-6 sm:pt-8">
+                    <div className="space-y-1">
+                        <CardTitle className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                            {currentStep === 1 && "Select Patient"}
+                            {currentStep === 2 && "Select Doctor"}
+                            {currentStep === 3 && "Select Date & Time"}
+                            {currentStep === 4 && (isFollowUp ? "Review & Schedule" : "Review & Confirm")}
+                        </CardTitle>
+                        <CardDescription className="text-slate-600 text-sm sm:text-base">
+                            {currentStep === 1 && "Search and select the patient for this appointment"}
+                            {currentStep === 2 && "Choose the doctor who will see this patient"}
+                            {currentStep === 3 && "View available slots and select a date and time"}
+                            {currentStep === 4 && (isFollowUp ? "Review all details and schedule the follow-up appointment" : "Review all details and confirm the booking")}
+                        </CardDescription>
+                    </div>
                 </CardHeader>
-                <CardContent className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <CardContent className="p-6 sm:p-8 space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
 
                     {/* STEP 1: PATIENT */}
                     {currentStep === 1 && (
@@ -395,24 +478,72 @@ export function AppointmentBookingForm({
                                 }}
                             />
                             {selectedPatient && (
-                                <div className="rounded-lg border bg-muted/20 p-4 flex gap-4 items-start">
-                                    <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                        <User className="h-6 w-6 text-primary" />
-                                    </div>
-                                    <div>
-                                        <h3 className="font-semibold">{selectedPatient.firstName} {selectedPatient.lastName}</h3>
-                                        <p className="text-sm text-muted-foreground">{selectedPatient.email}</p>
-                                        <div className="mt-2 flex gap-2">
-                                            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">
-                                                ID: {selectedPatient.id}
-                                            </span>
+                                <div className="relative overflow-hidden rounded-xl border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-white to-slate-50/50 shadow-md transition-all hover:shadow-lg">
+                                    <div className="p-6">
+                                        <div className="flex items-start gap-4">
+                                            {/* Avatar */}
+                                            <div className="relative shrink-0">
+                                                <div className="h-14 w-14 rounded-full bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-md ring-2 ring-white">
+                                                    <span className="text-lg font-bold text-white">
+                                                        {selectedPatient.firstName?.[0]?.toUpperCase() || ''}
+                                                        {selectedPatient.lastName?.[0]?.toUpperCase() || ''}
+                                                    </span>
+                                                </div>
+                                                <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center">
+                                                    <CheckCircle className="h-3 w-3 text-white" />
+                                                </div>
+                                            </div>
+
+                                            {/* Patient Info */}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <h3 className="font-semibold text-slate-900 text-base">
+                                                        {selectedPatient.firstName} {selectedPatient.lastName}
+                                                    </h3>
+                                                    {selectedPatient.fileNumber && (
+                                                        <span className="text-xs px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono font-medium">
+                                                            {selectedPatient.fileNumber}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                
+                                                <div className="space-y-1.5 mt-2">
+                                                    {selectedPatient.email && (
+                                                        <div className="flex items-center gap-2 text-sm text-slate-600">
+                                                            <span className="text-slate-400">Email:</span>
+                                                            <span className="truncate font-medium">{selectedPatient.email}</span>
+                                                        </div>
+                                                    )}
+                                                    {selectedPatient.phone && (
+                                                        <div className="flex items-center gap-2 text-sm text-slate-600">
+                                                            <span className="text-slate-400">Phone:</span>
+                                                            <span className="font-medium">{selectedPatient.phone}</span>
+                                                        </div>
+                                                    )}
+                                                    {selectedPatient.dateOfBirth && (
+                                                        <div className="flex items-center gap-2 text-sm text-slate-600">
+                                                            <span className="text-slate-400">Age:</span>
+                                                            <span className="font-medium">
+                                                                {selectedPatient.age} years
+                                                                {selectedPatient.age && selectedPatient.age < 18 && (
+                                                                    <span className="ml-1.5 text-xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-medium">Minor</span>
+                                                                )}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             )}
-                            <div className="pt-4 flex justify-between">
-                                <div></div>
-                                <Button onClick={handleNext} disabled={!formData.patientId}>
+                            <div className="pt-6 flex justify-end border-t border-slate-100">
+                                <Button 
+                                    onClick={handleNext} 
+                                    disabled={!formData.patientId}
+                                    size="lg"
+                                    className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg px-8 transition-all"
+                                >
                                     Next Step <ChevronsRight className="ml-2 h-4 w-4" />
                                 </Button>
                             </div>
@@ -453,100 +584,73 @@ export function AppointmentBookingForm({
                                 />
                             )}
                             <div className="flex justify-between pt-4">
-                                <Button variant="outline" onClick={handleBack}>Back</Button>
-                                <Button onClick={handleNext} disabled={!formData.doctorId}>
+                                <Button 
+                                    variant="outline" 
+                                    onClick={handleBack} 
+                                    size="lg"
+                                    className="border-slate-300 hover:bg-slate-50"
+                                >
+                                    Back
+                                </Button>
+                                <Button 
+                                    onClick={handleNext} 
+                                    disabled={!formData.doctorId}
+                                    size="lg"
+                                    className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg px-8 transition-all"
+                                >
                                     Next Step <ChevronsRight className="ml-2 h-4 w-4" />
                                 </Button>
                             </div>
                         </div>
                     )}
 
-                    {/* STEP 3: DATE & TIME */}
+                    {/* STEP 3: DATE & TIME — unified date chip + slot grid */}
                     {currentStep === 3 && (
-                        <div className="space-y-6">
-                            <div className="grid md:grid-cols-2 gap-6">
-                                {/* Date Selection */}
-                                <div className="space-y-3">
-                                    <Label>Select Date *</Label>
-                                    <Input
-                                        type="date"
-                                        min={today.toISOString().split('T')[0]}
-                                        max={dateRangeEnd.toISOString().split('T')[0]}
-                                        value={formData.appointmentDate}
-                                        onChange={(e) => {
-                                            const val = e.target.value;
-                                            if (availableDatesSet.has(val) || !formData.appointmentDate) {
-                                                setFormData(prev => ({ ...prev, appointmentDate: val, selectedSlot: null }));
-                                            } else {
-                                                toast.error('No slots available on this date');
-                                            }
-                                        }}
-                                        className={cn(
-                                            formData.appointmentDate && !availableDatesSet.has(formData.appointmentDate) && "border-destructive focus-visible:ring-destructive"
-                                        )}
-                                    />
-                                    <div className="flex flex-wrap gap-2 mt-2">
-                                        {availableDates.slice(0, 5).map(dateStr => (
-                                            <Button
-                                                key={dateStr}
-                                                variant={formData.appointmentDate === dateStr ? "default" : "outline"}
-                                                size="sm"
-                                                onClick={() => setFormData(prev => ({ ...prev, appointmentDate: dateStr, selectedSlot: null }))}
-                                                className="text-xs"
-                                            >
-                                                {format(new Date(dateStr), 'MMM d')}
-                                            </Button>
-                                        ))}
-                                    </div>
-                                    {loadingAvailableDates && <p className="text-xs text-muted-foreground animate-pulse">Loading availability...</p>}
-                                </div>
-
-                                {/* Slot Selection */}
-                                <div className="space-y-3">
-                                    <Label>Select Time *</Label>
-                                    {loadingSlots ? (
-                                        <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-                                            <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
-                                            Loading slots...
-                                        </div>
-                                    ) : slots.length > 0 ? (
-                                        <div className="grid grid-cols-3 gap-2 max-h-[240px] overflow-y-auto pr-2">
-                                            {slots.filter(s => s.isAvailable).map((slot, i) => (
-                                                <Button
-                                                    key={i}
-                                                    variant={formData.selectedSlot === slot.startTime ? "default" : "outline"}
-                                                    size="sm"
-                                                    onClick={() => setFormData(prev => ({ ...prev, selectedSlot: slot.startTime }))}
-                                                    className="w-full text-xs"
-                                                >
-                                                    {slot.startTime}
-                                                </Button>
-                                            ))}
-                                        </div>
-                                    ) : formData.appointmentDate ? (
-                                        <div className="text-sm text-muted-foreground py-4 bg-muted/30 rounded-lg text-center">
-                                            No available slots on this date.
-                                        </div>
-                                    ) : (
-                                        <div className="text-sm text-muted-foreground py-4">
-                                            Please select a date first.
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="flex justify-between pt-4">
-                                <Button variant="outline" onClick={handleBack}>Back</Button>
-                                <Button onClick={handleNext} disabled={!formData.appointmentDate || !formData.selectedSlot}>
-                                    Next Step <ChevronsRight className="ml-2 h-4 w-4" />
-                                </Button>
-                            </div>
-                        </div>
+                        <Step3DateTimePicker
+                            doctorId={formData.doctorId}
+                            selectedDate={formData.appointmentDate}
+                            selectedSlot={formData.selectedSlot}
+                            onSelect={(date, slot) =>
+                                setFormData(prev => ({ ...prev, appointmentDate: date, selectedSlot: slot }))
+                            }
+                            onBack={handleBack}
+                            onNext={handleNext}
+                        />
                     )}
 
                     {/* STEP 4: DETAILS & CONFIRM */}
                     {currentStep === 4 && (
                         <div className="space-y-6">
+                            {/* Conflict Warnings */}
+                            {sameDoctorConflict && (
+                                <Alert className="border-amber-200 bg-amber-50">
+                                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                                    <AlertTitle className="text-amber-900">Existing Appointment Found</AlertTitle>
+                                    <AlertDescription className="text-amber-800">
+                                        This patient already has an appointment with this doctor on{' '}
+                                        <span className="font-semibold">
+                                            {format(new Date(formData.appointmentDate), 'MMMM d, yyyy')} at {sameDoctorConflict.time}
+                                        </span>.
+                                        <br />
+                                        <span className="mt-2 block text-sm">
+                                            💡 <strong>Tip:</strong> Choose a different date or reschedule the existing appointment to avoid conflicts.
+                                        </span>
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+
+                            {!sameDoctorConflict && differentDoctorAppointments.length > 0 && (
+                                <Alert className="border-blue-200 bg-blue-50">
+                                    <Info className="h-4 w-4" />
+                                    <AlertTitle>Multiple Appointments on Same Day</AlertTitle>
+                                    <AlertDescription>
+                                        This patient has {differentDoctorAppointments.length} other appointment(s) on{' '}
+                                        {format(new Date(formData.appointmentDate), 'MMMM d, yyyy')} with different doctor(s).{' '}
+                                        This is allowed (patient may be seeing multiple specialists), but please ensure the patient can attend all appointments.
+                                    </AlertDescription>
+                                </Alert>
+                            )}
+
                             <div className="space-y-4">
                                 <div className="space-y-2">
                                     <Label>Appointment Type *</Label>
@@ -599,19 +703,219 @@ export function AppointmentBookingForm({
                                 </div>
                             </div>
 
-                            <div className="flex justify-between pt-4">
-                                <Button variant="outline" onClick={handleBack} disabled={isSubmitting}>Back</Button>
-                                <Button onClick={handleSubmit} disabled={!formData.type || isSubmitting} className="bg-teal-600 hover:bg-teal-700">
-                                    {isSubmitting
-                                        ? (isFollowUp ? 'Scheduling…' : 'Booking…')
-                                        : (isFollowUp ? 'Schedule Follow-up' : 'Confirm Booking')
-                                    }
+                            <div className="flex justify-between pt-4 border-t border-slate-100">
+                                <Button 
+                                    variant="outline" 
+                                    onClick={handleBack} 
+                                    disabled={isSubmitting} 
+                                    size="lg"
+                                    className="border-slate-300 hover:bg-slate-50"
+                                >
+                                    Back
+                                </Button>
+                                <Button 
+                                    onClick={handleSubmit} 
+                                    disabled={!formData.type || isSubmitting} 
+                                    size="lg"
+                                    className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg px-8 transition-all disabled:opacity-50"
+                                >
+                                    {isSubmitting ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            {isFollowUp ? 'Scheduling…' : 'Booking…'}
+                                        </>
+                                    ) : (
+                                        <>
+                                            {isFollowUp ? 'Schedule Follow-up' : 'Confirm Booking'}
+                                            <CheckCircle className="ml-2 h-4 w-4" />
+                                        </>
+                                    )}
                                 </Button>
                             </div>
                         </div>
                     )}
                 </CardContent>
             </Card>
+        </div>
+    );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Step3DateTimePicker — unified date chip + slot grid
+   Auto-selects first available date and loads slots immediately.
+   No two-phase interaction required.
+═══════════════════════════════════════════════════════════════ */
+
+interface Step3Props {
+    doctorId: string;
+    selectedDate: string;        // YYYY-MM-DD
+    selectedSlot: string | null; // HH:mm
+    onSelect: (date: string, slot: string | null) => void;
+    onBack: () => void;
+    onNext: () => void;
+}
+
+function Step3DateTimePicker({ doctorId, selectedDate, selectedSlot, onSelect, onBack, onNext }: Step3Props) {
+    const { startDate, endDate } = getDefaultAvailabilityDateRange();
+
+    // Use shared hooks - will reuse cached data from AvailableDoctorsPanel if available
+    const { 
+        data: availableDates = [], 
+        isLoading: loadingDates 
+    } = useDoctorAvailableDates(doctorId, startDate, endDate);
+
+    const { 
+        data: slots = [], 
+        isLoading: loadingSlots 
+    } = useDoctorAvailableSlots(doctorId, selectedDate || '');
+
+    // Auto-select first available date if none selected yet
+    useEffect(() => {
+        if (availableDates.length > 0 && !selectedDate && !loadingDates) {
+            onSelect(availableDates[0], null);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [availableDates, selectedDate, loadingDates]);
+
+    const availableSlots = slots.filter(s => s.isAvailable);
+
+    // Group slots by time of day
+    const morning = availableSlots.filter(s => parseInt(s.startTime) < 12);
+    const afternoon = availableSlots.filter(s => { const h = parseInt(s.startTime); return h >= 12 && h < 17; });
+    const evening = availableSlots.filter(s => parseInt(s.startTime) >= 17);
+    const sections = [
+        { label: 'Morning', icon: Sun, slots: morning, color: 'text-amber-500' },
+        { label: 'Afternoon', icon: Sunset, slots: afternoon, color: 'text-orange-500' },
+        { label: 'Evening', icon: Moon, slots: evening, color: 'text-indigo-500' },
+    ].filter(s => s.slots.length > 0);
+
+    const dateLabelFor = (dateStr: string) => {
+        const d = new Date(dateStr + 'T00:00:00');
+        if (isToday(d)) return 'Today';
+        if (isTomorrow(d)) return 'Tomorrow';
+        return format(d, 'EEE, MMM d');
+    };
+
+    return (
+        <div className="space-y-5">
+            {/* ── Date chips ── */}
+            {loadingDates ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading availability…
+                </div>
+            ) : availableDates.length === 0 ? (
+                <div className="rounded-lg bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+                    No available dates in the next 2 months for this doctor.
+                </div>
+            ) : (
+                <div className="space-y-2">
+                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Select Date</Label>
+                    <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
+                        {availableDates.slice(0, 14).map(dateStr => {
+                            const d = new Date(dateStr + 'T00:00:00');
+                            const isSelected = selectedDate === dateStr;
+                            const todayDate = isToday(d);
+                            return (
+                                <button
+                                    key={dateStr}
+                                    type="button"
+                                    onClick={() => onSelect(dateStr, null)}
+                                    className={cn(
+                                        'shrink-0 flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-150 border min-w-[58px]',
+                                        isSelected
+                                            ? 'bg-primary text-primary-foreground border-primary shadow-md'
+                                            : todayDate
+                                                ? 'bg-cyan-50 text-cyan-700 border-cyan-300 hover:border-cyan-400'
+                                                : 'bg-background text-foreground border-border hover:border-primary/40 hover:bg-muted/40'
+                                    )}
+                                >
+                                    <span className={cn('text-[10px] font-bold uppercase tracking-wider leading-none', isSelected ? 'opacity-70' : 'text-muted-foreground')}>
+                                        {todayDate ? 'Today' : format(d, 'EEE')}
+                                    </span>
+                                    <span className="text-lg font-bold leading-none">{format(d, 'd')}</span>
+                                    <span className={cn('text-[9px] leading-none', isSelected ? 'opacity-60' : 'text-muted-foreground')}>
+                                        {format(d, 'MMM')}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {/* ── Slot grid ── */}
+            {selectedDate && (
+                <div className="space-y-3">
+                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Select Time — {dateLabelFor(selectedDate)}
+                    </Label>
+                    {loadingSlots ? (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Loading slots…
+                        </div>
+                    ) : sections.length > 0 ? (
+                        <div className="space-y-4">
+                            {sections.map(section => (
+                                <div key={section.label}>
+                                    <div className="flex items-center gap-1.5 mb-2">
+                                        <section.icon className={cn('h-3.5 w-3.5', section.color)} />
+                                        <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                                            {section.label}
+                                        </span>
+                                        <span className="text-[11px] text-muted-foreground/50">({section.slots.length})</span>
+                                    </div>
+                                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
+                                        {section.slots.map((slot, i) => {
+                                            const isSelected = selectedSlot === slot.startTime;
+                                            return (
+                                                <button
+                                                    key={i}
+                                                    type="button"
+                                                    onClick={() => onSelect(selectedDate, slot.startTime)}
+                                                    className={cn(
+                                                        'py-2 px-1 rounded-lg text-xs font-semibold transition-all duration-150 border text-center',
+                                                        isSelected
+                                                            ? 'bg-primary text-primary-foreground border-primary shadow-sm scale-[1.04]'
+                                                            : 'bg-background text-foreground border-border hover:border-primary/40 hover:bg-muted/40'
+                                                    )}
+                                                >
+                                                    {slot.startTime}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="rounded-lg bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+                            No available slots on {dateLabelFor(selectedDate)}.
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ── Navigation ── */}
+            <div className="flex justify-between pt-4 border-t border-slate-100">
+                <Button 
+                    variant="outline" 
+                    onClick={onBack}
+                    size="lg"
+                    className="border-slate-300 hover:bg-slate-50"
+                >
+                    Back
+                </Button>
+                <Button 
+                    onClick={onNext} 
+                    disabled={!selectedDate || !selectedSlot}
+                    size="lg"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg px-8 transition-all disabled:opacity-50"
+                >
+                    Next Step <ChevronsRight className="ml-2 h-4 w-4" />
+                </Button>
+            </div>
         </div>
     );
 }

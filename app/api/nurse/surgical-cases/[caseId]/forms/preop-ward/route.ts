@@ -18,6 +18,7 @@ import { Role } from '@/domain/enums/Role';
 import db from '@/lib/db';
 import { ClinicalFormStatus } from '@prisma/client';
 import { endpointTimer } from '@/lib/observability/endpointLogger';
+import { SurgicalCaseStatusTransitionService } from '@/application/services/SurgicalCaseStatusTransitionService';
 import {
     TEMPLATE_KEY,
     TEMPLATE_VERSION,
@@ -76,7 +77,12 @@ async function getSurgicalCaseWithPatient(caseId: string) {
                     planned_anesthesia: true,
                     implant_details: true,
                 }
-            }
+            },
+            theater_booking: {
+                select: {
+                    start_time: true,
+                },
+            },
         },
     });
 }
@@ -163,19 +169,36 @@ export async function GET(
                 );
             }
 
-            // Create empty DRAFT
+            // Helper to calculate fasted time from theater booking
+            const calculateFastedTime = (startTime: Date | null): string => {
+                if (!startTime) return '';
+                // Assume patient should fast 8 hours before surgery
+                const fastedFrom = new Date(startTime.getTime() - 8 * 60 * 60 * 1000);
+                return fastedFrom.toTimeString().slice(0, 5); // HH:MM format
+            };
+
+            // Determine NPO status from anesthesia plan
+            const hasAnesthesia = !!surgicalCase.case_plan?.planned_anesthesia;
+            const npoStatus = hasAnesthesia; // If anesthesia planned, assume NPO required
+
+            // Create empty DRAFT with enhanced pre-population
             const emptyData = {
                 documentation: {},
                 bloodResults: {},
                 medications: {},
                 allergiesNpo: {
                     allergiesDetails: surgicalCase.patient.allergies || '',
-                    allergiesDocumented: !!surgicalCase.patient.allergies
+                    allergiesDocumented: !!surgicalCase.patient.allergies,
+                    npoStatus: npoStatus,
+                    npoFastedFromTime: calculateFastedTime(surgicalCase.theater_booking?.start_time || null),
                 },
                 preparation: {},
                 prosthetics: {},
                 vitals: {},
-                handover: {},
+                handover: {
+                    // Pre-populate with current user's name if available
+                    preparedByName: auth.user.email?.split('@')[0] || '',
+                },
             };
 
             response = await db.clinicalFormResponse.create({
@@ -190,6 +213,16 @@ export async function GET(
                     created_by_user_id: auth.user.userId,
                 },
             });
+
+            // Auto-transition case status: Pre-op checklist started → IN_PREP
+            // Only if case is currently SCHEDULED
+            try {
+                const statusTransitionService = new SurgicalCaseStatusTransitionService(db);
+                await statusTransitionService.transitionToInPrep(caseId, auth.user.userId);
+            } catch (error) {
+                // Log but don't fail - status transition is best effort
+                console.error('[API] Pre-op checklist creation: Status transition error:', error);
+            }
         }
 
         timer.end({ caseId });

@@ -43,6 +43,21 @@ export interface ScheduleAppointmentDto {
   readonly source?: string;
 
   /**
+   * Optional: Booking channel (UI entry point) for analytics tracking
+   */
+  readonly bookingChannel?: string;
+
+  /**
+   * Optional: Duration in minutes (defaults to doctor's slot configuration)
+   */
+  readonly durationMinutes?: number;
+
+  /**
+   * Optional: Reason for appointment
+   */
+  readonly reason?: string;
+
+  /**
    * Optional: Parent appointment ID for follow-up linkage
    */
   readonly parentAppointmentId?: number;

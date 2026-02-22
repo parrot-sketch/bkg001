@@ -15,10 +15,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
-import { DomainException } from '@/domain/exceptions/DomainException';
 import { checklistDraftSchema } from '@/domain/clinical-forms/WhoSurgicalChecklist';
 import { getTheaterTechService } from '@/lib/factories/theaterTechFactory';
 import { endpointTimer } from '@/lib/observability/endpointLogger';
+import { handleApiError, handleApiSuccess } from '@/app/api/_utils/handleApiError';
+import { ForbiddenError } from '@/application/errors';
 
 const READ_ROLES = new Set([
   Role.THEATER_TECHNICIAN,
@@ -36,39 +37,22 @@ export async function GET(
   try {
     const authResult = await JwtMiddleware.authenticate(request);
     if (!authResult.success || !authResult.user) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
+      return handleApiError(new ForbiddenError('Authentication required'));
     }
 
     if (!READ_ROLES.has(authResult.user.role as Role)) {
-      return NextResponse.json(
-        { success: false, error: 'Access denied' },
-        { status: 403 }
-      );
+      return handleApiError(new ForbiddenError('Access denied'));
     }
 
     const { caseId } = await params;
     const timer = endpointTimer('GET /api/theater-tech/checklist');
     const theaterTechService = getTheaterTechService();
-    const checklist = await theaterTechService.getChecklistByCaseId(caseId);
+    const checklist = await theaterTechService.getChecklistStatus(caseId);
     timer.end({ caseId });
 
-    return NextResponse.json({ success: true, data: checklist }, { status: 200 });
+    return handleApiSuccess(checklist);
   } catch (error) {
-    console.error('[API] GET /api/theater-tech/surgical-cases/[caseId]/checklist - Error:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          process.env.NODE_ENV === 'development'
-            ? `Internal server error: ${message}`
-            : 'Internal server error',
-      },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }
 
@@ -79,30 +63,19 @@ export async function PUT(
   try {
     const authResult = await JwtMiddleware.authenticate(request);
     if (!authResult.success || !authResult.user) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
+      return handleApiError(new ForbiddenError('Authentication required'));
     }
 
     if (!WRITE_ROLES.has(authResult.user.role as Role)) {
-      return NextResponse.json(
-        { success: false, error: 'Access denied: Theater Technician or Admin role required' },
-        { status: 403 }
+      return handleApiError(
+        new ForbiddenError('Access denied: Theater Technician or Admin role required')
       );
     }
 
     const body = await request.json();
     const validation = checklistDraftSchema.safeParse(body);
     if (!validation.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Validation failed',
-          details: validation.error.flatten().fieldErrors,
-        },
-        { status: 400 }
-      );
+      return handleApiError(validation.error);
     }
 
     const { caseId } = await params;
@@ -117,27 +90,8 @@ export async function PUT(
       authResult.user.role
     );
 
-    return NextResponse.json({ success: true, data: result }, { status: 200 });
+    return handleApiSuccess(result);
   } catch (error) {
-    console.error('[API] PUT /api/theater-tech/surgical-cases/[caseId]/checklist - Error:', error);
-
-    if (error instanceof DomainException) {
-      return NextResponse.json(
-        { success: false, error: error.message, metadata: error.metadata },
-        { status: 422 }
-      );
-    }
-
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json(
-      {
-        success: false,
-        error:
-          process.env.NODE_ENV === 'development'
-            ? `Internal server error: ${message}`
-            : 'Internal server error',
-      },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }

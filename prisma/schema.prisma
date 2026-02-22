@@ -5,44 +5,48 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  // directUrl is optional - only needed for connection pooling scenarios
+  // directUrl = env("DIRECT_URL")
 }
 
 model User {
-  id                     String                 @id @default(uuid())
-  email                  String                 @unique
-  password_hash          String
-  role                   Role
-  status                 Status                 @default(ACTIVE)
-  mfa_enabled            Boolean                @default(false)
-  mfa_secret             String?
-  first_name             String?
-  last_name              String?
-  phone                  String?
-  last_login_at          DateTime?
-  created_at             DateTime               @default(now())
-  updated_at             DateTime               @updatedAt
-  audit_logs             AuditLog[]
-  care_notes             CareNote[]             @relation("CareNoteNurse")
-  clinical_audit_events  ClinicalAuditEvent[]
-  forms_created          ClinicalFormResponse[] @relation("FormCreatedBy")
-  forms_signed           ClinicalFormResponse[] @relation("FormSignedBy")
-  forms_updated          ClinicalFormResponse[] @relation("FormUpdatedBy")
-  witnessed_consents     ConsentForm[]
-  consultations          Consultation[]
-  doctor_profile         Doctor?                @relation("DoctorUser")
-  notifications_sent     Notification[]         @relation("NotificationSender")
-  notifications_received Notification[]         @relation("NotificationRecipient")
-  nurse_assignments      NurseAssignment[]      @relation("NurseAssignments")
-  assigned_patients      Patient[]              @relation("PatientAssignment")
-  patient_profile        Patient?               @relation("PatientUser")
-  refresh_tokens         RefreshToken[]
-  staff_invites_sent     StaffInvite[]          @relation("StaffInviteInviter")
-  staff_invites_received StaffInvite[]          @relation("StaffInviteUser")
-  checklist_sign_ins     SurgicalChecklist[]    @relation("ChecklistSignIn")
-  checklist_sign_outs    SurgicalChecklist[]    @relation("ChecklistSignOut")
-  checklist_time_outs    SurgicalChecklist[]    @relation("ChecklistTimeOut")
-  surgical_assignments   SurgicalStaff[]
+  id                         String                  @id @default(uuid())
+  email                      String                  @unique
+  password_hash              String
+  role                       Role
+  status                     Status                  @default(ACTIVE)
+  mfa_enabled                Boolean                 @default(false)
+  mfa_secret                 String?
+  first_name                 String?
+  last_name                  String?
+  phone                      String?
+  last_login_at              DateTime?
+  created_at                 DateTime                @default(now())
+  updated_at                 DateTime                @updatedAt
+  audit_logs                 AuditLog[]
+  care_notes                 CareNote[]              @relation("CareNoteNurse")
+  clinical_audit_events      ClinicalAuditEvent[]
+  forms_created              ClinicalFormResponse[]  @relation("FormCreatedBy")
+  forms_signed               ClinicalFormResponse[]  @relation("FormSignedBy")
+  forms_updated              ClinicalFormResponse[]  @relation("FormUpdatedBy")
+  witnessed_consents         ConsentForm[]
+  consultations              Consultation[]
+  doctor_profile             Doctor?                 @relation("DoctorUser")
+  notifications_sent         Notification[]          @relation("NotificationSender")
+  notifications_received     Notification[]          @relation("NotificationRecipient")
+  nurse_assignments          NurseAssignment[]       @relation("NurseAssignments")
+  assigned_patients          Patient[]               @relation("PatientAssignment")
+  patient_profile            Patient?                @relation("PatientUser")
+  refresh_tokens             RefreshToken[]
+  staff_invites_sent         StaffInvite[]           @relation("StaffInviteInviter")
+  staff_invites_received     StaffInvite[]           @relation("StaffInviteUser")
+  checklist_sign_ins         SurgicalChecklist[]     @relation("ChecklistSignIn")
+  checklist_sign_outs        SurgicalChecklist[]     @relation("ChecklistSignOut")
+  checklist_time_outs        SurgicalChecklist[]     @relation("ChecklistTimeOut")
+  surgical_assignments       SurgicalStaff[]
+  created_appointments       Appointment[]           @relation("AppointmentCreator")
+  verified_consent_sessions  ConsentSigningSession[] @relation("VerifiedByStaff")
+  witnessed_consent_sessions ConsentSigningSession[] @relation("WitnessUser")
 
   @@index([email])
   @@index([role])
@@ -335,7 +339,10 @@ model Appointment {
   parent_appointment_id         Int?
   parent_consultation_id        Int?
   source                        AppointmentSource          @default(PATIENT_REQUESTED)
+  created_by_user_id            String?
+  booking_channel               BookingChannel?
   doctor                        Doctor                     @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
+  created_by_user               User?                      @relation("AppointmentCreator", fields: [created_by_user_id], references: [id])
   parent_appointment            Appointment?               @relation("FollowUpChain", fields: [parent_appointment_id], references: [id])
   follow_up_appointments        Appointment[]              @relation("FollowUpChain")
   parent_consultation           Consultation?              @relation("ConsultationFollowUp", fields: [parent_consultation_id], references: [id])
@@ -881,6 +888,8 @@ model SurgicalProcedureRecord {
   anesthesia_type                AnesthesiaType?
   asa_score                      Int?
   wound_class                    WoundClassification?
+  estimated_blood_loss           Int? // ml
+  urine_output                   Int? // ml
   created_at                     DateTime             @default(now())
   updated_at                     DateTime             @updatedAt
   anesthesia_end                 DateTime?
@@ -936,13 +945,13 @@ model StaffInvite {
 }
 
 model ConsentForm {
-  id                String        @id @default(uuid())
+  id                String                 @id @default(uuid())
   case_plan_id      Int
   title             String
   type              ConsentType
   content_snapshot  String
-  version           Int           @default(1)
-  status            ConsentStatus @default(DRAFT)
+  version           Int                    @default(1)
+  status            ConsentStatus          @default(DRAFT)
   patient_signature String?
   signed_at         DateTime?
   signed_by_ip      String?
@@ -950,13 +959,88 @@ model ConsentForm {
   witness_name      String?
   witness_id        String?
   valid_until       DateTime?
-  created_at        DateTime      @default(now())
-  updated_at        DateTime      @updatedAt
-  case_plan         CasePlan      @relation(fields: [case_plan_id], references: [id], onDelete: Cascade)
-  witness_user      User?         @relation(fields: [witness_id], references: [id])
+  created_at        DateTime               @default(now())
+  updated_at        DateTime               @updatedAt
+  case_plan         CasePlan               @relation(fields: [case_plan_id], references: [id], onDelete: Cascade)
+  witness_user      User?                  @relation(fields: [witness_id], references: [id])
+  signing_session   ConsentSigningSession?
 
   @@index([case_plan_id])
   @@index([status])
+}
+
+model ConsentSigningSession {
+  id              String   @id @default(uuid())
+  consent_form_id String   @unique
+  qr_code         String   @unique
+  token           String   @unique
+  expires_at      DateTime
+
+  // Identity Verification
+  verification_method  VerificationMethod
+  patient_name_entered String?
+  patient_dob_entered  DateTime?
+  patient_file_number  String?
+  phone_number_used    String?
+  otp_sent             Boolean            @default(false)
+  otp_verified         Boolean            @default(false)
+  otp_code             String? // Hashed OTP
+  otp_expires_at       DateTime?
+
+  // Staff Verification (for surgical consents)
+  requires_staff_verify   Boolean   @default(false)
+  verified_by_staff_id    String?
+  verified_by_staff_at    DateTime?
+  staff_verification_note String?
+
+  // Signing
+  signed_at            DateTime?
+  signed_by_ip         String?
+  signed_by_user_agent String?
+  patient_signature    String? // Base64 canvas image
+
+  // Witness (if required)
+  witness_name      String?
+  witness_signature String?
+  witness_id        String?
+
+  status SigningStatus @default(PENDING)
+
+  // Audit
+  identity_match_score  Float? // 0.0-1.0 (how well name/DOB matched)
+  verification_attempts Int    @default(0)
+  failed_attempts       Int    @default(0)
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  consent_form      ConsentForm @relation(fields: [consent_form_id], references: [id], onDelete: Cascade)
+  verified_by_staff User?       @relation("VerifiedByStaff", fields: [verified_by_staff_id], references: [id])
+  witness_user      User?       @relation("WitnessUser", fields: [witness_id], references: [id])
+
+  @@index([qr_code])
+  @@index([token])
+  @@index([expires_at])
+  @@index([status])
+  @@index([requires_staff_verify])
+}
+
+enum VerificationMethod {
+  NAME_DOB_ONLY
+  NAME_DOB_OTP
+  STAFF_VERIFIED
+  EMERGENCY_OVERRIDE
+}
+
+enum SigningStatus {
+  PENDING
+  VERIFYING
+  VERIFIED
+  SIGNING
+  SIGNED
+  VERIFICATION_FAILED
+  EXPIRED
+  CANCELLED
 }
 
 model PatientImage {
@@ -1089,18 +1173,22 @@ model Theater {
 }
 
 model ConsentTemplate {
-  id         String      @id @default(uuid())
-  title      String
-  type       ConsentType
-  content    String
-  version    Int         @default(1)
-  is_active  Boolean     @default(true)
-  created_by String?
-  created_at DateTime    @default(now())
-  updated_at DateTime    @updatedAt
+  id                String         @id @default(uuid())
+  title             String
+  type              ConsentType
+  content           String
+  pdf_url           String? // Cloudinary URL for uploaded PDF template
+  template_format   TemplateFormat @default(HTML) // HTML, PDF, or HYBRID
+  extracted_content String? // Text extracted from PDF (for search/preview)
+  version           Int            @default(1)
+  is_active         Boolean        @default(true)
+  created_by        String?
+  created_at        DateTime       @default(now())
+  updated_at        DateTime       @updatedAt
 
   @@index([type])
   @@index([is_active])
+  @@index([template_format])
 }
 
 model IntakeSession {
@@ -1391,6 +1479,12 @@ enum AppointmentSource {
   ADMIN_SCHEDULED
 }
 
+enum BookingChannel {
+  DASHBOARD
+  PATIENT_LIST
+  PATIENT_PROFILE
+}
+
 enum ConsultationRequestStatus {
   SUBMITTED
   PENDING_REVIEW
@@ -1583,6 +1677,12 @@ enum ConsentType {
   SPECIAL_PROCEDURE
 }
 
+enum TemplateFormat {
+  HTML
+  PDF
+  HYBRID
+}
+
 enum OutboxStatus {
   PENDING
   PROCESSING
@@ -1602,6 +1702,7 @@ enum SurgicalCaseStatus {
   DRAFT
   PLANNING
   READY_FOR_SCHEDULING
+  READY_FOR_THEATER_BOOKING
   SCHEDULED
   IN_PREP
   IN_THEATER
@@ -1626,4 +1727,5 @@ enum ChecklistPhase {
 enum ClinicalFormStatus {
   DRAFT
   FINAL
+  AMENDMENT
 }
