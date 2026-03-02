@@ -164,8 +164,8 @@ class ApiClient {
           // Refresh failed - return original error
           return {
             success: false,
-            error: data.error || 'Authentication failed',
-            message: data.message,
+            error: data?.error || 'Authentication failed',
+            message: data?.message,
           };
         } finally {
           this.isRefreshing = false;

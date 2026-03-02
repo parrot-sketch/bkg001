@@ -78,9 +78,9 @@ export function PatientBillingPanel({ patientId }: PatientBillingPanelProps) {
         );
     }
 
-    // Calculate totals
-    const totalPaid = payments.reduce((sum, p) => sum + (p.total_amount || 0), 0);
-    const totalPending = payments.filter(p => p.status === 'PENDING').reduce((sum, p) => sum + (p.total_amount || 0), 0);
+    // Calculate totals - with null safety
+    const totalPaid = (payments || []).reduce((sum, p) => sum + (p.total_amount || 0), 0);
+    const totalPending = (payments || []).filter(p => p.status === 'PENDING').reduce((sum, p) => sum + (p.total_amount || 0), 0);
 
     return (
         <div className="space-y-6">
@@ -179,7 +179,7 @@ export function PatientBillingPanel({ patientId }: PatientBillingPanelProps) {
                                         <div className="flex items-center gap-2 mt-2">
                                             <DollarSign size={14} className="text-muted-foreground" />
                                             <span className="text-lg font-semibold text-foreground">
-                                                KES {payment.total_amount.toLocaleString()}
+                                                KES {(payment.total_amount || 0).toLocaleString()}
                                             </span>
                                         </div>
                                     </div>
