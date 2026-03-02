@@ -247,12 +247,8 @@ function ConsultationSessionContent() {
   const patientName = `${patient.firstName} ${patient.lastName}`;
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="flex flex-col h-screen bg-[#f8fafc] text-slate-900 selection:bg-indigo-500/10"
-    >
-      {/* ─── Header ─── */}
+    <div className="flex flex-col h-screen bg-white text-slate-900">
+      {/* Header */}
       <Suspense fallback={<HeaderSkeleton />}>
         <ConsultationSessionHeader
           patientName={patientName}
@@ -266,13 +262,8 @@ function ConsultationSessionContent() {
         />
       </Suspense>
 
-      {/* ─── Main 3-Column Layout ─── */}
-      <div className="flex-1 flex overflow-hidden relative border-l border-slate-200/50">
-        {/* Calm light professional backgrounds */}
-        <div className="absolute top-0 left-0 w-full h-full bg-slate-100/10 pointer-events-none" />
-        <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-500/[0.02] blur-[120px] rounded-full pointer-events-none" />
-        <div className="absolute top-1/4 right-1/4 -translate-y-1/2 w-[500px] h-[500px] bg-blue-500/[0.02] blur-[100px] rounded-full pointer-events-none" />
-
+      {/* Main Layout */}
+      <div className="flex-1 flex overflow-hidden">
         {/* Left: Patient Sidebar */}
         <AnimatePresence mode="wait">
           {!sidebarCollapsed && (
@@ -280,15 +271,14 @@ function ConsultationSessionContent() {
               initial={{ x: -280, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -280, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 350, damping: 30 }}
               className={cn(
-                'bg-white/80 backdrop-blur-2xl border-r border-slate-200 flex flex-col shrink-0 z-20',
-                'w-[280px] h-full overflow-hidden shadow-sm',
+                'bg-white border-r border-slate-200 flex flex-col shrink-0',
+                'w-[280px] h-full overflow-hidden',
                 'hidden lg:flex',
               )}
             >
               <Suspense fallback={<SidebarSkeleton />}>
-                <div className="flex-1 overflow-y-auto custom-scrollbar-light overflow-x-hidden">
+                <div className="flex-1 overflow-y-auto">
                   <PatientInfoSidebar
                     patient={patient}
                     appointment={appointment}
@@ -303,16 +293,12 @@ function ConsultationSessionContent() {
           )}
         </AnimatePresence>
 
-        {/* Sidebar toggle - subtle bar */}
-        <div className="hidden lg:flex items-center z-30">
-          <motion.button
-            whileHover={{ scale: 1.1, backgroundColor: 'rgba(0,0,0,0.02)' }}
-            whileTap={{ scale: 0.9 }}
+        {/* Sidebar toggle */}
+        <div className="hidden lg:flex items-center">
+          <button
             onClick={toggleSidebar}
             className={cn(
-              'flex items-center justify-center h-16 w-4 rounded-r-xl border border-l-0 border-slate-200',
-              'bg-white/60 backdrop-blur-md text-slate-400 hover:text-indigo-600 transition-all duration-300',
-              sidebarCollapsed ? 'translate-x-0' : '-translate-x-px'
+              'flex items-center justify-center h-16 w-4 border border-l-0 border-slate-200 bg-slate-50 text-slate-400 hover:text-slate-600',
             )}
             title={sidebarCollapsed ? 'Show patient info' : 'Hide patient info'}
           >
@@ -321,20 +307,17 @@ function ConsultationSessionContent() {
             ) : (
               <ChevronLeft className="h-3 w-3" />
             )}
-          </motion.button>
+          </button>
         </div>
 
         {/* Center: Workspace */}
-        <motion.div
-          layout
-          className="flex-1 flex flex-col min-w-0 bg-transparent z-10 h-full overflow-hidden"
-        >
+        <div className="flex-1 flex flex-col h-full overflow-hidden">
           <Suspense fallback={<WorkspaceSkeleton />}>
             <ConsultationWorkspaceOptimized />
           </Suspense>
-        </motion.div>
+        </div>
 
-        {/* Right: Queue Panel (Absolute/Overlay-like as per redesign) */}
+        {/* Right: Queue Panel */}
         <Suspense fallback={null}>
           <ConsultationQueuePanel
             currentAppointmentId={appointment.id}
@@ -345,12 +328,12 @@ function ConsultationSessionContent() {
         </Suspense>
       </div>
 
-      {/* ─── Dialogs ─── */}
-      {showStartDialog && (
+      {/* Dialogs */}
+      {showStartDialog && appointment && (
         <Suspense fallback={null}>
           <StartConsultationDialog
             open={showStartDialog}
-            onClose={() => {/* Handled by context */ }}
+            onClose={() => {}}
             onSuccess={startConsultation}
             appointment={appointment}
             doctorId={doctorId || ''}
@@ -358,7 +341,7 @@ function ConsultationSessionContent() {
         </Suspense>
       )}
 
-      {showCompleteDialog && consultation && doctorId && (
+      {showCompleteDialog && consultation && appointment && doctorId && (
         <Suspense fallback={null}>
           <CompleteConsultationDialog
             open={showCompleteDialog}
@@ -370,7 +353,7 @@ function ConsultationSessionContent() {
           />
         </Suspense>
       )}
-    </motion.div>
+    </div>
   );
 }
 
