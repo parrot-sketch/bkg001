@@ -19,6 +19,7 @@ import db from '@/lib/db';
 import { ClinicalFormStatus } from '@prisma/client';
 import { endpointTimer } from '@/lib/observability/endpointLogger';
 import { SurgicalCaseStatusTransitionService } from '@/application/services/SurgicalCaseStatusTransitionService';
+import { GateBlockedError } from '@/application/errors/GateBlockedError';
 import {
     TEMPLATE_KEY,
     TEMPLATE_VERSION,
@@ -296,7 +297,7 @@ export async function PUT(
             );
         }
 
-        // Update
+        // Update form
         const updated = await db.clinicalFormResponse.update({
             where: { id: existing.id },
             data: {
@@ -304,6 +305,36 @@ export async function PUT(
                 updated_by_user_id: auth.user.userId,
             },
         });
+
+        // Apply inventory usage events (if any)
+        let usageResult = null;
+        try {
+            const { getClinicalInventoryIntegrationService } = await import('@/lib/factories/clinicalInventoryIntegrationFactory');
+            const integrationService = getClinicalInventoryIntegrationService();
+            const events = await integrationService.extractUsageEventsFromPreop(
+                caseId,
+                updated.id,
+                JSON.stringify(parsed.data)
+            );
+
+            if (events.length > 0) {
+                usageResult = await integrationService.applyUsageEvents(caseId, events, {
+                    userId: auth.user.userId,
+                });
+            }
+        } catch (error) {
+            // If usage fails, return error (don't partially save)
+            if (error instanceof GateBlockedError) {
+                return NextResponse.json({
+                    success: false,
+                    error: error.message,
+                    code: 'GATE_BLOCKED',
+                    metadata: error.metadata,
+                }, { status: 422 });
+            }
+            // Log but don't fail form save for non-critical errors
+            console.error('[API] Pre-op usage integration error:', error);
+        }
 
         // Audit
         await db.clinicalAuditEvent.create({
@@ -318,7 +349,15 @@ export async function PUT(
 
         return NextResponse.json({
             success: true,
-            data: mapResponseDto(updated),
+            data: {
+                ...mapResponseDto(updated),
+                usageIntegration: usageResult ? {
+                    appliedUsageCount: usageResult.appliedUsageCount,
+                    appliedBillLinesCount: usageResult.appliedBillLinesCount,
+                    isIdempotentReplaySummary: usageResult.isIdempotentReplaySummary,
+                    stockWarnings: usageResult.stockWarnings,
+                } : null,
+            },
             message: 'Draft saved',
         });
     } catch (error) {

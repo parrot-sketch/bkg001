@@ -11,6 +11,7 @@ import { ScheduleAppointmentDto } from '../dtos/ScheduleAppointmentDto';
 import { AppointmentResponseDto } from '../dtos/AppointmentResponseDto';
 import { AppointmentMapper as ApplicationAppointmentMapper } from '../mappers/AppointmentMapper';
 import { ValidateAppointmentAvailabilityUseCase } from './ValidateAppointmentAvailabilityUseCase';
+import { GetAvailableSlotsForDateUseCase } from './GetAvailableSlotsForDateUseCase';
 import { DomainException } from '../../domain/exceptions/DomainException';
 import { NotFoundError } from '../errors/NotFoundError';
 import { ConflictError } from '../errors/ConflictError';
@@ -130,25 +131,107 @@ export class ScheduleAppointmentUseCase {
       });
     }
 
-    // Step 2.5: Validate availability (Phase 3 Enhancement)
-    // Uses Phase 1 temporal fields for efficient conflict detection
-    // Leverages indexes on (doctor_id, scheduled_at) for O(n) performance
+    // Step 2.5: Validate proposed time availability (Simplified Frontdesk Booking)
+    // For frontdesk bookings: Check if proposed time is available
+    // - If available: Auto-allocate slot, create appointment
+    // - If not available: Create appointment with PENDING_DOCTOR_CONFIRMATION, calculate alternatives
     const slotConfig = await this.availabilityRepository.getSlotConfiguration(dto.doctorId);
-    const appointmentDuration = dto.durationMinutes || slotConfig?.defaultDuration || 30; // Use DTO duration if provided, else slot config, else default 30 minutes
-
-    // PHASE 1 INTEGRATION: appointmentDuration stored as Phase 1 field (duration_minutes)
-    // This enables quick conflict detection without joins
+    const appointmentDuration = dto.durationMinutes || slotConfig?.defaultDuration || 30;
+    
+    const appointmentSource = dto.source || AppointmentSource.PATIENT_REQUESTED;
+    const isFrontdeskBooking = appointmentSource === AppointmentSource.FRONTDESK_SCHEDULED;
+    const isDoctorFollowUp = appointmentSource === AppointmentSource.DOCTOR_FOLLOW_UP;
+    
+    // Check if proposed time is available
     const availabilityCheck = await this.validateAvailabilityUseCase.execute({
       doctorId: dto.doctorId,
       date: dto.appointmentDate,
       time: dto.time,
-      duration: appointmentDuration, // Maps to Phase 1: duration_minutes field
+      duration: appointmentDuration,
     });
 
-    if (!availabilityCheck.isAvailable) {
-      throw new ConflictError(
-        `Appointment time is not available: ${availabilityCheck.reason || 'Slot is already booked'}`
+    // For frontdesk bookings and doctor follow-ups: Don't throw error if not available, create appointment anyway
+    // - Frontdesk: Doctor will see alternatives and can confirm/customize
+    // - Doctor follow-up: Doctor is scheduling their own appointment, so they know their schedule
+    // For other sources: Keep existing behavior (throw error if not available)
+    if (!availabilityCheck.isAvailable && !isFrontdeskBooking && !isDoctorFollowUp) {
+      // Provide helpful error message based on the reason
+      let errorMessage = `Appointment time is not available: ${availabilityCheck.reason || 'Slot is already booked'}`;
+      
+      // If the reason is about no availability configured, provide more helpful guidance
+      if (availabilityCheck.reason?.includes('no availability configured')) {
+        errorMessage = `Doctor has not configured their availability schedule. Please ask the doctor to set up their working hours in the schedule settings, or contact the administrator.`;
+      }
+      
+      throw new ConflictError(errorMessage);
+    }
+    
+    // For doctor follow-ups: If no availability is configured, show a warning but allow scheduling
+    // (Doctor is scheduling their own appointment, so they know their schedule)
+    if (isDoctorFollowUp && availabilityCheck.reason?.includes('no availability configured')) {
+      console.warn(
+        `[ScheduleAppointment] Doctor ${dto.doctorId} is scheduling a follow-up appointment but has no availability configured. ` +
+        `Allowing scheduling anyway since doctor is scheduling their own appointment.`
       );
+    }
+
+    // Calculate alternative slots if proposed time is not available (for frontdesk bookings)
+    let alternativeSlots: Array<{ date: string; time: string }> | undefined;
+    if (!availabilityCheck.isAvailable && isFrontdeskBooking) {
+      // Get available slots for the same date and nearby dates
+      const getSlotsUseCase = new GetAvailableSlotsForDateUseCase(
+        this.availabilityRepository,
+        this.appointmentRepository,
+        this.prisma
+      );
+      
+      // Get slots for the proposed date
+      const sameDateSlots = await getSlotsUseCase.execute({
+        doctorId: dto.doctorId,
+        date: dto.appointmentDate,
+        duration: appointmentDuration,
+      });
+      
+      // Filter to only available slots and take first 5
+      const availableSameDate = sameDateSlots
+        .filter(slot => slot.isAvailable)
+        .slice(0, 5)
+        .map(slot => ({
+          date: dto.appointmentDate.toISOString().split('T')[0],
+          time: slot.startTime,
+        }));
+      
+      // If not enough slots on same date, get slots for next 3 days
+      if (availableSameDate.length < 3) {
+        const nextDays: Date[] = [];
+        for (let i = 1; i <= 3; i++) {
+          const nextDate = new Date(dto.appointmentDate);
+          nextDate.setDate(nextDate.getDate() + i);
+          nextDays.push(nextDate);
+        }
+        
+        for (const nextDate of nextDays) {
+          if (availableSameDate.length >= 5) break;
+          
+          const nextDateSlots = await getSlotsUseCase.execute({
+            doctorId: dto.doctorId,
+            date: nextDate,
+            duration: appointmentDuration,
+          });
+          
+          const availableNextDate = nextDateSlots
+            .filter(slot => slot.isAvailable)
+            .slice(0, 5 - availableSameDate.length)
+            .map(slot => ({
+              date: nextDate.toISOString().split('T')[0],
+              time: slot.startTime,
+            }));
+          
+          availableSameDate.push(...availableNextDate);
+        }
+      }
+      
+      alternativeSlots = availableSameDate;
     }
 
     // Step 3: Create appointment domain entity (validates business rules)
@@ -156,7 +239,7 @@ export class ScheduleAppointmentUseCase {
     // Status is determined by source:
     //   PATIENT_REQUESTED, FRONTDESK_SCHEDULED, ADMIN_SCHEDULED → PENDING_DOCTOR_CONFIRMATION (requires doctor review)
     //   DOCTOR_FOLLOW_UP → SCHEDULED (auto-confirmed, doctor scheduling their own follow-up)
-    const appointmentSource = dto.source || AppointmentSource.PATIENT_REQUESTED;
+    // appointmentSource is already defined above (line 141)
     const defaultStatus = getDefaultStatusForSource(appointmentSource);
 
     const appointment = ApplicationAppointmentMapper.fromScheduleDto(
@@ -387,6 +470,17 @@ export class ScheduleAppointmentUseCase {
     });
 
     // Step 9: Map domain entity to response DTO
-    return ApplicationAppointmentMapper.toResponseDto(savedAppointment);
+    const responseDto = ApplicationAppointmentMapper.toResponseDto(savedAppointment);
+    
+    // Add slot allocation metadata for frontdesk bookings
+    if (isFrontdeskBooking) {
+      (responseDto as any).slotAllocation = {
+        autoAllocated: availabilityCheck.isAvailable,
+        proposedTimeAvailable: availabilityCheck.isAvailable,
+        alternativeSlots: alternativeSlots,
+      };
+    }
+    
+    return responseDto;
   }
 }

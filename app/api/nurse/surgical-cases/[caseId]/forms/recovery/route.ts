@@ -18,6 +18,7 @@ import { Role } from '@/domain/enums/Role';
 import db from '@/lib/db';
 import { ClinicalFormStatus } from '@prisma/client';
 import { endpointTimer } from '@/lib/observability/endpointLogger';
+import { GateBlockedError } from '@/application/errors/GateBlockedError';
 import {
     RECOVERY_TEMPLATE_KEY,
     RECOVERY_TEMPLATE_VERSION,
@@ -247,6 +248,36 @@ export async function PUT(
             },
         });
 
+        // Apply inventory usage events (if any)
+        let usageResult = null;
+        try {
+            const { getClinicalInventoryIntegrationService } = await import('@/lib/factories/clinicalInventoryIntegrationFactory');
+            const integrationService = getClinicalInventoryIntegrationService();
+            const events = await integrationService.extractUsageEventsFromRecovery(
+                caseId,
+                updated.id,
+                JSON.stringify(parsed.data)
+            );
+
+            if (events.length > 0) {
+                usageResult = await integrationService.applyUsageEvents(caseId, events, {
+                    userId: auth.user.userId,
+                });
+            }
+        } catch (error) {
+            // If usage fails, return error (don't partially save)
+            if (error instanceof GateBlockedError) {
+                return NextResponse.json({
+                    success: false,
+                    error: error.message,
+                    code: 'GATE_BLOCKED',
+                    metadata: error.metadata,
+                }, { status: 422 });
+            }
+            // Log but don't fail form save for non-critical errors
+            console.error('[API] Recovery usage integration error:', error);
+        }
+
         await db.clinicalAuditEvent.create({
             data: {
                 actor_user_id: auth.user.userId,
@@ -259,7 +290,15 @@ export async function PUT(
 
         return NextResponse.json({
             success: true,
-            data: mapResponseDto(updated),
+            data: {
+                ...mapResponseDto(updated),
+                usageIntegration: usageResult ? {
+                    appliedUsageCount: usageResult.appliedUsageCount,
+                    appliedBillLinesCount: usageResult.appliedBillLinesCount,
+                    isIdempotentReplaySummary: usageResult.isIdempotentReplaySummary,
+                    stockWarnings: usageResult.stockWarnings,
+                } : null,
+            },
             message: 'Recovery record draft saved',
         });
     } catch (error) {

@@ -62,4 +62,14 @@ export interface AppointmentResponseDto {
     readonly name: string;
     readonly specialization?: string;
   };
+
+  // Slot allocation metadata (for frontdesk booking workflow)
+  readonly slotAllocation?: {
+    readonly autoAllocated: boolean; // True if slot was automatically allocated
+    readonly proposedTimeAvailable: boolean; // True if proposed time was available
+    readonly alternativeSlots?: Array<{
+      readonly date: string; // YYYY-MM-DD
+      readonly time: string; // HH:mm
+    }>; // Alternative slots if proposed time was not available
+  };
 }

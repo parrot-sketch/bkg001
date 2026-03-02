@@ -87,8 +87,28 @@ export class PrismaUserRepository implements IUserRepository {
       }
 
       return UserMapper.fromPrisma(prismaUser);
-    } catch (error) {
-      // Wrap Prisma errors in a more generic error
+    } catch (error: any) {
+      // Check if this is a database connection error
+      const isConnectionError =
+        error?.message?.includes('fetch failed') ||
+        error?.message?.includes('Cannot fetch data from service') ||
+        error?.message?.includes('Connection closed') ||
+        error?.message?.includes('Connection terminated') ||
+        error?.message?.includes('Connection refused') ||
+        error?.message?.includes("Can't reach database") ||
+        error?.code === 'P1001' || // Can't reach DB server
+        error?.code === 'P1008' || // Operation timeout
+        error?.code === 'P1017' || // Server closed connection
+        error?.code === 'P1010';   // Connection timeout
+
+      if (isConnectionError) {
+        // Re-throw connection errors with a specific type so they can be handled differently
+        const connectionError = new Error(`Database connection failed: ${error?.message || 'Unable to connect to database'}`);
+        (connectionError as any).isConnectionError = true;
+        throw connectionError;
+      }
+
+      // For other errors, wrap in a generic error
       throw new Error(`Failed to find user by email: ${email.getValue()}. ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

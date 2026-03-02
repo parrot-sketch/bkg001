@@ -59,6 +59,7 @@ import {
     Save,
     Lock,
     Loader2,
+    CheckCircle,
     CheckCircle2,
     Circle,
     AlertTriangle,
@@ -293,7 +294,22 @@ function ArrivalSection({ data, onChange, disabled }: SectionProps) {
     );
 }
 
-function SafetyChecklistSection({ data, onChange, disabled, procedureName, side }: SectionProps & { procedureName?: string; side?: string }) {
+function SafetyChecklistSection({ 
+    data, 
+    onChange, 
+    disabled, 
+    procedureName, 
+    side,
+    verificationSources 
+}: SectionProps & { 
+    procedureName?: string; 
+    side?: string;
+    verificationSources?: {
+        patientIdVerified: string | null;
+        informedConsentSigned: string | null;
+        preOpChecklistCompleted: string | null;
+    };
+}) {
     const d = data.safety ?? {};
     const set = (field: string, value: any) =>
         onChange({ ...data, safety: { ...d, [field]: value } });
@@ -308,10 +324,56 @@ function SafetyChecklistSection({ data, onChange, disabled, procedureName, side 
                     </p>
                 </div>
             )}
+            
+            {/* Auto-population info banner */}
+            {verificationSources && (
+                <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg mb-4">
+                    <p className="text-xs font-bold text-indigo-800 uppercase tracking-wider mb-2">Auto-Populated Verification</p>
+                    <div className="space-y-1.5 text-xs text-indigo-700">
+                        {verificationSources.patientIdVerified && (
+                            <div className="flex items-start gap-2">
+                                <CheckCircle className="h-3.5 w-3.5 text-indigo-600 shrink-0 mt-0.5" />
+                                <span><strong>ID Verified:</strong> {verificationSources.patientIdVerified}</span>
+                            </div>
+                        )}
+                        {verificationSources.informedConsentSigned && (
+                            <div className="flex items-start gap-2">
+                                <CheckCircle className="h-3.5 w-3.5 text-indigo-600 shrink-0 mt-0.5" />
+                                <span><strong>Consent:</strong> {verificationSources.informedConsentSigned}</span>
+                            </div>
+                        )}
+                        {verificationSources.preOpChecklistCompleted && (
+                            <div className="flex items-start gap-2">
+                                <CheckCircle className="h-3.5 w-3.5 text-indigo-600 shrink-0 mt-0.5" />
+                                <span><strong>Pre-op Checklist:</strong> {verificationSources.preOpChecklistCompleted}</span>
+                            </div>
+                        )}
+                    </div>
+                    <p className="text-[10px] text-indigo-600 mt-2 italic">
+                        You can override these values if needed. Changes will be logged.
+                    </p>
+                </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
-                <BooleanField label="Patient ID Verified with Reg No." value={d.patientIdVerified} onChange={(v) => set('patientIdVerified', v)} disabled={disabled} />
-                <BooleanField label="Informed Consent Signed" value={d.informedConsentSigned} onChange={(v) => set('informedConsentSigned', v)} disabled={disabled} />
-                <BooleanField label="Pre-op Checklist Completed" value={d.preOpChecklistCompleted} onChange={(v) => set('preOpChecklistCompleted', v)} disabled={disabled} />
+                <div>
+                    <BooleanField label="Patient ID Verified with Reg No." value={d.patientIdVerified} onChange={(v) => set('patientIdVerified', v)} disabled={disabled} />
+                    {verificationSources?.patientIdVerified && d.patientIdVerified && (
+                        <p className="text-[10px] text-slate-500 mt-0.5 ml-7">{verificationSources.patientIdVerified}</p>
+                    )}
+                </div>
+                <div>
+                    <BooleanField label="Informed Consent Signed" value={d.informedConsentSigned} onChange={(v) => set('informedConsentSigned', v)} disabled={disabled} />
+                    {verificationSources?.informedConsentSigned && d.informedConsentSigned && (
+                        <p className="text-[10px] text-slate-500 mt-0.5 ml-7">{verificationSources.informedConsentSigned}</p>
+                    )}
+                </div>
+                <div>
+                    <BooleanField label="Pre-op Checklist Completed" value={d.preOpChecklistCompleted} onChange={(v) => set('preOpChecklistCompleted', v)} disabled={disabled} />
+                    {verificationSources?.preOpChecklistCompleted && d.preOpChecklistCompleted && (
+                        <p className="text-[10px] text-slate-500 mt-0.5 ml-7">{verificationSources.preOpChecklistCompleted}</p>
+                    )}
+                </div>
                 <BooleanField label="WHO Checklist Completed" value={d.whoChecklistCompleted} onChange={(v) => set('whoChecklistCompleted', v)} disabled={disabled} />
                 <BooleanField label="Arrived with IV infusing" value={d.arrivedWithIvInfusing} onChange={(v) => set('arrivedWithIvInfusing', v)} disabled={disabled} />
             </div>
@@ -1333,6 +1395,9 @@ export default function NurseIntraOpRecordPage() {
     const caseId = params?.caseId as string;
 
     const { data: response, isLoading, error } = useIntraOpRecord(caseId);
+    
+    // Extract verification sources for auto-population display
+    const verificationSources = response?.verificationData?.sources;
     const saveMutation = useSaveIntraOpRecord(caseId);
     const finalizeMutation = useFinalizeIntraOpRecord(caseId);
 
@@ -1647,7 +1712,11 @@ export default function NurseIntraOpRecordPage() {
                                         data={formData}
                                         onChange={handleChange}
                                         disabled={isDisabled}
-                                        {...(section.key === 'safety' ? { procedureName: response.procedureName, side: response.side } : {})}
+                                        {...(section.key === 'safety' ? { 
+                                            procedureName: response.procedureName, 
+                                            side: response.side,
+                                            verificationSources: verificationSources
+                                        } : {})}
                                     />
                                 )}
                             </AccordionContent>

@@ -18,12 +18,14 @@ import { Role } from '@/domain/enums/Role';
 import db from '@/lib/db';
 import { ClinicalFormStatus, SurgicalRole } from '@prisma/client';
 import { endpointTimer } from '@/lib/observability/endpointLogger';
+import { GateBlockedError } from '@/application/errors/GateBlockedError';
 import {
     INTRAOP_TEMPLATE_KEY,
     INTRAOP_TEMPLATE_VERSION,
     nurseIntraOpRecordDraftSchema,
     getIntraOpSectionCompletion,
 } from '@/domain/clinical-forms/NurseIntraOpRecord';
+import { PatientVerificationService } from '@/domain/services/PatientVerificationService';
 
 // ──────────────────────────────────────────────────────────────────────
 // Helpers
@@ -216,17 +218,27 @@ export async function GET(
                 );
             }
 
+            // Auto-populate safety checks from patient verification data
+            const verificationService = new PatientVerificationService(db);
+            const autoPopulatedChecks = await verificationService.getAutoPopulatedSafetyChecks(
+                surgicalCase.patient_id,
+                caseId,
+            );
+
             const emptyData = {
                 entry: {
                     arrivalMethod: 'STRETCHER',
                     timeIn: '',
                     asaClass: '1',
-                    allergies: surgicalCase.patient.allergies || ''
+                    allergies: autoPopulatedChecks.allergies || surgicalCase.patient.allergies || ''
                 },
                 safety: {
-                    patientIdVerified: false, informedConsentSigned: false,
-                    preOpChecklistCompleted: false, whoChecklistCompleted: false,
-                    arrivedWithIvInfusing: false, antibioticOrdered: false
+                    patientIdVerified: autoPopulatedChecks.patientIdVerified,
+                    informedConsentSigned: autoPopulatedChecks.informedConsentSigned,
+                    preOpChecklistCompleted: autoPopulatedChecks.preOpChecklistCompleted,
+                    whoChecklistCompleted: false,
+                    arrivedWithIvInfusing: false,
+                    antibioticOrdered: false
                 },
                 timings: { timeIntoTheatre: '', timeOutOfTheatre: '', operationStart: '', operationFinish: '' },
                 diagnoses: {
@@ -281,6 +293,17 @@ export async function GET(
             });
         }
 
+        // Get verification data for auto-population info
+        const verificationService = new PatientVerificationService(db);
+        const verificationData = await verificationService.getPatientVerificationData(
+            surgicalCase.patient_id,
+            caseId,
+        );
+        const autoPopulatedChecks = await verificationService.getAutoPopulatedSafetyChecks(
+            surgicalCase.patient_id,
+            caseId,
+        );
+
         const suggestedStaffing = buildSuggestedStaffing(surgicalCase);
         timer.end({ caseId });
         return NextResponse.json({
@@ -294,6 +317,11 @@ export async function GET(
                 casePlan: surgicalCase.case_plan,
                 // Pre-populated team from accepted StaffInvites + primary surgeon
                 suggestedStaffing,
+                // Verification data for auto-population
+                verificationData: {
+                    autoPopulatedChecks,
+                    sources: autoPopulatedChecks.verificationSources,
+                },
             },
         });
     } catch (error) {
@@ -382,6 +410,36 @@ export async function PUT(
             return up;
         });
 
+        // Apply inventory usage events (if any)
+        let usageResult = null;
+        try {
+            const { getClinicalInventoryIntegrationService } = await import('@/lib/factories/clinicalInventoryIntegrationFactory');
+            const integrationService = getClinicalInventoryIntegrationService();
+            const events = await integrationService.extractUsageEventsFromIntraop(
+                caseId,
+                updated.id,
+                JSON.stringify(parsed.data)
+            );
+
+            if (events.length > 0) {
+                usageResult = await integrationService.applyUsageEvents(caseId, events, {
+                    userId: auth.user.userId,
+                });
+            }
+        } catch (error) {
+            // If usage fails, return error (don't partially save)
+            if (error instanceof GateBlockedError) {
+                return NextResponse.json({
+                    success: false,
+                    error: error.message,
+                    code: 'GATE_BLOCKED',
+                    metadata: error.metadata,
+                }, { status: 422 });
+            }
+            // Log but don't fail form save for non-critical errors
+            console.error('[API] Intra-op usage integration error:', error);
+        }
+
         await db.clinicalAuditEvent.create({
             data: {
                 actor_user_id: auth.user.userId,
@@ -394,7 +452,15 @@ export async function PUT(
 
         return NextResponse.json({
             success: true,
-            data: mapResponseDto(updated),
+            data: {
+                ...mapResponseDto(updated),
+                usageIntegration: usageResult ? {
+                    appliedUsageCount: usageResult.appliedUsageCount,
+                    appliedBillLinesCount: usageResult.appliedBillLinesCount,
+                    isIdempotentReplaySummary: usageResult.isIdempotentReplaySummary,
+                    stockWarnings: usageResult.stockWarnings,
+                } : null,
+            },
             message: 'Intra-op record draft saved',
         });
     } catch (error) {

@@ -16,6 +16,9 @@ import { JwtMiddleware } from '@/lib/auth/middleware';
 import db from '@/lib/db';
 import { TemplateFormat } from '@prisma/client';
 import { z } from 'zod';
+import { ConsentTemplateService } from '@/application/services/ConsentTemplateService';
+import { handleApiError, handleApiSuccess } from '@/app/api/_utils/handleApiError';
+import { ForbiddenError, NotFoundError, ValidationError } from '@/application/errors';
 
 const updateTemplateSchema = z.object({
     title: z.string().min(1).max(200).optional(),
@@ -23,7 +26,9 @@ const updateTemplateSchema = z.object({
     pdf_url: z.string().url().optional().nullable(),
     template_format: z.nativeEnum(TemplateFormat).optional(),
     extracted_content: z.string().optional().nullable(),
+    description: z.string().max(500).optional(),
     is_active: z.boolean().optional(),
+    version_notes: z.string().max(500).optional(),
 });
 
 // ─── GET: Get template by ID ──────────────────────────────────────────────
@@ -55,6 +60,10 @@ export async function GET(
                 extracted_content: true,
                 version: true,
                 is_active: true,
+                status: true,
+                description: true,
+                usage_count: true,
+                last_used_at: true,
                 created_by: true,
                 created_at: true,
                 updated_at: true,
@@ -62,18 +71,29 @@ export async function GET(
         });
 
         if (!template) {
-            return NextResponse.json({ success: false, error: 'Template not found' }, { status: 404 });
+            return handleApiError(new NotFoundError('Template not found'));
         }
 
         // Verify ownership
         if (template.created_by !== authResult.user.userId) {
-            return NextResponse.json({ success: false, error: 'Forbidden: Not your template' }, { status: 403 });
+            return handleApiError(new ForbiddenError('Forbidden: Not your template'));
         }
 
-        return NextResponse.json({
-            success: true,
-            data: template,
-        });
+        // Log view audit (non-blocking)
+        const service = new ConsentTemplateService(db);
+        service.logAuditEvent(
+            templateId,
+            'VIEWED' as any,
+            {
+                actorUserId: authResult.user.userId,
+                actorRole: authResult.user.role as any,
+                ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
+                userAgent: request.headers.get('user-agent') || undefined,
+            },
+            null
+        ).catch(console.error);
+
+        return handleApiSuccess(template);
     } catch (error) {
         console.error('[API] GET /api/doctor/consents/templates/[templateId] - Error:', error);
         return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
@@ -110,80 +130,60 @@ export async function PATCH(
             );
         }
 
-        // Verify ownership
-        const existing = await db.consentTemplate.findUnique({
-            where: { id: templateId },
-            select: { created_by: true, version: true },
-        });
-
-        if (!existing) {
-            return NextResponse.json({ success: false, error: 'Template not found' }, { status: 404 });
-        }
-
-        if (existing.created_by !== authResult.user.userId) {
-            return NextResponse.json({ success: false, error: 'Forbidden: Not your template' }, { status: 403 });
-        }
-
-        // If content, title, pdf_url, or template_format changed, increment version
-        const updateData: any = { ...validation.data };
-        if (updateData.content || updateData.title || updateData.pdf_url !== undefined || updateData.template_format) {
-            updateData.version = existing.version + 1;
-        }
+        // Use ConsentTemplateService for document control
+        const service = new ConsentTemplateService(db);
 
         // Auto-determine template format if not explicitly set
-        if (!updateData.template_format) {
-            if (updateData.pdf_url !== undefined || updateData.content !== undefined) {
-                const currentTemplate = await db.consentTemplate.findUnique({
-                    where: { id: templateId },
-                    select: { pdf_url: true, content: true },
-                });
-                const hasPdf = updateData.pdf_url || currentTemplate?.pdf_url;
-                const hasContent = (updateData.content?.trim() || currentTemplate?.content?.trim());
-                
-                if (hasPdf && hasContent) {
-                    updateData.template_format = TemplateFormat.HYBRID;
-                } else if (hasPdf) {
-                    updateData.template_format = TemplateFormat.PDF;
-                } else if (hasContent) {
-                    updateData.template_format = TemplateFormat.HTML;
-                }
+        let templateFormat = validation.data.template_format;
+        if (!templateFormat) {
+            const currentTemplate = await db.consentTemplate.findUnique({
+                where: { id: templateId },
+                select: { pdf_url: true, content: true },
+            });
+            const hasPdf = validation.data.pdf_url !== undefined ? validation.data.pdf_url : currentTemplate?.pdf_url;
+            const hasContent = validation.data.content !== undefined
+                ? validation.data.content?.trim()
+                : currentTemplate?.content?.trim();
+
+            if (hasPdf && hasContent) {
+                templateFormat = TemplateFormat.HYBRID;
+            } else if (hasPdf) {
+                templateFormat = TemplateFormat.PDF;
+            } else if (hasContent) {
+                templateFormat = TemplateFormat.HTML;
             }
         }
 
-        const updated = await db.consentTemplate.update({
-            where: { id: templateId },
-            data: updateData,
-            select: {
-                id: true,
-                title: true,
-                type: true,
-                content: true,
-                pdf_url: true,
-                template_format: true,
-                extracted_content: true,
-                version: true,
-                is_active: true,
-                created_at: true,
-                updated_at: true,
+        const updated = await service.updateTemplate(
+            templateId,
+            {
+                ...validation.data,
+                template_format: templateFormat,
             },
-        });
+            {
+                actorUserId: authResult.user.userId,
+                actorRole: authResult.user.role as any,
+                ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
+                userAgent: request.headers.get('user-agent') || undefined,
+            }
+        );
 
-        // Audit
-        await db.auditLog.create({
-            data: {
-                user_id: authResult.user.userId,
-                record_id: templateId,
-                action: 'UPDATE',
-                model: 'ConsentTemplate',
-                details: `Template "${updated.title}" updated to version ${updated.version}`,
-            },
-        });
-
-        return NextResponse.json({
-            success: true,
-            data: updated,
-            message: 'Template updated successfully',
-        });
+        return handleApiSuccess({
+            id: updated.id,
+            title: updated.title,
+            type: updated.type,
+            content: updated.content,
+            pdf_url: updated.pdf_url,
+            template_format: updated.template_format,
+            extracted_content: updated.extracted_content,
+            version: updated.version,
+            is_active: updated.is_active,
+            status: updated.status,
+            description: updated.description,
+            usage_count: updated.usage_count,
+            created_at: updated.created_at,
+            updated_at: updated.updated_at,
+        }, 200);
     } catch (error) {
         console.error('[API] PATCH /api/doctor/consents/templates/[templateId] - Error:', error);
         return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
@@ -221,33 +221,46 @@ export async function DELETE(
             return NextResponse.json({ success: false, error: 'Forbidden: Not your template' }, { status: 403 });
         }
 
-        // Soft delete: set is_active to false
+        // Use ConsentTemplateService for document control
+        const service = new ConsentTemplateService(db);
+
+        // Soft delete: set is_active to false and archive
+        const template = await db.consentTemplate.findUnique({
+            where: { id: templateId },
+        });
+
+        if (!template) {
+            return handleApiError(new NotFoundError('Template not found'));
+        }
+
         const updated = await db.consentTemplate.update({
             where: { id: templateId },
-            data: { is_active: false },
+            data: {
+                is_active: false,
+                status: 'ARCHIVED' as any,
+            },
             select: {
                 id: true,
                 title: true,
                 is_active: true,
+                status: true,
             },
         });
 
-        // Audit
-        await db.auditLog.create({
-            data: {
-                user_id: authResult.user.userId,
-                record_id: templateId,
-                action: 'DELETE',
-                model: 'ConsentTemplate',
-                details: `Template "${updated.title}" deactivated`,
+        // Log audit event (non-blocking)
+        service.logAuditEvent(
+            templateId,
+            'DELETED' as any,
+            {
+                actorUserId: authResult.user.userId,
+                actorRole: authResult.user.role as any,
+                ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
+                userAgent: request.headers.get('user-agent') || undefined,
             },
-        });
+            { title: template.title }
+        ).catch(console.error);
 
-        return NextResponse.json({
-            success: true,
-            data: updated,
-            message: 'Template deactivated successfully',
-        });
+        return handleApiSuccess(updated);
     } catch (error) {
         console.error('[API] DELETE /api/doctor/consents/templates/[templateId] - Error:', error);
         return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });

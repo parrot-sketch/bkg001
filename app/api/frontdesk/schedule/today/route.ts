@@ -25,9 +25,11 @@ export async function GET(request: NextRequest) {
         const doctorId = searchParams.get('doctorId');
 
         // Get today's date range (start to end of day)
-        const today = new Date();
-        const startOfDay = new Date(today.setHours(0, 0, 0, 0));
-        const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+        // NOTE: Two separate Date objects to avoid mutating startOfDay when endOfDay is set
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 59, 999);
 
         // Build query filters
         const whereClause: any = {

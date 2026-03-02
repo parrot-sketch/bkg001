@@ -3,8 +3,9 @@ import { IIntakeSessionRepository } from '@/infrastructure/repositories/IntakeSe
 import { IIntakeSubmissionRepository } from '@/infrastructure/repositories/IntakeSubmissionRepository';
 import { IPatientRepository } from '@/domain/interfaces/repositories/IPatientRepository';
 import { IntakeSubmissionMapper } from '@/infrastructure/mappers/IntakeSubmissionMapper';
-import { PatientMapper } from '@/infrastructure/mappers/PatientMapper';
+import { PatientMapper } from '@/application/mappers/PatientMapper';
 import { DomainException } from '@/domain/exceptions/DomainException';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Use Case: Confirm Patient Intake (Create Patient Record)
@@ -34,7 +35,7 @@ export class ConfirmPatientIntakeUseCase {
     private readonly intakeSubmissionRepository: IIntakeSubmissionRepository,
     private readonly intakeSessionRepository: IIntakeSessionRepository,
     private readonly patientRepository: IPatientRepository,
-  ) { }
+  ) {}
 
   async execute(input: {
     sessionId: string;
@@ -84,12 +85,11 @@ export class ConfirmPatientIntakeUseCase {
       const fileNumber = await this.generateFileNumber();
 
       // 5. Convert intake submission to Patient entity
-      const patientId = crypto.randomUUID();
+      const patientId = uuidv4();
       const patientEntity = submission.toPatientEntity(fileNumber, patientId);
 
       // 6. Save to repository
       await this.patientRepository.save(patientEntity);
-      const savedPatient = patientEntity;
 
       // 7. Mark intake session as CONFIRMED
       await this.intakeSessionRepository.updateStatus(input.sessionId, 'CONFIRMED');
@@ -97,17 +97,19 @@ export class ConfirmPatientIntakeUseCase {
       // 8. Mark intake submission with patient ID
       await this.intakeSubmissionRepository.updateWithPatientId(
         submission.getSubmissionId(),
-        savedPatient.getId(),
+        patientId,
       );
 
       // 9. Return Patient DTO
+      const patientDto = PatientMapper.toResponseDto(patientEntity);
+
       return {
-        patientId: savedPatient.getId(),
-        fileNumber: savedPatient.getFileNumber(),
-        firstName: savedPatient.getFirstName(),
-        lastName: savedPatient.getLastName(),
-        email: savedPatient.getEmail().getValue(),
-        phone: savedPatient.getPhone().getValue(),
+        patientId: patientDto.id,
+        fileNumber: patientDto.fileNumber,
+        firstName: patientDto.firstName,
+        lastName: patientDto.lastName,
+        email: patientDto.email,
+        phone: patientDto.phone,
       };
     } catch (error) {
       if (error instanceof DomainException) {

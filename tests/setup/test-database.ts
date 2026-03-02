@@ -85,11 +85,29 @@ export async function resetTestDatabase(): Promise<void> {
 
   try {
     // Delete in dependency order (reverse of creation)
+    await db.auditLog.deleteMany({});
+    await db.consentTemplateRelease.deleteMany({});
+    await db.consentFormDocument.deleteMany({});
+    await db.consentForm.deleteMany({});
+    await db.consentTemplate.deleteMany({});
+
+    // Core tables
     await db.appointment.deleteMany({});
     await db.consultation.deleteMany({});
     await db.availabilitySlot.deleteMany({});
     await db.availabilityTemplate.deleteMany({});
     await db.slotConfiguration.deleteMany({});
+
+    // Cleanup other tables that might have FKs to User
+    try {
+      await (db as any).goodsReceipt.deleteMany({});
+      await (db as any).purchaseOrderItem.deleteMany({});
+      await (db as any).purchaseOrder.deleteMany({});
+      await (db as any).vendor.deleteMany({});
+    } catch (e) {
+      // Defensive: ignore if some of these tables aren't in the schema
+    }
+
     await db.doctor.deleteMany({});
     await db.patient.deleteMany({});
     await db.user.deleteMany({});

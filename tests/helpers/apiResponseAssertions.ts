@@ -19,6 +19,14 @@ export function assertSuccess<T>(resJson: unknown): asserts resJson is ApiSucces
 }
 
 /**
+ * Unwrap the data from a successful ApiResponse.
+ * Use after assertSuccess to get typed data.
+ */
+export function unwrapApiData<T>(resJson: ApiSuccess<T>): T {
+  return resJson.data;
+}
+
+/**
  * Assert that a response is a failed ApiResponse (base check).
  */
 export function assertErrorBase(resJson: unknown): asserts resJson is ApiFailure {

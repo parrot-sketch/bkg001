@@ -10,6 +10,7 @@ import { SignaturePad } from '@/components/consent/SignaturePad';
 import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { ApiResponse, isSuccess } from '@/lib/http/apiResponse';
+import { PdfViewer } from '@/components/pdf';
 
 interface ConsentData {
   consentForm: {
@@ -18,6 +19,7 @@ interface ConsentData {
     type: string;
     content: string;
     version: number;
+    pdfUrl?: string | null;
   };
   session: {
     id: string;
@@ -260,12 +262,18 @@ export default function ConsentSigningPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Consent Content */}
-            <div className="prose max-w-none">
-              <div
-                className="text-sm text-gray-700 whitespace-pre-wrap"
-                dangerouslySetInnerHTML={{ __html: consentData.consentForm.content }}
-              />
-            </div>
+            {consentData.consentForm.pdfUrl ? (
+              <div className="border rounded-md overflow-hidden mb-6">
+                <PdfViewer file={consentData.consentForm.pdfUrl} height={600} showDownload={false} />
+              </div>
+            ) : (
+              <div className="prose max-w-none">
+                <div
+                  className="text-sm text-gray-700 whitespace-pre-wrap"
+                  dangerouslySetInnerHTML={{ __html: consentData.consentForm.content }}
+                />
+              </div>
+            )}
 
             {/* Identity Verification Step */}
             {step === 'verify' && (

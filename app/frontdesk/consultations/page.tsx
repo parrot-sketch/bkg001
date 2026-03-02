@@ -35,7 +35,7 @@ function FrontdeskConsultationsContent() {
   // REFACTORED: Replaced manual useState/useEffect with React Query hook
   // Benefits: Automatic caching, retries, background refetching, loading state management
   const statuses: string[] = statusParam === CONSULTATION_CONFIG.ALL_STATUSES_FILTER
-    ? Array.from(CONSULTATION_CONFIG.ALL_STATUSES_ARRAY)
+    ? [...CONSULTATION_CONFIG.ALL_STATUSES_ARRAY]
     : statusParam.split(CONSULTATION_CONFIG.STATUS_FILTER_SEPARATOR).map(s => s.trim());
 
   const { 
@@ -57,7 +57,7 @@ function FrontdeskConsultationsContent() {
   };
 
   // Filter appointments by status
-  const filteredAppointments = appointments.filter((apt: AppointmentResponseDto) => 
+  const filteredAppointments = appointments.filter(apt => 
     apt.consultationRequestStatus && statuses.includes(apt.consultationRequestStatus)
   );
 
@@ -145,7 +145,7 @@ function FrontdeskConsultationsContent() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredAppointments.map((appointment: AppointmentResponseDto) => {
+              {filteredAppointments.map((appointment) => {
                 const needsReview = appointment.consultationRequestStatus === ConsultationRequestStatus.SUBMITTED ||
                                    appointment.consultationRequestStatus === ConsultationRequestStatus.PENDING_REVIEW;
                 const canSchedule = appointment.consultationRequestStatus === ConsultationRequestStatus.APPROVED;

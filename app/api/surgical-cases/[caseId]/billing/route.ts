@@ -1,5 +1,5 @@
 /**
- * API Route: GET/PUT /api/surgical-cases/:id/billing
+ * API Route: GET/PUT /api/surgical-cases/:caseId/billing
  * 
  * Manage billing for a surgical case.
  * Surgery billing is decoupled from appointment billing — a procedure
@@ -20,18 +20,18 @@ import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 
 /**
- * GET /api/surgical-cases/:id/billing
+ * GET /api/surgical-cases/:caseId/billing
  * 
  * Get the billing/payment record for a surgical case, including bill items,
  * inventory usage, and services.
  */
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ caseId: string }> }
 ): Promise<NextResponse> {
   try {
     const params = await context.params;
-    const surgicalCaseId = params.id;
+    const surgicalCaseId = params.caseId;
 
     // 1. Authenticate
     const authResult = await JwtMiddleware.authenticate(request);
@@ -172,7 +172,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('[API] GET /api/surgical-cases/[id]/billing - Error:', error);
+    console.error('[API] GET /api/surgical-cases/[caseId]/billing - Error:', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }
@@ -181,7 +181,7 @@ export async function GET(
 }
 
 /**
- * PUT /api/surgical-cases/:id/billing
+ * PUT /api/surgical-cases/:caseId/billing
  * 
  * Create or update billing for a surgical case.
  * 
@@ -196,11 +196,11 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ caseId: string }> }
 ): Promise<NextResponse> {
   try {
     const params = await context.params;
-    const surgicalCaseId = params.id;
+    const surgicalCaseId = params.caseId;
 
     // 1. Authenticate
     const authResult = await JwtMiddleware.authenticate(request);
@@ -403,7 +403,7 @@ export async function PUT(
       message: existingPayment ? 'Surgery billing updated successfully' : 'Surgery billing created successfully',
     });
   } catch (error) {
-    console.error('[API] PUT /api/surgical-cases/[id]/billing - Error:', error);
+    console.error('[API] PUT /api/surgical-cases/[caseId]/billing - Error:', error);
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

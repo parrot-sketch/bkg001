@@ -239,6 +239,13 @@ export class GetAvailableSlotsForDateUseCase {
     const currentDate = new Date(searchStart);
     const excludedStatuses = ['CANCELLED', 'COMPLETED'];
 
+    // Filter out past dates - ensure we start from today at minimum
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (currentDate < today) {
+      currentDate.setTime(today.getTime()); // Start from today if searchStart was in the past
+    }
+
     // Default slot config if missing
     const slotConfig = availability.slotConfiguration || {
       id: '',

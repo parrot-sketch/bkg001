@@ -19,7 +19,7 @@ import { PrismaUserRepository } from '@/infrastructure/database/repositories/Pri
 import { PrismaClient } from '@prisma/client';
 
 export class JwtMiddleware {
-  constructor(private readonly authService: IAuthService) {}
+  constructor(private readonly authService: IAuthService) { }
 
   /**
    * Cached singleton for the static authenticate() path.
@@ -48,11 +48,15 @@ export class JwtMiddleware {
     this.cachedDb = db;
     return this.cachedMiddleware;
   }
-  
+
   /**
    * Static method to authenticate NextRequest
-   * Extracts token from Authorization header and verifies it
-   * 
+   * Extracts token from Authorization header (preferred) or accessToken cookie (fallback).
+   * Cookie fallback is needed because:
+   *  - httpOnly cookies are set during login but cannot be read from JS
+   *  - The browser always sends them on same-origin requests automatically
+   *  - Some contexts (PdfViewer, file downloads) cannot set Authorization headers
+   *
    * @param request - Next.js request object
    * @param prisma - Prisma client instance (optional, will be imported if not provided)
    * @returns Object with success flag and user context
@@ -72,37 +76,39 @@ export class JwtMiddleware {
         db = dbModule.default;
       }
 
-      // Extract authorization header
-      const authorizationHeader = request.headers.get('authorization') || undefined;
-      
-      // If no authorization header, return failure
+      // 1. Prefer Authorization: Bearer <token> header
+      let authorizationHeader = request.headers.get('authorization') || undefined;
+
+      // 2. Fall back to httpOnly cookie (browser fetches that can't set headers)
       if (!authorizationHeader) {
-        return {
-          success: false,
-        };
+        const cookieToken = request.cookies.get('accessToken')?.value;
+        if (cookieToken) {
+          authorizationHeader = `Bearer ${cookieToken}`;
+        }
       }
-      
+
+      // If neither header nor cookie present, return failure
+      if (!authorizationHeader) {
+        return { success: false };
+      }
+
       // Reuse cached middleware (no allocation per request)
       const middleware = this.getOrCreateMiddleware(db);
-      
+
       // Authenticate using instance method
       const user = await middleware.authenticate(authorizationHeader);
-      
-      return {
-        success: true,
-        user,
-      };
+
+      return { success: true, user };
     } catch (error) {
       // Log error for debugging
       if (error instanceof Error) {
         console.error('[JwtMiddleware.authenticate] Error:', error.message);
       }
       // Return failure result instead of throwing
-      return {
-        success: false,
-      };
+      return { success: false };
     }
   }
+
 
   /**
    * Extracts JWT token from Authorization header

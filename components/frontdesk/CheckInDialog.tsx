@@ -111,7 +111,7 @@ export function CheckInDialog({ open, onOpenChange, appointment }: CheckInDialog
               </div>
               <div className="space-y-0.5">
                 <p className="text-sm font-bold text-slate-900 truncate">{doctorName.replace('Dr. ', '')}</p>
-                <p className="text-xs font-medium text-slate-500">Scheduled MD</p>
+                <p className="text-xs font-medium text-slate-500">Attending Physician</p>
               </div>
             </div>
           </div>
@@ -161,7 +161,7 @@ export function CheckInDialog({ open, onOpenChange, appointment }: CheckInDialog
               onClick={() => onOpenChange(false)}
               className="h-10 text-slate-400 hover:text-slate-600 font-bold text-xs uppercase tracking-widest hover:bg-transparent"
             >
-              Discard Request
+              Cancel
             </Button>
           </div>
         </div>

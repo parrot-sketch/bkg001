@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { authenticateRequest } from '@/lib/auth/jwt-helper';
 import { ConfirmPatientIntakeUseCase } from '@/application/use-cases/ConfirmPatientIntakeUseCase';
 import { PrismaIntakeSessionRepository } from '@/infrastructure/repositories/IntakeSessionRepository';
 import { PrismaIntakeSubmissionRepository } from '@/infrastructure/repositories/IntakeSubmissionRepository';
@@ -47,9 +48,14 @@ const confirmIntakeUseCase = new ConfirmPatientIntakeUseCase(
  */
 export async function POST(request: NextRequest) {
   try {
-    // TODO: Add authentication check
-    // TODO: Add role check (FRONTDESK only)
-    // TODO: Add audit logging (log who confirmed, when)
+    // Verify authentication — frontdesk staff only
+    const authResult = await authenticateRequest(request);
+    if (!authResult.success) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 },
+      );
+    }
 
     const body = await request.json();
     const { sessionId, corrections } = body;

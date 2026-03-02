@@ -4,7 +4,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { consentTemplateApi, ConsentTemplateDto, CreateConsentTemplateDto, UpdateConsentTemplateDto } from '@/lib/api/consent-templates';
-import { ConsentType } from '@prisma/client';
+import { ConsentType, TemplateStatus } from '@prisma/client';
 import { toast } from 'sonner';
 
 // ─── Query Keys ────────────────────────────────────────────────────────────
@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 export const consentTemplateKeys = {
     all: ['consent-templates'] as const,
     lists: () => [...consentTemplateKeys.all, 'list'] as const,
-    list: (filters?: { includeInactive?: boolean; type?: ConsentType }) =>
+    list: (filters?: { includeInactive?: boolean; type?: ConsentType; status?: TemplateStatus; search?: string }) =>
         [...consentTemplateKeys.lists(), filters] as const,
     details: () => [...consentTemplateKeys.all, 'detail'] as const,
     detail: (id: string) => [...consentTemplateKeys.details(), id] as const,
@@ -23,7 +23,7 @@ export const consentTemplateKeys = {
 /**
  * Get all consent templates for the current doctor
  */
-export function useConsentTemplates(filters?: { includeInactive?: boolean; type?: ConsentType }) {
+export function useConsentTemplates(filters?: { includeInactive?: boolean; type?: ConsentType; status?: TemplateStatus; search?: string }) {
     return useQuery<ConsentTemplateDto[]>({
         queryKey: consentTemplateKeys.list(filters),
         queryFn: async () => {

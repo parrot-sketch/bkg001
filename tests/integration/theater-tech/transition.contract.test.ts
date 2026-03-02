@@ -18,6 +18,7 @@ import {
   assertError403,
   assertGateBlocked,
   assertStatusCode,
+  unwrapApiData,
 } from '../../helpers/apiResponseAssertions';
 
 // Mock JWT middleware
@@ -105,7 +106,7 @@ describe('POST /api/theater-tech/cases/[id]/transition', () => {
         'Consent verified',
       ]);
       expect(data.code).toBe(ApiErrorCode.GATE_BLOCKED);
-      expect(data.message).toContain('Sign-In checklist');
+      expect(data.error).toContain('Sign-In checklist');
     });
 
     it('should return 422 when recovery record not finalized', async () => {
@@ -188,9 +189,10 @@ describe('POST /api/theater-tech/cases/[id]/transition', () => {
       const data = await response.json();
 
       // Assert
-      assertSuccess200(response, data);
-      expect(data.data).toEqual(transitionResult);
-      expect(data.data.newStatus).toBe(SurgicalCaseStatus.IN_THEATER);
+      assertSuccess200<{ newStatus: SurgicalCaseStatus }>(response, data);
+      const result = unwrapApiData(data);
+      expect(result).toEqual(transitionResult);
+      expect(result.newStatus).toBe(SurgicalCaseStatus.IN_THEATER);
       expect(mockTheaterTechService.transitionCase).toHaveBeenCalledWith(
         'case-1',
         'IN_THEATER',
@@ -280,7 +282,7 @@ describe('POST /api/theater-tech/cases/[id]/transition', () => {
       assertStatusCode(response, 403);
       assertError403(data);
       expect(data.code).toBe(ApiErrorCode.FORBIDDEN);
-      expect(data.message).toContain('Theater Technician or Admin role required');
+      expect(data.error).toContain('Theater Technician or Admin role required');
       expect(mockTheaterTechService.transitionCase).not.toHaveBeenCalled();
     });
 

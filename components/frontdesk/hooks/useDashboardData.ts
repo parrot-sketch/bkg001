@@ -50,17 +50,27 @@ export function useDashboardData(): UseDashboardDataReturn {
     // Calculate stats
     const stats: DashboardStats = useMemo(() => {
         const expectedPatients = todayAppointments.length;
+        // FIXED: CHECKED_IN / READY_FOR_CONSULTATION = patients already in waiting room
         const checkedInPatients = todayAppointments.filter(
-            (apt) => apt.status === 'SCHEDULED'
+            (apt) => apt.status === 'CHECKED_IN' || apt.status === 'READY_FOR_CONSULTATION'
         ).length;
+        // FIXED: SCHEDULED / CONFIRMED = confirmed appointments not yet arrived
         const pendingCheckIns = todayAppointments.filter(
-            (apt) => apt.status === 'PENDING'
+            (apt) => apt.status === 'SCHEDULED' || apt.status === 'CONFIRMED'
+        ).length;
+        const inConsultation = todayAppointments.filter(
+            (apt) => apt.status === 'IN_CONSULTATION'
+        ).length;
+        const completedToday = todayAppointments.filter(
+            (apt) => apt.status === 'COMPLETED'
         ).length;
 
         return {
             expectedPatients,
             checkedInPatients,
             pendingCheckIns,
+            inConsultation,
+            completedToday,
             pendingIntakeCount,
         };
     }, [todayAppointments, pendingIntakeCount]);

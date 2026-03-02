@@ -4,7 +4,11 @@
  * Tests for canonical error mapping to ApiResponse.
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+function fail(message: string): never {
+  throw new Error(message);
+}
 import { handleApiError } from '@/app/api/_utils/handleApiError';
 import {
   GateBlockedError,
@@ -17,9 +21,18 @@ import { DomainException } from '@/domain/exceptions/DomainException';
 import { ApiErrorCode } from '@/lib/http/apiResponse';
 import { z } from 'zod';
 
+/**
+ * Helper to extract JSON from NextResponse for testing
+ */
+async function getResponseJson(response: any): Promise<any> {
+  // For test environments, we need to clone and read the response
+  const cloned = response.clone();
+  return cloned.json();
+}
+
 describe('handleApiError', () => {
   describe('GateBlockedError', () => {
-    it('should map to 422 with blockingCategory and missingItems', () => {
+    it('should map to 422 with blockingCategory and missingItems', async () => {
       const error = new GateBlockedError(
         'Cannot transition',
         'WHO_CHECKLIST',
@@ -27,7 +40,7 @@ describe('handleApiError', () => {
       );
 
       const response = handleApiError(error);
-      const json = JSON.parse(JSON.stringify(response.body));
+      const json = await getResponseJson(response);
 
       expect(response.status).toBe(422);
       expect(json.success).toBe(false);
@@ -41,13 +54,13 @@ describe('handleApiError', () => {
   });
 
   describe('ValidationError', () => {
-    it('should map to 400 with field errors', () => {
+    it('should map to 400 with field errors', async () => {
       const error = new ValidationError('Validation failed', [
         { field: 'email', message: 'Invalid email' },
       ]);
 
       const response = handleApiError(error);
-      const json = JSON.parse(JSON.stringify(response.body));
+      const json = await getResponseJson(response);
 
       expect(response.status).toBe(400);
       expect(json.success).toBe(false);
@@ -57,11 +70,11 @@ describe('handleApiError', () => {
   });
 
   describe('NotFoundError', () => {
-    it('should map to 404', () => {
+    it('should map to 404', async () => {
       const error = new NotFoundError('Surgical case not found', 'SurgicalCase', 'case-123');
 
       const response = handleApiError(error);
-      const json = JSON.parse(JSON.stringify(response.body));
+      const json = await getResponseJson(response);
 
       expect(response.status).toBe(404);
       expect(json.success).toBe(false);
@@ -70,11 +83,11 @@ describe('handleApiError', () => {
   });
 
   describe('ForbiddenError', () => {
-    it('should map to 403', () => {
+    it('should map to 403', async () => {
       const error = new ForbiddenError('Access denied', 'THEATER_TECHNICIAN');
 
       const response = handleApiError(error);
-      const json = JSON.parse(JSON.stringify(response.body));
+      const json = await getResponseJson(response);
 
       expect(response.status).toBe(403);
       expect(json.success).toBe(false);
@@ -83,11 +96,11 @@ describe('handleApiError', () => {
   });
 
   describe('ConflictError', () => {
-    it('should map to 409', () => {
+    it('should map to 409', async () => {
       const error = new ConflictError('State conflict', 'Already in progress');
 
       const response = handleApiError(error);
-      const json = JSON.parse(JSON.stringify(response.body));
+      const json = await getResponseJson(response);
 
       expect(response.status).toBe(409);
       expect(json.success).toBe(false);
@@ -96,7 +109,7 @@ describe('handleApiError', () => {
   });
 
   describe('DomainException (legacy)', () => {
-    it('should map gate-blocked DomainException to 422', () => {
+    it('should map gate-blocked DomainException to 422', async () => {
       const error = new DomainException('Cannot transition', {
         gate: 'WHO_CHECKLIST',
         blockingCategory: 'WHO_CHECKLIST',
@@ -104,7 +117,7 @@ describe('handleApiError', () => {
       });
 
       const response = handleApiError(error);
-      const json = JSON.parse(JSON.stringify(response.body));
+      const json = await getResponseJson(response);
 
       expect(response.status).toBe(422);
       expect(json.success).toBe(false);
@@ -112,11 +125,11 @@ describe('handleApiError', () => {
       expect(json.metadata?.blockingCategory).toBe('WHO_CHECKLIST');
     });
 
-    it('should map generic DomainException to 422', () => {
+    it('should map generic DomainException to 422', async () => {
       const error = new DomainException('Invalid operation');
 
       const response = handleApiError(error);
-      const json = JSON.parse(JSON.stringify(response.body));
+      const json = await getResponseJson(response);
 
       expect(response.status).toBe(422);
       expect(json.success).toBe(false);
@@ -125,7 +138,7 @@ describe('handleApiError', () => {
   });
 
   describe('ZodError', () => {
-    it('should map to 400 with field errors', () => {
+    it('should map to 400 with field errors', async () => {
       const schema = z.object({
         email: z.string().email(),
       });
@@ -134,7 +147,7 @@ describe('handleApiError', () => {
 
       if (!result.success) {
         const response = handleApiError(result.error);
-        const json = JSON.parse(JSON.stringify(response.body));
+        const json = await getResponseJson(response);
 
         expect(response.status).toBe(400);
         expect(json.success).toBe(false);
@@ -147,30 +160,29 @@ describe('handleApiError', () => {
   });
 
   describe('Unknown errors', () => {
-    it('should map to 500 with internal error code', () => {
+    it('should map to 500 with internal error code', async () => {
       const error = new Error('Unexpected error');
 
       const response = handleApiError(error);
-      const json = JSON.parse(JSON.stringify(response.body));
+      const json = await getResponseJson(response);
 
       expect(response.status).toBe(500);
       expect(json.success).toBe(false);
       expect(json.code).toBe(ApiErrorCode.INTERNAL_ERROR);
     });
 
-    it('should mask error message in production', () => {
-      const originalEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = 'production';
+    it('should mask error message in production', async () => {
+      vi.stubEnv('NODE_ENV', 'production');
 
       const error = new Error('Sensitive error message');
 
       const response = handleApiError(error);
-      const json = JSON.parse(JSON.stringify(response.body));
+      const json = await getResponseJson(response);
 
       expect(json.error).toBe('Internal server error');
       expect(json.error).not.toContain('Sensitive error message');
 
-      process.env.NODE_ENV = originalEnv;
+      vi.unstubAllEnvs();
     });
   });
 });

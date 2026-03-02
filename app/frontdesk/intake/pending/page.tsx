@@ -14,6 +14,7 @@ import {
   Inbox,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { apiClient } from '@/lib/api/client';
 
 interface PatientData {
   firstName: string;
@@ -52,13 +53,13 @@ export default function PendingIntakesPage() {
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch('/api/frontdesk/intake/pending?limit=20&offset=0');
+      const result = await apiClient.get<PendingIntakesResponse>('/frontdesk/intake/pending?limit=20&offset=0');
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch pending intakes');
+      if (!result.success) {
+        throw new Error((result as any).error || 'Failed to fetch pending intakes');
       }
 
-      const data: PendingIntakesResponse = await response.json();
+      const data = (result as any).data as PendingIntakesResponse;
       setIntakes(data.intakes);
       setTotal(data.total);
     } catch (err) {

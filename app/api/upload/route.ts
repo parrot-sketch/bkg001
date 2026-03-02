@@ -1,3 +1,16 @@
+/**
+ * API Route: POST /api/upload
+ * 
+ * General file upload endpoint using Cloudinary.
+ * 
+ * IMPORTANT: This route is used for:
+ * - Doctor profile images (uploaded to 'doctors' folder)
+ * - Other image uploads
+ * 
+ * NOTE: Consent template PDFs now use a separate route:
+ * - POST /api/doctor/consents/templates/upload-pdf (uses local storage)
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { v2 as cloudinary } from 'cloudinary';
 
@@ -60,7 +73,8 @@ export async function POST(request: NextRequest) {
                     }
                 ).end(buffer);
             } else {
-                // Upload image with transformations
+                // Upload image with transformations (used for doctor profile images)
+                // Profile images are stored in Cloudinary 'doctors' folder
                 cloudinary.uploader.upload_stream(
                     {
                         folder: 'doctors',

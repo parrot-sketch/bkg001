@@ -15,6 +15,7 @@ import {
   assertSuccess200,
   assertError400,
   assertStatusCode,
+  unwrapApiData,
 } from '../../helpers/apiResponseAssertions';
 
 // Mock JWT middleware
@@ -214,12 +215,13 @@ describe('PATCH /api/theater-tech/surgical-cases/[caseId]/timeline', () => {
       const data = await response.json();
 
       // Assert
-      assertSuccess200(response, data);
-      expect(data.data.timeline).toBeDefined();
-      expect(data.data.timeline.incisionTime).toBe('2026-02-11T10:30:00Z');
-      expect(data.data.timeline.closureTime).toBe('2026-02-11T12:00:00Z');
-      expect(data.data.durations).toBeDefined();
-      expect(data.data.durations.surgeryTimeMinutes).toBe(90);
+      assertSuccess200<{ timeline: { incisionTime: string; closureTime: string }; durations: { surgeryTimeMinutes: number } }>(response, data);
+      const result = unwrapApiData(data);
+      expect(result.timeline).toBeDefined();
+      expect(result.timeline.incisionTime).toBe('2026-02-11T10:30:00Z');
+      expect(result.timeline.closureTime).toBe('2026-02-11T12:00:00Z');
+      expect(result.durations).toBeDefined();
+      expect(result.durations.surgeryTimeMinutes).toBe(90);
       expect(mockTheaterTechService.updateTimeline).toHaveBeenCalledWith(
         'case-1',
         {
@@ -279,8 +281,9 @@ describe('PATCH /api/theater-tech/surgical-cases/[caseId]/timeline', () => {
       const data = await response.json();
 
       // Assert
-      assertSuccess200(response, data);
-      expect(data.data.timeline.incisionTime).toBe('2026-02-11T10:30:00Z');
+      assertSuccess200<{ timeline: { incisionTime: string } }>(response, data);
+      const result = unwrapApiData(data);
+      expect(result.timeline.incisionTime).toBe('2026-02-11T10:30:00Z');
     });
   });
 

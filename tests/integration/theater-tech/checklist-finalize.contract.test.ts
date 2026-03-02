@@ -16,6 +16,7 @@ import {
   assertError422,
   assertGateBlocked,
   assertStatusCode,
+  unwrapApiData,
 } from '../../helpers/apiResponseAssertions';
 
 // Mock JWT middleware
@@ -238,10 +239,11 @@ describe('POST /api/theater-tech/surgical-cases/[caseId]/checklist/sign-in/final
       const data = await response.json();
 
       // Assert
-      assertSuccess200(response, data);
-      expect(data.data.signIn.completed).toBe(true);
-      expect(data.data.signIn.completedAt).toBeTruthy();
-      expect(data.data.signIn.completedByRole).toBe('THEATER_TECHNICIAN');
+      assertSuccess200<{ signIn: { completed: boolean; completedAt: unknown; completedByRole: string } }>(response, data);
+      const result = unwrapApiData(data);
+      expect(result.signIn.completed).toBe(true);
+      expect(result.signIn.completedAt).toBeTruthy();
+      expect(result.signIn.completedByRole).toBe('THEATER_TECHNICIAN');
       expect(mockTheaterTechService.finalizeChecklistPhase).toHaveBeenCalledWith(
         'case-1',
         'SIGN_IN',

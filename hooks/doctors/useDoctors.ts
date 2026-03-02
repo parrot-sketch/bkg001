@@ -101,12 +101,14 @@ async function fetchDoctors(): Promise<Doctor[]> {
 /**
  * React Query hook for fetching doctors
  * 
+ * @param enabled - Whether to enable fetching (default: true). Set to false for lazy loading.
  * @returns Query result with doctors data, loading state, and error state
  */
-export function useDoctors() {
+export function useDoctors(enabled: boolean = true) {
   return useQuery({
     queryKey: ['doctors'],
     queryFn: fetchDoctors,
+    enabled, // Only fetch when enabled (supports lazy loading)
     staleTime: 1000 * 60 * 60, // 1 hour - doctors list changes infrequently
     gcTime: 1000 * 60 * 60 * 24, // 24 hours - keep in cache for a day
     retry: 3, // Retry 3 times on failure (increased for production reliability)

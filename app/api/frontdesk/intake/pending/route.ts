@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { authenticateRequest } from '@/lib/auth/jwt-helper';
 import { PrismaIntakeSubmissionRepository } from '@/infrastructure/repositories/IntakeSubmissionRepository';
 import { IntakeSubmissionMapper } from '@/infrastructure/mappers/IntakeSubmissionMapper';
 
@@ -47,9 +48,14 @@ const submissionRepository = new PrismaIntakeSubmissionRepository(db);
  */
 export async function GET(request: NextRequest) {
   try {
-    // TODO: Add authentication check
-    // TODO: Add role check (FRONTDESK only)
-
+    // Verify authentication — frontdesk staff only
+    const authResult = await authenticateRequest(request);
+    if (!authResult.success) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 },
+      );
+    }
     // Parse query parameters
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10), 100);

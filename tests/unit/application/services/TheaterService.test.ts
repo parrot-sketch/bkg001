@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
-import { getTestDatabase, resetTestDatabase } from '../../setup/test-database';
+import { getTestDatabase, resetTestDatabase } from '../../../setup/test-database';
 import { TheaterService } from '@/application/services/TheaterService';
 import { SurgicalCaseStatus, TheaterBookingStatus } from '@prisma/client';
 

@@ -17,7 +17,7 @@ import { PatientMapper } from '@/infrastructure/mappers/PatientMapper';
  * Dependency: PatientMapper (converts between domain and persistence)
  */
 export class PrismaPatientRepository implements IPatientRepository {
-  constructor(private readonly db: PrismaClient) { }
+  constructor(private readonly db: PrismaClient) {}
 
   /**
    * Find a patient by ID

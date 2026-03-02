@@ -25,10 +25,7 @@ import {
     useSavePreopWardChecklist,
     useFinalizePreopWardChecklist,
     FinalizeValidationError,
-    preopWardChecklistKeys,
 } from '@/hooks/nurse/usePreopWardChecklist';
-import { useQueryClient } from '@tanstack/react-query';
-import { nurseFormsApi } from '@/lib/api/nurse-forms';
 import type { NursePreopWardChecklistDraft } from '@/domain/clinical-forms/NursePreopWardChecklist';
 import {
     CHECKLIST_SECTIONS,
@@ -98,7 +95,6 @@ import {
 import { Textarea as UITextarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { toast } from 'sonner';
 import { MedicationAdministrationList } from '@/components/nurse/MedicationAdministrationList';
 
 
@@ -470,154 +466,12 @@ function DocumentationSection({ data, onChange, disabled }: SectionProps) {
 function BloodResultsSection({ data, onChange, disabled }: SectionProps) {
     const d = data.bloodResults ?? {};
     const set = (field: string, value: any) => onChange({ ...data, bloodResults: { ...d, [field]: value } });
-
-    // Hb/PCV common ranges (g/dL for Hb, % for PCV)
-    const hbPcvOptions = [
-        { value: 'NORMAL', label: 'Normal (Hb ≥12g/dL, PCV ≥36%)' },
-        { value: 'MILD_ANEMIA', label: 'Mild Anemia (Hb 10-11.9g/dL, PCV 30-35%)' },
-        { value: 'MODERATE_ANEMIA', label: 'Moderate Anemia (Hb 8-9.9g/dL, PCV 24-29%)' },
-        { value: 'SEVERE_ANEMIA', label: 'Severe Anemia (Hb <8g/dL, PCV <24%)' },
-        { value: 'CUSTOM', label: 'Enter Custom Value' },
-    ];
-
-    // UECs status options
-    const uecsStatusOptions = [
-        { value: 'NORMAL', label: 'Normal' },
-        { value: 'ABNORMAL', label: 'Abnormal' },
-        { value: 'PENDING', label: 'Pending' },
-        { value: 'NOT_DONE', label: 'Not Done' },
-        { value: 'CUSTOM', label: 'Enter Custom Value' },
-    ];
-
-    // Determine if custom value is being used (check if value doesn't match any option)
-    const hbPcvIsCustom = d.hbPcv && !hbPcvOptions.some(opt => opt.value === d.hbPcv);
-    const uecsIsCustom = d.uecs && !uecsStatusOptions.some(opt => opt.value === d.uecs);
-
-    // Check if structured option is selected (to show custom notes field)
-    const hbPcvHasStructuredValue = d.hbPcv && !hbPcvIsCustom && d.hbPcv !== 'CUSTOM';
-    const uecsHasStructuredValue = d.uecs && !uecsIsCustom && d.uecs !== 'CUSTOM';
-
     return (
-        <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Hb / PCV with select + custom value/notes */}
-                <div className="space-y-1.5">
-                    <Label className="text-sm">Hb / PCV</Label>
-                    <Select
-                        value={hbPcvIsCustom ? 'CUSTOM' : (d.hbPcv || '')}
-                        onValueChange={(v) => {
-                            if (v === 'CUSTOM') {
-                                // Keep existing custom value or clear
-                                if (!hbPcvIsCustom) {
-                                    set('hbPcv', '');
-                                }
-                            } else {
-                                set('hbPcv', v);
-                            }
-                        }}
-                        disabled={disabled}
-                    >
-                        <SelectTrigger className="h-9">
-                            <SelectValue placeholder="Select status or enter custom" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {hbPcvOptions.map((opt) => (
-                                <SelectItem key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    {/* Show custom input if CUSTOM selected OR if existing value doesn't match options */}
-                    {(hbPcvIsCustom || d.hbPcv === 'CUSTOM') && (
-                        <Input
-                            value={hbPcvIsCustom ? d.hbPcv : ''}
-                            onChange={(e) => set('hbPcv', e.target.value)}
-                            placeholder="Enter Hb/PCV value (e.g., 12.5g/dL / 38%)"
-                            disabled={disabled}
-                            className="h-9 mt-1.5"
-                        />
-                    )}
-                    {/* Allow custom notes even when structured option is selected */}
-                    {hbPcvHasStructuredValue && (
-                        <Input
-                            value={d.hbPcvNotes || ''}
-                            onChange={(e) => set('hbPcvNotes', e.target.value)}
-                            placeholder="Additional notes (optional)"
-                            disabled={disabled}
-                            className="h-9 mt-1.5 text-xs"
-                        />
-                    )}
-                </div>
-
-                {/* UECs with select + custom value/notes */}
-                <div className="space-y-1.5">
-                    <Label className="text-sm">UECs (Urea, Electrolytes, Creatinine)</Label>
-                    <Select
-                        value={uecsIsCustom ? 'CUSTOM' : (d.uecs || '')}
-                        onValueChange={(v) => {
-                            if (v === 'CUSTOM') {
-                                // Keep existing custom value or clear
-                                if (!uecsIsCustom) {
-                                    set('uecs', '');
-                                }
-                            } else {
-                                set('uecs', v);
-                            }
-                        }}
-                        disabled={disabled}
-                    >
-                        <SelectTrigger className="h-9">
-                            <SelectValue placeholder="Select status or enter custom" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {uecsStatusOptions.map((opt) => (
-                                <SelectItem key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    {/* Show custom input if CUSTOM selected OR if existing value doesn't match options */}
-                    {(uecsIsCustom || d.uecs === 'CUSTOM') && (
-                        <Input
-                            value={uecsIsCustom ? d.uecs : ''}
-                            onChange={(e) => set('uecs', e.target.value)}
-                            placeholder="Enter UECs details or values"
-                            disabled={disabled}
-                            className="h-9 mt-1.5"
-                        />
-                    )}
-                    {/* Allow custom notes even when structured option is selected */}
-                    {uecsHasStructuredValue && (
-                        <Input
-                            value={d.uecsNotes || ''}
-                            onChange={(e) => set('uecsNotes', e.target.value)}
-                            placeholder="Additional notes (optional)"
-                            disabled={disabled}
-                            className="h-9 mt-1.5 text-xs"
-                        />
-                    )}
-                </div>
-
-                {/* X-match units - keep as number field */}
-                <NumberField 
-                    label="X-match units available" 
-                    value={d.xMatchUnitsAvailable} 
-                    onChange={(v) => set('xMatchUnitsAvailable', v)} 
-                    min={0} 
-                    disabled={disabled} 
-                />
-
-                {/* Other lab results - keep as text field for flexibility */}
-                <TextField 
-                    label="Other lab results / notes" 
-                    value={d.otherLabResults} 
-                    onChange={(v) => set('otherLabResults', v)} 
-                    disabled={disabled} 
-                    placeholder="Any other lab results, special notes, or observations"
-                />
-            </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <TextField label="Hb / PCV" value={d.hbPcv} onChange={(v) => set('hbPcv', v)} disabled={disabled} />
+            <TextField label="UECs" value={d.uecs} onChange={(v) => set('uecs', v)} disabled={disabled} />
+            <NumberField label="X-match units available" value={d.xMatchUnitsAvailable} onChange={(v) => set('xMatchUnitsAvailable', v)} min={0} disabled={disabled} />
+            <TextField label="Other lab results / notes" value={d.otherLabResults} onChange={(v) => set('otherLabResults', v)} disabled={disabled} />
         </div>
     );
 }
@@ -903,7 +757,6 @@ export default function NursePreopWardChecklistPage() {
     const router = useRouter();
     const { user, isAuthenticated } = useAuth();
     const caseId = params?.id as string;
-    const queryClient = useQueryClient();
 
     const { data: response, isLoading, error } = usePreopWardChecklist(caseId);
     const saveMutation = useSavePreopWardChecklist(caseId);
@@ -920,8 +773,6 @@ export default function NursePreopWardChecklistPage() {
         handover: {},
     });
     const [isDirty, setIsDirty] = useState(false);
-    const [isAutoSaving, setIsAutoSaving] = useState(false);
-    const [lastAutoSaved, setLastAutoSaved] = useState<Date | null>(null);
     const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
     const [showMissingItems, setShowMissingItems] = useState(false);
     const [missingItemsList, setMissingItemsList] = useState<string[]>([]);
@@ -946,35 +797,6 @@ export default function NursePreopWardChecklistPage() {
     // Locked only when truly FINAL. DRAFT and AMENDMENT are both editable.
     const isDisabled = isFinalized || !isAuthenticated;
 
-    // Auto-save: Debounced save after 2s of inactivity
-    useEffect(() => {
-        if (!isDirty || isFinalized || !isAuthenticated || saveMutation.isPending) {
-            setIsAutoSaving(false);
-            return;
-        }
-
-        setIsAutoSaving(true);
-        const timer = setTimeout(() => {
-            saveMutation.mutate(formData, {
-                onSuccess: () => {
-                    setIsDirty(false);
-                    setIsAutoSaving(false);
-                    setLastAutoSaved(new Date());
-                },
-                onError: () => {
-                    setIsAutoSaving(false);
-                    // Silently fail - user can manually save if needed
-                    // Error toast is already handled by the mutation
-                },
-            });
-        }, 2000); // 2 second debounce
-
-        return () => {
-            clearTimeout(timer);
-            setIsAutoSaving(false);
-        };
-    }, [formData, isDirty, isFinalized, isAuthenticated, saveMutation]);
-
     // Amendment submit handler
     const handleStartAmendment = async () => {
         if (amendReason.trim().length < 10) {
@@ -984,24 +806,25 @@ export default function NursePreopWardChecklistPage() {
         setAmendError('');
         setIsAmending(true);
         try {
-            const response = await nurseFormsApi.startPreopWardChecklistAmendment(caseId, amendReason);
-            
-            if (!response.success) {
-                setAmendError(response.error || 'Failed to start amendment.');
+            const res = await fetch(
+                `/api/nurse/surgical-cases/${caseId}/forms/preop-ward/amend`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reason: amendReason }),
+                },
+            );
+            const json = await res.json();
+            if (!res.ok) {
+                setAmendError(json.error || 'Failed to start amendment.');
             } else {
                 setShowAmendDialog(false);
                 setAmendReason('');
-                // Invalidate and refetch the checklist data to get the updated AMENDMENT status
-                await queryClient.invalidateQueries({ 
-                    queryKey: preopWardChecklistKeys.detail(caseId) 
-                });
-                await queryClient.refetchQueries({ 
-                    queryKey: preopWardChecklistKeys.detail(caseId) 
-                });
-                toast.success('Amendment started. You can now edit the checklist.');
+                // Refetch — the query will update via React Query invalidation
+                // Trigger a page reload to refresh the form state from server
+                router.refresh();
             }
-        } catch (err) {
-            console.error('Amendment error:', err);
+        } catch {
             setAmendError('Network error. Please try again.');
         } finally {
             setIsAmending(false);
@@ -1249,46 +1072,8 @@ export default function NursePreopWardChecklistPage() {
             {/* ── Surgical Plan Reference ──────────────────────── */}
             <SurgicalPlanReferencePanel casePlan={response.casePlan} />
 
-            {/* ── Section Jump Navigation (Floating Sidebar) ────── */}
-            <div className="fixed right-4 top-1/2 -translate-y-1/2 z-50 hidden lg:block">
-                <div className="bg-white border rounded-lg shadow-lg p-2 space-y-1 max-h-[60vh] overflow-y-auto">
-                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-2 py-1 mb-1">
-                        Sections
-                    </p>
-                    {CHECKLIST_SECTIONS.map((section) => {
-                        const completion = sectionCompletion[section.key];
-                        const isComplete = completion?.complete ?? false;
-                        const Icon = SECTION_ICONS[section.icon] || Circle;
-
-                        return (
-                            <button
-                                key={section.key}
-                                onClick={() => {
-                                    const element = document.querySelector(`[data-section="${section.key}"]`);
-                                    element?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                }}
-                                className="text-xs px-2 py-1.5 hover:bg-slate-100 rounded flex items-center gap-2 w-full text-left transition-colors"
-                                title={section.title}
-                            >
-                                {isComplete ? (
-                                    <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
-                                ) : (
-                                    <Icon className="h-3 w-3 text-slate-400 shrink-0" />
-                                )}
-                                <span className="truncate">{section.title}</span>
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
-
             {/* ── Accordion Sections ─────────────────────────────── */}
-            {/* Smart expansion: Critical sections expanded by default */}
-            <Accordion 
-                type="multiple" 
-                defaultValue={['allergiesNpo', 'vitals', 'documentation']} 
-                className="space-y-3"
-            >
+            <Accordion type="multiple" defaultValue={CHECKLIST_SECTIONS.map((s) => s.key)} className="space-y-3">
                 {CHECKLIST_SECTIONS.map((section) => {
                     const SectionRenderer = SECTION_RENDERERS[section.key];
                     const Icon = SECTION_ICONS[section.icon] || Circle;
@@ -1299,7 +1084,6 @@ export default function NursePreopWardChecklistPage() {
                         <AccordionItem
                             key={section.key}
                             value={section.key}
-                            data-section={section.key}
                             className="border rounded-lg px-4 data-[state=open]:shadow-sm transition-shadow"
                         >
                             <AccordionTrigger className="hover:no-underline py-3">
@@ -1338,26 +1122,10 @@ export default function NursePreopWardChecklistPage() {
             {/* ── Bottom Action Bar ──────────────────────────────── */}
             {(isAmendment || !isFinalized) && (
                 <div className="sticky bottom-0 bg-background/95 backdrop-blur border-t py-3 px-4 -mx-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <p className="text-xs text-muted-foreground">
-                            {isAmendment && <span className="text-amber-600 font-medium mr-2">⚠ Amendment in progress</span>}
-                            {isAutoSaving ? (
-                                <span className="text-blue-600 font-medium flex items-center gap-1.5">
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                    Auto-saving...
-                                </span>
-                            ) : isDirty ? (
-                                <span className="text-amber-600">You have unsaved changes</span>
-                            ) : lastAutoSaved ? (
-                                <span className="text-emerald-600 flex items-center gap-1.5">
-                                    <CheckCircle2 className="h-3 w-3" />
-                                    Auto-saved {format(lastAutoSaved, 'HH:mm:ss')}
-                                </span>
-                            ) : (
-                                <span className="text-muted-foreground">All changes saved</span>
-                            )}
-                        </p>
-                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        {isAmendment && <span className="text-amber-600 font-medium mr-2">⚠ Amendment in progress</span>}
+                        {isDirty ? 'You have unsaved changes' : 'All changes saved'}
+                    </p>
                     <div className="flex items-center gap-2">
                         <Button
                             variant="outline"
