@@ -48,17 +48,46 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category') as InventoryCategory | null;
     const lowStock = searchParams.get('lowStock') === 'true';
+    const belowReorderOnly = searchParams.get('belowReorderOnly') === 'true';
+    const search = searchParams.get('search') || '';
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const pageSize = Math.min(parseInt(searchParams.get('pageSize') || '20', 10), 100);
 
     let items;
-    if (lowStock) {
+    if (lowStock || belowReorderOnly) {
       items = await inventoryRepository.findLowStockItems();
     } else {
       items = await inventoryRepository.findActiveItems(category || undefined);
     }
 
+    // Client-side filtering for search
+    if (search.trim()) {
+      const searchLower = search.toLowerCase();
+      items = items.filter(
+        (item) =>
+          item.name.toLowerCase().includes(searchLower) ||
+          item.sku?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Pagination
+    const totalCount = items.length;
+    const totalPages = Math.ceil(totalCount / pageSize);
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const paginatedItems = items.slice(startIndex, endIndex);
+
     return NextResponse.json({
       success: true,
-      data: { items },
+      data: {
+        data: paginatedItems,
+        pagination: {
+          page,
+          pageSize,
+          totalCount,
+          totalPages,
+        },
+      },
     });
   } catch (error) {
     console.error('[API] GET /api/inventory/items - Error:', error);

@@ -1,5 +1,10 @@
 import { PrismaClient } from '@prisma/client';
 import { InventoryCategory } from '@/domain/enums/InventoryCategory';
+import {
+  PrismaInventoryConsumptionBillingService,
+  SourceFormKey,
+} from './InventoryConsumptionBillingService';
+import { randomUUID } from 'crypto';
 
 export interface AdministerMedicationDto {
     inventoryItemId?: number;
@@ -10,10 +15,15 @@ export interface AdministerMedicationDto {
     notes?: string;
     administerNow?: boolean; // If false, status = DRAFT
     administeredAt?: string; // ISO or date string for historical entry
+    externalRef?: string; // Optional idempotency key for consumption service
 }
 
 export class MedicationService {
-    constructor(private db: PrismaClient) { }
+    private consumptionService: PrismaInventoryConsumptionBillingService;
+
+    constructor(private db: PrismaClient) {
+        this.consumptionService = new PrismaInventoryConsumptionBillingService(db);
+    }
 
     /**
      * List all medications in inventory (active and categorized as MEDICATION)
@@ -84,69 +94,45 @@ export class MedicationService {
             });
 
             if (administerNow && inventoryItemId && inventoryItem) {
-                // 3. Deduct Stock (InventoryUsage)
-                const usage = await tx.inventoryUsage.create({
-                    data: {
-                        inventory_item_id: inventoryItemId,
-                        surgical_case_id: caseId,
-                        quantity_used: 1,
-                        unit_cost_at_time: inventoryItem.unit_cost,
-                        total_cost: inventoryItem.unit_cost,
-                        recorded_by: userId,
-                        notes: `Automated from medication record: ${record.id}`,
-                        // @ts-ignore - Environmental sync issue with Prisma types
-                        surgical_medication_record_id: record.id,
-                    },
-                });
-
-                // 4. Automated Billing (PatientBill)
-                if (inventoryItem.is_billable) {
-                    let payment = await tx.payment.findUnique({
-                        where: { surgical_case_id: caseId },
-                    });
-
-                    if (!payment) {
-                        const surgicalCase = await tx.surgicalCase.findUnique({
-                            where: { id: caseId },
-                            select: { patient_id: true },
-                        });
-                        if (!surgicalCase) throw new Error('Surgical case not found');
-
-                        payment = await tx.payment.create({
-                            data: {
-                                patient_id: surgicalCase.patient_id,
-                                surgical_case_id: caseId,
-                                bill_type: 'SURGERY',
-                                bill_date: new Date(),
-                                total_amount: 0,
-                                status: 'UNPAID',
+                // 3. Use unified consumption service for stock deduction and billing
+                const externalRef = dto.externalRef || randomUUID();
+                const consumptionResult = await this.consumptionService.applyUsageAndBillingWithTransaction(
+                    tx,
+                    {
+                        surgicalCaseId: caseId,
+                        externalRef,
+                        sourceFormKey: SourceFormKey.NURSE_MED_ADMIN,
+                        items: [
+                            {
+                                inventoryItemId,
+                                quantityUsed: 1,
+                                notes: `Automated from medication record: ${record.id}`,
                             },
-                        });
+                        ],
+                        recordedBy: userId,
+                        usedBy: userId,
+                        usedAt: adminDate,
                     }
+                );
 
-                    const medicationService = await tx.service.findFirst({
-                        where: { category: 'Medication', is_active: true },
+                // 4. Link InventoryUsage to SurgicalMedicationRecord
+                if (consumptionResult.usageRecord) {
+                    await tx.inventoryUsage.update({
+                        where: { id: consumptionResult.usageRecord.id },
+                        data: {
+                            // @ts-ignore - Environmental sync issue with Prisma types
+                            surgical_medication_record_id: record.id,
+                        },
                     });
 
-                    if (medicationService) {
-                        const billItem = await tx.patientBill.create({
+                    // Link PatientBill to SurgicalMedicationRecord if billable
+                    if (consumptionResult.billItem) {
+                        await tx.patientBill.update({
+                            where: { id: consumptionResult.billItem.id },
                             data: {
-                                payment_id: payment.id,
-                                service_id: medicationService.id,
-                                service_date: adminDate,
-                                quantity: 1,
-                                unit_cost: inventoryItem.unit_cost,
-                                total_cost: inventoryItem.unit_cost,
                                 // @ts-ignore - Environmental sync issue with Prisma types
                                 surgical_medication_record_id: record.id,
-                                inventory_usage: { connect: { id: usage.id } },
                             },
-                        });
-
-                        // Update total amount in payment
-                        await tx.payment.update({
-                            where: { id: payment.id },
-                            data: { total_amount: { increment: inventoryItem.unit_cost } },
                         });
                     }
                 }

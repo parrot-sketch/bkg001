@@ -1,35 +1,57 @@
 /**
  * API Route: POST /api/doctor/consents/templates/upload-pdf
  *
- * Upload a PDF consent template file to Cloudinary.
- * This is a dedicated endpoint for PDF uploads with consent-specific validation.
+ * Upload a PDF consent template file to local storage.
+ * Files are stored in the `storage/consent-templates/` directory.
  *
  * Security:
  * - Requires authentication
  * - Only DOCTOR role
+ * - Validates file type and size
+ * - Organizes files by user ID
+ * - Rate limited (5 uploads per 10 mins per user)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
-import { v2 as cloudinary } from 'cloudinary';
+import { writeFile, mkdir } from 'fs/promises';
+import { join } from 'path';
+import { existsSync } from 'fs';
+import { handleApiError, handleApiSuccess } from '@/app/api/_utils/handleApiError';
+import { rateLimit } from '@/lib/security/rateLimit';
 
-// Configure Cloudinary
-cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+// Storage directory for consent templates
+const STORAGE_DIR = join(process.cwd(), 'storage', 'consent-templates');
+
+// Ensure storage directory exists
+async function ensureStorageDir(userId: string): Promise<string> {
+    const userDir = join(STORAGE_DIR, userId);
+    if (!existsSync(userDir)) {
+        await mkdir(userDir, { recursive: true });
+    }
+    return userDir;
+}
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
-        // 1. Auth
         const authResult = await JwtMiddleware.authenticate(request);
         if (!authResult.success || !authResult.user) {
-            return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+            return handleApiError(new Error('Authentication required'));
         }
         const user = authResult.user;
         if (user.role !== 'DOCTOR') {
-            return NextResponse.json({ success: false, error: 'Forbidden: Doctors only' }, { status: 403 });
+            return handleApiError(new Error('Forbidden: Doctors only'));
+        }
+
+        // 1.5 Rate Limiting
+        const limit = rateLimit(user.userId, {
+            windowMs: 10 * 60 * 1000, // 10 minutes
+            max: 5,                   // 5 uploads per window
+            keyPrefix: 'upload-template',
+        });
+
+        if (!limit.success) {
+            return handleApiError(new Error('Too many uploads. Please try again later.'));
         }
 
         // 2. Get file from form data
@@ -37,65 +59,47 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const file = formData.get('file') as File;
 
         if (!file) {
-            return NextResponse.json({ success: false, error: 'No file provided' }, { status: 400 });
+            return handleApiError(new Error('No file provided'));
         }
 
         // 3. Validate PDF
         if (file.type !== 'application/pdf') {
-            return NextResponse.json(
-                { success: false, error: 'Invalid file type. Only PDF files are allowed.' },
-                { status: 400 },
-            );
+            return handleApiError(new Error('Invalid file type. Only PDF files are allowed.'));
         }
 
         // 4. Validate file size (max 10MB for PDFs)
         const maxSize = 10 * 1024 * 1024; // 10MB
         if (file.size > maxSize) {
-            return NextResponse.json(
-                { success: false, error: 'File size exceeds 10MB limit' },
-                { status: 400 },
-            );
+            return handleApiError(new Error('File size exceeds 10MB limit'));
         }
 
         // 5. Convert to buffer
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
-        // 6. Upload to Cloudinary
-        const result = await new Promise<any>((resolve, reject) => {
-            cloudinary.uploader.upload_stream(
-                {
-                    folder: `consent-templates/${user.userId}`,
-                    resource_type: 'raw',
-                    format: 'pdf',
-                    // Store original filename in metadata
-                    context: {
-                        uploaded_by: user.userId,
-                        uploaded_at: new Date().toISOString(),
-                    },
-                },
-                (error, result) => {
-                    if (error) reject(error);
-                    else resolve(result);
-                },
-            ).end(buffer);
-        });
+        // 6. Generate unique filename
+        const timestamp = Date.now();
+        const randomString = Math.random().toString(36).substring(2, 15);
+        const filename = `${timestamp}-${randomString}.pdf`;
 
-        return NextResponse.json({
-            success: true,
-            data: {
-                url: result.secure_url,
-                publicId: result.public_id,
-                format: 'pdf',
-                size: file.size,
-            },
-            message: 'PDF uploaded successfully',
+        // 7. Ensure storage directory exists
+        const userDir = await ensureStorageDir(user.userId);
+        const filePath = join(userDir, filename);
+
+        // 8. Save file to local storage
+        await writeFile(filePath, buffer);
+
+        // 9. Generate URL path (relative to storage, will be served via API route)
+        const urlPath = `/api/files/consent-templates/${user.userId}/${filename}`;
+
+        return handleApiSuccess({
+            url: urlPath,
+            filename: filename,
+            size: file.size,
+            uploadedAt: new Date().toISOString(),
         });
     } catch (error: any) {
         console.error('[API] POST /api/doctor/consents/templates/upload-pdf - Error:', error);
-        return NextResponse.json(
-            { success: false, error: error.message || 'Upload failed' },
-            { status: 500 },
-        );
+        return handleApiError(error);
     }
 }

@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   Loader2,
 } from 'lucide-react';
+import { apiClient } from '@/lib/api/client';
 
 interface IntakeSubmissionDTO {
   submissionId: string;
@@ -83,17 +84,13 @@ export default function ReviewIntakePage() {
         setIsLoading(true);
         setError(null);
 
-        const response = await fetch(`/api/frontdesk/intake/${sessionId}`);
+        const result = await apiClient.get<IntakeSubmissionDTO>(`/frontdesk/intake/${sessionId}`);
 
-        if (!response.ok) {
-          if (response.status === 404) {
-            throw new Error('Intake submission not found');
-          }
-          throw new Error('Failed to fetch intake submission');
+        if (!result.success) {
+          throw new Error((result as any).error || 'Intake submission not found');
         }
 
-        const data = await response.json();
-        setSubmission(data);
+        setSubmission((result as any).data as IntakeSubmissionDTO);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
@@ -113,20 +110,15 @@ export default function ReviewIntakePage() {
       setIsConfirming(true);
       setError(null);
 
-      const response = await fetch('/api/frontdesk/intake/confirm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId }),
-      });
+      const result = await apiClient.post<{ patientId: string; fileNumber: string; firstName: string; lastName: string }>(`/frontdesk/intake/confirm`, { sessionId });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to confirm intake');
+      if (!result.success) {
+        throw new Error((result as any).error || 'Failed to confirm intake');
       }
 
-      const result = await response.json();
+      const confirmed = (result as any).data;
       setSuccessMessage(
-        `Patient ${result.firstName} ${result.lastName} confirmed. File #${result.fileNumber}`,
+        `Patient ${confirmed.firstName} ${confirmed.lastName} confirmed. File #${confirmed.fileNumber}`,
       );
 
       // Redirect to pending intakes after 2 seconds
@@ -200,13 +192,12 @@ export default function ReviewIntakePage() {
           {/* Status Badge */}
           <div className="flex flex-col items-end gap-3">
             <div
-              className={`px-3 py-1 rounded-full text-sm font-medium ${
-                submission.completenessScore >= 90
-                  ? 'bg-green-100 text-green-800'
-                  : submission.completenessScore >= 75
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'bg-amber-100 text-amber-800'
-              }`}
+              className={`px-3 py-1 rounded-full text-sm font-medium ${submission.completenessScore >= 90
+                ? 'bg-green-100 text-green-800'
+                : submission.completenessScore >= 75
+                  ? 'bg-blue-100 text-blue-800'
+                  : 'bg-amber-100 text-amber-800'
+                }`}
             >
               {submission.completenessScore}% Complete
             </div>

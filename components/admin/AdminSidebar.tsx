@@ -16,6 +16,7 @@ import {
   User,
   Building2,
   Syringe,
+  ShieldCheck,
 } from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { useAuth } from '@/hooks/patient/useAuth';
@@ -40,6 +41,11 @@ const navItems: NavItem[] = [
     name: 'Appointments',
     href: '/admin/appointments',
     icon: Calendar,
+  },
+  {
+    name: 'Consent Approvals',
+    href: '/admin/consents',
+    icon: ShieldCheck,
   },
   {
     name: 'Recovery Care',

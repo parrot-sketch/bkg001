@@ -3,50 +3,56 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  // directUrl is optional - only needed for connection pooling scenarios
-  // directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id                         String                  @id @default(uuid())
-  email                      String                  @unique
+  id                         String                   @id @default(uuid())
+  email                      String                   @unique
   password_hash              String
   role                       Role
-  status                     Status                  @default(ACTIVE)
-  mfa_enabled                Boolean                 @default(false)
+  status                     Status                   @default(ACTIVE)
+  mfa_enabled                Boolean                  @default(false)
   mfa_secret                 String?
   first_name                 String?
   last_name                  String?
   phone                      String?
   last_login_at              DateTime?
-  created_at                 DateTime                @default(now())
-  updated_at                 DateTime                @updatedAt
+  created_at                 DateTime                 @default(now())
+  updated_at                 DateTime                 @updatedAt
+  created_appointments       Appointment[]            @relation("AppointmentCreator")
   audit_logs                 AuditLog[]
-  care_notes                 CareNote[]              @relation("CareNoteNurse")
+  care_notes                 CareNote[]               @relation("CareNoteNurse")
   clinical_audit_events      ClinicalAuditEvent[]
-  forms_created              ClinicalFormResponse[]  @relation("FormCreatedBy")
-  forms_signed               ClinicalFormResponse[]  @relation("FormSignedBy")
-  forms_updated              ClinicalFormResponse[]  @relation("FormUpdatedBy")
+  forms_created              ClinicalFormResponse[]   @relation("FormCreatedBy")
+  forms_signed               ClinicalFormResponse[]   @relation("FormSignedBy")
+  forms_updated              ClinicalFormResponse[]   @relation("FormUpdatedBy")
   witnessed_consents         ConsentForm[]
+  consent_form_documents     ConsentFormDocument[]    @relation("ConsentFormDocumentUser")
+  verified_consent_sessions  ConsentSigningSession[]  @relation("VerifiedByStaff")
+  witnessed_consent_sessions ConsentSigningSession[]  @relation("WitnessUser")
+  consent_template_audits    ConsentTemplateAudit[]
+  consent_template_releases  ConsentTemplateRelease[] @relation("ConsentTemplateReleaseUser")
   consultations              Consultation[]
-  doctor_profile             Doctor?                 @relation("DoctorUser")
-  notifications_sent         Notification[]          @relation("NotificationSender")
-  notifications_received     Notification[]          @relation("NotificationRecipient")
-  nurse_assignments          NurseAssignment[]       @relation("NurseAssignments")
-  assigned_patients          Patient[]               @relation("PatientAssignment")
-  patient_profile            Patient?                @relation("PatientUser")
+  doctor_profile             Doctor?                  @relation("DoctorUser")
+  goods_receipts_received    GoodsReceipt[]           @relation("GoodsReceiptReceiver")
+  inventory_audit_events     InventoryAuditEvent[]
+  notifications_sent         Notification[]           @relation("NotificationSender")
+  notifications_received     Notification[]           @relation("NotificationRecipient")
+  nurse_assignments          NurseAssignment[]        @relation("NurseAssignments")
+  assigned_patients          Patient[]                @relation("PatientAssignment")
+  patient_profile            Patient?                 @relation("PatientUser")
+  purchase_orders_approved   PurchaseOrder[]          @relation("PurchaseOrderApprover")
+  purchase_orders_created    PurchaseOrder[]          @relation("PurchaseOrderCreator")
   refresh_tokens             RefreshToken[]
-  staff_invites_sent         StaffInvite[]           @relation("StaffInviteInviter")
-  staff_invites_received     StaffInvite[]           @relation("StaffInviteUser")
-  checklist_sign_ins         SurgicalChecklist[]     @relation("ChecklistSignIn")
-  checklist_sign_outs        SurgicalChecklist[]     @relation("ChecklistSignOut")
-  checklist_time_outs        SurgicalChecklist[]     @relation("ChecklistTimeOut")
+  staff_invites_sent         StaffInvite[]            @relation("StaffInviteInviter")
+  staff_invites_received     StaffInvite[]            @relation("StaffInviteUser")
+  stock_adjustments          StockAdjustment[]        @relation("StockAdjustmentUser")
+  checklist_sign_ins         SurgicalChecklist[]      @relation("ChecklistSignIn")
+  checklist_sign_outs        SurgicalChecklist[]      @relation("ChecklistSignOut")
+  checklist_time_outs        SurgicalChecklist[]      @relation("ChecklistTimeOut")
   surgical_assignments       SurgicalStaff[]
-  created_appointments       Appointment[]           @relation("AppointmentCreator")
-  verified_consent_sessions  ConsentSigningSession[] @relation("VerifiedByStaff")
-  witnessed_consent_sessions ConsentSigningSession[] @relation("WitnessUser")
 
   @@index([email])
   @@index([role])
@@ -341,8 +347,8 @@ model Appointment {
   source                        AppointmentSource          @default(PATIENT_REQUESTED)
   created_by_user_id            String?
   booking_channel               BookingChannel?
-  doctor                        Doctor                     @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
   created_by_user               User?                      @relation("AppointmentCreator", fields: [created_by_user_id], references: [id])
+  doctor                        Doctor                     @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
   parent_appointment            Appointment?               @relation("FollowUpChain", fields: [parent_appointment_id], references: [id])
   follow_up_appointments        Appointment[]              @relation("FollowUpChain")
   parent_consultation           Consultation?              @relation("ConsultationFollowUp", fields: [parent_consultation_id], references: [id])
@@ -557,9 +563,9 @@ model Payment {
   receipt_number   String?       @unique
   created_at       DateTime      @default(now())
   updated_at       DateTime      @updatedAt
+  surgical_case_id String?       @unique
   bill_type        BillType      @default(CONSULTATION)
   notes            String?
-  surgical_case_id String?       @unique
   bill_items       PatientBill[]
   appointment      Appointment?  @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
   patient          Patient       @relation(fields: [patient_id], references: [id], onDelete: Cascade)
@@ -594,22 +600,24 @@ model PatientBill {
   @@index([payment_id])
   @@index([service_id])
   @@index([surgical_medication_record_id])
+  @@index([payment_id, service_id])
 }
 
 model Service {
-  id           Int           @id @default(autoincrement())
-  service_name String
-  description  String?
-  price        Float
-  category     String?
-  is_active    Boolean       @default(true)
-  created_at   DateTime      @default(now())
-  updated_at   DateTime      @updatedAt
-  max_price    Float?
-  min_price    Float?
-  price_type   PriceType     @default(FIXED)
-  lab_test     LabTest?
-  bill_items   PatientBill[]
+  id            Int                   @id @default(autoincrement())
+  service_name  String
+  description   String?
+  price         Float
+  category      String?
+  is_active     Boolean               @default(true)
+  created_at    DateTime              @default(now())
+  updated_at    DateTime              @updatedAt
+  price_type    PriceType             @default(FIXED)
+  min_price     Float?
+  max_price     Float?
+  planned_items CasePlanPlannedItem[]
+  lab_test      LabTest?
+  bill_items    PatientBill[]
 
   @@index([service_name])
   @@index([category])
@@ -618,25 +626,29 @@ model Service {
 }
 
 model InventoryItem {
-  id                 Int                        @id @default(autoincrement())
-  name               String
-  sku                String?                    @unique
-  category           InventoryCategory          @default(OTHER)
-  description        String?
-  unit_of_measure    String                     @default("unit")
-  unit_cost          Float                      @default(0)
-  quantity_on_hand   Int                        @default(0)
-  reorder_point      Int                        @default(0)
-  supplier           String?
-  is_active          Boolean                    @default(true)
-  is_billable        Boolean                    @default(true)
-  created_at         DateTime                   @default(now())
-  updated_at         DateTime                   @updatedAt
-  is_implant         Boolean                    @default(false)
-  manufacturer       String?
-  batches            InventoryBatch[]
-  usage_records      InventoryUsage[]
-  medication_records SurgicalMedicationRecord[]
+  id                   Int                        @id @default(autoincrement())
+  name                 String
+  sku                  String?                    @unique
+  category             InventoryCategory          @default(OTHER)
+  description          String?
+  unit_of_measure      String                     @default("unit")
+  unit_cost            Float                      @default(0)
+  quantity_on_hand     Int                        @default(0)
+  reorder_point        Int                        @default(0)
+  supplier             String?
+  is_active            Boolean                    @default(true)
+  is_billable          Boolean                    @default(true)
+  created_at           DateTime                   @default(now())
+  updated_at           DateTime                   @updatedAt
+  is_implant           Boolean                    @default(false)
+  manufacturer         String?
+  planned_items        CasePlanPlannedItem[]
+  goods_receipt_items  GoodsReceiptItem[]         @relation("GoodsReceiptInventoryItem")
+  batches              InventoryBatch[]
+  usage_records        InventoryUsage[]
+  purchase_order_items PurchaseOrderItem[]        @relation("POItemInventoryItem")
+  stock_adjustments    StockAdjustment[]          @relation("StockAdjustmentInventoryItem")
+  medication_records   SurgicalMedicationRecord[]
 
   @@index([name])
   @@index([sku])
@@ -658,6 +670,8 @@ model InventoryBatch {
   notes              String?
   created_at         DateTime         @default(now())
   updated_at         DateTime         @updatedAt
+  goods_receipt_id   String?          @unique
+  goods_receipt      GoodsReceipt?    @relation("GoodsReceiptBatches", fields: [goods_receipt_id], references: [id])
   inventory_item     InventoryItem    @relation(fields: [inventory_item_id], references: [id], onDelete: Cascade)
   usage_records      InventoryUsage[]
 
@@ -665,6 +679,131 @@ model InventoryBatch {
   @@index([batch_number])
   @@index([serial_number])
   @@index([expiry_date])
+}
+
+model Vendor {
+  id              String          @id @default(uuid())
+  name            String
+  contact_person  String?
+  email           String?
+  phone           String?
+  address         String?
+  tax_id          String?
+  payment_terms   String?
+  notes           String?
+  is_active       Boolean         @default(true)
+  created_at      DateTime        @default(now())
+  updated_at      DateTime        @updatedAt
+  purchase_orders PurchaseOrder[]
+
+  @@index([name])
+  @@index([is_active])
+}
+
+model PurchaseOrder {
+  id                  String              @id @default(uuid())
+  vendor_id           String
+  po_number           String              @unique
+  status              PurchaseOrderStatus @default(DRAFT)
+  total_amount        Float               @default(0)
+  created_by_user_id  String
+  submitted_at        DateTime?
+  approved_by_user_id String?
+  approved_at         DateTime?
+  notes               String?
+  created_at          DateTime            @default(now())
+  updated_at          DateTime            @updatedAt
+  goods_receipts      GoodsReceipt[]
+  approved_by         User?               @relation("PurchaseOrderApprover", fields: [approved_by_user_id], references: [id])
+  created_by          User                @relation("PurchaseOrderCreator", fields: [created_by_user_id], references: [id])
+  vendor              Vendor              @relation(fields: [vendor_id], references: [id])
+  items               PurchaseOrderItem[]
+
+  @@index([vendor_id])
+  @@index([status])
+  @@index([po_number])
+  @@index([created_at])
+}
+
+model PurchaseOrderItem {
+  id                  Int                @id @default(autoincrement())
+  purchase_order_id   String
+  inventory_item_id   Int?
+  item_name           String
+  quantity_ordered    Int
+  unit_price          Float
+  total_price         Float
+  notes               String?
+  quantity_received   Int                @default(0)
+  created_at          DateTime           @default(now())
+  updated_at          DateTime           @updatedAt
+  goods_receipt_items GoodsReceiptItem[] @relation("GoodsReceiptPOItem")
+  inventory_item      InventoryItem?     @relation("POItemInventoryItem", fields: [inventory_item_id], references: [id])
+  purchase_order      PurchaseOrder      @relation(fields: [purchase_order_id], references: [id], onDelete: Cascade)
+
+  @@index([purchase_order_id])
+  @@index([inventory_item_id])
+}
+
+model GoodsReceipt {
+  id                  String             @id @default(uuid())
+  purchase_order_id   String
+  receipt_number      String             @unique
+  received_by_user_id String
+  received_at         DateTime           @default(now())
+  notes               String?
+  created_at          DateTime           @default(now())
+  updated_at          DateTime           @updatedAt
+  purchase_order      PurchaseOrder      @relation(fields: [purchase_order_id], references: [id])
+  received_by         User               @relation("GoodsReceiptReceiver", fields: [received_by_user_id], references: [id])
+  receipt_items       GoodsReceiptItem[]
+  inventory_batches   InventoryBatch?    @relation("GoodsReceiptBatches")
+
+  @@index([purchase_order_id])
+  @@index([receipt_number])
+  @@index([received_at])
+}
+
+model GoodsReceiptItem {
+  id                  Int               @id @default(autoincrement())
+  goods_receipt_id    String
+  po_item_id          Int
+  inventory_item_id   Int?
+  quantity_received   Int
+  unit_cost           Float
+  batch_number        String?
+  expiry_date         DateTime?
+  notes               String?
+  created_at          DateTime          @default(now())
+  updated_at          DateTime          @updatedAt
+  goods_receipt       GoodsReceipt      @relation(fields: [goods_receipt_id], references: [id], onDelete: Cascade)
+  inventory_item      InventoryItem?    @relation("GoodsReceiptInventoryItem", fields: [inventory_item_id], references: [id])
+  purchase_order_item PurchaseOrderItem @relation("GoodsReceiptPOItem", fields: [po_item_id], references: [id])
+
+  @@index([goods_receipt_id])
+  @@index([po_item_id])
+  @@index([inventory_item_id])
+}
+
+model StockAdjustment {
+  id                  Int                   @id @default(autoincrement())
+  inventory_item_id   Int
+  adjustment_type     StockAdjustmentType
+  adjustment_reason   StockAdjustmentReason
+  quantity_change     Int
+  previous_quantity   Int
+  new_quantity        Int
+  adjusted_by_user_id String
+  notes               String?
+  created_at          DateTime              @default(now())
+  updated_at          DateTime              @updatedAt
+  adjusted_by         User                  @relation("StockAdjustmentUser", fields: [adjusted_by_user_id], references: [id])
+  inventory_item      InventoryItem         @relation("StockAdjustmentInventoryItem", fields: [inventory_item_id], references: [id], onDelete: Cascade)
+
+  @@index([inventory_item_id])
+  @@index([adjusted_by_user_id])
+  @@index([created_at])
+  @@index([adjustment_type])
 }
 
 model InventoryUsage {
@@ -680,6 +819,10 @@ model InventoryUsage {
   bill_item_id                  Int?                      @unique
   created_at                    DateTime                  @default(now())
   updated_at                    DateTime                  @updatedAt
+  external_ref                  String?                   @unique
+  source_form_key               String?
+  used_at                       DateTime?
+  used_by_user_id               String?
   inventory_batch_id            String?
   surgical_medication_record_id String?                   @unique
   appointment                   Appointment?              @relation(fields: [appointment_id], references: [id])
@@ -695,6 +838,27 @@ model InventoryUsage {
   @@index([appointment_id])
   @@index([recorded_by])
   @@index([created_at])
+  @@index([surgical_case_id, inventory_item_id, used_at])
+  @@index([source_form_key, used_at])
+  @@index([used_by_user_id, used_at])
+}
+
+model InventoryAuditEvent {
+  id            String   @id @default(uuid())
+  event_type    String
+  actor_user_id String
+  actor_role    String
+  entity_type   String
+  entity_id     String
+  external_ref  String?
+  metadata_json String?
+  created_at    DateTime @default(now())
+  actor         User     @relation(fields: [actor_user_id], references: [id], onDelete: Cascade)
+
+  @@index([actor_user_id, created_at])
+  @@index([entity_type, entity_id])
+  @@index([event_type, created_at])
+  @@index([external_ref])
 }
 
 model Rating {
@@ -859,6 +1023,7 @@ model CasePlan {
   doctor                     Doctor                   @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
   patient                    Patient                  @relation(fields: [patient_id], references: [id], onDelete: Cascade)
   surgical_case              SurgicalCase?            @relation(fields: [surgical_case_id], references: [id])
+  planned_items              CasePlanPlannedItem[]
   consents                   ConsentForm[]
   images                     PatientImage[]
   procedure_record           SurgicalProcedureRecord?
@@ -867,6 +1032,28 @@ model CasePlan {
   @@index([patient_id])
   @@index([doctor_id])
   @@index([readiness_status])
+}
+
+model CasePlanPlannedItem {
+  id                 Int            @id @default(autoincrement())
+  case_plan_id       Int
+  inventory_item_id  Int?
+  service_id         Int?
+  planned_quantity   Float
+  planned_unit_price Float
+  notes              String?
+  planned_by_user_id String
+  created_at         DateTime       @default(now())
+  updated_at         DateTime       @updatedAt
+  case_plan          CasePlan       @relation(fields: [case_plan_id], references: [id], onDelete: Cascade)
+  inventory_item     InventoryItem? @relation(fields: [inventory_item_id], references: [id])
+  service            Service?       @relation(fields: [service_id], references: [id])
+
+  @@unique([case_plan_id, inventory_item_id])
+  @@unique([case_plan_id, service_id])
+  @@index([case_plan_id])
+  @@index([inventory_item_id])
+  @@index([service_id])
 }
 
 model SurgicalProcedureRecord {
@@ -888,15 +1075,15 @@ model SurgicalProcedureRecord {
   anesthesia_type                AnesthesiaType?
   asa_score                      Int?
   wound_class                    WoundClassification?
-  estimated_blood_loss           Int? // ml
-  urine_output                   Int? // ml
   created_at                     DateTime             @default(now())
   updated_at                     DateTime             @updatedAt
+  wheels_in                      DateTime?
   anesthesia_end                 DateTime?
   anesthesiologist_snapshot_id   String?
   assistant_surgeon_snapshot_ids String?
   primary_surgeon_snapshot_id    String?
-  wheels_in                      DateTime?
+  estimated_blood_loss           Int?
+  urine_output                   Int?
   staff_invites                  StaffInvite[]
   case_plan                      CasePlan?            @relation(fields: [case_plan_id], references: [id])
   surgical_case                  SurgicalCase?        @relation(fields: [surgical_case_id], references: [id], onDelete: Cascade)
@@ -961,86 +1148,78 @@ model ConsentForm {
   valid_until       DateTime?
   created_at        DateTime               @default(now())
   updated_at        DateTime               @updatedAt
+  template_id       String?
   case_plan         CasePlan               @relation(fields: [case_plan_id], references: [id], onDelete: Cascade)
+  template          ConsentTemplate?       @relation(fields: [template_id], references: [id])
   witness_user      User?                  @relation(fields: [witness_id], references: [id])
+  documents         ConsentFormDocument[]
   signing_session   ConsentSigningSession?
 
   @@index([case_plan_id])
   @@index([status])
+  @@index([template_id])
+}
+
+model ConsentFormDocument {
+  id                  String              @id @default(uuid())
+  consent_form_id     String
+  file_url            String
+  checksum_sha256     String?
+  uploaded_by_user_id String
+  uploaded_at         DateTime            @default(now())
+  document_type       ConsentDocumentType @default(SIGNED_PDF)
+  version             Int                 @default(1)
+  file_size           Int?
+  file_name           String?
+  consent_form        ConsentForm         @relation(fields: [consent_form_id], references: [id], onDelete: Cascade)
+  uploaded_by         User                @relation("ConsentFormDocumentUser", fields: [uploaded_by_user_id], references: [id])
+
+  @@index([consent_form_id])
+  @@index([uploaded_at])
+  @@index([document_type])
 }
 
 model ConsentSigningSession {
-  id              String   @id @default(uuid())
-  consent_form_id String   @unique
-  qr_code         String   @unique
-  token           String   @unique
-  expires_at      DateTime
-
-  // Identity Verification
-  verification_method  VerificationMethod
-  patient_name_entered String?
-  patient_dob_entered  DateTime?
-  patient_file_number  String?
-  phone_number_used    String?
-  otp_sent             Boolean            @default(false)
-  otp_verified         Boolean            @default(false)
-  otp_code             String? // Hashed OTP
-  otp_expires_at       DateTime?
-
-  // Staff Verification (for surgical consents)
-  requires_staff_verify   Boolean   @default(false)
+  id                      String             @id @default(uuid())
+  consent_form_id         String             @unique
+  qr_code                 String             @unique
+  token                   String             @unique
+  expires_at              DateTime
+  verification_method     VerificationMethod
+  patient_name_entered    String?
+  patient_dob_entered     DateTime?
+  patient_file_number     String?
+  phone_number_used       String?
+  otp_sent                Boolean            @default(false)
+  otp_verified            Boolean            @default(false)
+  otp_code                String?
+  otp_expires_at          DateTime?
+  requires_staff_verify   Boolean            @default(false)
   verified_by_staff_id    String?
   verified_by_staff_at    DateTime?
   staff_verification_note String?
-
-  // Signing
-  signed_at            DateTime?
-  signed_by_ip         String?
-  signed_by_user_agent String?
-  patient_signature    String? // Base64 canvas image
-
-  // Witness (if required)
-  witness_name      String?
-  witness_signature String?
-  witness_id        String?
-
-  status SigningStatus @default(PENDING)
-
-  // Audit
-  identity_match_score  Float? // 0.0-1.0 (how well name/DOB matched)
-  verification_attempts Int    @default(0)
-  failed_attempts       Int    @default(0)
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  consent_form      ConsentForm @relation(fields: [consent_form_id], references: [id], onDelete: Cascade)
-  verified_by_staff User?       @relation("VerifiedByStaff", fields: [verified_by_staff_id], references: [id])
-  witness_user      User?       @relation("WitnessUser", fields: [witness_id], references: [id])
+  signed_at               DateTime?
+  signed_by_ip            String?
+  signed_by_user_agent    String?
+  patient_signature       String?
+  witness_name            String?
+  witness_signature       String?
+  witness_id              String?
+  status                  SigningStatus      @default(PENDING)
+  identity_match_score    Float?
+  verification_attempts   Int                @default(0)
+  failed_attempts         Int                @default(0)
+  created_at              DateTime           @default(now())
+  updated_at              DateTime           @updatedAt
+  consent_form            ConsentForm        @relation(fields: [consent_form_id], references: [id], onDelete: Cascade)
+  verified_by_staff       User?              @relation("VerifiedByStaff", fields: [verified_by_staff_id], references: [id])
+  witness_user            User?              @relation("WitnessUser", fields: [witness_id], references: [id])
 
   @@index([qr_code])
   @@index([token])
   @@index([expires_at])
   @@index([status])
   @@index([requires_staff_verify])
-}
-
-enum VerificationMethod {
-  NAME_DOB_ONLY
-  NAME_DOB_OTP
-  STAFF_VERIFIED
-  EMERGENCY_OVERRIDE
-}
-
-enum SigningStatus {
-  PENDING
-  VERIFYING
-  VERIFIED
-  SIGNING
-  SIGNED
-  VERIFICATION_FAILED
-  EXPIRED
-  CANCELLED
 }
 
 model PatientImage {
@@ -1173,22 +1352,91 @@ model Theater {
 }
 
 model ConsentTemplate {
-  id                String         @id @default(uuid())
-  title             String
-  type              ConsentType
-  content           String
-  pdf_url           String? // Cloudinary URL for uploaded PDF template
-  template_format   TemplateFormat @default(HTML) // HTML, PDF, or HYBRID
-  extracted_content String? // Text extracted from PDF (for search/preview)
-  version           Int            @default(1)
-  is_active         Boolean        @default(true)
-  created_by        String?
-  created_at        DateTime       @default(now())
-  updated_at        DateTime       @updatedAt
+  id                    String                   @id @default(uuid())
+  title                 String
+  type                  ConsentType
+  content               String
+  version               Int                      @default(1)
+  is_active             Boolean                  @default(true)
+  created_by            String?
+  created_at            DateTime                 @default(now())
+  updated_at            DateTime                 @updatedAt
+  pdf_url               String?
+  template_format       TemplateFormat           @default(HTML)
+  extracted_content     String?
+  status                TemplateStatus           @default(DRAFT)
+  description           String?
+  usage_count           Int                      @default(0)
+  last_used_at          DateTime?
+  approval_status       ApprovalStatus           @default(DRAFT)
+  approved_at           DateTime?
+  approved_by_user_id   String?
+  checksum_sha256       String?
+  latest_pdf_filename   String?
+  locked_version_number Int?
+  consentForms          ConsentForm[]
+  audit_logs            ConsentTemplateAudit[]
+  releases              ConsentTemplateRelease[]
+  versions              ConsentTemplateVersion[]
 
   @@index([type])
   @@index([is_active])
   @@index([template_format])
+  @@index([status])
+  @@index([created_by])
+}
+
+model ConsentTemplateVersion {
+  id              String          @id @default(uuid())
+  template_id     String
+  version_number  Int
+  title           String
+  content         String
+  pdf_url         String?
+  template_format TemplateFormat
+  created_by      String?
+  created_at      DateTime        @default(now())
+  version_notes   String?
+  template        ConsentTemplate @relation(fields: [template_id], references: [id], onDelete: Cascade)
+
+  @@unique([template_id, version_number])
+  @@index([template_id])
+  @@index([created_at])
+}
+
+model ConsentTemplateAudit {
+  id            String          @id @default(uuid())
+  template_id   String
+  action        AuditAction
+  actor_user_id String
+  actor_role    Role
+  changes_json  String?
+  ip_address    String?
+  user_agent    String?
+  created_at    DateTime        @default(now())
+  actor         User            @relation(fields: [actor_user_id], references: [id])
+  template      ConsentTemplate @relation(fields: [template_id], references: [id], onDelete: Cascade)
+
+  @@index([template_id])
+  @@index([actor_user_id])
+  @@index([action])
+  @@index([created_at])
+  @@index([template_id, created_at])
+}
+
+model ConsentTemplateRelease {
+  id                  String          @id @default(uuid())
+  template_id         String
+  version_number      Int
+  released_at         DateTime        @default(now())
+  released_by_user_id String
+  release_notes       String?
+  released_by         User            @relation("ConsentTemplateReleaseUser", fields: [released_by_user_id], references: [id])
+  template            ConsentTemplate @relation(fields: [template_id], references: [id], onDelete: Cascade)
+
+  @@unique([template_id, version_number])
+  @@index([template_id])
+  @@index([released_at])
 }
 
 model IntakeSession {
@@ -1432,6 +1680,36 @@ model SurgicalMedicationRecord {
   @@index([status])
 }
 
+enum ConsentDocumentType {
+  SIGNED_PDF
+  GENERATED_PDF
+}
+
+enum VerificationMethod {
+  NAME_DOB_ONLY
+  NAME_DOB_OTP
+  STAFF_VERIFIED
+  EMERGENCY_OVERRIDE
+}
+
+enum SigningStatus {
+  PENDING
+  VERIFYING
+  VERIFIED
+  SIGNING
+  SIGNED
+  VERIFICATION_FAILED
+  EXPIRED
+  CANCELLED
+}
+
+enum ApprovalStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+}
+
 enum Role {
   ADMIN
   NURSE
@@ -1441,6 +1719,7 @@ enum Role {
   CASHIER
   FRONTDESK
   THEATER_TECHNICIAN
+  STORES
 }
 
 enum Status {
@@ -1683,6 +1962,30 @@ enum TemplateFormat {
   HYBRID
 }
 
+enum TemplateStatus {
+  DRAFT
+  PENDING_APPROVAL
+  ACTIVE
+  ARCHIVED
+}
+
+enum AuditAction {
+  CREATED
+  UPDATED
+  ACTIVATED
+  ARCHIVED
+  DELETED
+  VIEWED
+  DOWNLOADED
+  DUPLICATED
+  RESTORED
+  SUBMITTED_FOR_APPROVAL
+  APPROVED
+  REJECTED
+  PDF_REPLACED
+  SIGNED_UPLOADED
+}
+
 enum OutboxStatus {
   PENDING
   PROCESSING
@@ -1702,13 +2005,13 @@ enum SurgicalCaseStatus {
   DRAFT
   PLANNING
   READY_FOR_SCHEDULING
-  READY_FOR_THEATER_BOOKING
   SCHEDULED
   IN_PREP
   IN_THEATER
   RECOVERY
   COMPLETED
   CANCELLED
+  READY_FOR_THEATER_BOOKING
 }
 
 enum TheaterBookingStatus {
@@ -1728,4 +2031,28 @@ enum ClinicalFormStatus {
   DRAFT
   FINAL
   AMENDMENT
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  PARTIALLY_RECEIVED
+  CLOSED
+  CANCELLED
+}
+
+enum StockAdjustmentType {
+  INCREMENT
+  DECREMENT
+}
+
+enum StockAdjustmentReason {
+  DAMAGED
+  EXPIRED
+  LOST
+  THEFT
+  COUNT_CORRECTION
+  RETURN_TO_VENDOR
+  OTHER
 }

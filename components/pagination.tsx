@@ -34,17 +34,15 @@ export const Pagination = ({
   const handlePrevious = () => {
     if (currentPage > 1) {
       router.push(
-        pathname + "?" + createQueryString("p", (currentPage - 1).toString())
+        pathname + "?" + createQueryString("page", (currentPage - 1).toString())
       );
-      // router.push(`?p=${currentPage - 1}`);
     }
   };
 
   const handleNext = () => {
     if (currentPage < totalPages) {
-      // router.push(`?p=${currentPage + 1}`);
       router.push(
-        pathname + "?" + createQueryString("p", (currentPage + 1).toString())
+        pathname + "?" + createQueryString("page", (currentPage + 1).toString())
       );
     }
   };

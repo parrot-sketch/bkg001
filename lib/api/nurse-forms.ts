@@ -216,6 +216,24 @@ export interface IntraOpFormResponse {
         planned_anesthesia: string | null;
         implant_details: string | null;
     } | null;
+    verificationData?: {
+        autoPopulatedChecks: {
+            patientIdVerified: boolean;
+            informedConsentSigned: boolean;
+            preOpChecklistCompleted: boolean;
+            allergies: string | null;
+            verificationSources: {
+                patientIdVerified: string | null;
+                informedConsentSigned: string | null;
+                preOpChecklistCompleted: string | null;
+            };
+        };
+        sources: {
+            patientIdVerified: string | null;
+            informedConsentSigned: string | null;
+            preOpChecklistCompleted: string | null;
+        };
+    };
 }
 
 // ──────────────────────────────────────────────────────────────────────

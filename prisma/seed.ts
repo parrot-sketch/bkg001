@@ -72,7 +72,7 @@ async function main() {
   // 1. CLEAN SLATE
   // ============================================================================
   console.log('🧹 Clearing existing data...');
-  
+
   // Disable foreign key checks temporarily for clean truncate
   try {
     await prisma.$executeRawUnsafe(`SET session_replication_role = 'replica';`);
@@ -90,9 +90,13 @@ async function main() {
     'ConsultationMessage', 'ConsultationAttachment', 'DoctorConsultation',
     'Consultation', 'Appointment', 'AvailabilitySlot', 'AvailabilityTemplate', 'ScheduleBlock',
     'AvailabilityOverride', 'AvailabilityBreak', 'SlotConfiguration', 'RefreshToken',
-    'ConsentSigningSession', // Add this if it exists
+    'ConsentSigningSession',
+    'InventoryUsage', 'InventoryBatch', 'PurchaseOrderItem', 'PurchaseOrder',
+    'GoodsReceiptItem', 'GoodsReceipt', 'StockAdjustment', 'ConsentFormDocument',
+    'ConsentTemplateRelease',
     // Parent tables (referenced by others)
-    'Patient', 'Doctor', 'User', 'Theater', 'Clinic', 'ConsentTemplate', 'IntakeSubmission', 'IntakeSession'
+    'Patient', 'Doctor', 'User', 'Theater', 'Clinic', 'ConsentTemplate', 'IntakeSubmission', 'IntakeSession',
+    'InventoryItem', 'Vendor'
   ];
 
   for (const tableName of tableNames) {
@@ -800,9 +804,117 @@ async function main() {
 
 
   // ============================================================================
-  // 8. SURGICAL CASES (Sample Data)
+  // 8. APPOINTMENTS & CONSULTATIONS (Complete Workflow)
   // ============================================================================
-  console.log('😷 Creating Sample Surgical Cases...');
+  console.log('📅 Creating Appointments & Consultations...');
+
+  // Appointment 1: Millicent → Dr. Mukami (Completed consultation → Surgical case)
+  const appointment1 = await prisma.appointment.create({
+    data: {
+      patient_id: p1.id,
+      doctor_id: doctors[1].id, // Dr. Mukami
+      appointment_date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
+      time: '10:00',
+      status: 'COMPLETED',
+      type: 'CONSULTATION',
+      reason: 'Initial consultation for breast augmentation',
+    }
+  });
+
+  // Consultation 1: Linked to Appointment 1
+  const consultation1 = await prisma.consultation.create({
+    data: {
+      appointment_id: appointment1.id,
+      doctor_id: doctors[1].id,
+      user_id: doctors[1].user_id,
+      started_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+      completed_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000 + 30 * 60 * 1000), // 30 min later
+      duration_minutes: 30,
+      chief_complaint: 'Desire for breast augmentation',
+      examination: 'Bilateral mammary hypoplasia, good skin quality',
+      assessment: 'Good candidate for breast augmentation',
+      plan: 'Proceed with bilateral breast augmentation using silicone implants',
+      outcome: 'SURGERY_PLANNED',
+      outcome_type: 'SURGERY',
+      patient_decision: 'PROCEED',
+    }
+  });
+
+  // Appointment 2: Rhoda → Dr. Ken (Completed consultation → Surgical case)
+  const appointment2 = await prisma.appointment.create({
+    data: {
+      patient_id: p2.id,
+      doctor_id: doctors[3].id, // Dr. Ken
+      appointment_date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+      time: '14:00',
+      status: 'COMPLETED',
+      type: 'CONSULTATION',
+      reason: 'Consultation for body contouring',
+    }
+  });
+
+  // Consultation 2: Linked to Appointment 2
+  const consultation2 = await prisma.consultation.create({
+    data: {
+      appointment_id: appointment2.id,
+      doctor_id: doctors[3].id,
+      user_id: doctors[3].user_id,
+      started_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+      completed_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000 + 45 * 60 * 1000),
+      duration_minutes: 45,
+      chief_complaint: 'Desire for body contouring',
+      examination: 'Localized fat deposits, good skin elasticity',
+      assessment: 'Candidate for liposuction 360 + BBL',
+      plan: 'Proceed with liposuction 360 and Brazilian butt lift',
+      outcome: 'SURGERY_PLANNED',
+      outcome_type: 'SURGERY',
+      patient_decision: 'PROCEED',
+    }
+  });
+
+  // Appointment 3: Alice → Dr. Angela (Completed consultation → Surgical case in theater)
+  const alicePatient = await prisma.patient.findFirst({ where: { file_number: 'TEST005' } });
+  if (!alicePatient) {
+    throw new Error('Alice patient not found');
+  }
+
+  const appointment3 = await prisma.appointment.create({
+    data: {
+      patient_id: alicePatient.id,
+      doctor_id: doctors[0].id, // Dr. Angela
+      appointment_date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+      time: '09:00',
+      status: 'COMPLETED',
+      type: 'CONSULTATION',
+      reason: 'Rhinoplasty consultation',
+    }
+  });
+
+  // Consultation 3: Linked to Appointment 3
+  const consultation3 = await prisma.consultation.create({
+    data: {
+      appointment_id: appointment3.id,
+      doctor_id: doctors[0].id,
+      user_id: doctors[0].user_id,
+      started_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+      completed_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 40 * 60 * 1000),
+      duration_minutes: 40,
+      chief_complaint: 'Nasal deformity and breathing issues',
+      examination: 'Deviated septum, nasal hump, wide nasal tip',
+      assessment: 'Good candidate for open rhinoplasty',
+      plan: 'Open rhinoplasty with septoplasty',
+      outcome: 'SURGERY_PLANNED',
+      outcome_type: 'SURGERY',
+      patient_decision: 'PROCEED',
+    }
+  });
+
+  console.log('✅ Appointments & Consultations Created');
+
+  // ============================================================================
+  // 9. SURGICAL CASES (Complete with Links)
+  // ============================================================================
+  console.log('😷 Creating Complete Surgical Cases...');
 
   // Case 1: Millicent (Post-op / Recovery)
   // Dr. Mukami performing Breast Augmentation
@@ -810,12 +922,94 @@ async function main() {
     data: {
       patient_id: p1.id,
       primary_surgeon_id: doctors[1].id, // Dr. Mukami
+      consultation_id: consultation1.id, // ✅ Linked to consultation
       urgency: 'ELECTIVE',
       status: 'RECOVERY', // In recovery
       procedure_name: 'Breast Augmentation (Bilateral)',
       diagnosis: 'Mammary Hypoplasia',
       side: 'Bilateral',
       created_by: adminUser.id,
+    }
+  });
+
+  // Case Plan 1: Linked to Appointment 1 and Surgical Case 1
+  await prisma.casePlan.create({
+    data: {
+      appointment_id: appointment1.id,
+      surgical_case_id: case1.id,
+      patient_id: p1.id,
+      doctor_id: doctors[1].id,
+      procedure_plan: `<h3><strong>Surgical Technique: Bilateral Breast Augmentation</strong></h3>
+<p><strong>Approach:</strong> Inframammary fold incision</p>
+<p><strong>Implant Placement:</strong> Submuscular (dual plane)</p>
+<p><strong>Step-by-Step Plan:</strong></p>
+<ol>
+  <li>Marking: Inframammary fold at 6 o'clock position, 4cm incision length</li>
+  <li>Incision: Sharp dissection through skin and subcutaneous tissue</li>
+  <li>Pocket Creation: Submuscular dissection using electrocautery</li>
+  <li>Hemostasis: Meticulous hemostasis with bipolar cautery</li>
+  <li>Implant Insertion: 350cc silicone implants, moderate profile</li>
+  <li>Closure: Layered closure with absorbable sutures</li>
+  <li>Dressing: Sterile dressings and compression bra</li>
+</ol>`,
+      risk_factors: `<p><strong>Patient Risk Assessment:</strong></p>
+<ul>
+  <li>BMI: 22.5 (Normal range)</li>
+  <li>No known allergies</li>
+  <li>No previous breast surgery</li>
+  <li>Non-smoker</li>
+  <li>No significant comorbidities</li>
+</ul>
+<p><strong>Anesthetic Risk:</strong> ASA I (Healthy patient)</p>`,
+      pre_op_notes: `<p><strong>Chief Complaint:</strong></p>
+<p>Patient desires breast augmentation for improved breast volume and symmetry.</p>
+
+<p><strong>Examination:</strong></p>
+<p>Bilateral mammary hypoplasia. Good skin quality and elasticity. Symmetrical chest wall. No ptosis. Nipple-areola complex in good position.</p>
+
+<p><strong>Assessment:</strong></p>
+<p>Good candidate for breast augmentation. Patient has realistic expectations and understands the procedure, risks, and recovery.</p>
+
+<p><strong>Pre-operative Instructions:</strong></p>
+<ul>
+  <li>Fasting from midnight (NPO after 12:00 AM)</li>
+  <li>No aspirin or NSAIDs 7 days prior</li>
+  <li>Shower with antibacterial soap night before and morning of surgery</li>
+  <li>Wear loose-fitting clothing</li>
+  <li>Arrive at clinic by 7:00 AM</li>
+</ul>`,
+      implant_details: JSON.stringify({
+        items: [
+          {
+            id: crypto.randomUUID(),
+            name: 'Mentor MemoryGel Silicone Implant',
+            manufacturer: 'Mentor Worldwide LLC',
+            lotNumber: 'MG-2025-001234',
+            serialNumber: 'SN-350-MP-001',
+            size: '350cc Moderate Plus Profile',
+            expiryDate: '2027-12-31',
+            notes: 'Bilateral - same size and profile'
+          }
+        ],
+        freeTextNotes: ''
+      }),
+      planned_anesthesia: 'GENERAL',
+      special_instructions: `<p><strong>Positioning:</strong></p>
+<p>Supine position with arms abducted at 90 degrees on arm boards.</p>
+
+<p><strong>Special Considerations:</strong></p>
+<ul>
+  <li>Patient to avoid lifting arms above shoulder level for 2 weeks</li>
+  <li>No heavy lifting (>5kg) for 6 weeks</li>
+  <li>Compression bra to be worn continuously for 4 weeks</li>
+  <li>Follow-up appointment scheduled for 1 week post-op</li>
+</ul>
+
+<p><strong>Post-operative Care:</strong></p>
+<p>Standard post-op pain management. Patient education on implant care and signs of complications.</p>`,
+      readiness_status: 'READY',
+      ready_for_surgery: true,
+      estimated_duration_minutes: 120,
     }
   });
 
@@ -854,11 +1048,94 @@ async function main() {
     data: {
       patient_id: p2.id,
       primary_surgeon_id: doctors[3].id, // Dr. Ken
+      consultation_id: consultation2.id, // ✅ Linked to consultation
       urgency: 'ELECTIVE',
       status: 'READY_FOR_SCHEDULING',
       procedure_name: 'Liposuction 360 + BBL',
       diagnosis: 'Lipodystrophy',
       created_by: adminUser.id,
+    }
+  });
+
+  // Case Plan 2: Linked to Appointment 2 and Surgical Case 2
+  await prisma.casePlan.create({
+    data: {
+      appointment_id: appointment2.id,
+      surgical_case_id: case2.id,
+      patient_id: p2.id,
+      doctor_id: doctors[3].id,
+      procedure_plan: `<h3><strong>Surgical Technique: Liposuction 360 + Brazilian Butt Lift</strong></h3>
+<p><strong>Phase 1: Liposuction 360</strong></p>
+<p>Harvest fat from:</p>
+<ul>
+  <li>Abdomen (upper and lower)</li>
+  <li>Flanks (love handles)</li>
+  <li>Back (bra line area)</li>
+  <li>Inner and outer thighs</li>
+</ul>
+<p><strong>Technique:</strong> Tumescent liposuction using power-assisted liposuction (PAL) device</p>
+<p><strong>Cannula Size:</strong> 3-4mm for fat harvest, 2-3mm for contouring</p>
+
+<p><strong>Phase 2: Fat Processing</strong></p>
+<p>Harvested fat to be processed via centrifugation. Target: 1000-1200cc processed fat.</p>
+
+<p><strong>Phase 3: Brazilian Butt Lift</strong></p>
+<p>Fat transfer to buttocks:</p>
+<ul>
+  <li>Approximately 500cc per side</li>
+  <li>Multi-layer injection technique</li>
+  <li>Focus on upper pole and lateral projection</li>
+</ul>`,
+      risk_factors: `<p><strong>Patient Risk Assessment:</strong></p>
+<ul>
+  <li>BMI: 28.5 (Overweight - acceptable for BBL)</li>
+  <li>No known allergies</li>
+  <li>Previous C-section scar (lower abdomen)</li>
+  <li>Non-smoker</li>
+  <li>Well-controlled hypertension (on medication)</li>
+</ul>
+<p><strong>Anesthetic Risk:</strong> ASA II (Mild systemic disease)</p>
+<p><strong>Special Considerations:</strong> Monitor blood pressure intra-operatively</p>`,
+      pre_op_notes: `<p><strong>Chief Complaint:</strong></p>
+<p>Patient desires body contouring with emphasis on waist reduction and buttock enhancement.</p>
+
+<p><strong>Examination:</strong></p>
+<p>Localized fat deposits in abdomen, flanks, and back. Good skin elasticity. Adequate donor fat available for BBL. Buttock shape suitable for enhancement.</p>
+
+<p><strong>Assessment:</strong></p>
+<p>Good candidate for combined liposuction 360 and BBL. Patient has adequate donor fat and realistic expectations.</p>
+
+<p><strong>Pre-operative Instructions:</strong></p>
+<ul>
+  <li>Fasting from midnight (NPO after 12:00 AM)</li>
+  <li>Continue blood pressure medication with small sip of water</li>
+  <li>No aspirin or NSAIDs 10 days prior</li>
+  <li>Shower with antibacterial soap night before and morning of surgery</li>
+  <li>Compression garments ready (sizes: M for abdomen, L for buttocks)</li>
+  <li>Arrive at clinic by 8:00 AM</li>
+</ul>`,
+      implant_details: JSON.stringify({
+        items: [],
+        freeTextNotes: 'Fat transfer procedure - no implants. Approximately 1000cc processed fat harvested from liposuction sites, 500cc per side injected into buttocks.'
+      }),
+      planned_anesthesia: 'GENERAL',
+      special_instructions: `<p><strong>Positioning:</strong></p>
+<p>Prone position for liposuction and BBL. Patient will be repositioned as needed.</p>
+
+<p><strong>Special Considerations:</strong></p>
+<ul>
+  <li>Patient must NOT sit directly on buttocks for 2 weeks post-op</li>
+  <li>Use BBL pillow for sitting (provided)</li>
+  <li>Compression garments to be worn 24/7 for 6 weeks</li>
+  <li>No sitting, lying on back, or strenuous activity for 2 weeks</li>
+  <li>Sleep on stomach or side only</li>
+</ul>
+
+<p><strong>Post-operative Care:</strong></p>
+<p>Monitor for fat embolism symptoms. Standard pain management. Lymphatic drainage massage recommended starting 1 week post-op.</p>`,
+      readiness_status: 'IN_PROGRESS',
+      ready_for_surgery: false,
+      estimated_duration_minutes: 180,
     }
   });
 
@@ -883,13 +1160,111 @@ async function main() {
   // Dr. Angela performing Rhinoplasty
   const case3 = await prisma.surgicalCase.create({
     data: {
-      patient_id: (await prisma.patient.findFirst({ where: { file_number: 'TEST005' } }))!.id, // Alice
+      patient_id: alicePatient.id, // Alice
       primary_surgeon_id: doctors[0].id, // Dr. Angela
+      consultation_id: consultation3.id, // ✅ Linked to consultation
       urgency: 'ELECTIVE',
       status: 'IN_THEATER',
       procedure_name: 'Open Rhinoplasty',
       diagnosis: 'Nasal Deformity',
       created_by: adminUser.id,
+    }
+  });
+
+  // Case Plan 3: Linked to Appointment 3 and Surgical Case 3
+  await prisma.casePlan.create({
+    data: {
+      appointment_id: appointment3.id,
+      surgical_case_id: case3.id,
+      patient_id: alicePatient.id,
+      doctor_id: doctors[0].id,
+      procedure_plan: `<h3><strong>Surgical Technique: Open Rhinoplasty with Septoplasty</strong></h3>
+<p><strong>Approach:</strong> Open rhinoplasty via transcolumellar and marginal incisions</p>
+
+<p><strong>Step-by-Step Plan:</strong></p>
+<ol>
+  <li><strong>Incision:</strong> Inverted-V transcolumellar incision + bilateral marginal incisions</li>
+  <li><strong>Elevation:</strong> Elevate skin-soft tissue envelope</li>
+  <li><strong>Dorsal Hump Reduction:</strong> 
+    <ul>
+      <li>Osteotome for bony hump removal</li>
+      <li>Scissors for cartilaginous hump reduction</li>
+      <li>Rasp for final contouring</li>
+    </ul>
+  </li>
+  <li><strong>Septoplasty:</strong> 
+    <ul>
+      <li>Harvest deviated septum cartilage</li>
+      <li>Preserve L-strut (1cm caudal and dorsal)</li>
+      <li>Use harvested cartilage for tip grafting</li>
+    </ul>
+  </li>
+  <li><strong>Tip Refinement:</strong>
+    <ul>
+      <li>Lower lateral cartilage modification</li>
+      <li>Columellar strut placement</li>
+      <li>Tip graft using autologous cartilage</li>
+    </ul>
+  </li>
+  <li><strong>Osteotomies:</strong> Lateral and medial osteotomies for nasal width reduction</li>
+  <li><strong>Closure:</strong> Layered closure with 6-0 PDS sutures</li>
+  <li><strong>Dressing:</strong> External nasal splint, internal nasal packing</li>
+</ol>`,
+      risk_factors: `<p><strong>Patient Risk Assessment:</strong></p>
+<ul>
+  <li>BMI: 21.8 (Normal range)</li>
+  <li>No known allergies</li>
+  <li>No previous nasal surgery</li>
+  <li>Non-smoker</li>
+  <li>No significant comorbidities</li>
+  <li>Deviated septum causing breathing difficulties</li>
+</ul>
+<p><strong>Anesthetic Risk:</strong> ASA I (Healthy patient)</p>
+<p><strong>Special Considerations:</strong> Patient has functional breathing issues requiring septoplasty</p>`,
+      pre_op_notes: `<p><strong>Chief Complaint:</strong></p>
+<p>Nasal deformity with dorsal hump and wide nasal tip. Difficulty breathing through right nostril.</p>
+
+<p><strong>Examination:</strong></p>
+<p>External: Dorsal hump present, wide nasal tip, slight deviation to right. Internal: Deviated septum to right, right inferior turbinate hypertrophy. Nasal valve function adequate.</p>
+
+<p><strong>Assessment:</strong></p>
+<p>Good candidate for open rhinoplasty with functional septoplasty. Patient has realistic expectations and understands the procedure, risks, and recovery timeline.</p>
+
+<p><strong>Pre-operative Instructions:</strong></p>
+<ul>
+  <li>Fasting from midnight (NPO after 12:00 AM)</li>
+  <li>No aspirin or NSAIDs 10 days prior</li>
+  <li>No herbal supplements 2 weeks prior</li>
+  <li>Shower with antibacterial soap night before and morning of surgery</li>
+  <li>No makeup or jewelry</li>
+  <li>Arrive at clinic by 7:30 AM</li>
+</ul>`,
+      implant_details: JSON.stringify({
+        items: [],
+        freeTextNotes: 'No implants required. Procedure uses autologous cartilage harvested from deviated septum for tip grafting and structural support.'
+      }),
+      planned_anesthesia: 'GENERAL',
+      special_instructions: `<p><strong>Positioning:</strong></p>
+<p>Supine position with head elevated 15-20 degrees. Head ring for stability.</p>
+
+<p><strong>Special Considerations:</strong></p>
+<ul>
+  <li>Nasal packing to remain for 24-48 hours</li>
+  <li>External splint to remain for 7-10 days</li>
+  <li>Patient must avoid nose blowing for 2 weeks</li>
+  <li>Sleep with head elevated for 1 week</li>
+  <li>Avoid glasses resting on nose bridge for 6 weeks</li>
+  <li>No strenuous activity or bending over for 2 weeks</li>
+</ul>
+
+<p><strong>Post-operative Care:</strong></p>
+<p>Standard post-op pain management. Nasal saline irrigation starting 48 hours post-op. Follow-up appointments at 1 week (splint removal), 1 month, 3 months, and 6 months.</p>
+
+<p><strong>Warning Signs:</strong></p>
+<p>Patient to report immediately: excessive bleeding, difficulty breathing, signs of infection, or severe pain.</p>`,
+      readiness_status: 'READY',
+      ready_for_surgery: true,
+      estimated_duration_minutes: 150,
     }
   });
 
@@ -910,8 +1285,557 @@ async function main() {
     }
   });
 
+  // Theater Bookings for surgical cases
+  const theaters = await prisma.theater.findMany();
+  if (theaters.length > 0) {
+    // Case 1: Already completed (no booking needed)
 
-  console.log('✅ Sample Surgical Cases Created (Pre-op, Intra-op, Recovery)');
+    // Case 2: Ready for scheduling - create provisional booking
+    if (theaters.length > 1) {
+      await prisma.theaterBooking.create({
+        data: {
+          theater_id: theaters[1].id, // Minor theater
+          surgical_case_id: case2.id,
+          start_time: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
+          end_time: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000), // 3 hours later
+          status: 'PROVISIONAL',
+        }
+      });
+    }
+
+    // Case 3: In theater - create confirmed booking for today
+    if (theaters.length > 0) {
+      const today = new Date();
+      today.setHours(9, 0, 0, 0); // 9 AM today
+      await prisma.theaterBooking.create({
+        data: {
+          theater_id: theaters[0].id, // Major theater
+          surgical_case_id: case3.id,
+          start_time: today,
+          end_time: new Date(today.getTime() + 2.5 * 60 * 60 * 1000), // 2.5 hours later
+          status: 'CONFIRMED',
+        }
+      });
+    }
+  }
+
+  console.log('✅ Complete Surgical Cases Created with Full Workflow Links');
+  console.log('   - Case 1: Recovery (linked to Appointment + Consultation + CasePlan)');
+  console.log('   - Case 2: Ready for Scheduling (linked to Appointment + Consultation + CasePlan + Theater Booking)');
+  console.log('   - Case 3: In Theater (linked to Appointment + Consultation + CasePlan + Theater Booking)');
+
+
+  // ============================================================================
+  // 9. DOCTOR AVAILABILITY SLOTS (Critical for Booking Workflow)
+  // ============================================================================
+  console.log('📅 Creating Doctor Availability Slots...');
+
+  // Configure slots for all doctors
+  for (const doctor of doctors) {
+    // Create slot configuration (15-minute intervals, 30-minute default duration)
+    await prisma.slotConfiguration.upsert({
+      where: { doctor_id: doctor.id },
+      update: {},
+      create: {
+        doctor_id: doctor.id,
+        default_duration: 30,
+        buffer_time: 5,
+        slot_interval: 15, // 15-minute slots
+      }
+    });
+
+    // Create availability template
+    const template = await prisma.availabilityTemplate.create({
+      data: {
+        doctor_id: doctor.id,
+        name: 'Default Weekly Schedule',
+        is_active: true,
+        slots: {
+          create: [
+            // Monday: 9 AM - 5 PM
+            { day_of_week: 1, start_time: '09:00', end_time: '17:00', slot_type: 'CLINIC', max_patients: 1 },
+            // Tuesday: 9 AM - 5 PM
+            { day_of_week: 2, start_time: '09:00', end_time: '17:00', slot_type: 'CLINIC', max_patients: 1 },
+            // Wednesday: 9 AM - 5 PM
+            { day_of_week: 3, start_time: '09:00', end_time: '17:00', slot_type: 'CLINIC', max_patients: 1 },
+            // Thursday: 9 AM - 5 PM
+            { day_of_week: 4, start_time: '09:00', end_time: '17:00', slot_type: 'CLINIC', max_patients: 1 },
+            // Friday: 9 AM - 3 PM
+            { day_of_week: 5, start_time: '09:00', end_time: '15:00', slot_type: 'CLINIC', max_patients: 1 },
+          ]
+        }
+      }
+    });
+  }
+
+  console.log('✅ Doctor Availability Slots Created (15-min intervals, Mon-Fri)');
+
+
+  // ============================================================================
+  // 10. APPOINTMENTS IN VARIOUS STATES (For Queue & Booking Testing)
+  // ============================================================================
+  console.log('📅 Creating Appointments in Various States...');
+
+  const allPatients = await prisma.patient.findMany();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Get patients for queue testing
+  const ritaPatient = await prisma.patient.findFirst({ where: { file_number: 'TEST001' } });
+  const carlPatient = await prisma.patient.findFirst({ where: { file_number: 'TEST002' } });
+  const fionaPatient = await prisma.patient.findFirst({ where: { file_number: 'TEST003' } });
+  const umaPatient = await prisma.patient.findFirst({ where: { file_number: 'TEST004' } });
+
+  if (ritaPatient && carlPatient && fionaPatient && umaPatient && doctors.length >= 2) {
+    // Appointment 1: PENDING (not yet confirmed by doctor)
+    const apptPending = await prisma.appointment.create({
+      data: {
+        patient_id: ritaPatient.id,
+        doctor_id: doctors[0].id, // Dr. Angela
+        appointment_date: new Date(today.getTime() + 1 * 24 * 60 * 60 * 1000), // Tomorrow
+        time: '10:00',
+        status: 'PENDING',
+        type: 'CONSULTATION',
+        reason: 'Initial consultation',
+        created_by_user_id: frontdeskUser.id,
+      }
+    });
+
+    // Appointment 2: CONFIRMED (doctor confirmed, not checked in)
+    const apptConfirmed = await prisma.appointment.create({
+      data: {
+        patient_id: carlPatient.id,
+        doctor_id: doctors[0].id, // Dr. Angela
+        appointment_date: new Date(today.getTime() + 1 * 24 * 60 * 60 * 1000), // Tomorrow
+        time: '10:15',
+        status: 'CONFIRMED',
+        type: 'CONSULTATION',
+        reason: 'Follow-up consultation',
+        doctor_confirmed_at: new Date(),
+        doctor_confirmed_by: doctors[0].user_id,
+        created_by_user_id: frontdeskUser.id,
+      }
+    });
+
+    // Appointment 3: SCHEDULED (checked in, waiting in queue)
+    const apptScheduled1 = await prisma.appointment.create({
+      data: {
+        patient_id: fionaPatient.id,
+        doctor_id: doctors[0].id, // Dr. Angela
+        appointment_date: today, // Today
+        time: '09:00',
+        status: 'SCHEDULED',
+        type: 'CONSULTATION',
+        reason: 'Routine check-up',
+        doctor_confirmed_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        doctor_confirmed_by: doctors[0].user_id,
+        checked_in_at: new Date(Date.now() - 30 * 60 * 1000), // 30 min ago
+        checked_in_by: frontdeskUser.id,
+        created_by_user_id: frontdeskUser.id,
+      }
+    });
+
+    // Appointment 4: SCHEDULED (checked in, waiting in queue - second patient)
+    const apptScheduled2 = await prisma.appointment.create({
+      data: {
+        patient_id: umaPatient.id,
+        doctor_id: doctors[0].id, // Dr. Angela
+        appointment_date: today, // Today
+        time: '09:15',
+        status: 'SCHEDULED',
+        type: 'CONSULTATION',
+        reason: 'Follow-up',
+        doctor_confirmed_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+        doctor_confirmed_by: doctors[0].user_id,
+        checked_in_at: new Date(Date.now() - 15 * 60 * 1000), // 15 min ago
+        checked_in_by: frontdeskUser.id,
+        created_by_user_id: frontdeskUser.id,
+      }
+    });
+
+    // Appointment 5: IN_CONSULTATION (currently active)
+    const apptInConsult = await prisma.appointment.create({
+      data: {
+        patient_id: ritaPatient.id,
+        doctor_id: doctors[1].id, // Dr. Mukami
+        appointment_date: today,
+        time: '08:30',
+        status: 'IN_CONSULTATION',
+        type: 'CONSULTATION',
+        reason: 'Initial consultation',
+        doctor_confirmed_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+        doctor_confirmed_by: doctors[1].user_id,
+        checked_in_at: new Date(Date.now() - 60 * 60 * 1000), // 1 hour ago
+        checked_in_by: frontdeskUser.id,
+        consultation_started_at: new Date(Date.now() - 20 * 60 * 1000), // Started 20 min ago
+        created_by_user_id: frontdeskUser.id,
+      }
+    });
+
+    // Create active consultation for appointment 5
+    await prisma.consultation.create({
+      data: {
+        appointment_id: apptInConsult.id,
+        doctor_id: doctors[1].id,
+        user_id: doctors[1].user_id,
+        started_at: new Date(Date.now() - 20 * 60 * 1000),
+      }
+    });
+
+    console.log('✅ Appointments Created:');
+    console.log('   - 1 PENDING (not confirmed)');
+    console.log('   - 1 CONFIRMED (not checked in)');
+    console.log('   - 2 SCHEDULED (checked in, in queue)');
+    console.log('   - 1 IN_CONSULTATION (active consultation)');
+  }
+
+
+  // ============================================================================
+  // 11. INVENTORY ITEMS, VENDORS, PURCHASE ORDERS
+  // ============================================================================
+  console.log('📦 Creating Inventory Items, Vendors & Purchase Orders...');
+
+  // Check if Vendor table exists
+  let vendorTableExists = false;
+  try {
+    await prisma.$queryRaw`SELECT 1 FROM "Vendor" LIMIT 1`;
+    vendorTableExists = true;
+  } catch (e: any) {
+    if (e.code === 'P2021' || e.message?.includes('does not exist')) {
+      vendorTableExists = false;
+    } else {
+      throw e;
+    }
+  }
+
+  if (!vendorTableExists) {
+    console.log('   ⚠️  Vendor/PurchaseOrder tables not found in database.');
+    console.log('   ⚠️  Skipping inventory seeding. Please run migrations first.');
+    console.log('   ⚠️  Run: npx prisma migrate deploy');
+  } else {
+    // Create STORES user if not exists
+    const storesPassword = await hashPassword('stores123');
+    const storesUser = await createOrUpdateUser({
+      email: 'stores@nairobisculpt.com',
+      password_hash: storesPassword,
+      role: Role.STORES,
+      first_name: 'Inventory',
+      last_name: 'Manager',
+    });
+
+    // Create vendors
+    const vendor1 = await prisma.vendor.create({
+      data: {
+        name: 'MedSupply Kenya Ltd',
+        contact_person: 'John Kamau',
+        email: 'orders@medsupply.co.ke',
+        phone: '+254722111111',
+        address: 'Industrial Area, Nairobi',
+        tax_id: 'P051234567K',
+        payment_terms: 'Net 30',
+        is_active: true,
+      }
+    });
+
+    const vendor2 = await prisma.vendor.create({
+      data: {
+        name: 'Surgical Equipment Africa',
+        contact_person: 'Mary Wanjiku',
+        email: 'sales@surgicalequip.africa',
+        phone: '+254733222222',
+        address: 'Westlands, Nairobi',
+        tax_id: 'P052345678K',
+        payment_terms: 'Net 15',
+        is_active: true,
+      }
+    });
+
+    // Create inventory items
+    const inventoryItems = await Promise.all([
+      // Medications
+      prisma.inventoryItem.create({
+        data: {
+          name: 'Sodium Chloride 0.9% IV Fluid 500ml',
+          sku: 'IV-SAL-500',
+          category: 'MEDICATION',
+          description: 'Normal saline for IV administration',
+          unit_of_measure: 'bottle',
+          unit_cost: 250,
+          quantity_on_hand: 50,
+          reorder_point: 20,
+          supplier: vendor1.name,
+          is_active: true,
+          is_billable: true,
+        }
+      }),
+      prisma.inventoryItem.create({
+        data: {
+          name: 'Paracetamol 500mg Tablets',
+          sku: 'MED-PARA-500',
+          category: 'MEDICATION',
+          description: 'Pain relief medication',
+          unit_of_measure: 'tablet',
+          unit_cost: 5,
+          quantity_on_hand: 500,
+          reorder_point: 200,
+          supplier: vendor1.name,
+          is_active: true,
+          is_billable: true,
+        }
+      }),
+      // Consumables
+      prisma.inventoryItem.create({
+        data: {
+          name: 'Surgical Gloves (Latex Free)',
+          sku: 'CONS-GLOVE-LF',
+          category: 'DISPOSABLE',
+          description: 'Sterile surgical gloves, latex-free, size medium',
+          unit_of_measure: 'pair',
+          unit_cost: 15,
+          quantity_on_hand: 200,
+          reorder_point: 100,
+          supplier: vendor1.name,
+          is_active: true,
+          is_billable: true,
+        }
+      }),
+      prisma.inventoryItem.create({
+        data: {
+          name: 'Surgical Masks (Disposable)',
+          sku: 'CONS-MASK-DIS',
+          category: 'DISPOSABLE',
+          description: '3-ply disposable surgical masks',
+          unit_of_measure: 'piece',
+          unit_cost: 10,
+          quantity_on_hand: 300,
+          reorder_point: 150,
+          supplier: vendor1.name,
+          is_active: true,
+          is_billable: false, // Not billable to patient
+        }
+      }),
+      // Implants
+      prisma.inventoryItem.create({
+        data: {
+          name: 'Silicone Breast Implant 300cc',
+          sku: 'IMPL-BREAST-300',
+          category: 'IMPLANT',
+          description: 'Round silicone breast implant, 300cc',
+          unit_of_measure: 'unit',
+          unit_cost: 45000,
+          quantity_on_hand: 4,
+          reorder_point: 2,
+          supplier: vendor2.name,
+          manufacturer: 'Allergan',
+          is_active: true,
+          is_billable: true,
+          is_implant: true,
+        }
+      }),
+      prisma.inventoryItem.create({
+        data: {
+          name: 'Surgical Suture 3-0 Vicryl',
+          sku: 'CONS-SUTURE-3-0',
+          category: 'DISPOSABLE',
+          description: 'Absorbable surgical suture, 3-0 Vicryl',
+          unit_of_measure: 'pack',
+          unit_cost: 500,
+          quantity_on_hand: 25,
+          reorder_point: 10,
+          supplier: vendor1.name,
+          is_active: true,
+          is_billable: true,
+        }
+      }),
+    ]);
+
+    // Create purchase order
+    const po = await prisma.purchaseOrder.create({
+      data: {
+        vendor_id: vendor1.id,
+        po_number: `PO-${new Date().getFullYear()}-001`,
+        status: 'APPROVED',
+        total_amount: 15000,
+        created_by_user_id: storesUser.id,
+        submitted_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+        approved_by_user_id: adminUser.id,
+        approved_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+        notes: 'Monthly restocking order',
+        items: {
+          create: [
+            {
+              inventory_item_id: inventoryItems[0].id, // IV Fluid
+              item_name: inventoryItems[0].name,
+              quantity_ordered: 30,
+              unit_price: 250,
+              total_price: 7500,
+            },
+            {
+              inventory_item_id: inventoryItems[2].id, // Gloves
+              item_name: inventoryItems[2].name,
+              quantity_ordered: 100,
+              unit_price: 15,
+              total_price: 1500,
+            },
+            {
+              inventory_item_id: inventoryItems[3].id, // Masks
+              item_name: inventoryItems[3].name,
+              quantity_ordered: 200,
+              unit_price: 10,
+              total_price: 2000,
+            },
+          ]
+        }
+      }
+    });
+
+    // Create goods receipt
+    const gr = await prisma.goodsReceipt.create({
+      data: {
+        purchase_order_id: po.id,
+        receipt_number: `GRN-${new Date().getFullYear()}-001`,
+        received_by_user_id: storesUser.id,
+        received_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+        notes: 'Received in good condition',
+        receipt_items: {
+          create: [
+            {
+              po_item_id: (await prisma.purchaseOrderItem.findFirst({ where: { purchase_order_id: po.id, inventory_item_id: inventoryItems[0].id } }))!.id,
+              inventory_item_id: inventoryItems[0].id,
+              quantity_received: 30,
+              unit_cost: 250,
+              batch_number: 'BATCH-001',
+              expiry_date: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
+            },
+            {
+              po_item_id: (await prisma.purchaseOrderItem.findFirst({ where: { purchase_order_id: po.id, inventory_item_id: inventoryItems[2].id } }))!.id,
+              inventory_item_id: inventoryItems[2].id,
+              quantity_received: 100,
+              unit_cost: 15,
+              batch_number: 'BATCH-002',
+            },
+          ]
+        }
+      }
+    });
+
+    // Update inventory quantities (goods receipt should have done this, but ensure it's correct)
+    await prisma.inventoryItem.update({
+      where: { id: inventoryItems[0].id },
+      data: { quantity_on_hand: { increment: 30 } }
+    });
+    await prisma.inventoryItem.update({
+      where: { id: inventoryItems[2].id },
+      data: { quantity_on_hand: { increment: 100 } }
+    });
+
+    console.log('✅ Inventory System Seeded:');
+    console.log(`   - 2 Vendors`);
+    console.log(`   - ${inventoryItems.length} Inventory Items (Medications, Consumables, Implants)`);
+    console.log(`   - 1 Purchase Order (APPROVED)`);
+    console.log(`   - 1 Goods Receipt`);
+  }
+
+
+  // ============================================================================
+  // 12. PRE-OP WARD CHECKLIST DATA (For Surgical Cases)
+  // ============================================================================
+  console.log('📋 Creating Pre-Op Ward Checklist Data...');
+
+  // Get surgical case that's ready for pre-op (use valid status)
+  const caseForPreOp = await prisma.surgicalCase.findFirst({
+    where: { status: 'READY_FOR_SCHEDULING' },
+    include: { patient: true }
+  });
+
+  if (caseForPreOp && nurses.length > 0) {
+    const preOpTemplate = await prisma.clinicalFormTemplate.findUnique({
+      where: { key_version: { key: 'NURSE_PREOP_WARD_CHECKLIST', version: 1 } }
+    });
+
+    if (preOpTemplate) {
+      // Check if inventory items exist for medication section
+      let medicationData: any[] = [];
+      try {
+        const inventoryItems = await prisma.inventoryItem.findMany({ take: 2 });
+        if (inventoryItems.length > 0) {
+          medicationData = [
+            {
+              inventoryItemId: inventoryItems[0].id,
+              name: inventoryItems[0].name,
+              quantity: 2,
+              unit: inventoryItems[0].unit_of_measure,
+              notes: 'Pre-op hydration',
+            },
+            ...(inventoryItems.length > 1 ? [{
+              inventoryItemId: inventoryItems[1].id,
+              name: inventoryItems[1].name,
+              quantity: 2,
+              unit: inventoryItems[1].unit_of_measure,
+              notes: 'Pre-op pain management',
+            }] : [])
+          ];
+        }
+      } catch (e) {
+        // Inventory items not available, skip medication section
+        console.log('   ⚠️  Inventory items not available, creating checklist without medication');
+      }
+
+      // Check if pre-op checklist already exists
+      const existingChecklist = await prisma.clinicalFormResponse.findFirst({
+        where: {
+          template_key: 'NURSE_PREOP_WARD_CHECKLIST',
+          template_version: 1,
+          surgical_case_id: caseForPreOp.id,
+        }
+      });
+
+      if (!existingChecklist) {
+        await prisma.clinicalFormResponse.create({
+          data: {
+            template_key: 'NURSE_PREOP_WARD_CHECKLIST',
+            template_version: 1,
+            surgical_case_id: caseForPreOp.id,
+            patient_id: caseForPreOp.patient_id,
+            status: 'DRAFT',
+            data_json: JSON.stringify({
+              patientVerification: {
+                nameConfirmed: true,
+                dobConfirmed: true,
+                allergiesNoted: true,
+                consentSigned: true,
+              },
+              medication: medicationData,
+              vitalSigns: {
+                bloodPressure: '120/80',
+                heartRate: 72,
+                temperature: 36.5,
+                oxygenSaturation: 98,
+              },
+              fastingStatus: {
+                lastMeal: '2024-02-23T20:00:00Z',
+                lastLiquid: '2024-02-23T22:00:00Z',
+                fastingConfirmed: true,
+              },
+              preparation: {
+                skinPrep: true,
+                jewelryRemoved: true,
+                makeupRemoved: true,
+                voided: true,
+              }
+            }),
+            created_by_user_id: nurses[0].id,
+            template_id: preOpTemplate.id,
+          }
+        });
+        console.log('✅ Pre-Op Ward Checklist Created for Surgical Case');
+      } else {
+        console.log('   ℹ️  Pre-Op Ward Checklist already exists for this case, skipping');
+      }
+
+      console.log('✅ Pre-Op Ward Checklist Created for Surgical Case');
+    }
+  }
 
 
   // ============================================================================
@@ -940,14 +1864,33 @@ async function main() {
   console.log('   - Frontdesk: reception@nairobisculpt.com (frontdesk123)');
   console.log('   - Nurses: jane@nairobisculpt.com, lucy@nairobisculpt.com (nurse123)');
   console.log('   - Theater Tech: theater@nairobisculpt.com (theatertech123)');
+  console.log('   - Stores: stores@nairobisculpt.com (stores123)');
   console.log('');
   console.log('🧪 Test Patients (11): password123');
   console.log('   Millicent, Rhoda, Rita, Carl, Fiona, Uma,');
   console.log('   Alice, Bob, Charlie, Diana, Eve');
   console.log('');
-  console.log('⚠️  NEXT STEPS:');
-  console.log('   1. Doctors must set their availability schedules');
-  console.log('   2. Appointments can then be booked');
+  console.log('📅 Booking & Queue System:');
+  console.log('   - All doctors have availability slots configured (15-min intervals)');
+  console.log('   - 5 appointments in various states:');
+  console.log('     • 1 PENDING (not confirmed)');
+  console.log('     • 1 CONFIRMED (not checked in)');
+  console.log('     • 2 SCHEDULED (checked in, in queue)');
+  console.log('     • 1 IN_CONSULTATION (active)');
+  console.log('');
+  console.log('📦 Inventory System:');
+  console.log('   - 2 Vendors (MedSupply Kenya, Surgical Equipment Africa)');
+  console.log('   - 6 Inventory Items (Medications, Consumables, Implants)');
+  console.log('   - 1 Purchase Order (APPROVED)');
+  console.log('   - 1 Goods Receipt');
+  console.log('');
+  console.log('✅ READY FOR TESTING:');
+  console.log('   ✓ Frontdesk can book appointments (doctors have slots)');
+  console.log('   ✓ Queue management (multiple patients checked in)');
+  console.log('   ✓ Consultation room (active consultation with timer)');
+  console.log('   ✓ Surgical planning (cases with plans ready)');
+  console.log('   ✓ Inventory management (items, vendors, POs)');
+  console.log('   ✓ Pre-op ward checklist (integrated with inventory)');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 }
 

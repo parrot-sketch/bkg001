@@ -1,19 +1,20 @@
 'use client';
 
 /**
- * Frontdesk Dashboard - Enhanced UI
- * 
- * Modern, clean dashboard with:
- * - Profile-centric header
- * - Refined stat cards
- * - Streamlined quick actions
- * - Better visual hierarchy and spacing
+ * Frontdesk Dashboard — Redesigned
+ *
+ * Primary surface for frontdesk staff. Today's patient queue is front-and-center.
+ * Layout:
+ *   - Header: profile, date, on-duty badge, notifications
+ *   - Pipeline bar: visual status counters for today's flow
+ *   - Main (8/12): Today's live patient queue (TodaysSchedule)
+ *   - Sidebar (4/12): Quick actions + Shift summary + Doctors on duty
  */
 
 import { useAuth } from '@/hooks/patient/useAuth';
 import { useDashboardData } from '@/components/frontdesk/hooks/useDashboardData';
 import { useTheaterSchedulingQueue } from '@/hooks/frontdesk/useTheaterScheduling';
-import { AvailableDoctorsPanel } from '@/components/frontdesk/AvailableDoctorsPanel';
+import { TodaysSchedule } from '@/components/frontdesk/TodaysSchedule';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,7 +24,6 @@ import { cn } from '@/lib/utils';
 import {
   Calendar,
   Clock,
-  AlertCircle,
   QrCode,
   FileText,
   Loader2,
@@ -34,14 +34,17 @@ import {
   Activity,
   ClipboardList,
   Building2,
+  Stethoscope,
+  CheckCircle2,
+  Plus,
 } from 'lucide-react';
 
 export default function FrontdeskDashboardPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { stats, loading } = useDashboardData();
-  const { data: theaterSchedulingData, isLoading: loadingTheaterScheduling } = useTheaterSchedulingQueue(isAuthenticated && !!user);
+  const { data: theaterSchedulingData, isLoading: loadingTheaterScheduling } =
+    useTheaterSchedulingQueue(isAuthenticated && !!user);
 
-  // Loading state
   if (authLoading) {
     return (
       <div className="flex items-center justify-center h-[80vh]">
@@ -58,7 +61,6 @@ export default function FrontdeskDashboardPage() {
     );
   }
 
-  // Auth state
   if (!isAuthenticated || !user) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -78,25 +80,26 @@ export default function FrontdeskDashboardPage() {
     );
   }
 
+  // Derive completion progress
+  const totalExpected = stats.expectedPatients;
+  const totalProcessed = stats.completedToday ?? 0;
+  const progressPct = totalExpected > 0 ? Math.round((totalProcessed / totalExpected) * 100) : 0;
+
   return (
     <div className="animate-in fade-in duration-500">
-      {/* Sticky Header - Profile-Centric Design */}
+      {/* ── Sticky Header ── */}
       <header className="sticky top-0 z-40 -mx-4 sm:-mx-5 lg:-mx-8 xl:-mx-10 px-4 sm:px-5 lg:px-8 xl:px-10 py-3 mb-5 bg-white/80 backdrop-blur-md border-b border-slate-100/60">
         <div className="flex items-center justify-between">
-          {/* Profile Section */}
+          {/* Profile */}
           <div className="flex items-center gap-3">
-            {/* User Avatar */}
             <div className="relative">
               <div className="h-11 w-11 rounded-full ring-2 ring-white shadow-sm overflow-hidden">
                 <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-cyan-600 to-cyan-700 text-white text-sm font-semibold">
                   {user?.firstName?.[0]}{user?.lastName?.[0]}
                 </div>
               </div>
-              {/* Online indicator */}
               <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white" />
             </div>
-
-            {/* Name & Context */}
             <div className="flex flex-col">
               <h1 className="text-base font-semibold text-slate-900 leading-tight">
                 {user?.firstName} {user?.lastName}
@@ -107,17 +110,13 @@ export default function FrontdeskDashboardPage() {
             </div>
           </div>
 
-          {/* Right Actions */}
+          {/* Right Controls */}
           <div className="flex items-center gap-2">
-            {/* Status Pill */}
             <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-cyan-50 border border-cyan-100 rounded-full">
               <span className="h-1.5 w-1.5 rounded-full bg-cyan-500 animate-pulse" />
               <span className="text-[10px] font-medium text-cyan-700">On Duty</span>
             </div>
-
             <NotificationBell />
-
-            {/* Quick Profile Link */}
             <Link href="/frontdesk/profile">
               <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full hover:bg-slate-100">
                 <User className="h-4 w-4 text-slate-500" />
@@ -127,108 +126,97 @@ export default function FrontdeskDashboardPage() {
         </div>
       </header>
 
-      <div className="space-y-6">
-        {/* Quick Actions Row - Urgent Items First */}
-        <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-
-          {/* Theater Scheduling Queue */}
-          {theaterSchedulingData && theaterSchedulingData.count > 0 && (
-            <QuickActionTile
-              title="Theater Scheduling"
-              count={theaterSchedulingData.count}
-              icon={Building2}
-              color="blue"
-              href="/frontdesk/theater-scheduling"
-              loading={loadingTheaterScheduling}
-              pulse
-            />
-          )}
-
-          {/* Pending Check-ins */}
-          {stats.pendingCheckIns > 0 && (
-            <QuickActionTile
-              title="Pending Check-ins"
-              count={stats.pendingCheckIns}
-              icon={Clock}
-              color="amber"
-              href="/frontdesk/appointments?status=SCHEDULED"
-              loading={loading}
-              pulse
-            />
-          )}
-
-
-
-          {/* New Walk-in */}
-          <QuickActionTile
-            title="New Walk-in"
-            icon={QrCode}
-            color="cyan"
-            href="/frontdesk/intake/start"
-            subtitle="Start Intake"
+      <div className="space-y-5">
+        {/* ── Pipeline Bar: Live counts across the patient journey ── */}
+        <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <PipelineCard
+            label="Arriving Today"
+            value={stats.pendingCheckIns}
+            icon={Calendar}
+            color="blue"
+            loading={loading}
           />
-
-          {/* Pending Intakes */}
-          <QuickActionTile
-            title="Pending Intakes"
-            count={stats.pendingIntakeCount}
-            icon={ClipboardList}
-            color="indigo"
-            href="/frontdesk/intake/pending"
+          <PipelineCard
+            label="In Waiting Room"
+            value={stats.checkedInPatients}
+            icon={Clock}
+            color="amber"
+            loading={loading}
+          />
+          <PipelineCard
+            label="In Consultation"
+            value={stats.inConsultation ?? 0}
+            icon={Stethoscope}
+            color="violet"
+            loading={loading}
+          />
+          <PipelineCard
+            label="Completed Today"
+            value={stats.completedToday ?? 0}
+            icon={CheckCircle2}
+            color="emerald"
             loading={loading}
           />
         </section>
 
-        {/* Stats Overview - Compact Row */}
-        <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <StatCard
-            title="Expected Today"
-            value={stats.expectedPatients}
-            icon={Calendar}
-            color="slate"
-          />
-          <StatCard
-            title="Checked In"
-            value={stats.checkedInPatients}
-            icon={CheckCircle}
-            color="emerald"
-          />
-          <StatCard
-            title="Awaiting Arrival"
-            value={stats.pendingCheckIns}
-            icon={Clock}
-            color="amber"
-          />
-
-        </section>
-
-        {/* Main Content: Doctors Panel */}
+        {/* ── Main Content ── */}
         <section className="grid grid-cols-1 xl:grid-cols-12 gap-5">
-          {/* Doctors Panel - Full Width */}
+          {/* Primary: Today's Patient Queue */}
           <div className="xl:col-span-8">
-            <AvailableDoctorsPanel />
+            <TodaysSchedule />
           </div>
 
-          {/* Right Sidebar: Quick Links & Tools */}
-          <div className="xl:col-span-4 space-y-5">
-            {/* Quick Navigation */}
+          {/* Right Sidebar */}
+          <div className="xl:col-span-4 space-y-4">
+
+            {/* Quick Actions */}
             <Card className="border-slate-200/60 shadow-sm rounded-xl overflow-hidden">
               <CardHeader className="py-3 px-4 bg-slate-50/50 border-b border-slate-100">
                 <CardTitle className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                   <Activity className="h-4 w-4" />
-                  Quick Navigation
+                  Quick Actions
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-3">
-                <div className="space-y-2">
-                  <NavLink href="/frontdesk/appointments" icon={Calendar} label="All Appointments" />
-                  <NavLink href="/frontdesk/patients" icon={Users} label="Patient Registry" />
-                  <NavLink href="/frontdesk/billing" icon={FileText} label="Billing & Payments" />
-                </div>
+              <CardContent className="p-3 space-y-2">
+                <QuickActionBtn
+                  href="/frontdesk/appointments/new"
+                  icon={Plus}
+                  label="New Appointment"
+                  color="cyan"
+                />
+                <QuickActionBtn
+                  href="/frontdesk/intake/start"
+                  icon={QrCode}
+                  label="Walk-in Intake"
+                  color="indigo"
+                />
+                <QuickActionBtn
+                  href="/frontdesk/theater-scheduling"
+                  icon={Building2}
+                  label={
+                    theaterSchedulingData && theaterSchedulingData.count > 0
+                      ? `Theater Queue (${theaterSchedulingData.count})`
+                      : 'Theater Scheduling'
+                  }
+                  color="blue"
+                  pulse={!!(theaterSchedulingData && theaterSchedulingData.count > 0)}
+                />
+                <QuickActionBtn
+                  href="/frontdesk/patients"
+                  icon={Users}
+                  label="Patient Registry"
+                  color="slate"
+                />
+                <QuickActionBtn
+                  href="/frontdesk/billing"
+                  icon={FileText}
+                  label="Billing & Payments"
+                  color="slate"
+                />
               </CardContent>
             </Card>
 
-            {/* Today's Timeline Summary */}
+            {/* Shift Summary */}
             <Card className="border-slate-200/60 shadow-sm rounded-xl overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 text-white">
               <CardHeader className="py-3 px-4 border-b border-white/10">
                 <CardTitle className="text-sm font-semibold text-slate-200 flex items-center gap-2">
@@ -238,38 +226,46 @@ export default function FrontdeskDashboardPage() {
               </CardHeader>
               <CardContent className="p-4">
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-slate-400">Total Sessions</span>
-                    <span className="text-lg font-bold text-white">{stats.expectedPatients}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-slate-400">Completed</span>
-                    <span className="text-lg font-bold text-emerald-400">{stats.checkedInPatients}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-slate-400">Pending</span>
-                    <span className="text-lg font-bold text-amber-400">{stats.pendingCheckIns}</span>
-                  </div>
+                  <ShiftRow label="Total Booked" value={stats.expectedPatients} valueClass="text-white" />
+                  <ShiftRow label="Arrived & Waiting" value={stats.checkedInPatients} valueClass="text-amber-400" />
+                  <ShiftRow label="In Consultation" value={stats.inConsultation ?? 0} valueClass="text-violet-400" />
+                  <ShiftRow label="Completed" value={stats.completedToday ?? 0} valueClass="text-emerald-400" />
 
-                  {/* Progress Bar */}
-                  <div className="pt-2">
+                  {/* Progress bar */}
+                  <div className="pt-1">
                     <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-full transition-all duration-500"
-                        style={{
-                          width: `${stats.expectedPatients > 0 ? (stats.checkedInPatients / stats.expectedPatients * 100) : 0}%`
-                        }}
+                        className="h-full bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-full transition-all duration-700"
+                        style={{ width: `${progressPct}%` }}
                       />
                     </div>
                     <p className="text-[10px] text-slate-500 mt-1.5 text-center">
-                      {stats.expectedPatients > 0
-                        ? `${Math.round(stats.checkedInPatients / stats.expectedPatients * 100)}% processed`
-                        : 'No appointments today'}
+                      {totalExpected > 0
+                        ? `${progressPct}% of appointments completed`
+                        : 'No appointments scheduled today'}
                     </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Pending Intakes alert (only when non-zero) */}
+            {stats.pendingIntakeCount > 0 && (
+              <Link href="/frontdesk/intake/pending">
+                <Card className="border-indigo-200 bg-indigo-50 shadow-sm rounded-xl cursor-pointer hover:shadow-md transition-shadow">
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-indigo-100">
+                      <ClipboardList className="h-4 w-4 text-indigo-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-indigo-800">Pending Intakes</p>
+                      <p className="text-xs text-indigo-600">{stats.pendingIntakeCount} intake{stats.pendingIntakeCount !== 1 ? 's' : ''} awaiting review</p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 text-indigo-400 shrink-0" />
+                  </CardContent>
+                </Card>
+              </Link>
+            )}
           </div>
         </section>
       </div>
@@ -277,121 +273,94 @@ export default function FrontdeskDashboardPage() {
   );
 }
 
-/* Sub-components */
+/* ── Sub-components ── */
 
-function QuickActionTile({
-  title,
-  count,
-  icon: Icon,
-  color,
-  href,
-  loading = false,
-  pulse = false,
-  subtitle
+function PipelineCard({
+  label, value, icon: Icon, color, loading,
 }: {
-  title: string;
-  count?: number;
-  icon: any;
-  color: 'blue' | 'amber' | 'emerald' | 'cyan' | 'indigo' | 'slate';
-  href: string;
-  loading?: boolean;
-  pulse?: boolean;
-  subtitle?: string;
-}) {
-  const colorClasses: Record<string, { bg: string; text: string; border: string; icon: string }> = {
-    blue: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200 hover:border-blue-300', icon: 'text-blue-600' },
-    amber: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200 hover:border-amber-300', icon: 'text-amber-600' },
-    emerald: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200 hover:border-emerald-300', icon: 'text-emerald-600' },
-    cyan: { bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200 hover:border-cyan-300', icon: 'text-cyan-600' },
-    indigo: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200 hover:border-indigo-300', icon: 'text-indigo-600' },
-    slate: { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200 hover:border-slate-300', icon: 'text-slate-600' },
-  };
-
-  const styles = colorClasses[color];
-
-  return (
-    <Link href={href}>
-      <Card className={cn(
-        "group cursor-pointer transition-all duration-200 hover:shadow-md border-2 rounded-xl overflow-hidden",
-        styles.border
-      )}>
-        <CardContent className="p-4">
-          <div className="flex items-start justify-between mb-3">
-            <div className={cn("p-2 rounded-lg", styles.bg)}>
-              <Icon className={cn("h-4 w-4", styles.icon)} />
-            </div>
-            {pulse && count !== undefined && count > 0 && (
-              <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
-            )}
-          </div>
-
-          <div>
-            <p className="text-[10px] uppercase tracking-wide font-semibold text-slate-400 mb-0.5">{title}</p>
-            {count !== undefined ? (
-              <div className="flex items-baseline gap-1">
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
-                ) : (
-                  <span className={cn("text-2xl font-bold", styles.text)}>{count}</span>
-                )}
-              </div>
-            ) : subtitle ? (
-              <p className={cn("text-xs font-medium", styles.text)}>{subtitle}</p>
-            ) : null}
-          </div>
-
-          <div className={cn("mt-2 flex items-center text-[10px] font-medium opacity-0 group-hover:opacity-100 transition-opacity", styles.text)}>
-            View <ArrowRight className="h-3 w-3 ml-0.5" />
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
-  );
-}
-
-function StatCard({
-  title,
-  value,
-  icon: Icon,
-  color
-}: {
-  title: string;
+  label: string;
   value: number;
   icon: any;
-  color: 'slate' | 'emerald' | 'amber' | 'blue';
+  color: 'blue' | 'amber' | 'violet' | 'emerald';
+  loading?: boolean;
 }) {
-  const colorClasses: Record<string, { bg: string; icon: string }> = {
-    slate: { bg: 'bg-slate-100', icon: 'text-slate-600' },
-    emerald: { bg: 'bg-emerald-100', icon: 'text-emerald-600' },
-    amber: { bg: 'bg-amber-100', icon: 'text-amber-600' },
-    blue: { bg: 'bg-blue-100', icon: 'text-blue-600' },
+  const styles: Record<string, { bg: string; icon: string; text: string; border: string }> = {
+    blue: { bg: 'bg-blue-50', icon: 'text-blue-500', text: 'text-blue-700', border: 'border-blue-200' },
+    amber: { bg: 'bg-amber-50', icon: 'text-amber-500', text: 'text-amber-700', border: 'border-amber-200' },
+    violet: { bg: 'bg-violet-50', icon: 'text-violet-500', text: 'text-violet-700', border: 'border-violet-200' },
+    emerald: { bg: 'bg-emerald-50', icon: 'text-emerald-500', text: 'text-emerald-700', border: 'border-emerald-200' },
   };
-
-  const styles = colorClasses[color];
+  const s = styles[color];
+  const isActive = value > 0;
 
   return (
-    <div className="flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-100 shadow-sm">
-      <div className={cn("p-2 rounded-lg", styles.bg)}>
-        <Icon className={cn("h-4 w-4", styles.icon)} />
+    <div className={cn(
+      'flex items-center gap-3 p-3.5 rounded-xl border bg-white transition-all',
+      isActive ? s.border : 'border-slate-100',
+    )}>
+      <div className={cn('p-2 rounded-lg', s.bg)}>
+        <Icon className={cn('h-4 w-4', s.icon)} />
       </div>
       <div className="min-w-0">
-        <p className="text-[10px] uppercase tracking-wide font-medium text-slate-400">{title}</p>
-        <p className="text-xl font-bold text-slate-800">{value}</p>
+        <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 leading-tight">{label}</p>
+        {loading ? (
+          <Loader2 className="h-4 w-4 animate-spin text-slate-300 mt-1" />
+        ) : (
+          <p className={cn('text-xl font-bold', isActive ? s.text : 'text-slate-300')}>{value}</p>
+        )}
       </div>
+      {isActive && (
+        <span className={cn('ml-auto h-2 w-2 rounded-full animate-pulse shrink-0',
+          color === 'blue' ? 'bg-blue-400' :
+            color === 'amber' ? 'bg-amber-400' :
+              color === 'violet' ? 'bg-violet-400' : 'bg-emerald-400'
+        )} />
+      )}
     </div>
   );
 }
 
-function NavLink({ href, icon: Icon, label }: { href: string; icon: any; label: string }) {
+function QuickActionBtn({
+  href, icon: Icon, label, color, pulse = false,
+}: {
+  href: string;
+  icon: any;
+  label: string;
+  color: 'cyan' | 'indigo' | 'blue' | 'slate';
+  pulse?: boolean;
+}) {
+  const styles: Record<string, { hover: string; iconBg: string; iconColor: string }> = {
+    cyan: { hover: 'hover:bg-cyan-50 hover:border-cyan-200', iconBg: 'bg-cyan-100', iconColor: 'text-cyan-600' },
+    indigo: { hover: 'hover:bg-indigo-50 hover:border-indigo-200', iconBg: 'bg-indigo-100', iconColor: 'text-indigo-600' },
+    blue: { hover: 'hover:bg-blue-50 hover:border-blue-200', iconBg: 'bg-blue-100', iconColor: 'text-blue-600' },
+    slate: { hover: 'hover:bg-slate-50 hover:border-slate-200', iconBg: 'bg-slate-100', iconColor: 'text-slate-500' },
+  };
+  const s = styles[color];
+
   return (
     <Link href={href}>
-      <div className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-50 transition-colors group cursor-pointer">
-        <div className="p-1.5 rounded-md bg-slate-100 group-hover:bg-cyan-100 transition-colors">
-          <Icon className="h-3.5 w-3.5 text-slate-500 group-hover:text-cyan-600 transition-colors" />
+      <div className={cn(
+        'flex items-center gap-3 p-2.5 rounded-lg border border-transparent transition-all group cursor-pointer',
+        s.hover,
+      )}>
+        <div className={cn('p-1.5 rounded-md relative shrink-0', s.iconBg)}>
+          <Icon className={cn('h-3.5 w-3.5', s.iconColor)} />
+          {pulse && (
+            <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+          )}
         </div>
-        <span className="text-sm font-medium text-slate-600 group-hover:text-slate-900">{label}</span>
-        <ArrowRight className="h-3 w-3 ml-auto text-slate-300 group-hover:text-slate-500 transition-colors" />
+        <span className="text-sm font-medium text-slate-600 group-hover:text-slate-900 flex-1 min-w-0 truncate">{label}</span>
+        <ArrowRight className="h-3 w-3 ml-auto text-slate-300 group-hover:text-slate-400 shrink-0 transition-colors" />
       </div>
     </Link>
+  );
+}
+
+function ShiftRow({ label, value, valueClass }: { label: string; value: number; valueClass: string }) {
+  return (
+    <div className="flex justify-between items-center">
+      <span className="text-xs text-slate-400">{label}</span>
+      <span className={cn('text-lg font-bold', valueClass)}>{value}</span>
+    </div>
   );
 }

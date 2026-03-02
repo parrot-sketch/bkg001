@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
     ArrowLeft, CheckCircle, User,
-    FileText, ChevronsRight, Sun, Sunset, Moon, Loader2, Calendar, Stethoscope
+    FileText, ChevronsRight, Sun, Sunset, Moon, Loader2, Calendar, Stethoscope, Clock
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PatientCombobox } from '@/components/frontdesk/PatientCombobox';
@@ -21,14 +21,12 @@ import { cn } from '@/lib/utils';
 import { format, addMonths, endOfMonth, isToday, isTomorrow, startOfDay, isAfter } from 'date-fns';
 import { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';
 import { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
-import type { AvailableSlotResponseDto } from '@/application/dtos/AvailableSlotResponseDto';
 import { AppointmentSource } from '@/domain/enums/AppointmentSource';
 import { BookingChannel } from '@/domain/enums/BookingChannel';
 import { usePatientAppointments } from '@/hooks/appointments/useAppointments';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle, Info } from 'lucide-react';
-import { useDoctorAvailableDates, useDoctorAvailableSlots, getDefaultAvailabilityDateRange } from '@/hooks/schedule/useDoctorAvailability';
 
 interface AppointmentBookingFormProps {
     mode?: 'full' | 'quick'; // NEW: Determines workflow behavior
@@ -82,6 +80,7 @@ export function AppointmentBookingForm({
         appointmentDate: string; // YYYY-MM-DD
         selectedSlot: string | null; // HH:mm
         type: string;
+        reason: string; // Optional reason for appointment
         note: string;
     }>(() => {
         // Parse initialDate if it's an ISO string
@@ -101,6 +100,7 @@ export function AppointmentBookingForm({
             appointmentDate: parsedDate,
             selectedSlot: initialTime || null,
             type: initialType || '',
+            reason: '', // Optional reason field
             note: '',
         };
     });
@@ -283,7 +283,7 @@ export function AppointmentBookingForm({
         switch (currentStep) {
             case 1: return !!formData.patientId;
             case 2: return !!formData.doctorId;
-            case 3: return !!formData.appointmentDate && !!formData.selectedSlot;
+            case 3: return !!formData.appointmentDate && !!formData.selectedSlot; // selectedSlot is now the proposed time
             case 4: return !!formData.type;
             default: return false;
         }
@@ -314,6 +314,7 @@ export function AppointmentBookingForm({
                 appointmentDate: new Date(formData.appointmentDate),
                 time: formData.selectedSlot,
                 type: formData.type,
+                reason: formData.reason || undefined, // Optional reason field
                 note: formData.note,
                 // Source-aware fields for follow-up linkage
                 ...(source ? { source: typeof source === 'string' ? source : source } : {}),
@@ -333,11 +334,47 @@ export function AppointmentBookingForm({
                     router.back();
                 }
             } else {
-                toast.error(response.error || 'Failed to schedule appointment');
+                // Provide more helpful error messages
+                let errorMessage = response.error || 'Failed to schedule appointment';
+                
+                // Check for availability-related errors
+                if (errorMessage.includes('no availability configured') || errorMessage.includes('availability schedule')) {
+                    if (isFollowUp) {
+                        // For follow-up appointments, this shouldn't happen (we allow it), but show helpful message
+                        errorMessage = 'Unable to schedule appointment. Please configure your availability schedule in Settings → Schedule, or contact support.';
+                    } else {
+                        errorMessage = 'The selected doctor has not configured their availability schedule. Please ask the doctor to set up their working hours, or contact the administrator.';
+                    }
+                } else if (errorMessage.includes('not available') || errorMessage.includes('already booked')) {
+                    errorMessage = `The selected time slot is not available. ${isFollowUp ? 'Please choose a different time, or configure your availability schedule if you need to schedule outside your regular hours.' : 'Please select a different date or time.'}`;
+                }
+                
+                toast.error(errorMessage, { duration: 6000 });
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Booking error', error);
-            toast.error('An error occurred while booking');
+            
+            // Extract error message from various error types
+            let errorMessage = 'An error occurred while booking the appointment';
+            
+            if (error?.message) {
+                errorMessage = error.message;
+            } else if (error?.response?.data?.error) {
+                errorMessage = error.response.data.error;
+            } else if (typeof error === 'string') {
+                errorMessage = error;
+            }
+            
+            // Provide helpful context for availability errors
+            if (errorMessage.includes('no availability configured') || errorMessage.includes('availability schedule')) {
+                if (isFollowUp) {
+                    errorMessage = 'Unable to schedule follow-up appointment. Please configure your availability schedule in Settings → Schedule, or contact support.';
+                } else {
+                    errorMessage = 'The selected doctor has not configured their availability schedule. Please ask the doctor to set up their working hours, or contact the administrator.';
+                }
+            }
+            
+            toast.error(errorMessage, { duration: 6000 });
         } finally {
             setIsSubmitting(false);
         }
@@ -700,6 +737,16 @@ export function AppointmentBookingForm({
 
                                     <span className="text-muted-foreground">Time:</span>
                                     <span className="font-medium text-right">{formData.selectedSlot}</span>
+
+                                    <span className="text-muted-foreground">Type:</span>
+                                    <span className="font-medium text-right">{formData.type}</span>
+
+                                    {formData.reason && (
+                                        <>
+                                            <span className="text-muted-foreground">Reason:</span>
+                                            <span className="font-medium text-right">{formData.reason}</span>
+                                        </>
+                                    )}
                                 </div>
                             </div>
 
@@ -756,146 +803,89 @@ interface Step3Props {
 }
 
 function Step3DateTimePicker({ doctorId, selectedDate, selectedSlot, onSelect, onBack, onNext }: Step3Props) {
-    const { startDate, endDate } = getDefaultAvailabilityDateRange();
+    const [proposedDate, setProposedDate] = useState(selectedDate || '');
+    const [proposedTime, setProposedTime] = useState(selectedSlot || '');
 
-    // Use shared hooks - will reuse cached data from AvailableDoctorsPanel if available
-    const { 
-        data: availableDates = [], 
-        isLoading: loadingDates 
-    } = useDoctorAvailableDates(doctorId, startDate, endDate);
-
-    const { 
-        data: slots = [], 
-        isLoading: loadingSlots 
-    } = useDoctorAvailableSlots(doctorId, selectedDate || '');
-
-    // Auto-select first available date if none selected yet
+    // Auto-set today's date if none selected
     useEffect(() => {
-        if (availableDates.length > 0 && !selectedDate && !loadingDates) {
-            onSelect(availableDates[0], null);
+        if (!proposedDate) {
+            const today = format(new Date(), 'yyyy-MM-dd');
+            setProposedDate(today);
+            onSelect(today, null);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [availableDates, selectedDate, loadingDates]);
+    }, [proposedDate, onSelect]);
 
-    const availableSlots = slots.filter(s => s.isAvailable);
-
-    // Group slots by time of day
-    const morning = availableSlots.filter(s => parseInt(s.startTime) < 12);
-    const afternoon = availableSlots.filter(s => { const h = parseInt(s.startTime); return h >= 12 && h < 17; });
-    const evening = availableSlots.filter(s => parseInt(s.startTime) >= 17);
-    const sections = [
-        { label: 'Morning', icon: Sun, slots: morning, color: 'text-amber-500' },
-        { label: 'Afternoon', icon: Sunset, slots: afternoon, color: 'text-orange-500' },
-        { label: 'Evening', icon: Moon, slots: evening, color: 'text-indigo-500' },
-    ].filter(s => s.slots.length > 0);
-
-    const dateLabelFor = (dateStr: string) => {
-        const d = new Date(dateStr + 'T00:00:00');
-        if (isToday(d)) return 'Today';
-        if (isTomorrow(d)) return 'Tomorrow';
-        return format(d, 'EEE, MMM d');
+    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const date = e.target.value;
+        setProposedDate(date);
+        onSelect(date, proposedTime);
     };
 
+    const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const time = e.target.value;
+        setProposedTime(time);
+        onSelect(proposedDate, time);
+    };
+
+    const minDate = format(new Date(), 'yyyy-MM-dd'); // Today
+
     return (
-        <div className="space-y-5">
-            {/* ── Date chips ── */}
-            {loadingDates ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading availability…
-                </div>
-            ) : availableDates.length === 0 ? (
-                <div className="rounded-lg bg-muted/30 p-6 text-center text-sm text-muted-foreground">
-                    No available dates in the next 2 months for this doctor.
-                </div>
-            ) : (
+        <div className="space-y-6">
+            <div className="space-y-2">
+                <Label className="text-sm font-semibold text-foreground">
+                    Proposed Appointment Date & Time
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                    Select your preferred date and time. The doctor will review and confirm or suggest alternatives.
+                </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Date Input */}
                 <div className="space-y-2">
-                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Select Date</Label>
-                    <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
-                        {availableDates.slice(0, 14).map(dateStr => {
-                            const d = new Date(dateStr + 'T00:00:00');
-                            const isSelected = selectedDate === dateStr;
-                            const todayDate = isToday(d);
-                            return (
-                                <button
-                                    key={dateStr}
-                                    type="button"
-                                    onClick={() => onSelect(dateStr, null)}
-                                    className={cn(
-                                        'shrink-0 flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-150 border min-w-[58px]',
-                                        isSelected
-                                            ? 'bg-primary text-primary-foreground border-primary shadow-md'
-                                            : todayDate
-                                                ? 'bg-cyan-50 text-cyan-700 border-cyan-300 hover:border-cyan-400'
-                                                : 'bg-background text-foreground border-border hover:border-primary/40 hover:bg-muted/40'
-                                    )}
-                                >
-                                    <span className={cn('text-[10px] font-bold uppercase tracking-wider leading-none', isSelected ? 'opacity-70' : 'text-muted-foreground')}>
-                                        {todayDate ? 'Today' : format(d, 'EEE')}
-                                    </span>
-                                    <span className="text-lg font-bold leading-none">{format(d, 'd')}</span>
-                                    <span className={cn('text-[9px] leading-none', isSelected ? 'opacity-60' : 'text-muted-foreground')}>
-                                        {format(d, 'MMM')}
-                                    </span>
-                                </button>
-                            );
-                        })}
+                    <Label htmlFor="appointment-date" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Date
+                    </Label>
+                    <div className="relative">
+                        <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <input
+                            id="appointment-date"
+                            type="date"
+                            value={proposedDate}
+                            onChange={handleDateChange}
+                            min={minDate}
+                            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-background text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        />
                     </div>
                 </div>
-            )}
 
-            {/* ── Slot grid ── */}
-            {selectedDate && (
-                <div className="space-y-3">
-                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                        Select Time — {dateLabelFor(selectedDate)}
+                {/* Time Input */}
+                <div className="space-y-2">
+                    <Label htmlFor="appointment-time" className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Time
                     </Label>
-                    {loadingSlots ? (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Loading slots…
-                        </div>
-                    ) : sections.length > 0 ? (
-                        <div className="space-y-4">
-                            {sections.map(section => (
-                                <div key={section.label}>
-                                    <div className="flex items-center gap-1.5 mb-2">
-                                        <section.icon className={cn('h-3.5 w-3.5', section.color)} />
-                                        <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                                            {section.label}
-                                        </span>
-                                        <span className="text-[11px] text-muted-foreground/50">({section.slots.length})</span>
-                                    </div>
-                                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
-                                        {section.slots.map((slot, i) => {
-                                            const isSelected = selectedSlot === slot.startTime;
-                                            return (
-                                                <button
-                                                    key={i}
-                                                    type="button"
-                                                    onClick={() => onSelect(selectedDate, slot.startTime)}
-                                                    className={cn(
-                                                        'py-2 px-1 rounded-lg text-xs font-semibold transition-all duration-150 border text-center',
-                                                        isSelected
-                                                            ? 'bg-primary text-primary-foreground border-primary shadow-sm scale-[1.04]'
-                                                            : 'bg-background text-foreground border-border hover:border-primary/40 hover:bg-muted/40'
-                                                    )}
-                                                >
-                                                    {slot.startTime}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="rounded-lg bg-muted/30 p-6 text-center text-sm text-muted-foreground">
-                            No available slots on {dateLabelFor(selectedDate)}.
-                        </div>
-                    )}
+                    <div className="relative">
+                        <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <input
+                            id="appointment-time"
+                            type="time"
+                            value={proposedTime}
+                            onChange={handleTimeChange}
+                            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-input bg-background text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        />
+                    </div>
                 </div>
-            )}
+            </div>
+
+            {/* Info Alert */}
+            <Alert className="bg-cyan-50 border-cyan-200">
+                <Info className="h-4 w-4 text-cyan-600" />
+                <AlertTitle className="text-cyan-800 text-sm font-semibold">How it works</AlertTitle>
+                <AlertDescription className="text-cyan-700 text-xs mt-1">
+                    The system will check if your proposed time is available. If it is, the slot will be automatically allocated. 
+                    If not, the doctor will receive alternative time suggestions to choose from.
+                </AlertDescription>
+            </Alert>
 
             {/* ── Navigation ── */}
             <div className="flex justify-between pt-4 border-t border-slate-100">
@@ -909,7 +899,7 @@ function Step3DateTimePicker({ doctorId, selectedDate, selectedSlot, onSelect, o
                 </Button>
                 <Button 
                     onClick={onNext} 
-                    disabled={!selectedDate || !selectedSlot}
+                    disabled={!proposedDate || !proposedTime}
                     size="lg"
                     className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg px-8 transition-all disabled:opacity-50"
                 >

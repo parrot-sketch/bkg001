@@ -6,7 +6,7 @@
  * Uses the UnifiedSidebar component for consistent design.
  */
 
-import { LayoutDashboard, Calendar, Users, UserPlus, User, Receipt } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, UserPlus, User, Receipt, Building2, ClipboardList, Bell } from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { useAuth } from '@/hooks/patient/useAuth';
 
@@ -27,14 +27,19 @@ const navItems: NavItem[] = [
     icon: Users,
   },
   {
+    name: 'New Patient Intake',
+    href: '/frontdesk/intake/start',
+    icon: ClipboardList,
+  },
+  {
+    name: 'Theater Scheduling',
+    href: '/frontdesk/theater-scheduling',
+    icon: Building2,
+  },
+  {
     name: 'Billing',
     href: '/frontdesk/billing',
     icon: Receipt,
-  },
-  {
-    name: 'New Patient',
-    href: '/frontdesk/patient-intake',
-    icon: UserPlus,
   },
   {
     name: 'My Profile',

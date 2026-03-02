@@ -1,18 +1,85 @@
 /**
- * API Route: POST /api/doctor/surgical-cases/[caseId]/consents
- *
- * Creates a consent form for a surgical case.
+ * API Route: GET  /api/doctor/surgical-cases/[caseId]/consents  – list consents
+ *             POST /api/doctor/surgical-cases/[caseId]/consents  – create consent
  *
  * Security:
- * - Requires authentication
- * - Only DOCTOR role
- * - Doctor must be primary surgeon
+ * - Requires authentication (DOCTOR or ADMIN)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import db from '@/lib/db';
 import { ConsentStatus, ConsentType } from '@prisma/client';
+
+// ─── GET: List consents for a surgical case ─────────────────────────────────
+
+export async function GET(
+    request: NextRequest,
+    context: { params: Promise<{ caseId: string }> },
+): Promise<NextResponse> {
+    try {
+        const authResult = await JwtMiddleware.authenticate(request);
+        if (!authResult.success || !authResult.user) {
+            return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+        }
+
+        const { caseId } = await context.params;
+
+        // Resolve doctor profile (admins may not have one — allow them through)
+        let doctorId: string | null = null;
+        if (authResult.user.role === 'DOCTOR') {
+            const doctorProfile = await db.doctor.findUnique({
+                where: { user_id: authResult.user.userId },
+                select: { id: true },
+            });
+            if (!doctorProfile) {
+                return NextResponse.json({ success: false, error: 'Doctor profile not found' }, { status: 404 });
+            }
+            doctorId = doctorProfile.id;
+        }
+
+        // Verify the case exists (and that the doctor owns it if role is DOCTOR)
+        const sc = await db.surgicalCase.findUnique({
+            where: { id: caseId },
+            select: {
+                id: true,
+                primary_surgeon_id: true,
+                case_plan: { select: { id: true } },
+            },
+        });
+
+        if (!sc) {
+            return NextResponse.json({ success: false, error: 'Surgical case not found' }, { status: 404 });
+        }
+        if (doctorId && sc.primary_surgeon_id !== doctorId) {
+            return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+        }
+        if (!sc.case_plan) {
+            // No plan yet → no consents possible
+            return NextResponse.json({ success: true, data: [] });
+        }
+
+        const consents = await db.consentForm.findMany({
+            where: { case_plan_id: sc.case_plan.id },
+            orderBy: { created_at: 'desc' },
+            select: {
+                id: true,
+                title: true,
+                type: true,
+                status: true,
+                version: true,
+                created_at: true,
+                template_id: true,
+            },
+        });
+
+        return NextResponse.json({ success: true, data: consents });
+    } catch (error) {
+        console.error('[API] GET /api/doctor/surgical-cases/[caseId]/consents - Error:', error);
+        return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
+    }
+}
+
 
 // ─── Consent Template System (MVP) ─────────────────────────────────────
 
@@ -256,25 +323,68 @@ export async function POST(
             );
         }
 
-        // 5. Generate content from template
-        const template = CONSENT_TEMPLATES[type] ?? CONSENT_TEMPLATES.GENERAL_PROCEDURE;
+        // 5. Determine content — use the selected ConsentTemplate if provided, else built-in
+        const { template_id } = body as { type?: string; title?: string; template_id?: string };
         const patientName = sc.patient ? `${sc.patient.first_name} ${sc.patient.last_name}` : 'Patient';
-        const contentSnapshot = template.contentTemplate({
-            patientName,
-            procedureName: sc.procedure_name ?? 'Surgical Procedure',
-            doctorName: doctorProfile.name,
-            date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-        });
+        const procedureName = sc.procedure_name ?? 'Surgical Procedure';
+
+        let contentSnapshot: string;
+        let consentTitle: string;
+        let linkedTemplateId: string | null = null;
+        let pdfUrl: string | null = null;
+
+        if (template_id) {
+            // Use the doctor's uploaded & approved ConsentTemplate
+            const ct = await db.consentTemplate.findFirst({
+                where: {
+                    id: template_id,
+                    status: 'ACTIVE', // Only active templates can be used
+                },
+                select: {
+                    id: true, title: true, content: true,
+                    pdf_url: true, template_format: true, extracted_content: true,
+                },
+            });
+
+            if (!ct) {
+                return NextResponse.json(
+                    { success: false, error: 'Template not found or is not yet active. Only ACTIVE templates can be used.' },
+                    { status: 400 },
+                );
+            }
+
+            // For PDF templates, content_snapshot = extracted text (used for audit record).
+            // The signing page will embed the PDF directly via pdf_url.
+            const pdfNote = ct.template_format === 'PDF'
+                ? `\n\n---\n_This consent is based on the hospital's official PDF: "${ct.title}"._\n_The full document will be displayed to the patient during signing._`
+                : '';
+            contentSnapshot = (ct.template_format === 'PDF' ? (ct.extracted_content ?? ct.content ?? '') : (ct.content ?? '')) + pdfNote;
+            consentTitle = title || ct.title;
+            linkedTemplateId = ct.id;
+            pdfUrl = ct.pdf_url;
+        } else {
+            // Fall back to built-in generated text templates
+            const builtIn = CONSENT_TEMPLATES[type] ?? CONSENT_TEMPLATES.GENERAL_PROCEDURE;
+            contentSnapshot = builtIn.contentTemplate({
+                patientName,
+                procedureName,
+                doctorName: doctorProfile.name,
+                date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+            });
+            consentTitle = title || builtIn.defaultTitle;
+        }
 
         // 6. Create consent form
         const consent = await db.consentForm.create({
             data: {
                 case_plan_id: sc.case_plan.id,
-                title: title || template.defaultTitle,
+                title: consentTitle,
                 type: type as ConsentType,
                 content_snapshot: contentSnapshot,
                 status: ConsentStatus.PENDING_SIGNATURE,
                 version: 1,
+                ...(linkedTemplateId && { template_id: linkedTemplateId }),
+                ...(pdfUrl && { pdf_url: pdfUrl }),
             },
         });
 

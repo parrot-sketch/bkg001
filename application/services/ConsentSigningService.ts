@@ -52,8 +52,13 @@ export class ConsentSigningService {
       where: { consent_form_id: consentFormId },
     });
 
-    if (existingSession && existingSession.status !== 'CANCELLED' && existingSession.status !== 'EXPIRED') {
-      throw new ConflictError('Signing session already exists for this consent form');
+    if (existingSession) {
+      // If already signed, don't allow regeneration
+      if (existingSession.status === 'SIGNED') {
+        throw new ConflictError('This consent form has already been signed and cannot be re-issued.');
+      }
+      // For PENDING or VERIFIED sessions, fall through to upsert which will
+      // refresh the QR code, token, and expiry (regenerate / reissue)
     }
 
     // Generate QR code and token

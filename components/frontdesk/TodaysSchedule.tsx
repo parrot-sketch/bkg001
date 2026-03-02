@@ -12,12 +12,12 @@ import { useTodaysSchedule } from '@/hooks/frontdesk/useTodaysSchedule';
 import { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { format, isAfter, startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { AppointmentStatus, canCheckIn } from '@/domain/enums/AppointmentStatus';
 
@@ -25,36 +25,36 @@ import { AppointmentStatus, canCheckIn } from '@/domain/enums/AppointmentStatus'
  * Check if an appointment can be checked in (status AND date validation)
  */
 function canCheckInAppointment(appointment: AppointmentResponseDto): {
-  canCheckIn: boolean;
-  reason?: string;
-  daysUntil?: number;
+    canCheckIn: boolean;
+    reason?: string;
+    daysUntil?: number;
 } {
-  // First check status
-  if (!canCheckIn(appointment.status as AppointmentStatus)) {
-    return {
-      canCheckIn: false,
-      reason: appointment.status === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION
-        ? 'Awaiting doctor confirmation'
-        : 'Appointment not confirmed',
-    };
-  }
+    // First check status
+    if (!canCheckIn(appointment.status as AppointmentStatus)) {
+        return {
+            canCheckIn: false,
+            reason: appointment.status === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION
+                ? 'Awaiting doctor confirmation'
+                : 'Appointment not confirmed',
+        };
+    }
 
-  // Then check date - prevent checking in for future appointments
-  const now = new Date();
-  const appointmentDate = new Date(appointment.appointmentDate);
-  const appointmentDateOnly = startOfDay(appointmentDate);
-  const todayOnly = startOfDay(now);
+    // Then check date - prevent checking in for future appointments
+    const now = new Date();
+    const appointmentDate = new Date(appointment.appointmentDate);
+    const appointmentDateOnly = startOfDay(appointmentDate);
+    const todayOnly = startOfDay(now);
 
-  if (isAfter(appointmentDateOnly, todayOnly)) {
-    const daysUntil = Math.ceil((appointmentDateOnly.getTime() - todayOnly.getTime()) / (1000 * 60 * 60 * 24));
-    return {
-      canCheckIn: false,
-      reason: `Appointment is scheduled for ${format(appointmentDate, 'MMM d, yyyy')} (${daysUntil} day${daysUntil !== 1 ? 's' : ''} away). Please check in on or after the appointment date.`,
-      daysUntil,
-    };
-  }
+    if (isAfter(appointmentDateOnly, todayOnly)) {
+        const daysUntil = Math.ceil((appointmentDateOnly.getTime() - todayOnly.getTime()) / (1000 * 60 * 60 * 24));
+        return {
+            canCheckIn: false,
+            reason: `Appointment is scheduled for ${format(appointmentDate, 'MMM d, yyyy')} (${daysUntil} day${daysUntil !== 1 ? 's' : ''} away). Please check in on or after the appointment date.`,
+            daysUntil,
+        };
+    }
 
-  return { canCheckIn: true };
+    return { canCheckIn: true };
 }
 
 export function TodaysSchedule() {
@@ -296,6 +296,10 @@ function AppointmentRow({ appointment, action, statusBadge, isCompleted }: { app
     const patientName = appointment.patient
         ? `${appointment.patient.firstName} ${appointment.patient.lastName}`
         : 'Unknown Patient';
+    const initials = patientName.trim().split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    const fileNumber = appointment.patient?.fileNumber;
+    const doctorName = appointment.doctor?.name || 'Unknown Doctor';
+    const reason = (appointment as any).reason as string | undefined;
 
     return (
         <div className={cn(
@@ -303,18 +307,21 @@ function AppointmentRow({ appointment, action, statusBadge, isCompleted }: { app
             isCompleted && "opacity-75 bg-slate-50/50"
         )}>
             <div className="flex items-center gap-4">
-                <Avatar className="h-10 w-10 border border-slate-100">
-                    <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${patientName}`} />
-                    <AvatarFallback className="text-xs bg-slate-100 text-slate-500">
-                        {patientName.substring(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                </Avatar>
+                {/* Local initials avatar — no external API call */}
+                <div className="h-10 w-10 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 bg-gradient-to-br from-slate-500 to-slate-700 border border-slate-100">
+                    {initials}
+                </div>
 
-                <div>
-                    <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-700 transition-colors">
+                <div className="min-w-0">
+                    <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-700 transition-colors flex items-center gap-2">
                         {patientName}
+                        {fileNumber && (
+                            <span className="text-[10px] font-medium text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                                #{fileNumber}
+                            </span>
+                        )}
                     </h4>
-                    <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
+                    <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5 flex-wrap">
                         <span className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
                             {appointment.time}
@@ -322,13 +329,19 @@ function AppointmentRow({ appointment, action, statusBadge, isCompleted }: { app
                         <span className="w-1 h-1 bg-slate-300 rounded-full" />
                         <span className="flex items-center gap-1">
                             <User className="h-3 w-3" />
-                            Dr. {appointment.doctor?.name.split(' ').pop()}
+                            {doctorName}
                         </span>
+                        {reason && (
+                            <>
+                                <span className="w-1 h-1 bg-slate-300 rounded-full hidden sm:block" />
+                                <span className="hidden sm:block truncate max-w-[140px] text-slate-400">{reason}</span>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 shrink-0">
                 {statusBadge}
                 {action}
                 {!action && !statusBadge && (

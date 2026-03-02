@@ -17,7 +17,7 @@
 
 import { useState, useMemo, useEffect, Suspense } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
-import { useAppointmentsByDate, useUpcomingAppointments } from '@/hooks/appointments/useAppointments';
+import { useAppointmentsByDate } from '@/hooks/appointments/useAppointments';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -44,13 +44,11 @@ import {
   Filter,
   ArrowLeft,
   UserCircle,
-  CalendarClock,
-  ExternalLink,
 } from 'lucide-react';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
-import { format, addDays, subDays, isToday, isTomorrow, isYesterday, isAfter } from 'date-fns';
-import { CheckInDialog } from '@/components/frontdesk/CheckInDialog';
+import { format, addDays, subDays, isToday, isTomorrow, isYesterday } from 'date-fns';
+
 import { FrontdeskAppointmentCard } from '@/components/frontdesk/FrontdeskAppointmentCard';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -203,9 +201,7 @@ function FrontdeskAppointmentsContent() {
   });
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Check-in dialog state
-  const [selectedAppointment, setSelectedAppointment] = useState<AppointmentResponseDto | null>(null);
-  const [showCheckInDialog, setShowCheckInDialog] = useState(false);
+
 
   // Data fetch
   const {
@@ -215,25 +211,6 @@ function FrontdeskAppointmentsContent() {
     refetch,
   } = useAppointmentsByDate(selectedDate, isAuthenticated && !!user);
 
-  // Fetch upcoming appointments to detect rescheduled ones
-  const {
-    data: upcomingAppointments = [],
-  } = useUpcomingAppointments(isAuthenticated && !!user && isToday(selectedDate));
-
-  // Find appointments that were rescheduled to future dates (created by current user)
-  const rescheduledAppointments = useMemo(() => {
-    if (!user || !isToday(selectedDate)) return [];
-    
-    return upcomingAppointments.filter((apt: AppointmentResponseDto) => {
-      // Check if appointment was created by current frontdesk user
-      // Note: We'd need to add created_by_user_id to AppointmentResponseDto or fetch it separately
-      // For now, we'll show a banner if there are upcoming appointments when viewing today
-      const aptDate = apt.appointmentDate instanceof Date ? apt.appointmentDate : new Date(apt.appointmentDate);
-      return apt.status === AppointmentStatus.SCHEDULED && 
-             apt.appointmentDate && 
-             isAfter(aptDate, new Date());
-    });
-  }, [upcomingAppointments, user, selectedDate]);
 
   /* ── Filtering ── */
   const filteredAppointments = useMemo(() => {
@@ -295,18 +272,6 @@ function FrontdeskAppointmentsContent() {
   const completed = statusCounts[AppointmentStatus.COMPLETED] || 0;
 
   /* ── Handlers ── */
-  const handleCheckIn = (appointment: AppointmentResponseDto) => {
-    setSelectedAppointment(appointment);
-    setShowCheckInDialog(true);
-  };
-
-  const handleCheckInSuccess = () => {
-    setShowCheckInDialog(false);
-    setSelectedAppointment(null);
-    queryClient.invalidateQueries({ queryKey: ['appointments', 'date'] });
-    toast.success('Patient checked in successfully');
-  };
-
   const navigateDate = (direction: 'prev' | 'next') => {
     setSelectedDate((prev) =>
       direction === 'prev' ? subDays(prev, 1) : addDays(prev, 1)
@@ -407,36 +372,6 @@ function FrontdeskAppointmentsContent() {
         </Link>
       </header>
 
-      {/* ═══ Rescheduled Appointments Alert ═══ */}
-      {isToday(selectedDate) && rescheduledAppointments.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <div className="flex items-start gap-3">
-            <div className="flex-shrink-0 mt-0.5">
-              <CalendarClock className="h-5 w-5 text-amber-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-semibold text-amber-900 mb-1">
-                Rescheduled Appointments
-              </h3>
-              <p className="text-xs text-amber-700 mb-2">
-                {rescheduledAppointments.length} appointment{rescheduledAppointments.length !== 1 ? 's' : ''} you created {rescheduledAppointments.length === 1 ? 'has' : 'have'} been rescheduled to future dates. Check your notifications for details.
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  // Navigate to upcoming appointments view or show a modal
-                  router.push('/frontdesk/appointments?status=SCHEDULED');
-                }}
-                className="text-xs h-7 bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-900"
-              >
-                <ExternalLink className="h-3 w-3 mr-1.5" />
-                View Upcoming
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ═══ Pipeline Stats ═══ */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -631,7 +566,6 @@ function FrontdeskAppointmentsContent() {
               <FrontdeskAppointmentCard
                 key={appointment.id}
                 appointment={appointment}
-                onCheckIn={handleCheckIn}
                 isHighlighted={highlightedId === appointment.id}
               />
             ))}
@@ -639,17 +573,6 @@ function FrontdeskAppointmentsContent() {
         )}
       </div>
 
-      {/* ═══ Check-in Dialog ═══ */}
-      {showCheckInDialog && selectedAppointment && (
-        <CheckInDialog
-          open={showCheckInDialog}
-          onOpenChange={(isOpen) => {
-            setShowCheckInDialog(isOpen);
-            if (!isOpen) setSelectedAppointment(null);
-          }}
-          appointment={selectedAppointment}
-        />
-      )}
     </div>
   );
 }

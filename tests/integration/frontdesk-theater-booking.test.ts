@@ -89,16 +89,33 @@ describe('Integration: Frontdesk Theater Booking Workflow', () => {
             },
         });
 
+        // Create or get template
+        const template = await db.clinicalFormTemplate.upsert({
+            where: { key_version: { key: 'nurse_preop_ward_checklist', version: 1 } },
+            update: {},
+            create: {
+                key: 'nurse_preop_ward_checklist',
+                version: 1,
+                title: 'Pre-op Ward Checklist',
+                role_owner: 'NURSE',
+                schema_json: '{}',
+                ui_json: '{}',
+                is_active: true,
+            },
+        });
+
         // Create pre-op checklist in FINAL status
         await db.clinicalFormResponse.create({
             data: {
+                template_id: template.id,
                 template_key: 'nurse_preop_ward_checklist',
                 template_version: 1,
                 surgical_case_id: surgicalCase.id,
+                patient_id: patient.id,
                 status: ClinicalFormStatus.FINAL,
                 data_json: JSON.stringify({}),
-                finalized_at: new Date(),
                 signed_by_user_id: nurse.id,
+                created_by_user_id: nurse.id,
             },
         });
 
@@ -208,13 +225,41 @@ describe('Integration: Frontdesk Theater Booking Workflow', () => {
             },
         });
 
+        const nurse2 = await db.user.create({
+            data: {
+                email: 'nurse2@example.com',
+                password_hash: 'hashed',
+                role: 'NURSE',
+                first_name: 'Nurse',
+                last_name: 'Two',
+            },
+        });
+
+        // Create or get template
+        const template = await db.clinicalFormTemplate.upsert({
+            where: { key_version: { key: 'nurse_preop_ward_checklist', version: 1 } },
+            update: {},
+            create: {
+                key: 'nurse_preop_ward_checklist',
+                version: 1,
+                title: 'Pre-op Ward Checklist',
+                role_owner: 'NURSE',
+                schema_json: '{}',
+                ui_json: '{}',
+                is_active: true,
+            },
+        });
+
         await db.clinicalFormResponse.create({
             data: {
+                template_id: template.id,
                 template_key: 'nurse_preop_ward_checklist',
                 template_version: 1,
                 surgical_case_id: surgicalCase.id,
+                patient_id: patient.id,
                 status: ClinicalFormStatus.DRAFT, // Not finalized
                 data_json: JSON.stringify({}),
+                created_by_user_id: nurse2.id,
             },
         });
 

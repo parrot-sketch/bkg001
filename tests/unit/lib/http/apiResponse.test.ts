@@ -4,9 +4,13 @@
  * Tests for canonical API response helpers and error conversion.
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from 'vitest';
 import { ok, fail, fromZodError, ApiErrorCode } from '@/lib/http/apiResponse';
 import { z } from 'zod';
+
+function failTest(message: string): never {
+  throw new Error(message);
+}
 
 describe('API Response Helpers', () => {
   describe('ok()', () => {
@@ -62,7 +66,7 @@ describe('API Response Helpers', () => {
         expect(metadata.errors?.[0]).toHaveProperty('field');
         expect(metadata.errors?.[0]).toHaveProperty('message');
       } else {
-        fail('Expected validation to fail');
+        failTest('Expected validation to fail');
       }
     });
 
@@ -81,7 +85,7 @@ describe('API Response Helpers', () => {
         expect(metadata.errors).toBeDefined();
         expect(metadata.errors?.[0]?.field).toBe('user.email');
       } else {
-        fail('Expected validation to fail');
+        failTest('Expected validation to fail');
       }
     });
   });

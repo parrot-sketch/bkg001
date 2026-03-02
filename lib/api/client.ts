@@ -73,7 +73,7 @@ class ApiClient {
    * 2. Cloning response before reading to avoid stream consumption issues
    * 3. Adding cache-busting for GET requests
    */
-  private async request<T>(
+  async request<T>(
     endpoint: string,
     options: RequestInit = {},
   ): Promise<ApiResponse<T>> {

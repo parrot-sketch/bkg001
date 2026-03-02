@@ -12,8 +12,10 @@ import { LucideIcon } from 'lucide-react';
 
 export interface DashboardStats {
     expectedPatients: number;
-    checkedInPatients: number;
-    pendingCheckIns: number;
+    checkedInPatients: number;    // In waiting room (CHECKED_IN / READY_FOR_CONSULTATION)
+    pendingCheckIns: number;      // Confirmed but not yet arrived (SCHEDULED / CONFIRMED)
+    inConsultation: number;       // Currently seeing doctor
+    completedToday: number;       // Finished for today
     pendingIntakeCount: number;
 }
 

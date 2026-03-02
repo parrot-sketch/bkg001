@@ -112,6 +112,27 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiErrorR
 
     return nextResponse;
   } catch (error: unknown) {
+    // Check if this is a database connection error
+    const isConnectionError = 
+      error instanceof Error && 
+      ((error as any).isConnectionError || 
+       error.message.includes('fetch failed') ||
+       error.message.includes('Cannot fetch data from service') ||
+       error.message.includes('Connection') ||
+       error.message.includes("Can't reach database"));
+
+    if (isConnectionError) {
+      // Database connection error - show appropriate message
+      const errorMessage = error instanceof Error ? error.message : 'Database connection failed';
+      console.error('[API] /api/auth/login - Database connection error:', errorMessage, error);
+      
+      const errorResponse: ApiErrorResponse = {
+        success: false,
+        error: 'Unable to connect to the database. Please try again in a moment or contact support if the problem persists.',
+      };
+      return NextResponse.json(errorResponse, { status: 503 }); // 503 Service Unavailable
+    }
+
     // Handle domain exceptions (e.g., invalid credentials)
     if (error instanceof DomainException) {
       // Generic error message - prevents user enumeration
@@ -128,7 +149,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiErrorR
     
     const errorResponse: ApiErrorResponse = {
       success: false,
-      error: 'Internal server error',
+      error: 'An unexpected error occurred. Please try again or contact support if the problem persists.',
     };
     return NextResponse.json(errorResponse, { status: 500 });
   }

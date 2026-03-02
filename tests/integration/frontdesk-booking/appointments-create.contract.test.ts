@@ -24,6 +24,7 @@ import {
   assertSuccess,
   assertError,
   assertErrorCode,
+  unwrapApiData,
 } from '../../helpers/apiResponseAssertions';
 
 // Mock JWT middleware
@@ -123,7 +124,8 @@ describe('POST /api/appointments', () => {
 
       // Assert
       expect(response.status).toBe(201);
-      const result = assertSuccess(data);
+      assertSuccess<{ status: AppointmentStatus; patientId: string; doctorId: string }>(data);
+      const result = unwrapApiData(data);
       expect(result.status).toBe(AppointmentStatus.SCHEDULED);
       expect(result.patientId).toBe(validRequest.patientId);
       expect(result.doctorId).toBe(validRequest.doctorId);
@@ -160,7 +162,8 @@ describe('POST /api/appointments', () => {
 
       // Assert
       expect(response.status).toBe(201);
-      const result = assertSuccess(data);
+      assertSuccess<{ status: AppointmentStatus }>(data);
+      const result = unwrapApiData(data);
       expect(result.status).toBe(AppointmentStatus.PENDING_DOCTOR_CONFIRMATION);
     });
   });

@@ -15,6 +15,8 @@ import { JwtMiddleware } from '@/lib/auth/middleware';
 import db from '@/lib/db';
 import { ConsentType, TemplateFormat } from '@prisma/client';
 import { z } from 'zod';
+import { ConsentTemplateService } from '@/application/services/ConsentTemplateService';
+import { handleApiError, handleApiSuccess } from '@/app/api/_utils/handleApiError';
 
 // ─── Validation Schemas ────────────────────────────────────────────────────
 
@@ -22,9 +24,10 @@ const createTemplateSchema = z.object({
     title: z.string().min(1, 'Title is required').max(200, 'Title too long'),
     type: z.nativeEnum(ConsentType),
     content: z.string().optional(),
-    pdf_url: z.string().url().optional().nullable(),
+    pdf_url: z.string().min(1).optional().nullable(),
     template_format: z.nativeEnum(TemplateFormat).optional(),
     extracted_content: z.string().optional().nullable(),
+    description: z.string().max(500, 'Description too long').optional(),
 }).refine(
     (data) => {
         // Must have either content (HTML) or pdf_url (PDF)
@@ -54,6 +57,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const { searchParams } = new URL(request.url);
         const includeInactive = searchParams.get('includeInactive') === 'true';
         const type = searchParams.get('type') as ConsentType | null;
+        const status = searchParams.get('status') as string | null;
+        const search = searchParams.get('search') as string | null;
 
         const where: any = {
             created_by: authResult.user.userId,
@@ -67,10 +72,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             where.type = type;
         }
 
+        if (status && ['DRAFT', 'PENDING_APPROVAL', 'ACTIVE', 'ARCHIVED'].includes(status)) {
+            where.status = status;
+        }
+
+        if (search) {
+            where.OR = [
+                { title: { contains: search, mode: 'insensitive' } },
+                { description: { contains: search, mode: 'insensitive' } },
+            ];
+        }
+
         const templates = await db.consentTemplate.findMany({
             where,
             orderBy: [
-                { is_active: 'desc' },
+                { status: 'asc' }, // DRAFT, ACTIVE, ARCHIVED
                 { updated_at: 'desc' },
             ],
             select: {
@@ -81,15 +97,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                 template_format: true,
                 version: true,
                 is_active: true,
+                status: true,
+                description: true,
+                usage_count: true,
+                last_used_at: true,
                 created_at: true,
                 updated_at: true,
             },
         });
 
-        return NextResponse.json({
-            success: true,
-            data: templates,
-        });
+        return handleApiSuccess(templates);
     } catch (error) {
         console.error('[API] GET /api/doctor/consents/templates - Error:', error);
         return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
@@ -122,7 +139,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             );
         }
 
-        const { title, type, content, pdf_url, template_format, extracted_content } = validation.data;
+        const { title, type, content, pdf_url, template_format, extracted_content, description } = validation.data;
 
         // Determine template format if not provided
         let format: TemplateFormat = TemplateFormat.HTML;
@@ -134,46 +151,38 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             format = TemplateFormat.PDF;
         }
 
-        // Create template
-        const template = await db.consentTemplate.create({
-            data: {
+        // Use ConsentTemplateService for document control
+        const service = new ConsentTemplateService(db);
+        const template = await service.createTemplate(
+            {
                 title,
                 type,
-                content: content || '',
+                content,
                 pdf_url: pdf_url || null,
                 template_format: format,
                 extracted_content: extracted_content || null,
-                version: 1,
-                is_active: true,
-                created_by: authResult.user.userId,
+                description: description || undefined,
             },
-            select: {
-                id: true,
-                title: true,
-                type: true,
-                version: true,
-                is_active: true,
-                created_at: true,
-                updated_at: true,
-            },
-        });
+            {
+                actorUserId: authResult.user.userId,
+                actorRole: authResult.user.role as any,
+                ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || undefined,
+                userAgent: request.headers.get('user-agent') || undefined,
+            }
+        );
 
-        // Audit
-        await db.auditLog.create({
-            data: {
-                user_id: authResult.user.userId,
-                record_id: template.id,
-                action: 'CREATE',
-                model: 'ConsentTemplate',
-                details: `Consent template "${title}" created`,
-            },
-        });
-
-        return NextResponse.json({
-            success: true,
-            data: template,
-            message: 'Template created successfully',
-        });
+        return handleApiSuccess({
+            id: template.id,
+            title: template.title,
+            type: template.type,
+            version: template.version,
+            is_active: template.is_active,
+            status: template.status,
+            description: template.description,
+            usage_count: template.usage_count,
+            created_at: template.created_at,
+            updated_at: template.updated_at,
+        }, 201);
     } catch (error) {
         console.error('[API] POST /api/doctor/consents/templates - Error:', error);
         return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });

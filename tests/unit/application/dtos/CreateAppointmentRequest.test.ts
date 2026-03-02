@@ -4,10 +4,14 @@ import { AppointmentSource } from '@/domain/enums/AppointmentSource';
 import { BookingChannel } from '@/domain/enums/BookingChannel';
 
 describe('createAppointmentRequestSchema', () => {
+  // Create a future date for testing (1 year from now)
+  const futureDate = new Date();
+  futureDate.setFullYear(futureDate.getFullYear() + 1);
+
   const validRequest = {
     patientId: '123e4567-e89b-12d3-a456-426614174000',
     doctorId: '123e4567-e89b-12d3-a456-426614174001',
-    appointmentDate: new Date('2025-12-31'),
+    appointmentDate: futureDate,
     time: '14:30',
     type: 'Consultation',
   };
