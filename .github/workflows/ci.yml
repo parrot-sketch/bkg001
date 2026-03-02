@@ -99,6 +99,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: unit
+    env:
+      DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
+      OPENAI_API_KEY: "sk-dummy-key-for-ci"
     steps:
       - uses: actions/checkout@v4
 
