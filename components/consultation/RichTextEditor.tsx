@@ -19,7 +19,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import Underline from '@tiptap/extension-underline';
 import Highlight from '@tiptap/extension-highlight';
 import CharacterCount from '@tiptap/extension-character-count';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   Bold,
   Italic,
@@ -53,6 +53,9 @@ export function RichTextEditor({
   className,
   minHeight = '300px',
 }: RichTextEditorProps) {
+  // Ref to track internal content updates (prop changes) vs user edits
+  const isInternalUpdateRef = useRef(false);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -74,6 +77,12 @@ export function RichTextEditor({
     autofocus: autoFocus,
     immediatelyRender: false,
     onUpdate: ({ editor }) => {
+      // Skip onChange if this update came from internal content prop change
+      if (isInternalUpdateRef.current) {
+        isInternalUpdateRef.current = false;
+        return;
+      }
+
       const html = editor.getHTML();
       // Defer onChange to next tick to avoid setState during render
       setTimeout(() => onChange(html), 0);
@@ -91,8 +100,10 @@ export function RichTextEditor({
   });
 
   // Update content when prop changes (for external updates)
+  // Mark this as an internal update so onUpdate doesn't trigger onChange
   useEffect(() => {
     if (editor && content !== editor.getHTML()) {
+      isInternalUpdateRef.current = true;
       editor.commands.setContent(content);
     }
   }, [content, editor]);
