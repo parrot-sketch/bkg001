@@ -110,28 +110,50 @@ export function ExaminationTab({
   const [sections, setSections] = useState<Map<string, ExaminationSection>>(new Map());
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [measurements, setMeasurements] = useState<Record<string, string>>({});
-  const lastSentRef = useRef<string>(initialValue);
-
-  // Initialize from initialValue
-  useEffect(() => {
-    setExamination(initialValue);
-    lastSentRef.current = initialValue;
-    // Initialize sections map (we'll build it as user adds content)
-    setSections(new Map());
-  }, [initialValue]);
   
-  useEffect(() => {
-    if (examination !== initialValue && examination !== lastSentRef.current) {
-      lastSentRef.current = examination;
-      onChange(examination);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [examination]);
+  // Track refs to prevent duplicate onChange calls
+  const lastInitialValueRef = useRef<string>(initialValue);
+  const lastSentValueRef = useRef<string>(initialValue);
+  const isInternalUpdateRef = useRef(false);
 
-  const handleChange = (value: string) => {
+  /**
+   * Sync external content updates from parent (initialValue changes)
+   * WITHOUT triggering onChange - this is for external sync only.
+   * 
+   * When the parent updates the content (e.g., from server), we need to
+   * update our internal state to reflect those changes, but we don't want
+   * to call onChange since the parent already has that value.
+   */
+  useEffect(() => {
+    if (initialValue !== lastInitialValueRef.current) {
+      lastInitialValueRef.current = initialValue;
+      lastSentValueRef.current = initialValue;
+      isInternalUpdateRef.current = true;
+      setExamination(initialValue);
+      setSections(new Map()); // Reset sections when external content changes
+    }
+  }, [initialValue]);
+
+  /**
+   * Unified change handler for user edits.
+   * Single point of truth for onChange notifications.
+   * Updates both internal state AND notifies parent.
+   * 
+   * Prevents duplicate onChange calls:
+   * - Only calls onChange when value actually changes
+   * - Marks internal updates so RichTextEditor useEffect doesn't trigger onChange again
+   */
+  const handleContentChange = useCallback((value: string): void => {
+    // Check if this is actually a new change
+    if (value === lastSentValueRef.current) {
+      return;
+    }
+    
+    lastSentValueRef.current = value;
+    isInternalUpdateRef.current = true;
     setExamination(value);
     onChange(value);
-  };
+  }, [onChange]);
 
   const addQuickFinding = useCallback((sectionId: string, finding: string) => {
     const section = sections.get(sectionId) || {
@@ -156,17 +178,16 @@ export function ExaminationTab({
     const updatedSections = new Map(sections);
     updatedSections.set(sectionId, updatedSection);
 
-    // Convert to HTML and update
+    // Convert to HTML and update via unified handler
     const html = sectionsToHtml(updatedSections);
     setSections(updatedSections);
-    setExamination(html);
-    onChange(html);
+    handleContentChange(html);
     
     // Auto-expand the section so user can see what was added
     setActiveSection(sectionId);
     
     toast.success(`Added: ${finding}`);
-  }, [sections, onChange]);
+  }, [sections, handleContentChange]);
 
   const addMeasurement = useCallback((label: string, value: string) => {
     if (!value.trim()) {
@@ -200,13 +221,12 @@ export function ExaminationTab({
 
     const html = sectionsToHtml(updatedSections);
     setSections(updatedSections);
-    setExamination(html);
-    onChange(html);
+    handleContentChange(html);
     
     // Clear measurement input
     setMeasurements(prev => ({ ...prev, [label]: '' }));
     toast.success('Measurement added');
-  }, [sections, onChange]);
+  }, [sections, handleContentChange]);
 
   const toggleSection = useCallback((sectionId: string) => {
     setActiveSection(prev => prev === sectionId ? null : sectionId);
@@ -355,8 +375,7 @@ export function ExaminationTab({
                             updatedSections.set(sectionDef.id, updatedSection);
                             setSections(updatedSections);
                             const html = sectionsToHtml(updatedSections);
-                            setExamination(html);
-                            onChange(html);
+                            handleContentChange(html);
                           }}
                           placeholder={`Add detailed findings for ${sectionDef.title.toLowerCase()}...`}
                           readOnly={false}
@@ -413,7 +432,7 @@ export function ExaminationTab({
             </p>
             <RichTextEditor
               content={examination}
-              onChange={handleChange}
+              onChange={handleContentChange}
               placeholder="Add any additional examination notes, observations, or findings not covered above…"
               readOnly={isReadOnly}
               minHeight="250px"

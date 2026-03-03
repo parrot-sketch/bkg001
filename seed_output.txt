@@ -1,0 +1,40 @@
+
+> hms-video@0.1.0 db:seed:comprehensive
+> tsx prisma/seed-comprehensive.ts
+
+🌱 Starting Comprehensive Seeding...
+
+🧹 Clearing existing data...
+✅ Cleared all data
+
+🏥 Configuring Clinic & Theaters...
+👥 Creating Staff...
+✅ Basic infrastructure and staff created
+
+📜 Seeding Consent Phase 2 Data...
+🏥 Creating Clinical Data...
+PrismaClientValidationError: 
+Invalid `prisma.consentForm.create()` invocation in
+/home/bkg/fullstack-healthcare/prisma/seed-comprehensive.ts:323:50
+
+  320     data: { surgical_case_id: surgicalCase.id }
+  321 });
+  322 
+→ 323 const consentForm = await prisma.consentForm.create({
+        data: {
+          case_plan_id: 1,
+          template_id: "30a10716-a78b-4b00-bf13-d2a255dfe44f",
+          status: "PENDING_SIGNATURE",
+      +   title: String
+        }
+      })
+
+Argument `title` is missing.
+    at throwValidationException (/home/bkg/fullstack-healthcare/node_modules/.pnpm/@prisma+client@6.19.2_prisma@6.19.2_typescript@5.9.3/node_modules/@prisma/client/src/runtime/core/errorRendering/throwValidationException.ts:45:9)
+    at ei.handleRequestError (/home/bkg/fullstack-healthcare/node_modules/.pnpm/@prisma+client@6.19.2_prisma@6.19.2_typescript@5.9.3/node_modules/@prisma/client/src/runtime/RequestHandler.ts:202:7)
+    at ei.handleAndLogRequestError (/home/bkg/fullstack-healthcare/node_modules/.pnpm/@prisma+client@6.19.2_prisma@6.19.2_typescript@5.9.3/node_modules/@prisma/client/src/runtime/RequestHandler.ts:174:12)
+    at ei.request (/home/bkg/fullstack-healthcare/node_modules/.pnpm/@prisma+client@6.19.2_prisma@6.19.2_typescript@5.9.3/node_modules/@prisma/client/src/runtime/RequestHandler.ts:143:12)
+    at async a (/home/bkg/fullstack-healthcare/node_modules/.pnpm/@prisma+client@6.19.2_prisma@6.19.2_typescript@5.9.3/node_modules/@prisma/client/src/runtime/getPrismaClient.ts:833:24)
+    at async main (/home/bkg/fullstack-healthcare/prisma/seed-comprehensive.ts:323:25) {
+  clientVersion: '6.19.2'
+}

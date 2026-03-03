@@ -28,14 +28,14 @@ The application will be available at [http://localhost:3000](http://localhost:30
 - **Clinical Documentation:** Vital signs, diagnoses, and medical records
 - **Billing System:** Payment processing and bill generation
 - **Role-Based Access:** Multi-role support (Admin, Doctor, Nurse, Lab Technician, Patient, Cashier)
-- **Secure Authentication:** Clerk-based authentication and authorization
+- **Secure Authentication:** JWT + bcrypt authentication with role-based access control
 
 ## Tech Stack
 
 - **Frontend:** Next.js 15.1.0, React 19, TypeScript
 - **Backend:** Next.js Server Actions, Prisma ORM
 - **Database:** PostgreSQL
-- **Authentication:** Clerk
+- **Authentication:** JWT (jsonwebtoken) + bcrypt for password hashing
 - **UI:** TailwindCSS, Radix UI, Recharts
 - **Testing:** Vitest
 - **Validation:** Zod

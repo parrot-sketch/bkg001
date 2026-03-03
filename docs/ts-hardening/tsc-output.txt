@@ -1,0 +1,118 @@
+app/api/stores/receipts/route.ts(19,65): error TS2345: Argument of type '"READ_PURCHASE_ORDERS"' is not assignable to parameter of type 'InventoryOperation'.
+app/api/stores/vendors/[id]/route.ts(38,27): error TS2304: Cannot find name 'id'.
+app/inventory/items/page.tsx(124,40): error TS2341: Property 'request' is private and only accessible within class 'ApiClient'.
+app/inventory/purchase-orders/page.tsx(146,40): error TS2341: Property 'request' is private and only accessible within class 'ApiClient'.
+app/inventory/purchase-orders/page.tsx(171,40): error TS2341: Property 'request' is private and only accessible within class 'ApiClient'.
+app/inventory/purchase-orders/page.tsx(197,40): error TS2341: Property 'request' is private and only accessible within class 'ApiClient'.
+app/inventory/receipts/page.tsx(133,40): error TS2341: Property 'request' is private and only accessible within class 'ApiClient'.
+app/inventory/vendors/page.tsx(121,40): error TS2341: Property 'request' is private and only accessible within class 'ApiClient'.
+app/inventory/vendors/page.tsx(146,40): error TS2341: Property 'request' is private and only accessible within class 'ApiClient'.
+components/doctor/case-plan/InventoryTabs.tsx(86,28): error TS2304: Cannot find name 'getConsumptionStatus'.
+components/doctor/case-plan/InventoryTabs.tsx(87,29): error TS2304: Cannot find name 'getUsedQuantity'.
+components/doctor/case-plan/InventoryTabs.tsx(133,42): error TS2304: Cannot find name 'handleConsumeClick'.
+components/doctor/case-plan/InventoryTabs.tsx(148,21): error TS2304: Cannot find name 'showConsumeDialog'.
+components/doctor/case-plan/InventoryTabs.tsx(148,54): error TS2304: Cannot find name 'setShowConsumeDialog'.
+components/doctor/case-plan/InventoryTabs.tsx(153,41): error TS2304: Cannot find name 'selectedItem'.
+components/doctor/case-plan/InventoryTabs.tsx(163,24): error TS2304: Cannot find name 'quantity'.
+components/doctor/case-plan/InventoryTabs.tsx(164,34): error TS2304: Cannot find name 'setQuantity'.
+components/doctor/case-plan/InventoryTabs.tsx(167,16): error TS2304: Cannot find name 'selectedItem'.
+components/doctor/case-plan/InventoryTabs.tsx(169,29): error TS2304: Cannot find name 'selectedItem'.
+components/doctor/case-plan/InventoryTabs.tsx(170,26): error TS2304: Cannot find name 'getUsedQuantity'.
+components/doctor/case-plan/InventoryTabs.tsx(170,42): error TS2304: Cannot find name 'selectedItem'.
+components/doctor/case-plan/InventoryTabs.tsx(171,31): error TS2304: Cannot find name 'selectedItem'.
+components/doctor/case-plan/InventoryTabs.tsx(171,62): error TS2304: Cannot find name 'getUsedQuantity'.
+components/doctor/case-plan/InventoryTabs.tsx(171,78): error TS2304: Cannot find name 'selectedItem'.
+components/doctor/case-plan/InventoryTabs.tsx(180,17): error TS2304: Cannot find name 'setShowConsumeDialog'.
+components/doctor/case-plan/InventoryTabs.tsx(181,17): error TS2304: Cannot find name 'setSelectedItem'.
+components/doctor/case-plan/InventoryTabs.tsx(182,17): error TS2304: Cannot find name 'setQuantity'.
+components/doctor/case-plan/InventoryTabs.tsx(188,24): error TS2304: Cannot find name 'handleConsumeSubmit'.
+components/doctor/case-plan/InventoryTabs.tsx(189,25): error TS2304: Cannot find name 'consuming'.
+components/doctor/case-plan/InventoryTabs.tsx(189,38): error TS2304: Cannot find name 'quantity'.
+components/doctor/case-plan/InventoryTabs.tsx(191,16): error TS2304: Cannot find name 'consuming'.
+components/doctor/case-plan/InventoryTabs.tsx(324,40): error TS2341: Property 'request' is private and only accessible within class 'ApiClient'.
+components/doctor/case-plan/InventoryTabs.tsx(426,40): error TS2341: Property 'request' is private and only accessible within class 'ApiClient'.
+domain/permissions/InventoryRolePermissions.ts(173,27): error TS2322: Type '"ALL"' is not assignable to type 'InventoryOperation'.
+domain/permissions/InventoryRolePermissions.ts(180,27): error TS2322: Type '"ALL"' is not assignable to type 'InventoryOperation'.
+lib/middleware/intake-security.ts(60,20): error TS2339: Property 'ip' does not exist on type 'NextRequest'.
+tests/e2e/clinical-lifecycle.spec.ts(41,52): error TS2339: Property 'first' does not exist on type 'Promise<void>'.
+tests/e2e/idempotency-replay.spec.ts(24,52): error TS2339: Property 'first' does not exist on type 'Promise<void>'.
+tests/e2e/idempotency-replay.spec.ts(31,52): error TS2339: Property 'first' does not exist on type 'Promise<void>'.
+tests/integration/frontdesk-booking/appointments-create.contract.test.ts(127,21): error TS2339: Property 'status' does not exist on type 'void'.
+tests/integration/frontdesk-booking/appointments-create.contract.test.ts(128,21): error TS2339: Property 'patientId' does not exist on type 'void'.
+tests/integration/frontdesk-booking/appointments-create.contract.test.ts(129,21): error TS2339: Property 'doctorId' does not exist on type 'void'.
+tests/integration/frontdesk-booking/appointments-create.contract.test.ts(164,21): error TS2339: Property 'status' does not exist on type 'void'.
+tests/integration/frontdesk-theater-booking.test.ts(100,17): error TS2353: Object literal may only specify known properties, and 'finalized_at' does not exist in type 'Without<ClinicalFormResponseCreateInput, ClinicalFormResponseUncheckedCreateInput> & ClinicalFormResponseUncheckedCreateInput'.
+tests/integration/frontdesk-theater-booking.test.ts(212,13): error TS2322: Type '{ template_key: string; template_version: number; surgical_case_id: string; status: "DRAFT"; data_json: string; }' is not assignable to type '(Without<ClinicalFormResponseCreateInput, ClinicalFormResponseUncheckedCreateInput> & ClinicalFormResponseUncheckedCreateInput) | (Without<...> & ClinicalFormResponseCreateInput)'.
+  Type '{ template_key: string; template_version: number; surgical_case_id: string; status: "DRAFT"; data_json: string; }' is not assignable to type 'Without<ClinicalFormResponseCreateInput, ClinicalFormResponseUncheckedCreateInput> & ClinicalFormResponseUncheckedCreateInput'.
+    Type '{ template_key: string; template_version: number; surgical_case_id: string; status: "DRAFT"; data_json: string; }' is missing the following properties from type 'ClinicalFormResponseUncheckedCreateInput': template_id, patient_id, created_by_user_id
+tests/integration/inventory-billing/goods-receipt.contract.test.ts(138,44): error TS2741: Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+tests/integration/inventory-billing/goods-receipt.contract.test.ts(200,44): error TS2741: Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+tests/integration/inventory-billing/goods-receipt.contract.test.ts(203,30): error TS2554: Expected 1 arguments, but got 2.
+tests/integration/inventory-billing/goods-receipt.contract.test.ts(246,44): error TS2741: Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+tests/integration/inventory-billing/goods-receipt.contract.test.ts(249,30): error TS2554: Expected 1 arguments, but got 2.
+tests/integration/inventory-billing/purchase-orders.contract.test.ts(146,30): error TS2554: Expected 1 arguments, but got 2.
+tests/integration/inventory-billing/purchase-orders.contract.test.ts(186,51): error TS2741: Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+tests/integration/inventory-billing/purchase-orders.contract.test.ts(217,51): error TS2741: Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+tests/integration/inventory-billing/purchase-orders.contract.test.ts(220,30): error TS2554: Expected 1 arguments, but got 2.
+tests/integration/inventory-billing/purchase-orders.contract.test.ts(258,52): error TS2741: Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+tests/integration/inventory-billing/purchase-orders.contract.test.ts(280,52): error TS2741: Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+tests/integration/inventory-billing/purchase-orders.contract.test.ts(283,30): error TS2554: Expected 1 arguments, but got 2.
+tests/integration/inventory-billing/reporting.contract.test.ts(97,12): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/inventory-billing/reporting.contract.test.ts(98,12): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/inventory-billing/reporting.contract.test.ts(120,30): error TS2554: Expected 1 arguments, but got 2.
+tests/integration/inventory-billing/reporting.contract.test.ts(163,12): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/inventory-billing/reporting.contract.test.ts(164,12): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/inventory-billing/reporting.contract.test.ts(165,12): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/inventory-billing/reporting.contract.test.ts(202,12): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/inventory-billing/reporting.contract.test.ts(203,12): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/inventory-billing/reporting.contract.test.ts(204,12): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/inventory-billing/reporting.contract.test.ts(226,30): error TS2554: Expected 1 arguments, but got 2.
+tests/integration/inventory-billing/stock-adjustment.contract.test.ts(108,44): error TS2741: Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+tests/integration/inventory-billing/stock-adjustment.contract.test.ts(153,44): error TS2741: Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+tests/integration/inventory-billing/stock-adjustment.contract.test.ts(156,30): error TS2554: Expected 1 arguments, but got 2.
+tests/integration/inventory-billing/stock-adjustment.contract.test.ts(181,44): error TS2741: Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+tests/integration/inventory-billing/stock-adjustment.contract.test.ts(184,30): error TS2554: Expected 1 arguments, but got 2.
+tests/integration/inventory-billing/stock-adjustment.contract.test.ts(211,44): error TS2741: Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+tests/integration/inventory-billing/stock-adjustment.contract.test.ts(214,30): error TS2554: Expected 1 arguments, but got 2.
+tests/integration/inventory-billing/usage-variance.contract.test.ts(107,43): error TS2741: Property 'caseId' is missing in type 'Promise<{ caseId: string; }>' but required in type '{ caseId: string; }'.
+tests/integration/inventory-billing/usage-variance.contract.test.ts(112,12): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/inventory-billing/usage-variance.contract.test.ts(113,12): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/inventory-billing/usage-variance.contract.test.ts(114,12): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/inventory-billing/usage-variance.contract.test.ts(138,43): error TS2741: Property 'caseId' is missing in type 'Promise<{ caseId: string; }>' but required in type '{ caseId: string; }'.
+tests/integration/inventory-billing/usage-variance.contract.test.ts(142,12): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/inventory-billing/usage-variance.contract.test.ts(143,12): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/inventory-billing/usage-variance.contract.test.ts(144,12): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/inventory-billing/usage-variance.contract.test.ts(165,43): error TS2741: Property 'caseId' is missing in type 'Promise<{ caseId: string; }>' but required in type '{ caseId: string; }'.
+tests/integration/inventory-billing/usage-variance.contract.test.ts(168,30): error TS2554: Expected 1 arguments, but got 2.
+tests/integration/inventory-billing/usage-variance.contract.test.ts(187,43): error TS2741: Property 'caseId' is missing in type 'Promise<{ caseId: string; }>' but required in type '{ caseId: string; }'.
+tests/integration/inventory-billing/usage-variance.contract.test.ts(190,30): error TS2554: Expected 1 arguments, but got 2.
+tests/integration/inventory-billing/vendors.contract.test.ts(116,30): error TS2554: Expected 1 arguments, but got 2.
+tests/integration/inventory-billing/vendors.contract.test.ts(142,30): error TS2554: Expected 1 arguments, but got 2.
+tests/integration/inventory-billing/vendors.contract.test.ts(185,12): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/inventory-billing/vendors.contract.test.ts(225,45): error TS2741: Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+tests/integration/inventory-billing/vendors.contract.test.ts(229,12): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/inventory-billing/vendors.contract.test.ts(254,45): error TS2741: Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+tests/integration/inventory-billing/vendors.contract.test.ts(257,30): error TS2554: Expected 1 arguments, but got 2.
+tests/integration/inventory-billing/vendors.contract.test.ts(292,46): error TS2741: Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+tests/integration/inventory-billing/vendors.contract.test.ts(321,46): error TS2741: Property 'id' is missing in type 'Promise<{ id: string; }>' but required in type '{ id: string; }'.
+tests/integration/inventory-billing/vendors.contract.test.ts(324,30): error TS2554: Expected 1 arguments, but got 2.
+tests/integration/theater-tech/checklist-finalize.contract.test.ts(242,14): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/theater-tech/checklist-finalize.contract.test.ts(243,14): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/theater-tech/checklist-finalize.contract.test.ts(244,14): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/theater-tech/timeline.contract.test.ts(218,14): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/theater-tech/timeline.contract.test.ts(219,14): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/theater-tech/timeline.contract.test.ts(220,14): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/theater-tech/timeline.contract.test.ts(221,14): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/theater-tech/timeline.contract.test.ts(222,14): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/theater-tech/timeline.contract.test.ts(283,14): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/theater-tech/transition.contract.test.ts(108,19): error TS2339: Property 'message' does not exist on type 'ApiError'.
+tests/integration/theater-tech/transition.contract.test.ts(193,14): error TS18046: 'data.data' is of type 'unknown'.
+tests/integration/theater-tech/transition.contract.test.ts(283,19): error TS2339: Property 'message' does not exist on type 'ApiError'.
+tests/unit/app/api/_utils/handleApiError.test.ts(7,38): error TS2307: Cannot find module '@jest/globals' or its corresponding type declarations.
+tests/unit/app/api/_utils/handleApiError.test.ts(144,9): error TS2304: Cannot find name 'fail'.
+tests/unit/app/api/_utils/handleApiError.test.ts(163,19): error TS2540: Cannot assign to 'NODE_ENV' because it is a read-only property.
+tests/unit/app/api/_utils/handleApiError.test.ts(173,19): error TS2540: Cannot assign to 'NODE_ENV' because it is a read-only property.
+tests/unit/application/services/TheaterService.test.ts(8,52): error TS2307: Cannot find module '../../setup/test-database' or its corresponding type declarations.
+tests/unit/lib/http/apiResponse.test.ts(7,38): error TS2307: Cannot find module '@jest/globals' or its corresponding type declarations.
+tests/unit/lib/http/apiResponse.test.ts(65,9): error TS2554: Expected 2-3 arguments, but got 1.
+tests/unit/lib/http/apiResponse.test.ts(84,9): error TS2554: Expected 2-3 arguments, but got 1.
