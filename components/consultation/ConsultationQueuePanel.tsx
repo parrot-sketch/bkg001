@@ -10,12 +10,13 @@
  * Features:
  * - Real-time queue updates (via React Query)
  * - Compact patient cards with wait time
- * - Quick action to switch to next patient
+ * - Safe patient switching with confirmation
+ * - Auto-save before switching to prevent data loss
  * - Collapsible to maximize workspace when needed
  */
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +33,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { PatientSwitchConfirmation } from './PatientSwitchConfirmation';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { useAuth } from '@/hooks/patient/useAuth';
@@ -41,10 +43,16 @@ import { toast } from 'sonner';
 interface ConsultationQueuePanelProps {
   /** Current appointment being consulted (to exclude from queue) */
   currentAppointmentId?: number;
+  /** Current patient's full name */
+  currentPatientName?: string;
   /** All today's appointments (filtered to waiting patients) */
   appointments: AppointmentResponseDto[];
   /** Callback when consultation is complete and switching to next */
   onSwitchPatient?: (appointmentId: number) => void;
+  /** Callback to save draft before switch */
+  onSaveDraft?: () => Promise<void>;
+  /** Whether there are unsaved draft changes */
+  hasDrafts?: boolean;
   /** External class for positioning */
   className?: string;
   /** Start collapsed */
@@ -53,8 +61,11 @@ interface ConsultationQueuePanelProps {
 
 export function ConsultationQueuePanel({
   currentAppointmentId,
+  currentPatientName = 'Current Patient',
   appointments,
   onSwitchPatient,
+  onSaveDraft,
+  hasDrafts = false,
   className,
   defaultCollapsed = false,
 }: ConsultationQueuePanelProps) {
@@ -62,6 +73,18 @@ export function ConsultationQueuePanel({
   const { user } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   const [startingId, setStartingId] = useState<number | null>(null);
+  // Confirmation modal state
+  const [switchConfirmOpen, setSwitchConfirmOpen] = useState(false);
+  const [selectedForSwitch, setSelectedForSwitch] = useState<AppointmentResponseDto | null>(null);
+
+  const resolveDoctorId = useCallback(async () => {
+    if (!user) return null;
+    const doctorResponse = await doctorApi.getDoctorByUserId(user.id);
+    if (!doctorResponse.success || !doctorResponse.data?.id) {
+      return null;
+    }
+    return doctorResponse.data.id;
+  }, [user]);
 
   // Filter to only waiting patients (checked in but not in consultation)
   const waitingPatients = appointments.filter(apt =>
@@ -81,14 +104,38 @@ export function ConsultationQueuePanel({
   const nextPatient = sortedQueue[0];
 
   // Handle starting consultation for a patient
-  const handleStartConsultation = async (apt: AppointmentResponseDto) => {
-    if (!user) return;
+  const handleInitiateSwitchClick = (apt: AppointmentResponseDto) => {
+    // Show confirmation dialog first
+    setSelectedForSwitch(apt);
+    setSwitchConfirmOpen(true);
+  };
 
+  // Actually perform the switch after confirmation and save
+  const handleConfirmSwitch = useCallback(async () => {
+    if (!selectedForSwitch || !user) {
+      setSwitchConfirmOpen(false);
+      return;
+    }
+
+    const apt = selectedForSwitch;
     setStartingId(apt.id);
+
     try {
+      // Auto-save current patient's notes if callback provided
+      if (onSaveDraft) {
+        await onSaveDraft();
+      }
+
+      const doctorId = await resolveDoctorId();
+      if (!doctorId) {
+        toast.error('Unable to resolve doctor profile');
+        return;
+      }
+
+      // Start consultation with next patient
       const response = await doctorApi.startConsultation({
         appointmentId: apt.id,
-        doctorId: user.id,
+        doctorId,
         userId: user.id
       });
 
@@ -107,8 +154,10 @@ export function ConsultationQueuePanel({
       toast.error(error.message || 'Failed to start consultation');
     } finally {
       setStartingId(null);
+      setSwitchConfirmOpen(false);
+      setSelectedForSwitch(null);
     }
-  };
+  }, [selectedForSwitch, user, onSaveDraft, onSwitchPatient, router, resolveDoctorId]);
 
   // Collapsed view - slim rail with badge
   if (isCollapsed) {
@@ -271,8 +320,8 @@ export function ConsultationQueuePanel({
                     <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                       <Button
                         size="sm"
-                        onClick={() => handleStartConsultation(apt)}
-                        disabled={isStarting}
+                        onClick={() => handleInitiateSwitchClick(apt)}
+                        disabled={startingId === apt.id}
                         className={cn(
                           "w-full mt-4 h-9 text-[11px] font-bold uppercase tracking-widest transition-all rounded-xl border-none",
                           isNext
@@ -280,7 +329,7 @@ export function ConsultationQueuePanel({
                             : "bg-slate-100 hover:bg-slate-200 text-slate-600"
                         )}
                       >
-                        {isStarting ? (
+                        {startingId === apt.id ? (
                           <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />
                         ) : (
                           <Play className="h-3 w-3 mr-2" />
@@ -319,6 +368,89 @@ export function ConsultationQueuePanel({
         </div>
       )}
     </motion.div>
+  );
+}
+
+// Confirmation modal component
+export function ConsultationQueuePanelWithModal(
+  props: ConsultationQueuePanelProps & {
+    nextPatientName?: string;
+  }
+) {
+  const [switchConfirmOpen, setSwitchConfirmOpen] = useState(false);
+  const [selectedForSwitch, setSelectedForSwitch] = useState<AppointmentResponseDto | null>(null);
+
+  const { user } = useAuth();
+
+  const resolveDoctorId = useCallback(async () => {
+    if (!user) return null;
+    const doctorResponse = await doctorApi.getDoctorByUserId(user.id);
+    if (!doctorResponse.success || !doctorResponse.data?.id) {
+      return null;
+    }
+    return doctorResponse.data.id;
+  }, [user]);
+
+  const handleInitiateSwitch = (apt: AppointmentResponseDto) => {
+    setSelectedForSwitch(apt);
+    setSwitchConfirmOpen(true);
+  };
+
+  const handleConfirmSwitch = async () => {
+    if (!selectedForSwitch || !user || !props.onSaveDraft) return;
+
+    try {
+      // Save current patient's notes
+      await props.onSaveDraft();
+
+      const doctorId = await resolveDoctorId();
+      if (!doctorId) {
+        toast.error('Unable to resolve doctor profile');
+        return;
+      }
+
+      // Start next consultation
+      const response = await doctorApi.startConsultation({
+        appointmentId: selectedForSwitch.id,
+        doctorId,
+        userId: user.id
+      });
+
+      if (response.success) {
+        if (props.onSwitchPatient) {
+          props.onSwitchPatient(selectedForSwitch.id);
+        } else {
+          window.location.href = `/doctor/consultations/${selectedForSwitch.id}/session`;
+        }
+        toast.success(`Started consultation with ${selectedForSwitch.patient?.firstName}`);
+      } else {
+        toast.error('Failed to start consultation');
+      }
+    } catch (error) {
+      toast.error('Error switching patients');
+    } finally {
+      setSwitchConfirmOpen(false);
+      setSelectedForSwitch(null);
+    }
+  };
+
+  return (
+    <>
+      <ConsultationQueuePanel {...props} />
+      {selectedForSwitch && props.currentPatientName && (
+        <PatientSwitchConfirmation
+          isOpen={switchConfirmOpen}
+          currentPatientName={props.currentPatientName}
+          nextPatientName={`${selectedForSwitch.patient?.firstName} ${selectedForSwitch.patient?.lastName}`}
+          hasDrafts={props.hasDrafts || false}
+          onConfirm={handleConfirmSwitch}
+          onCancel={() => {
+            setSwitchConfirmOpen(false);
+            setSelectedForSwitch(null);
+          }}
+        />
+      )}
+    </>
   );
 }
 

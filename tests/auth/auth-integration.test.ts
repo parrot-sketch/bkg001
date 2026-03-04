@@ -10,10 +10,9 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { PrismaClient } from '@prisma/client';
 import { JwtAuthService } from '@/infrastructure/auth/JwtAuthService';
-import { PrismaUserRepository } from '@/infrastructure/repositories/PrismaUserRepository';
+import { PrismaUserRepository } from '@/infrastructure/database/repositories/PrismaUserRepository';
 import { Email } from '@/domain/value-objects/Email';
 import { Role } from '@/domain/enums/Role';
-import { User } from '@/domain/entities/User';
 import * as bcrypt from 'bcrypt';
 
 /**
@@ -82,8 +81,15 @@ describe.skip('Authentication Integration Tests', () => {
       data: {
         id: `test-doctor-${Date.now()}`,
         user_id: testUserId,
+        email: testUserEmail,
+        first_name: 'Integration',
+        last_name: 'Doctor',
+        name: 'Integration Doctor',
         onboarding_status: 'ACTIVE',
         specialization: 'Test Specialization',
+        license_number: `LIC-${Date.now()}`,
+        phone: '+15550000000',
+        address: 'Integration Test Address',
       },
     });
   });

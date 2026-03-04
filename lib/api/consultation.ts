@@ -19,7 +19,7 @@ export const consultationApi = {
    * Returns null if consultation doesn't exist yet (not started)
    */
   async getConsultation(appointmentId: number): Promise<ApiResponse<ConsultationResponseDto | null>> {
-    return apiClient.get<ConsultationResponseDto | null>(`/consultations/${appointmentId}`);
+    return apiClient.get<ConsultationResponseDto | null>(`/appointments/${appointmentId}/consultation`);
   },
 
   /**
@@ -30,7 +30,7 @@ export const consultationApi = {
     appointmentId: number,
     dto: Omit<SaveConsultationDraftDto, 'appointmentId'>
   ): Promise<ApiResponse<ConsultationResponseDto>> {
-    return apiClient.put<ConsultationResponseDto>(`/consultations/${appointmentId}/draft`, {
+    return apiClient.put<ConsultationResponseDto>(`/appointments/${appointmentId}/consultation/draft`, {
       ...dto,
       appointmentId,
     });

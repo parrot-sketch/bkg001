@@ -5,7 +5,7 @@
  * No JSX returned - pure logic only.
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { surgicalPlanApi } from '../../shared/api/surgicalPlanApi';
@@ -57,16 +57,20 @@ export function useAnesthesiaTab(caseId: string): UseAnesthesiaTabResult {
   const [localSpecialInstructions, setLocalSpecialInstructions] = useState('');
   const [localEstimatedDurationMinutes, setLocalEstimatedDurationMinutes] = useState('');
   
-  // Initialize from server data
+  // Track if we've initialized to prevent resetting state on every data refetch
+  const hasInitialized = useRef(false);
+  
+  // Initialize from server data only once
   useEffect(() => {
-    if (data) {
+    if (data && !hasInitialized.current) {
       setLocalAnesthesiaPlan((data.casePlan?.anesthesiaPlan as AnesthesiaType) || null);
       setLocalSpecialInstructions(data.casePlan?.specialInstructions || '');
       setLocalEstimatedDurationMinutes(
         data.casePlan?.estimatedDurationMinutes?.toString() || ''
       );
+      hasInitialized.current = true;
     }
-  }, [data]);
+  }, [data?.casePlan?.anesthesiaPlan, data?.casePlan?.specialInstructions, data?.casePlan?.estimatedDurationMinutes]);
   
   // Build view model
   const viewModel: AnesthesiaViewModel | null = data

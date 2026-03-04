@@ -5,7 +5,7 @@
  * No JSX returned - pure logic only.
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { surgicalPlanApi } from '../../shared/api/surgicalPlanApi';
@@ -52,13 +52,17 @@ export function useProcedureTab(caseId: string): UseProcedureTabResult {
   const [localProcedureName, setLocalProcedureName] = useState('');
   const [localProcedurePlan, setLocalProcedurePlan] = useState('');
   
-  // Initialize from server data
+  // Track if we've initialized to prevent resetting state on every data refetch
+  const hasInitialized = useRef(false);
+  
+  // Initialize from server data only once
   useEffect(() => {
-    if (data) {
+    if (data && !hasInitialized.current) {
       setLocalProcedureName(data.case?.procedureName || '');
       setLocalProcedurePlan(data.casePlan?.procedurePlan || '');
+      hasInitialized.current = true;
     }
-  }, [data]);
+  }, [data?.case?.procedureName, data?.casePlan?.procedurePlan]);
   
   // Build view model
   const viewModel: ProcedureViewModel | null = data

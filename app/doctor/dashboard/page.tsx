@@ -30,17 +30,13 @@ import {
   FileText,
   ArrowRight,
   Activity,
-  CheckCircle,
-  User,
-  ExternalLink,
-  AlertCircle
+  User
 } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { DoctorAppointmentCard } from '@/components/doctor/DoctorAppointmentCard';
 import { WaitingQueue } from '@/components/doctor/WaitingQueue';
 import { TheatreScheduleView } from '@/components/doctor/TheatreScheduleView';
-import { PostOpDashboard } from '@/components/doctor/PostOpDashboard';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -256,12 +252,6 @@ export default function DoctorDashboardPage() {
 
           {/* Right Actions */}
           <div className="flex items-center gap-2">
-            {/* Status Pill */}
-            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-100 rounded-full">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[10px] font-medium text-emerald-700">Online</span>
-            </div>
-
             <NotificationBell />
 
             {/* Quick Profile Link */}
@@ -298,49 +288,6 @@ export default function DoctorDashboardPage() {
             </div>
           </div>
         )}
-
-        {/* Stats Cluster - Refined Compact Grid */}
-        <div className="grid gap-3 grid-cols-2 md:grid-cols-4 lg:grid-cols-5">
-          {pendingConfirmations.length > 0 && (
-            <StatCard
-              title="Needs Review"
-              value={pendingConfirmations.length}
-              subtitle="Pending confirmations"
-              icon={AlertCircle}
-              color="amber"
-              pulse
-            />
-          )}
-          <StatCard
-            title="Today's Caseload"
-            value={todayCount}
-            subtitle={`${checkedInCount} arrived / waiting`}
-            icon={Calendar}
-            color="teal"
-          />
-          <StatCard
-            title="Arrived Now"
-            value={checkedInCount}
-            subtitle="Ready for consultation"
-            icon={CheckCircle}
-            color="emerald"
-            pulse={checkedInCount > 0}
-          />
-          <StatCard
-            title="Upcoming View"
-            value={upcomingCount}
-            subtitle="Next 7 days"
-            icon={Clock}
-            color="blue"
-          />
-          <StatCard
-            title="Efficiency"
-            value="94%"
-            subtitle="+3% from last week"
-            icon={Activity}
-            color="indigo"
-          />
-        </div>
 
         {/* Main Content Layout: Balanced Clinical View */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
@@ -442,31 +389,10 @@ export default function DoctorDashboardPage() {
           <div className="xl:col-span-4 space-y-5">
             <section className="sticky top-6 space-y-5">
               {/* Theatre Schedule - Specialized View */}
-              <div className="transform transition-transform hover:scale-[1.01] duration-300">
-                <TheatreScheduleView
-                  cases={theatreCases}
-                  loading={loadingTheatre}
-                />
-              </div>
-
-              {/* Post-Op Live Monitor */}
-              <div className="transform transition-transform hover:scale-[1.01] duration-300">
-                <PostOpDashboard cases={[]} loading={false} />
-              </div>
-
-              {/* Quick Shortcuts */}
-              <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-4 text-white shadow-lg overflow-hidden relative">
-                <div className="absolute -right-8 -bottom-8 h-24 w-24 bg-teal-500/10 rounded-full blur-2xl" />
-                <h3 className="text-xs font-semibold mb-3 text-slate-300 uppercase tracking-wide">
-                  Quick Actions
-                </h3>
-                <div className="grid grid-cols-2 gap-2 relative z-10">
-                  <ToolButton icon={FileText} label="Notes" />
-                  <ToolButton icon={Users} label="Referrals" />
-                  <ToolButton icon={Activity} label="Vitals" />
-                  <ToolButton icon={ExternalLink} label="Portal" />
-                </div>
-              </div>
+              <TheatreScheduleView
+                cases={theatreCases}
+                loading={loadingTheatre}
+              />
             </section>
           </div>
         </div>
@@ -476,67 +402,6 @@ export default function DoctorDashboardPage() {
 }
 
 /* Sub-components for a cleaner layout */
-
-function StatCard({ title, value, subtitle, icon: Icon, color, pulse }: any) {
-  const colorClasses: any = {
-    indigo: "text-indigo-600 bg-indigo-50/80",
-    emerald: "text-emerald-600 bg-emerald-50/80",
-    amber: "text-amber-600 bg-amber-50/80",
-    blue: "text-sky-600 bg-sky-50/80",
-    slate: "text-slate-600 bg-slate-100/80",
-    teal: "text-teal-600 bg-teal-50/80",
-  };
-
-  const borderAccents: any = {
-    indigo: "hover:border-indigo-200",
-    emerald: "hover:border-emerald-200",
-    amber: "hover:border-amber-200",
-    blue: "hover:border-sky-200",
-    slate: "hover:border-slate-300",
-    teal: "hover:border-teal-200",
-  };
-
-  const pulseColors: any = {
-    indigo: "bg-indigo-500",
-    emerald: "bg-emerald-500",
-    amber: "bg-amber-500",
-    blue: "bg-sky-500",
-    slate: "bg-slate-500",
-    teal: "bg-teal-500",
-  };
-
-  return (
-    <Card className={cn(
-      "group relative border-slate-200/60 shadow-sm transition-all hover:shadow duration-200 overflow-hidden rounded-xl bg-white/80",
-      borderAccents[color]
-    )}>
-      <CardHeader className="p-3 pb-1">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{title}</CardTitle>
-          <div className={cn("p-1.5 rounded-lg transition-transform group-hover:scale-105", colorClasses[color])}>
-            <Icon className="h-3.5 w-3.5" />
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="p-3 pt-0">
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-2xl font-bold text-slate-800 tracking-tight">{value}</span>
-          {pulse && <span className={cn("h-2 w-2 rounded-full animate-pulse self-center", pulseColors[color] || "bg-emerald-500")} />}
-        </div>
-        <p className="text-[11px] font-medium text-slate-500 mt-0.5">{subtitle}</p>
-      </CardContent>
-    </Card>
-  );
-}
-
-function ToolButton({ icon: Icon, label }: any) {
-  return (
-    <button className="flex flex-col items-center justify-center p-2.5 rounded-lg bg-white/5 hover:bg-teal-500/20 border border-white/5 hover:border-teal-500/30 transition-all text-slate-400 hover:text-teal-300">
-      <Icon className="h-4 w-4 mb-1" />
-      <span className="text-[9px] font-medium">{label}</span>
-    </button>
-  );
-}
 
 function ScheduleSkeleton({ count = 3 }: { count?: number }) {
   return (

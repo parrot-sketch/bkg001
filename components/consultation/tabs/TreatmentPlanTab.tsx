@@ -9,7 +9,6 @@
  * Auto-saves via parent context — no per-tab save button needed.
  */
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Calendar, CheckCircle2, ExternalLink, CalendarPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -20,6 +19,8 @@ import type { ConsultationResponseDto } from '@/application/dtos/ConsultationRes
 interface TreatmentPlanTabProps {
   consultation: ConsultationResponseDto | null;
   hasCasePlan: boolean;
+  /** Current plan from context (source of truth) */
+  planValue?: string;
   onPlanChange?: (plan: string) => void;
   isReadOnly?: boolean;
 }
@@ -27,21 +28,13 @@ interface TreatmentPlanTabProps {
 export function TreatmentPlanTab({
   consultation,
   hasCasePlan,
+  planValue,
   onPlanChange,
   isReadOnly = false,
 }: TreatmentPlanTabProps) {
-  const [nextSteps, setNextSteps] = useState(
-    consultation?.notes?.structured?.plan || ''
-  );
-
-  useEffect(() => {
-    if (consultation?.notes?.structured?.plan) {
-      setNextSteps(consultation.notes.structured.plan);
-    }
-  }, [consultation]);
+  const nextSteps = planValue ?? consultation?.notes?.structured?.plan ?? '';
 
   const handleChange = (value: string) => {
-    setNextSteps(value);
     onPlanChange?.(value);
   };
 

@@ -77,17 +77,30 @@ export function PatientGoalsTab({
     const [showAddField, setShowAddField] = useState(false);
     const [newConcernText, setNewConcernText] = useState('');
 
-    const isInternalUpdateRef = useRef(false);
-    const lastSentValueRef = useRef<string>('');
+    const initializedRef = useRef(false);
+    const lastPropValueRef = useRef<string>(initialValue);
+    const lastEmittedValueRef = useRef<string>(initialValue);
+
+    const emitValue = useCallback((value: string) => {
+        if (value === lastEmittedValueRef.current) return;
+        lastEmittedValueRef.current = value;
+        setGoals(value);
+        onChange(value);
+    }, [onChange]);
 
     useEffect(() => {
-        if (isInternalUpdateRef.current) {
-            isInternalUpdateRef.current = false;
+        const propChanged = initialValue !== lastPropValueRef.current;
+        if (!propChanged && initializedRef.current) return;
+        lastPropValueRef.current = initialValue;
+
+        // Ignore round-trip updates emitted by this component
+        if (initializedRef.current && initialValue === lastEmittedValueRef.current) {
             return;
         }
+
+        initializedRef.current = true;
         if (initialValue) {
-            const parsed = parseConcernsFromHtml(initialValue);
-            setConcerns(parsed);
+            setConcerns(parseConcernsFromHtml(initialValue));
             const lowerValue = initialValue.toLowerCase();
             setHasNoSpecificConcern(
                 lowerValue.includes('no specific') ||
@@ -98,15 +111,12 @@ export function PatientGoalsTab({
             setConcerns([]);
             setHasNoSpecificConcern(false);
         }
+
         setGoals(initialValue);
-        lastSentValueRef.current = initialValue;
+        lastEmittedValueRef.current = initialValue;
     }, [initialValue]);
 
     useEffect(() => {
-        if (isInternalUpdateRef.current) {
-            isInternalUpdateRef.current = false;
-            return;
-        }
         let newValue: string;
         if (hasNoSpecificConcern) {
             newValue = '<p><em>Routine follow-up / General consultation — no specific aesthetic concerns at this time.</em></p>';
@@ -120,43 +130,43 @@ export function PatientGoalsTab({
         } else {
             newValue = goals || '';
         }
-        if (newValue !== lastSentValueRef.current && newValue !== initialValue) {
-            isInternalUpdateRef.current = true;
-            setGoals(newValue);
-            lastSentValueRef.current = newValue;
-            onChange(newValue);
+        if (newValue !== initialValue) {
+            emitValue(newValue);
         }
-    }, [concerns, hasNoSpecificConcern]);
+    }, [concerns, hasNoSpecificConcern, goals, initialValue, emitValue]);
 
     const handleChange = (value: string) => {
         setGoals(value);
         if (!value.includes('<ul>') && !value.includes('<li>')) {
-            if (value !== lastSentValueRef.current) {
-                isInternalUpdateRef.current = true;
-                lastSentValueRef.current = value;
-                onChange(value);
-            }
+            emitValue(value);
         }
     };
 
     const addConcern = useCallback((text: string) => {
         const normalized = text.trim().toLowerCase();
-        const isDuplicate = concerns.some(c => c.text.trim().toLowerCase() === normalized);
-        if (isDuplicate) {
+        let added = false;
+        setConcerns(prev => {
+            const isDuplicate = prev.some(c => c.text.trim().toLowerCase() === normalized);
+            if (isDuplicate) return prev;
+            added = true;
+            return [
+                ...prev,
+                {
+                    id: `concern-${Date.now()}`,
+                    text: text.trim(),
+                    isEditing: false,
+                },
+            ];
+        });
+        if (!added) {
             toast.info('Already added');
             return;
         }
-        const newConcern: ConcernItem = {
-            id: `concern-${Date.now()}`,
-            text: text.trim(),
-            isEditing: false,
-        };
-        setConcerns(prev => [...prev, newConcern]);
         setHasNoSpecificConcern(false);
         setShowAddField(false);
         setNewConcernText('');
         toast.success('Added');
-    }, [concerns]);
+    }, []);
 
     const removeConcern = useCallback((id: string) => {
         setConcerns(prev => prev.filter(c => c.id !== id));
@@ -205,8 +215,8 @@ export function PatientGoalsTab({
         return (
             <div className="space-y-4">
                 <h2 className="text-lg font-semibold text-slate-900">Aesthetic Goals & Concerns</h2>
-                {goals ? (
-                    <div className="prose prose-slate max-w-none" dangerouslySetInnerHTML={{ __html: goals }} />
+                {initialValue ? (
+                    <div className="prose prose-slate max-w-none" dangerouslySetInnerHTML={{ __html: initialValue }} />
                 ) : (
                     <p className="text-slate-500">No goals recorded.</p>
                 )}

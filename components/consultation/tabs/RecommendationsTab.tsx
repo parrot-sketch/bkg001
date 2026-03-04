@@ -12,7 +12,6 @@
  * The Complete dialog will READ these values — not ask again.
  */
 
-import { useState, useEffect } from 'react';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -39,6 +38,8 @@ import { cn } from '@/lib/utils';
 
 interface RecommendationsTabProps {
   consultation: ConsultationResponseDto | null;
+  /** Current assessment notes from context (source of truth) */
+  assessmentValue?: string;
   /** Current outcome from context (source of truth) */
   currentOutcome?: ConsultationOutcomeType | null;
   /** Current patient decision from context (source of truth) */
@@ -110,6 +111,7 @@ const PATIENT_DECISION_OPTIONS = [
 
 export function RecommendationsTab({
   consultation,
+  assessmentValue,
   currentOutcome,
   currentPatientDecision,
   onOutcomeChange,
@@ -117,55 +119,23 @@ export function RecommendationsTab({
   onAssessmentChange,
   isReadOnly = false,
 }: RecommendationsTabProps) {
-  // Initialize from context state, then fallback to consultation data
-  const [outcomeType, setOutcomeType] = useState<ConsultationOutcomeType | ''>(
-    currentOutcome || consultation?.outcomeType || ''
-  );
-  const [patientDecision, setPatientDecision] = useState<PatientDecision | ''>(
-    currentPatientDecision || consultation?.patientDecision || ''
-  );
-  const [assessment, setAssessment] = useState(
-    consultation?.notes?.structured?.assessment || ''
-  );
-
-  // Sync from consultation data on load
-  useEffect(() => {
-    if (consultation?.notes?.structured) {
-      setAssessment(consultation.notes.structured.assessment || '');
-    }
-  }, [consultation]);
-
-  // Sync outcome from context if it changes externally
-  useEffect(() => {
-    if (currentOutcome && currentOutcome !== outcomeType) {
-      setOutcomeType(currentOutcome);
-    }
-  }, [currentOutcome]);
-
-  // Sync patient decision from context if it changes externally
-  useEffect(() => {
-    if (currentPatientDecision && currentPatientDecision !== patientDecision) {
-      setPatientDecision(currentPatientDecision);
-    }
-  }, [currentPatientDecision]);
+  // Controlled values from context with consultation fallback
+  const outcomeType: ConsultationOutcomeType | '' =
+    currentOutcome ?? consultation?.outcomeType ?? '';
+  const patientDecision: PatientDecision | '' =
+    currentPatientDecision ?? consultation?.patientDecision ?? '';
+  const assessment =
+    assessmentValue ?? consultation?.notes?.structured?.assessment ?? '';
 
   const handleOutcomeChange = (value: ConsultationOutcomeType) => {
-    setOutcomeType(value);
     onOutcomeChange?.(value);
-
-    // Clear patient decision if outcome changes away from PROCEDURE_RECOMMENDED
-    if (value !== ConsultationOutcomeType.PROCEDURE_RECOMMENDED) {
-      setPatientDecision('');
-    }
   };
 
   const handlePatientDecisionChange = (value: PatientDecision) => {
-    setPatientDecision(value);
     onPatientDecisionChange?.(value);
   };
 
   const handleAssessmentChange = (value: string) => {
-    setAssessment(value);
     onAssessmentChange?.(value);
   };
 

@@ -128,6 +128,7 @@ model Patient {
   surgical_cases           SurgicalCase[]
   surgical_outcomes        SurgicalOutcome[]
   vital_signs              VitalSign[]
+  patient_assignments      DoctorPatientAssignment[] @relation("PatientAssignments")
 
   @@index([email])
   @@index([user_id])
@@ -189,8 +190,10 @@ model Doctor {
   ratings                   Rating[]
   schedule_blocks           ScheduleBlock[]
   slot_configuration        SlotConfiguration?
-  primary_surgical_cases    SurgicalCase[]
-  surgical_outcomes         SurgicalOutcome[]
+  primary_surgical_cases      SurgicalCase[]
+  surgical_outcomes           SurgicalOutcome[]
+  doctor_patient_assignments  DoctorPatientAssignment[] @relation("DoctorAssignments")
+  transferred_assignments     DoctorPatientAssignment[] @relation("TransferredAssignments")
 
   @@index([email])
   @@index([user_id])
@@ -2055,4 +2058,44 @@ enum StockAdjustmentReason {
   COUNT_CORRECTION
   RETURN_TO_VENDOR
   OTHER
+}
+
+model DoctorPatientAssignment {
+  id                    String                            @id @default(uuid())
+  doctor_id             String                            // Who is providing care
+  patient_id            String                            // Who is receiving care
+  status                DoctorPatientAssignmentStatus     @default(ACTIVE)
+  
+  assigned_at           DateTime                          @default(now())
+  discharged_at         DateTime?                         // When care ended
+  transferred_at        DateTime?                         // When transferred away
+  
+  transferred_to_doctor_id String?                        // Who received the patient
+  transfer_reason       String?                           // Why was patient transferred
+  
+  care_notes            String?                           // Clinical notes
+  discharge_summary     String?                           // Care summary at discharge
+  
+  created_at            DateTime                          @default(now())
+  updated_at            DateTime                          @updatedAt
+  
+  doctor                Doctor                            @relation("DoctorAssignments", fields: [doctor_id], references: [id], onDelete: Cascade)
+  patient               Patient                           @relation("PatientAssignments", fields: [patient_id], references: [id], onDelete: Cascade)
+  transferred_to        Doctor?                           @relation("TransferredAssignments", fields: [transferred_to_doctor_id], references: [id], onDelete: SetNull)
+
+  @@unique([doctor_id, patient_id])
+  @@index([doctor_id])
+  @@index([patient_id])
+  @@index([status])
+  @@index([assigned_at])
+  @@index([doctor_id, status])
+  @@index([patient_id, status])
+  @@index([transferred_to_doctor_id])
+}
+
+enum DoctorPatientAssignmentStatus {
+  ACTIVE
+  DISCHARGED
+  TRANSFERRED
+  INACTIVE
 }

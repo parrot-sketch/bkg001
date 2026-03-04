@@ -218,6 +218,7 @@ export function ConsultationWorkspaceOptimized() {
                         <div className="p-6 max-w-3xl mx-auto">
                             <RecommendationsTab
                                 consultation={state.consultation}
+                                assessmentValue={state.notes.assessment || ''}
                                 currentOutcome={state.outcomeType}
                                 currentPatientDecision={state.patientDecision}
                                 onOutcomeChange={setOutcome}
@@ -233,6 +234,7 @@ export function ConsultationWorkspaceOptimized() {
                             <TreatmentPlanTab
                                 consultation={state.consultation}
                                 hasCasePlan={state.consultation?.hasCasePlan || false}
+                                planValue={state.notes.plan || ''}
                                 onPlanChange={handleNoteChange('plan')}
                                 isReadOnly={isReadOnly}
                             />

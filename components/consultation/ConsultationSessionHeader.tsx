@@ -42,6 +42,8 @@ interface ConsultationSessionHeaderProps {
   onComplete: () => void;
   autoSaveStatus: 'idle' | 'saving' | 'saved' | 'error';
   isSaving?: boolean;
+  slotStartTime?: Date; // Start time for slot duration calculation
+  slotDurationMinutes?: number; // Total allocated time for consultation
 }
 
 export function ConsultationSessionHeader({
@@ -53,6 +55,8 @@ export function ConsultationSessionHeader({
   onComplete,
   autoSaveStatus,
   isSaving = false,
+  slotStartTime,
+  slotDurationMinutes,
 }: ConsultationSessionHeaderProps) {
   const router = useRouter();
   // Ground truth: appointment status takes precedence over consultation record state.
@@ -86,6 +90,54 @@ export function ConsultationSessionHeader({
     }
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   }, [startedAt, now]);
+
+  // Calculate time remaining and warning states
+  const timeInfo = useMemo(() => {
+    if (!startedAt || !slotStartTime || !slotDurationMinutes) {
+      return null;
+    }
+
+    const slotStart = new Date(slotStartTime);
+    const slotEnd = new Date(slotStart.getTime() + slotDurationMinutes * 60000);
+    const elapsed = now.getTime() - new Date(startedAt).getTime();
+    const totalMs = slotDurationMinutes * 60000;
+    const remaining = Math.max(0, slotEnd.getTime() - now.getTime());
+    const remainingMinutes = Math.ceil(remaining / 60000);
+    const percentUsed = Math.min(100, Math.round((elapsed / totalMs) * 100));
+
+    // Warning thresholds
+    const isWarning = percentUsed >= 80 && percentUsed < 100; // 80-100%
+    const isOverrun = percentUsed >= 100; // >100%
+
+    return {
+      remaining,
+      remainingMinutes,
+      percentUsed,
+      isWarning,
+      isOverrun,
+      slotEnd,
+    };
+  }, [startedAt, slotStartTime, slotDurationMinutes, now]);
+
+  // Formatted remaining time
+  const remainingDisplay = useMemo(() => {
+    if (!timeInfo) return null;
+    
+    if (timeInfo.isOverrun) {
+      const overrunMinutes = Math.floor(
+        (now.getTime() - timeInfo.slotEnd.getTime()) / 60000
+      );
+      return `+${overrunMinutes}m over`;
+    }
+
+    if (timeInfo.remainingMinutes <= 0) return 'Time\'s up';
+    if (timeInfo.remainingMinutes > 60) {
+      const hours = Math.floor(timeInfo.remainingMinutes / 60);
+      const mins = timeInfo.remainingMinutes % 60;
+      return `${hours}h ${mins}m left`;
+    }
+    return `${timeInfo.remainingMinutes}m left`;
+  }, [timeInfo, now]);
 
   // Patient initials
   const initials = patientName
@@ -152,6 +204,43 @@ export function ConsultationSessionHeader({
                   >
                     <Clock className="h-3 w-3 text-emerald-500/70" />
                     <span className="font-mono tabular-nums tracking-wider">{elapsed}</span>
+                    
+                    {/* Remaining time and progress indicator */}
+                    {timeInfo && (
+                      <>
+                        {' • '}
+                        <div
+                          className={cn(
+                            'flex items-center gap-1 px-2 py-0.5 rounded-md font-mono tabular-nums',
+                            timeInfo.isOverrun
+                              ? 'bg-red-50 text-red-600 font-bold'
+                              : timeInfo.isWarning
+                                ? 'bg-amber-50 text-amber-600 font-bold'
+                                : 'text-slate-500'
+                          )}
+                        >
+                          {remainingDisplay}
+                        </div>
+                        
+                        {/* Progress bar */}
+                        <div className="w-12 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{
+                              width: `${Math.min(100, timeInfo.percentUsed)}%`,
+                            }}
+                            className={cn(
+                              'h-full transition-colors',
+                              timeInfo.isOverrun
+                                ? 'bg-red-500'
+                                : timeInfo.isWarning
+                                  ? 'bg-amber-500'
+                                  : 'bg-emerald-500'
+                            )}
+                          />
+                        </div>
+                      </>
+                    )}
                   </motion.div>
                 )}
                 <AutoSaveIndicator status={autoSaveStatus} isSaving={isSaving} />

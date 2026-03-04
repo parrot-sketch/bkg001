@@ -12,8 +12,8 @@ describe('billingSummaryParsers', () => {
       const data = {
         payment: {
           id: 1,
-          patientId: 'patient-1',
-          surgicalCaseId: 'case-1',
+          patientId: '123e4567-e89b-12d3-a456-426614174000',
+          surgicalCaseId: '123e4567-e89b-12d3-a456-426614174001',
           billDate: '2024-01-01T00:00:00Z',
           paymentDate: null,
           totalAmount: 1000,
