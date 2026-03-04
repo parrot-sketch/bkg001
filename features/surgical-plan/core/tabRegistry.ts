@@ -131,15 +131,40 @@ export const TAB_REGISTRY: TabDefinition[] = [
 
 /**
  * Get tabs filtered by role and sorted by order
+ * 
+ * Phase-aware filtering:
+ * - Billing Summary: Only visible in COMPLETED phase
+ * - Usage Variance: Only visible in COMPLETED phase
+ * - Used Items: Only visible during/after IN_THEATER phase
  */
 export function getTabsForRole(
   role: Role,
   data?: SurgicalCasePlanViewModel
 ): TabDefinition[] {
+  const isPostOpPhase = data?.case?.status === 'COMPLETED';
+  const isExecutionOrPostOp = ['IN_THEATER', 'COMPLETED'].includes(data?.case?.status || '');
+  
   return TAB_REGISTRY.filter((tab) => {
     if (tab.permissionCheck && !tab.permissionCheck(role)) {
       return false;
     }
+    
+    // Phase-aware filtering
+    // Billing Summary only in post-op (COMPLETED)
+    if (tab.key === 'billing-summary' && !isPostOpPhase) {
+      return false;
+    }
+    
+    // Usage Variance only in post-op (COMPLETED)
+    if (tab.key === 'usage-variance' && !isPostOpPhase) {
+      return false;
+    }
+    
+    // Used Items only during/after execution (IN_THEATER, COMPLETED)
+    if (tab.key === 'used-items' && !isExecutionOrPostOp) {
+      return false;
+    }
+    
     return true;
   }).sort((a, b) => a.order - b.order);
 }

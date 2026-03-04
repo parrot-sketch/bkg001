@@ -15,9 +15,17 @@ describe('MedicationService', () => {
             },
             inventoryUsage: {
                 create: vi.fn(),
+                findUnique: vi.fn(),
+                update: vi.fn(),
             },
             patientBill: {
-                create: vi.fn(),
+                create: vi.fn().mockResolvedValue({ id: 1 }),
+                findUnique: vi.fn(),
+                findMany: vi.fn().mockResolvedValue([]),
+                update: vi.fn(),
+            },
+            patientBillItem: {
+                create: vi.fn().mockResolvedValue({ id: 1 }),
             },
             payment: {
                 findUnique: vi.fn(),

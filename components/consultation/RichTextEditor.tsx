@@ -42,6 +42,7 @@ interface RichTextEditorProps {
   autoFocus?: boolean;
   className?: string;
   minHeight?: string;
+  changeDebounceMs?: number;
 }
 
 export function RichTextEditor({
@@ -52,9 +53,26 @@ export function RichTextEditor({
   autoFocus = false,
   className,
   minHeight = '300px',
+  changeDebounceMs = 500,
 }: RichTextEditorProps) {
-  // Ref to track internal content updates (prop changes) vs user edits
+  // Track internal content updates (prop sync) vs user edits.
   const isInternalUpdateRef = useRef(false);
+  const onChangeRef = useRef(onChange);
+  const lastEmittedContentRef = useRef(content);
+  const pendingContentRef = useRef(content);
+  const emitTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  const flushPendingChange = () => {
+    if (pendingContentRef.current === lastEmittedContentRef.current) {
+      return;
+    }
+    lastEmittedContentRef.current = pendingContentRef.current;
+    onChangeRef.current(pendingContentRef.current);
+  };
 
   const editor = useEditor({
     extensions: [
@@ -77,21 +95,27 @@ export function RichTextEditor({
     autofocus: autoFocus,
     immediatelyRender: false,
     onUpdate: ({ editor }) => {
-      // Skip onChange if this update came from internal content prop change
+      // Skip onChange if this update came from content prop synchronization.
       if (isInternalUpdateRef.current) {
         isInternalUpdateRef.current = false;
         return;
       }
 
       const html = editor.getHTML();
-      // Defer onChange to next tick to avoid setState during render
-      setTimeout(() => onChange(html), 0);
+      pendingContentRef.current = html;
+
+      if (emitTimerRef.current) {
+        clearTimeout(emitTimerRef.current);
+      }
+
+      emitTimerRef.current = setTimeout(() => {
+        flushPendingChange();
+      }, changeDebounceMs);
     },
     editorProps: {
       attributes: {
         class: cn(
           'prose prose-sm max-w-none focus:outline-none',
-          'min-h-[' + minHeight + ']',
           'px-5 py-4',
           className
         ),
@@ -99,14 +123,34 @@ export function RichTextEditor({
     },
   });
 
-  // Update content when prop changes (for external updates)
-  // Mark this as an internal update so onUpdate doesn't trigger onChange
+  // Update content when prop changes (for external updates only).
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      isInternalUpdateRef.current = true;
-      editor.commands.setContent(content);
+    if (!editor) return;
+
+    const editorHtml = editor.getHTML();
+    const isRoundTripFromThisEditor =
+      content === pendingContentRef.current ||
+      content === lastEmittedContentRef.current ||
+      content === editorHtml;
+
+    if (isRoundTripFromThisEditor) {
+      return;
     }
+
+    isInternalUpdateRef.current = true;
+    pendingContentRef.current = content;
+    lastEmittedContentRef.current = content;
+    editor.commands.setContent(content, { emitUpdate: false });
   }, [content, editor]);
+
+  useEffect(() => {
+    return () => {
+      if (emitTimerRef.current) {
+        clearTimeout(emitTimerRef.current);
+      }
+      flushPendingChange();
+    };
+  }, []);
 
   if (!editor) {
     return null;
@@ -227,6 +271,7 @@ export function RichTextEditor({
       {/* Editor Content */}
       <EditorContent
         editor={editor}
+        style={{ minHeight }}
         className={cn(
           'prose-headings:font-bold prose-headings:text-slate-900 prose-headings:tracking-tight',
           'prose-p:text-slate-700 prose-p:leading-relaxed prose-p:text-[14px]',

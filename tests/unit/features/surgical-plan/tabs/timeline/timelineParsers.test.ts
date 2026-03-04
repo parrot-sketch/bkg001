@@ -10,7 +10,7 @@ describe('timelineParsers', () => {
   describe('parseTimelineResponse', () => {
     it('should parse valid timeline response', () => {
       const data = {
-        caseId: 'case-1',
+        caseId: '123e4567-e89b-12d3-a456-426614174000',
         caseStatus: 'IN_THEATER',
         timeline: {
           wheelsIn: '2024-01-01T08:00:00Z',
@@ -32,14 +32,14 @@ describe('timelineParsers', () => {
         ],
       };
       const result = parseTimelineResponse(data);
-      expect(result.caseId).toBe('case-1');
+      expect(result.caseId).toBe('123e4567-e89b-12d3-a456-426614174000');
       expect(result.timeline.wheelsIn).toBe('2024-01-01T08:00:00Z');
       expect(result.missingItems).toHaveLength(1);
     });
 
     it('should parse timeline with all null timestamps', () => {
       const data = {
-        caseId: 'case-1',
+        caseId: '123e4567-e89b-12d3-a456-426614174000',
         caseStatus: 'PLANNING',
         timeline: {
           wheelsIn: null,

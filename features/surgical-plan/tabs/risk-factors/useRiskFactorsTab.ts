@@ -5,7 +5,7 @@
  * No JSX returned - pure logic only.
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { surgicalPlanApi } from '../../shared/api/surgicalPlanApi';
@@ -56,13 +56,17 @@ export function useRiskFactorsTab(caseId: string): UseRiskFactorsTabResult {
   const [localPreOpNotes, setLocalPreOpNotes] = useState('');
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   
-  // Initialize from server data
+  // Track if we've initialized to prevent resetting state on every data refetch
+  const hasInitialized = useRef(false);
+  
+  // Initialize from server data only once
   useEffect(() => {
-    if (data) {
+    if (data && !hasInitialized.current) {
       setLocalRiskFactors(data.casePlan?.riskFactors || '');
       setLocalPreOpNotes(data.casePlan?.preOpNotes || '');
+      hasInitialized.current = true;
     }
-  }, [data]);
+  }, [data?.casePlan?.riskFactors, data?.casePlan?.preOpNotes]);
   
   // Build view model
   const viewModel: RiskFactorsViewModel | null = data

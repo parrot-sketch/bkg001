@@ -101,20 +101,96 @@ function sectionsToHtml(sections: Map<string, ExaminationSection>): string {
   return htmlParts.join('\n\n');
 }
 
+/**
+ * Parse persisted exam HTML back into collapsible section state.
+ */
+function htmlToSections(html: string): Map<string, ExaminationSection> {
+  const result = new Map<string, ExaminationSection>();
+  if (!html || typeof window === 'undefined') return result;
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  let currentSectionId: string | null = null;
+  let currentSectionTitle = '';
+  let currentNodes: string[] = [];
+
+  const flush = () => {
+    if (!currentSectionId) return;
+    const icon = EXAMINATION_SECTIONS.find(s => s.id === currentSectionId)?.icon || Stethoscope;
+    result.set(currentSectionId, {
+      id: currentSectionId,
+      title: currentSectionTitle,
+      icon,
+      content: currentNodes.join('\n').trim(),
+      hasPhotos: currentNodes.join(' ').toLowerCase().includes('photo'),
+    });
+  };
+
+  for (const node of Array.from(doc.body.children)) {
+    const tag = node.tagName.toLowerCase();
+    if (tag === 'h3') {
+      flush();
+      const title = (node.textContent || '').trim();
+      const matched = EXAMINATION_SECTIONS.find(s => s.title.toLowerCase() === title.toLowerCase());
+      currentSectionId = matched?.id || null;
+      currentSectionTitle = matched?.title || title;
+      currentNodes = [];
+      continue;
+    }
+
+    if (currentSectionId) {
+      currentNodes.push(node.outerHTML);
+    }
+  }
+
+  flush();
+
+  // Backward compatibility: if no structured sections, keep content in "general".
+  if (result.size === 0 && html.trim().length > 0) {
+    result.set('general', {
+      id: 'general',
+      title: 'General Findings',
+      icon: Stethoscope,
+      content: html,
+      hasPhotos: html.toLowerCase().includes('photo'),
+    });
+  }
+
+  return result;
+}
+
 export function ExaminationTab({
   initialValue = '',
   onChange,
   isReadOnly = false,
 }: ExaminationTabProps) {
-  const [examination, setExamination] = useState(initialValue);
   const [sections, setSections] = useState<Map<string, ExaminationSection>>(new Map());
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [measurements, setMeasurements] = useState<Record<string, string>>({});
   
-  // Track refs to prevent duplicate onChange calls
-  const lastInitialValueRef = useRef<string>(initialValue);
+  // Track refs to prevent duplicate onChange calls and round-trip resets
+  const initializedRef = useRef(false);
   const lastSentValueRef = useRef<string>(initialValue);
-  const isInternalUpdateRef = useRef(false);
+  const pendingChangeRef = useRef<string>(initialValue);
+  const emitTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Batch parent updates to avoid heavy re-renders while typing in nested editors.
+  const emitChangeBuffered = useCallback((value: string) => {
+    pendingChangeRef.current = value;
+
+    if (emitTimerRef.current) {
+      clearTimeout(emitTimerRef.current);
+    }
+
+    emitTimerRef.current = setTimeout(() => {
+      const nextValue = pendingChangeRef.current;
+      if (nextValue !== lastSentValueRef.current) {
+        lastSentValueRef.current = nextValue;
+        onChange(nextValue);
+      }
+    }, 2200);
+  }, [onChange]);
 
   /**
    * Sync external content updates from parent (initialValue changes)
@@ -125,14 +201,38 @@ export function ExaminationTab({
    * to call onChange since the parent already has that value.
    */
   useEffect(() => {
-    if (initialValue !== lastInitialValueRef.current) {
-      lastInitialValueRef.current = initialValue;
+    // Initial hydration
+    if (!initializedRef.current) {
+      initializedRef.current = true;
       lastSentValueRef.current = initialValue;
-      isInternalUpdateRef.current = true;
-      setExamination(initialValue);
-      setSections(new Map()); // Reset sections when external content changes
+      pendingChangeRef.current = initialValue;
+      setSections(htmlToSections(initialValue));
+      return;
     }
+
+    // Ignore value round-trips emitted by this component.
+    if (initialValue === pendingChangeRef.current || initialValue === lastSentValueRef.current) {
+      return;
+    }
+
+    // External update (e.g. server reload) - rehydrate section state.
+    lastSentValueRef.current = initialValue;
+    pendingChangeRef.current = initialValue;
+    setSections(htmlToSections(initialValue));
   }, [initialValue]);
+
+  useEffect(() => {
+    return () => {
+      if (emitTimerRef.current) {
+        clearTimeout(emitTimerRef.current);
+      }
+
+      // Flush latest buffered value on unmount/tab switch.
+      if (pendingChangeRef.current !== lastSentValueRef.current) {
+        onChange(pendingChangeRef.current);
+      }
+    };
+  }, [onChange]);
 
   /**
    * Unified change handler for user edits.
@@ -145,49 +245,46 @@ export function ExaminationTab({
    */
   const handleContentChange = useCallback((value: string): void => {
     // Check if this is actually a new change
-    if (value === lastSentValueRef.current) {
+    if (value === pendingChangeRef.current && value === lastSentValueRef.current) {
       return;
     }
-    
-    lastSentValueRef.current = value;
-    isInternalUpdateRef.current = true;
-    setExamination(value);
-    onChange(value);
-  }, [onChange]);
+
+    pendingChangeRef.current = value;
+    emitChangeBuffered(value);
+  }, [emitChangeBuffered]);
 
   const addQuickFinding = useCallback((sectionId: string, finding: string) => {
-    const section = sections.get(sectionId) || {
-      id: sectionId,
-      title: EXAMINATION_SECTIONS.find(s => s.id === sectionId)?.title || 'Section',
-      icon: Stethoscope,
-      content: '',
-      hasPhotos: false,
-    };
-
     const Icon = EXAMINATION_SECTIONS.find(s => s.id === sectionId)?.icon || Stethoscope;
-    const newContent = section.content
-      ? `${section.content}\n<p>• ${finding}</p>`
-      : `<p>• ${finding}</p>`;
+    setSections((prevSections) => {
+      const section = prevSections.get(sectionId) || {
+        id: sectionId,
+        title: EXAMINATION_SECTIONS.find(s => s.id === sectionId)?.title || 'Section',
+        icon: Stethoscope,
+        content: '',
+        hasPhotos: false,
+      };
+      const newContent = section.content
+        ? `${section.content}\n<p>• ${finding}</p>`
+        : `<p>• ${finding}</p>`;
+      const updatedSection: ExaminationSection = {
+        ...section,
+        icon: Icon,
+        content: newContent,
+      };
+      const updatedSections = new Map(prevSections);
+      updatedSections.set(sectionId, updatedSection);
 
-    const updatedSection: ExaminationSection = {
-      ...section,
-      icon: Icon,
-      content: newContent,
-    };
-
-    const updatedSections = new Map(sections);
-    updatedSections.set(sectionId, updatedSection);
-
-    // Convert to HTML and update via unified handler
-    const html = sectionsToHtml(updatedSections);
-    setSections(updatedSections);
-    handleContentChange(html);
+      // Convert to HTML and update via unified handler
+      const html = sectionsToHtml(updatedSections);
+      handleContentChange(html);
+      return updatedSections;
+    });
     
     // Auto-expand the section so user can see what was added
     setActiveSection(sectionId);
     
     toast.success(`Added: ${finding}`);
-  }, [sections, handleContentChange]);
+  }, [handleContentChange]);
 
   const addMeasurement = useCallback((label: string, value: string) => {
     if (!value.trim()) {
@@ -198,35 +295,33 @@ export function ExaminationTab({
     const template = MEASUREMENT_TEMPLATES.find(m => m.label === label);
     const measurementText = `${label}: ${value} ${template?.unit || ''}`;
     
-    // Add to general section or create it
-    const generalSection = sections.get('general') || {
-      id: 'general',
-      title: 'General Findings',
-      icon: Stethoscope,
-      content: '',
-      hasPhotos: false,
-    };
-
-    const newContent = generalSection.content
-      ? `${generalSection.content}\n<p><strong>${measurementText}</strong></p>`
-      : `<p><strong>${measurementText}</strong></p>`;
-
-    const updatedSection: ExaminationSection = {
-      ...generalSection,
-      content: newContent,
-    };
-
-    const updatedSections = new Map(sections);
-    updatedSections.set('general', updatedSection);
-
-    const html = sectionsToHtml(updatedSections);
-    setSections(updatedSections);
-    handleContentChange(html);
+    setSections((prevSections) => {
+      // Add to general section or create it
+      const generalSection = prevSections.get('general') || {
+        id: 'general',
+        title: 'General Findings',
+        icon: Stethoscope,
+        content: '',
+        hasPhotos: false,
+      };
+      const newContent = generalSection.content
+        ? `${generalSection.content}\n<p><strong>${measurementText}</strong></p>`
+        : `<p><strong>${measurementText}</strong></p>`;
+      const updatedSection: ExaminationSection = {
+        ...generalSection,
+        content: newContent,
+      };
+      const updatedSections = new Map(prevSections);
+      updatedSections.set('general', updatedSection);
+      const html = sectionsToHtml(updatedSections);
+      handleContentChange(html);
+      return updatedSections;
+    });
     
     // Clear measurement input
     setMeasurements(prev => ({ ...prev, [label]: '' }));
     toast.success('Measurement added');
-  }, [sections, handleContentChange]);
+  }, [handleContentChange]);
 
   const toggleSection = useCallback((sectionId: string) => {
     setActiveSection(prev => prev === sectionId ? null : sectionId);
@@ -253,10 +348,10 @@ export function ExaminationTab({
             <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
           </div>
           <div className="p-8">
-            {examination ? (
+            {initialValue ? (
               <div
                 className="prose prose-slate prose-sm max-w-none prose-p:text-slate-700 prose-p:leading-relaxed prose-p:text-base prose-h3:text-slate-900 prose-h3:font-semibold prose-h3:mt-6 prose-h3:mb-3"
-                dangerouslySetInnerHTML={{ __html: examination }}
+                dangerouslySetInnerHTML={{ __html: initialValue }}
               />
             ) : (
               <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -335,33 +430,12 @@ export function ExaminationTab({
                         </div>
                       </div>
 
-                      {/* Preview of Current Findings */}
-                      {section?.content && (
-                        <div className="space-y-2 animate-in fade-in duration-300">
-                          <div className="flex items-center justify-between">
-                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                              Current Findings Preview
-                            </p>
-                            <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                              {section.content.split('<p>').length - 1} {section.content.split('<p>').length - 1 === 1 ? 'finding' : 'findings'}
-                            </span>
-                          </div>
-                          <div className="bg-slate-50 rounded-lg border border-slate-200 p-3 max-h-40 overflow-y-auto custom-scrollbar-light">
-                            <div
-                              className="prose prose-slate prose-sm max-w-none prose-p:text-slate-700 prose-p:text-sm prose-p:my-1 prose-ul:text-slate-700 prose-ul:text-sm"
-                              dangerouslySetInnerHTML={{ __html: section.content }}
-                            />
-                          </div>
-                        </div>
-                      )}
-
                       {/* Rich Text Editor for Section */}
                       <div className="space-y-2">
                         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                           {section?.content ? 'Edit Findings' : 'Add Detailed Notes'}
                         </p>
                         <RichTextEditor
-                          key={`${sectionDef.id}-${section?.content?.length || 0}`} // Force re-render when content changes
                           content={section?.content || ''}
                           onChange={(value) => {
                             const updatedSection: ExaminationSection = {
@@ -371,11 +445,13 @@ export function ExaminationTab({
                               content: value,
                               hasPhotos: value.includes('[PHOTO]') || value.includes('photo'),
                             };
-                            const updatedSections = new Map(sections);
-                            updatedSections.set(sectionDef.id, updatedSection);
-                            setSections(updatedSections);
-                            const html = sectionsToHtml(updatedSections);
-                            handleContentChange(html);
+                            setSections((prevSections) => {
+                              const updatedSections = new Map(prevSections);
+                              updatedSections.set(sectionDef.id, updatedSection);
+                              const html = sectionsToHtml(updatedSections);
+                              handleContentChange(html);
+                              return updatedSections;
+                            });
                           }}
                           placeholder={`Add detailed findings for ${sectionDef.title.toLowerCase()}...`}
                           readOnly={false}
@@ -423,20 +499,6 @@ export function ExaminationTab({
                 </div>
               ))}
             </div>
-          </div>
-
-          {/* Full Editor (Alternative/Additional) */}
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Additional Notes
-            </p>
-            <RichTextEditor
-              content={examination}
-              onChange={handleContentChange}
-              placeholder="Add any additional examination notes, observations, or findings not covered above…"
-              readOnly={isReadOnly}
-              minHeight="250px"
-            />
           </div>
         </>
       )}

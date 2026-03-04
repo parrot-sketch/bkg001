@@ -285,10 +285,22 @@ export const doctorApi = {
   /**
    * Get doctor's patients
    * 
-   * Fetches unique patients who have had appointments with this doctor.
-   * Optimized to avoid N+1 queries.
+   * Fetches patients from explicit assignment records (status: ACTIVE by default).
+   * Supports filtering by assignment status and pagination.
+   * 
+   * @param options - Query options (status, skip, take)
    */
-  async getMyPatients(): Promise<ApiResponse<PatientResponseDto[]>> {
-    return apiClient.get<PatientResponseDto[]>('/doctors/me/patients');
+  async getMyPatients(options?: {
+    status?: 'ACTIVE' | 'DISCHARGED' | 'TRANSFERRED' | 'INACTIVE';
+    skip?: number;
+    take?: number;
+  }): Promise<ApiResponse<PatientResponseDto[]>> {
+    const params = new URLSearchParams();
+    if (options?.status) params.set('status', options.status);
+    if (options?.skip !== undefined) params.set('skip', options.skip.toString());
+    if (options?.take !== undefined) params.set('take', options.take.toString());
+
+    const query = params.toString();
+    return apiClient.get<PatientResponseDto[]>(`/doctors/me/patients${query ? `?${query}` : ''}`);
   },
 };

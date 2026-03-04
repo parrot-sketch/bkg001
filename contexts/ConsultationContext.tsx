@@ -101,7 +101,7 @@ type ConsultationAction =
   | { type: 'SET_NOTES'; payload: StructuredNotes }
   | { type: 'UPDATE_NOTE_FIELD'; payload: { field: keyof StructuredNotes; value: string } }
   | { type: 'SET_OUTCOME'; payload: ConsultationOutcomeType }
-  | { type: 'SET_PATIENT_DECISION'; payload: PatientDecision }
+  | { type: 'SET_PATIENT_DECISION'; payload: PatientDecision | null }
   | { type: 'SET_AUTO_SAVE_STATUS'; payload: 'idle' | 'saving' | 'saved' | 'error' }
   | { type: 'SET_DIRTY'; payload: boolean }
   | { type: 'SHOW_COMPLETE_DIALOG'; payload: boolean }
@@ -159,6 +159,9 @@ function consultationReducer(state: ConsultationProviderState, action: Consultat
       };
 
     case 'UPDATE_NOTE_FIELD':
+      if (state.notes[action.payload.field] === action.payload.value) {
+        return state;
+      }
       return {
         ...state,
         notes: { ...state.notes, [action.payload.field]: action.payload.value },
@@ -166,6 +169,9 @@ function consultationReducer(state: ConsultationProviderState, action: Consultat
       };
 
     case 'SET_OUTCOME':
+      if (state.outcomeType === action.payload) {
+        return state;
+      }
       return {
         ...state,
         outcomeType: action.payload,
@@ -173,6 +179,9 @@ function consultationReducer(state: ConsultationProviderState, action: Consultat
       };
 
     case 'SET_PATIENT_DECISION':
+      if (state.patientDecision === action.payload) {
+        return state;
+      }
       return {
         ...state,
         patientDecision: action.payload,
@@ -257,7 +266,7 @@ interface ConsultationContextValue {
   saveDraft: () => Promise<void>;
   updateNotes: (field: keyof StructuredNotes, value: string) => void;
   setOutcome: (outcome: ConsultationOutcomeType) => void;
-  setPatientDecision: (decision: PatientDecision) => void;
+  setPatientDecision: (decision: PatientDecision | null) => void;
   openCompleteDialog: () => void;
   closeCompleteDialog: () => void;
   completeConsultation: (redirectPath?: string) => Promise<void>;
@@ -501,9 +510,12 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
 
   const setOutcome = useCallback((outcome: ConsultationOutcomeType) => {
     dispatch({ type: 'SET_OUTCOME', payload: outcome });
+    if (outcome !== ConsultationOutcomeType.PROCEDURE_RECOMMENDED) {
+      dispatch({ type: 'SET_PATIENT_DECISION', payload: null });
+    }
   }, []);
 
-  const setPatientDecision = useCallback((decision: PatientDecision) => {
+  const setPatientDecision = useCallback((decision: PatientDecision | null) => {
     dispatch({ type: 'SET_PATIENT_DECISION', payload: decision });
   }, []);
 
@@ -585,7 +597,45 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [state.notes, isActive, state.workflow.isDirty, saveDraft]);
+  }, [
+    state.notes,
+    state.outcomeType,
+    state.patientDecision,
+    isActive,
+    state.workflow.isDirty,
+    saveDraft,
+  ]);
+
+  // Heartbeat effect: Send activity signal to backend every 30 seconds
+  // This prevents session timeout and enables cleanup of truly abandoned sessions
+  useEffect(() => {
+    if (!isActive || !state.consultation?.id) return;
+
+    const sendHeartbeat = async () => {
+      try {
+        const response = await fetch(
+          `/api/consultations/${state.consultation!.id}/heartbeat`,
+          { method: 'POST' }
+        );
+
+        if (!response.ok) {
+          console.warn('[Heartbeat] Non-200 response:', response.status);
+          // Not fatal - next heartbeat will try again
+        }
+      } catch (error) {
+        console.warn('[Heartbeat] Failed to send:', error);
+        // Network errors are expected occasionally - don't interrupt consultation
+      }
+    };
+
+    // Send initial heartbeat immediately
+    sendHeartbeat();
+
+    // Set up interval to send heartbeat every 30 seconds
+    const heartbeatInterval = setInterval(sendHeartbeat, 30000);
+
+    return () => clearInterval(heartbeatInterval);
+  }, [isActive, state.consultation?.id]);
 
   // Load initial appointment
   useEffect(() => {

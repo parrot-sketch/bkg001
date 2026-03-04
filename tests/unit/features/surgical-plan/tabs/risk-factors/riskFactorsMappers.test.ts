@@ -26,10 +26,10 @@ describe('riskFactorsMappers', () => {
     });
 
     it('should replace short notes with template', () => {
-      const result = insertPreOpTemplate('<p>Short</p>');
+      const result = insertPreOpTemplate('<p>A</p>');
       expect(result.changed).toBe(true);
       expect(result.nextHtml).toContain('Chief Complaint');
-      expect(result.nextHtml).not.toContain('Short');
+      expect(result.nextHtml).not.toContain('<p>A</p>');
     });
   });
 

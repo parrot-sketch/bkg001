@@ -1,17 +1,19 @@
 'use client';
 
 /**
- * Doctor Appointments Page
+ * Doctor Appointments & Consultations - UNIFIED PAGE
  * 
  * Central appointment management view for doctors. Shows all appointments
- * across Today / Upcoming / Past with status filtering, search,
- * and contextual workflow actions.
+ * intelligently organized by priority:
  * 
- * Data fetching includes all active statuses so doctors can see:
- * - Pending confirmations they need to act on
- * - Scheduled appointments awaiting patient arrival
- * - Checked-in patients ready for consultation
- * - In-progress consultations
+ * Priority 1: Active Consultations (IN_CONSULTATION)
+ * Priority 2: Pending Confirmations (awaiting doctor action)
+ * Priority 3: Waiting Queue (checked-in, ready to start)
+ * Priority 4: Upcoming Appointments (scheduled, future)
+ * Priority 5: Consultation History (completed, by date)
+ * 
+ * Single data source eliminates redundant API calls and navigation confusion.
+ * Consolidated from /doctor/appointments and /doctor/consultations.
  */
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
@@ -179,15 +181,31 @@ export default function DoctorAppointmentsPage() {
 
     // ── Filtering & Sorting ──────────────────────────────────────────────
 
-    const { todayList, upcomingList, pastList, stats } = useMemo(() => {
+    const { todayList, upcomingList, pastList, activeConsultations, pendingConfirmations, waitingQueue, consultationHistory, stats } = useMemo(() => {
         const today = startOfDay(new Date());
 
         const todayList: AppointmentResponseDto[] = [];
         const upcomingList: AppointmentResponseDto[] = [];
         const pastList: AppointmentResponseDto[] = [];
 
+        // Categorize by priority sections
+        const activeConsultations: AppointmentResponseDto[] = [];
+        const pendingConfirmations: AppointmentResponseDto[] = [];
+        const waitingQueue: AppointmentResponseDto[] = [];
+
         for (const apt of appointments) {
             const aptDate = startOfDay(new Date(apt.appointmentDate));
+            
+            // Priority-based categorization
+            if (apt.status === AppointmentStatus.IN_CONSULTATION) {
+                activeConsultations.push(apt);
+            } else if (apt.status === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION) {
+                pendingConfirmations.push(apt);
+            } else if (apt.status === AppointmentStatus.CHECKED_IN || apt.status === AppointmentStatus.READY_FOR_CONSULTATION) {
+                waitingQueue.push(apt);
+            }
+
+            // Date-based categorization (for tabs)
             if (isToday(aptDate)) {
                 todayList.push(apt);
             } else if (aptDate > today) {
@@ -205,6 +223,9 @@ export default function DoctorAppointmentsPage() {
             return (a.time || '').localeCompare(b.time || '');
         };
 
+        activeConsultations.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+        pendingConfirmations.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+        waitingQueue.sort(sortByPriority);
         todayList.sort(sortByPriority);
         upcomingList.sort((a, b) => {
             const dateA = new Date(a.appointmentDate).getTime();
@@ -214,25 +235,63 @@ export default function DoctorAppointmentsPage() {
         });
         pastList.sort((a, b) => new Date(b.appointmentDate).getTime() - new Date(a.appointmentDate).getTime());
 
+        // Consultation history grouping (Today/Yesterday/Earlier) - from old consultations page
+        const completedConsultations = appointments.filter((a) => a.status === AppointmentStatus.COMPLETED);
+        completedConsultations.sort((a, b) =>
+            new Date(b.appointmentDate).getTime() - new Date(a.appointmentDate).getTime()
+        );
+
+        const consultationHistoryGroups: { label: string; items: AppointmentResponseDto[] }[] = [];
+        if (completedConsultations.length > 0) {
+            const now = new Date();
+            const yesterdayDate = new Date(now);
+            yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+
+            const todayHistory: AppointmentResponseDto[] = [];
+            const yesterdayHistory: AppointmentResponseDto[] = [];
+            const earlierHistory: AppointmentResponseDto[] = [];
+
+            for (const c of completedConsultations) {
+                const d = new Date(c.appointmentDate);
+                if (d.toDateString() === now.toDateString()) {
+                    todayHistory.push(c);
+                } else if (d.toDateString() === yesterdayDate.toDateString()) {
+                    yesterdayHistory.push(c);
+                } else {
+                    earlierHistory.push(c);
+                }
+            }
+
+            if (todayHistory.length > 0) consultationHistoryGroups.push({ label: 'Today', items: todayHistory });
+            if (yesterdayHistory.length > 0) consultationHistoryGroups.push({ label: 'Yesterday', items: yesterdayHistory });
+            if (earlierHistory.length > 0) consultationHistoryGroups.push({ label: 'Earlier', items: earlierHistory });
+        }
+
         // Stats
-        const needsAction = todayList.filter(
-            (a) => a.status === AppointmentStatus.CHECKED_IN ||
-                a.status === AppointmentStatus.READY_FOR_CONSULTATION ||
-                a.status === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION
-        ).length;
-        const inProgress = todayList.filter((a) => a.status === AppointmentStatus.IN_CONSULTATION).length;
+        const needsAction = [
+            ...pendingConfirmations,
+            ...waitingQueue,
+        ].length;
+        const inProgress = activeConsultations.length;
         const completed = todayList.filter((a) => a.status === AppointmentStatus.COMPLETED).length;
+        const totalDuration = completedConsultations.reduce((sum, c) => sum + (c.consultationDuration || 0), 0);
+        const avgDuration = completedConsultations.length > 0 ? Math.round(totalDuration / completedConsultations.length) : 0;
 
         return {
             todayList,
             upcomingList,
             pastList,
+            activeConsultations,
+            pendingConfirmations,
+            waitingQueue,
+            consultationHistory: consultationHistoryGroups,
             stats: {
                 total: todayList.length,
                 needsAction,
                 inProgress,
                 completed,
                 upcoming: upcomingList.length,
+                avgDuration,
             },
         };
     }, [appointments]);
@@ -306,11 +365,11 @@ export default function DoctorAppointmentsPage() {
                 {/* ─── Stats Strip ─────────────────────────────────────── */}
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                     {[
-                        { label: 'Today', value: stats.total, color: 'text-slate-900', bg: 'bg-white' },
-                        { label: 'Needs Action', value: stats.needsAction, color: 'text-orange-700', bg: 'bg-orange-50' },
                         { label: 'In Progress', value: stats.inProgress, color: 'text-violet-700', bg: 'bg-violet-50' },
+                        { label: 'Needs Action', value: stats.needsAction, color: 'text-orange-700', bg: 'bg-orange-50' },
+                        { label: 'Avg Duration', value: `${stats.avgDuration}m`, color: 'text-blue-700', bg: 'bg-blue-50' },
                         { label: 'Completed', value: stats.completed, color: 'text-emerald-700', bg: 'bg-emerald-50' },
-                        { label: 'Upcoming', value: stats.upcoming, color: 'text-blue-700', bg: 'bg-blue-50' },
+                        { label: 'Today', value: stats.total, color: 'text-slate-900', bg: 'bg-white' },
                     ].map((stat) => (
                         <div
                             key={stat.label}
@@ -327,77 +386,9 @@ export default function DoctorAppointmentsPage() {
                     ))}
                 </div>
 
-                {/* ─── Tab Bar + Search ────────────────────────────────── */}
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                    {/* Tabs */}
-                    <div className="flex items-center bg-slate-100 rounded-lg p-0.5 gap-0.5">
-                        {TABS.map((tab) => {
-                            const count = tab.key === 'today' ? todayList.length
-                                : tab.key === 'upcoming' ? upcomingList.length
-                                    : pastList.length;
-                            return (
-                                <button
-                                    key={tab.key}
-                                    onClick={() => { setActiveTab(tab.key); setStatusFilter('ALL'); }}
-                                    className={cn(
-                                        "px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5",
-                                        activeTab === tab.key
-                                            ? "bg-white text-slate-900 shadow-sm"
-                                            : "text-slate-500 hover:text-slate-700"
-                                    )}
-                                >
-                                    {tab.label}
-                                    <span className={cn(
-                                        "text-[10px] px-1.5 py-0.5 rounded-full font-bold",
-                                        activeTab === tab.key ? "bg-slate-900 text-white" : "bg-slate-200 text-slate-500"
-                                    )}>
-                                        {loading ? '–' : count}
-                                    </span>
-                                </button>
-                            );
-                        })}
-                    </div>
-
-                    {/* Search */}
-                    <div className="relative flex-1 max-w-xs">
-                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                        <Input
-                            placeholder="Search patient or type..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-8 h-8 text-xs bg-white border-slate-200 rounded-lg"
-                        />
-                    </div>
-                </div>
-
-                {/* ─── Status Filter Chips ─────────────────────────────── */}
-                <div className="flex items-center gap-1.5 flex-wrap">
-                    <Filter className="h-3.5 w-3.5 text-slate-400 mr-1" />
-                    {STATUS_FILTERS.map((sf) => {
-                        const count = sf.value === 'ALL'
-                            ? activeList.length
-                            : activeList.filter((a) => a.status === sf.value).length;
-                        if (sf.value !== 'ALL' && count === 0) return null;
-                        return (
-                            <button
-                                key={sf.value}
-                                onClick={() => setStatusFilter(sf.value)}
-                                className={cn(
-                                    "px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all",
-                                    statusFilter === sf.value
-                                        ? "bg-slate-900 text-white border-slate-900"
-                                        : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
-                                )}
-                            >
-                                {sf.label} ({count})
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {/* ─── Appointment List ────────────────────────────────── */}
+                {/* ─── Priority-Based Sections ─────────────────────────── */}
                 {loading ? (
-                    <div className="space-y-2">
+                    <div className="space-y-4">
                         {[1, 2, 3, 4].map((i) => (
                             <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-white border border-slate-100">
                                 <Skeleton className="h-9 w-9 rounded-lg" />
@@ -409,35 +400,241 @@ export default function DoctorAppointmentsPage() {
                             </div>
                         ))}
                     </div>
-                ) : filteredList.length > 0 ? (
-                    <div className="space-y-2">
-                        {filteredList.map((appointment) => (
-                            <AppointmentRow
-                                key={appointment.id}
-                                appointment={appointment}
-                                onCheckIn={handleCheckIn}
-                                onStartConsultation={handleStartConsultation}
-                                onCompleteConsultation={handleCompleteConsultation}
-                                showDate={activeTab !== 'today'}
-                            />
-                        ))}
-                    </div>
                 ) : (
-                    <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-slate-200">
-                        <Calendar className="h-8 w-8 text-slate-300 mb-3" />
-                        <h3 className="text-sm font-semibold text-slate-700">
-                            {searchQuery ? 'No matching appointments' : `No ${activeTab} appointments`}
-                        </h3>
-                        <p className="text-xs text-slate-400 max-w-xs text-center mt-1">
-                            {searchQuery
-                                ? 'Try adjusting your search or filter criteria.'
-                                : activeTab === 'today'
-                                    ? 'Your schedule is clear for today.'
-                                    : activeTab === 'upcoming'
-                                        ? 'No upcoming appointments scheduled.'
-                                        : 'No past appointments found.'
-                            }
-                        </p>
+                    <div className="space-y-6">
+                        {/* Section 1: Active Consultations */}
+                        {activeConsultations.length > 0 && (
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2 px-4 py-2">
+                                    <Play className="h-4 w-4 text-violet-600" />
+                                    <h3 className="text-sm font-bold text-slate-900">
+                                        Active Consultations ({activeConsultations.length})
+                                    </h3>
+                                </div>
+                                <div className="space-y-2">
+                                    {activeConsultations.map((apt) => (
+                                        <AppointmentRow
+                                            key={apt.id}
+                                            appointment={apt}
+                                            onCheckIn={handleCheckIn}
+                                            onStartConsultation={handleStartConsultation}
+                                            onCompleteConsultation={handleCompleteConsultation}
+                                            showDate={false}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Section 2: Pending Confirmations */}
+                        {pendingConfirmations.length > 0 && (
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2 px-4 py-2">
+                                    <AlertTriangle className="h-4 w-4 text-orange-500" />
+                                    <h3 className="text-sm font-bold text-slate-900">
+                                        Pending Confirmations ({pendingConfirmations.length})
+                                    </h3>
+                                </div>
+                                <div className="space-y-2">
+                                    {pendingConfirmations.map((apt) => (
+                                        <AppointmentRow
+                                            key={apt.id}
+                                            appointment={apt}
+                                            onCheckIn={handleCheckIn}
+                                            onStartConsultation={handleStartConsultation}
+                                            onCompleteConsultation={handleCompleteConsultation}
+                                            showDate={false}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Section 3: Waiting Queue */}
+                        {waitingQueue.length > 0 && (
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2 px-4 py-2">
+                                    <Clock className="h-4 w-4 text-emerald-600" />
+                                    <h3 className="text-sm font-bold text-slate-900">
+                                        Waiting Queue ({waitingQueue.length})
+                                    </h3>
+                                </div>
+                                <div className="space-y-2">
+                                    {waitingQueue.map((apt) => (
+                                        <AppointmentRow
+                                            key={apt.id}
+                                            appointment={apt}
+                                            onCheckIn={handleCheckIn}
+                                            onStartConsultation={handleStartConsultation}
+                                            onCompleteConsultation={handleCompleteConsultation}
+                                            showDate={false}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Section 4: Upcoming Appointments (with tabs) */}
+                        {todayList.length > 0 || upcomingList.length > 0 || pastList.length > 0 ? (
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2 px-4 py-2">
+                                        <Calendar className="h-4 w-4 text-blue-600" />
+                                        <h3 className="text-sm font-bold text-slate-900">Appointments</h3>
+                                    </div>
+                                </div>
+
+                                {/* Tab Bar */}
+                                <div className="flex items-center bg-slate-100 rounded-lg p-0.5 gap-0.5 w-fit">
+                                    {TABS.map((tab) => {
+                                        const count = tab.key === 'today' ? todayList.length
+                                            : tab.key === 'upcoming' ? upcomingList.length
+                                                : pastList.length;
+                                        return (
+                                            <button
+                                                key={tab.key}
+                                                onClick={() => { setActiveTab(tab.key); setStatusFilter('ALL'); }}
+                                                className={cn(
+                                                    "px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5",
+                                                    activeTab === tab.key
+                                                        ? "bg-white text-slate-900 shadow-sm"
+                                                        : "text-slate-500 hover:text-slate-700"
+                                                )}
+                                            >
+                                                {tab.label}
+                                                <span className={cn(
+                                                    "text-[10px] px-1.5 py-0.5 rounded-full font-bold",
+                                                    activeTab === tab.key ? "bg-slate-900 text-white" : "bg-slate-200 text-slate-500"
+                                                )}>
+                                                    {count}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Status Filter Chips */}
+                                {activeList.length > 0 && (
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                        <Filter className="h-3.5 w-3.5 text-slate-400 mr-1" />
+                                        {STATUS_FILTERS.map((sf) => {
+                                            const count = sf.value === 'ALL'
+                                                ? activeList.length
+                                                : activeList.filter((a) => a.status === sf.value).length;
+                                            if (sf.value !== 'ALL' && count === 0) return null;
+                                            return (
+                                                <button
+                                                    key={sf.value}
+                                                    onClick={() => setStatusFilter(sf.value)}
+                                                    className={cn(
+                                                        "px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all",
+                                                        statusFilter === sf.value
+                                                            ? "bg-slate-900 text-white border-slate-900"
+                                                            : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                                                    )}
+                                                >
+                                                    {sf.label} ({count})
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                {/* Search */}
+                                {activeList.length > 0 && (
+                                    <div className="relative max-w-xs">
+                                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                                        <Input
+                                            placeholder="Search patient or type..."
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            className="pl-8 h-8 text-xs bg-white border-slate-200 rounded-lg"
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Appointment List */}
+                                {filteredList.length > 0 ? (
+                                    <div className="space-y-2">
+                                        {filteredList.map((appointment) => (
+                                            <AppointmentRow
+                                                key={appointment.id}
+                                                appointment={appointment}
+                                                onCheckIn={handleCheckIn}
+                                                onStartConsultation={handleStartConsultation}
+                                                onCompleteConsultation={handleCompleteConsultation}
+                                                showDate={activeTab !== 'today'}
+                                            />
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center py-8 bg-white rounded-xl border border-dashed border-slate-200">
+                                        <Calendar className="h-6 w-6 text-slate-300 mb-2" />
+                                        <h3 className="text-sm font-semibold text-slate-700">
+                                            {searchQuery ? 'No matching appointments' : `No ${activeTab} appointments`}
+                                        </h3>
+                                        <p className="text-xs text-slate-400 max-w-xs text-center mt-1">
+                                            {searchQuery
+                                                ? 'Try adjusting your search or filter criteria.'
+                                                : activeTab === 'today'
+                                                    ? 'Your schedule is clear for today.'
+                                                    : activeTab === 'upcoming'
+                                                        ? 'No upcoming appointments scheduled.'
+                                                        : 'No past appointments found.'
+                                            }
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        ) : null}
+
+                        {/* Section 5: Consultation History */}
+                        {consultationHistory.length > 0 && (
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-2 px-4 py-2">
+                                    <FileText className="h-4 w-4 text-slate-600" />
+                                    <h3 className="text-sm font-bold text-slate-900">Consultation History</h3>
+                                </div>
+                                <div className="space-y-4">
+                                    {consultationHistory.map((group) => (
+                                        <div key={group.label} className="space-y-2">
+                                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide px-4">
+                                                {group.label}
+                                            </p>
+                                            <div className="space-y-2">
+                                                {group.items.map((apt) => (
+                                                    <AppointmentRow
+                                                        key={apt.id}
+                                                        appointment={apt}
+                                                        onCheckIn={handleCheckIn}
+                                                        onStartConsultation={handleStartConsultation}
+                                                        onCompleteConsultation={handleCompleteConsultation}
+                                                        showDate={true}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Empty State */}
+                        {activeConsultations.length === 0 &&
+                            pendingConfirmations.length === 0 &&
+                            waitingQueue.length === 0 &&
+                            todayList.length === 0 &&
+                            upcomingList.length === 0 &&
+                            pastList.length === 0 &&
+                            consultationHistory.length === 0 && (
+                                <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-slate-200">
+                                    <Calendar className="h-8 w-8 text-slate-300 mb-3" />
+                                    <h3 className="text-sm font-semibold text-slate-700">No appointments</h3>
+                                    <p className="text-xs text-slate-400 max-w-xs text-center mt-1">
+                                        No appointments or consultations scheduled.
+                                    </p>
+                                </div>
+                            )}
                     </div>
                 )}
 

@@ -259,6 +259,12 @@ function ConsultationSessionContent() {
           onComplete={openCompleteDialog}
           autoSaveStatus={autoSaveStatus}
           isSaving={isSaving}
+          slotStartTime={
+            appointment?.appointmentDate && appointment?.time
+              ? new Date(`${new Date(appointment.appointmentDate).toISOString().split('T')[0]}T${appointment.time}`)
+              : undefined
+          }
+          slotDurationMinutes={appointment?.consultationDuration || 30}
         />
       </Suspense>
 

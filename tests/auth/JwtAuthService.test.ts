@@ -5,10 +5,11 @@
  * Uses mocked repositories and Prisma client for fast, deterministic tests.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { JwtAuthService } from '@/infrastructure/auth/JwtAuthService';
 import { Email } from '@/domain/value-objects/Email';
 import { Role } from '@/domain/enums/Role';
+import { User } from '@/domain/entities/User';
 import { DomainException } from '@/domain/exceptions/DomainException';
 import {
   testAuthConfig,
@@ -19,12 +20,12 @@ import {
   decodeJwt,
   assertValidJwt,
   testCredentials,
-} from '../auth-test-utils';
+} from './auth-test-utils';
 
 describe('JwtAuthService', () => {
   let authService: JwtAuthService;
   let mockUserRepository: MockUserRepository;
-  let cleanup: () => void;
+  let cleanup: (() => void) | null = null;
 
   beforeEach(() => {
     const setup = setupAuthTests();
@@ -46,7 +47,11 @@ describe('JwtAuthService', () => {
     );
   });
 
-  afterEach(cleanup as any);
+  afterEach(() => {
+    if (cleanup) {
+      cleanup();
+    }
+  });
 
   describe('login()', () => {
     it('should return valid JWT tokens on successful login', async () => {
