@@ -18,6 +18,8 @@ import db from '@/lib/db';
 import { AnesthesiaType, CaseReadinessStatus, SurgicalCaseStatus } from '@prisma/client';
 import { getMissingPlanningItems } from '@/domain/helpers/planningReadiness';
 import { endpointTimer } from '@/lib/observability/endpointLogger';
+import { handleApiError, handleApiSuccess } from '@/app/api/_utils/handleApiError';
+import { ForbiddenError, NotFoundError, ValidationError as AppValidationError, GateBlockedError } from '@/application/errors';
 
 // ─── Validation ──────────────────────────────────────────────────────────
 
@@ -231,12 +233,12 @@ export async function GET(
             return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
         }
         if (authResult.user.role !== 'DOCTOR') {
-            return NextResponse.json({ success: false, error: 'Forbidden: Doctors only' }, { status: 403 });
+            return handleApiError(new ForbiddenError('Forbidden: Doctors only'));
         }
 
         const doctorId = await resolveDoctorId(authResult.user.userId);
         if (!doctorId) {
-            return NextResponse.json({ success: false, error: 'Doctor profile not found' }, { status: 404 });
+            return handleApiError(new NotFoundError('Doctor profile not found', 'Doctor', authResult.user.userId));
         }
 
         const { caseId } = await context.params;
@@ -244,6 +246,7 @@ export async function GET(
 
         const sc = await db.surgicalCase.findUnique({
             where: { id: caseId },
+            // ... (rest of select)
             select: {
                 id: true,
                 status: true,
@@ -335,7 +338,7 @@ export async function GET(
         });
 
         if (!sc) {
-            return NextResponse.json({ success: false, error: 'Surgical case not found' }, { status: 404 });
+            return handleApiError(new NotFoundError('Surgical case not found', 'SurgicalCase', caseId));
         }
 
         // Authorization: doctor must be primary surgeon OR have an accepted invite
@@ -347,14 +350,14 @@ export async function GET(
         );
 
         if (!isPrimary && !hasAcceptedInvite) {
-            return NextResponse.json({ success: false, error: 'Forbidden: You are not authorized to view this surgical plan' }, { status: 403 });
+            return handleApiError(new ForbiddenError('Forbidden: You are not authorized to view this surgical plan'));
         }
 
         timer.end({ caseId });
-        return NextResponse.json({ success: true, data: mapCasePlanResponse(sc) });
+        return handleApiSuccess(mapCasePlanResponse(sc));
     } catch (error) {
         console.error('[API] GET /api/doctor/surgical-cases/[caseId]/plan - Error:', error);
-        return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
+        return handleApiError(error);
     }
 }
 
@@ -370,12 +373,12 @@ export async function PATCH(
             return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
         }
         if (authResult.user.role !== 'DOCTOR') {
-            return NextResponse.json({ success: false, error: 'Forbidden: Doctors only' }, { status: 403 });
+            return handleApiError(new ForbiddenError('Forbidden: Doctors only'));
         }
 
         const doctorId = await resolveDoctorId(authResult.user.userId);
         if (!doctorId) {
-            return NextResponse.json({ success: false, error: 'Doctor profile not found' }, { status: 404 });
+            return handleApiError(new NotFoundError('Doctor profile not found', 'Doctor', authResult.user.userId));
         }
 
         const { caseId } = await context.params;
@@ -384,10 +387,7 @@ export async function PATCH(
         // Server-side field validation
         const validationErrors = validatePatchPayload(body);
         if (validationErrors.length > 0) {
-            return NextResponse.json(
-                { success: false, error: 'Validation failed', validationErrors },
-                { status: 400 },
-            );
+            return handleApiError(new AppValidationError('Validation failed', validationErrors));
         }
 
         // Validate the case exists and this doctor owns it
@@ -404,21 +404,22 @@ export async function PATCH(
         });
 
         if (!sc) {
-            return NextResponse.json({ success: false, error: 'Surgical case not found' }, { status: 404 });
+            return handleApiError(new NotFoundError('Surgical case not found', 'SurgicalCase', caseId));
         }
 
         // Authorization: only the primary surgeon can modify the core plan
         if (sc.primary_surgeon_id !== doctorId) {
-            return NextResponse.json({ success: false, error: 'Forbidden: Only the primary surgeon can modify the surgical plan' }, { status: 403 });
+            return handleApiError(new ForbiddenError('Forbidden: Only the primary surgeon can modify the surgical plan'));
         }
 
         // Determine the appointment ID (from existing plan or consultation)
         const appointmentId = sc.case_plan?.appointment_id ?? sc.consultation?.appointment_id;
         if (!appointmentId) {
-            return NextResponse.json(
-                { success: false, error: 'No appointment linked to this case. Cannot create plan.' },
-                { status: 422 },
-            );
+            return handleApiError(new GateBlockedError(
+                'No appointment linked to this case. Cannot create plan.',
+                'MISSING_APPOINTMENT',
+                []
+            ));
         }
 
         // Build update payload — only include fields that were sent
@@ -546,13 +547,13 @@ export async function PATCH(
             },
         });
 
-        return NextResponse.json({
-            success: true,
-            data: reloaded ? mapCasePlanResponse(reloaded) : null,
-            message: 'Plan updated successfully',
-        });
+        return handleApiSuccess(
+            reloaded ? mapCasePlanResponse(reloaded) : null,
+            200,
+            'Plan updated successfully'
+        );
     } catch (error) {
         console.error('[API] PATCH /api/doctor/surgical-cases/[caseId]/plan - Error:', error);
-        return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
+        return handleApiError(error);
     }
 }

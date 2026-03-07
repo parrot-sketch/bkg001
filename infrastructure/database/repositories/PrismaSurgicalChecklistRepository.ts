@@ -66,7 +66,7 @@ export class PrismaSurgicalChecklistRepository implements ISurgicalChecklistRepo
       select: { [columns.completedAt]: true },
     });
 
-    if (existing && existing[columns.completedAt as keyof typeof existing] !== null) {
+    if (existing && (existing as any)[columns.completedAt] !== null) {
       // Already completed — return existing without mutation
       return this.prisma.surgicalChecklist.findUniqueOrThrow({
         where: { surgical_case_id: surgicalCaseId },
@@ -101,7 +101,7 @@ export class PrismaSurgicalChecklistRepository implements ISurgicalChecklistRepo
       select: { [columns.completedAt]: true },
     });
 
-    if (existing && existing[columns.completedAt as keyof typeof existing] !== null) {
+    if (existing && (existing as any)[columns.completedAt] !== null) {
       throw new Error(`Cannot save draft: ${phase} is already finalized`);
     }
 
@@ -126,7 +126,7 @@ export class PrismaSurgicalChecklistRepository implements ISurgicalChecklistRepo
     });
 
     if (!result) return false;
-    return result[columns.completedAt as keyof typeof result] !== null;
+    return (result as any)[columns.completedAt] !== null;
   }
 
   /**

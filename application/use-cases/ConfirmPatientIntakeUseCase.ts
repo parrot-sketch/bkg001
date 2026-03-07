@@ -82,7 +82,7 @@ export class ConfirmPatientIntakeUseCase {
       }
 
       // 4. Generate unique file number
-      const fileNumber = await this.generateFileNumber();
+      const fileNumber = await this.patientRepository.generateNextFileNumber();
 
       // 5. Convert intake submission to Patient entity
       const patientId = uuidv4();
@@ -120,21 +120,4 @@ export class ConfirmPatientIntakeUseCase {
     }
   }
 
-  /**
-   * Generate unique file number
-   * Format: NS followed by sequential number (e.g., NS001, NS002)
-   *
-   * This is a simplified implementation.
-   * In production, use a database sequence or distributed ID generator.
-   */
-  private async generateFileNumber(): Promise<string> {
-    // Get current timestamp-based number for uniqueness
-    const timestamp = Date.now().toString().slice(-6);
-    const random = Math.floor(Math.random() * 1000)
-      .toString()
-      .padStart(3, '0');
-    const fileNumber = `NS${timestamp}${random}`;
-
-    return fileNumber;
-  }
 }

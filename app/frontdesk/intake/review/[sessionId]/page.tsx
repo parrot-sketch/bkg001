@@ -121,10 +121,10 @@ export default function ReviewIntakePage() {
         `Patient ${confirmed.firstName} ${confirmed.lastName} confirmed. File #${confirmed.fileNumber}`,
       );
 
-      // Redirect to pending intakes after 2 seconds
+      // Redirect to patients registry with the new patient highlighted
       setTimeout(() => {
-        router.push('/frontdesk/intake/pending');
-      }, 2000);
+        router.push(`/frontdesk/patients?highlight=${confirmed.patientId}`);
+      }, 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {

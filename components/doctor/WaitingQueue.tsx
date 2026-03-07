@@ -98,13 +98,20 @@ export function WaitingQueue({ appointments, onStartConsultation: externalStartH
                                     </div>
                                 </div>
 
-                                <Button
-                                    onClick={() => handleStart(apt)}
-                                    className="bg-white hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 hover:border-emerald-600 shadow-sm font-semibold rounded-xl group-hover:shadow-md transition-all duration-200"
-                                >
-                                    {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
-                                    Start
-                                </Button>
+                                {apt.status === 'READY_FOR_CONSULTATION' ? (
+                                    <Button
+                                        onClick={() => handleStart(apt)}
+                                        className="bg-white hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 hover:border-emerald-600 shadow-sm font-semibold rounded-xl group-hover:shadow-md transition-all duration-200"
+                                    >
+                                        {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
+                                        Start
+                                    </Button>
+                                ) : (
+                                    <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50 font-medium px-3 py-1.5 rounded-xl">
+                                        <Activity className="h-3 w-3 mr-1.5" />
+                                        Awaiting Triage
+                                    </Badge>
+                                )}
                             </div>
                         );
                     })}

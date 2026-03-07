@@ -53,4 +53,12 @@ export interface IPatientRepository {
    * @throws Error if the patient does not exist or the update fails
    */
   update(patient: Patient): Promise<void>;
+
+  /**
+   * Generates the next sequential file number for a new patient.
+   * Scans existing file numbers to continue the sequence `NS{000}`.
+   * 
+   * @returns Promise resolving to the generated sequential file number string
+   */
+  generateNextFileNumber(): Promise<string>;
 }

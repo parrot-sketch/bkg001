@@ -15,6 +15,7 @@ import { ErrorState } from './shared/components/ErrorState';
 import { getTabsForRole } from './core/tabRegistry';
 import { Role } from '@/domain/enums/Role';
 import { cn } from '@/lib/utils';
+import { CompletePlanButton } from './components/CompletePlanButton';
 
 interface SurgicalPlanShellProps {
   caseId: string;
@@ -54,13 +55,25 @@ export function SurgicalPlanShell({
               </div>
               <div>
                 <h1 className="text-lg font-bold">{data.patient.fullName}</h1>
-                <p className="text-sm text-muted-foreground">
-                  {data.case.procedureName || 'No procedure specified'}
-                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-sm text-muted-foreground">
+                    {data.case.procedureName || 'No procedure specified'}
+                  </p>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium border border-slate-200">
+                    {data.case.status}
+                  </span>
+                </div>
               </div>
             </>
           )}
         </div>
+        
+        {/* Actions Area */}
+        {userRole === Role.DOCTOR && (data.case.status === 'PLANNING' || data.case.status === 'DRAFT') && (
+          <div className="flex-shrink-0">
+             <CompletePlanButton caseId={caseId} />
+          </div>
+        )}
       </div>
 
       {/* Tabbed Workspace */}

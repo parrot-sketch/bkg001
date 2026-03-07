@@ -39,22 +39,24 @@ export function DoctorAppointmentCard({ appointment, onStartConsultation }: Doct
         const now = new Date();
         const appointmentDate = new Date(appointment.appointmentDate);
         const isAppointmentToday = isToday(appointmentDate);
-        
+
         let slotEndTime: Date | null = null;
         if (appointment.time && isAppointmentToday) {
             const [hours, minutes] = appointment.time.split(':').map(Number);
             slotEndTime = new Date(appointmentDate);
             slotEndTime.setHours(hours, minutes + 30, 0, 0);
         }
-        
+
         const isOverdue = slotEndTime ? now > slotEndTime : false;
         return { isAppointmentToday, isOverdue };
     }, [appointment.appointmentDate, appointment.time]);
 
-    // Patient is checked in when status is CHECKED_IN or READY_FOR_CONSULTATION
-    const isCheckedIn = appointment.status === AppointmentStatus.CHECKED_IN ||
-        appointment.status === AppointmentStatus.READY_FOR_CONSULTATION;
-    
+    // Patient is checked in when status is CHECKED_IN
+    const isCheckedIn = appointment.status === AppointmentStatus.CHECKED_IN;
+
+    // Ready for consultation when status is READY_FOR_CONSULTATION
+    const isReadyForConsultation = appointment.status === AppointmentStatus.READY_FOR_CONSULTATION;
+
     const isInProgress = appointment.status === AppointmentStatus.IN_CONSULTATION;
     const isCompleted = appointment.status === AppointmentStatus.COMPLETED;
 
@@ -67,14 +69,15 @@ export function DoctorAppointmentCard({ appointment, onStartConsultation }: Doct
         router.push(`/doctor/consultations/${appointment.id}/session`);
     };
 
-    // Determine stripe and badge colors
-    const stripeColor = isInProgress 
+    const stripeColor = isInProgress
         ? (timeStatus.isOverdue ? 'bg-amber-500' : 'bg-violet-500')
-        : isCheckedIn 
-            ? 'bg-emerald-500' 
-            : isCompleted
-                ? 'bg-blue-500'
-                : 'bg-slate-300';
+        : isReadyForConsultation
+            ? 'bg-emerald-500'
+            : isCheckedIn
+                ? 'bg-amber-400'
+                : isCompleted
+                    ? 'bg-blue-500'
+                    : 'bg-slate-300';
 
     const getStatusBadge = () => {
         if (isInProgress) {
@@ -93,11 +96,19 @@ export function DoctorAppointmentCard({ appointment, onStartConsultation }: Doct
                 </Badge>
             );
         }
-        if (isCheckedIn) {
+        if (isReadyForConsultation) {
             return (
                 <Badge className="bg-emerald-100/80 text-emerald-700 border-emerald-200/60 text-[10px] font-medium px-1.5 py-0">
                     <CheckCircle className="h-2.5 w-2.5 mr-1" />
                     Ready
+                </Badge>
+            );
+        }
+        if (isCheckedIn) {
+            return (
+                <Badge className="bg-amber-100/80 text-amber-700 border-amber-200/60 text-[10px] font-medium px-1.5 py-0">
+                    <AlertTriangle className="h-2.5 w-2.5 mr-1" />
+                    Pending Triage
                 </Badge>
             );
         }
@@ -112,7 +123,7 @@ export function DoctorAppointmentCard({ appointment, onStartConsultation }: Doct
     return (
         <div className={cn(
             "group relative flex items-stretch bg-white border border-slate-200/80 rounded-lg overflow-hidden hover:shadow transition-all duration-200",
-            isCheckedIn && "border-emerald-200/80",
+            (isCheckedIn || isReadyForConsultation) && "border-emerald-200/80",
             isInProgress && (timeStatus.isOverdue ? "border-amber-200/80" : "border-violet-200/80")
         )}>
             {/* Visual Status Strip */}
@@ -154,7 +165,7 @@ export function DoctorAppointmentCard({ appointment, onStartConsultation }: Doct
                             {(isCheckedIn || isInProgress) && timeStatus.isAppointmentToday && (
                                 <span className={cn(
                                     "flex h-2 w-2 rounded-full animate-pulse",
-                                    isInProgress ? (timeStatus.isOverdue ? "bg-amber-500" : "bg-violet-500") : "bg-emerald-500"
+                                    isInProgress ? (timeStatus.isOverdue ? "bg-amber-500" : "bg-violet-500") : isReadyForConsultation ? "bg-emerald-500" : "bg-amber-400"
                                 )} />
                             )}
                         </h4>
@@ -182,7 +193,7 @@ export function DoctorAppointmentCard({ appointment, onStartConsultation }: Doct
                                 size="sm"
                                 className={cn(
                                     "h-7 px-3 rounded-lg text-xs font-semibold shadow-sm transition-all flex items-center gap-1.5",
-                                    timeStatus.isOverdue 
+                                    timeStatus.isOverdue
                                         ? "bg-amber-600 hover:bg-amber-700 text-white"
                                         : "bg-violet-600 hover:bg-violet-700 text-white"
                                 )}
@@ -190,7 +201,7 @@ export function DoctorAppointmentCard({ appointment, onStartConsultation }: Doct
                                 <Play className="h-3 w-3" />
                                 Continue
                             </Button>
-                        ) : isCheckedIn ? (
+                        ) : isReadyForConsultation ? (
                             <Button
                                 onClick={() => onStartConsultation?.(appointment)}
                                 size="sm"
@@ -199,6 +210,10 @@ export function DoctorAppointmentCard({ appointment, onStartConsultation }: Doct
                                 <Stethoscope className="h-3 w-3" />
                                 Start
                             </Button>
+                        ) : isCheckedIn ? (
+                            <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-amber-100 text-[10px]">
+                                Awaiting Vitals
+                            </Badge>
                         ) : (
                             <Button
                                 variant="outline"

@@ -3,6 +3,7 @@ import { Patient } from '../../../domain/entities/Patient';
 import { Email } from '../../../domain/value-objects/Email';
 import { PatientMapper } from '../../mappers/PatientMapper';
 import { PrismaClient, Prisma } from '@prisma/client';
+import { PatientFileNumberGenerator } from '../../../domain/services/PatientFileNumberGenerator';
 import { IPatientFileNumberRepository } from '../../../domain/services/PatientFileNumberGenerator';
 
 /**
@@ -63,6 +64,17 @@ export class PrismaPatientRepository implements IPatientRepository, IPatientFile
         { cause: error }
       );
     }
+  }
+
+  /**
+   * Generates the next sequential file number for a new patient.
+   * Scans existing file numbers to continue the sequence `NS{000}`.
+   * 
+   * @returns Promise resolving to the generated sequential file number string
+   */
+  async generateNextFileNumber(): Promise<string> {
+    const generator = new PatientFileNumberGenerator(this);
+    return generator.generateNext();
   }
 
   /**

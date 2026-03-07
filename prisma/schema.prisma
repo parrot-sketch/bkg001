@@ -88,12 +88,12 @@ model Patient {
   phone                    String
   whatsapp_phone           String?
   email                    String                 @unique
-  marital_status           String
+  marital_status           String?
   occupation               String?
   address                  String
-  emergency_contact_name   String
-  emergency_contact_number String
-  relation                 String
+  emergency_contact_name   String?
+  emergency_contact_number String?
+  relation                 String?
   blood_group              String?
   allergies                String?
   medical_conditions       String?
@@ -307,6 +307,7 @@ model Appointment {
   id                            Int                        @id @default(autoincrement())
   patient_id                    String
   doctor_id                     String
+  // ── Legacy date fields (kept for backwards compat, use scheduled_at for new code) ──
   appointment_date              DateTime
   time                          String
   status                        AppointmentStatus          @default(PENDING)
@@ -317,7 +318,13 @@ model Appointment {
   checked_in_by                 String?
   late_arrival                  Boolean                    @default(false)
   late_by_minutes               Int?
-  scheduled_at                  DateTime?
+  // ── Canonical schedule timestamps (Phase 1 migration) ──
+  scheduled_at                  DateTime?                  // backfilled from appointment_date+time
+  scheduled_end_at              DateTime?                  // NEW: scheduled_at + duration_minutes
+  // ── Duration (consolidated) ──
+  duration_minutes              Int                        @default(30) // was Int?, now non-nullable
+  slot_duration                 Int?                       @default(30) // @deprecated — read duration_minutes
+  // ── Status tracking ──
   status_changed_at             DateTime                   @default(now())
   status_changed_by             String?
   doctor_confirmed_at           DateTime?
@@ -334,8 +341,6 @@ model Appointment {
   reviewed_at                   DateTime?
   review_notes                  String?
   slot_start_time               String?
-  slot_duration                 Int?                       @default(30)
-  duration_minutes              Int?
   created_at                    DateTime                   @default(now())
   updated_at                    DateTime                   @updatedAt
   locked_at                     DateTime?
@@ -376,12 +381,14 @@ model Appointment {
   @@index([status])
   @@index([source])
   @@index([appointment_date, status])
-  @@index([doctor_id, appointment_date, time])
   @@index([consultation_request_status])
   @@index([reviewed_by])
   @@index([created_at])
   @@index([updated_at])
+  // Primary scheduling indexes (use scheduled_at going forward)
   @@index([doctor_id, scheduled_at])
+  @@index([doctor_id, scheduled_at, scheduled_end_at])
+  @@index([scheduled_end_at])
   @@index([doctor_id, status, scheduled_at])
   @@index([patient_id, scheduled_at])
   @@index([patient_id, status, scheduled_at])
@@ -389,6 +396,7 @@ model Appointment {
   @@index([status_changed_at])
   @@index([status_changed_by])
 }
+
 
 model Consultation {
   id                     Int           @id @default(autoincrement())
@@ -405,6 +413,7 @@ model Consultation {
   follow_up_date         DateTime?
   follow_up_type         String?
   follow_up_notes        String?
+  last_activity_at       DateTime      @default(now())
   created_at             DateTime      @default(now())
   updated_at             DateTime      @updatedAt
   assessment             String?
@@ -422,6 +431,8 @@ model Consultation {
   @@index([started_at])
   @@index([completed_at])
   @@index([user_id])
+  @@index([id, completed_at])
+  @@index([last_activity_at, completed_at])
 }
 
 model NurseAssignment {
@@ -1469,11 +1480,11 @@ model IntakeSubmission {
   phone                    String
   whatsapp_phone           String?
   address                  String
-  marital_status           String
+  marital_status           String?
   occupation               String?
-  emergency_contact_name   String
-  emergency_contact_number String
-  relation                 String
+  emergency_contact_name   String?
+  emergency_contact_number String?
+  relation                 String?
   blood_group              String?
   allergies                String?
   medical_conditions       String?
@@ -1739,6 +1750,7 @@ enum JOBTYPE {
 enum Gender {
   MALE
   FEMALE
+  OTHER
 }
 
 enum AppointmentStatus {

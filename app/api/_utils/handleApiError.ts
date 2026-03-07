@@ -2,7 +2,6 @@
  * Canonical API Error Handler
  *
  * Maps application errors to standardized ApiResponse<never> with correct HTTP status codes.
- * All Theater Tech routes should use this utility for consistent error handling.
  */
 
 import { NextResponse } from 'next/server';
@@ -27,70 +26,104 @@ import { z } from 'zod';
  * Maps application errors to appropriate HTTP status codes and error codes.
  */
 export function handleApiError(error: unknown): NextResponse<ApiResponse<never>> {
-  // Application-layer errors
-  if (error instanceof GateBlockedError) {
+  const err = error as any;
+  const name = err?.name;
+  const code = err?.code;
+
+  // 1. Handle specialized application-layer errors FIRST (Robust check)
+  
+  if (error instanceof ForbiddenError || name === 'ForbiddenError' || code === ApiErrorCode.FORBIDDEN) {
+    // CRITICAL FIX: The frontend apiClient explicitly requires a 401 status to trigger its automatic token 
+    // refresh logic. Since ~150 routes currently throw a ForbiddenError for invalid tokens, we intercept the
+    // exact message here to map it correctly.
+    if (err.message === 'Authentication required' || err.message === 'Unauthorized') {
+        return NextResponse.json(
+          fail(ApiErrorCode.UNAUTHORIZED, err.message),
+          { status: 401 }
+        );
+    }
+
     return NextResponse.json(
-      fail(ApiErrorCode.GATE_BLOCKED, error.message, {
-        blockingCategory: error.blockingCategory,
-        missingItems: error.missingItems,
+      fail(ApiErrorCode.FORBIDDEN, err.message || 'Forbidden'),
+      { status: 403 }
+    );
+  }
+
+  if (error instanceof NotFoundError || name === 'NotFoundError' || code === ApiErrorCode.NOT_FOUND) {
+    return NextResponse.json(
+      fail(ApiErrorCode.NOT_FOUND, err.message || 'Not Found'),
+      { status: 404 }
+    );
+  }
+
+  if (error instanceof ConflictError || name === 'ConflictError' || code === ApiErrorCode.CONFLICT) {
+    return NextResponse.json(
+      fail(ApiErrorCode.CONFLICT, err.message || 'Conflict'),
+      { status: 409 }
+    );
+  }
+
+  if (error instanceof GateBlockedError || name === 'GateBlockedError' || code === ApiErrorCode.GATE_BLOCKED) {
+    return NextResponse.json(
+      fail(ApiErrorCode.GATE_BLOCKED, err.message, {
+        ...err.metadata,
+        blockingCategory: err.blockingCategory || err.metadata?.blockingCategory,
+        missingItems: err.missingItems || err.metadata?.missingItems || [],
       }),
       { status: 422 }
     );
   }
 
-  if (error instanceof ValidationError) {
+  // 2. Handle ValidationError
+  if (error instanceof ValidationError || name === 'ValidationError' || code === ApiErrorCode.VALIDATION_ERROR) {
+    const status = err.status || 400;
+    
     return NextResponse.json(
-      fail(ApiErrorCode.VALIDATION_ERROR, error.message, {
-        errors: error.errors,
+      fail(ApiErrorCode.VALIDATION_ERROR, err.message, {
+        ...err.metadata,
+        errors: err.errors,
       }),
-      { status: 400 }
+      { status }
     );
   }
 
-  if (error instanceof NotFoundError) {
-    return NextResponse.json(
-      fail(ApiErrorCode.NOT_FOUND, error.message),
-      { status: 404 }
-    );
-  }
+  // 3. Domain exceptions (Robust name + instance check)
+  if (error instanceof DomainException || name === 'DomainException') {
+    const metadata = err.metadata as Record<string, unknown> | undefined;
 
-  if (error instanceof ForbiddenError) {
-    return NextResponse.json(
-      fail(ApiErrorCode.FORBIDDEN, error.message),
-      { status: 403 }
-    );
-  }
-
-  if (error instanceof ConflictError) {
-    return NextResponse.json(
-      fail(ApiErrorCode.CONFLICT, error.message),
-      { status: 409 }
-    );
-  }
-
-  // Domain exceptions (legacy - will be migrated to application errors in Phase 3)
-  if (error instanceof DomainException) {
-    const metadata = error.metadata as Record<string, unknown> | undefined;
-
-    // Check if it's a gate block (legacy pattern)
-    if (metadata?.gate || metadata?.blockingCategory) {
+    // Explicit Gate Blocks -> 422
+    if (metadata?.gate || metadata?.blockingCategory || code === ApiErrorCode.GATE_BLOCKED) {
       return NextResponse.json(
-        fail(ApiErrorCode.GATE_BLOCKED, error.message, {
-          blockingCategory: (metadata.blockingCategory as string) || (metadata.gate as string) || 'UNKNOWN',
-          missingItems: (metadata.missingItems as string[]) || [],
+        fail(ApiErrorCode.GATE_BLOCKED, err.message, {
+          blockingCategory: (metadata?.blockingCategory as string) || (metadata?.gate as string) || 'UNKNOWN',
+          missingItems: (metadata?.missingItems as string[]) || [],
         }),
         { status: 422 }
       );
     }
 
-    // Generic domain exception -> 422
+    // Explicit status hint in DomainException
+    if (metadata?.status && typeof metadata.status === 'number') {
+      return NextResponse.json(
+        fail(ApiErrorCode.VALIDATION_ERROR, err.message, metadata),
+        { status: metadata.status }
+      );
+    }
+    
+    // Check for specialized codes even within DomainException
+    if (code === ApiErrorCode.UNAUTHORIZED) return NextResponse.json(fail(ApiErrorCode.UNAUTHORIZED, err.message), { status: 401 });
+    if (code === ApiErrorCode.FORBIDDEN) return NextResponse.json(fail(ApiErrorCode.FORBIDDEN, err.message), { status: 403 });
+    if (code === ApiErrorCode.NOT_FOUND) return NextResponse.json(fail(ApiErrorCode.NOT_FOUND, err.message), { status: 404 });
+    if (code === ApiErrorCode.CONFLICT) return NextResponse.json(fail(ApiErrorCode.CONFLICT, err.message), { status: 409 });
+
+    // Default DomainException mapping (favoring 400 for safety unless specialized above)
     return NextResponse.json(
-      fail(ApiErrorCode.VALIDATION_ERROR, error.message, metadata),
-      { status: 422 }
+      fail(ApiErrorCode.VALIDATION_ERROR, err.message, metadata),
+      { status: 400 }
     );
   }
 
-  // Zod validation errors
+  // 4. Zod validation errors -> 400
   if (error instanceof z.ZodError) {
     return NextResponse.json(
       fail(ApiErrorCode.VALIDATION_ERROR, 'Validation failed', fromZodError(error)),
@@ -98,7 +131,7 @@ export function handleApiError(error: unknown): NextResponse<ApiResponse<never>>
     );
   }
 
-  // Generic errors
+  // 5. Generic errors -> 500
   const message = error instanceof Error ? error.message : 'Unknown error';
   const isDevelopment = process.env.NODE_ENV === 'development';
 
@@ -116,6 +149,10 @@ export function handleApiError(error: unknown): NextResponse<ApiResponse<never>>
 /**
  * Helper to create a success response.
  */
-export function handleApiSuccess<T>(data: T, status: number = 200): NextResponse<ApiResponse<T>> {
-  return NextResponse.json({ success: true, data }, { status });
+export function handleApiSuccess<T>(data: T, status: number = 200, message?: string): NextResponse<ApiResponse<T>> {
+  // Ensure data is included even if null (to satisfy test expectations for property existence)
+  const payload: any = { success: true, data: data ?? null };
+  if (message) payload.message = message;
+  
+  return NextResponse.json(payload, { status });
 }

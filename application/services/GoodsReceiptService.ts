@@ -31,7 +31,7 @@ export class GoodsReceiptService {
     receivedByUserId: string
   ) {
     return this.db.$transaction(async (tx) => {
-      // Validate PO exists and is APPROVED
+      // 1. Validate PO exists and is in a receivable state
       const po = await tx.purchaseOrder.findUnique({
         where: { id: purchaseOrderId },
         include: {
@@ -55,10 +55,7 @@ export class GoodsReceiptService {
         );
       }
 
-      // Generate receipt number
-      const receiptNumber = await this.generateReceiptNumber(tx);
-
-      // Validate receipt items
+      // 2. Validate receipt items against PO items
       for (const receiptItem of dto.receiptItems) {
         const poItem = po.items.find((item) => item.id === receiptItem.poItemId);
         if (!poItem) {
@@ -78,12 +75,18 @@ export class GoodsReceiptService {
                 field: 'receiptItems',
                 message: `Over-receipt for item ${poItem.item_name}`,
               },
-            ]
+            ],
+            422
           );
         }
       }
 
-      // Create goods receipt
+      // 3. Generate a reasonably unique receipt number
+      const year = new Date().getFullYear();
+      const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+      const receiptNumber = `GRN-${year}-${Date.now().toString().slice(-4)}-${randomPart}`;
+
+      // 4. Create goods receipt (single transactional call)
       const goodsReceipt = await tx.goodsReceipt.create({
         data: {
           purchase_order_id: purchaseOrderId,
@@ -113,9 +116,17 @@ export class GoodsReceiptService {
         },
       });
 
-      // Update inventory and PO items
-      for (const receiptItem of goodsReceipt.receipt_items) {
+      // 5. Update inventory and PO items
+      // Note: we use snake_case for properties on the returned object in TX
+      const items = (goodsReceipt as any).receipt_items || [];
+      for (const receiptItem of items) {
+        // Use snake_case for relation property: purchase_order_item
         const poItem = receiptItem.purchase_order_item;
+        
+        if (!poItem) {
+          console.error('[GoodsReceiptService] purchase_order_item missing on receipt item', { id: receiptItem.id });
+          continue;
+        }
 
         // Update PO item quantity received
         await tx.purchaseOrderItem.update({
@@ -126,7 +137,7 @@ export class GoodsReceiptService {
         });
 
         // If linked to inventory item, increment stock
-        if (receiptItem.inventory_item_id && receiptItem.inventory_item) {
+        if (receiptItem.inventory_item_id) {
           await tx.inventoryItem.update({
             where: { id: receiptItem.inventory_item_id },
             data: {
@@ -154,11 +165,14 @@ export class GoodsReceiptService {
         }
       }
 
-      // Update PO status
+      // 6. Update PO status
       const allItemsReceived = po.items.every(
-        (item) => item.quantity_received >= item.quantity_ordered
+        (item) => item.quantity_received + (dto.receiptItems.find(r => r.poItemId === item.id)?.quantityReceived || 0) >= item.quantity_ordered
       );
-      const someItemsReceived = po.items.some((item) => item.quantity_received > 0);
+      
+      const someItemsReceived = po.items.some((item) => 
+        item.quantity_received + (dto.receiptItems.find(r => r.poItemId === item.id)?.quantityReceived || 0) > 0
+      );
 
       let newStatus: PurchaseOrderStatus = po.status;
       if (allItemsReceived) {
@@ -174,30 +188,5 @@ export class GoodsReceiptService {
 
       return goodsReceipt;
     });
-  }
-
-  private async generateReceiptNumber(tx: Prisma.TransactionClient): Promise<string> {
-    const year = new Date().getFullYear();
-    const prefix = `GRN-${year}-`;
-
-    const lastReceipt = await tx.goodsReceipt.findFirst({
-      where: {
-        receipt_number: {
-          startsWith: prefix,
-        },
-      },
-      orderBy: {
-        receipt_number: 'desc',
-      },
-    });
-
-    if (!lastReceipt) {
-      return `${prefix}0001`;
-    }
-
-    const lastNumber = parseInt(lastReceipt.receipt_number.replace(prefix, ''), 10);
-    const nextNumber = (lastNumber + 1).toString().padStart(4, '0');
-
-    return `${prefix}${nextNumber}`;
   }
 }

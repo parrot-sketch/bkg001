@@ -11,30 +11,16 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import db from '@/lib/db';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import { DomainException } from '@/domain/exceptions/DomainException';
+import { getRecordVitalSignsUseCase } from '@/lib/use-cases';
+import { RecordVitalSignsDto } from '@/domain/interfaces/repositories/IVitalSignRepository';
 
 /**
  * POST /api/patients/vitals
  * 
  * Records vital signs for a patient.
- * 
- * Body:
- * {
- *   patientId: string (required)
- *   appointmentId?: number (optional)
- *   bodyTemperature?: number (Celsius)
- *   systolic?: number (mmHg)
- *   diastolic?: number (mmHg)
- *   heartRate?: string (bpm, can be range)
- *   respiratoryRate?: number (per minute)
- *   oxygenSaturation?: number (percentage)
- *   weight?: number (kg)
- *   height?: number (cm)
- *   recordedBy: string (required - nurse user ID)
- * }
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -61,7 +47,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // 3. Parse request body
+    // 3. Parse and validate request body
     let body: any;
     try {
       body = await request.json();
@@ -75,7 +61,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // 4. Validate required fields
     if (!body.patientId || !body.recordedBy) {
       return NextResponse.json(
         {
@@ -86,16 +71,30 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // 5. Validate at least one vital sign is provided
+    const dto: RecordVitalSignsDto = {
+      patientId: body.patientId,
+      appointmentId: body.appointmentId ? parseInt(body.appointmentId.toString(), 10) : undefined,
+      bodyTemperature: body.bodyTemperature ? parseFloat(body.bodyTemperature.toString()) : undefined,
+      systolic: body.systolic ? parseInt(body.systolic.toString(), 10) : undefined,
+      diastolic: body.diastolic ? parseInt(body.diastolic.toString(), 10) : undefined,
+      heartRate: body.heartRate?.toString(),
+      respiratoryRate: body.respiratoryRate ? parseInt(body.respiratoryRate.toString(), 10) : undefined,
+      oxygenSaturation: body.oxygenSaturation ? parseInt(body.oxygenSaturation.toString(), 10) : undefined,
+      weight: body.weight ? parseFloat(body.weight.toString()) : undefined,
+      height: body.height ? parseFloat(body.height.toString()) : undefined,
+      recordedBy: body.recordedBy,
+    };
+
+    // 4. Validate at least one vital sign is provided
     const hasVitalSigns =
-      body.bodyTemperature !== undefined ||
-      body.systolic !== undefined ||
-      body.diastolic !== undefined ||
-      body.heartRate !== undefined ||
-      body.respiratoryRate !== undefined ||
-      body.oxygenSaturation !== undefined ||
-      body.weight !== undefined ||
-      body.height !== undefined;
+      dto.bodyTemperature !== undefined ||
+      dto.systolic !== undefined ||
+      dto.diastolic !== undefined ||
+      dto.heartRate !== undefined ||
+      dto.respiratoryRate !== undefined ||
+      dto.oxygenSaturation !== undefined ||
+      dto.weight !== undefined ||
+      dto.height !== undefined;
 
     if (!hasVitalSigns) {
       return NextResponse.json(
@@ -107,104 +106,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // 6. Verify patient exists
-    const patient = await db.patient.findUnique({
-      where: { id: body.patientId },
-      select: { id: true },
-    });
+    // 5. Execute use case
+    const recordVitalSignsUseCase = getRecordVitalSignsUseCase();
+    await recordVitalSignsUseCase.execute(dto);
 
-    if (!patient) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Patient not found',
-        },
-        { status: 404 }
-      );
-    }
-
-    // 7. Verify appointment exists (if provided)
-    if (body.appointmentId) {
-      const appointment = await db.appointment.findUnique({
-        where: { id: body.appointmentId },
-        select: { id: true },
-      });
-
-      if (!appointment) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Appointment not found',
-          },
-          { status: 404 }
-        );
-      }
-    }
-
-    // 8. Verify nurse user exists
-    const nurse = await db.user.findUnique({
-      where: { id: body.recordedBy },
-      select: { id: true, role: true },
-    });
-
-    if (!nurse) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Nurse user not found',
-        },
-        { status: 404 }
-      );
-    }
-
-    if (nurse.role !== Role.NURSE && authResult.user.role !== Role.ADMIN) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'recordedBy must be a nurse user',
-        },
-        { status: 400 }
-      );
-    }
-
-    // 9. Create vital signs record
-    const vitalSign = await db.vitalSign.create({
-      data: {
-        patient_id: body.patientId,
-        appointment_id: body.appointmentId || null,
-        medical_record_id: null, // Can be linked later if needed
-        body_temperature: body.bodyTemperature || null,
-        systolic: body.systolic || null,
-        diastolic: body.diastolic || null,
-        heart_rate: body.heartRate || null,
-        respiratory_rate: body.respiratoryRate || null,
-        oxygen_saturation: body.oxygenSaturation || null,
-        weight: body.weight || null,
-        height: body.height || null,
-        recorded_by: body.recordedBy,
-        recorded_at: new Date(),
-      },
-    });
-
-    // 10. Return success response
+    // 6. Return success response
     return NextResponse.json(
       {
         success: true,
-        data: {
-          id: vitalSign.id,
-          patientId: vitalSign.patient_id,
-          appointmentId: vitalSign.appointment_id,
-          bodyTemperature: vitalSign.body_temperature,
-          systolic: vitalSign.systolic,
-          diastolic: vitalSign.diastolic,
-          heartRate: vitalSign.heart_rate,
-          respiratoryRate: vitalSign.respiratory_rate,
-          oxygenSaturation: vitalSign.oxygen_saturation,
-          weight: vitalSign.weight,
-          height: vitalSign.height,
-          recordedBy: vitalSign.recorded_by,
-          recordedAt: vitalSign.recorded_at,
-        },
         message: 'Vital signs recorded successfully',
       },
       { status: 201 }
@@ -226,7 +135,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json(
       {
         success: false,
-        error: 'Failed to record vital signs',
+        error: error instanceof Error ? error.message : 'Failed to record vital signs',
       },
       { status: 500 }
     );

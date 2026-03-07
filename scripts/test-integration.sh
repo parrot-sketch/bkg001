@@ -12,7 +12,7 @@
 set -euo pipefail
 
 COMPOSE_FILE="docker-compose.test.yml"
-TEST_DB_URL="postgresql://postgres:postgres@localhost:5434/test_db"
+TEST_DB_URL="postgresql://postgres:postgres@localhost:5444/test_db"
 
 cleanup() {
   echo ""

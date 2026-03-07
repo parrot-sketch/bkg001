@@ -29,7 +29,7 @@ export class SubmitPatientIntakeUseCase {
   constructor(
     private readonly intakeSessionRepository: IIntakeSessionRepository,
     private readonly intakeSubmissionRepository: IIntakeSubmissionRepository,
-  ) {}
+  ) { }
 
   async execute(
     input: {
@@ -37,22 +37,19 @@ export class SubmitPatientIntakeUseCase {
       firstName: string;
       lastName: string;
       dateOfBirth: Date;
-      gender: 'MALE' | 'FEMALE';
+      gender: 'MALE' | 'FEMALE' | 'OTHER';
       email: string;
       phone: string;
-      address: string;
-      maritalStatus: 'SINGLE' | 'MARRIED' | 'DIVORCED' | 'WIDOWED';
+      address?: string;
+      maritalStatus?: 'SINGLE' | 'MARRIED' | 'DIVORCED' | 'WIDOWED' | '' | undefined;
       occupation?: string;
       whatsappPhone?: string;
-      emergencyContactName: string;
-      emergencyContactNumber: string;
-      emergencyContactRelation: 'SPOUSE' | 'PARENT' | 'CHILD' | 'SIBLING' | 'FRIEND' | 'OTHER';
+      emergencyContactName?: string;
+      emergencyContactNumber?: string;
+      emergencyContactRelation?: 'SPOUSE' | 'PARENT' | 'CHILD' | 'SIBLING' | 'FRIEND' | 'OTHER' | '' | undefined;
       bloodGroup?: 'O+' | 'O-' | 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-';
       allergies?: string;
       medicalConditions?: string;
-      medicalHistory?: string;
-      insuranceProvider?: string;
-      insuranceNumber?: string;
       privacyConsent: boolean;
       serviceConsent: boolean;
       medicalConsent: boolean;
@@ -103,9 +100,9 @@ export class SubmitPatientIntakeUseCase {
         bloodGroup: input.bloodGroup,
         allergies: input.allergies,
         medicalConditions: input.medicalConditions,
-        medicalHistory: input.medicalHistory,
-        insuranceProvider: input.insuranceProvider,
-        insuranceNumber: input.insuranceNumber,
+        medicalHistory: undefined,
+        insuranceProvider: undefined,
+        insuranceNumber: undefined,
         privacyConsent: input.privacyConsent,
         serviceConsent: input.serviceConsent,
         medicalConsent: input.medicalConsent,

@@ -2,6 +2,7 @@ import { IntakeSubmission, Relationship, MaritalStatus, BloodGroup } from '@/dom
 import { IntakeSubmission as PrismaIntakeSubmission, Prisma } from '@prisma/client';
 import { Email } from '@/domain/value-objects/Email';
 import { PhoneNumber } from '@/domain/value-objects/PhoneNumber';
+import { Gender } from '@/domain/enums/Gender';
 
 /**
  * Mapper: IntakeSubmissionMapper
@@ -24,16 +25,16 @@ export class IntakeSubmissionMapper {
         firstName: raw.first_name || 'Unknown',
         lastName: raw.last_name || 'Unknown',
         dateOfBirth: raw.date_of_birth || new Date(),
-        gender: (raw.gender as 'MALE' | 'FEMALE') || 'FEMALE',
+        gender: (raw.gender as Gender) || Gender.FEMALE,
         email: raw.email || 'unknown@example.com',
         phone: raw.phone || '0000000000',
         address: raw.address || 'Unknown Address',
-        maritalStatus: (raw.marital_status as MaritalStatus) || 'SINGLE',
+        maritalStatus: (raw.marital_status as MaritalStatus) ?? undefined,
         occupation: raw.occupation ?? undefined,
         whatsappPhone: raw.whatsapp_phone ?? undefined,
-        emergencyContactName: raw.emergency_contact_name || 'Unknown',
-        emergencyContactNumber: raw.emergency_contact_number || '0000000000',
-        emergencyContactRelation: (raw.relation as Relationship) || 'OTHER',
+        emergencyContactName: raw.emergency_contact_name ?? undefined,
+        emergencyContactNumber: raw.emergency_contact_number ?? undefined,
+        emergencyContactRelation: (raw.relation as Relationship) ?? undefined,
         bloodGroup: raw.blood_group as BloodGroup | undefined,
         allergies: raw.allergies ?? undefined,
         medicalConditions: raw.medical_conditions ?? undefined,
@@ -83,21 +84,21 @@ export class IntakeSubmissionMapper {
       email: contact.email,
       phone: contact.phone,
       whatsapp_phone: contact.whatsappPhone,
-      address: contact.address,
-      marital_status: contact.maritalStatus,
-      occupation: contact.occupation,
-      emergency_contact_name: emergency.name,
-      emergency_contact_number: emergency.phoneNumber,
-      relation: emergency.relationship,
-      blood_group: medical.bloodGroup,
-      allergies: medical.allergies,
-      medical_conditions: medical.medicalConditions,
-      medical_history: medical.medicalHistory,
-      insurance_provider: insurance.provider,
-      insurance_number: insurance.number,
-      privacy_consent: consent.privacyConsent,
-      service_consent: consent.serviceConsent,
-      medical_consent: consent.medicalConsent,
+      address: contact.address ?? null,
+      marital_status: contact.maritalStatus ?? null,
+      occupation: contact.occupation ?? null,
+      emergency_contact_name: emergency.name ?? null,
+      emergency_contact_number: emergency.phoneNumber ?? null,
+      relation: emergency.relationship ?? null,
+      blood_group: medical.bloodGroup ?? null,
+      allergies: medical.allergies ?? null,
+      medical_conditions: medical.medicalConditions ?? null,
+      medical_history: medical.medicalHistory ?? null,
+      insurance_provider: insurance.provider ?? null,
+      insurance_number: insurance.number ?? null,
+      privacy_consent: consent.privacyConsent ?? true,
+      service_consent: consent.serviceConsent ?? true,
+      medical_consent: consent.medicalConsent ?? true,
       submitted_at: new Date(primitive.submittedAt),
       ip_address: submission.getIpAddress(),
       user_agent: submission.getUserAgent(),
@@ -217,9 +218,6 @@ export class IntakeSubmissionMapper {
     if (!raw.date_of_birth) missing.push('dateOfBirth');
     if (!raw.email) missing.push('email');
     if (!raw.phone) missing.push('phone');
-    if (!raw.address) missing.push('address');
-    if (!raw.emergency_contact_name) missing.push('emergencyContactName');
-    if (!raw.emergency_contact_number) missing.push('emergencyContactNumber');
 
     return missing;
   }

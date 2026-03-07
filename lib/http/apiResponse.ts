@@ -60,6 +60,7 @@ export interface ApiErrorMetadata {
 export interface ApiSuccess<T> {
   success: true;
   data: T;
+  message?: string;
 }
 
 /**
@@ -85,8 +86,8 @@ export type ApiResponse<T> = ApiSuccess<T> | ApiError;
 /**
  * Create a success response.
  */
-export function ok<T>(data: T): ApiSuccess<T> {
-  return { success: true, data };
+export function ok<T>(data: T, message?: string): ApiSuccess<T> {
+  return { success: true, data, message };
 }
 
 /**

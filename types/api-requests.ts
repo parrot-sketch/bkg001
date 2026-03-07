@@ -48,7 +48,7 @@ export interface CreatePatientRequest {
   email: string;
   phone: string;
   date_of_birth?: string | Date; // Accepts both Date (forms) and string (API)
-  gender?: 'MALE' | 'FEMALE';
+  gender?: 'MALE' | 'FEMALE' | 'OTHER';
   address?: string;
   marital_status?: string;
   emergency_contact_name?: string;
@@ -81,7 +81,7 @@ export interface UpdatePatientRequest {
   email?: string;
   phone?: string;
   date_of_birth?: string | Date; // Accepts both Date (forms) and string (API)
-  gender?: 'MALE' | 'FEMALE';
+  gender?: 'MALE' | 'FEMALE' | 'OTHER';
   address?: string;
   marital_status?: string;
   emergency_contact_name?: string;

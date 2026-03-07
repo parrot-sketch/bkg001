@@ -15,9 +15,11 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { PatientIntakeFormSchema } from '@/lib/schema';
+import PhoneInput from 'react-phone-number-input';
+import 'react-phone-number-input/style.css';
 import { Shield, ChevronLeft, ChevronRight, CheckCircle2, Loader2, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -25,19 +27,17 @@ import { cn } from '@/lib/utils';
 type FormData = {
     firstName: string; lastName: string; dateOfBirth: string; gender: string;
     email: string; phone: string; whatsappPhone?: string; address: string;
-    maritalStatus: string; occupation?: string;
-    emergencyContactName: string; emergencyContactNumber: string; emergencyContactRelation: string;
-    insuranceProvider?: string; insuranceNumber?: string;
-    bloodGroup?: string; allergies?: string; medicalConditions?: string; medicalHistory?: string;
+    maritalStatus?: string; occupation?: string;
+    emergencyContactName?: string; emergencyContactNumber?: string; emergencyContactRelation?: string;
+    bloodGroup?: string; allergies?: string; medicalConditions?: string;
     privacyConsent: boolean; serviceConsent: boolean; medicalConsent: boolean;
 };
 
 const STEPS = [
     { id: 1, label: 'Personal', fields: ['firstName', 'lastName', 'dateOfBirth', 'gender'] as const },
     { id: 2, label: 'Contact', fields: ['email', 'phone', 'whatsappPhone', 'address', 'maritalStatus', 'occupation'] as const },
-    { id: 3, label: 'Emergency', fields: ['emergencyContactName', 'emergencyContactNumber', 'emergencyContactRelation', 'insuranceProvider', 'insuranceNumber'] as const },
-    { id: 4, label: 'Medical', fields: ['bloodGroup', 'allergies', 'medicalConditions', 'medicalHistory'] as const },
-    { id: 5, label: 'Consent', fields: ['privacyConsent', 'serviceConsent', 'medicalConsent'] as const },
+    { id: 3, label: 'Emergency', fields: ['emergencyContactName', 'emergencyContactNumber', 'emergencyContactRelation'] as const },
+    { id: 4, label: 'Medical', fields: ['bloodGroup', 'allergies', 'medicalConditions'] as const },
 ];
 
 /* ── Input helpers ── */
@@ -78,15 +78,14 @@ export function MobileIntakeForm({
         defaultValues: {
             firstName: '', lastName: '', dateOfBirth: '', gender: 'FEMALE',
             email: '', phone: '', whatsappPhone: '', address: '',
-            maritalStatus: 'SINGLE', occupation: '',
-            emergencyContactName: '', emergencyContactNumber: '', emergencyContactRelation: 'SPOUSE',
-            insuranceProvider: '', insuranceNumber: '',
-            bloodGroup: '', allergies: '', medicalConditions: '', medicalHistory: '',
-            privacyConsent: false, serviceConsent: false, medicalConsent: false,
+            maritalStatus: '', occupation: '',
+            emergencyContactName: '', emergencyContactNumber: '', emergencyContactRelation: '',
+            bloodGroup: '', allergies: '', medicalConditions: '',
+            privacyConsent: true, serviceConsent: true, medicalConsent: true,
         },
     });
 
-    const { register, formState: { errors }, trigger, getValues, setValue, watch } = form;
+    const { register, control, formState: { errors }, trigger, getValues, watch } = form;
 
     /* Load draft on mount */
     useEffect(() => {
@@ -169,6 +168,7 @@ export function MobileIntakeForm({
 
     /* ── Success screen ── */
     if (submitted) {
+        const firstName = getValues('firstName');
         return (
             <div className="min-h-screen bg-white flex flex-col">
                 <ClinicHeader />
@@ -176,11 +176,16 @@ export function MobileIntakeForm({
                     <div className="h-20 w-20 rounded-full bg-emerald-50 flex items-center justify-center mb-6">
                         <CheckCircle2 className="h-10 w-10 text-emerald-500" />
                     </div>
-                    <h1 className="text-2xl font-bold text-slate-900 mb-3">Thank You!</h1>
+                    <h1 className="text-2xl font-bold text-slate-900 mb-3">
+                        {firstName ? `You're all set, ${firstName}!` : 'You\'re all set!'}
+                    </h1>
                     <p className="text-slate-500 text-sm leading-relaxed mb-2">
-                        Your intake form has been received. The receptionist will call you shortly.
+                        Your details have been received by the Nairobi Sculpt team.
                     </p>
-                    <p className="text-xs text-slate-400">You can close this tab.</p>
+                    <p className="text-slate-500 text-sm leading-relaxed mb-4">
+                        Please take a seat — a member of our team will call your name shortly.
+                    </p>
+                    <p className="text-xs text-slate-400">You can close this browser tab.</p>
                 </div>
                 <PrivacyFooter />
             </div>
@@ -250,10 +255,32 @@ export function MobileIntakeForm({
                         <>
                             <StepHeading title="Contact Details" subtitle="How can we reach you?" />
                             <Field label="Phone Number" required error={errors.phone?.message as string}>
-                                <input {...register('phone')} type="tel" placeholder="e.g. 0712 345 678" className={inputClass} autoFocus />
+                                <Controller
+                                    name="phone"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <PhoneInput
+                                            {...field}
+                                            international
+                                            defaultCountry="KE"
+                                            className={inputClass}
+                                        />
+                                    )}
+                                />
                             </Field>
                             <Field label="WhatsApp Number" error={errors.whatsappPhone?.message as string}>
-                                <input {...register('whatsappPhone')} type="tel" placeholder="Same as phone (optional)" className={inputClass} />
+                                <Controller
+                                    name="whatsappPhone"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <PhoneInput
+                                            {...field}
+                                            international
+                                            defaultCountry="KE"
+                                            className={inputClass}
+                                        />
+                                    )}
+                                />
                             </Field>
                             <Field label="Email Address" required error={errors.email?.message as string}>
                                 <input {...register('email')} type="email" placeholder="your@email.com" className={inputClass} />
@@ -261,8 +288,9 @@ export function MobileIntakeForm({
                             <Field label="Home Address" required error={errors.address?.message as string}>
                                 <input {...register('address')} placeholder="e.g. Westlands, Nairobi" className={inputClass} />
                             </Field>
-                            <Field label="Marital Status" required error={errors.maritalStatus?.message as string}>
+                            <Field label="Marital Status" error={errors.maritalStatus?.message as string}>
                                 <select {...register('maritalStatus')} className={selectClass}>
+                                    <option value="">Prefer not to say</option>
                                     <option value="SINGLE">Single</option>
                                     <option value="MARRIED">Married</option>
                                     <option value="DIVORCED">Divorced</option>
@@ -278,15 +306,27 @@ export function MobileIntakeForm({
                     {/* ─ Step 3: Emergency Contact + Insurance ─ */}
                     {step === 3 && (
                         <>
-                            <StepHeading title="Emergency Contact" subtitle="Who should we contact in an emergency?" />
-                            <Field label="Contact Name" required error={errors.emergencyContactName?.message as string}>
+                            <StepHeading title="Emergency Contact" subtitle="Who should we contact in an emergency? (Optional)" />
+                            <Field label="Contact Name" error={errors.emergencyContactName?.message as string}>
                                 <input {...register('emergencyContactName')} placeholder="Full name" className={inputClass} autoFocus />
                             </Field>
-                            <Field label="Contact Phone" required error={errors.emergencyContactNumber?.message as string}>
-                                <input {...register('emergencyContactNumber')} type="tel" placeholder="Phone number" className={inputClass} />
+                            <Field label="Contact Phone" error={errors.emergencyContactNumber?.message as string}>
+                                <Controller
+                                    name="emergencyContactNumber"
+                                    control={control}
+                                    render={({ field }) => (
+                                        <PhoneInput
+                                            {...field}
+                                            international
+                                            defaultCountry="KE"
+                                            className={inputClass}
+                                        />
+                                    )}
+                                />
                             </Field>
-                            <Field label="Relationship" required error={errors.emergencyContactRelation?.message as string}>
+                            <Field label="Relationship" error={errors.emergencyContactRelation?.message as string}>
                                 <select {...register('emergencyContactRelation')} className={selectClass}>
+                                    <option value="">Select relationship</option>
                                     <option value="SPOUSE">Spouse / Partner</option>
                                     <option value="PARENT">Parent</option>
                                     <option value="SIBLING">Sibling</option>
@@ -296,17 +336,7 @@ export function MobileIntakeForm({
                                 </select>
                             </Field>
 
-                            <div className="pt-2 border-t border-slate-100">
-                                <StepHeading title="Insurance (Optional)" subtitle="Leave blank if you have no insurance cover." />
-                                <div className="space-y-4">
-                                    <Field label="Insurance Provider">
-                                        <input {...register('insuranceProvider')} placeholder="e.g. AAR, NHIF, Jubilee" className={inputClass} />
-                                    </Field>
-                                    <Field label="Insurance / Member Number">
-                                        <input {...register('insuranceNumber')} placeholder="Policy or member number" className={inputClass} />
-                                    </Field>
-                                </div>
-                            </div>
+
                         </>
                     )}
 
@@ -338,59 +368,9 @@ export function MobileIntakeForm({
                                     className={`${inputClass} h-auto py-3`}
                                 />
                             </Field>
-                            <Field label="Previous Surgeries or Treatments">
-                                <textarea
-                                    {...register('medicalHistory')}
-                                    rows={3}
-                                    placeholder="Any past surgeries, treatments, or hospitalisations… or leave blank"
-                                    className={`${inputClass} h-auto py-3`}
-                                />
-                            </Field>
-                        </>
-                    )}
-
-                    {/* ─ Step 5: Consent + Review ─ */}
-                    {step === 5 && (
-                        <>
-                            <StepHeading title="Consent & Review" subtitle="Please read and accept each item, then verify your details." />
-
-                            {/* Consent checkboxes */}
-                            <div className="space-y-3">
-                                <ConsentItem
-                                    checked={pw}
-                                    onChange={(v) => setValue('privacyConsent', v)}
-                                    label="Privacy Policy"
-                                    description="I consent to Nairobi Sculpt collecting and processing my personal information for the purpose of my medical care."
-                                    error={errors.privacyConsent?.message as string}
-                                />
-                                <ConsentItem
-                                    checked={sw}
-                                    onChange={(v) => setValue('serviceConsent', v)}
-                                    label="Service Agreement"
-                                    description="I agree to the terms and conditions of service, including payment obligations for any consultation or procedure."
-                                    error={errors.serviceConsent?.message as string}
-                                />
-                                <ConsentItem
-                                    checked={mw}
-                                    onChange={(v) => setValue('medicalConsent', v)}
-                                    label="Medical Consent"
-                                    description="I consent to examination and any medically necessary treatment by the physician assigned to my care."
-                                    error={errors.medicalConsent?.message as string}
-                                />
-                            </div>
-
-                            {/* Summary review */}
-                            <div className="bg-slate-50 rounded-2xl p-4 space-y-2 border border-slate-100">
-                                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Your Details</p>
-                                <ReviewRow label="Name" value={`${getValues('firstName')} ${getValues('lastName')}`} />
-                                <ReviewRow label="Date of Birth" value={getValues('dateOfBirth')} />
-                                <ReviewRow label="Phone" value={getValues('phone')} />
-                                <ReviewRow label="Email" value={getValues('email')} />
-                                <ReviewRow label="Emergency Contact" value={`${getValues('emergencyContactName')} (${getValues('emergencyContactRelation')})`} />
-                            </div>
 
                             {submitError && (
-                                <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                                <div className="mt-6 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
                                     <p className="text-sm text-red-600">{submitError}</p>
                                 </div>
                             )}
@@ -425,10 +405,10 @@ export function MobileIntakeForm({
                         <button
                             type="button"
                             onClick={handleSubmit}
-                            disabled={submitting || !pw || !sw || !mw}
+                            disabled={submitting}
                             className={cn(
                                 "flex-1 h-12 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2 transition-all shadow-sm",
-                                submitting || !pw || !sw || !mw
+                                submitting
                                     ? 'bg-slate-300 cursor-not-allowed shadow-none'
                                     : 'bg-rose-600 hover:bg-rose-700 shadow-rose-200'
                             )}
@@ -486,43 +466,4 @@ function StepHeading({ title, subtitle }: { title: string; subtitle: string }) {
     );
 }
 
-function ReviewRow({ label, value }: { label: string; value: string }) {
-    return (
-        <div className="flex justify-between items-start gap-4 text-sm py-1.5 border-b border-slate-100 last:border-0">
-            <span className="text-slate-400 shrink-0">{label}</span>
-            <span className="text-slate-800 font-medium text-right break-all">{value || '—'}</span>
-        </div>
-    );
-}
 
-function ConsentItem({
-    checked, onChange, label, description, error
-}: {
-    checked: boolean;
-    onChange: (v: boolean) => void;
-    label: string;
-    description: string;
-    error?: string;
-}) {
-    return (
-        <div
-            onClick={() => onChange(!checked)}
-            className={cn(
-                "flex gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all select-none",
-                checked ? 'border-rose-400 bg-rose-50' : 'border-slate-200 bg-white hover:border-slate-300'
-            )}
-        >
-            <div className={cn(
-                "mt-0.5 h-5 w-5 rounded flex items-center justify-center shrink-0 border-2 transition-colors",
-                checked ? 'bg-rose-600 border-rose-600' : 'border-slate-300'
-            )}>
-                {checked && <CheckCircle2 className="h-3 w-3 text-white" />}
-            </div>
-            <div>
-                <p className="text-sm font-semibold text-slate-800">{label}</p>
-                <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{description}</p>
-                {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
-            </div>
-        </div>
-    );
-}

@@ -87,7 +87,7 @@ export function getMissingPlanningItems(input: PlanningReadinessInput): Planning
         {
             key: 'photos',
             label: 'Pre-Op Photos',
-            required: true,
+            required: false, // User requested this should not be a blocker
             done: input.preOpPhotoCount > 0,
         },
     ];

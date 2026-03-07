@@ -29,36 +29,36 @@ export class PatientMapper {
     if (!phone || typeof phone !== 'string') {
       throw new Error(`Invalid phone number: ${phone}. Phone number must be a non-empty string.`);
     }
-    
+
     const trimmed = phone.trim();
     if (trimmed.length === 0) {
       throw new Error('Phone number cannot be empty');
     }
-    
+
     // Remove all non-digit, non-plus characters
     // Keep + only if it's at the start
     const hasPlus = trimmed.startsWith('+');
     let digitsOnly = trimmed.replace(/[^\d+]/g, '');
-    
+
     // Remove any + that's not at the start
     if (digitsOnly.includes('+') && !digitsOnly.startsWith('+')) {
       digitsOnly = digitsOnly.replace(/\+/g, '');
     }
-    
+
     // Extract actual digits (remove + for counting)
     let actualDigits = digitsOnly.replace(/\+/g, '');
-    
+
     // Validate that we have digits after cleaning
     if (actualDigits.length === 0) {
       throw new Error(`Phone number contains no digits after sanitization. Original: "${phone}"`);
     }
-    
+
     // Reconstruct the phone number: if it had a + at the start, add it back
     // But only if we have actual digits
     if (hasPlus && actualDigits.length > 0) {
       return '+' + actualDigits;
     }
-    
+
     // Return digits only (no + prefix)
     return actualDigits;
   }
@@ -75,7 +75,7 @@ export class PatientMapper {
     // This handles legacy data with formatting characters
     let sanitizedPhone: string;
     let sanitizedEmergencyPhone: string;
-    
+
     try {
       sanitizedPhone = this.sanitizePhoneNumber(prismaPatient.phone);
     } catch (error) {
@@ -85,7 +85,7 @@ export class PatientMapper {
         `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
     }
-    
+
     // Emergency contact phone: if sanitization fails, use patient's phone as fallback
     // This handles corrupted data like "+DR.KEN" or "+''''" in the database
     try {
@@ -100,7 +100,7 @@ export class PatientMapper {
       // Use patient's own phone number as emergency contact fallback
       sanitizedEmergencyPhone = sanitizedPhone;
     }
-    
+
     // Validate and create email - handle invalid emails gracefully
     let email: Email;
     try {
@@ -116,7 +116,7 @@ export class PatientMapper {
       );
       email = Email.create(placeholderEmail);
     }
-    
+
     // Validate and create phone - handle short/invalid phones gracefully
     let phone: PhoneNumber;
     try {
@@ -126,7 +126,7 @@ export class PatientMapper {
       // Use a default Kenyan phone format: +254700000000 (pad with zeros if needed)
       const MIN_PHONE_LENGTH = 10;
       let fallbackPhone: string;
-      
+
       if (sanitizedPhone.startsWith('+')) {
         // If it has country code, try to pad the local part
         const countryCode = sanitizedPhone.substring(0, 4); // +254
@@ -138,13 +138,13 @@ export class PatientMapper {
         const padded = sanitizedPhone.replace(/\D/g, '').padEnd(MIN_PHONE_LENGTH, '0');
         fallbackPhone = padded.length >= MIN_PHONE_LENGTH ? `+254${padded}` : `+254${padded.padEnd(MIN_PHONE_LENGTH, '0')}`;
       }
-      
+
       console.warn(
         `[PatientMapper] Invalid or too short phone for patient ${prismaPatient.id}. ` +
         `Original value: "${prismaPatient.phone}", sanitized: "${sanitizedPhone}". ` +
         `Using fallback: "${fallbackPhone}"`
       );
-      
+
       try {
         phone = PhoneNumber.create(fallbackPhone);
         // Update sanitizedPhone for emergency contact fallback
@@ -162,7 +162,7 @@ export class PatientMapper {
         sanitizedEmergencyPhone = defaultPhone;
       }
     }
-    
+
     return Patient.create({
       id: prismaPatient.id,
       fileNumber: prismaPatient.file_number, // Required field
@@ -184,10 +184,10 @@ export class PatientMapper {
           return undefined;
         }
       })() : undefined,
-      address: prismaPatient.address,
+      address: prismaPatient.address ?? undefined,
       occupation: prismaPatient.occupation ?? undefined,
-      maritalStatus: prismaPatient.marital_status,
-      emergencyContactName: prismaPatient.emergency_contact_name,
+      maritalStatus: prismaPatient.marital_status ?? undefined,
+      emergencyContactName: prismaPatient.emergency_contact_name ?? undefined,
       emergencyContactNumber: (() => {
         try {
           return PhoneNumber.create(sanitizedEmergencyPhone);
@@ -200,7 +200,7 @@ export class PatientMapper {
           return phone; // Use the validated patient phone
         }
       })(),
-      relation: prismaPatient.relation,
+      relation: prismaPatient.relation ?? undefined,
       privacyConsent: prismaPatient.privacy_consent,
       serviceConsent: prismaPatient.service_consent,
       medicalConsent: prismaPatient.medical_consent,
@@ -212,6 +212,7 @@ export class PatientMapper {
       insuranceNumber: prismaPatient.insurance_number ?? undefined,
       img: prismaPatient.img ?? undefined,
       colorCode: prismaPatient.colorCode ?? undefined,
+      userId: prismaPatient.user_id ?? undefined,
       createdAt: prismaPatient.created_at,
       updatedAt: prismaPatient.updated_at,
     });
@@ -226,10 +227,10 @@ export class PatientMapper {
   static toPrismaCreateInput(patient: Patient): Prisma.PatientCreateInput {
     // In this system, when a patient has an account, their patient id equals their Clerk user_id
     // This allows GET /api/patients/:id to find patients by user_id for authenticated users
-    const userId = patient.getId(); // Link to User - set to same as id when patient has account
+    const userId = patient.getUserId();
     return {
       id: patient.getId(),
-      ...(userId ? { user: { connect: { id: userId } } } : {}), // Use relation syntax if user_id exists
+      ...(userId ? { user: { connect: { id: userId } } } : {}),
       file_number: patient.getFileNumber(), // System-generated: NS001, NS002, etc.
       first_name: patient.getFirstName(),
       last_name: patient.getLastName(),
@@ -238,12 +239,12 @@ export class PatientMapper {
       email: patient.getEmail().getValue(),
       phone: patient.getPhone().getValue(),
       whatsapp_phone: patient.getWhatsappPhone() ?? null,
-      address: patient.getAddress(),
+      address: patient.getAddress() ?? null,
       occupation: patient.getOccupation() ?? null,
-      marital_status: patient.getMaritalStatus(),
-      emergency_contact_name: patient.getEmergencyContactName(),
-      emergency_contact_number: patient.getEmergencyContactNumber().getValue(),
-      relation: patient.getRelation(),
+      marital_status: patient.getMaritalStatus() ?? null,
+      emergency_contact_name: patient.getEmergencyContactName() ?? null,
+      emergency_contact_number: patient.getEmergencyContactNumber()?.getValue() ?? null,
+      relation: patient.getRelation() ?? null,
       privacy_consent: patient.hasPrivacyConsent(),
       service_consent: patient.hasServiceConsent(),
       medical_consent: patient.hasMedicalConsent(),
@@ -274,12 +275,12 @@ export class PatientMapper {
       email: patient.getEmail().getValue(),
       phone: patient.getPhone().getValue(),
       whatsapp_phone: patient.getWhatsappPhone() ?? null,
-      address: patient.getAddress(),
+      address: patient.getAddress() ?? null,
       occupation: patient.getOccupation() ?? null,
-      marital_status: patient.getMaritalStatus(),
-      emergency_contact_name: patient.getEmergencyContactName(),
-      emergency_contact_number: patient.getEmergencyContactNumber().getValue(),
-      relation: patient.getRelation(),
+      marital_status: patient.getMaritalStatus() ?? null,
+      emergency_contact_name: patient.getEmergencyContactName() ?? null,
+      emergency_contact_number: patient.getEmergencyContactNumber()?.getValue() ?? null,
+      relation: patient.getRelation() ?? null,
       privacy_consent: patient.hasPrivacyConsent(),
       service_consent: patient.hasServiceConsent(),
       medical_consent: patient.hasMedicalConsent(),

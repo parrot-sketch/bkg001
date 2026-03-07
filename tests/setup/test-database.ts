@@ -92,6 +92,7 @@ export async function resetTestDatabase(): Promise<void> {
     await db.consentTemplate.deleteMany({});
 
     // Core tables
+    await db.vitalSign.deleteMany({});
     await db.appointment.deleteMany({});
     await db.consultation.deleteMany({});
     await db.availabilitySlot.deleteMany({});

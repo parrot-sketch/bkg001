@@ -16,14 +16,17 @@ export interface ValidationFieldError {
 export class ValidationError extends DomainException {
   public readonly code = ApiErrorCode.VALIDATION_ERROR;
   public readonly errors: ValidationFieldError[];
+  public readonly status: number;
 
   constructor(
     message: string,
-    errors: ValidationFieldError[] = []
+    errors: ValidationFieldError[] = [],
+    status: number = 400
   ) {
     super(message, { errors });
     this.name = 'ValidationError';
     this.errors = errors;
+    this.status = status;
   }
 
   /**

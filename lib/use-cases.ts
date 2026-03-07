@@ -19,7 +19,8 @@ import { CheckInPatientUseCase } from '@/application/use-cases/CheckInPatientUse
 import { CreateCasePlanUseCase } from '@/application/use-cases/CreateCasePlanUseCase';
 import { PrismaSurgicalCaseRepository } from '@/infrastructure/database/repositories/PrismaSurgicalCaseRepository';
 import { PrismaCasePlanRepository } from '@/infrastructure/database/repositories/PrismaCasePlanRepository';
-// ... (imports)
+import { RecordVitalSignsUseCase } from '@/application/use-cases/RecordVitalSignsUseCase';
+import { PrismaVitalSignRepository } from '@/infrastructure/repositories/PrismaVitalSignRepository';
 
 // Initialize infrastructure dependencies (singleton pattern)
 const appointmentRepository = new PrismaAppointmentRepository(db);
@@ -27,6 +28,7 @@ const patientRepository = new PrismaPatientRepository(db);
 const availabilityRepository = new PrismaAvailabilityRepository(db);
 const casePlanRepository = new PrismaCasePlanRepository(db);
 const surgicalCaseRepository = new PrismaSurgicalCaseRepository(db);
+const vitalSignRepository = new PrismaVitalSignRepository();
 const auditService = new ConsoleAuditService();
 // ...
 
@@ -79,6 +81,17 @@ export function getCreateCasePlanUseCase(): CreateCasePlanUseCase {
   return new CreateCasePlanUseCase(
     casePlanRepository,
     surgicalCaseRepository,
+    auditService
+  );
+}
+
+/**
+ * Get RecordVitalSignsUseCase instance
+ */
+export function getRecordVitalSignsUseCase(): RecordVitalSignsUseCase {
+  return new RecordVitalSignsUseCase(
+    vitalSignRepository,
+    appointmentRepository,
     auditService
   );
 }

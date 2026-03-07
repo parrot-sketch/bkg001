@@ -13,6 +13,7 @@ import { FrontdeskSidebar } from '@/components/frontdesk/FrontdeskSidebar';
 import { Menu } from 'lucide-react';
 import { ReactNode } from 'react';
 import { ClinicalDashboardShell } from '@/components/layouts/ClinicalDashboardShell';
+import { BookAppointmentDialog } from '@/components/appointments/BookAppointmentDialog';
 
 interface FrontdeskLayoutProps {
   children: ReactNode;
@@ -37,6 +38,9 @@ export default function FrontdeskLayout({ children }: FrontdeskLayoutProps) {
 
       {/* Content Area - Using the shared ClinicalDashboardShell */}
       <div className="flex-1 lg:ml-72 flex flex-col min-w-0 h-full overflow-hidden">
+        {/* Global Modals for Frontdesk */}
+        <BookAppointmentDialog />
+
         <ClinicalDashboardShell>
           {children}
         </ClinicalDashboardShell>

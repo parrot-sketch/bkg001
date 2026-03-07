@@ -316,9 +316,7 @@ export async function PATCH(
           },
         });
 
-        // DUAL READINESS: Only transition to READY_FOR_SCHEDULING if BOTH:
-        // 1. Nurse pre-op ward checklist is FINAL (form engine)
-        // 2. Doctor planning items are complete
+        // Only transition if Nurse Form is FINAL and case is currently SCHEDULED or READY_FOR_SCHEDULING
         if (nurseMarksReady) {
           // Check nurse form engine checklist
           const nurseForm = await tx.clinicalFormResponse.findUnique({
@@ -334,31 +332,25 @@ export async function PATCH(
 
           const nurseFormFinalized = nurseForm?.status === ClinicalFormStatus.FINAL;
 
-          // Fetch full plan with consents + images for doctor readiness check
-          const fullPlan = await tx.casePlan.findUnique({
-            where: { id: surgicalCase.case_plan.id },
-            include: {
-              consents: { select: { status: true } },
-              images: { select: { timepoint: true } },
-            },
-          });
+          // If the form is finalized and implicitly accepted, we transition the case
+          if (nurseFormFinalized) {
+            // Determine the next state based on current state.
+            // Under new workflow, cases should be SCHEDULED when they reach Ward Prep.
+            // If they are SCHEDULED or READY_FOR_SCHEDULING, we can advance them to READY_FOR_THEATER_BOOKING/IN_PREP.
+            let nextStatus = surgicalCase.status;
+            
+            if (surgicalCase.status === SurgicalCaseStatus.SCHEDULED || surgicalCase.status === SurgicalCaseStatus.READY_FOR_SCHEDULING) {
+               // We will use READY_FOR_THEATER_BOOKING as the equivalent to "Ward Prep Complete"
+               nextStatus = SurgicalCaseStatus.READY_FOR_THEATER_BOOKING;
+            }
 
-          const doctorReadiness = getMissingPlanningItems({
-            procedurePlan: fullPlan?.procedure_plan ?? null,
-            riskFactors: fullPlan?.risk_factors ?? null,
-            plannedAnesthesia: fullPlan?.planned_anesthesia ?? null,
-            signedConsentCount: fullPlan?.consents?.filter(c => c.status === 'SIGNED').length ?? 0,
-            preOpPhotoCount: fullPlan?.images?.filter(i => i.timepoint === 'PRE_OP').length ?? 0,
-          });
-
-          if (doctorReadiness.isComplete && nurseFormFinalized) {
-            // Both nurse form and doctor plan are ready — transition
-            await tx.surgicalCase.update({
-              where: { id: params.id },
-              data: { status: SurgicalCaseStatus.READY_FOR_SCHEDULING },
-            });
+            if (nextStatus !== surgicalCase.status) {
+                await tx.surgicalCase.update({
+                  where: { id: params.id },
+                  data: { status: nextStatus },
+                });
+            }
           }
-          // If either is incomplete, nurse marks ready_for_surgery but case stays in current status.
         }
       }
 
@@ -367,7 +359,7 @@ export async function PATCH(
       if (
         surgicalCaseStatus &&
         Object.values(SurgicalCaseStatus).includes(surgicalCaseStatus) &&
-        surgicalCaseStatus !== SurgicalCaseStatus.READY_FOR_SCHEDULING
+        ![SurgicalCaseStatus.READY_FOR_SCHEDULING, SurgicalCaseStatus.READY_FOR_THEATER_BOOKING].includes(surgicalCaseStatus)
       ) {
         // Allow non-readiness status changes (e.g., reverting to PLANNING)
         await tx.surgicalCase.update({

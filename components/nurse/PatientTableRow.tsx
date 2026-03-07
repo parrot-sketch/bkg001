@@ -20,6 +20,7 @@ import type { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';
 import { doctorApi } from '@/lib/api/doctor';
 import { DoctorProfileModal } from '@/components/patient/DoctorProfileModal';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface PatientTableRowProps {
     patient: PatientResponseDto;
@@ -78,7 +79,14 @@ export function PatientTableRow({
                         </Avatar>
                         <div className="flex flex-col">
                             <span className="text-sm font-semibold text-slate-900">{patient.firstName} {patient.lastName}</span>
-                            <span className="text-[11px] text-slate-500">#{patient.fileNumber || patient.id.substring(0, 6)}</span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-[11px] text-slate-500">#{patient.fileNumber || patient.id.substring(0, 6)}</span>
+                                {appointment?.status === 'READY_FOR_CONSULTATION' ? (
+                                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[9px] h-4 py-0">Triage Done</Badge>
+                                ) : appointment?.status === 'CHECKED_IN' ? (
+                                    <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[9px] h-4 py-0">Pending Triage</Badge>
+                                ) : null}
+                            </div>
                         </div>
                     </div>
                 </TableCell>
@@ -130,7 +138,18 @@ export function PatientTableRow({
 
                 <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-rose-600 hover:bg-rose-50" onClick={() => onRecordVitals(patient)} title="Record Vitals">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className={cn(
+                                "h-8 w-8",
+                                appointment?.status === 'READY_FOR_CONSULTATION'
+                                    ? "text-emerald-600 bg-emerald-50"
+                                    : "text-slate-500 hover:text-rose-600 hover:bg-rose-50"
+                            )}
+                            onClick={() => onRecordVitals(patient)}
+                            title="Record Vitals"
+                        >
                             <Activity className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-500 hover:text-blue-600 hover:bg-blue-50" onClick={() => onAddCareNote(patient)} title="Add Note">

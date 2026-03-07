@@ -4,9 +4,9 @@ import { DomainException } from '@/domain/exceptions/DomainException';
 import { Patient } from '@/domain/entities/Patient';
 import { Gender } from '@/domain/enums/Gender';
 
-export type MaritalStatus = 'SINGLE' | 'MARRIED' | 'DIVORCED' | 'WIDOWED';
-export type Relationship = 'SPOUSE' | 'PARENT' | 'CHILD' | 'SIBLING' | 'FRIEND' | 'OTHER';
-export type BloodGroup = 'O+' | 'O-' | 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-';
+export type MaritalStatus = 'SINGLE' | 'MARRIED' | 'DIVORCED' | 'WIDOWED' | '';
+export type Relationship = 'SPOUSE' | 'PARENT' | 'CHILD' | 'SIBLING' | 'FRIEND' | 'OTHER' | '';
+export type BloodGroup = 'O+' | 'O-' | 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | '';
 export type SubmissionStatus = 'PENDING' | 'CONFIRMED' | 'REJECTED';
 
 /**
@@ -18,7 +18,7 @@ class PersonalInfo {
     readonly firstName: string,
     readonly lastName: string,
     readonly dateOfBirth: Date,
-    readonly gender: 'MALE' | 'FEMALE',
+    readonly gender: Gender,
   ) {
     // Validate
     if (!firstName || firstName.trim().length < 2) {
@@ -29,12 +29,6 @@ class PersonalInfo {
     }
     if (dateOfBirth > new Date()) {
       throw new DomainException('Date of birth cannot be in the future');
-    }
-
-    // Calculate age
-    const age = new Date().getFullYear() - dateOfBirth.getFullYear();
-    if (age < 16) {
-      throw new DomainException('Patient must be at least 16 years old');
     }
   }
 
@@ -74,15 +68,12 @@ class ContactInfo {
   constructor(
     readonly email: Email,
     readonly phone: PhoneNumber,
-    readonly address: string,
-    readonly maritalStatus: MaritalStatus,
+    readonly address?: string,
+    readonly maritalStatus?: MaritalStatus,
     readonly occupation?: string,
     readonly whatsappPhone?: PhoneNumber,
   ) {
-    if (!address || address.trim().length < 10) {
-      throw new DomainException('Address must be at least 10 characters');
-    }
-    if (address.trim().length > 500) {
+    if (address && address.trim().length > 500) {
       throw new DomainException('Address must be at most 500 characters');
     }
   }
@@ -91,7 +82,7 @@ class ContactInfo {
     return {
       email: this.email.getValue(),
       phone: this.phone.getValue(),
-      address: this.address,
+      address: this.address || '',
       maritalStatus: this.maritalStatus,
       occupation: this.occupation,
       whatsappPhone: this.whatsappPhone?.getValue(),
@@ -105,19 +96,19 @@ class ContactInfo {
  */
 class EmergencyContact {
   constructor(
-    readonly name: string,
-    readonly phoneNumber: PhoneNumber,
-    readonly relationship: Relationship,
+    readonly name?: string,
+    readonly phoneNumber?: PhoneNumber,
+    readonly relationship?: Relationship,
   ) {
-    if (!name || name.trim().length < 2) {
-      throw new DomainException('Emergency contact name must be at least 2 characters');
+    if (name && name.trim().length > 0 && name.trim().length < 2) {
+      throw new DomainException('Emergency contact name must be at least 2 characters if provided');
     }
   }
 
   toPrimitive() {
     return {
       name: this.name,
-      phoneNumber: this.phoneNumber.getValue(),
+      phoneNumber: this.phoneNumber?.getValue(),
       relationship: this.relationship,
     };
   }
@@ -237,7 +228,6 @@ class ConsentInfo {
  *
  * Business Rules:
  * - All consent flags must be true
- * - Patient must be at least 16 years old
  * - Required fields: personal info, contact info, emergency contact, all consents
  * - Optional fields: medical info, insurance info
  * - Can be converted to Patient entity when confirmed by frontdesk
@@ -298,18 +288,18 @@ export class IntakeSubmission {
     firstName: string;
     lastName: string;
     dateOfBirth: Date;
-    gender: 'MALE' | 'FEMALE';
+    gender: 'MALE' | 'FEMALE' | 'OTHER';
     // Contact
     email: string;
     phone: string;
-    address: string;
-    maritalStatus: MaritalStatus;
+    address?: string;
+    maritalStatus?: MaritalStatus;
     occupation?: string;
     whatsappPhone?: string;
     // Emergency Contact
-    emergencyContactName: string;
-    emergencyContactNumber: string;
-    emergencyContactRelation: Relationship;
+    emergencyContactName?: string;
+    emergencyContactNumber?: string;
+    emergencyContactRelation?: Relationship;
     // Medical (optional)
     bloodGroup?: BloodGroup;
     allergies?: string;
@@ -331,7 +321,7 @@ export class IntakeSubmission {
       params.firstName,
       params.lastName,
       params.dateOfBirth,
-      params.gender,
+      params.gender as Gender,
     );
 
     const contactInfo = new ContactInfo(
@@ -345,7 +335,7 @@ export class IntakeSubmission {
 
     const emergencyContact = new EmergencyContact(
       params.emergencyContactName,
-      PhoneNumber.create(params.emergencyContactNumber),
+      params.emergencyContactNumber ? PhoneNumber.create(params.emergencyContactNumber) : undefined,
       params.emergencyContactRelation,
     );
 
@@ -434,12 +424,12 @@ export class IntakeSubmission {
       email: this.contactInfo.email.getValue(),
       phone: this.contactInfo.phone.getValue(),
       address: this.contactInfo.address,
-      maritalStatus: this.contactInfo.maritalStatus,
+      maritalStatus: this.contactInfo.maritalStatus || '',
       occupation: this.contactInfo.occupation,
       whatsappPhone: this.contactInfo.whatsappPhone?.getValue(),
-      emergencyContactName: this.emergencyContact.name,
-      emergencyContactNumber: this.emergencyContact.phoneNumber.getValue(),
-      relation: this.emergencyContact.relationship,
+      emergencyContactName: this.emergencyContact.name || '',
+      emergencyContactNumber: this.emergencyContact.phoneNumber?.getValue() || '',
+      relation: this.emergencyContact.relationship || '',
       bloodGroup: this.medicalInfo.bloodGroup,
       allergies: this.medicalInfo.allergies,
       medicalConditions: this.medicalInfo.medicalConditions,
@@ -464,9 +454,8 @@ export class IntakeSubmission {
     if (!this.personalInfo.dateOfBirth) missing.push('dateOfBirth');
     if (!this.contactInfo.email) missing.push('email');
     if (!this.contactInfo.phone) missing.push('phone');
-    if (!this.contactInfo.address) missing.push('address');
-    if (!this.emergencyContact.name) missing.push('emergencyContactName');
-    if (!this.emergencyContact.phoneNumber) missing.push('emergencyContactNumber');
+
+    // Emergency contact is now optional - no checks here
 
     return missing;
   }

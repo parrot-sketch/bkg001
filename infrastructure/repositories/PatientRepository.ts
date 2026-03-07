@@ -101,6 +101,41 @@ export class PrismaPatientRepository implements IPatientRepository {
     });
     return count > 0;
   }
+
+  /**
+   * Generates the next sequential file number for a new patient.
+   * Scans existing file numbers to continue the sequence `NS{000}`.
+   */
+  async generateNextFileNumber(): Promise<string> {
+    // Strategy: Fetch all valid NSxxx file numbers and find the highest integer
+    // This avoids issues where NS9 is sorted after NS10 in plain alphabetical sorting,
+    // and ignores the timestamp-corrupted numbers (NS188641413).
+    const patients = await this.db.patient.findMany({
+      select: { file_number: true },
+      where: {
+        file_number: { startsWith: 'NS' }
+      }
+    });
+
+    let maxNumber = 0;
+
+    for (const p of patients) {
+      if (!p.file_number) continue;
+      
+      const numStr = p.file_number.substring(2);
+      // Only consider it a pure sequence if it's a reasonably sized number
+      // Timestamp corrupted ones are >= 10 digits. We'll set a safe cap of 6 digits (up to 999,999 patients)
+      if (/^\d{1,6}$/.test(numStr)) {
+        const num = parseInt(numStr, 10);
+        if (num > maxNumber) {
+          maxNumber = num;
+        }
+      }
+    }
+
+    const nextNumber = maxNumber + 1;
+    return `NS${String(nextNumber).padStart(3, '0')}`;
+  }
 }
 
 /**

@@ -370,7 +370,7 @@ export class TheaterTechService {
 
     // Check safety-critical items in the finalized data
     // Use validated parser to ensure type safety
-    const data = parseIntraOpRecordForGate(intraOpRecord.data_json);
+    const data = parseIntraOpRecordForGate((intraOpRecord as any).data_json);
     const missingItems = checkNurseRecoveryGateCompliance(data);
     if (missingItems.length > 0) {
       throw new GateBlockedError(
@@ -426,7 +426,7 @@ export class TheaterTechService {
 
     // Check gate items in the finalized data
     // Use validated parser to ensure type safety
-    const data = parseRecoveryRecordForGate(recoveryRecord.data_json);
+    const data = parseRecoveryRecordForGate((recoveryRecord as any).data_json);
     const missingGateItems = getCompletionGateItems(data);
     if (missingGateItems.length > 0) {
       throw new GateBlockedError(
