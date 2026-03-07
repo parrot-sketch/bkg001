@@ -1,7 +1,7 @@
 'use client';
 
 import { useBookAppointmentStore } from '@/hooks/frontdesk/useBookAppointmentStore';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { AppointmentBookingForm } from './AppointmentBookingForm';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -40,6 +40,7 @@ export function BookAppointmentDialog() {
   return (
     <Dialog open={isOpen} onOpenChange={closeBookingDialog}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0 border-0 bg-transparent shadow-none sm:rounded-2xl">
+        <DialogTitle className="sr-only">Book Appointment</DialogTitle>
         {/* We use AppointmentBookingForm directly, it handles its own card layout */}
         <div className="bg-slate-50/50 backdrop-blur-md rounded-2xl shadow-2xl ring-1 ring-slate-900/5">
           <AppointmentBookingForm

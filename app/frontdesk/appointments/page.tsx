@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
+import { BookingChannel } from '@/domain/enums/BookingChannel';
 import { format, addDays, subDays, isToday, isTomorrow, isYesterday } from 'date-fns';
 
 import { FrontdeskAppointmentCard } from '@/components/frontdesk/FrontdeskAppointmentCard';
@@ -664,6 +665,8 @@ function EmptyState({
   dateLabel: string;
   onClearFilters: () => void;
 }) {
+  const { openBookingDialog } = useBookAppointmentStore();
+
   return (
     <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-slate-200 bg-white/50">
       <div className="h-16 w-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-5">
