@@ -4,7 +4,7 @@
  * Frontdesk Theater Scheduling Page
  *
  * View and book theater slots for surgical cases ready for theater booking.
- * Cases must be in READY_FOR_THEATER_BOOKING status (pre-op checklist finalized).
+ * Cases must be in READY_FOR_SCHEDULING status (doctor surgical plan finalized).
  *
  * Features:
  * - Filter by surgeon, urgency, date
@@ -44,10 +44,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { BookTheaterSlotDialog } from '@/components/frontdesk/theater/BookTheaterSlotDialog';
 
 export default function TheaterSchedulingPage() {
     const { user, isAuthenticated, isLoading: authLoading } = useAuth();
     const { data, isLoading, error } = useTheaterSchedulingQueue(isAuthenticated && !!user);
+
+    const [selectedCase, setSelectedCase] = useState<any | null>(null);
+    const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
 
     // Filter state
     const [searchQuery, setSearchQuery] = useState('');
@@ -93,16 +97,16 @@ export default function TheaterSchedulingPage() {
                 return false;
             }
 
-            // Date filter (based on pre-op checklist finalized date)
-            if (dateFilter !== 'all' && c.preOpChecklistFinalizedAt) {
-                const caseDate = format(new Date(c.preOpChecklistFinalizedAt), 'yyyy-MM-dd');
+            // Date filter (based on surgical case creation / plan finalization proxy)
+            if (dateFilter !== 'all' && c.createdAt) {
+                const caseDate = format(new Date(c.createdAt), 'yyyy-MM-dd');
                 if (dateFilter === 'today') {
                     const today = format(new Date(), 'yyyy-MM-dd');
                     if (caseDate !== today) return false;
                 } else if (dateFilter === 'week') {
                     const weekAgo = new Date();
                     weekAgo.setDate(weekAgo.getDate() - 7);
-                    if (new Date(c.preOpChecklistFinalizedAt) < weekAgo) return false;
+                    if (new Date(c.createdAt) < weekAgo) return false;
                 }
             }
 
@@ -115,9 +119,9 @@ export default function TheaterSchedulingPage() {
             if (urgencyDiff !== 0) return urgencyDiff;
 
             // Then by date (newest first)
-            if (a.preOpChecklistFinalizedAt && b.preOpChecklistFinalizedAt) {
-                return new Date(b.preOpChecklistFinalizedAt).getTime() - 
-                       new Date(a.preOpChecklistFinalizedAt).getTime();
+            if (a.createdAt && b.createdAt) {
+                return new Date(b.createdAt).getTime() - 
+                       new Date(a.createdAt).getTime();
             }
             return 0;
         });
@@ -157,7 +161,7 @@ export default function TheaterSchedulingPage() {
                     <div>
                         <h1 className="text-2xl font-bold text-slate-900">Theater Scheduling</h1>
                         <p className="text-sm text-slate-500 mt-1">
-                            Book theater slots for cases ready for surgery
+                            Book theater slots for cases ready for scheduling
                         </p>
                     </div>
                     <Link href="/frontdesk/dashboard">
@@ -318,7 +322,7 @@ export default function TheaterSchedulingPage() {
                         </div>
                         <h3 className="text-lg font-semibold text-slate-900 mb-2">No cases ready for theater booking</h3>
                         <p className="text-sm text-slate-500 max-w-md mx-auto">
-                            Cases will appear here once the pre-op checklist is finalized and the patient is ready for theater scheduling.
+                            Cases will appear here once the doctor has marked the surgical plan as ready for scheduling.
                         </p>
                     </CardContent>
                 </Card>
@@ -336,7 +340,7 @@ export default function TheaterSchedulingPage() {
                                         </p>
                                         <p className="text-xs text-slate-600 mt-0.5">
                                             {filteredCases.length !== data.count && `Showing ${filteredCases.length} filtered results`}
-                                            {filteredCases.length === data.count && 'Pre-op checklists completed, ready to schedule'}
+                                            {filteredCases.length === data.count && 'Surgical plans finalized, ready to schedule'}
                                         </p>
                                     </div>
                                 </div>
@@ -423,11 +427,10 @@ export default function TheaterSchedulingPage() {
                                             )}
                                         </div>
 
-                                        {/* Pre-op Checklist Info */}
-                                        {c.preOpChecklistFinalizedAt && (
+                                        {c.createdAt && (
                                             <div className="pl-16">
                                                 <p className="text-xs text-slate-500">
-                                                    Pre-op checklist finalized: {format(new Date(c.preOpChecklistFinalizedAt), 'MMM d, yyyy HH:mm')}
+                                                    Plan completed: {format(new Date(c.createdAt), 'MMM d, yyyy HH:mm')}
                                                 </p>
                                             </div>
                                         )}
@@ -451,12 +454,13 @@ export default function TheaterSchedulingPage() {
                                             <Button
                                                 size="sm"
                                                 className="bg-blue-600 hover:bg-blue-700"
-                                                asChild
+                                                onClick={() => {
+                                                    setSelectedCase(c);
+                                                    setIsBookingDialogOpen(true);
+                                                }}
                                             >
-                                                <Link href={`/frontdesk/theater-scheduling/${c.id}/book`}>
-                                                    Book Theater
-                                                    <ArrowRight className="ml-2 h-4 w-4" />
-                                                </Link>
+                                                Book Theater
+                                                <ArrowRight className="ml-2 h-4 w-4" />
                                             </Button>
                                         )}
                                     </div>
@@ -467,6 +471,13 @@ export default function TheaterSchedulingPage() {
                     )}
                 </div>
             )}
+
+            <BookTheaterSlotDialog 
+                open={isBookingDialogOpen}
+                onOpenChange={setIsBookingDialogOpen}
+                surgicalCase={selectedCase}
+                onSuccess={() => window.location.reload()}
+            />
         </div>
     );
 }

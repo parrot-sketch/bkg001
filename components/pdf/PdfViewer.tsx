@@ -48,6 +48,8 @@ interface PdfViewerProps {
     onLoadSuccess?: (numPages: number) => void;
     /** Callback when PDF fails to load */
     onLoadError?: (error: Error) => void;
+    /** Enterprise security mode: disables text copying, text layers, annotations, and enforces strict viewing */
+    secureMode?: boolean;
 }
 
 export function PdfViewer({
@@ -57,6 +59,7 @@ export function PdfViewer({
     showDownload = true,
     onLoadSuccess,
     onLoadError,
+    secureMode = false,
 }: PdfViewerProps) {
     const [numPages, setNumPages] = useState<number | null>(null);
     const [pageNumber, setPageNumber] = useState(1);
@@ -225,7 +228,7 @@ export function PdfViewer({
                     >
                         <ZoomIn className="h-4 w-4" />
                     </Button>
-                    {showDownload && (
+                    {showDownload && !secureMode && (
                         <Button
                             variant="outline"
                             size="sm"
@@ -299,9 +302,9 @@ export function PdfViewer({
                                 <Page
                                     pageNumber={pageNumber}
                                     scale={scale}
-                                    renderTextLayer={true}
-                                    renderAnnotationLayer={true}
-                                    className="border border-slate-200 bg-white"
+                                    renderTextLayer={!secureMode}
+                                    renderAnnotationLayer={!secureMode}
+                                    className="border border-slate-200 bg-white shadow-sm"
                                 />
                             </Document>
                         )}

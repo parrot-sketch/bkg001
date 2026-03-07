@@ -107,7 +107,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     let filteredRecords = usageRecords;
     if (parsed.category) {
       filteredRecords = usageRecords.filter(
-        (record) => record.inventory_item.category === parsed.category
+        (record) => (record as any).inventory_item?.category === parsed.category
       );
     }
 
@@ -118,12 +118,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     let nonBillableCost = 0;
 
     for (const record of filteredRecords) {
-      totalQuantity += record.quantity_used;
-      totalCost += record.total_cost;
-      if (record.inventory_item.is_billable && record.bill_item) {
-        billableCost += record.bill_item.total_cost;
+      const rec = record as any;
+      const item = rec.inventory_item || {};
+      totalQuantity += (rec.quantity_used || 0);
+      totalCost += (rec.total_cost || 0);
+      if (item.is_billable && rec.bill_item) {
+        billableCost += (rec.bill_item.total_cost || 0);
       } else {
-        nonBillableCost += record.total_cost;
+        nonBillableCost += (rec.total_cost || 0);
       }
     }
 
@@ -131,25 +133,27 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const grouped: Record<string, any> = {};
 
     for (const record of filteredRecords) {
+      const rec = record as any;
+      const item = rec.inventory_item || {};
       let groupKey: string;
 
       switch (parsed.groupBy) {
         case 'day':
-          groupKey = record.used_at
-            ? new Date(record.used_at).toISOString().split('T')[0]
+          groupKey = rec.used_at
+            ? new Date(rec.used_at).toISOString().split('T')[0]
             : 'unknown';
           break;
         case 'category':
-          groupKey = record.inventory_item.category;
+          groupKey = item.category || 'unknown';
           break;
         case 'item':
-          groupKey = record.inventory_item.id.toString();
+          groupKey = item.id?.toString() || 'unknown';
           break;
         case 'user':
-          groupKey = record.used_by_user_id || record.recorded_by || 'unknown';
+          groupKey = rec.used_by_user_id || rec.recorded_by || 'unknown';
           break;
         case 'source':
-          groupKey = record.source_form_key || 'unknown';
+          groupKey = rec.source_form_key || 'unknown';
           break;
         default:
           groupKey = 'unknown';
@@ -166,33 +170,33 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         };
       }
 
-      grouped[groupKey].quantity += record.quantity_used;
-      grouped[groupKey].cost += record.total_cost;
-      if (record.inventory_item.is_billable && record.bill_item) {
-        grouped[groupKey].billableCost += record.bill_item.total_cost;
+      grouped[groupKey].quantity += (rec.quantity_used || 0);
+      grouped[groupKey].cost += (rec.total_cost || 0);
+      if (item.is_billable && rec.bill_item) {
+        grouped[groupKey].billableCost += (rec.bill_item.total_cost || 0);
       } else {
-        grouped[groupKey].nonBillableCost += record.total_cost;
+        grouped[groupKey].nonBillableCost += (rec.total_cost || 0);
       }
 
       // Add item details
       grouped[groupKey].items.push({
-        inventoryItemId: record.inventory_item.id,
-        itemName: record.inventory_item.name,
-        category: record.inventory_item.category,
-        quantityUsed: record.quantity_used,
-        unitCost: record.unit_cost_at_time,
-        totalCost: record.total_cost,
-        isBillable: record.inventory_item.is_billable,
-        usedAt: record.used_at,
-        usedByUserId: record.used_by_user_id || record.recorded_by,
+        inventoryItemId: item.id,
+        itemName: item.name,
+        category: item.category,
+        quantityUsed: rec.quantity_used,
+        unitCost: rec.unit_cost_at_time,
+        totalCost: rec.total_cost,
+        isBillable: item.is_billable,
+        usedAt: rec.used_at,
+        usedByUserId: rec.used_by_user_id || rec.recorded_by,
         usedByUserName: (() => {
-          const userId = record.used_by_user_id || record.recorded_by;
+          const userId = rec.used_by_user_id || rec.recorded_by;
           const user = userId ? userMap.get(userId) : null;
-          return user
-            ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email
-            : null;
+          if (!user) return null;
+          const u = user as any;
+          return `${u.first_name || u.firstName || ''} ${u.last_name || u.lastName || ''}`.trim() || u.email;
         })(),
-        sourceFormKey: record.source_form_key,
+        sourceFormKey: rec.source_form_key,
       });
     }
 

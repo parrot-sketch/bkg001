@@ -147,9 +147,16 @@ export class TheaterDashboardService {
             })
             : [];
 
-        const blockerSummary = new Map<string, { intraOpDiscrepancy: boolean; dischargeReady: boolean }>();
-        for (const form of blockerForms) {
-            const entry = blockerSummary.get(form.surgical_case_id) ?? { intraOpDiscrepancy: false, dischargeReady: false };
+            const entries = blockerForms.map(form => ({
+                surgical_case_id: (form as any).surgical_case_id,
+                template_key: (form as any).template_key,
+                data_json: (form as any).data_json
+            }));
+
+            const blockerSummary = new Map<string, { intraOpDiscrepancy: boolean; dischargeReady: boolean }>();
+
+            for (const form of entries) {
+                const entry = blockerSummary.get(form.surgical_case_id) ?? { intraOpDiscrepancy: false, dischargeReady: false };
 
             if (form.template_key === INTRAOP_TEMPLATE_KEY) {
                 try {

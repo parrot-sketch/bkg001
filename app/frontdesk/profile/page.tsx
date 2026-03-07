@@ -32,10 +32,10 @@ export default function FrontdeskProfilePage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 px-4 sm:px-6 pt-14 lg:pt-0 pb-8 max-w-2xl mx-auto lg:px-0">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Profile</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Profile</h1>
         <p className="mt-2 text-muted-foreground">Manage your profile information</p>
       </div>
 
@@ -46,7 +46,7 @@ export default function FrontdeskProfilePage() {
           <CardDescription>Your profile details</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-6 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="firstName">First Name</Label>
               <div className="relative">

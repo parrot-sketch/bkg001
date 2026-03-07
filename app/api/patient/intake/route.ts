@@ -86,10 +86,10 @@ export async function POST(request: NextRequest) {
     // This is necessary because Zod allows empty strings via .or(z.literal(""))
     // but the use case expects undefined instead
     const data = validationResult.data;
-    
+
     // Explicitly convert empty strings to undefined for enum fields
     const bloodGroupValue = data.bloodGroup === '' ? undefined : data.bloodGroup;
-    
+
     const requestPayload = {
       sessionId,
       firstName: data.firstName,
@@ -108,9 +108,6 @@ export async function POST(request: NextRequest) {
       bloodGroup: bloodGroupValue as 'O+' | 'O-' | 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | undefined,
       allergies: data.allergies === '' ? undefined : data.allergies,
       medicalConditions: data.medicalConditions === '' ? undefined : data.medicalConditions,
-      medicalHistory: data.medicalHistory === '' ? undefined : data.medicalHistory,
-      insuranceProvider: data.insuranceProvider === '' ? undefined : data.insuranceProvider,
-      insuranceNumber: data.insuranceNumber === '' ? undefined : data.insuranceNumber,
       privacyConsent: data.privacyConsent,
       serviceConsent: data.serviceConsent,
       medicalConsent: data.medicalConsent,
@@ -124,11 +121,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
     console.error('[SubmitPatientIntake] Error:', error);
-    
+
     if (error instanceof Error) {
       console.error('[SubmitPatientIntake] Error message:', error.message);
       console.error('[SubmitPatientIntake] Error stack:', error.stack);
-      
+
       // Domain exceptions - client errors
       if (
         error.message.includes('expired') ||
@@ -151,7 +148,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to submit patient intake',
         details: error instanceof Error ? error.message : String(error)
       },

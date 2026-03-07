@@ -25,11 +25,14 @@ import {
     LayoutGrid,
     List,
     Maximize2,
+    User,
+    Stethoscope,
+    Scissors,
 } from 'lucide-react';
 
 const DnDCalendar = withDragAndDrop<CalendarEvent>(Calendar);
 
-// ── Types ──
+// ── Types ──────────────────────────────────────────────────────────────────
 interface CalendarEvent {
     id: number;
     title: string;
@@ -45,36 +48,35 @@ interface CalendarEvent {
 
 interface ScheduleCalendarViewProps {
     appointments: any[];
+    surgicalCases?: any[];
     workingDays?: any[];
     blocks?: any[];
     overrides?: any[];
     onSetupScheduleClick?: () => void;
 }
 
-// ── Status Colors ──
-const STATUS_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-    SCHEDULED: { bg: '#3b82f6', text: '#ffffff', border: '#2563eb' },
-    CONFIRMED: { bg: '#059669', text: '#ffffff', border: '#047857' },
-    CHECKED_IN: { bg: '#0891b2', text: '#ffffff', border: '#0e7490' },
-    IN_CONSULTATION: { bg: '#7c3aed', text: '#ffffff', border: '#6d28d9' },
-    PENDING: { bg: '#d97706', text: '#ffffff', border: '#b45309' },
-    COMPLETED: { bg: '#6b7280', text: '#ffffff', border: '#4b5563' },
-    CANCELLED: { bg: '#ef4444', text: '#ffffff', border: '#dc2626' },
-    NO_SHOW: { bg: '#9ca3af', text: '#ffffff', border: '#6b7280' },
+// ── Status config ──────────────────────────────────────────────────────────
+const STATUS_CONFIG: Record<string, { bg: string; border: string; dot: string; label: string }> = {
+    PENDING_DOCTOR_CONFIRMATION: { bg: '#fef3c7', border: '#f59e0b', dot: '#f59e0b', label: 'Needs Review' },
+    PENDING:        { bg: '#fffbeb', border: '#d97706', dot: '#d97706', label: 'Pending' },
+    SCHEDULED:      { bg: '#eff6ff', border: '#3b82f6', dot: '#3b82f6', label: 'Confirmed' },
+    CONFIRMED:      { bg: '#f0fdf4', border: '#16a34a', dot: '#16a34a', label: 'Confirmed' },
+    CHECKED_IN:     { bg: '#ecfeff', border: '#0891b2', dot: '#0891b2', label: 'Checked In' },
+    IN_CONSULTATION:{ bg: '#faf5ff', border: '#7c3aed', dot: '#7c3aed', label: 'In Consult' },
+    COMPLETED:      { bg: '#f9fafb', border: '#6b7280', dot: '#6b7280', label: 'Completed' },
+    CANCELLED:      { bg: '#fff1f2', border: '#e11d48', dot: '#e11d48', label: 'Cancelled' },
+    NO_SHOW:        { bg: '#f9fafb', border: '#9ca3af', dot: '#9ca3af', label: 'No Show' },
 };
 
-const STATUS_LABELS: Record<string, string> = {
-    SCHEDULED: 'Scheduled',
-    CONFIRMED: 'Confirmed',
-    CHECKED_IN: 'Checked In',
-    IN_CONSULTATION: 'In Consult',
-    PENDING: 'Pending',
-    COMPLETED: 'Completed',
-    CANCELLED: 'Cancelled',
-    NO_SHOW: 'No Show',
+const TYPE_ICONS: Record<string, any> = {
+    Consultation: Stethoscope,
+    Surgery: Scissors,
+    'Follow-up': Clock,
+    'Initial Consultation': Stethoscope,
+    'Follow Up': Clock,
 };
 
-// ── Custom Toolbar ──
+// ── Custom Toolbar ─────────────────────────────────────────────────────────
 function CustomToolbar({
     date,
     view,
@@ -88,7 +90,6 @@ function CustomToolbar({
     onView: (view: View) => void;
     eventCount: number;
 }) {
-    const goToToday = () => onNavigate(new Date());
     const goBack = () => {
         if (view === Views.MONTH) onNavigate(subMonths(date, 1));
         else if (view === Views.WEEK) onNavigate(subDays(date, 7));
@@ -105,9 +106,8 @@ function CustomToolbar({
         if (view === Views.WEEK) {
             const weekStart = startOfWeek(date, { weekStartsOn: 0 });
             const weekEnd = addDays(weekStart, 6);
-            if (weekStart.getMonth() === weekEnd.getMonth()) {
+            if (weekStart.getMonth() === weekEnd.getMonth())
                 return `${format(weekStart, 'MMM d')} – ${format(weekEnd, 'd, yyyy')}`;
-            }
             return `${format(weekStart, 'MMM d')} – ${format(weekEnd, 'MMM d, yyyy')}`;
         }
         if (view === Views.DAY) return format(date, 'EEEE, MMMM d, yyyy');
@@ -115,23 +115,22 @@ function CustomToolbar({
     };
 
     const viewButtons: { key: View; icon: any; label: string }[] = [
-        { key: Views.DAY, icon: Maximize2, label: 'Day' },
-        { key: Views.WEEK, icon: Layers, label: 'Week' },
-        { key: Views.MONTH, icon: LayoutGrid, label: 'Month' },
-        { key: Views.AGENDA, icon: List, label: 'Agenda' },
+        { key: Views.DAY,    icon: Maximize2, label: 'Day' },
+        { key: Views.WEEK,   icon: Layers,    label: 'Week' },
+        { key: Views.MONTH,  icon: LayoutGrid, label: 'Month' },
+        { key: Views.AGENDA, icon: List,      label: 'List' },
     ];
 
     return (
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-1 pb-4">
-            {/* Left: Navigation */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4">
+            {/* Left: nav */}
             <div className="flex items-center gap-2">
                 <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={goToToday}
+                    variant="outline" size="sm"
+                    onClick={() => onNavigate(new Date())}
                     className={cn(
-                        "h-8 px-3 text-xs font-medium",
-                        isToday(date) && "bg-primary/5 border-primary/30 text-primary"
+                        'h-8 px-3 text-xs font-medium',
+                        isToday(date) && 'bg-primary/5 border-primary/30 text-primary'
                     )}
                 >
                     <Clock className="h-3 w-3 mr-1.5" />
@@ -150,11 +149,11 @@ function CustomToolbar({
                 </h2>
             </div>
 
-            {/* Right: View Switcher + Count */}
+            {/* Right: count + view switcher */}
             <div className="flex items-center gap-3">
                 {eventCount > 0 && (
-                    <Badge variant="secondary" className="text-xs font-normal">
-                        <CalendarIcon className="h-3 w-3 mr-1" />
+                    <Badge variant="secondary" className="text-xs font-normal gap-1">
+                        <CalendarIcon className="h-3 w-3" />
                         {eventCount} appointment{eventCount !== 1 ? 's' : ''}
                     </Badge>
                 )}
@@ -166,10 +165,10 @@ function CustomToolbar({
                             size="sm"
                             onClick={() => onView(key)}
                             className={cn(
-                                "h-8 px-3 text-xs font-medium rounded-none border-r last:border-r-0",
+                                'h-8 px-3 text-xs font-medium rounded-none border-r last:border-r-0',
                                 view === key
-                                    ? "bg-primary text-primary-foreground shadow-sm"
-                                    : "text-muted-foreground hover:text-foreground"
+                                    ? 'bg-primary text-primary-foreground shadow-sm'
+                                    : 'text-muted-foreground hover:text-foreground'
                             )}
                         >
                             <Icon className="h-3 w-3 mr-1.5" />
@@ -182,166 +181,277 @@ function CustomToolbar({
     );
 }
 
-// ── Main Component ──
+// ── Rich Event Card ────────────────────────────────────────────────────────
+function AppointmentEvent({ event }: { event: CalendarEvent }) {
+    const cfg = STATUS_CONFIG[event.status] ?? STATUS_CONFIG.SCHEDULED;
+    const TypeIcon = TYPE_ICONS[event.type] ?? Stethoscope;
+    const durationMins = Math.round((event.end.getTime() - event.start.getTime()) / 60000);
+    const isShort = durationMins < 30;
+    const isCancelled = event.status === 'CANCELLED' || event.status === 'NO_SHOW';
+
+    if (isShort) {
+        return (
+            <div className="flex items-center gap-1.5 overflow-hidden h-full px-0.5">
+                <span
+                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: cfg.dot }}
+                />
+                <span className={cn(
+                    'text-[0.67rem] font-semibold leading-none truncate',
+                    isCancelled && 'line-through opacity-60'
+                )}>
+                    {event.title}
+                </span>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex flex-col gap-0.5 overflow-hidden h-full px-0.5 py-0.5">
+            {/* Patient name row */}
+            <div className="flex items-center gap-1.5">
+                <User className="h-3 w-3 flex-shrink-0 opacity-80" />
+                <span className={cn(
+                    'text-[0.72rem] font-bold leading-tight truncate',
+                    isCancelled && 'line-through opacity-50'
+                )}>
+                    {event.title}
+                </span>
+            </div>
+            {/* Type + time */}
+            <div className="flex items-center gap-1.5 text-[0.62rem] opacity-85">
+                <TypeIcon className="h-2.5 w-2.5 flex-shrink-0" />
+                <span className="truncate">{event.type}</span>
+                <span className="opacity-60">·</span>
+                <span className="whitespace-nowrap">{format(event.start, 'h:mm a')}</span>
+            </div>
+            {/* Status + duration — only when tall enough */}
+            {durationMins >= 45 && (
+                <div className="flex items-center justify-between mt-auto">
+                    <span
+                        className="text-[0.58rem] font-medium px-1.5 py-0.5 rounded-full leading-none"
+                        style={{
+                            backgroundColor: 'rgba(255,255,255,0.25)',
+                            color: 'inherit',
+                        }}
+                    >
+                        {cfg.label}
+                    </span>
+                    <span className="text-[0.58rem] opacity-70">
+                        {durationMins}min
+                    </span>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ── Status Legend ──────────────────────────────────────────────────────────
+function StatusLegend() {
+    const shown = ['SCHEDULED', 'CONFIRMED', 'CHECKED_IN', 'IN_CONSULTATION', 'COMPLETED', 'CANCELLED'];
+    return (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 py-2.5 px-1 border-b border-t mb-3">
+            {shown.map(key => {
+                const cfg = STATUS_CONFIG[key];
+                return (
+                    <div key={key} className="flex items-center gap-1.5">
+                        <span
+                            className="w-2 h-2 rounded-full"
+                            style={{ backgroundColor: cfg.dot }}
+                        />
+                        <span className="text-[0.67rem] text-muted-foreground font-medium">
+                            {cfg.label}
+                        </span>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+// ── Main Component ─────────────────────────────────────────────────────────
 export function ScheduleCalendarView({
     appointments: initialAppointments,
+    surgicalCases = [],
     workingDays = [],
     blocks = [],
     overrides = [],
-    onSetupScheduleClick
+    onSetupScheduleClick,
 }: ScheduleCalendarViewProps) {
     const [view, setView] = useState<View>(Views.WEEK);
     const [date, setDate] = useState(new Date());
     const calendarRef = useRef<HTMLDivElement>(null);
 
-    // Transform appointments → events
+    // Transform appointments + surgicalCases → events
     const events: CalendarEvent[] = useMemo(() => {
-        return initialAppointments.map(apt => {
-            // Handle both scheduled_at and appointment_date + time formats
-            let startDate: Date;
-            if (apt.scheduled_at) {
-                startDate = new Date(apt.scheduled_at);
-            } else if (apt.appointment_date && apt.time) {
-                const [hours, mins] = apt.time.split(':').map(Number);
-                startDate = new Date(apt.appointment_date);
-                startDate.setHours(hours, mins, 0, 0);
-            } else {
-                startDate = new Date(apt.appointment_date || apt.created_at);
-            }
+        const appointmentEvents = initialAppointments
+            .map(apt => {
+                let startDate: Date;
+                if (apt.scheduled_at) {
+                    startDate = new Date(apt.scheduled_at);
+                } else if (apt.appointment_date && apt.time) {
+                    const [hours, mins] = apt.time.split(':').map(Number);
+                    startDate = new Date(apt.appointment_date);
+                    startDate.setHours(hours, mins, 0, 0);
+                } else if (apt.appointment_date) {
+                    startDate = new Date(apt.appointment_date);
+                    startDate.setHours(9, 0, 0, 0);
+                } else {
+                    return null;
+                }
+                if (isNaN(startDate.getTime())) return null;
 
-            const durationMs = (apt.duration_minutes || apt.slot_duration || 30) * 60000;
+                const durationMs = (apt.duration_minutes || apt.slot_duration || 30) * 60000;
+                return {
+                    id: apt.id,
+                    title: apt.patient
+                        ? `${apt.patient.first_name} ${apt.patient.last_name}`
+                        : `Appointment #${apt.id}`,
+                    start: startDate,
+                    end: new Date(startDate.getTime() + durationMs),
+                    status: apt.status,
+                    type: apt.type || 'Consultation',
+                    version: apt.version || 0,
+                    resource: apt,
+                };
+            })
+            .filter(Boolean) as CalendarEvent[];
 
-            return {
-                id: apt.id,
-                title: apt.patient
-                    ? `${apt.patient.first_name} ${apt.patient.last_name}`
-                    : `Appointment #${apt.id}`,
-                start: startDate,
-                end: new Date(startDate.getTime() + durationMs),
-                status: apt.status,
-                type: apt.type || 'Consultation',
-                version: apt.version || 0,
-                resource: apt,
-            };
-        });
-    }, [initialAppointments]);
+        const surgicalEvents = surgicalCases
+            .map(sc => {
+                if (!sc.theater_booking) return null;
+                const start = new Date(sc.theater_booking.start_time);
+                const end = new Date(sc.theater_booking.end_time);
+                if (isNaN(start.getTime())) return null;
 
-    // Drag & drop handler
+                return {
+                    id: sc.id,
+                    title: sc.patient
+                        ? `[Surg] ${sc.patient.first_name} ${sc.patient.last_name}`
+                        : `Surgery: ${sc.procedure_name || 'Generic'}`,
+                    start,
+                    end,
+                    status: sc.theater_booking.status,
+                    type: 'Surgery',
+                    version: sc.theater_booking.version || 0,
+                    resource: sc,
+                    resourceType: 'SURGERY',
+                };
+            })
+            .filter(Boolean) as CalendarEvent[];
+
+        return [...appointmentEvents, ...surgicalEvents];
+    }, [initialAppointments, surgicalCases]);
+
+    // Pending review count — appointments the doctor needs to confirm
+    const pendingCount = useMemo(
+        () => events.filter(e =>
+            e.status === 'PENDING_DOCTOR_CONFIRMATION' || e.status === 'PENDING'
+        ).length,
+        [events]
+    );
+
+
+    // Drag & drop
     const onEventDrop = useCallback(async (args: any) => {
-        const { event, start, end } = args;
-
+        const { event, start } = args;
         try {
             const result = await moveAppointment({
                 appointmentId: event.id,
                 newDate: new Date(start),
                 version: event.version,
             });
-
-            if (result.success) {
-                toast.success('Appointment rescheduled');
-            }
+            if (result.success) toast.success('Appointment rescheduled');
         } catch (error: any) {
             toast.error(error.message || 'Failed to move appointment');
         }
     }, []);
 
-    // Event styles
+    // Event style — light pastel bg with strong left-border accent
     const eventStyleGetter = useCallback((event: CalendarEvent) => {
-        const colors = STATUS_COLORS[event.status] || STATUS_COLORS.SCHEDULED;
-        const isOptimistic = event.isOptimistic;
-
+        const cfg = STATUS_CONFIG[event.status] ?? STATUS_CONFIG.SCHEDULED;
         return {
             style: {
-                backgroundColor: colors.bg,
-                color: colors.text,
-                borderLeft: `3px solid ${colors.border}`,
-                borderRadius: '6px',
-                opacity: isOptimistic ? 0.5 : 1,
-                border: isOptimistic ? '2px dashed rgba(255,255,255,0.5)' : `1px solid ${colors.border}`,
-                boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                fontSize: '0.75rem',
-                padding: '2px 6px',
+                backgroundColor: cfg.bg,
+                color: '#1a1a1a',
+                borderLeft: `3px solid ${cfg.border}`,
+                borderTop: 'none',
+                borderRight: 'none',
+                borderBottom: 'none',
+                borderRadius: '5px',
+                padding: '2px 5px',
+                opacity: event.isOptimistic ? 0.5 : 1,
+                boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
+                fontSize: '0.72rem',
+                overflow: 'hidden',
             },
         };
     }, []);
 
-    // Custom event component
-    const EventComponent = useCallback(({ event }: { event: CalendarEvent }) => {
-        const statusLabel = STATUS_LABELS[event.status] || event.status;
-        return (
-            <div className="flex flex-col gap-0.5 overflow-hidden">
-                <span className="font-medium text-[0.7rem] leading-tight truncate">
-                    {event.title}
-                </span>
-                <span className="text-[0.6rem] opacity-80 leading-tight">
-                    {event.type} · {statusLabel}
-                </span>
-            </div>
-        );
-    }, []);
-
-    // Scroll to current time on mount
+    // Scroll to now
     useEffect(() => {
         const timer = setTimeout(() => {
             if (calendarRef.current) {
-                const timeIndicator = calendarRef.current.querySelector('.rbc-current-time-indicator');
-                if (timeIndicator) {
-                    timeIndicator.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
+                const indicator = calendarRef.current.querySelector('.rbc-current-time-indicator');
+                if (indicator) indicator.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         }, 300);
         return () => clearTimeout(timer);
     }, [view]);
 
-    // Calculate working hours range for day/week views
+    // Working hours
     const { minTime, maxTime } = useMemo(() => {
-        if (workingDays.length === 0) {
-            return {
-                minTime: new Date(2000, 0, 1, 7, 0, 0),
-                maxTime: new Date(2000, 0, 1, 20, 0, 0),
-            };
-        }
-
-        let earliest = 24;
-        let latest = 0;
+        if (workingDays.length === 0)
+            return { minTime: new Date(2000, 0, 1, 7, 0), maxTime: new Date(2000, 0, 1, 20, 0) };
+        let earliest = 24, latest = 0;
         for (const wd of workingDays) {
-            const [startH] = wd.startTime.split(':').map(Number);
-            const [endH] = wd.endTime.split(':').map(Number);
-            if (startH < earliest) earliest = startH;
-            if (endH > latest) latest = endH;
+            const [sh] = wd.startTime.split(':').map(Number);
+            const [eh] = wd.endTime.split(':').map(Number);
+            if (sh < earliest) earliest = sh;
+            if (eh > latest) latest = eh;
         }
-
         return {
-            minTime: new Date(2000, 0, 1, Math.max(earliest - 1, 0), 0, 0),
-            maxTime: new Date(2000, 0, 1, Math.min(latest + 1, 23), 0, 0),
+            minTime: new Date(2000, 0, 1, Math.max(earliest - 1, 0), 0),
+            maxTime: new Date(2000, 0, 1, Math.min(latest + 1, 23), 0),
         };
     }, [workingDays]);
-
-    // Format day header
-    const dayHeaderFormat = useCallback((date: Date) => {
-        const dayName = format(date, 'EEE');
-        const dayNum = format(date, 'd');
-        const todayClass = isToday(date);
-        return todayClass ? `● ${dayName} ${dayNum}` : `${dayName} ${dayNum}`;
-    }, []);
 
     const hasNoSchedule = workingDays.length === 0;
 
     return (
-        <div className="flex flex-col h-full">
-            {/* Setup Prompt */}
+        <div className="flex flex-col gap-4">
+            {/* Pending review banner */}
+            {pendingCount > 0 && (
+                <div className="flex items-center gap-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-4 py-3">
+                    <div className="p-1.5 bg-amber-100 dark:bg-amber-900/50 rounded-md shrink-0">
+                        <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div className="flex-1">
+                        <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                            {pendingCount} appointment{pendingCount !== 1 ? 's' : ''} awaiting your confirmation
+                        </p>
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                            These are shown in amber on the calendar. Confirm them so the frontdesk can check patients in.
+                        </p>
+                    </div>
+                    <Badge className="bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-700 shrink-0">
+                        {pendingCount} pending
+                    </Badge>
+                </div>
+            )}
+            {/* Setup prompt */}
             {hasNoSchedule && (
-                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-4 flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 px-4 py-3">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-amber-100 dark:bg-amber-900/50 rounded-full">
-                            <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                        <div className="p-1.5 bg-blue-100 dark:bg-blue-900/50 rounded-md">
+                            <CalendarIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                                Weekly schedule not configured
+                            <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                                No availability hours set
                             </p>
-                            <p className="text-xs text-amber-600 dark:text-amber-400">
-                                Set up your availability so patients and staff can book appointments.
+                            <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
+                                Set your weekly hours in the My Availability tab so patients and staff can book with you.
                             </p>
                         </div>
                     </div>
@@ -349,18 +459,17 @@ export function ScheduleCalendarView({
                         <Button
                             size="sm"
                             onClick={onSetupScheduleClick}
-                            className="bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
+                            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm shrink-0"
                         >
-                            Set Up Schedule
+                            Set Up Availability
                         </Button>
                     )}
                 </div>
             )}
 
-            {/* Calendar Card */}
-            <Card className="flex-1 border shadow-sm overflow-hidden">
-                <CardContent className="p-4 flex flex-col h-full">
-                    {/* Custom Toolbar */}
+            {/* Calendar card */}
+            <Card className="border shadow-sm overflow-hidden">
+                <CardContent className="p-4 flex flex-col">
                     <CustomToolbar
                         date={date}
                         view={view}
@@ -369,47 +478,37 @@ export function ScheduleCalendarView({
                         eventCount={events.length}
                     />
 
-                    {/* Status Legend */}
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pb-3 border-b mb-3">
-                        {Object.entries(STATUS_COLORS)
-                            .filter(([key]) => ['SCHEDULED', 'CONFIRMED', 'CHECKED_IN', 'IN_CONSULTATION', 'COMPLETED'].includes(key))
-                            .map(([key, colors]) => (
-                                <div key={key} className="flex items-center gap-1.5">
-                                    <div
-                                        className="w-2.5 h-2.5 rounded-sm"
-                                        style={{ backgroundColor: colors.bg }}
-                                    />
-                                    <span className="text-[0.65rem] text-muted-foreground font-medium">
-                                        {STATUS_LABELS[key]}
-                                    </span>
-                                </div>
-                            ))}
-                    </div>
+                    <StatusLegend />
 
-                    {/* Calendar */}
-                    <div ref={calendarRef} className="flex-1 min-h-[600px]">
+                    <div ref={calendarRef} className="min-h-[620px]">
                         <DnDCalendar
                             localizer={calendarLocalizer}
                             events={events}
                             startAccessor="start"
                             endAccessor="end"
-                            style={{ height: '100%' }}
+                            style={{ height: 620 }}
                             view={view}
                             onView={setView}
                             date={date}
                             onNavigate={setDate}
                             eventPropGetter={eventStyleGetter}
-                            components={{
-                                event: EventComponent,
-                            }}
+                            components={{ event: AppointmentEvent }}
                             formats={{
-                                dayHeaderFormat: (date: Date) => dayHeaderFormat(date),
+                                dayHeaderFormat: (date: Date) => {
+                                    const d = format(date, 'EEE d');
+                                    return isToday(date) ? `◉ ${d}` : d;
+                                },
                                 dayFormat: (date: Date) => format(date, 'EEE d'),
                                 dayRangeHeaderFormat: ({ start, end }: { start: Date; end: Date }) =>
                                     `${format(start, 'MMM d')} – ${format(end, 'MMM d, yyyy')}`,
+                                timeGutterFormat: (date: Date) => format(date, 'h a'),
+                                agendaDateFormat: (date: Date) => format(date, 'EEE, MMM d'),
+                                agendaTimeFormat: (date: Date) => format(date, 'h:mm a'),
+                                agendaTimeRangeFormat: ({ start, end }: { start: Date; end: Date }) =>
+                                    `${format(start, 'h:mm a')} – ${format(end, 'h:mm a')}`,
                             }}
                             tooltipAccessor={(event: CalendarEvent) =>
-                                `${event.title}\n${event.type} · ${STATUS_LABELS[event.status] || event.status}\n${format(event.start, 'h:mm a')} – ${format(event.end, 'h:mm a')}`
+                                `${event.title}\n${event.type} · ${STATUS_CONFIG[event.status]?.label ?? event.status}\n${format(event.start, 'h:mm a')} – ${format(event.end, 'h:mm a')}`
                             }
                             popup
                             resizable

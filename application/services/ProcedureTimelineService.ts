@@ -5,6 +5,7 @@ import {
     TimelineResultDto,
     ProcedureTimestampResultDto
 } from '@/application/dtos/TheaterTechDtos';
+import { NotFoundError } from '@/application/errors/NotFoundError';
 import {
     type OperativeTimeline,
     type TimelinePatchInput,
@@ -49,10 +50,12 @@ export class ProcedureTimelineService {
         });
 
         if (!surgicalCase) {
-            throw new DomainException('Surgical case not found', { caseId });
+            throw new NotFoundError('Surgical case not found', 'SurgicalCase', caseId);
         }
 
-        if (!surgicalCase.procedure_record) {
+        const record = (surgicalCase as any).procedure_record;
+
+        if (!record) {
             const emptyTimeline: OperativeTimeline = {
                 wheelsIn: null, anesthesiaStart: null, anesthesiaEnd: null,
                 incisionTime: null, closureTime: null, wheelsOut: null,
@@ -66,7 +69,7 @@ export class ProcedureTimelineService {
             };
         }
 
-        const timeline = dbRecordToTimeline(surgicalCase.procedure_record);
+        const timeline = dbRecordToTimeline(record);
         return {
             caseId,
             caseStatus: surgicalCase.status,
@@ -105,10 +108,10 @@ export class ProcedureTimelineService {
                 },
             });
             if (!surgicalCase) {
-                throw new DomainException('Surgical case not found', { caseId });
+                throw new NotFoundError('Surgical case not found', 'SurgicalCase', caseId);
             }
 
-            let record = surgicalCase.procedure_record;
+            let record = (surgicalCase as any).procedure_record;
             if (!record) {
                 const caseData = await tx.surgicalCase.findUniqueOrThrow({
                     where: { id: caseId },
@@ -163,6 +166,7 @@ export class ProcedureTimelineService {
                 throw new DomainException('Timeline validation failed', {
                     caseId,
                     errors: validation.errors,
+                    status: 400 // Restore 400 for chronology failures
                 });
             }
 
@@ -174,9 +178,9 @@ export class ProcedureTimelineService {
 
             if (Object.keys(updateData).length > 0) {
                 record = await tx.surgicalProcedureRecord.update({
-                    where: { id: record!.id },
+                    where: { id: (record as any).id },
                     data: updateData,
-                }) as typeof record;
+                });
             }
 
             for (const field of updatedFields) {

@@ -74,7 +74,7 @@ export const TAB_REGISTRY: TabDefinition[] = [
     icon: Package,
     component: InventoryPlanningTabContainer,
     permissionCheck: (role) =>
-      role === Role.DOCTOR || role === Role.ADMIN || role === Role.NURSE,
+      role === Role.ADMIN || role === Role.NURSE,
     order: 5,
   },
   {
@@ -110,7 +110,6 @@ export const TAB_REGISTRY: TabDefinition[] = [
     icon: Clock,
     component: TimelineTabContainer,
     permissionCheck: (role) =>
-      role === Role.DOCTOR ||
       role === Role.ADMIN ||
       role === Role.NURSE ||
       role === Role.THEATER_TECHNICIAN,

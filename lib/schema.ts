@@ -12,7 +12,7 @@ export const PatientFormSchema = z.object({
     .min(2, "dLast name must be at least 2 characters")
     .max(30, "First name can't be more than 50 characters"),
   date_of_birth: z.coerce.date(),
-  gender: z.enum(["MALE", "FEMALE"], { message: "Gender is required" }),
+  gender: z.enum(["MALE", "FEMALE", "OTHER"], { message: "Gender is required" }),
 
   phone: z.string().min(10, "Enter phone number").max(10, "Enter phone number"),
   email: z.string().email("Invalid email address."),
@@ -210,20 +210,15 @@ export const PatientIntakeFormSchema = z.object({
     .min(2, "Last name must be at least 2 characters")
     .max(50, "Last name must be at most 50 characters"),
 
+  // No age minimum — clinic accepts young patients
   dateOfBirth: z
     .string()
     .pipe(z.coerce.date())
     .refine((date) => date <= new Date(), {
       message: "Date of birth cannot be in the future",
-    })
-    .refine((date) => {
-      const age = new Date().getFullYear() - date.getFullYear();
-      return age >= 16;
-    }, {
-      message: "Patient must be at least 16 years old",
     }),
 
-  gender: z.enum(["MALE", "FEMALE"], {
+  gender: z.enum(["MALE", "FEMALE", "OTHER"], {
     errorMap: () => ({ message: "Please select a valid gender" }),
   }),
 
@@ -233,25 +228,30 @@ export const PatientIntakeFormSchema = z.object({
     .email("Invalid email address")
     .toLowerCase(),
 
+  // International phone: optional + prefix, 7-15 digits
   phone: z
     .string()
-    .regex(/^\d{10}$/, "Phone must be exactly 10 digits"),
+    .regex(/^\+?[0-9]{7,15}$/, "Enter a valid phone number (e.g. +254712345678 or 0712345678)"),
 
   whatsappPhone: z
     .string()
-    .regex(/^\d{10}$/, "WhatsApp phone must be exactly 10 digits")
+    .regex(/^\+?[0-9]{7,15}$/, "Enter a valid WhatsApp number")
     .optional()
     .or(z.literal("")),
 
+  // Address — optional
   address: z
     .string()
     .trim()
-    .min(10, "Address must be at least 10 characters")
-    .max(500, "Address must be at most 500 characters"),
+    .max(500, "Address must be at most 500 characters")
+    .optional()
+    .or(z.literal("")),
 
-  maritalStatus: z.enum(["SINGLE", "MARRIED", "DIVORCED", "WIDOWED"], {
-    errorMap: () => ({ message: "Please select a valid marital status" }),
-  }),
+  // Marital status — optional
+  maritalStatus: z
+    .enum(["SINGLE", "MARRIED", "DIVORCED", "WIDOWED"])
+    .optional()
+    .or(z.literal("")),
 
   occupation: z
     .string()
@@ -260,25 +260,26 @@ export const PatientIntakeFormSchema = z.object({
     .optional()
     .or(z.literal("")),
 
-  // Emergency Contact
+  // Emergency Contact — all fields optional
   emergencyContactName: z
     .string()
     .trim()
-    .min(2, "Emergency contact name must be at least 2 characters")
-    .max(50, "Emergency contact name must be at most 50 characters"),
+    .max(50, "Emergency contact name must be at most 50 characters")
+    .optional()
+    .or(z.literal("")),
 
   emergencyContactNumber: z
     .string()
-    .regex(/^\d{10}$/, "Emergency contact phone must be exactly 10 digits"),
+    .regex(/^\+?[0-9]{7,15}$/, "Enter a valid phone number")
+    .optional()
+    .or(z.literal("")),
 
-  emergencyContactRelation: z.enum(
-    ["SPOUSE", "PARENT", "CHILD", "SIBLING", "FRIEND", "OTHER"],
-    {
-      errorMap: () => ({ message: "Please select a valid relationship" }),
-    }
-  ),
+  emergencyContactRelation: z
+    .enum(["SPOUSE", "PARENT", "CHILD", "SIBLING", "FRIEND", "OTHER"])
+    .optional()
+    .or(z.literal("")),
 
-  // Medical Information (Optional)
+  // Medical Information — all optional
   bloodGroup: z
     .enum(["O+", "O-", "A+", "A-", "B+", "B-", "AB+", "AB-"])
     .optional()
@@ -298,46 +299,10 @@ export const PatientIntakeFormSchema = z.object({
     .optional()
     .or(z.literal("")),
 
-  medicalHistory: z
-    .string()
-    .trim()
-    .max(1000, "Medical history must be at most 1000 characters")
-    .optional()
-    .or(z.literal("")),
-
-  // Insurance (Optional)
-  insuranceProvider: z
-    .string()
-    .trim()
-    .max(100, "Insurance provider must be at most 100 characters")
-    .optional()
-    .or(z.literal("")),
-
-  insuranceNumber: z
-    .string()
-    .trim()
-    .max(100, "Insurance number must be at most 100 characters")
-    .optional()
-    .or(z.literal("")),
-
-  // Consent (Required)
-  privacyConsent: z
-    .boolean()
-    .refine((val) => val === true, {
-      message: "You must agree to the privacy policy",
-    }),
-
-  serviceConsent: z
-    .boolean()
-    .refine((val) => val === true, {
-      message: "You must agree to the service terms",
-    }),
-
-  medicalConsent: z
-    .boolean()
-    .refine((val) => val === true, {
-      message: "You must consent to medical information processing",
-    }),
+  // Consent — auto-set true; no dedicated consent step
+  privacyConsent: z.boolean().default(true),
+  serviceConsent: z.boolean().default(true),
+  medicalConsent: z.boolean().default(true),
 });
 
 export type PatientIntakeFormData = z.infer<typeof PatientIntakeFormSchema>;

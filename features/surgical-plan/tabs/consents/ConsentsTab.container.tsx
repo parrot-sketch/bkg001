@@ -3,14 +3,12 @@
 /**
  * Consents Tab Container
  *
- * Manages consent forms for a surgical case. Shows existing consents,
- * allows the doctor to create new ones using ACTIVE ConsentTemplates,
- * and shows the signing status of each.
+ * Manages signed consent forms for a surgical case. 
+ * Allows the doctor to upload pre-signed PDFs or Images of consent forms.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { apiClient } from '@/lib/api/client';
-import { consentTemplateApi, ConsentTemplateDto } from '@/lib/api/consent-templates';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,21 +22,25 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import { SecureDocumentViewer } from '@/components/pdf/SecureDocumentViewer';
 import { LoadingState } from '../../shared/components/LoadingState';
 import {
     Plus,
     FileText,
-    Clock,
     CheckCircle,
-    XCircle,
-    QrCode,
     Loader2,
-    AlertTriangle,
-    Copy,
-    Check,
-    ExternalLink,
-    RefreshCw,
+    Download,
+    Upload,
+    FileImage,
+    Eye,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -59,9 +61,9 @@ const STATUS_CONFIG: Record<ConsentStatus, { label: string; color: string; icon:
         icon: <FileText className="h-3 w-3 mr-1" />,
     },
     PENDING_SIGNATURE: {
-        label: 'Awaiting Patient Signature',
+        label: 'Pending',
         color: 'bg-amber-50 text-amber-700 border-amber-200',
-        icon: <Clock className="h-3 w-3 mr-1" />,
+        icon: <Loader2 className="h-3 w-3 mr-1" />,
     },
     SIGNED: {
         label: 'Signed ✓',
@@ -71,31 +73,30 @@ const STATUS_CONFIG: Record<ConsentStatus, { label: string; color: string; icon:
     REVOKED: {
         label: 'Revoked',
         color: 'bg-red-50 text-red-700 border-red-200',
-        icon: <XCircle className="h-3 w-3 mr-1" />,
+        icon: <FileText className="h-3 w-3 mr-1" />,
     },
     EXPIRED: {
         label: 'Expired',
         color: 'bg-slate-100 text-slate-600',
-        icon: <Clock className="h-3 w-3 mr-1" />,
+        icon: <FileText className="h-3 w-3 mr-1" />,
     },
 };
+
+interface ConsentDocument {
+    id: string;
+    file_name: string;
+    file_size: number;
+    file_url: string;
+    document_type: string;
+}
 
 interface ConsentFormItem {
     id: string;
     title: string;
     type: ConsentType;
     status: ConsentStatus;
-    version: number;
     created_at: string;
-    qr_code?: string | null;
-    template_id?: string | null;
-}
-
-interface QrDialogData {
-    consentTitle: string;
-    qrCodeDataUrl: string;
-    signingUrl: string;
-    qrCode: string;
+    documents: ConsentDocument[];
 }
 
 interface ConsentsTabContainerProps {
@@ -104,16 +105,18 @@ interface ConsentsTabContainerProps {
 
 export function ConsentsTabContainer({ caseId }: ConsentsTabContainerProps) {
     const [consents, setConsents] = useState<ConsentFormItem[]>([]);
-    const [activeTemplates, setActiveTemplates] = useState<ConsentTemplateDto[]>([]);
     const [loading, setLoading] = useState(true);
-    const [showCreateDialog, setShowCreateDialog] = useState(false);
-    const [createLoading, setCreateLoading] = useState(false);
+    
+    // Upload State
+    const [showUploadDialog, setShowUploadDialog] = useState(false);
+    const [uploadLoading, setUploadLoading] = useState(false);
     const [selectedType, setSelectedType] = useState<ConsentType | ''>('');
-    const [selectedTemplateId, setSelectedTemplateId] = useState<string>('__inline__');
-    const [customTitle, setCustomTitle] = useState('');
-    const [generatingQr, setGeneratingQr] = useState<string | null>(null);
-    const [qrDialog, setQrDialog] = useState<QrDialogData | null>(null);
-    const [copied, setCopied] = useState(false);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Viewer State
+    const [selectedDocument, setSelectedDocument] = useState<ConsentDocument | null>(null);
+    const [selectedDocumentTitle, setSelectedDocumentTitle] = useState<string>('');
 
     const fetchConsents = useCallback(async () => {
         setLoading(true);
@@ -125,96 +128,71 @@ export function ConsentsTabContainer({ caseId }: ConsentsTabContainerProps) {
                 setConsents(response.data);
             }
         } catch {
-            // silent — handled by empty state
+            toast.error("Failed to load consent documents.");
         } finally {
             setLoading(false);
         }
     }, [caseId]);
 
-    const fetchActiveTemplates = useCallback(async () => {
-        const response = await consentTemplateApi.getAll({ status: 'ACTIVE' as any });
-        if (response.success && response.data) {
-            setActiveTemplates(response.data);
-        }
-    }, []);
-
     useEffect(() => {
         fetchConsents();
-        fetchActiveTemplates();
-    }, [fetchConsents, fetchActiveTemplates]);
+    }, [fetchConsents]);
 
-    const handleCreateConsent = async () => {
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg', 'image/tiff', 'application/pdf'];
+        if (!validTypes.includes(file.type)) {
+            toast.error('Invalid file type. Please upload a PDF or an Image.');
+            return;
+        }
+
+        if (file.size > 15 * 1024 * 1024) {
+            toast.error('File exceeds the 15 MB limit.');
+            return;
+        }
+
+        setSelectedFile(file);
+    };
+
+    const handleUploadConsent = async () => {
         if (!selectedType) {
             toast.error('Please select a consent type');
             return;
         }
-        setCreateLoading(true);
-        try {
-            const body: any = { type: selectedType };
-            if (customTitle.trim()) body.title = customTitle.trim();
-            if (selectedTemplateId && selectedTemplateId !== '__inline__') {
-                body.template_id = selectedTemplateId;
-            }
+        if (!selectedFile) {
+            toast.error('Please select a signed document to upload');
+            return;
+        }
 
-            const response = await apiClient.post<ConsentFormItem>(
-                `/doctor/surgical-cases/${caseId}/consents`,
-                body
-            );
-            if (response.success) {
-                toast.success('Consent form created');
-                setShowCreateDialog(false);
+        setUploadLoading(true);
+        try {
+            const formData = new FormData();
+            formData.append('consentType', selectedType);
+            formData.append('file', selectedFile);
+
+            const res = await fetch(`/api/doctor/surgical-cases/${caseId}/consents/upload-signed`, {
+                method: 'POST',
+                body: formData,
+            });
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                toast.success('Signed consent uploaded successfully');
+                setShowUploadDialog(false);
                 setSelectedType('');
-                setSelectedTemplateId('__inline__');
-                setCustomTitle('');
+                setSelectedFile(null);
                 fetchConsents();
             } else {
-                toast.error((response as any).error || 'Failed to create consent');
+                toast.error(data.error || 'Failed to upload consent');
             }
         } catch {
-            toast.error('Failed to create consent');
+            toast.error('Failed to upload consent due to a network error');
         } finally {
-            setCreateLoading(false);
+            setUploadLoading(false);
         }
     };
-
-    const handleGenerateQr = async (consent: ConsentFormItem) => {
-        setGeneratingQr(consent.id);
-        try {
-            const response = await apiClient.post<{
-                qrCode: string;
-                signingUrl: string;
-                qrCodeDataUrl: string;
-            }>(`/doctor/consents/${consent.id}/generate-qr`, {});
-
-            if (response.success && response.data) {
-                setQrDialog({
-                    consentTitle: consent.title,
-                    qrCodeDataUrl: response.data.qrCodeDataUrl,
-                    signingUrl: response.data.signingUrl,
-                    qrCode: response.data.qrCode,
-                });
-                fetchConsents();
-            } else {
-                toast.error((response as any).error || 'Failed to generate signing link');
-            }
-        } catch {
-            toast.error('Failed to generate signing link');
-        } finally {
-            setGeneratingQr(null);
-        }
-    };
-
-    const handleCopyLink = async () => {
-        if (!qrDialog) return;
-        await navigator.clipboard.writeText(qrDialog.signingUrl);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
-
-    // Filter templates by the selected consent type
-    const templatesForType = activeTemplates.filter(
-        (t) => !selectedType || t.type === selectedType
-    );
 
     if (loading) {
         return <LoadingState variant="minimal" />;
@@ -225,14 +203,14 @@ export function ConsentsTabContainer({ caseId }: ConsentsTabContainerProps) {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h3 className="text-base font-semibold text-slate-900">Consent Forms</h3>
+                    <h3 className="text-base font-semibold text-slate-900">Signed Consents</h3>
                     <p className="text-sm text-slate-500">
-                        Manage patient consent for this surgical case
+                        Upload and manage signed patient consent documents for this surgical case
                     </p>
                 </div>
-                <Button size="sm" onClick={() => setShowCreateDialog(true)} className="gap-1.5">
-                    <Plus className="h-4 w-4" />
-                    Add Consent
+                <Button size="sm" onClick={() => setShowUploadDialog(true)} className="gap-1.5">
+                    <Upload className="h-4 w-4" />
+                    Upload Signed Consent
                 </Button>
             </div>
 
@@ -244,107 +222,128 @@ export function ConsentsTabContainer({ caseId }: ConsentsTabContainerProps) {
                             <FileText className="h-8 w-8 text-slate-400" />
                         </div>
                         <h3 className="text-base font-semibold text-slate-900 mb-1">
-                            No consent forms yet
+                            No signed consents uploaded yet
                         </h3>
                         <p className="text-sm text-slate-500 mb-4">
-                            Add consent forms for this surgical case.
+                            Upload scanned signed forms or PDFs.
                         </p>
-                        <Button size="sm" onClick={() => setShowCreateDialog(true)} className="gap-1.5">
-                            <Plus className="h-4 w-4" />
-                            Add First Consent
+                        <Button size="sm" onClick={() => setShowUploadDialog(true)} className="gap-1.5 border border-slate-300" variant="outline">
+                            <Upload className="h-4 w-4" />
+                            Upload First Document
                         </Button>
                     </CardContent>
                 </Card>
             ) : (
-                <div className="space-y-3">
-                    {consents.map((consent) => {
-                        const statusInfo = STATUS_CONFIG[consent.status] ?? STATUS_CONFIG.PENDING_SIGNATURE;
-                        return (
-                            <Card key={consent.id}>
-                                <CardHeader className="pb-2">
-                                    <div className="flex items-start justify-between">
-                                        <div>
-                                            <CardTitle className="text-sm font-medium">
-                                                {consent.title}
-                                            </CardTitle>
-                                            <CardDescription>
-                                                {CONSENT_TYPE_LABELS[consent.type]} · v{consent.version}
-                                                {' · '}
-                                                {format(new Date(consent.created_at), 'MMM d, yyyy')}
-                                            </CardDescription>
-                                        </div>
-                                        <Badge
-                                            variant="outline"
-                                            className={statusInfo.color}
-                                        >
-                                            {statusInfo.icon}
-                                            {statusInfo.label}
-                                        </Badge>
-                                    </div>
-                                </CardHeader>
-                                {consent.status === 'PENDING_SIGNATURE' && (
-                                    <CardContent className="pt-0">
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="gap-1.5"
-                                            disabled={generatingQr === consent.id}
-                                            onClick={() => handleGenerateQr(consent)}
-                                        >
-                                            {generatingQr === consent.id ? (
-                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                            ) : (
-                                                <QrCode className="h-3.5 w-3.5" />
+                <div className="rounded-md border bg-white shadow-sm overflow-hidden">
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="bg-slate-50 hover:bg-slate-50">
+                                <TableHead className="w-[300px]">Document</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Uploaded</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {consents.map((consent) => {
+                                const statusInfo = STATUS_CONFIG[consent.status] ?? STATUS_CONFIG.SIGNED;
+                                const document = consent.documents?.[0]; // Get the uploaded doc
+                                
+                                return (
+                                    <TableRow key={consent.id} className="cursor-pointer hover:bg-slate-50/50">
+                                        <TableCell>
+                                            <div className="flex items-center gap-3">
+                                                <div className="bg-indigo-50 p-2 rounded flex items-center justify-center border border-indigo-100 shrink-0">
+                                                    {document?.document_type === 'SIGNED_IMAGE' ? (
+                                                        <FileImage className="h-4 w-4 text-indigo-600" />
+                                                    ) : (
+                                                        <FileText className="h-4 w-4 text-indigo-600" />
+                                                    )}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-medium text-slate-900 truncate">
+                                                        {consent.title}
+                                                    </p>
+                                                    <p className="text-xs text-slate-500 truncate">
+                                                        {CONSENT_TYPE_LABELS[consent.type]}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline" className={statusInfo.color}>
+                                                {statusInfo.icon}
+                                                {statusInfo.label}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-sm text-slate-500 whitespace-nowrap">
+                                            {format(new Date(consent.created_at), 'MMM d, yyyy')}
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            {document && (
+                                                <div className="flex justify-end items-center gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="gap-1.5 h-8 bg-white"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            window.open(document.file_url, '_blank');
+                                                        }}
+                                                    >
+                                                        <Download className="h-3.5 w-3.5" />
+                                                        <span className="hidden sm:inline">Original</span>
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        className="gap-1.5 h-8 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 border-0"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedDocument(document);
+                                                            setSelectedDocumentTitle(consent.title);
+                                                        }}
+                                                    >
+                                                        <Eye className="h-3.5 w-3.5" />
+                                                        View <span className="hidden sm:inline">Securely</span>
+                                                    </Button>
+                                                </div>
                                             )}
-                                            {generatingQr === consent.id ? 'Generating…' : 'Generate Signing Link'}
-                                        </Button>
-                                    </CardContent>
-                                )}
-                            </Card>
-                        );
-                    })}
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })}
+                        </TableBody>
+                    </Table>
                 </div>
             )}
 
-            {/* Active templates info banner */}
-            {activeTemplates.length === 0 && (
-                <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200">
-                    <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                    <p className="text-sm text-amber-800">
-                        No active consent templates found. Consents will be created using built-in templates.{' '}
-                        <a
-                            href="/doctor/consents/templates"
-                            className="underline font-medium"
-                            target="_blank"
-                        >
-                            Manage templates →
-                        </a>
-                    </p>
-                </div>
-            )}
+            {/* Secure Viewer Modal */}
+            <SecureDocumentViewer
+                open={!!selectedDocument}
+                onOpenChange={(open) => !open && setSelectedDocument(null)}
+                document={selectedDocument}
+                title={selectedDocumentTitle}
+            />
 
-            {/* Create Consent Dialog */}
-            <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+            {/* Upload Dialog */}
+            <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Add Consent Form</DialogTitle>
+                        <DialogTitle>Upload Signed Consent</DialogTitle>
                         <DialogDescription>
-                            Create a new consent form for this surgical case.
+                            Upload a scanned PDF or photo of the patient's signed consent form.
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="space-y-4">
+                    <div className="space-y-5 py-2">
                         <div className="space-y-2">
                             <Label htmlFor="consent-type">Consent Type *</Label>
                             <Select
                                 value={selectedType}
-                                onValueChange={(v) => {
-                                    setSelectedType(v as ConsentType);
-                                    setSelectedTemplateId('__inline__');
-                                }}
+                                onValueChange={(v) => setSelectedType(v as ConsentType)}
                             >
                                 <SelectTrigger id="consent-type">
-                                    <SelectValue placeholder="Select consent type..." />
+                                    <SelectValue placeholder="Select what kind of consent this is..." />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {Object.entries(CONSENT_TYPE_LABELS).map(([value, label]) => (
@@ -356,44 +355,50 @@ export function ConsentsTabContainer({ caseId }: ConsentsTabContainerProps) {
                             </Select>
                         </div>
 
-                        {selectedType && templatesForType.length > 0 && (
-                            <div className="space-y-2">
-                                <Label htmlFor="template-select">
-                                    Use Template{' '}
-                                    <span className="text-slate-400 font-normal">(optional)</span>
-                                </Label>
-                                <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
-                                    <SelectTrigger id="template-select">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="__inline__">
-                                            Use built-in template
-                                        </SelectItem>
-                                        {templatesForType.map((t) => (
-                                            <SelectItem key={t.id} value={t.id}>
-                                                {t.title} (v{t.version})
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                <p className="text-xs text-slate-500">
-                                    ACTIVE templates above were reviewed and approved by an admin.
-                                </p>
-                            </div>
-                        )}
-
                         <div className="space-y-2">
-                            <Label htmlFor="custom-title">
-                                Custom Title{' '}
-                                <span className="text-slate-400 font-normal">(optional)</span>
-                            </Label>
-                            <Input
-                                id="custom-title"
-                                placeholder="Leave blank to use default title"
-                                value={customTitle}
-                                onChange={(e) => setCustomTitle(e.target.value)}
-                            />
+                            <Label>Signed Document *</Label>
+                            <div 
+                                className="border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-slate-50/50 rounded-xl p-6 text-center transition-colors cursor-pointer"
+                                onClick={() => !uploadLoading && fileInputRef.current?.click()}
+                            >
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp,image/jpg,image/tiff,application/pdf"
+                                    onChange={handleFileSelect}
+                                    disabled={uploadLoading}
+                                    className="hidden"
+                                />
+                                {selectedFile ? (
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="h-10 w-10 rounded-full bg-emerald-50 flex items-center justify-center">
+                                            <CheckCircle className="h-5 w-5 text-emerald-500" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-slate-800">
+                                                {selectedFile.name}
+                                            </p>
+                                            <p className="text-xs text-slate-500 mt-0.5">
+                                                Click to choose a different file
+                                            </p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="h-10 w-10 rounded-full bg-indigo-50 flex items-center justify-center">
+                                            <Upload className="h-5 w-5 text-indigo-500" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-slate-700">
+                                                Upload PDF or Image
+                                            </p>
+                                            <p className="text-xs text-slate-400 mt-0.5">
+                                                Click to browse · Max 15 MB
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -401,85 +406,25 @@ export function ConsentsTabContainer({ caseId }: ConsentsTabContainerProps) {
                         <Button
                             variant="outline"
                             onClick={() => {
-                                setShowCreateDialog(false);
+                                setShowUploadDialog(false);
                                 setSelectedType('');
-                                setSelectedTemplateId('__inline__');
-                                setCustomTitle('');
+                                setSelectedFile(null);
                             }}
+                            disabled={uploadLoading}
                         >
                             Cancel
                         </Button>
-                        <Button onClick={handleCreateConsent} disabled={!selectedType || createLoading}>
-                            {createLoading ? (
+                        <Button 
+                            onClick={handleUploadConsent} 
+                            disabled={!selectedType || !selectedFile || uploadLoading}
+                            className="bg-indigo-600 hover:bg-indigo-700"
+                        >
+                            {uploadLoading ? (
                                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
                             ) : (
-                                <Plus className="h-4 w-4 mr-2" />
+                                <Upload className="h-4 w-4 mr-2" />
                             )}
-                            Create Consent
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-            {/* QR Code Dialog — shown after generating a signing link */}
-            <Dialog open={!!qrDialog} onOpenChange={() => setQrDialog(null)}>
-                <DialogContent className="max-w-sm">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <QrCode className="h-4 w-4" />
-                            Patient Signing Link
-                        </DialogTitle>
-                        <DialogDescription>
-                            <span className="font-medium text-slate-800">{qrDialog?.consentTitle}</span>
-                            {' — '}Patient scans the QR code, verifies their identity, reads the consent, then signs.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="space-y-4">
-                        {/* QR Code Image */}
-                        {qrDialog?.qrCodeDataUrl && (
-                            <div className="flex justify-center">
-                                <img
-                                    src={qrDialog.qrCodeDataUrl}
-                                    alt="Consent signing QR code"
-                                    className="w-48 h-48 border rounded-lg"
-                                />
-                            </div>
-                        )}
-
-                        {/* Signing URL — copy or open */}
-                        <div className="space-y-2">
-                            <Label className="text-xs text-slate-500">Signing URL (share with patient)</Label>
-                            <div className="flex gap-2">
-                                <Input
-                                    readOnly
-                                    value={qrDialog?.signingUrl || ''}
-                                    className="text-xs font-mono"
-                                />
-                                <Button
-                                    size="icon"
-                                    variant="outline"
-                                    onClick={handleCopyLink}
-                                    title="Copy link"
-                                >
-                                    {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
-                                </Button>
-                            </div>
-                        </div>
-
-                        <p className="text-xs text-slate-500">
-                            The link expires in <strong>48 hours</strong>. The patient will need to verify
-                            their name and date of birth before signing.
-                        </p>
-                    </div>
-
-                    <DialogFooter className="gap-2">
-                        <Button variant="outline" onClick={() => setQrDialog(null)}>Close</Button>
-                        <Button
-                            onClick={() => qrDialog && window.open(qrDialog.signingUrl, '_blank')}
-                            className="gap-1.5"
-                        >
-                            <ExternalLink className="h-4 w-4" />
-                            Open in Browser
+                            Upload Document
                         </Button>
                     </DialogFooter>
                 </DialogContent>

@@ -5,14 +5,13 @@ import {
 } from '@/domain/interfaces/repositories/ISurgicalChecklistRepository';
 import { IClinicalAuditRepository } from '@/domain/interfaces/repositories/IClinicalAuditRepository';
 import { DomainException } from '@/domain/exceptions/DomainException';
-import {
-    ChecklistStatusDto
-} from '@/application/dtos/TheaterTechDtos';
+import { ChecklistStatusDto } from '@/application/dtos/TheaterTechDtos';
 import {
     type ChecklistItem,
     getFinalSchemaForPhase,
     getMissingItemsForPhase
-} from '@/domain/clinical-forms/WhoSurgicalChecklist'; // I need to verify this path if it's correct or if I should copy it from TheaterTechService
+} from '@/domain/clinical-forms/WhoSurgicalChecklist';
+import { NotFoundError } from '@/application/errors/NotFoundError';
 
 export class SurgicalChecklistService {
     constructor(

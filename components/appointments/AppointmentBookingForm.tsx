@@ -574,7 +574,19 @@ export function AppointmentBookingForm({
                                     </div>
                                 </div>
                             )}
-                            <div className="pt-6 flex justify-end border-t border-slate-100">
+                            <div className="pt-6 flex justify-between border-t border-slate-100">
+                                {onCancel ? (
+                                    <Button 
+                                        variant="outline"
+                                        onClick={onCancel} 
+                                        size="lg"
+                                        className="border-slate-300 hover:bg-slate-50 text-slate-600"
+                                    >
+                                        Cancel
+                                    </Button>
+                                ) : (
+                                    <div />
+                                )}
                                 <Button 
                                     onClick={handleNext} 
                                     disabled={!formData.patientId}

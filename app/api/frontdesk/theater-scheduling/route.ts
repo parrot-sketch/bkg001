@@ -1,7 +1,7 @@
 /**
  * API Route: GET /api/frontdesk/theater-scheduling
  *
- * Returns surgical cases ready for theater booking (READY_FOR_THEATER_BOOKING status).
+ * Returns surgical cases ready for theater booking (READY_FOR_SCHEDULING status).
  * Frontdesk uses this to see which cases need theater scheduling.
  *
  * - Requires authentication (FRONTDESK or ADMIN)
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
         // 3. Fetch cases ready for theater booking
         const cases = await db.surgicalCase.findMany({
             where: {
-                status: SurgicalCaseStatus.READY_FOR_THEATER_BOOKING,
+                status: SurgicalCaseStatus.READY_FOR_SCHEDULING,
             },
             include: {
                 patient: {

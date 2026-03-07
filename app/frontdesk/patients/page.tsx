@@ -12,7 +12,7 @@
  *   - Design language consistent with Appointments page
  */
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useFrontdeskPatients } from '@/hooks/frontdesk/useFrontdeskPatients';
 import { ProfileImage } from '@/components/profile-image';
@@ -39,6 +39,8 @@ import { format } from 'date-fns';
 import { calculateAge } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { useBookAppointmentStore } from '@/hooks/frontdesk/useBookAppointmentStore';
+import { BookingChannel } from '@/domain/enums/BookingChannel';
 
 /* ═══════════════════ Sub Components ═══════════════════ */
 
@@ -141,11 +143,30 @@ function FrontdeskPatientsContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { openBookingDialog } = useBookAppointmentStore();
 
   // URL-driven state
   const page = Number(searchParams.get('page')) || 1;
   const limit = 12;
   const urlSearch = searchParams.get('q') || '';
+
+  // Highlight param — set after intake confirm redirect
+  const highlightId = searchParams.get('highlight') || '';
+  const [activeHighlight, setActiveHighlight] = useState(highlightId);
+
+  // Auto-clear the highlight param from the URL after 3s
+  useEffect(() => {
+    if (!highlightId) return;
+    setActiveHighlight(highlightId);
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete('highlight');
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+      setActiveHighlight('');
+    }, 3000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightId]);
 
   // Local state for immediate input feedback
   const [searchInput, setSearchInput] = useState(urlSearch);
@@ -324,11 +345,12 @@ function FrontdeskPatientsContent() {
                   {patients.map((patient: any) => {
                     const patientName = `${patient.firstName} ${patient.lastName}`;
                     const lastVisit = patient.lastVisit;
+                    const isHighlighted = activeHighlight === patient.id;
 
                     return (
-                      <tr
+                      <HighlightRow
                         key={patient.id}
-                        className="group hover:bg-slate-50/60 transition-colors duration-150 cursor-pointer"
+                        highlighted={isHighlighted}
                         onClick={() => router.push(`/frontdesk/patient/${patient.id}`)}
                       >
                         {/* Patient */}
@@ -422,18 +444,20 @@ function FrontdeskPatientsContent() {
                                 View
                               </Button>
                             </Link>
-                            <Link href={`/frontdesk/appointments/new?patientId=${patient.id}&source=patients`}>
-                              <Button
+                            <Button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openBookingDialog({ initialPatientId: patient.id, bookingChannel: BookingChannel.PATIENT_LIST });
+                                }}
                                 size="sm"
                                 className="h-8 px-2.5 text-xs rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white shadow-sm shadow-cyan-200/30"
                               >
                                 <Calendar className="h-3.5 w-3.5 mr-1" />
                                 Book
                               </Button>
-                            </Link>
                           </div>
                         </td>
-                      </tr>
+                      </HighlightRow>
                     );
                   })}
                 </tbody>
@@ -497,7 +521,6 @@ function FrontdeskPatientsContent() {
                             )}
                           </div>
 
-                          {/* Quick actions — use onClick + router.push to avoid nested <a> tags */}
                           <div className="mt-3 flex gap-2" onClick={(e) => e.stopPropagation()}>
                             <Button
                               size="sm"
@@ -505,7 +528,7 @@ function FrontdeskPatientsContent() {
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                router.push(`/frontdesk/appointments/new?patientId=${patient.id}&source=patients`);
+                                openBookingDialog({ initialPatientId: patient.id, bookingChannel: BookingChannel.PATIENT_LIST });
                               }}
                             >
                               <Calendar className="h-3 w-3 mr-1" />
@@ -589,6 +612,41 @@ function FrontdeskPatientsContent() {
         </div>
       )}
     </div>
+  );
+}
+
+/* ═══════════════════ Highlight Row ═══════════════════ */
+
+function HighlightRow({
+  children,
+  highlighted,
+  onClick,
+}: {
+  children: React.ReactNode;
+  highlighted: boolean;
+  onClick: () => void;
+}) {
+  const ref = useRef<HTMLTableRowElement>(null);
+
+  useEffect(() => {
+    if (highlighted && ref.current) {
+      ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [highlighted]);
+
+  return (
+    <tr
+      ref={ref}
+      className={cn(
+        'group transition-colors duration-150 cursor-pointer',
+        highlighted
+          ? 'bg-cyan-50 ring-2 ring-inset ring-cyan-400 animate-pulse-once'
+          : 'hover:bg-slate-50/60'
+      )}
+      onClick={onClick}
+    >
+      {children}
+    </tr>
   );
 }
 

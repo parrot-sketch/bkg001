@@ -22,7 +22,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import db from '@/lib/db';
 import { Role } from '@/domain/enums/Role';
-import { PatientMapper } from '@/infrastructure/mappers/PatientMapper';
+import { PatientMapper as InfrastructurePatientMapper } from '@/infrastructure/mappers/PatientMapper';
+import { PatientMapper as ApplicationPatientMapper } from '@/application/mappers/PatientMapper';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import { DoctorPatientAssignmentStatus } from '@prisma/client';
 
@@ -120,40 +121,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // 7. Map to DTOs
     const patientDtos: PatientResponseDto[] = patients.map((prismaPatient) => {
-      const patientEntity = PatientMapper.fromPrisma(prismaPatient);
-
-      return {
-        id: patientEntity.getId(),
-        fileNumber: patientEntity.getFileNumber(),
-        firstName: patientEntity.getFirstName(),
-        lastName: patientEntity.getLastName(),
-        fullName: patientEntity.getFullName(),
-        dateOfBirth: patientEntity.getDateOfBirth(),
-        age: patientEntity.getAge(),
-        gender: patientEntity.getGender(),
-        email: patientEntity.getEmail().getValue(),
-        phone: patientEntity.getPhone().getValue(),
-        whatsappPhone: patientEntity.getWhatsappPhone(),
-        address: patientEntity.getAddress(),
-        occupation: patientEntity.getOccupation(),
-        maritalStatus: patientEntity.getMaritalStatus(),
-        emergencyContactName: patientEntity.getEmergencyContactName(),
-        emergencyContactNumber: patientEntity.getEmergencyContactNumber().getValue(),
-        relation: patientEntity.getRelation(),
-        hasPrivacyConsent: patientEntity.hasPrivacyConsent(),
-        hasServiceConsent: patientEntity.hasServiceConsent(),
-        hasMedicalConsent: patientEntity.hasMedicalConsent(),
-        bloodGroup: patientEntity.getBloodGroup(),
-        allergies: patientEntity.getAllergies(),
-        medicalConditions: patientEntity.getMedicalConditions(),
-        medicalHistory: patientEntity.getMedicalHistory(),
-        insuranceProvider: patientEntity.getInsuranceProvider(),
-        insuranceNumber: patientEntity.getInsuranceNumber(),
-        createdAt: patientEntity.getCreatedAt(),
-        updatedAt: patientEntity.getUpdatedAt(),
-        profileImage: patientEntity.getImg(),
-        colorCode: patientEntity.getColorCode(),
-      };
+      const patientEntity = InfrastructurePatientMapper.fromPrisma(prismaPatient);
+      return ApplicationPatientMapper.toResponseDto(patientEntity);
     });
 
     return NextResponse.json(

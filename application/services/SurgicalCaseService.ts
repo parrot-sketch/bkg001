@@ -8,6 +8,7 @@ import { getMissingPlanningItems, PlanningReadinessInput, PlanningReadinessItem 
  * Contains structured missing items for the API to return.
  */
 export class ReadinessValidationError extends Error {
+    public readonly status: number = 422;
     constructor(
         message: string,
         public readonly missingItems: PlanningReadinessItem[],
@@ -149,18 +150,15 @@ export class SurgicalCaseService {
             );
         }
 
-        // Cast to access included relations (Prisma include returns them but TS type is plain CasePlan)
-        const planWithRelations = casePlan as CasePlan & {
-            consents?: Array<{ status: string }>;
-            images?: Array<{ timepoint: string }>;
-        };
+        // Caste to access included relations (Prisma include returns them but TS type is plain CasePlan)
+        const planWithRelations = casePlan as any;
 
         const input: PlanningReadinessInput = {
             procedurePlan: casePlan.procedure_plan,
             riskFactors: casePlan.risk_factors,
             plannedAnesthesia: casePlan.planned_anesthesia,
-            signedConsentCount: planWithRelations.consents?.filter(c => c.status === 'SIGNED').length ?? 0,
-            preOpPhotoCount: planWithRelations.images?.filter(i => i.timepoint === 'PRE_OP').length ?? 0,
+            signedConsentCount: planWithRelations.consents?.filter((c: any) => c.status === 'SIGNED').length ?? 0,
+            preOpPhotoCount: planWithRelations.images?.filter((i: any) => i.timepoint === 'PRE_OP').length ?? 0,
         };
 
         const readiness = getMissingPlanningItems(input);

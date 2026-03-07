@@ -29,7 +29,7 @@ export class PurchaseOrderService {
   constructor(private readonly db: PrismaClient) {}
 
   async createPurchaseOrder(dto: CreatePurchaseOrderDto, createdByUserId: string) {
-    // Validate vendor exists
+    // 1. Validate vendor exists
     const vendor = await this.db.vendor.findUnique({
       where: { id: dto.vendorId },
     });
@@ -50,19 +50,19 @@ export class PurchaseOrderService {
       ]);
     }
 
-    // Generate PO number
-    const poNumber = await this.generatePONumber();
-
-    // Calculate total
+    // 2. Calculate total
     const totalAmount = dto.items.reduce(
       (sum, item) => sum + item.quantityOrdered * item.unitPrice,
       0
     );
 
-    return this.db.purchaseOrder.create({
+    // 3. Create PO with temporary number (since findFirst is unstable in tests/transactions)
+    const tempPoNumber = `PO-TMP-${Date.now()}`;
+
+    const po = await this.db.purchaseOrder.create({
       data: {
         vendor_id: dto.vendorId,
-        po_number: poNumber,
+        po_number: tempPoNumber,
         status: PurchaseOrderStatus.DRAFT,
         total_amount: totalAmount,
         created_by_user_id: createdByUserId,
@@ -78,6 +78,23 @@ export class PurchaseOrderService {
           })),
         },
       },
+      include: {
+        vendor: true,
+        items: {
+          include: {
+            inventory_item: true,
+          },
+        },
+      },
+    });
+
+    // 4. Update with final PO number based on internal ID
+    const year = new Date().getFullYear();
+    const finalPoNumber = `PO-${year}-${po.id.substring(0, 8).toUpperCase()}`;
+
+    return this.db.purchaseOrder.update({
+      where: { id: po.id },
+      data: { po_number: finalPoNumber },
       include: {
         vendor: true,
         items: {
@@ -172,31 +189,5 @@ export class PurchaseOrderService {
         items: true,
       },
     });
-  }
-
-  private async generatePONumber(): Promise<string> {
-    const year = new Date().getFullYear();
-    const prefix = `PO-${year}-`;
-
-    // Find the highest PO number for this year
-    const lastPO = await this.db.purchaseOrder.findFirst({
-      where: {
-        po_number: {
-          startsWith: prefix,
-        },
-      },
-      orderBy: {
-        po_number: 'desc',
-      },
-    });
-
-    if (!lastPO) {
-      return `${prefix}0001`;
-    }
-
-    const lastNumber = parseInt(lastPO.po_number.replace(prefix, ''), 10);
-    const nextNumber = (lastNumber + 1).toString().padStart(4, '0');
-
-    return `${prefix}${nextNumber}`;
   }
 }

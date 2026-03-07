@@ -32,7 +32,8 @@ export function useDashboardData(): UseDashboardDataReturn {
             return 0;
         },
         enabled: isAuthenticated && !!user,
-        staleTime: 1000 * 60 * 5, // 5 minutes
+        staleTime: 0,
+        refetchInterval: 10000, // Poll every 10 seconds for new intakes
         gcTime: 1000 * 60 * 10,
         retry: 1,
         refetchOnWindowFocus: true,

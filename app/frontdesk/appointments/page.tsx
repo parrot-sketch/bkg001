@@ -52,6 +52,7 @@ import { format, addDays, subDays, isToday, isTomorrow, isYesterday } from 'date
 import { FrontdeskAppointmentCard } from '@/components/frontdesk/FrontdeskAppointmentCard';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { useBookAppointmentStore } from '@/hooks/frontdesk/useBookAppointmentStore';
 
 /* ═══════════════════ Status Configuration ═══════════════════ */
 
@@ -155,6 +156,7 @@ function FrontdeskAppointmentsContent() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { openBookingDialog } = useBookAppointmentStore();
 
   // Parse query params
   const dateParam = searchParams.get('date');
@@ -364,12 +366,13 @@ function FrontdeskAppointmentsContent() {
               : 'Manage bookings, check-ins, and patient flow'}
           </p>
         </div>
-        <Link href={`/frontdesk/appointments/new${patientIdFilter ? `?patientId=${patientIdFilter}` : ''}`}>
-          <Button className="bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl shadow-sm shadow-cyan-200/50 h-10 px-5">
-            <Plus className="h-4 w-4 mr-2" />
-            New Appointment
-          </Button>
-        </Link>
+        <Button 
+          onClick={() => openBookingDialog({ initialPatientId: patientIdFilter || undefined, bookingChannel: BookingChannel.DASHBOARD })}
+          className="bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl shadow-sm shadow-cyan-200/50 h-10 px-5"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          New Appointment
+        </Button>
       </header>
 
 
@@ -686,15 +689,14 @@ function EmptyState({
             Clear Filters
           </Button>
         )}
-        <Link href="/frontdesk/appointments/new">
-          <Button
-            size="sm"
-            className="bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-xs"
-          >
-            <Plus className="h-3 w-3 mr-1.5" />
-            Book Appointment
-          </Button>
-        </Link>
+        <Button
+          onClick={() => openBookingDialog({ bookingChannel: BookingChannel.DASHBOARD })}
+          size="sm"
+          className="bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-xs"
+        >
+          <Plus className="h-3 w-3 mr-1.5" />
+          Book Appointment
+        </Button>
       </div>
     </div>
   );

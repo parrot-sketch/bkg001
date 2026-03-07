@@ -29,17 +29,17 @@ export class Patient {
     private readonly gender: Gender,
     private readonly email: Email,
     private readonly phone: PhoneNumber,
-    private readonly address: string,
-    private readonly maritalStatus: string,
-    private readonly emergencyContactName: string,
-    private readonly emergencyContactNumber: PhoneNumber,
-    private readonly relation: string,
     private readonly privacyConsent: boolean,
     private readonly serviceConsent: boolean,
     private readonly medicalConsent: boolean,
-    // Optional fields
-    private readonly whatsappPhone?: string, // Optional WhatsApp contact
-    private readonly occupation?: string, // Optional occupation
+    private readonly address: string,
+    private readonly userId?: string,
+    private readonly maritalStatus?: string,
+    private readonly emergencyContactName?: string,
+    private readonly emergencyContactNumber?: PhoneNumber,
+    private readonly relation?: string,
+    private readonly whatsappPhone?: string,
+    private readonly occupation?: string,
     private readonly bloodGroup?: string,
     private readonly allergies?: string,
     private readonly medicalConditions?: string,
@@ -71,16 +71,17 @@ export class Patient {
     gender: Gender;
     email: string | Email;
     phone: string | PhoneNumber;
-    whatsappPhone?: string;
-    address: string;
-    occupation?: string;
-    maritalStatus: string;
-    emergencyContactName: string;
-    emergencyContactNumber: string | PhoneNumber;
-    relation: string;
     privacyConsent: boolean;
     serviceConsent: boolean;
     medicalConsent: boolean;
+    address?: string;
+    userId?: string;
+    occupation?: string;
+    maritalStatus?: string;
+    emergencyContactName?: string;
+    emergencyContactNumber?: string | PhoneNumber;
+    relation?: string;
+    whatsappPhone?: string;
     bloodGroup?: string;
     allergies?: string;
     medicalConditions?: string;
@@ -157,55 +158,45 @@ export class Patient {
     }
     */
 
-    if (!params.address || typeof params.address !== 'string' || params.address.trim().length === 0) {
-      throw new DomainException('Patient address cannot be empty', {
+    if (params.address && params.address.trim().length > 500) {
+      throw new DomainException('Patient address is too long', {
         providedValue: params.address,
       });
     }
 
-    if (!params.maritalStatus || typeof params.maritalStatus !== 'string' || params.maritalStatus.trim().length === 0) {
-      throw new DomainException('Patient marital status cannot be empty', {
-        providedValue: params.maritalStatus,
-      });
-    }
-
-    if (!params.emergencyContactName || typeof params.emergencyContactName !== 'string' || params.emergencyContactName.trim().length === 0) {
-      throw new DomainException('Emergency contact name cannot be empty', {
-        providedValue: params.emergencyContactName,
-      });
-    }
-
-    if (!params.relation || typeof params.relation !== 'string' || params.relation.trim().length === 0) {
-      throw new DomainException('Emergency contact relation cannot be empty', {
-        providedValue: params.relation,
-      });
+    // Optional validations for emergency contact if provided
+    if (params.emergencyContactName && params.emergencyContactName.trim().length < 2) {
+      // but wait, if it's optional, maybe we don't even need the 2-char check if it's just a placeholder
     }
 
     // Convert string values to value objects if needed
     const email = params.email instanceof Email ? params.email : Email.create(params.email);
     const phone = params.phone instanceof PhoneNumber ? params.phone : PhoneNumber.create(params.phone);
     const emergencyContactNumber =
-      params.emergencyContactNumber instanceof PhoneNumber
-        ? params.emergencyContactNumber
-        : PhoneNumber.create(params.emergencyContactNumber);
+      params.emergencyContactNumber
+        ? (params.emergencyContactNumber instanceof PhoneNumber
+          ? params.emergencyContactNumber
+          : PhoneNumber.create(params.emergencyContactNumber))
+        : undefined;
 
     return new Patient(
       params.id.trim(),
-      params.fileNumber.trim(), // System-generated: NS001, NS002, etc.
+      params.fileNumber.trim(),
       params.firstName.trim(),
       params.lastName.trim(),
       dob,
       params.gender,
       email,
       phone,
-      params.address.trim(),
-      params.maritalStatus.trim(),
-      params.emergencyContactName.trim(),
-      emergencyContactNumber,
-      params.relation.trim(),
       params.privacyConsent,
       params.serviceConsent,
       params.medicalConsent,
+      params.address?.trim() || '',
+      params.userId,
+      params.maritalStatus?.trim(),
+      params.emergencyContactName?.trim(),
+      emergencyContactNumber,
+      params.relation?.trim(),
       params.whatsappPhone?.trim(),
       params.occupation?.trim(),
       params.bloodGroup?.trim(),
@@ -219,6 +210,10 @@ export class Patient {
       params.createdAt,
       params.updatedAt,
     );
+  }
+
+  getUserId(): string | undefined {
+    return this.userId;
   }
 
   // Getters
@@ -271,19 +266,19 @@ export class Patient {
     return this.occupation;
   }
 
-  getMaritalStatus(): string {
+  getMaritalStatus(): string | undefined {
     return this.maritalStatus;
   }
 
-  getEmergencyContactName(): string {
+  getEmergencyContactName(): string | undefined {
     return this.emergencyContactName;
   }
 
-  getEmergencyContactNumber(): PhoneNumber {
+  getEmergencyContactNumber(): PhoneNumber | undefined {
     return this.emergencyContactNumber;
   }
 
-  getRelation(): string {
+  getRelation(): string | undefined {
     return this.relation;
   }
 

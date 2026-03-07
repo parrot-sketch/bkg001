@@ -449,6 +449,52 @@ export class Appointment {
   }
 
   /**
+   * Marks the appointment as ready for consultation (triage complete)
+   * 
+   * Invariants:
+   * - Must be CHECKED_IN first
+   * - Cannot be ready if already in consultation or completed
+   * 
+   * @returns New Appointment entity with READY_FOR_CONSULTATION status
+   * @throws DomainException if transition is not allowed
+   */
+  markReadyForConsultation(): Appointment {
+    if (this.status !== AppointmentStatus.CHECKED_IN) {
+      throw new DomainException(
+        `Cannot mark as ready for consultation from ${this.status} status. Patient must be checked in first.`,
+        { appointmentId: this.id, currentStatus: this.status }
+      );
+    }
+
+    return new Appointment(
+      this.id,
+      this.patientId,
+      this.doctorId,
+      this.appointmentDate,
+      this.time,
+      AppointmentStatus.READY_FOR_CONSULTATION,
+      this.type,
+      this.scheduledAt,
+      new Date(), // statusChangedAt
+      this.statusChangedBy,
+      this.doctorConfirmedAt,
+      this.doctorConfirmedBy,
+      this.doctorRejectionReason,
+      this.markedNoShowAt,
+      this.durationMinutes,
+      this.note,
+      this.reason,
+      this.checkInInfo,
+      this.noShowInfo,
+      this.doctorConfirmation,
+      this.doctorRejection,
+      this.rescheduledToAppointmentId,
+      this.createdAt,
+      new Date() // updatedAt
+    );
+  }
+
+  /**
    * Reschedules the appointment
    * 
    * @param newDate - New date

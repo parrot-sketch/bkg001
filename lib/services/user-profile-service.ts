@@ -21,6 +21,7 @@ import { JwtAuthService } from '@/infrastructure/auth/JwtAuthService';
 import { PrismaUserRepository } from '@/infrastructure/database/repositories/PrismaUserRepository';
 import { Role } from '@/domain/enums/Role';
 import { Status } from '@/domain/enums/Status';
+import { PrismaPatientRepository } from '@/infrastructure/repositories/PatientRepository';
 import { randomUUID } from 'crypto';
 
 interface CreateUserWithDoctorParams {
@@ -57,7 +58,7 @@ interface CreateUserWithPatientParams {
   phone: string;
   // Patient-specific fields
   dateOfBirth: Date;
-  gender: 'MALE' | 'FEMALE';
+  gender: 'MALE' | 'FEMALE' | 'OTHER';
   address: string;
   maritalStatus: string;
   emergencyContactName: string;
@@ -200,18 +201,9 @@ export class UserProfileService {
     const userId = randomUUID();
     const patientId = randomUUID();
 
-    // Generate file number (NS001, NS002, etc.)
-    // Get the highest existing file number
-    const lastPatient = await this.db.patient.findFirst({
-      orderBy: { file_number: 'desc' },
-      select: { file_number: true },
-    });
-
-    let fileNumber = 'NS001';
-    if (lastPatient?.file_number) {
-      const lastNumber = parseInt(lastPatient.file_number.replace('NS', ''));
-      fileNumber = `NS${String(lastNumber + 1).padStart(3, '0')}`;
-    }
+    // Generate file number using the standard sequence generator
+    const patientRepo = new PrismaPatientRepository(this.db);
+    const fileNumber = await patientRepo.generateNextFileNumber();
 
     // Use transaction to ensure atomicity
     return await this.db.$transaction(async (tx) => {

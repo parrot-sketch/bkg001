@@ -38,12 +38,15 @@ import {
   CheckCircle2,
   Plus,
 } from 'lucide-react';
+import { useBookAppointmentStore } from '@/hooks/frontdesk/useBookAppointmentStore';
+import { BookingChannel } from '@/domain/enums/BookingChannel';
 
 export default function FrontdeskDashboardPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { stats, loading } = useDashboardData();
   const { data: theaterSchedulingData, isLoading: loadingTheaterScheduling } =
     useTheaterSchedulingQueue(isAuthenticated && !!user);
+  const { openBookingDialog } = useBookAppointmentStore();
 
   if (authLoading) {
     return (
@@ -178,12 +181,14 @@ export default function FrontdeskDashboardPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-3 space-y-2">
-                <QuickActionBtn
-                  href="/frontdesk/appointments/new"
-                  icon={Plus}
-                  label="New Appointment"
-                  color="cyan"
-                />
+                <div onClick={() => openBookingDialog({ bookingChannel: BookingChannel.DASHBOARD })}>
+                  <QuickActionBtn
+                    href="#"
+                    icon={Plus}
+                    label="New Appointment"
+                    color="cyan"
+                  />
+                </div>
                 <QuickActionBtn
                   href="/frontdesk/intake/start"
                   icon={QrCode}
@@ -338,7 +343,7 @@ function QuickActionBtn({
   const s = styles[color];
 
   return (
-    <Link href={href}>
+    href === '#' ? (
       <div className={cn(
         'flex items-center gap-3 p-2.5 rounded-lg border border-transparent transition-all group cursor-pointer',
         s.hover,
@@ -352,7 +357,23 @@ function QuickActionBtn({
         <span className="text-sm font-medium text-slate-600 group-hover:text-slate-900 flex-1 min-w-0 truncate">{label}</span>
         <ArrowRight className="h-3 w-3 ml-auto text-slate-300 group-hover:text-slate-400 shrink-0 transition-colors" />
       </div>
-    </Link>
+    ) : (
+      <Link href={href}>
+        <div className={cn(
+          'flex items-center gap-3 p-2.5 rounded-lg border border-transparent transition-all group cursor-pointer',
+          s.hover,
+        )}>
+          <div className={cn('p-1.5 rounded-md relative shrink-0', s.iconBg)}>
+            <Icon className={cn('h-3.5 w-3.5', s.iconColor)} />
+            {pulse && (
+              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+            )}
+          </div>
+          <span className="text-sm font-medium text-slate-600 group-hover:text-slate-900 flex-1 min-w-0 truncate">{label}</span>
+          <ArrowRight className="h-3 w-3 ml-auto text-slate-300 group-hover:text-slate-400 shrink-0 transition-colors" />
+        </div>
+      </Link>
+    )
   );
 }
 
