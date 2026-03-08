@@ -1,11 +1,15 @@
 import { create } from 'zustand';
 import { AppointmentSource } from '@/domain/enums/AppointmentSource';
 import { BookingChannel } from '@/domain/enums/BookingChannel';
+import { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
+import { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';
 
 interface BookAppointmentState {
   isOpen: boolean;
   initialPatientId?: string;
+  initialPatient?: PatientResponseDto;
   initialDoctorId?: string;
+  initialDoctor?: DoctorResponseDto;
   initialDate?: string;
   initialTime?: string;
   source?: AppointmentSource | string;
@@ -23,7 +27,9 @@ export const useBookAppointmentStore = create<BookAppointmentState>((set) => ({
   openBookingDialog: (params) => set({
     isOpen: true,
     initialPatientId: undefined,
+    initialPatient: undefined,
     initialDoctorId: undefined,
+    initialDoctor: undefined,
     initialDate: undefined,
     initialTime: undefined,
     source: undefined,

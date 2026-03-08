@@ -78,16 +78,16 @@ model RefreshToken {
 }
 
 model Patient {
-  id                       String                 @id @default(uuid())
-  file_number              String                 @unique
-  user_id                  String?                @unique
+  id                       String                    @id @default(uuid())
+  file_number              String                    @unique
+  user_id                  String?                   @unique
   first_name               String
   last_name                String
   date_of_birth            DateTime
-  gender                   Gender                 @default(FEMALE)
+  gender                   Gender                    @default(FEMALE)
   phone                    String
   whatsapp_phone           String?
-  email                    String                 @unique
+  email                    String                    @unique
   marital_status           String?
   occupation               String?
   address                  String
@@ -100,35 +100,35 @@ model Patient {
   medical_history          String?
   insurance_provider       String?
   insurance_number         String?
-  privacy_consent          Boolean                @default(false)
-  service_consent          Boolean                @default(false)
-  medical_consent          Boolean                @default(false)
+  privacy_consent          Boolean                   @default(false)
+  service_consent          Boolean                   @default(false)
+  medical_consent          Boolean                   @default(false)
   img                      String?
   colorCode                String?
-  approved                 Boolean                @default(false)
+  approved                 Boolean                   @default(false)
   approved_by              String?
   approved_at              DateTime?
   assigned_to_user_id      String?
-  created_at               DateTime               @default(now())
-  updated_at               DateTime               @updatedAt
+  created_at               DateTime                  @default(now())
+  updated_at               DateTime                  @updatedAt
   appointments             Appointment[]
   care_notes               CareNote[]
   case_plans               CasePlan[]
   clinical_form_responses  ClinicalFormResponse[]
   clinical_tasks           ClinicalTask[]
-  diagnoses                Diagnosis[]            @relation("PatientDiagnosis")
+  diagnoses                Diagnosis[]               @relation("PatientDiagnosis")
   doctor_consultations     DoctorConsultation[]
+  patient_assignments      DoctorPatientAssignment[] @relation("PatientAssignments")
   medical_records          MedicalRecord[]
   nurse_assignments        NurseAssignment[]
-  assigned_to              User?                  @relation("PatientAssignment", fields: [assigned_to_user_id], references: [id])
-  user                     User?                  @relation("PatientUser", fields: [user_id], references: [id])
+  assigned_to              User?                     @relation("PatientAssignment", fields: [assigned_to_user_id], references: [id])
+  user                     User?                     @relation("PatientUser", fields: [user_id], references: [id])
   patient_images           PatientImage[]
   payments                 Payment[]
   ratings                  Rating[]
   surgical_cases           SurgicalCase[]
   surgical_outcomes        SurgicalOutcome[]
   vital_signs              VitalSign[]
-  patient_assignments      DoctorPatientAssignment[] @relation("PatientAssignments")
 
   @@index([email])
   @@index([user_id])
@@ -143,57 +143,57 @@ model Patient {
 }
 
 model Doctor {
-  id                        String                 @id @default(uuid())
-  user_id                   String                 @unique
-  email                     String                 @unique
-  first_name                String
-  last_name                 String
-  title                     String?
-  name                      String
-  specialization            String
-  license_number            String                 @unique
-  phone                     String
-  address                   String
-  clinic_location           String?
-  department                String?
-  img                       String?
-  profile_image             String?
-  colorCode                 String?
-  availability_status       String?                @default("AVAILABLE")
-  type                      JOBTYPE                @default(FULL)
-  bio                       String?
-  education                 String?
-  focus_areas               String?
-  professional_affiliations String?
-  onboarding_status         DoctorOnboardingStatus @default(INVITED)
-  invited_at                DateTime?
-  invited_by                String?
-  activated_at              DateTime?
-  profile_completed_at      DateTime?
-  created_at                DateTime               @default(now())
-  updated_at                DateTime               @updatedAt
-  consultation_fee          Float?                 @default(0.0)
-  languages                 String?
-  years_of_experience       Int?                   @default(0)
-  slug                      String?                @unique
-  appointments              Appointment[]
-  availability_overrides    AvailabilityOverride[]
-  availability_templates    AvailabilityTemplate[]
-  case_plans                CasePlan[]
-  consultations             Consultation[]
-  consultation_messages     ConsultationMessage[]  @relation("ConsultationMessageSender")
-  diagnoses                 Diagnosis[]            @relation("DiagnosisDoctor")
-  user                      User                   @relation("DoctorUser", fields: [user_id], references: [id], onDelete: Cascade)
-  consulting_consultations  DoctorConsultation[]   @relation("ConsultingDoctor")
-  requesting_consultations  DoctorConsultation[]   @relation("RequestingDoctor")
-  medical_records           MedicalRecord[]        @relation("MedicalRecordDoctor")
-  ratings                   Rating[]
-  schedule_blocks           ScheduleBlock[]
-  slot_configuration        SlotConfiguration?
-  primary_surgical_cases      SurgicalCase[]
-  surgical_outcomes           SurgicalOutcome[]
-  doctor_patient_assignments  DoctorPatientAssignment[] @relation("DoctorAssignments")
-  transferred_assignments     DoctorPatientAssignment[] @relation("TransferredAssignments")
+  id                         String                    @id @default(uuid())
+  user_id                    String                    @unique
+  email                      String                    @unique
+  first_name                 String
+  last_name                  String
+  title                      String?
+  name                       String
+  specialization             String
+  license_number             String                    @unique
+  phone                      String
+  address                    String
+  clinic_location            String?
+  department                 String?
+  img                        String?
+  profile_image              String?
+  colorCode                  String?
+  availability_status        String?                   @default("AVAILABLE")
+  type                       JOBTYPE                   @default(FULL)
+  bio                        String?
+  education                  String?
+  focus_areas                String?
+  professional_affiliations  String?
+  onboarding_status          DoctorOnboardingStatus    @default(INVITED)
+  invited_at                 DateTime?
+  invited_by                 String?
+  activated_at               DateTime?
+  profile_completed_at       DateTime?
+  created_at                 DateTime                  @default(now())
+  updated_at                 DateTime                  @updatedAt
+  consultation_fee           Float?                    @default(0.0)
+  languages                  String?
+  years_of_experience        Int?                      @default(0)
+  slug                       String?                   @unique
+  appointments               Appointment[]
+  availability_overrides     AvailabilityOverride[]
+  availability_templates     AvailabilityTemplate[]
+  case_plans                 CasePlan[]
+  consultations              Consultation[]
+  consultation_messages      ConsultationMessage[]     @relation("ConsultationMessageSender")
+  diagnoses                  Diagnosis[]               @relation("DiagnosisDoctor")
+  user                       User                      @relation("DoctorUser", fields: [user_id], references: [id], onDelete: Cascade)
+  consulting_consultations   DoctorConsultation[]      @relation("ConsultingDoctor")
+  requesting_consultations   DoctorConsultation[]      @relation("RequestingDoctor")
+  doctor_patient_assignments DoctorPatientAssignment[] @relation("DoctorAssignments")
+  transferred_assignments    DoctorPatientAssignment[] @relation("TransferredAssignments")
+  medical_records            MedicalRecord[]           @relation("MedicalRecordDoctor")
+  ratings                    Rating[]
+  schedule_blocks            ScheduleBlock[]
+  slot_configuration         SlotConfiguration?
+  primary_surgical_cases     SurgicalCase[]
+  surgical_outcomes          SurgicalOutcome[]
 
   @@index([email])
   @@index([user_id])
@@ -307,7 +307,6 @@ model Appointment {
   id                            Int                        @id @default(autoincrement())
   patient_id                    String
   doctor_id                     String
-  // ── Legacy date fields (kept for backwards compat, use scheduled_at for new code) ──
   appointment_date              DateTime
   time                          String
   status                        AppointmentStatus          @default(PENDING)
@@ -318,13 +317,7 @@ model Appointment {
   checked_in_by                 String?
   late_arrival                  Boolean                    @default(false)
   late_by_minutes               Int?
-  // ── Canonical schedule timestamps (Phase 1 migration) ──
-  scheduled_at                  DateTime?                  // backfilled from appointment_date+time
-  scheduled_end_at              DateTime?                  // NEW: scheduled_at + duration_minutes
-  // ── Duration (consolidated) ──
-  duration_minutes              Int                        @default(30) // was Int?, now non-nullable
-  slot_duration                 Int?                       @default(30) // @deprecated — read duration_minutes
-  // ── Status tracking ──
+  scheduled_at                  DateTime?
   status_changed_at             DateTime                   @default(now())
   status_changed_by             String?
   doctor_confirmed_at           DateTime?
@@ -341,6 +334,8 @@ model Appointment {
   reviewed_at                   DateTime?
   review_notes                  String?
   slot_start_time               String?
+  slot_duration                 Int?                       @default(30)
+  duration_minutes              Int?
   created_at                    DateTime                   @default(now())
   updated_at                    DateTime                   @updatedAt
   locked_at                     DateTime?
@@ -355,6 +350,7 @@ model Appointment {
   source                        AppointmentSource          @default(PATIENT_REQUESTED)
   created_by_user_id            String?
   booking_channel               BookingChannel?
+  scheduled_end_at              DateTime?
   created_by_user               User?                      @relation("AppointmentCreator", fields: [created_by_user_id], references: [id])
   doctor                        Doctor                     @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
   parent_appointment            Appointment?               @relation("FollowUpChain", fields: [parent_appointment_id], references: [id])
@@ -385,18 +381,15 @@ model Appointment {
   @@index([reviewed_by])
   @@index([created_at])
   @@index([updated_at])
-  // Primary scheduling indexes (use scheduled_at going forward)
   @@index([doctor_id, scheduled_at])
-  @@index([doctor_id, scheduled_at, scheduled_end_at])
-  @@index([scheduled_end_at])
   @@index([doctor_id, status, scheduled_at])
   @@index([patient_id, scheduled_at])
   @@index([patient_id, status, scheduled_at])
   @@index([status, created_at])
   @@index([status_changed_at])
   @@index([status_changed_by])
+  @@index([doctor_id, appointment_date, time])
 }
-
 
 model Consultation {
   id                     Int           @id @default(autoincrement())
@@ -413,13 +406,13 @@ model Consultation {
   follow_up_date         DateTime?
   follow_up_type         String?
   follow_up_notes        String?
-  last_activity_at       DateTime      @default(now())
   created_at             DateTime      @default(now())
   updated_at             DateTime      @updatedAt
   assessment             String?
   chief_complaint        String?
   examination            String?
   plan                   String?
+  last_activity_at       DateTime      @default(now())
   follow_up_appointments Appointment[] @relation("ConsultationFollowUp")
   appointment            Appointment   @relation("AppointmentConsultation", fields: [appointment_id], references: [id], onDelete: Cascade)
   doctor                 Doctor        @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
@@ -1694,6 +1687,34 @@ model SurgicalMedicationRecord {
   @@index([status])
 }
 
+model DoctorPatientAssignment {
+  id                       String                        @id @default(uuid())
+  doctor_id                String
+  patient_id               String
+  status                   DoctorPatientAssignmentStatus @default(ACTIVE)
+  assigned_at              DateTime                      @default(now())
+  discharged_at            DateTime?
+  transferred_at           DateTime?
+  transferred_to_doctor_id String?
+  transfer_reason          String?
+  care_notes               String?
+  discharge_summary        String?
+  created_at               DateTime                      @default(now())
+  updated_at               DateTime                      @updatedAt
+  doctor                   Doctor                        @relation("DoctorAssignments", fields: [doctor_id], references: [id], onDelete: Cascade)
+  patient                  Patient                       @relation("PatientAssignments", fields: [patient_id], references: [id], onDelete: Cascade)
+  transferred_to           Doctor?                       @relation("TransferredAssignments", fields: [transferred_to_doctor_id], references: [id])
+
+  @@unique([doctor_id, patient_id])
+  @@index([doctor_id])
+  @@index([patient_id])
+  @@index([status])
+  @@index([assigned_at])
+  @@index([doctor_id, status])
+  @@index([patient_id, status])
+  @@index([transferred_to_doctor_id])
+}
+
 enum ConsentDocumentType {
   SIGNED_PDF
   GENERATED_PDF
@@ -1979,9 +2000,9 @@ enum TemplateFormat {
 
 enum TemplateStatus {
   DRAFT
-  PENDING_APPROVAL
   ACTIVE
   ARCHIVED
+  PENDING_APPROVAL
 }
 
 enum AuditAction {
@@ -2070,39 +2091,6 @@ enum StockAdjustmentReason {
   COUNT_CORRECTION
   RETURN_TO_VENDOR
   OTHER
-}
-
-model DoctorPatientAssignment {
-  id                    String                            @id @default(uuid())
-  doctor_id             String                            // Who is providing care
-  patient_id            String                            // Who is receiving care
-  status                DoctorPatientAssignmentStatus     @default(ACTIVE)
-  
-  assigned_at           DateTime                          @default(now())
-  discharged_at         DateTime?                         // When care ended
-  transferred_at        DateTime?                         // When transferred away
-  
-  transferred_to_doctor_id String?                        // Who received the patient
-  transfer_reason       String?                           // Why was patient transferred
-  
-  care_notes            String?                           // Clinical notes
-  discharge_summary     String?                           // Care summary at discharge
-  
-  created_at            DateTime                          @default(now())
-  updated_at            DateTime                          @updatedAt
-  
-  doctor                Doctor                            @relation("DoctorAssignments", fields: [doctor_id], references: [id], onDelete: Cascade)
-  patient               Patient                           @relation("PatientAssignments", fields: [patient_id], references: [id], onDelete: Cascade)
-  transferred_to        Doctor?                           @relation("TransferredAssignments", fields: [transferred_to_doctor_id], references: [id], onDelete: SetNull)
-
-  @@unique([doctor_id, patient_id])
-  @@index([doctor_id])
-  @@index([patient_id])
-  @@index([status])
-  @@index([assigned_at])
-  @@index([doctor_id, status])
-  @@index([patient_id, status])
-  @@index([transferred_to_doctor_id])
 }
 
 enum DoctorPatientAssignmentStatus {

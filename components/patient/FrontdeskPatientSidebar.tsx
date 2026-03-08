@@ -13,7 +13,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { useBookAppointmentStore } from "@/hooks/frontdesk/useBookAppointmentStore";
 import { BookingChannel } from "@/domain/enums/BookingChannel";
 
 interface FrontdeskPatientSidebarProps {
@@ -65,7 +64,6 @@ export function FrontdeskPatientSidebar({
     const router = useRouter();
     const searchParams = useSearchParams();
     const currentTab = searchParams.get("cat") || "overview";
-    const { openBookingDialog } = useBookAppointmentStore();
 
     const handleTabClick = (tabKey: string) => {
         // Use replace to avoid adding to history stack for smoother UX
@@ -165,7 +163,7 @@ export function FrontdeskPatientSidebar({
 
                     {/* External Action (Schedule Appointment) */}
                     <button
-                        onClick={() => openBookingDialog({ initialPatientId: patientId, bookingChannel: BookingChannel.PATIENT_PROFILE })}
+                        onClick={() => router.push(`/frontdesk/booking?patientId=${patientId}`)}
                         className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary/30 hover:bg-muted/40 transition-all group text-left"
                     >
                         <div className={`p-2 rounded-md flex-shrink-0 ${EXTERNAL_ACTION.iconClass}`}>

@@ -10,9 +10,7 @@
  * 
  * No noise. No rejected inquiries. No drafts. No pending items.
  * 
- * REFACTORED: Replaced manual useState/useEffect fetch with React Query hooks
- * REASON: Eliminates manual loading state, error handling, and fetch logic.
- * Provides automatic caching, retries, and background refetching.
+ * REFACTORED: Extracted core UI into standalone components for better maintainability.
  */
 
 import { useAuth } from '@/hooks/patient/useAuth';
@@ -21,25 +19,17 @@ import { useConfirmAppointment, useRescheduleAppointment } from '@/hooks/doctor/
 import { doctorApi } from '@/lib/api/doctor';
 import { PendingConfirmationsSection } from '@/components/doctor/PendingConfirmationsSection';
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Activity, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Calendar,
-  Clock,
-  Users,
-  FileText,
-  ArrowRight,
-  Activity,
-  User
-} from 'lucide-react';
 import Link from 'next/link';
-import { format } from 'date-fns';
-import { DoctorAppointmentCard } from '@/components/doctor/DoctorAppointmentCard';
-import { WaitingQueue } from '@/components/doctor/WaitingQueue';
 import { TheatreScheduleView } from '@/components/doctor/TheatreScheduleView';
-import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { useRouter } from 'next/navigation';
-import { cn } from '@/lib/utils';
+
+// Refactored Components
+import { DashboardHeader } from './components/DashboardHeader';
+import { OnboardingWidget } from './components/OnboardingWidget';
+import { TodayPatientFlow } from './components/TodayPatientFlow';
+import { UpcomingSchedule } from './components/UpcomingSchedule';
 
 export default function DoctorDashboardPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -47,10 +37,8 @@ export default function DoctorDashboardPage() {
   const [loadingTheatre, setLoadingTheatre] = useState(false);
   const router = useRouter();
   const { mutateAsync: confirmAppointment } = useConfirmAppointment();
-
   const { mutateAsync: rescheduleAppointment } = useRescheduleAppointment();
 
-  // REFACTORED: Hook integration for real-time schedule
   const {
     data: todayAppointments = [],
     isLoading: loadingToday
@@ -61,7 +49,6 @@ export default function DoctorDashboardPage() {
     isLoading: loadingUpcoming
   } = useDoctorUpcomingAppointments(user?.id, isAuthenticated && !!user);
 
-  // Pending confirmations - appointments booked by frontdesk awaiting doctor approval
   const {
     data: pendingConfirmations = [],
     isLoading: loadingPendingConfirmations
@@ -69,7 +56,7 @@ export default function DoctorDashboardPage() {
 
   const loading = loadingToday || loadingUpcoming;
 
-  // Load theater schedule with CasePlan data
+  // Load theater schedule
   useEffect(() => {
     if (isAuthenticated && user) {
       loadTheatreSchedule();
@@ -78,7 +65,6 @@ export default function DoctorDashboardPage() {
 
   const loadTheatreSchedule = async () => {
     if (!user) return;
-
     try {
       setLoadingTheatre(true);
       const startDate = new Date();
@@ -87,7 +73,6 @@ export default function DoctorDashboardPage() {
       endDate.setDate(endDate.getDate() + 7);
       const response = await doctorApi.getTheatreSchedule(startDate, endDate);
       if (response.success && response.data) {
-        // ... existing filtering logic ...
         const now = new Date();
         const currentHours = now.getHours();
         const currentMinutes = now.getMinutes();
@@ -95,13 +80,11 @@ export default function DoctorDashboardPage() {
         const relevantCases = response.data.filter((theatreCase: any) => {
           const apt = theatreCase.appointment;
           if (!apt?.time) return true;
-
           try {
             const [aptHours, aptMinutes] = apt.time.split(':').map(Number);
             if (!isNaN(aptHours) && !isNaN(aptMinutes)) {
               const aptTotalMinutes = aptHours * 60 + aptMinutes;
               const nowTotalMinutes = currentHours * 60 + currentMinutes;
-              // 60-minute grace period
               return (aptTotalMinutes + 60) > nowTotalMinutes;
             }
           } catch (e) {
@@ -109,7 +92,6 @@ export default function DoctorDashboardPage() {
           }
           return true;
         });
-
         setTheatreCases(relevantCases);
       }
     } catch (error) {
@@ -119,7 +101,6 @@ export default function DoctorDashboardPage() {
     }
   };
 
-  // --- Onboarding / Setup Check ---
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
 
@@ -127,14 +108,9 @@ export default function DoctorDashboardPage() {
     async function checkSetup() {
       if (!user) return;
       try {
-        // Check if schedule is set
         const availResponse = await doctorApi.getMyAvailability();
         const hasWorkingDays = availResponse.success &&
           availResponse.data?.workingDays?.some((d: any) => d.isAvailable);
-
-        // Check if profile is "complete" (e.g. has bio or specialization)
-        // We can infer this from user object or fetch profile.
-        // For now, let's rely on availability as the primary "Action" needed.
         if (!hasWorkingDays) {
           setShowOnboarding(true);
         }
@@ -150,39 +126,22 @@ export default function DoctorDashboardPage() {
   }, [isAuthenticated, user]);
 
   const handleStartConsultation = (appointment: any) => {
-    // Navigate to the consultation session page — the session page
-    // owns the "start consultation" workflow (shows dialog, calls API).
-    // This avoids double-start race conditions.
     router.push(`/doctor/consultations/${appointment.id}/session`);
   };
 
   const handleConfirmAppointment = async (appointmentId: number, notes?: string) => {
-    await confirmAppointment({
-      appointmentId,
-      action: 'confirm',
-      notes
-    });
+    await confirmAppointment({ appointmentId, action: 'confirm', notes });
   };
 
   const handleRejectAppointment = async (appointmentId: number, reason: string) => {
-    await confirmAppointment({
-      appointmentId,
-      action: 'reject',
-      rejectionReason: reason
-    });
+    await confirmAppointment({ appointmentId, action: 'reject', rejectionReason: reason });
   };
 
   const handleRescheduleAppointment = async (appointmentId: number, newDate: Date | string, newTime: string, reason?: string) => {
-    await rescheduleAppointment({
-      appointmentId,
-      newDate,
-      newTime,
-      reason
-    });
+    await rescheduleAppointment({ appointmentId, newDate, newTime, reason });
   };
 
   if (isLoading) {
-    // ... existing loading ... (omitted for brevity in replacement if matching exact block)
     return (
       <div className="flex items-center justify-center h-[80vh]">
         <div className="text-center">
@@ -217,85 +176,19 @@ export default function DoctorDashboardPage() {
     );
   }
 
-  const upcomingCount = upcomingAppointments.length;
-  const todayCount = todayAppointments.length;
-  const checkedInCount = todayAppointments.filter(a => a.status === 'CHECKED_IN' || a.status === 'READY_FOR_CONSULTATION').length;
-
   return (
     <div className="animate-in fade-in duration-500">
-      {/* Sticky Header - Profile-Centric Design */}
-      <header className="sticky top-0 z-40 -mx-4 sm:-mx-5 lg:-mx-8 xl:-mx-10 px-4 sm:px-5 lg:px-8 xl:px-10 py-3 mb-5 bg-white/80 backdrop-blur-md border-b border-slate-100/60">
-        <div className="flex items-center justify-between">
-          {/* Profile Section */}
-          <div className="flex items-center gap-3">
-            {/* Doctor Avatar */}
-            <div className="relative">
-              <div className="h-11 w-11 rounded-full ring-2 ring-white shadow-sm overflow-hidden">
-                <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-teal-600 to-teal-700 text-white text-sm font-semibold">
-                  {user?.firstName?.[0]}{user?.lastName?.[0]}
-                </div>
-              </div>
-              {/* Online indicator */}
-              <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-white" />
-            </div>
-
-            {/* Name & Context */}
-            <div className="flex flex-col">
-              <h1 className="text-base font-semibold text-slate-900 leading-tight">
-                Dr. {user?.firstName} {user?.lastName}
-              </h1>
-              <p className="text-[11px] text-slate-500 font-medium">
-                {format(new Date(), 'EEEE, MMMM d')}
-              </p>
-            </div>
-          </div>
-
-          {/* Right Actions */}
-          <div className="flex items-center gap-2">
-            <NotificationBell />
-
-            {/* Quick Profile Link */}
-            <Link href="/doctor/profile">
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full hover:bg-slate-100">
-                <User className="h-4 w-4 text-slate-500" />
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader user={user} />
 
       <div className="space-y-6">
+        <OnboardingWidget 
+          user={user} 
+          show={showOnboarding} 
+          isLoading={checkingOnboarding} 
+        />
 
-        {/* Onboarding Widget */}
-        {showOnboarding && !checkingOnboarding && (
-          <div className="bg-gradient-to-r from-indigo-600 to-indigo-800 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-8 opacity-10">
-              <Activity className="h-32 w-32" />
-            </div>
-            <div className="relative z-10">
-              <h2 className="text-2xl font-bold mb-2">Welcome, Dr. {user?.firstName || 'Doctor'}!</h2>
-              <p className="text-indigo-100 mb-6 max-w-xl">
-                Your account is active. To start receiving appointments, please configure your weekly availability and complete your professional profile.
-              </p>
-              <div className="flex gap-4">
-                <Button asChild variant="secondary" className="font-semibold">
-                  <Link href="/doctor/profile">
-                    Complete Setup
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Main Content Layout: Balanced Clinical View */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
-
-          {/* Left Column: Active Patient Flow (8 cols) */}
           <div className="xl:col-span-8 space-y-8">
-
-            {/* Pending Confirmations - Action items for doctor */}
             <PendingConfirmationsSection
               appointments={pendingConfirmations}
               onConfirm={handleConfirmAppointment}
@@ -304,91 +197,20 @@ export default function DoctorDashboardPage() {
               isLoading={loadingPendingConfirmations}
             />
 
-            {/* Waiting Queue - Checked-in patients ready for consultation */}
-            {todayAppointments.some(a => a.status === 'CHECKED_IN' || a.status === 'READY_FOR_CONSULTATION') && (
-              <WaitingQueue
-                appointments={todayAppointments.filter(a => a.status === 'CHECKED_IN' || a.status === 'READY_FOR_CONSULTATION')}
-                onStartConsultation={(apt) => handleStartConsultation(apt)}
-              />
-            )}
+            <TodayPatientFlow
+              appointments={todayAppointments}
+              isLoading={loading}
+              onStartConsultation={handleStartConsultation}
+            />
 
-            <section className="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-slate-700" />
-                  <h2 className="text-sm font-semibold text-slate-800">Today's Patient Flow</h2>
-                </div>
-                <Link href="/doctor/appointments">
-                  <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-500 hover:text-slate-900 font-medium gap-1">
-                    Full Calendar
-                    <ArrowRight className="h-3 w-3" />
-                  </Button>
-                </Link>
-              </div>
-              <div className="p-4">
-                {loading ? (
-                  <ScheduleSkeleton />
-                ) : todayAppointments.length === 0 ? (
-                  <div className="text-center py-10 bg-slate-50/30 rounded-lg border border-dashed border-slate-200">
-                    <Calendar className="h-8 w-8 text-slate-300 mx-auto mb-3" />
-                    <h3 className="text-sm font-semibold text-slate-800">Workspace Clear</h3>
-                    <p className="text-xs text-slate-500">No sessions scheduled for today yet.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {todayAppointments
-                      // Filter out already checked-in patients from main list to avoid duplication if desired, 
-                      // OR keep them. Let's keep them but sorted: In Consultation -> Scheduled. 
-                      // Waiting ones are already shown above.
-                      .filter(a => a.status !== 'CHECKED_IN' && a.status !== 'READY_FOR_CONSULTATION')
-                      .map((appointment) => (
-                        <DoctorAppointmentCard
-                          key={appointment.id}
-                          appointment={appointment}
-                          onStartConsultation={handleStartConsultation}
-                          onEndConsultation={(apt: any) => {
-                            // TODO: Open End Consultation Logic/Dialog
-                            // For Phase 1, we can redirect or just log
-                            console.log('End session', apt);
-                          }}
-                        />
-                      ))}
-
-                    {todayAppointments.filter(a => a.status !== 'CHECKED_IN' && a.status !== 'READY_FOR_CONSULTATION').length === 0 && (
-                      <p className="text-center text-slate-500 py-4">
-                        All active patients are in the waiting queue.
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </section>
-
-            <section className="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2 bg-slate-50/30">
-                <Clock className="h-4 w-4 text-slate-700" />
-                <h2 className="text-sm font-semibold text-slate-800">Upcoming Schedule</h2>
-              </div>
-              <div className="p-4">
-                {loading ? (
-                  <ScheduleSkeleton count={2} />
-                ) : upcomingAppointments.length === 0 ? (
-                  <p className="text-center py-6 text-xs text-slate-400 font-medium">No sessions scheduled for the next 48 hours.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {upcomingAppointments.slice(0, 3).map((appointment) => (
-                      <DoctorAppointmentCard key={appointment.id} appointment={appointment} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </section>
+            <UpcomingSchedule
+              appointments={upcomingAppointments}
+              isLoading={loading}
+            />
           </div>
 
-          {/* Right Column: Theatre Monitoring & Stats (4 cols) */}
           <div className="xl:col-span-4 space-y-5">
             <section className="sticky top-6 space-y-5">
-              {/* Theatre Schedule - Specialized View */}
               <TheatreScheduleView
                 cases={theatreCases}
                 loading={loadingTheatre}
@@ -397,18 +219,6 @@ export default function DoctorDashboardPage() {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-/* Sub-components for a cleaner layout */
-
-function ScheduleSkeleton({ count = 3 }: { count?: number }) {
-  return (
-    <div className="space-y-4">
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="h-24 w-full bg-slate-50 animate-pulse rounded-xl border border-slate-100" />
-      ))}
     </div>
   );
 }

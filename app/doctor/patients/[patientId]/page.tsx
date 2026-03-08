@@ -3,14 +3,8 @@
 /**
  * Doctor Patient Profile Page
  * 
- * Comprehensive patient profile view for doctors with quick actions:
- * - Start consultation
- * - View/manage case plans
- * - Manage consent
- * - View medical history
- * - View appointments
- * 
- * Optimized for aesthetic surgery center workflow.
+ * Comprehensive patient profile view for doctors with quick actions.
+ * Modularized for better maintainability.
  */
 
 import { useEffect, useState } from 'react';
@@ -18,41 +12,31 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { doctorApi } from '@/lib/api/doctor';
 import { apiClient } from '@/lib/api/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
-  ArrowLeft, 
-  User, 
   Calendar, 
-  Phone, 
-  Mail, 
-  MapPin, 
-  FileText, 
-  Activity,
-  Stethoscope,
-  ClipboardCheck,
-  AlertCircle,
-  CheckCircle2,
-  Clock,
-  Heart,
-  Pill,
-  Shield,
-  Eye,
-  Edit,
+  Eye, 
   Play
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { calculateAge } from '@/lib/utils';
 import { toast } from 'sonner';
 import Link from 'next/link';
-import { ProfileImage } from '@/components/profile-image';
+
+// Components
 import { StartConsultationDialog } from '@/components/doctor/StartConsultationDialog';
+import { PatientProfileHeader } from './components/PatientProfileHeader';
+import { PatientInfoSidebar } from './components/PatientInfoSidebar';
+import { AppointmentsTab } from './components/AppointmentsTab';
+import { MedicalHistoryTab } from './components/MedicalHistoryTab';
+import { CasesProceduresTab } from './components/CasesProceduresTab';
+import { ClinicalNotesTab } from './components/ClinicalNotesTab';
+
+// DTOs & Enums
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
-import { CaseReadinessStatus, getCaseReadinessStatusLabel } from '@/domain/enums/CaseReadinessStatus';
 
 export default function DoctorPatientProfilePage() {
   const params = useParams();
@@ -74,10 +58,7 @@ export default function DoctorPatientProfilePage() {
   const [selectedAppointment, setSelectedAppointment] = useState<AppointmentResponseDto | null>(null);
 
   useEffect(() => {
-    // Wait for auth to finish loading before checking
-    if (authLoading) {
-      return;
-    }
+    if (authLoading) return;
 
     if (!isAuthenticated || !user) {
       router.push('/login');
@@ -146,7 +127,6 @@ export default function DoctorPatientProfilePage() {
     toast.success('Consultation started successfully');
     setStartConsultationOpen(false);
     setSelectedAppointment(null);
-    // Navigate to consultation session
     router.push(`/doctor/consultations/${appointmentId}/session`);
   };
 
@@ -169,7 +149,6 @@ export default function DoctorPatientProfilePage() {
   };
 
   const hasActiveConsultation = (appointmentId: number): boolean => {
-    // If we're coming from a consultation session, this appointment has an active consultation
     return fromConsultation && consultationAppointmentId === appointmentId.toString();
   };
 
@@ -185,11 +164,9 @@ export default function DoctorPatientProfilePage() {
       })
       .sort((a, b) => 
         new Date(a.appointmentDate).getTime() - new Date(b.appointmentDate).getTime()
-      )
-      .slice(0, 5);
+      );
   };
 
-  // Show loading while auth is checking or data is loading
   if (authLoading || loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -203,7 +180,6 @@ export default function DoctorPatientProfilePage() {
     );
   }
 
-  // If not authenticated after loading, show message (redirect will happen in useEffect)
   if (!isAuthenticated || !user) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -227,41 +203,16 @@ export default function DoctorPatientProfilePage() {
     );
   }
 
-  const patientName = `${patient.firstName} ${patient.lastName}`;
   const nextAppointment = getNextAppointment();
-  const upcomingAppointments = getUpcomingAppointments();
+  const upcomingAppointmentsCount = getUpcomingAppointments().length;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            {fromConsultation && consultationAppointmentId ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.push(`/doctor/consultations/${consultationAppointmentId}/session`)}
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Consultation
-              </Button>
-            ) : null}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push('/doctor/patients')}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Patients
-            </Button>
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Patient Profile</h1>
-            <p className="text-muted-foreground mt-1">View and manage patient information</p>
-          </div>
-        </div>
-      </div>
+      <PatientProfileHeader
+        fromConsultation={fromConsultation}
+        consultationAppointmentId={consultationAppointmentId}
+        onBackToPatients={() => router.push('/doctor/patients')}
+      />
 
       {/* Quick Actions Bar */}
       {nextAppointment && (
@@ -312,123 +263,11 @@ export default function DoctorPatientProfilePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Patient Info */}
-        <div className="lg:col-span-1 space-y-6">
-          {/* Patient Card */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-4">
-                <ProfileImage
-                  name={patientName}
-                  bgColor="#10b981"
-                  textClassName="text-white font-semibold"
-                />
-                <div className="flex-1">
-                  <CardTitle className="text-xl">{patientName}</CardTitle>
-                  <CardDescription className="mt-1">
-                    {patient.fileNumber} • {calculateAge(patient.dateOfBirth)} years • {patient.gender}
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Contact Info */}
-              <div className="space-y-3">
-                {patient.phone && (
-                  <div className="flex items-center gap-3 text-sm">
-                    <Phone className="h-4 w-4 text-muted-foreground" />
-                    <a href={`tel:${patient.phone}`} className="text-foreground hover:text-primary">
-                      {patient.phone}
-                    </a>
-                  </div>
-                )}
-                {patient.email && (
-                  <div className="flex items-center gap-3 text-sm">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <a href={`mailto:${patient.email}`} className="text-foreground hover:text-primary truncate">
-                      {patient.email}
-                    </a>
-                  </div>
-                )}
-                {patient.address && (
-                  <div className="flex items-center gap-3 text-sm">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-foreground">{patient.address}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Medical Info */}
-              <div className="pt-4 border-t space-y-3">
-                {patient.bloodGroup && (
-                  <div className="flex items-center gap-3 text-sm">
-                    <Heart className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-foreground">Blood Group: <strong>{patient.bloodGroup}</strong></span>
-                  </div>
-                )}
-                {patient.allergies && (
-                  <div className="flex items-center gap-3 text-sm">
-                    <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-foreground">Allergies: <strong>{patient.allergies}</strong></span>
-                  </div>
-                )}
-                {!patient.allergies && (
-                  <div className="flex items-center gap-3 text-sm">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <span className="text-foreground">No known allergies</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Consent Status */}
-              <div className="pt-4 border-t space-y-2">
-                <p className="text-sm font-semibold text-foreground mb-2">Consent Status</p>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Privacy</span>
-                    <Badge variant={patient.hasPrivacyConsent ? "default" : "destructive"}>
-                      {patient.hasPrivacyConsent ? 'Granted' : 'Pending'}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Medical</span>
-                    <Badge variant={patient.hasMedicalConsent ? "default" : "destructive"}>
-                      {patient.hasMedicalConsent ? 'Granted' : 'Pending'}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Service</span>
-                    <Badge variant={patient.hasServiceConsent ? "default" : "destructive"}>
-                      {patient.hasServiceConsent ? 'Granted' : 'Pending'}
-                    </Badge>
-                  </div>
-                </div>
-                <Button variant="outline" size="sm" className="w-full mt-3">
-                  <Shield className="h-4 w-4 mr-2" />
-                  Manage Consent
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Quick Stats */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Quick Stats</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Total Appointments</span>
-                <Badge variant="outline">{appointments.length}</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Upcoming</span>
-                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                  {upcomingAppointments.length}
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <PatientInfoSidebar
+          patient={patient}
+          appointmentCount={appointments.length}
+          upcomingCount={upcomingAppointmentsCount}
+        />
 
         {/* Right Column - Details */}
         <div className="lg:col-span-2 space-y-6">
@@ -441,242 +280,28 @@ export default function DoctorPatientProfilePage() {
             </TabsList>
 
             <TabsContent value="appointments" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Appointments</CardTitle>
-                  <CardDescription>Patient's appointment history and upcoming visits</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {appointments.length === 0 ? (
-                    <div className="text-center py-8">
-                      <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-sm text-muted-foreground">No appointments found</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {appointments.map((apt) => (
-                        <div
-                          key={apt.id}
-                          className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                        >
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <Calendar className="h-4 w-4 text-muted-foreground" />
-                              <span className="font-semibold">
-                                {format(new Date(apt.appointmentDate), 'EEEE, MMMM dd, yyyy')}
-                              </span>
-                              <Clock className="h-4 w-4 text-muted-foreground ml-2" />
-                              <span className="text-sm text-muted-foreground">{apt.time}</span>
-                            </div>
-                            <p className="text-sm text-muted-foreground">{apt.type}</p>
-                            {apt.note && (
-                              <p className="text-sm text-muted-foreground mt-1 italic">{apt.note}</p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <Badge
-                              variant={
-                                apt.status === AppointmentStatus.COMPLETED
-                                  ? 'default'
-                                  : apt.status === AppointmentStatus.SCHEDULED
-                                    ? 'default'
-                                    : 'secondary'
-                              }
-                            >
-                              {apt.status}
-                            </Badge>
-                            {hasActiveConsultation(apt.id) ? (
-                              <Button
-                                size="sm"
-                                onClick={() => router.push(`/doctor/consultations/${apt.id}/session`)}
-                                className="bg-primary hover:bg-primary/90"
-                              >
-                                <Play className="h-4 w-4 mr-1" />
-                                Continue
-                              </Button>
-                            ) : apt.status === AppointmentStatus.SCHEDULED ? (
-                              <Button
-                                size="sm"
-                                onClick={() => handleStartConsultation(apt)}
-                              >
-                                <Play className="h-4 w-4 mr-1" />
-                                Start
-                              </Button>
-                            ) : null}
-                            <Link href={`/doctor/cases/${apt.id}`}>
-                              <Button variant="outline" size="sm">
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </Link>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <AppointmentsTab
+                appointments={appointments}
+                hasActiveConsultation={hasActiveConsultation}
+                onStartConsultation={handleStartConsultation}
+                onContinueConsultation={(id) => router.push(`/doctor/consultations/${id}/session`)}
+              />
             </TabsContent>
 
             <TabsContent value="medical" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Medical History</CardTitle>
-                  <CardDescription>Patient's medical background and conditions</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {patient.medicalHistory ? (
-                    <div>
-                      <p className="text-sm text-foreground whitespace-pre-wrap">{patient.medicalHistory}</p>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-sm text-muted-foreground">No medical history recorded</p>
-                    </div>
-                  )}
-                  {patient.medicalConditions && (
-                    <div className="pt-4 border-t">
-                      <p className="text-sm font-semibold mb-2">Medical Conditions</p>
-                      <p className="text-sm text-foreground">{patient.medicalConditions}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <MedicalHistoryTab patient={patient} />
             </TabsContent>
 
             <TabsContent value="cases" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle>Cases & Procedures</CardTitle>
-                      <CardDescription>Surgical cases and procedure plans</CardDescription>
-                    </div>
-                    <Link href={`/doctor/patients/${patientId}/case-plans`}>
-                      <Button variant="outline" size="sm">
-                        <Eye className="h-4 w-4 mr-2" />
-                        View All
-                      </Button>
-                    </Link>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {loadingCasePlans ? (
-                    <div className="text-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                      <p className="mt-4 text-sm text-muted-foreground">Loading case plans...</p>
-                    </div>
-                  ) : casePlans.length === 0 ? (
-                    <div className="text-center py-8">
-                      <Stethoscope className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-sm text-muted-foreground mb-4">No case plans found</p>
-                      <p className="text-xs text-muted-foreground mb-4">
-                        Case plans are created when a consultation results in a procedure recommendation.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {casePlans.slice(0, 5).map((casePlan) => (
-                        <div
-                          key={casePlan.id}
-                          className="rounded-lg border border-border p-4 hover:bg-muted/50 transition-colors"
-                        >
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex-1">
-                              {casePlan.appointment && (
-                                <div className="flex items-center gap-2 mb-2">
-                                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                                  <span className="font-semibold">
-                                    {format(new Date(casePlan.appointment.appointmentDate), 'MMM dd, yyyy')}
-                                  </span>
-                                  <Clock className="h-4 w-4 text-muted-foreground ml-2" />
-                                  <span className="text-sm text-muted-foreground">
-                                    {casePlan.appointment.time}
-                                  </span>
-                                </div>
-                              )}
-                              {casePlan.procedurePlan && (
-                                <p className="text-sm text-foreground line-clamp-2 mb-2">
-                                  {casePlan.procedurePlan}
-                                </p>
-                              )}
-                              {casePlan.doctor && (
-                                <p className="text-xs text-muted-foreground">
-                                  {casePlan.doctor.name} • {casePlan.doctor.specialization}
-                                </p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 ml-4">
-                              <Badge
-                                variant={
-                                  casePlan.readinessStatus === CaseReadinessStatus.READY
-                                    ? 'default'
-                                    : casePlan.readinessStatus === CaseReadinessStatus.PENDING_LABS ||
-                                        casePlan.readinessStatus === CaseReadinessStatus.PENDING_CONSENT ||
-                                        casePlan.readinessStatus === CaseReadinessStatus.PENDING_REVIEW
-                                      ? 'secondary'
-                                      : casePlan.readinessStatus === CaseReadinessStatus.ON_HOLD
-                                        ? 'destructive'
-                                        : 'outline'
-                                }
-                              >
-                                {getCaseReadinessStatusLabel(casePlan.readinessStatus)}
-                              </Badge>
-                              {casePlan.readyForSurgery && (
-                                <Badge variant="default" className="bg-green-500">
-                                  <CheckCircle2 className="h-3 w-3 mr-1" />
-                                  Ready
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center justify-between pt-3 border-t">
-                            <div className="text-xs text-muted-foreground">
-                              Updated: {format(new Date(casePlan.updatedAt), 'MMM dd, yyyy')}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Link href={`/doctor/patients/${patientId}/case-plans`}>
-                                <Button variant="outline" size="sm">
-                                  <Eye className="h-4 w-4 mr-1" />
-                                  View Details
-                                </Button>
-                              </Link>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      {casePlans.length > 5 && (
-                        <div className="text-center pt-4">
-                          <Link href={`/doctor/patients/${patientId}/case-plans`}>
-                            <Button variant="outline" size="sm">
-                              View All {casePlans.length} Case Plans
-                            </Button>
-                          </Link>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <CasesProceduresTab
+                patientId={patientId}
+                casePlans={casePlans}
+                loading={loadingCasePlans}
+              />
             </TabsContent>
 
             <TabsContent value="notes" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Clinical Notes</CardTitle>
-                  <CardDescription>Doctor's notes and observations</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8">
-                    <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-sm text-muted-foreground mb-4">No clinical notes recorded</p>
-                    <Button variant="outline" size="sm">
-                      <Edit className="h-4 w-4 mr-2" />
-                      Add Note
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <ClinicalNotesTab />
             </TabsContent>
           </Tabs>
         </div>

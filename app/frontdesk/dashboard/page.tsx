@@ -18,6 +18,7 @@ import { TodaysSchedule } from '@/components/frontdesk/TodaysSchedule';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -38,7 +39,6 @@ import {
   CheckCircle2,
   Plus,
 } from 'lucide-react';
-import { useBookAppointmentStore } from '@/hooks/frontdesk/useBookAppointmentStore';
 import { BookingChannel } from '@/domain/enums/BookingChannel';
 
 export default function FrontdeskDashboardPage() {
@@ -46,7 +46,7 @@ export default function FrontdeskDashboardPage() {
   const { stats, loading } = useDashboardData();
   const { data: theaterSchedulingData, isLoading: loadingTheaterScheduling } =
     useTheaterSchedulingQueue(isAuthenticated && !!user);
-  const { openBookingDialog } = useBookAppointmentStore();
+  const router = useRouter();
 
   if (authLoading) {
     return (
@@ -181,7 +181,7 @@ export default function FrontdeskDashboardPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-3 space-y-2">
-                <div onClick={() => openBookingDialog({ bookingChannel: BookingChannel.DASHBOARD })}>
+                <div onClick={() => router.push('/frontdesk/patients?mode=book')}>
                   <QuickActionBtn
                     href="#"
                     icon={Plus}
