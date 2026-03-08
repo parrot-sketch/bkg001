@@ -116,10 +116,10 @@ export function handleApiError(error: unknown): NextResponse<ApiResponse<never>>
     if (code === ApiErrorCode.NOT_FOUND) return NextResponse.json(fail(ApiErrorCode.NOT_FOUND, err.message), { status: 404 });
     if (code === ApiErrorCode.CONFLICT) return NextResponse.json(fail(ApiErrorCode.CONFLICT, err.message), { status: 409 });
 
-    // Default DomainException mapping (favoring 400 for safety unless specialized above)
+    // Default DomainException mapping (favoring 422 for unprocessable entity)
     return NextResponse.json(
       fail(ApiErrorCode.VALIDATION_ERROR, err.message, metadata),
-      { status: 400 }
+      { status: 422 }
     );
   }
 

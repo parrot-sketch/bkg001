@@ -158,6 +158,12 @@ export class Patient {
     }
     */
 
+    if (params.address !== undefined && params.address.trim().length === 0) {
+      throw new DomainException('Patient address cannot be empty', {
+        providedValue: params.address,
+      });
+    }
+
     if (params.address && params.address.trim().length > 500) {
       throw new DomainException('Patient address is too long', {
         providedValue: params.address,
@@ -165,8 +171,10 @@ export class Patient {
     }
 
     // Optional validations for emergency contact if provided
-    if (params.emergencyContactName && params.emergencyContactName.trim().length < 2) {
-      // but wait, if it's optional, maybe we don't even need the 2-char check if it's just a placeholder
+    if (params.emergencyContactName !== undefined && params.emergencyContactName.trim().length === 0) {
+      throw new DomainException('Patient emergency contact name cannot be empty', {
+        providedValue: params.emergencyContactName,
+      });
     }
 
     // Convert string values to value objects if needed
