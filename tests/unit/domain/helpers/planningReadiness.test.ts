@@ -31,14 +31,13 @@ describe('getMissingPlanningItems', () => {
         const result = getMissingPlanningItems(makeInput());
 
         expect(result.isComplete).toBe(false);
-        expect(result.missingRequired).toHaveLength(5);
+        expect(result.missingRequired).toHaveLength(4);
         expect(result.missingRequired).toContain('Procedure Plan');
         expect(result.missingRequired).toContain('Risk Assessment');
         expect(result.missingRequired).toContain('Anesthesia Plan');
         expect(result.missingRequired).toContain('Consent Signed');
-        expect(result.missingRequired).toContain('Pre-Op Photos');
         expect(result.completedCount).toBe(0);
-        expect(result.totalRequired).toBe(5);
+        expect(result.totalRequired).toBe(4);
     });
 
     it('returns isComplete=true when all required items are present', () => {
@@ -54,7 +53,7 @@ describe('getMissingPlanningItems', () => {
 
         expect(result.isComplete).toBe(true);
         expect(result.missingRequired).toHaveLength(0);
-        expect(result.completedCount).toBe(5);
+        expect(result.completedCount).toBe(4);
     });
 
     it('requires procedure plan to have at least 10 characters of raw text', () => {
@@ -131,7 +130,7 @@ describe('getMissingPlanningItems', () => {
         );
 
         expect(result.isComplete).toBe(false);
-        expect(result.completedCount).toBe(3); // procedure + risk + photos
+        expect(result.completedCount).toBe(2); // procedure + risk
         expect(result.missingRequired).toEqual(['Anesthesia Plan', 'Consent Signed']);
     });
 
@@ -159,6 +158,6 @@ describe('getMissingPlanningItems', () => {
             'consents',
             'photos',
         ]);
-        expect(result.items.every(i => i.required)).toBe(true);
+        expect(result.items.filter(i => i.required).length).toBe(4);
     });
 });
