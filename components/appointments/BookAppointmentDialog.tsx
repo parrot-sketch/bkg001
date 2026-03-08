@@ -16,7 +16,9 @@ export function BookAppointmentDialog() {
   const {
     isOpen,
     initialPatientId,
+    initialPatient,
     initialDoctorId,
+    initialDoctor,
     initialDate,
     initialTime,
     source,
@@ -46,7 +48,9 @@ export function BookAppointmentDialog() {
           <AppointmentBookingForm
             mode="full"
             initialPatientId={initialPatientId}
+            initialPatient={initialPatient}
             initialDoctorId={initialDoctorId}
+            initialDoctor={initialDoctor}
             initialDate={initialDate}
             initialTime={initialTime}
             source={source}

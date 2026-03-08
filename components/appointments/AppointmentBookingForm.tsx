@@ -31,7 +31,9 @@ import { AlertTriangle, Info } from 'lucide-react';
 interface AppointmentBookingFormProps {
     mode?: 'full' | 'quick'; // NEW: Determines workflow behavior
     initialPatientId?: string;
+    initialPatient?: PatientResponseDto;
     initialDoctorId?: string;
+    initialDoctor?: DoctorResponseDto;
     initialDate?: string; // ISO date string or YYYY-MM-DD
     initialTime?: string; // HH:mm format
     initialType?: string;
@@ -52,7 +54,9 @@ interface AppointmentBookingFormProps {
 export function AppointmentBookingForm({
     mode = 'full',
     initialPatientId,
+    initialPatient,
     initialDoctorId,
+    initialDoctor,
     initialDate,
     initialTime,
     initialType,
@@ -70,7 +74,34 @@ export function AppointmentBookingForm({
     const isFollowUp = source === AppointmentSource.DOCTOR_FOLLOW_UP || source === 'DOCTOR_FOLLOW_UP' || initialType === 'Follow-up';
 
     // Steps: 1. Patient, 2. Doctor, 3. DateTime, 4. Details/Review
-    const [currentStep, setCurrentStep] = useState(1);
+    const [currentStep, setCurrentStep] = useState(() => {
+        const hasPatient = !!(initialPatientId || initialPatient);
+        const hasDoctor = !!(initialDoctorId || initialDoctor);
+
+        // Quick mode with locked doctor: skip doctor selection step
+        if (mode === 'quick' && lockDoctor && hasDoctor) {
+            if (hasPatient) {
+                if (initialDate && initialTime) return 4;
+                return 3;
+            }
+            return 1;
+        }
+
+        // Full mode: traditional navigation
+        // If coming from a specific slot selection (doctor + date + time)
+        if (hasDoctor && initialDate && initialTime) {
+            return hasPatient ? 4 : 1;
+        }
+        // If doctor is pre-selected but no specific slot
+        else if (hasDoctor) {
+            return hasPatient ? 3 : 1;
+        }
+        // If only patient is pre-selected
+        else if (hasPatient) {
+            return 2; // Start directly at Doctor Selection
+        }
+        return 1;
+    });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Form Data
@@ -105,8 +136,8 @@ export function AppointmentBookingForm({
         };
     });
 
-    const [selectedPatient, setSelectedPatient] = useState<PatientResponseDto | null>(null);
-    const [selectedDoctor, setSelectedDoctor] = useState<DoctorResponseDto | null>(null);
+    const [selectedPatient, setSelectedPatient] = useState<PatientResponseDto | null>(initialPatient || null);
+    const [selectedDoctor, setSelectedDoctor] = useState<DoctorResponseDto | null>(initialDoctor || null);
 
     // Data Loading
     const [doctors, setDoctors] = useState<DoctorResponseDto[]>([]);
@@ -156,18 +187,18 @@ export function AppointmentBookingForm({
 
     // Effects
     useEffect(() => {
-        if (initialDoctorId) {
+        if (initialDoctorId && !initialDoctor) {
             loadSpecificDoctor(initialDoctorId);
         }
         loadDoctors();
-    }, [initialDoctorId]);
+    }, [initialDoctorId, initialDoctor]);
 
-    // Load patient if ID provided
+    // Load patient if ID provided but no full object
     useEffect(() => {
-        if (initialPatientId && !selectedPatient) {
+        if (initialPatientId && !selectedPatient && !initialPatient) {
             loadSpecificPatient(initialPatientId);
         }
-    }, [initialPatientId]);
+    }, [initialPatientId, initialPatient]);
 
     // Update selected doctor when formData changes
     useEffect(() => {
@@ -177,47 +208,7 @@ export function AppointmentBookingForm({
         }
     }, [formData.doctorId, doctors]);
 
-    // Smart step navigation based on pre-filled data and mode
-    useEffect(() => {
-        if (currentStep !== 1) return; // Only run on initial load
 
-        // Quick mode with locked doctor: skip doctor selection step
-        if (mode === 'quick' && lockDoctor && initialDoctorId) {
-            if (initialPatientId) {
-                if (initialDate && initialTime) {
-                    setCurrentStep(4); // Skip to review
-                } else {
-                    setCurrentStep(3); // Skip to date/time
-                }
-            } else {
-                setCurrentStep(1); // Start at patient selection
-            }
-            return;
-        }
-
-        // Full mode: traditional navigation
-        // If coming from a specific slot selection (doctor + date + time)
-        if (initialDoctorId && initialDate && initialTime) {
-            // Skip to patient selection, then to review
-            if (initialPatientId) {
-                setCurrentStep(4); // Skip to review
-            } else {
-                setCurrentStep(1); // Start at patient selection
-            }
-        }
-        // If doctor is pre-selected but no specific slot
-        else if (initialDoctorId) {
-            if (initialPatientId) {
-                setCurrentStep(3); // Skip to date/time selection
-            } else {
-                setCurrentStep(1); // Start at patient selection
-            }
-        }
-        // If only patient is pre-selected
-        else if (initialPatientId) {
-            setCurrentStep(2); // Skip to doctor selection
-        }
-    }, [initialPatientId, initialDoctorId, initialDate, initialTime, mode, lockDoctor]);
 
     const loadSpecificPatient = async (id: string) => {
         try {
@@ -274,6 +265,9 @@ export function AppointmentBookingForm({
         // In quick mode with locked doctor, skip step 2 when going back
         if (mode === 'quick' && lockDoctor && currentStep === 3) {
             setCurrentStep(1); // Skip doctor selection
+        } else if (currentStep === 2 && (initialPatientId || initialPatient)) {
+            // Cannot go back to search since patient was pre-selected
+            if (onCancel) onCancel();
         } else {
             setCurrentStep(prev => prev - 1);
         }

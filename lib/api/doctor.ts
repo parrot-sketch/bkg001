@@ -32,6 +32,13 @@ export const doctorApi = {
   },
 
   /**
+   * Get available slots for a doctor on a specific date
+   */
+  async getAvailableSlots(doctorId: string, date: string): Promise<ApiResponse<string[]>> {
+    return apiClient.get<string[]>(`/doctors/${doctorId}/slots?date=${date}`);
+  },
+
+  /**
    * Get doctor by user ID
    */
   async getDoctorByUserId(userId: string): Promise<ApiResponse<DoctorResponseDto & { workingDays?: any[] }>> {

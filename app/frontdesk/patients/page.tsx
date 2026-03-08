@@ -149,6 +149,7 @@ function FrontdeskPatientsContent() {
   const page = Number(searchParams.get('page')) || 1;
   const limit = 12;
   const urlSearch = searchParams.get('q') || '';
+  const isSelectionMode = searchParams.get('mode') === 'book';
 
   // Highlight param — set after intake confirm redirect
   const highlightId = searchParams.get('highlight') || '';
@@ -218,6 +219,35 @@ function FrontdeskPatientsContent() {
 
   return (
     <div className="space-y-5 animate-in fade-in duration-500">
+      {/* ═══ Selection Mode Banner ═══ */}
+      {isSelectionMode && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 py-4 rounded-2xl bg-cyan-600 shadow-lg shadow-cyan-200/50 text-white border border-cyan-500 overflow-hidden relative group">
+          <div className="flex items-center gap-4 relative z-10">
+            <div className="h-12 w-12 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30">
+              <Calendar className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h3 className="font-bold text-lg leading-tight">Select Patient</h3>
+              <p className="text-cyan-50/80 text-sm">Choose a patient from the registry to schedule an appointment</p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              const params = new URLSearchParams(searchParams.toString());
+              params.delete('mode');
+              router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+            }}
+            className="text-white hover:bg-white/10 hover:text-white border border-white/20 rounded-xl px-4 relative z-10"
+          >
+            Cancel Selection
+          </Button>
+          
+          {/* Background Decorative Element */}
+          <div className="absolute top-0 right-0 -mr-8 -mt-8 h-32 w-32 rounded-full bg-white/10 blur-2xl group-hover:bg-white/20 transition-all duration-700" />
+        </div>
+      )}
       {/* ═══ Page Header ═══ */}
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -447,13 +477,13 @@ function FrontdeskPatientsContent() {
                             <Button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  openBookingDialog({ initialPatientId: patient.id, bookingChannel: BookingChannel.PATIENT_LIST });
+                                  router.push(`/frontdesk/booking?patientId=${patient.id}`);
                                 }}
                                 size="sm"
                                 className="h-8 px-2.5 text-xs rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white shadow-sm shadow-cyan-200/30"
                               >
                                 <Calendar className="h-3.5 w-3.5 mr-1" />
-                                Book
+                                {isSelectionMode ? 'Select & Book' : 'Book'}
                               </Button>
                           </div>
                         </td>
@@ -525,14 +555,14 @@ function FrontdeskPatientsContent() {
                             <Button
                               size="sm"
                               className="flex-1 h-8 text-xs rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                openBookingDialog({ initialPatientId: patient.id, bookingChannel: BookingChannel.PATIENT_LIST });
-                              }}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  router.push(`/frontdesk/booking?patientId=${patient.id}`);
+                                }}
                             >
                               <Calendar className="h-3 w-3 mr-1" />
-                              Book Appointment
+                              {isSelectionMode ? 'Select & Book' : 'Book Appointment'}
                             </Button>
                             <Button
                               variant="outline"
