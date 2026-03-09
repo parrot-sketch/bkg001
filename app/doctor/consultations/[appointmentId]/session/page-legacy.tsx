@@ -82,7 +82,6 @@ export default function ConsultationSessionPage() {
     structured?: {
       chiefComplaint?: string;
       examination?: string;
-      assessment?: string;
       plan?: string;
     };
   }>({});
@@ -193,7 +192,6 @@ export default function ConsultationSessionPage() {
     const hasContent = structuredNotes.rawText?.trim() ||
       structuredNotes.structured?.chiefComplaint?.trim() ||
       structuredNotes.structured?.examination?.trim() ||
-      structuredNotes.structured?.assessment?.trim() ||
       structuredNotes.structured?.plan?.trim();
 
     const hasUnsaved = hasContent && autoSaveStatus !== 'saved';
@@ -340,7 +338,6 @@ export default function ConsultationSessionPage() {
     const hasContent = structuredNotes.rawText?.trim() ||
       structuredNotes.structured?.chiefComplaint?.trim() ||
       structuredNotes.structured?.examination?.trim() ||
-      structuredNotes.structured?.assessment?.trim() ||
       structuredNotes.structured?.plan?.trim();
 
     if (!hasContent) {
@@ -541,9 +538,6 @@ export default function ConsultationSessionPage() {
               appointment={appointment}
               consultationHistory={consultationHistory?.consultations}
               photoCount={consultation?.photoCount || 0}
-              onViewFullProfile={() => router.push(`/doctor/patients/${patient.id}?from=consultation&appointmentId=${appointmentId}`)}
-              onViewCasePlans={() => router.push(`/doctor/patients/${patient.id}/case-plans`)}
-              onViewPhotos={() => router.push(`/doctor/patients/${patient.id}/photos`)}
             />
           </div>
         </div>

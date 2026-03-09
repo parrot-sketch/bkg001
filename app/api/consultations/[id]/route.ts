@@ -58,12 +58,15 @@ export async function GET(
     const userId = authResult.user.userId;
     const userRole = authResult.user.role;
 
+    console.log(`[API] /api/consultations/${params.id} - User: ${userId}, Role: ${userRole}`);
+
     // 2. Check permissions (only DOCTOR can access consultations)
-    if (userRole !== Role.DOCTOR) {
+    const isDoctor = String(userRole).toUpperCase() === Role.DOCTOR;
+    if (!isDoctor) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Access denied: Only doctors can access consultations',
+          error: `Access denied: Only doctors can access consultations (Your role: ${userRole})`,
         },
         { status: 403 }
       );

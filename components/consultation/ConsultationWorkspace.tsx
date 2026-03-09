@@ -30,7 +30,6 @@ import { toast } from 'sonner';
 interface StructuredNotes {
   chiefComplaint?: string;
   examination?: string;
-  assessment?: string;
   plan?: string;
 }
 
@@ -67,7 +66,6 @@ export function ConsultationWorkspace({
   const [notesState, setNotesState] = useState<StructuredNotes>({
     chiefComplaint: structuredNotes.chiefComplaint || '',
     examination: structuredNotes.examination || '',
-    assessment: structuredNotes.assessment || '',
     plan: structuredNotes.plan || '',
   });
 
@@ -83,7 +81,6 @@ export function ConsultationWorkspace({
         return {
           chiefComplaint: serverNotes.chiefComplaint || prev.chiefComplaint,
           examination: serverNotes.examination || prev.examination,
-          assessment: serverNotes.assessment || prev.assessment,
           plan: serverNotes.plan || prev.plan,
         };
       });
@@ -96,7 +93,6 @@ export function ConsultationWorkspace({
     switch (tab) {
       case 'goals': return 'chiefComplaint';
       case 'examination': return 'examination';
-      case 'recommendations': return 'assessment'; // Defaults to assessment, could be plan
       case 'procedure': return 'plan';
       case 'treatment': return 'plan';
       default: return null;
@@ -110,9 +106,8 @@ export function ConsultationWorkspace({
 
       // Generate full text from structured notes
       const fullText = [
-        updated.chiefComplaint && `Chief Complaint: ${updated.chiefComplaint}`,
+        updated.chiefComplaint && `Patient Concerns: ${updated.chiefComplaint}`,
         updated.examination && `Examination: ${updated.examination}`,
-        updated.assessment && `Assessment: ${updated.assessment}`,
         updated.plan && `Plan: ${updated.plan}`,
       ]
         .filter(Boolean)
@@ -144,9 +139,7 @@ export function ConsultationWorkspace({
         updates.chiefComplaint = (updates.chiefComplaint || '') + content;
       } else if (section.id.includes('exam') || section.id.includes('physical')) {
         updates.examination = (updates.examination || '') + content;
-      } else if (section.id.includes('assessment') || section.id.includes('diagnosis')) {
-        updates.assessment = (updates.assessment || '') + content;
-      } else if (section.id.includes('plan') || section.id.includes('recommendation') || section.id.includes('treatment')) {
+      } else if (section.id.includes('assessment') || section.id.includes('diagnosis') || section.id.includes('plan') || section.id.includes('recommendation') || section.id.includes('treatment')) {
         updates.plan = (updates.plan || '') + content;
       }
     });
@@ -157,14 +150,12 @@ export function ConsultationWorkspace({
       // Merge template content with existing content
       if (updates.chiefComplaint) newState.chiefComplaint = (newState.chiefComplaint || '') + updates.chiefComplaint;
       if (updates.examination) newState.examination = (newState.examination || '') + updates.examination;
-      if (updates.assessment) newState.assessment = (newState.assessment || '') + updates.assessment;
       if (updates.plan) newState.plan = (newState.plan || '') + updates.plan;
 
       // Notify parent
       const fullText = [
         newState.chiefComplaint,
         newState.examination,
-        newState.assessment,
         newState.plan
       ].filter(Boolean).join('\n\n');
 
@@ -235,12 +226,6 @@ export function ConsultationWorkspace({
               Photos
             </button>
             <button
-              onClick={() => handleTabChange('recommendations')}
-              className={getTabClass(activeTab === 'recommendations')}
-            >
-              Assessment
-            </button>
-            <button
               onClick={() => handleTabChange('treatment')}
               className={getTabClass(activeTab === 'treatment')}
             >
@@ -299,14 +284,6 @@ export function ConsultationWorkspace({
               />
             </TabsContent>
 
-            <TabsContent value="recommendations" className="mt-0 h-full">
-              <RecommendationsTab
-                consultation={consultation}
-                onOutcomeChange={onOutcomeChange}
-                onAssessmentChange={(value) => updateStructuredNotes('assessment', value)}
-                isReadOnly={isReadOnly}
-              />
-            </TabsContent>
 
             <TabsContent value="treatment" className="mt-0 h-full">
               <TreatmentPlanTab
@@ -324,7 +301,7 @@ export function ConsultationWorkspace({
           <Button
             variant="outline"
             onClick={() => {
-              const tabs = ['goals', 'examination', 'procedure', 'photos', 'recommendations', 'treatment'];
+              const tabs = ['goals', 'examination', 'procedure', 'photos', 'treatment'];
               const currentIndex = tabs.indexOf(activeTab);
               if (currentIndex > 0) handleTabChange(tabs[currentIndex - 1]);
             }}
@@ -350,7 +327,7 @@ export function ConsultationWorkspace({
             ) : (
               <Button
                 onClick={() => {
-                  const tabs = ['goals', 'examination', 'procedure', 'photos', 'recommendations', 'treatment'];
+                  const tabs = ['goals', 'examination', 'procedure', 'photos', 'treatment'];
                   const currentIndex = tabs.indexOf(activeTab);
                   if (currentIndex < tabs.length - 1) handleTabChange(tabs[currentIndex + 1]);
                 }}

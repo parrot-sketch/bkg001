@@ -89,7 +89,7 @@ async function main() {
     'TheaterBooking', 'SurgicalCase', 'ConsentForm', 'PatientImage', 'CasePlan',
     'ConsultationMessage', 'ConsultationAttachment', 'DoctorConsultation',
     'Consultation', 'Appointment', 'AvailabilitySlot', 'AvailabilityTemplate', 'ScheduleBlock',
-    'AvailabilityOverride', 'AvailabilityBreak', 'SlotConfiguration', 'RefreshToken',
+    'AvailabilityOverride', 'SlotConfiguration', 'RefreshToken',
     'ConsentSigningSession',
     'InventoryUsage', 'InventoryBatch', 'PurchaseOrderItem', 'PurchaseOrder',
     'GoodsReceiptItem', 'GoodsReceipt', 'StockAdjustment', 'ConsentFormDocument',

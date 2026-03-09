@@ -65,7 +65,6 @@ import type { ConsultationResponseDto } from '@/application/dtos/ConsultationRes
 export interface StructuredNotes {
   chiefComplaint?: string;
   examination?: string;
-  assessment?: string;
   plan?: string;
 }
 
@@ -510,7 +509,12 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
 
   const setOutcome = useCallback((outcome: ConsultationOutcomeType) => {
     dispatch({ type: 'SET_OUTCOME', payload: outcome });
-    if (outcome !== ConsultationOutcomeType.PROCEDURE_RECOMMENDED) {
+    
+    // Automation: If procedure is recommended, patient decision is YES by default
+    if (outcome === ConsultationOutcomeType.PROCEDURE_RECOMMENDED) {
+      dispatch({ type: 'SET_PATIENT_DECISION', payload: PatientDecision.YES });
+    } else {
+      // Clear decision for other outcomes to keep state clean
       dispatch({ type: 'SET_PATIENT_DECISION', payload: null });
     }
   }, []);
@@ -659,7 +663,8 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
 
   // ========== CONTEXT VALUE ==========
 
-  const value: ConsultationContextValue = {
+  // ========== CONTEXT VALUE ==========
+  const value = useMemo(() => ({
     state,
     isActive,
     isReadOnly,
@@ -677,7 +682,25 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
     completeConsultation,
     switchToPatient,
     goToSurgeryPlanning,
-  };
+  }), [
+    state,
+    isActive,
+    isReadOnly,
+    canSave,
+    canComplete,
+    waitingQueue,
+    loadAppointment,
+    startConsultation,
+    saveDraft,
+    updateNotes,
+    setOutcome,
+    setPatientDecision,
+    openCompleteDialog,
+    closeCompleteDialog,
+    completeConsultation,
+    switchToPatient,
+    goToSurgeryPlanning,
+  ]);
 
   return (
     <ConsultationContext.Provider value={value}>
@@ -706,17 +729,17 @@ function generateFullText(notes: StructuredNotes): string {
   const parts: string[] = [];
 
   if (notes.chiefComplaint) {
-    parts.push(`Chief Complaint: ${notes.chiefComplaint}`);
+    parts.push(`PATIENT CONCERNS:\n${notes.chiefComplaint}`);
   }
-  if (notes.examination) {
-    parts.push(`Examination: ${notes.examination}`);
-  }
-  if (notes.assessment) {
-    parts.push(`Assessment: ${notes.assessment}`);
-  }
-  if (notes.plan) {
-    parts.push(`Plan: ${notes.plan}`);
+  
+  // Combine internal fields into the simple "Plan" view if they exist
+  const combinedPlanParts: string[] = [];
+  if (notes.examination) combinedPlanParts.push(notes.examination);
+  if (notes.plan) combinedPlanParts.push(notes.plan);
+
+  if (combinedPlanParts.length > 0) {
+    parts.push(`TREATMENT PLAN & CLINICAL NOTES:\n${combinedPlanParts.join('\n\n')}`);
   }
 
-  return parts.join('\n\n');
+  return parts.join('\n\n' + '='.repeat(40) + '\n\n');
 }

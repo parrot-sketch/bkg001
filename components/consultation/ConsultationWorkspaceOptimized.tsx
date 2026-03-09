@@ -66,9 +66,8 @@ interface TabConfig {
 }
 
 const TABS: TabConfig[] = [
-    { id: 'goals', label: 'Goals', noteField: 'chiefComplaint' },
-    { id: 'exam', label: 'Examination', noteField: 'examination' },
-    { id: 'assessment', label: 'Assessment', noteField: 'assessment' },
+    { id: 'concerns', label: 'Patient Concerns', noteField: 'chiefComplaint' },
+    { id: 'examination', label: 'Examination', noteField: 'examination' },
     { id: 'plan', label: 'Plan', noteField: 'plan' },
     { id: 'billing', label: 'Billing', noteField: null },
 ];
@@ -106,7 +105,7 @@ export function ConsultationWorkspaceOptimized() {
         openCompleteDialog,
     } = useConsultationContext();
 
-    const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'goals');
+    const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'concerns');
 
     const currentTabIndex = useMemo(
         () => TABS.findIndex(t => t.id === activeTab),
@@ -119,7 +118,6 @@ export function ConsultationWorkspaceOptimized() {
         const notes = state.notes;
         if (notes.chiefComplaint && notes.chiefComplaint.replace(/<[^>]*>/g, '').trim().length > 0) fields.add('chiefComplaint');
         if (notes.examination && notes.examination.replace(/<[^>]*>/g, '').trim().length > 0) fields.add('examination');
-        if (notes.assessment && notes.assessment.replace(/<[^>]*>/g, '').trim().length > 0) fields.add('assessment');
         if (notes.plan && notes.plan.replace(/<[^>]*>/g, '').trim().length > 0) fields.add('plan');
         return fields;
     }, [state.notes]);
@@ -194,7 +192,7 @@ export function ConsultationWorkspaceOptimized() {
             {/* Tab Content */}
             <div className="flex-1 overflow-y-auto">
                 <Tabs value={activeTab} className="h-full">
-                    <TabsContent value="goals" className="m-0 h-full border-none">
+                    <TabsContent value="concerns" className="m-0 h-full border-none">
                         <div className="p-6 max-w-3xl mx-auto">
                             <PatientGoalsTab
                                 initialValue={state.notes.chiefComplaint || ''}
@@ -204,26 +202,11 @@ export function ConsultationWorkspaceOptimized() {
                         </div>
                     </TabsContent>
 
-                    <TabsContent value="exam" className="m-0 h-full border-none">
+                    <TabsContent value="examination" className="m-0 h-full border-none">
                         <div className="p-6 max-w-3xl mx-auto">
                             <ExaminationTab
                                 initialValue={state.notes.examination || ''}
                                 onChange={handleNoteChange('examination')}
-                                isReadOnly={isReadOnly}
-                            />
-                        </div>
-                    </TabsContent>
-
-                    <TabsContent value="assessment" className="m-0 h-full border-none">
-                        <div className="p-6 max-w-3xl mx-auto">
-                            <RecommendationsTab
-                                consultation={state.consultation}
-                                assessmentValue={state.notes.assessment || ''}
-                                currentOutcome={state.outcomeType}
-                                currentPatientDecision={state.patientDecision}
-                                onOutcomeChange={setOutcome}
-                                onPatientDecisionChange={setPatientDecision}
-                                onAssessmentChange={handleNoteChange('assessment')}
                                 isReadOnly={isReadOnly}
                             />
                         </div>

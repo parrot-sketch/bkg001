@@ -1,9 +1,9 @@
 'use client';
 
 /**
- * Patient Goals & Aesthetic Concerns Tab - Simplified
+ * Patient Concerns Tab - Simplified
  * 
- * Clean, simple interface for documenting aesthetic goals.
+ * Clean, simple interface for documenting patient concerns.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -214,7 +214,7 @@ export function PatientGoalsTab({
     if (isReadOnly) {
         return (
             <div className="space-y-4">
-                <h2 className="text-lg font-semibold text-slate-900">Aesthetic Goals & Concerns</h2>
+                <h2 className="text-lg font-semibold text-slate-900">Patient Concerns</h2>
                 {initialValue ? (
                     <div className="prose prose-slate max-w-none" dangerouslySetInnerHTML={{ __html: initialValue }} />
                 ) : (
@@ -227,8 +227,8 @@ export function PatientGoalsTab({
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="text-lg font-semibold text-slate-900">Aesthetic Goals & Concerns</h2>
-                <p className="text-sm text-slate-500">Document the patient's primary aesthetic goals and concerns.</p>
+                <h2 className="text-lg font-semibold text-slate-900">Patient Concerns</h2>
+                <p className="text-sm text-slate-500">Document the patient&apos;s primary concerns and goals.</p>
             </div>
 
             {/* Routine follow-up toggle */}

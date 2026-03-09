@@ -62,12 +62,15 @@ export async function POST(
     const userId = authResult.user.userId;
     const userRole = authResult.user.role;
 
-    // 2. Check permissions (only DOCTOR can start consultations)
-    if (userRole !== Role.DOCTOR) {
+    console.log(`[API] /api/consultations/${params.id}/start - User: ${userId}, Role: ${userRole}`);
+
+    // 2. Check permissions (only DOCTOR can access consultations)
+    const isDoctor = String(userRole).toUpperCase() === Role.DOCTOR;
+    if (!isDoctor) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Access denied: Only doctors can start consultations',
+          error: `Access denied: Only doctors can access consultations (Your role: ${userRole})`,
         },
         { status: 403 }
       );
