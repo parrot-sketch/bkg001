@@ -47,7 +47,11 @@ export async function GET(
             where: { case_plan_id: sc.case_plan.id },
             orderBy: { created_at: 'desc' },
             include: {
-                documents: true, // Include the uploaded documents
+                documents: {
+                    orderBy: {
+                        version: 'desc'
+                    }
+                },
             }
         });
 

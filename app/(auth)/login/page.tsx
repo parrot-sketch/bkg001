@@ -306,7 +306,7 @@ export default function LoginPage() {
         {/* Submit Button */}
         <Button
           type="submit"
-          className="w-full h-11 bg-brand-primary hover:bg-brand-primary/90 text-white font-medium transition-all duration-300 shadow-md shadow-brand-primary/15 hover:shadow-lg hover:shadow-brand-primary/25 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2"
+          className="w-full h-11 bg-slate-900 hover:bg-slate-800 text-white font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2"
           disabled={isDisabled}
           aria-busy={isSubmitting}
         >

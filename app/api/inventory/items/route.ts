@@ -144,9 +144,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    if (!body.name || body.unitCost === undefined) {
+    if (!body.name) {
       return NextResponse.json(
-        { success: false, error: 'name and unitCost are required' },
+        { success: false, error: 'name is required' },
         { status: 400 }
       );
     }
@@ -157,11 +157,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       category: body.category,
       description: body.description,
       unitOfMeasure: body.unitOfMeasure,
-      unitCost: body.unitCost,
+      unitCost: body.unitCost || 0,
       quantityOnHand: body.quantityOnHand,
       reorderPoint: body.reorderPoint,
       supplier: body.supplier,
+      manufacturer: body.manufacturer,
       isBillable: body.isBillable,
+      isImplant: body.isImplant,
     });
 
     return NextResponse.json({

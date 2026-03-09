@@ -258,6 +258,13 @@ export const frontdeskApi = {
     },
 
     /**
+     * Get overall patient stats
+     */
+    async getPatientStats(): Promise<ApiResponse<{ totalRecords: number; newToday: number; newThisMonth: number }>> {
+        return apiClient.get<{ totalRecords: number; newToday: number; newThisMonth: number }>('/frontdesk/patients/stats');
+    },
+
+    /**
      * Get today's schedule
      */
     async getTodaysSchedule(doctorId?: string): Promise<ApiResponse<AppointmentResponseDto[]>> {

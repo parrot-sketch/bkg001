@@ -6,7 +6,6 @@ import { cn } from "@/lib/utils";
 const TABS = [
     { key: "overview", label: "Overview" },
     { key: "appointments", label: "Appointments" },
-    { key: "medical-history", label: "Clinical Records" },
     { key: "billing", label: "Billing & Payments" },
 ];
 

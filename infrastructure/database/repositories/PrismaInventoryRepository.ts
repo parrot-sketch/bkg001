@@ -126,7 +126,9 @@ export class PrismaInventoryRepository implements IInventoryRepository {
         quantity_on_hand: dto.quantityOnHand ?? 0,
         reorder_point: dto.reorderPoint ?? 0,
         supplier: dto.supplier ?? null,
+        manufacturer: dto.manufacturer ?? null,
         is_billable: dto.isBillable ?? true,
+        is_implant: dto.isImplant ?? false,
       },
     });
     return this.mapToItem(result);

@@ -72,6 +72,7 @@ export interface CreateInventoryItemDto {
   supplier?: string;
   manufacturer?: string;
   isBillable?: boolean;
+  isImplant?: boolean;
 }
 
 /**

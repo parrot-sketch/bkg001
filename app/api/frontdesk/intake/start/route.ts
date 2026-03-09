@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const result = await startIntakeUseCase.execute();
 
     // Rewrite the intakeFormUrl to use the new clean /intake/[sessionId] route
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${request.headers.get('x-forwarded-proto') || 'http'}://${request.headers.get('host')}`;
+    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || `${request.headers.get('x-forwarded-proto') || 'http'}://${request.headers.get('host')}`).replace(/\/$/, '');
     const cleanUrl = `${baseUrl}/intake/${result.sessionId}`;
 
     return NextResponse.json({ ...result, intakeFormUrl: cleanUrl }, { status: 201 });

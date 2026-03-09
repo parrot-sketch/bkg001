@@ -15,6 +15,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useFrontdeskPatients } from '@/hooks/frontdesk/useFrontdeskPatients';
+import { usePatientStats } from '@/hooks/frontdesk/usePatientStats';
 import { ProfileImage } from '@/components/profile-image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,6 +42,7 @@ import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { useBookAppointmentStore } from '@/hooks/frontdesk/useBookAppointmentStore';
 import { BookingChannel } from '@/domain/enums/BookingChannel';
+import { AppointmentSource } from '@/domain/enums/AppointmentSource';
 
 /* ═══════════════════ Sub Components ═══════════════════ */
 
@@ -208,10 +210,12 @@ function FrontdeskPatientsContent() {
     search: urlSearch,
   });
 
+  const { data: stats, isLoading: isStatsLoading } = usePatientStats();
+
   const patients = apiResponse?.success ? apiResponse.data : [];
   const meta = apiResponse?.success && apiResponse.meta
     ? apiResponse.meta
-    : { totalRecords: 0, totalPages: 1, currentPage: 1, limit: 12, newToday: 0, newThisMonth: 0 };
+    : { totalRecords: 0, totalPages: 1, currentPage: 1, limit: 12 };
 
   // Pagination helpers
   const startRecord = patients.length > 0 ? (page - 1) * limit + 1 : 0;
@@ -268,24 +272,24 @@ function FrontdeskPatientsContent() {
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard
           title="Total Patients"
-          value={meta.totalRecords}
+          value={stats?.totalRecords ?? 0}
           icon={Users}
           color="slate"
-          loading={isLoading}
+          loading={isStatsLoading}
         />
         <StatCard
           title="New Today"
-          value={meta.newToday ?? 0}
+          value={stats?.newToday ?? 0}
           icon={UserPlus}
           color="cyan"
-          loading={isLoading}
+          loading={isStatsLoading}
         />
         <StatCard
           title="This Month"
-          value={meta.newThisMonth ?? 0}
+          value={stats?.newThisMonth ?? 0}
           icon={TrendingUp}
           color="emerald"
-          loading={isLoading}
+          loading={isStatsLoading}
         />
         <StatCard
           title="Showing"
@@ -477,7 +481,11 @@ function FrontdeskPatientsContent() {
                             <Button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  router.push(`/frontdesk/booking?patientId=${patient.id}`);
+                                  openBookingDialog({
+                                    initialPatientId: patient.id,
+                                    source: AppointmentSource.FRONTDESK_SCHEDULED,
+                                    bookingChannel: BookingChannel.DASHBOARD,
+                                  });
                                 }}
                                 size="sm"
                                 className="h-8 px-2.5 text-xs rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white shadow-sm shadow-cyan-200/30"
@@ -558,7 +566,11 @@ function FrontdeskPatientsContent() {
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
-                                  router.push(`/frontdesk/booking?patientId=${patient.id}`);
+                                  openBookingDialog({
+                                    initialPatientId: patient.id,
+                                    source: AppointmentSource.FRONTDESK_SCHEDULED,
+                                    bookingChannel: BookingChannel.DASHBOARD,
+                                  });
                                 }}
                             >
                               <Calendar className="h-3 w-3 mr-1" />

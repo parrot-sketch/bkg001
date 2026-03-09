@@ -73,33 +73,20 @@ export function AppointmentBookingForm({
 
     const isFollowUp = source === AppointmentSource.DOCTOR_FOLLOW_UP || source === 'DOCTOR_FOLLOW_UP' || initialType === 'Follow-up';
 
-    // Steps: 1. Patient, 2. Doctor, 3. DateTime, 4. Details/Review
+    // Steps: 1. Doctor, 2. Patient, 3. DateTime, 4. Details/Review
     const [currentStep, setCurrentStep] = useState(() => {
         const hasPatient = !!(initialPatientId || initialPatient);
         const hasDoctor = !!(initialDoctorId || initialDoctor);
 
-        // Quick mode with locked doctor: skip doctor selection step
-        if (mode === 'quick' && lockDoctor && hasDoctor) {
-            if (hasPatient) {
-                if (initialDate && initialTime) return 4;
-                return 3;
-            }
-            return 1;
+        // Pre-selected both: go to DateTime
+        if (hasPatient && hasDoctor) return 3;
+        
+        // Locked doctor and have doctor: skip to Step 2 (Patient)
+        if (lockDoctor && hasDoctor) {
+            return hasPatient ? 3 : 2;
         }
 
-        // Full mode: traditional navigation
-        // If coming from a specific slot selection (doctor + date + time)
-        if (hasDoctor && initialDate && initialTime) {
-            return hasPatient ? 4 : 1;
-        }
-        // If doctor is pre-selected but no specific slot
-        else if (hasDoctor) {
-            return hasPatient ? 3 : 1;
-        }
-        // If only patient is pre-selected
-        else if (hasPatient) {
-            return 2; // Start directly at Doctor Selection
-        }
+        // Default: Start at Step 1 (Doctor Selection)
         return 1;
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -252,9 +239,13 @@ export function AppointmentBookingForm({
 
     const handleNext = () => {
         if (canProceed()) {
-            // In quick mode with locked doctor, skip step 2
-            if (mode === 'quick' && lockDoctor && currentStep === 1) {
-                setCurrentStep(3); // Skip doctor selection
+            if (currentStep === 1) {
+                // If patient is already selected (e.g. from profile), skip Step 2
+                if (formData.patientId) {
+                    setCurrentStep(3);
+                } else {
+                    setCurrentStep(2);
+                }
             } else {
                 setCurrentStep(prev => prev + 1);
             }
@@ -262,11 +253,18 @@ export function AppointmentBookingForm({
     };
 
     const handleBack = () => {
-        // In quick mode with locked doctor, skip step 2 when going back
-        if (mode === 'quick' && lockDoctor && currentStep === 3) {
-            setCurrentStep(1); // Skip doctor selection
-        } else if (currentStep === 2 && (initialPatientId || initialPatient)) {
-            // Cannot go back to search since patient was pre-selected
+        if (currentStep === 3) {
+            // If patient was pre-selected, go back to Doctor (Step 1)
+            if (initialPatientId || initialPatient) {
+                setCurrentStep(1);
+            } else {
+                setCurrentStep(2);
+            }
+        } else if (currentStep === 2) {
+            // Go back to Step 1 (Doctor)
+            setCurrentStep(1);
+        } else if (currentStep === 1) {
+            // If we are at the first step, cancel/close
             if (onCancel) onCancel();
         } else {
             setCurrentStep(prev => prev - 1);
@@ -275,9 +273,9 @@ export function AppointmentBookingForm({
 
     const canProceed = () => {
         switch (currentStep) {
-            case 1: return !!formData.patientId;
-            case 2: return !!formData.doctorId;
-            case 3: return !!formData.appointmentDate && !!formData.selectedSlot; // selectedSlot is now the proposed time
+            case 1: return !!formData.doctorId;
+            case 2: return !!formData.patientId;
+            case 3: return !!formData.appointmentDate && !!formData.selectedSlot;
             case 4: return !!formData.type;
             default: return false;
         }
@@ -376,8 +374,8 @@ export function AppointmentBookingForm({
 
     // Enhanced Step Indicator with Labels
     const stepLabels = [
-        { number: 1, label: 'Patient', icon: User },
-        { number: 2, label: 'Doctor', icon: Stethoscope },
+        { number: 1, label: 'Doctor', icon: Stethoscope },
+        { number: 2, label: 'Patient', icon: User },
         { number: 3, label: 'Date & Time', icon: Calendar },
         { number: 4, label: 'Review', icon: FileText },
     ];
@@ -483,23 +481,124 @@ export function AppointmentBookingForm({
                 <CardHeader className="border-b bg-gradient-to-br from-slate-50 via-white to-slate-50/50 pb-6 px-6 sm:px-8 pt-6 sm:pt-8">
                     <div className="space-y-1">
                         <CardTitle className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-                            {currentStep === 1 && "Select Patient"}
-                            {currentStep === 2 && "Select Doctor"}
+                            {currentStep === 1 && "Select Doctor"}
+                            {currentStep === 2 && "Select Patient"}
                             {currentStep === 3 && "Select Date & Time"}
                             {currentStep === 4 && (isFollowUp ? "Review & Schedule" : "Review & Confirm")}
                         </CardTitle>
                         <CardDescription className="text-slate-600 text-sm sm:text-base">
-                            {currentStep === 1 && "Search and select the patient for this appointment"}
-                            {currentStep === 2 && "Choose the doctor who will see this patient"}
-                            {currentStep === 3 && "View available slots and select a date and time"}
-                            {currentStep === 4 && (isFollowUp ? "Review all details and schedule the follow-up appointment" : "Review all details and confirm the booking")}
+                            {currentStep === 1 && "Select the doctor"}
+                            {currentStep === 2 && "Search and select the patient"}
+                            {currentStep === 3 && "Date & Time Selection"}
+                            {currentStep === 4 && (isFollowUp ? "Review & Schedule" : "Final Review")}
                         </CardDescription>
                     </div>
                 </CardHeader>
                 <CardContent className="p-6 sm:p-8 space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
 
-                    {/* STEP 1: PATIENT */}
+                    {/* STEP 1: DOCTOR */}
                     {currentStep === 1 && (
+                        <div className="space-y-6">
+                            {lockDoctor && selectedDoctor ? (
+                                <div className="relative overflow-hidden rounded-2xl border-2 border-primary/20 bg-primary/5 p-6 shadow-sm transition-all underline-offset-4 decoration-primary/30">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-primary">Pre-selected Medical Professional</span>
+                                        </div>
+                                        <CheckCircle className="h-5 w-5 text-primary" />
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="h-16 w-16 rounded-full bg-primary/10 border-2 border-white flex items-center justify-center text-xl font-bold text-primary shadow-sm hover:scale-105 transition-transform">
+                                            {selectedDoctor.name?.charAt(0) || selectedDoctor.firstName?.charAt(0)}
+                                        </div>
+                                        <div>
+                                            <h4 className="text-lg font-bold text-slate-900 leading-tight">
+                                                {selectedDoctor.title} {selectedDoctor.name || `${selectedDoctor.firstName} ${selectedDoctor.lastName}`}
+                                            </h4>
+                                            <p className="text-sm text-slate-500 font-medium mt-1">{selectedDoctor.specialization || 'Clinical Specialist'}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : loadingDoctors ? (
+                                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                                    <Loader2 className="h-8 w-8 animate-spin text-primary/40" />
+                                    <p className="text-sm font-medium text-slate-400 animate-pulse">Retrieving doctor directory...</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {doctors.map((doctor) => {
+                                        const isSelected = formData.doctorId === doctor.id;
+                                        const doctorName = doctor.name || `${doctor.firstName} ${doctor.lastName}`;
+                                        const displayName = doctor.title ? (doctorName.includes(doctor.title) ? doctorName : `${doctor.title} ${doctorName}`) : `Dr. ${doctorName}`;
+                                        
+                                        return (
+                                            <div 
+                                                key={doctor.id}
+                                                onClick={() => setFormData(prev => ({ ...prev, doctorId: doctor.id, appointmentDate: '', selectedSlot: null }))}
+                                                className={cn(
+                                                    "group relative p-4 rounded-2xl border-2 transition-all cursor-pointer hover:shadow-md",
+                                                    isSelected 
+                                                        ? "border-primary bg-primary/5 shadow-sm scale-[1.02] ring-4 ring-primary/5" 
+                                                        : "border-slate-100 bg-white hover:border-slate-200"
+                                                )}
+                                            >
+                                                <div className="flex items-center gap-4">
+                                                    <div className={cn(
+                                                        "h-12 w-12 rounded-full flex items-center justify-center text-base font-bold transition-transform group-hover:scale-105 shadow-sm ring-2 ring-white",
+                                                        isSelected ? "bg-primary text-white" : "bg-slate-100 text-slate-400"
+                                                    )}>
+                                                        {doctorName.charAt(0)}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className={cn(
+                                                            "font-bold text-sm truncate transition-colors",
+                                                            isSelected ? "text-primary" : "text-slate-900 group-hover:text-primary"
+                                                        )}>
+                                                            {displayName}
+                                                        </h4>
+                                                        <p className="text-[10px] text-slate-500 font-semibold mt-0.5 truncate uppercase tracking-wider opacity-70">
+                                                            {doctor.specialization || 'Medical Specialist'}
+                                                        </p>
+                                                    </div>
+                                                    {isSelected && (
+                                                        <div className="shrink-0 h-5 w-5 rounded-full bg-primary text-white flex items-center justify-center animate-in zoom-in duration-300">
+                                                            <CheckCircle className="h-3 w-3" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                            <div className="pt-6 flex justify-between border-t border-slate-100">
+                                {onCancel ? (
+                                    <Button 
+                                        variant="outline"
+                                        onClick={onCancel} 
+                                        size="lg"
+                                        className="border-slate-300 hover:bg-slate-50 text-slate-600"
+                                    >
+                                        Cancel
+                                    </Button>
+                                ) : (
+                                    <div />
+                                )}
+                                <Button 
+                                    onClick={handleNext} 
+                                    disabled={!formData.doctorId}
+                                    size="lg"
+                                    className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg px-8 transition-all"
+                                >
+                                    Next Step <ChevronsRight className="ml-2 h-4 w-4" />
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* STEP 2: PATIENT */}
+                    {currentStep === 2 && (
                         <div className="space-y-4">
                             <PatientCombobox
                                 value={formData.patientId}
@@ -568,64 +667,6 @@ export function AppointmentBookingForm({
                                     </div>
                                 </div>
                             )}
-                            <div className="pt-6 flex justify-between border-t border-slate-100">
-                                {onCancel ? (
-                                    <Button 
-                                        variant="outline"
-                                        onClick={onCancel} 
-                                        size="lg"
-                                        className="border-slate-300 hover:bg-slate-50 text-slate-600"
-                                    >
-                                        Cancel
-                                    </Button>
-                                ) : (
-                                    <div />
-                                )}
-                                <Button 
-                                    onClick={handleNext} 
-                                    disabled={!formData.patientId}
-                                    size="lg"
-                                    className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg px-8 transition-all"
-                                >
-                                    Next Step <ChevronsRight className="ml-2 h-4 w-4" />
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* STEP 2: DOCTOR */}
-                    {currentStep === 2 && (
-                        <div className="space-y-4">
-                            {lockDoctor && selectedDoctor ? (
-                                <>
-                                    <div className="rounded-lg border-2 border-primary/20 bg-primary/5 p-4">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <Label className="text-sm font-medium text-muted-foreground">Selected Doctor (Locked)</Label>
-                                            <CheckCircle className="h-4 w-4 text-primary" />
-                                        </div>
-                                        <div className="flex gap-3 items-center">
-                                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold shrink-0">
-                                                {selectedDoctor.name.charAt(0)}
-                                            </div>
-                                            <div>
-                                                <h4 className="font-semibold">{selectedDoctor.name}</h4>
-                                                <p className="text-sm text-muted-foreground">{selectedDoctor.specialization}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">
-                                        This doctor was pre-selected. To change doctors, please start a new booking.
-                                    </p>
-                                </>
-                            ) : loadingDoctors ? (
-                                <div>Loading doctors...</div>
-                            ) : (
-                                <DoctorSelect
-                                    doctors={doctors}
-                                    value={formData.doctorId}
-                                    onValueChange={(val) => setFormData(prev => ({ ...prev, doctorId: val, appointmentDate: '', selectedSlot: null }))}
-                                />
-                            )}
                             <div className="flex justify-between pt-4">
                                 <Button 
                                     variant="outline" 
@@ -637,7 +678,7 @@ export function AppointmentBookingForm({
                                 </Button>
                                 <Button 
                                     onClick={handleNext} 
-                                    disabled={!formData.doctorId}
+                                    disabled={!formData.patientId}
                                     size="lg"
                                     className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg px-8 transition-all"
                                 >
@@ -837,12 +878,12 @@ function Step3DateTimePicker({ doctorId, selectedDate, selectedSlot, onSelect, o
 
     return (
         <div className="space-y-6">
-            <div className="space-y-2">
-                <Label className="text-sm font-semibold text-foreground">
-                    Proposed Appointment Date & Time
+            <div className="space-y-2 text-center sm:text-left">
+                <Label className="text-lg font-bold text-slate-900 tracking-tight">
+                    Select Date & Time
                 </Label>
-                <p className="text-xs text-muted-foreground">
-                    Select your preferred date and time. The doctor will review and confirm or suggest alternatives.
+                <p className="text-sm text-slate-500 font-medium">
+                    Choose your preferred slot. Clinical sessions are subject to doctor availability.
                 </p>
             </div>
 

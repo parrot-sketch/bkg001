@@ -30,17 +30,28 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { SecureDocumentViewer } from '@/components/pdf/SecureDocumentViewer';
 import { LoadingState } from '../../shared/components/LoadingState';
 import {
-    Plus,
-    FileText,
     CheckCircle,
     Loader2,
+    Plus,
+    FileText,
     Download,
     Upload,
     FileImage,
     Eye,
+    MoreVertical,
+    History,
+    FileEdit,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -113,6 +124,12 @@ export function ConsentsTabContainer({ caseId }: ConsentsTabContainerProps) {
     const [selectedType, setSelectedType] = useState<ConsentType | ''>('');
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Update State
+    const [showUpdateDialog, setShowUpdateDialog] = useState(false);
+    const [updatingConsent, setUpdatingConsent] = useState<ConsentFormItem | null>(null);
+    const [updateFile, setUpdateFile] = useState<File | null>(null);
+    const updateFileInputRef = useRef<HTMLInputElement>(null);
 
     // Viewer State
     const [selectedDocument, setSelectedDocument] = useState<ConsentDocument | null>(null);
@@ -189,6 +206,54 @@ export function ConsentsTabContainer({ caseId }: ConsentsTabContainerProps) {
             }
         } catch {
             toast.error('Failed to upload consent due to a network error');
+        } finally {
+            setUploadLoading(false);
+        }
+    };
+
+    const handleUpdateFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg', 'image/tiff', 'application/pdf'];
+        if (!validTypes.includes(file.type)) {
+            toast.error('Invalid file type. Please upload a PDF or an Image.');
+            return;
+        }
+
+        if (file.size > 15 * 1024 * 1024) {
+            toast.error('File exceeds the 15 MB limit.');
+            return;
+        }
+
+        setUpdateFile(file);
+    };
+
+    const handleUpdateDocument = async () => {
+        if (!updatingConsent || !updateFile) return;
+
+        setUploadLoading(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', updateFile);
+
+            const res = await fetch(`/api/doctor/consents/${updatingConsent.id}/update-document`, {
+                method: 'PATCH',
+                body: formData,
+            });
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                toast.success('Document updated successfully');
+                setShowUpdateDialog(false);
+                setUpdateFile(null);
+                setUpdatingConsent(null);
+                fetchConsents();
+            } else {
+                toast.error(data.error || 'Failed to update document');
+            }
+        } catch {
+            toast.error('Failed to update document due to a network error');
         } finally {
             setUploadLoading(false);
         }
@@ -281,31 +346,48 @@ export function ConsentsTabContainer({ caseId }: ConsentsTabContainerProps) {
                                         </TableCell>
                                         <TableCell className="text-right">
                                             {document && (
-                                                <div className="flex justify-end items-center gap-2">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        className="gap-1.5 h-8 bg-white"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            window.open(document.file_url, '_blank');
-                                                        }}
-                                                    >
-                                                        <Download className="h-3.5 w-3.5" />
-                                                        <span className="hidden sm:inline">Original</span>
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        className="gap-1.5 h-8 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 border-0"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setSelectedDocument(document);
-                                                            setSelectedDocumentTitle(consent.title);
-                                                        }}
-                                                    >
-                                                        <Eye className="h-3.5 w-3.5" />
-                                                        View <span className="hidden sm:inline">Securely</span>
-                                                    </Button>
+                                                <div className="flex justify-end items-center">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" className="h-8 w-8 p-0">
+                                                                <span className="sr-only">Open menu</span>
+                                                                <MoreVertical className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" className="w-[180px]">
+                                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem
+                                                                onClick={() => {
+                                                                    setSelectedDocument(document);
+                                                                    setSelectedDocumentTitle(consent.title);
+                                                                }}
+                                                            >
+                                                                <Eye className="mr-2 h-4 w-4" />
+                                                                <span>View Securely</span>
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                onClick={() => window.open(document.file_url, '_blank')}
+                                                            >
+                                                                <Download className="mr-2 h-4 w-4" />
+                                                                <span>Download Original</span>
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem
+                                                                onClick={() => {
+                                                                    setUpdatingConsent(consent);
+                                                                    setShowUpdateDialog(true);
+                                                                }}
+                                                            >
+                                                                <FileEdit className="mr-2 h-4 w-4" />
+                                                                <span>Update Document</span>
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem disabled className="text-slate-400">
+                                                                <History className="mr-2 h-4 w-4" />
+                                                                <span>Version History</span>
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
                                                 </div>
                                             )}
                                         </TableCell>
@@ -425,6 +507,98 @@ export function ConsentsTabContainer({ caseId }: ConsentsTabContainerProps) {
                                 <Upload className="h-4 w-4 mr-2" />
                             )}
                             Upload Document
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Update Document Dialog */}
+            <Dialog open={showUpdateDialog} onOpenChange={(open) => {
+                setShowUpdateDialog(open);
+                if (!open) {
+                    setUpdateFile(null);
+                    setUpdatingConsent(null);
+                }
+            }}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Update Document</DialogTitle>
+                        <DialogDescription>
+                            Replace the existing document for <strong>{updatingConsent?.title}</strong> with a new version.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-5 py-2">
+                        <div className="space-y-2">
+                            <Label>New Signed Document *</Label>
+                            <div 
+                                className="border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-slate-50/50 rounded-xl p-6 text-center transition-colors cursor-pointer"
+                                onClick={() => !uploadLoading && updateFileInputRef.current?.click()}
+                            >
+                                <input
+                                    ref={updateFileInputRef}
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp,image/jpg,image/tiff,application/pdf"
+                                    onChange={handleUpdateFileSelect}
+                                    disabled={uploadLoading}
+                                    className="hidden"
+                                />
+                                {updateFile ? (
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="h-10 w-10 rounded-full bg-emerald-50 flex items-center justify-center">
+                                            <CheckCircle className="h-5 w-5 text-emerald-500" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-slate-800">
+                                                {updateFile.name}
+                                            </p>
+                                            <p className="text-xs text-slate-500 mt-0.5">
+                                                Click to choose a different file
+                                            </p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center gap-2">
+                                        <div className="h-10 w-10 rounded-full bg-indigo-50 flex items-center justify-center">
+                                            <Upload className="h-5 w-5 text-indigo-500" />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-slate-700">
+                                                Upload PDF or Image
+                                            </p>
+                                            <p className="text-xs text-slate-400 mt-0.5">
+                                                Click to browse · Max 15 MB
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setShowUpdateDialog(false);
+                                setUpdateFile(null);
+                                setUpdatingConsent(null);
+                            }}
+                            disabled={uploadLoading}
+                        >
+                            Cancel
+                        </Button>
+                        <Button 
+                            onClick={handleUpdateDocument} 
+                            disabled={!updateFile || uploadLoading}
+                            className="bg-indigo-600 hover:bg-indigo-700"
+                        >
+                            {uploadLoading ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            ) : (
+                                <Upload className="h-4 w-4 mr-2" />
+                            )}
+                            Update Version
                         </Button>
                     </DialogFooter>
                 </DialogContent>

@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { MedicalHistoryContainer } from "@/components/medical-history-container";
 import { PatientProfileHero } from "@/components/patient/PatientProfileHero";
 import { PatientProfileTabs } from "@/components/patient/PatientProfileTabs";
 import { PatientOverviewPanel } from "@/components/patient/PatientOverviewPanel";
@@ -107,26 +106,11 @@ const FrontdeskPatientProfile = async (props: ParamsProps) => {
                   emergency_contact_name: data.emergency_contact_name,
                   emergency_contact_number: data.emergency_contact_number,
                   relation: data.relation,
-                  allergies: data.allergies,
-                  medical_conditions: data.medical_conditions,
-                  medical_history: data.medical_history,
                 }}
               />
             )}
 
-            {cat === "medical-history" && (
-              <Suspense
-                fallback={
-                  <div className="flex items-center justify-center py-16">
-                    <div className="text-sm text-muted-foreground animate-pulse">
-                      Loading medical records…
-                    </div>
-                  </div>
-                }
-              >
-                <MedicalHistoryContainer patientId={id} />
-              </Suspense>
-            )}
+
 
             {cat === "appointments" && (
               <Suspense

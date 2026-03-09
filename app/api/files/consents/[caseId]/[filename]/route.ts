@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readFile } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+import { downloadResource } from '@/lib/cloudinary';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 
-const STORAGE_DIR = join(process.cwd(), 'storage', 'consents');
 
 const MIME_TYPES: Record<string, string> = {
     '.pdf': 'application/pdf',
@@ -36,18 +33,23 @@ export async function GET(
             return NextResponse.json({ success: false, error: 'Invalid case ID' }, { status: 400 });
         }
 
-        const filePath = join(STORAGE_DIR, caseId, filename);
-
-        if (!existsSync(filePath)) {
-            return NextResponse.json({ success: false, error: 'File not found' }, { status: 404 });
-        }
-
         const ext = Object.keys(MIME_TYPES).find((ext) => filename.toLowerCase().endsWith(ext));
         if (!ext) {
             return NextResponse.json({ success: false, error: 'Invalid file type' }, { status: 400 });
         }
 
-        const fileBuffer = await readFile(filePath);
+        // Generate Cloudinary URL (Unsigned by default now)
+        const cloudinaryPublicId = `consents/${caseId}/${filename}`;
+        // Fetch from Cloudinary using authentication
+        const resourceType = filename.toLowerCase().endsWith('.pdf') ? 'raw' : 'image';
+        const response = await downloadResource(cloudinaryPublicId, resourceType);
+        
+        if (!response.ok) {
+            console.error(`[API] Cloudinary fetch failed: ${response.status} ${response.statusText}`);
+            return NextResponse.json({ success: false, error: 'File not found on storage' }, { status: 404 });
+        }
+
+        const fileBuffer = Buffer.from(await response.arrayBuffer());
 
         return new NextResponse(fileBuffer, {
             status: 200,

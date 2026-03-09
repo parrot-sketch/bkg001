@@ -28,6 +28,9 @@ import { toast } from 'sonner';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { DoctorAvailabilityResponseDto } from '@/application/dtos/DoctorAvailabilityResponseDto';
 import { useDoctorsAvailability, getDefaultAvailabilityDateRange } from '@/hooks/schedule/useDoctorAvailability';
+import { useBookAppointmentStore } from '@/hooks/frontdesk/useBookAppointmentStore';
+import { AppointmentSource } from '@/domain/enums/AppointmentSource';
+import { BookingChannel } from '@/domain/enums/BookingChannel';
 
 // Extended type for doctor availability with optional UI properties
 interface DoctorAvailabilityWithUI extends DoctorAvailabilityResponseDto {
@@ -43,6 +46,7 @@ interface AvailableDoctorsPanelProps {
 export function AvailableDoctorsPanel({ selectedDate }: AvailableDoctorsPanelProps) {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
+  const { openBookingDialog } = useBookAppointmentStore();
   const [viewDate] = useState(selectedDate || new Date());
 
   // Get default date range (next 2 months) - matches booking wizard
@@ -66,7 +70,11 @@ export function AvailableDoctorsPanel({ selectedDate }: AvailableDoctorsPanelPro
 
   // Navigate to canonical booking page with doctor pre-selected
   const handleQuickBook = (doctor: DoctorAvailabilityWithUI) => {
-    router.push(`/frontdesk/appointments/new?doctorId=${doctor.doctorId}&source=dashboard`);
+    openBookingDialog({
+      initialDoctorId: doctor.doctorId,
+      source: AppointmentSource.FRONTDESK_SCHEDULED,
+      bookingChannel: BookingChannel.DASHBOARD,
+    });
   };
 
   if (authLoading || loading) {

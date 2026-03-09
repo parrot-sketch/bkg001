@@ -1,35 +1,15 @@
-/**
- * API Route: POST /api/doctor/consents/[consentId]/upload-signed
- * 
- * Upload a signed consent document (PDF) and register it in the database.
- * Security:
- * - Requires authentication
- * - Only DOCTOR, NURSE, or ADMIN
- * - Validates file type and size
- * - Computes/verifies checksum
- * - Rate limited (5 uploads per 10 mins per user)
- */
-
 import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { getConsentFormDocumentService } from '@/lib/factories/consentFormDocumentFactory';
 import { handleApiError, handleApiSuccess } from '@/app/api/_utils/handleApiError';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+import { uploadStream } from '@/lib/cloudinary';
 import { Role, ConsentDocumentType } from '@prisma/client';
 import { ForbiddenError } from '@/application/errors';
 import { rateLimit } from '@/lib/security/rateLimit';
+import { db } from '@/lib/db';
+import crypto from 'crypto';
 
-const STORAGE_DIR = join(process.cwd(), 'storage', 'signed-consents');
-
-async function ensureStorageDir(consentId: string): Promise<string> {
-    const dir = join(STORAGE_DIR, consentId);
-    if (!existsSync(dir)) {
-        await mkdir(dir, { recursive: true });
-    }
-    return dir;
-}
+export const maxDuration = 60;
 
 export async function POST(
     request: NextRequest,
@@ -46,6 +26,26 @@ export async function POST(
             return handleApiError(new ForbiddenError('Insufficient permissions'));
         }
 
+        const { consentId } = await context.params;
+
+        // Verify the consent form exists and get caseId for folder mapping
+        const consentForm = await db.consentForm.findUnique({
+            where: { id: consentId },
+            include: { 
+                case_plan: {
+                    include: { 
+                        surgical_case: true 
+                    }
+                }
+            },
+        });
+
+        if (!consentForm) {
+            return handleApiError(new Error('Consent form not found'));
+        }
+
+        const caseId = consentForm.case_plan?.surgical_case?.id || 'unknown';
+
         // Rate Limiting
         const limit = rateLimit(authResult.user.userId, {
             windowMs: 10 * 60 * 1000,
@@ -57,7 +57,6 @@ export async function POST(
             return handleApiError(new Error('Too many uploads. Please try again later.'));
         }
 
-        const { consentId } = await context.params;
         const formData = await request.formData();
         const file = formData.get('file') as File;
         const clientGeneratedChecksum = formData.get('checksum') as string || undefined;
@@ -66,8 +65,9 @@ export async function POST(
             return handleApiError(new Error('No file provided'));
         }
 
-        if (file.type !== 'application/pdf') {
-            return handleApiError(new Error('Only PDF files are allowed'));
+        const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg', 'image/tiff', 'application/pdf'];
+        if (!validTypes.includes(file.type)) {
+            return handleApiError(new Error('Invalid file type. Must be PDF or Image.'));
         }
 
         // Convert to buffer
@@ -83,18 +83,18 @@ export async function POST(
             return handleApiError(new Error('Checksum mismatch: upload may be corrupted'));
         }
 
-        // Save file
-        const timestamp = Date.now();
-        const randomString = Math.random().toString(36).substring(2, 15);
-        const filename = `signed-${timestamp}-${randomString}.pdf`;
+        // Upload to Cloudinary
+        const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const filename = `${crypto.randomUUID()}-${safeName}`;
 
-        const storageDir = await ensureStorageDir(consentId);
-        const filePath = join(storageDir, filename);
-
-        await writeFile(filePath, buffer);
+        await uploadStream(buffer, {
+            folder: `consents/${caseId}`,
+            public_id: filename,
+            resource_type: file.type === 'application/pdf' ? 'raw' : 'image',
+        });
 
         // Register in DB
-        const urlPath = `/api/files/signed-consents/${consentId}/${filename}`;
+        const urlPath = `/api/files/consents/${caseId}/${filename}`;
         const document = await service.uploadDocument({
             consentFormId: consentId,
             fileUrl: urlPath,

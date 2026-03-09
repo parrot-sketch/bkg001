@@ -11,15 +11,8 @@
  * - POST /api/doctor/consents/templates/upload-pdf (uses local storage)
  */
 
+import { uploadStream } from '@/lib/cloudinary';
 import { NextRequest, NextResponse } from 'next/server';
-import { v2 as cloudinary } from 'cloudinary';
-
-// Configure Cloudinary
-cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-});
 
 export async function POST(request: NextRequest) {
     try {
@@ -57,46 +50,23 @@ export async function POST(request: NextRequest) {
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
-        // Upload to Cloudinary
-        const result = await new Promise<any>((resolve, reject) => {
-            if (isPDF) {
-                // Upload PDF as raw resource
-                cloudinary.uploader.upload_stream(
-                    {
-                        folder: 'consent-templates',
-                        resource_type: 'raw',
-                        format: 'pdf',
-                    },
-                    (error, result) => {
-                        if (error) reject(error);
-                        else resolve(result);
-                    }
-                ).end(buffer);
-            } else {
-                // Upload image with transformations (used for doctor profile images)
-                // Profile images are stored in Cloudinary 'doctors' folder
-                cloudinary.uploader.upload_stream(
-                    {
-                        folder: 'doctors',
-                        resource_type: 'image',
-                        transformation: [
-                            { width: 500, height: 500, crop: 'fill', gravity: 'face' },
-                            { quality: 'auto', fetch_format: 'auto' }
-                        ]
-                    },
-                    (error, result) => {
-                        if (error) reject(error);
-                        else resolve(result);
-                    }
-                ).end(buffer);
-            }
+        // Upload to Cloudinary using the utility
+        const result = await uploadStream(buffer, {
+            folder: isPDF ? 'consent-templates' : 'doctors',
+            resource_type: isPDF ? 'raw' : 'image',
+            ...(isPDF ? { format: 'pdf' } : {
+                transformation: [
+                    { width: 500, height: 500, crop: 'fill', gravity: 'face' },
+                    { quality: 'auto', fetch_format: 'auto' }
+                ]
+            })
         });
 
         return NextResponse.json({
             success: true,
             data: {
                 url: result.secure_url,
-                publicId: result.public_id,
+                publicId: result.publicId,
             },
         });
     } catch (error: any) {

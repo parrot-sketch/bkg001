@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
+import { uploadStream } from "@/lib/cloudinary";
 import path from "path";
 import { db } from "@/lib/db";
 import { JwtMiddleware } from "@/lib/auth/middleware";
@@ -77,13 +77,13 @@ export async function POST(
     // Sanitize filename to prevent directory traversal
     const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
     const filename = `${crypto.randomUUID()}-${safeName}`;
-    const storageDir = path.join(process.cwd(), "storage", "consents", caseId);
     
-    // Ensure directory exists
-    await mkdir(storageDir, { recursive: true });
-    
-    const filePath = path.join(storageDir, filename);
-    await writeFile(filePath, buffer);
+    // Upload to Cloudinary instead of local storage
+    const uploadResult = await uploadStream(buffer, {
+      folder: `consents/${caseId}`,
+      public_id: filename,
+      resource_type: file.type === 'application/pdf' ? 'raw' : 'image',
+    });
 
     // Document Type Logic
     const docType = ConsentDocumentType.SIGNED_PDF; // Storing images as PDF type in the DB for now since SIGNED_IMAGE is not in the schema.

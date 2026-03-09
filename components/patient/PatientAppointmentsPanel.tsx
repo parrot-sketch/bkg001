@@ -9,6 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { AppointmentResponseDto } from "@/application/dtos/AppointmentResponseDto";
+import { useBookAppointmentStore } from "@/hooks/frontdesk/useBookAppointmentStore";
+import { AppointmentSource } from "@/domain/enums/AppointmentSource";
+import { BookingChannel } from "@/domain/enums/BookingChannel";
 
 interface PatientAppointmentsPanelProps {
     patientId: string;
@@ -90,6 +93,7 @@ export function PatientAppointmentsPanel({ patientId }: PatientAppointmentsPanel
         patientId,
         isAuthenticated && !!user // Only fetch when authenticated, same pattern as appointments page
     );
+    const { openBookingDialog } = useBookAppointmentStore();
 
     if (isLoading) {
         return (
@@ -124,12 +128,19 @@ export function PatientAppointmentsPanel({ patientId }: PatientAppointmentsPanel
                         </span>
                     )}
                 </div>
-                <Link href={`/frontdesk/appointments/new?patientId=${patientId}&source=profile`}>
-                    <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5">
-                        <Plus size={13} />
-                        Book Appointment
-                    </Button>
-                </Link>
+                <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="h-8 text-xs gap-1.5"
+                    onClick={() => openBookingDialog({ 
+                        initialPatientId: patientId, 
+                        source: AppointmentSource.FRONTDESK_SCHEDULED,
+                        bookingChannel: BookingChannel.DASHBOARD
+                    })}
+                >
+                    <Plus size={13} />
+                    Book Appointment
+                </Button>
             </div>
 
             {/* List */}
@@ -144,12 +155,18 @@ export function PatientAppointmentsPanel({ patientId }: PatientAppointmentsPanel
                             This patient has no appointment history
                         </p>
                     </div>
-                    <Link href={`/frontdesk/appointments/new?patientId=${patientId}&source=profile`}>
-                        <Button size="sm" className="text-xs gap-1.5">
-                            <Plus size={13} />
-                            Book First Appointment
-                        </Button>
-                    </Link>
+                    <Button 
+                        size="sm" 
+                        className="text-xs gap-1.5"
+                        onClick={() => openBookingDialog({ 
+                            initialPatientId: patientId, 
+                            source: AppointmentSource.FRONTDESK_SCHEDULED,
+                            bookingChannel: BookingChannel.DASHBOARD
+                        })}
+                    >
+                        <Plus size={13} />
+                        Book First Appointment
+                    </Button>
                 </div>
             ) : (
                 <div className="space-y-2">

@@ -26,25 +26,25 @@ export function BookingStepper({ currentStep }: BookingStepperProps) {
               <div className="flex flex-col items-center gap-2 relative">
                 <div 
                   className={cn(
-                    "h-10 w-10 rounded-xl flex items-center justify-center transition-all duration-300 border-2",
-                    isActive ? "bg-brand-primary border-brand-primary text-white shadow-lg shadow-brand-primary/20 scale-110" : 
-                    isCompleted ? "bg-[#f4f1e8] border-[#f4f1e8] text-brand-primary" :
-                    "bg-white border-slate-100 text-slate-300"
+                    "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-300 border",
+                    isActive ? "bg-slate-900 border-slate-900 text-white" : 
+                    isCompleted ? "bg-slate-100 border-slate-200 text-slate-700" :
+                    "bg-white border-slate-200 text-slate-300"
                   )}
                 >
-                  {isCompleted ? <CheckCircle2 className="h-5 w-5" /> : <Icon className={cn("h-5 w-5", isActive && "animate-pulse")} />}
+                  {isCompleted ? <CheckCircle2 className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
                 </div>
                 <span className={cn(
-                  "text-[10px] font-semibold uppercase tracking-[0.2em] whitespace-nowrap",
-                  isActive ? "text-brand-primary" : "text-slate-400"
+                  "text-xs font-medium whitespace-nowrap",
+                  isActive ? "text-slate-900" : "text-slate-500"
                 )}>
                   {step.name}
                 </span>
               </div>
               {idx < steps.length - 1 && (
-                <div className="flex-1 h-[2px] mx-4 bg-slate-100 relative -top-3.5">
+                <div className="flex-1 h-px mx-4 bg-slate-200 relative -top-3">
                   <div 
-                    className="absolute inset-0 bg-brand-primary/40 transition-all duration-500 ease-in-out" 
+                    className="absolute inset-0 bg-slate-900 transition-all duration-500 ease-in-out" 
                     style={{ width: isCompleted ? '100%' : '0%' }}
                   />
                 </div>

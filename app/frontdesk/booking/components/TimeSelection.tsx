@@ -37,65 +37,65 @@ export function TimeSelection({
   onBack,
 }: TimeSelectionProps) {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:items-start anim-fade-in-up">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:items-start">
       {/* Doctor Info Sidebar */}
       <div className="lg:col-span-4 space-y-6">
-        <Card className="rounded-[2rem] border-slate-100 overflow-hidden bg-white shadow-sm ring-1 ring-slate-100/50">
-          <div className="h-24 bg-gradient-to-r from-brand-primary to-[#152d4a]" />
-          <CardContent className="px-8 pb-8 relative">
-            <div className="absolute -top-12 left-1/2 -translate-x-1/2 md:left-8 md:translate-x-0">
-                <ProfileImage url={selectedDoctor?.profileImage} name={selectedDoctor?.lastName || 'Doctor'} className="h-24 w-24 rounded-2xl ring-4 ring-white shadow-xl shadow-slate-200" />
+        <div className="border border-slate-200 rounded-xl overflow-hidden bg-white p-6">
+          <div className="flex flex-col items-center text-center">
+            <ProfileImage 
+              url={selectedDoctor?.profileImage} 
+              name={selectedDoctor?.lastName || 'Doctor'} 
+              className="h-20 w-20 rounded-full bg-slate-100 mb-4" 
+            />
+            <h3 className="text-xl font-semibold text-slate-900">
+              Dr. {selectedDoctor?.firstName} {selectedDoctor?.lastName}
+            </h3>
+            <p className="text-sm text-slate-500 mt-1">
+              {selectedDoctor?.specialization}
+            </p>
+          </div>
+          
+          <div className="mt-8 space-y-4 pt-6 border-t border-slate-100">
+            <div className="flex items-center gap-3 text-sm text-slate-600">
+              <Clock className="h-4 w-4 text-slate-400" />
+              <span>30 mins consultation</span>
             </div>
-            <div className="pt-16 text-center md:text-left">
-              <h3 className="text-2xl font-bold text-slate-900 tracking-tight leading-tight">Dr. {selectedDoctor?.firstName} {selectedDoctor?.lastName}</h3>
-              <p className="text-sm text-brand-primary/80 font-semibold uppercase tracking-[0.2em] mt-2">{selectedDoctor?.specialization}</p>
-              <div className="mt-8 space-y-4">
-                <div className="flex items-center gap-3 text-sm text-slate-600">
-                   <div className="h-8 w-8 rounded-lg bg-slate-50 flex items-center justify-center">
-                      <Clock className="h-4 w-4 text-brand-primary/40" />
-                   </div>
-                   <span className="font-medium">30 mins consultation</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm text-slate-600">
-                   <div className="h-8 w-8 rounded-lg bg-slate-50 flex items-center justify-center">
-                      <Stethoscope className="h-4 w-4 text-brand-primary/40" />
-                   </div>
-                   <span className="font-medium">Clinical Assessment</span>
-                </div>
-              </div>
+            <div className="flex items-center gap-3 text-sm text-slate-600">
+              <Stethoscope className="h-4 w-4 text-slate-400" />
+              <span>Clinical Assessment</span>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
         
         <Button 
           variant="outline" 
           onClick={onBack}
-          className="w-full rounded-2xl h-12 border-slate-200 text-slate-600 hover:bg-white hover:border-brand-primary/30 transition-all"
+          className="w-full h-11 border-slate-200 text-slate-600"
         >
           Change Provider
         </Button>
       </div>
 
       {/* Calendar & Slots */}
-      <div className="lg:col-span-8 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm p-8 md:p-10 flex flex-col md:flex-row gap-12 ring-1 ring-slate-100/50">
+      <div className="lg:col-span-8 bg-white rounded-xl border border-slate-200 p-6 flex flex-col md:flex-row gap-8">
         <div className="flex-shrink-0">
-          <p className="text-xs font-semibold text-brand-primary/80 tracking-[0.2em] uppercase mb-6">
+          <h3 className="text-sm font-semibold text-slate-900 mb-4">
             Select Date
-          </p>
+          </h3>
           <Calendar
             mode="single"
             selected={selectedDate}
             onSelect={onDateSelect}
             disabled={(date) => date < startOfToday()}
-            className="rounded-2xl border border-slate-50 p-4"
+            className="rounded-lg border border-slate-200 p-3"
           />
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-8">
-            <p className="text-xs font-semibold text-brand-primary/80 tracking-[0.2em] uppercase">
+          <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
+            <h3 className="text-sm font-semibold text-slate-900">
               Available Times
-            </p>
+            </h3>
             {selectedDate && (
               <span className="text-xs font-bold text-brand-primary bg-brand-isabelline px-3 py-1.5 rounded-full">
                 {format(selectedDate, 'MMM d, yyyy')}
@@ -175,13 +175,14 @@ export function TimeSelection({
           )}
 
           {selectedSlot && (
-            <Button 
-              className="w-full mt-10 rounded-[1.5rem] h-14 bg-brand-primary hover:bg-brand-primary/90 text-white shadow-xl shadow-brand-primary/20 transition-all font-bold"
-              onClick={onNext}
-            >
-              Continue
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            <div className="pt-6 mt-6 border-t border-slate-100">
+              <Button 
+                className="w-full h-11 bg-slate-900 hover:bg-black text-white"
+                onClick={onNext}
+              >
+                Continue
+              </Button>
+            </div>
           )}
         </div>
       </div>
@@ -198,12 +199,12 @@ function SlotButton({ slot, active, onClick }: { slot: string | { startTime: str
       onClick={() => onClick(time)}
       disabled={!isAvailable}
       className={cn(
-        "h-12 rounded-2xl text-sm font-bold transition-all duration-300 border-2",
+        "h-10 rounded-md text-sm font-medium transition-colors border",
         active 
-          ? "bg-brand-primary border-brand-primary text-white shadow-xl shadow-brand-primary/10 scale-[1.05]" 
+          ? "bg-slate-900 border-slate-900 text-white" 
           : isAvailable
-            ? "bg-white border-slate-50 text-slate-600 hover:border-brand-primary/20 hover:text-brand-primary hover:bg-brand-primary/[0.02]"
-            : "bg-slate-50 border-slate-50 text-slate-300 cursor-not-allowed opacity-60"
+            ? "bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+            : "bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed"
       )}
     >
       {time}

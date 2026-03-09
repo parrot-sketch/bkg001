@@ -1,6 +1,9 @@
 import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
+import { useBookAppointmentStore } from '@/hooks/frontdesk/useBookAppointmentStore';
+import { AppointmentSource } from '@/domain/enums/AppointmentSource';
+import { BookingChannel } from '@/domain/enums/BookingChannel';
 
 interface AppointmentsHeaderProps {
   patientIdFilter: string | null;
@@ -9,6 +12,7 @@ interface AppointmentsHeaderProps {
 
 export function AppointmentsHeader({ patientIdFilter, patientNameFromFilter }: AppointmentsHeaderProps) {
   const router = useRouter();
+  const { openBookingDialog } = useBookAppointmentStore();
 
   return (
     <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -22,11 +26,11 @@ export function AppointmentsHeader({ patientIdFilter, patientNameFromFilter }: A
       </div>
       <Button 
         onClick={() => {
-          if (patientIdFilter) {
-            router.push(`/frontdesk/booking?patientId=${patientIdFilter}`);
-          } else {
-            router.push('/frontdesk/patients?mode=book');
-          }
+          openBookingDialog({
+            initialPatientId: patientIdFilter || undefined,
+            source: AppointmentSource.FRONTDESK_SCHEDULED,
+            bookingChannel: BookingChannel.DASHBOARD,
+          });
         }}
         className="bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl shadow-sm shadow-cyan-200/50 h-10 px-5"
       >

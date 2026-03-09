@@ -40,6 +40,8 @@ import {
   Plus,
 } from 'lucide-react';
 import { BookingChannel } from '@/domain/enums/BookingChannel';
+import { useBookAppointmentStore } from '@/hooks/frontdesk/useBookAppointmentStore';
+import { AppointmentSource } from '@/domain/enums/AppointmentSource';
 
 export default function FrontdeskDashboardPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -47,6 +49,7 @@ export default function FrontdeskDashboardPage() {
   const { data: theaterSchedulingData, isLoading: loadingTheaterScheduling } =
     useTheaterSchedulingQueue(isAuthenticated && !!user);
   const router = useRouter();
+  const { openBookingDialog } = useBookAppointmentStore();
 
   if (authLoading) {
     return (
@@ -181,7 +184,7 @@ export default function FrontdeskDashboardPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-3 space-y-2">
-                <div onClick={() => router.push('/frontdesk/patients?mode=book')}>
+                <div onClick={() => openBookingDialog({ source: AppointmentSource.FRONTDESK_SCHEDULED, bookingChannel: BookingChannel.DASHBOARD })}>
                   <QuickActionBtn
                     href="#"
                     icon={Plus}

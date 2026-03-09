@@ -61,7 +61,7 @@ function BookingContent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/50 pb-20">
+    <div className="min-h-screen bg-white pb-12">
       {/* ── Navbar ── */}
       <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -98,8 +98,8 @@ function BookingContent() {
       <BookingStepper currentStep={currentStep} />
 
       {/* ── Workflow Steps ── */}
-      <main className="max-w-7xl mx-auto px-6">
-        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <main className="max-w-5xl mx-auto px-6 py-8">
+        <div>
           {currentStep === 1 && (
             <DoctorSelection 
               doctors={doctors}

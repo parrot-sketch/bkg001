@@ -14,14 +14,7 @@
  */
 
 import React from 'react';
-import { v2 as cloudinary } from 'cloudinary';
-
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+import { uploadStream } from '../../cloudinary';
 
 export interface SignedConsentPdfData {
   consentTitle: string;
@@ -156,28 +149,17 @@ export class ConsentPdfService {
     folder: string = 'consent_forms',
     publicId?: string
   ): Promise<{ url: string; publicId: string }> {
-    return new Promise((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
-        {
-          folder,
-          resource_type: 'raw',
-          format: 'pdf',
-          public_id: publicId,
-        },
-        (error, result) => {
-          if (error) {
-            reject(error);
-          } else if (!result) {
-            reject(new Error('Cloudinary upload returned no result'));
-          } else {
-            resolve({
-              url: result.secure_url,
-              publicId: result.public_id,
-            });
-          }
-        }
-      ).end(pdfBuffer);
+    const result = await uploadStream(pdfBuffer, {
+      folder,
+      public_id: publicId,
+      resource_type: 'raw',
+      format: 'pdf',
     });
+
+    return {
+      url: result.secure_url,
+      publicId: result.publicId,
+    };
   }
 
   /**
