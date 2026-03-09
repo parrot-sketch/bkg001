@@ -47,7 +47,7 @@ export class IntakeSessionMapper {
     return {
       sessionId: primitive.sessionId,
       qrCodeUrl,
-      intakeFormUrl: `${baseUrl}/patient/intake?sessionId=${primitive.sessionId}`,
+      intakeFormUrl: `${baseUrl.replace(/\/$/, '')}/intake/${primitive.sessionId}`,
       expiresAt: primitive.expiresAt,
       minutesRemaining: primitive.minutesRemaining,
     };

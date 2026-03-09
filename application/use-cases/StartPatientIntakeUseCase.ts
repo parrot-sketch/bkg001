@@ -45,9 +45,9 @@ export class StartPatientIntakeUseCase {
       // 3. Persist to database
       await this.intakeSessionRepository.create(session);
 
-      // 4. Generate intake form URL
+      // 4. Generate intake form URL — using the new isolated, layout-free /intake/[sessionId] route
       const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-      const intakeFormUrl = `${baseUrl}/patient/intake?sessionId=${sessionId}`;
+      const intakeFormUrl = `${baseUrl.replace(/\/$/, '')}/intake/${sessionId}`;
 
       // 5. Encode URL as QR code
       const qrCodeUrl = await QRCode.toDataURL(intakeFormUrl, {
