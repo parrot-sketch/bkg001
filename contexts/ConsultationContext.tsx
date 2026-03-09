@@ -33,6 +33,7 @@ import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { debounce } from 'lodash';
+import { format } from 'date-fns';
 
 import { doctorApi } from '@/lib/api/doctor';
 import { consultationApi } from '@/lib/api/consultation';
@@ -381,6 +382,32 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
         if (consultationResponse.data.patientDecision) {
           dispatch({ type: 'SET_PATIENT_DECISION', payload: consultationResponse.data.patientDecision });
         }
+
+        // Restore draft from localStorage if exists AND is newer than server data
+        const savedDraft = localStorage.getItem(`consultation-draft-${appointmentId}`);
+        if (savedDraft) {
+          try {
+            const draft = JSON.parse(savedDraft);
+            if (draft.timestamp && draft.structured) {
+              const draftTime = new Date(draft.timestamp);
+              const serverTime = consultationResponse.data.updatedAt 
+                ? new Date(consultationResponse.data.updatedAt) 
+                : new Date(0);
+
+              if (draftTime > serverTime) {
+                dispatch({ type: 'SET_NOTES', payload: draft.structured });
+                toast.info('Restored unsaved changes from local backup', {
+                  description: `Last saved locally at ${format(draftTime, 'HH:mm:ss')}`
+                });
+              } else {
+                localStorage.removeItem(`consultation-draft-${appointmentId}`);
+              }
+            }
+          } catch (e) {
+            console.error('Failed to restore draft:', e);
+            localStorage.removeItem(`consultation-draft-${appointmentId}`);
+          }
+        }
       }
 
       // Determine workflow state based on appointment/consultation status.
@@ -490,6 +517,15 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
       dispatch({ type: 'SET_DIRTY', payload: false });
       dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'saved' });
 
+      // Save to localStorage as backup
+      localStorage.setItem(
+        `consultation-draft-${state.appointment.id}`,
+        JSON.stringify({
+          structured: state.notes,
+          timestamp: new Date().toISOString()
+        })
+      );
+
       // Reset status after 2 seconds
       setTimeout(() => {
         dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'idle' });
@@ -540,6 +576,9 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
 
     dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.TRANSITIONING });
     dispatch({ type: 'SHOW_COMPLETE_DIALOG', payload: false });
+
+    // Clear local backup on successful completion
+    localStorage.removeItem(`consultation-draft-${completedAppointmentId}`);
 
     // Full state reset — prevent stale patient data from leaking into next session
     dispatch({ type: 'RESET' });
