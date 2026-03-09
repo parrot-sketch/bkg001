@@ -9,21 +9,15 @@
  * - Status badge (Active / Completed / Not Started)
  * - Auto-save indicator
  * - Quick actions (Save, Complete)
- * 
- * Design: Glass-morphism header with subtle depth, clean typography.
  */
 
 import { motion } from 'framer-motion';
-import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { formatDistanceToNow } from 'date-fns';
 import {
   Clock,
   Save,
   CheckCircle2,
   ArrowLeft,
-  Activity,
-  Circle,
   Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -32,6 +26,9 @@ import { ConsultationState } from '@/domain/enums/ConsultationState';
 import type { ConsultationResponseDto } from '@/application/dtos/ConsultationResponseDto';
 import { Role } from '@/domain/enums/Role';
 import { cn } from '@/lib/utils';
+import { useConsultationTimer } from '@/hooks/consultation/useConsultationTimer';
+import { StatusBadge } from './ui/StatusBadge';
+import { AutoSaveIndicator } from './ui/AutoSaveIndicator';
 
 interface ConsultationSessionHeaderProps {
   patientName: string;
@@ -42,8 +39,8 @@ interface ConsultationSessionHeaderProps {
   onComplete: () => void;
   autoSaveStatus: 'idle' | 'saving' | 'saved' | 'error';
   isSaving?: boolean;
-  slotStartTime?: Date; // Start time for slot duration calculation
-  slotDurationMinutes?: number; // Total allocated time for consultation
+  slotStartTime?: Date;
+  slotDurationMinutes?: number;
 }
 
 export function ConsultationSessionHeader({
@@ -59,87 +56,18 @@ export function ConsultationSessionHeader({
   slotDurationMinutes,
 }: ConsultationSessionHeaderProps) {
   const router = useRouter();
-  // Ground truth: appointment status takes precedence over consultation record state.
-  // Old consultations completed before our updates may have stale consultation state.
+  
   const appointmentDone = appointmentStatus === 'COMPLETED' || appointmentStatus === 'CANCELLED';
   const isActive = !appointmentDone && consultation?.state === ConsultationState.IN_PROGRESS;
   const isCompleted = appointmentDone || consultation?.state === ConsultationState.COMPLETED;
-  const startedAt = consultation?.startedAt;
   const canCompleteConsultation = userRole === Role.DOCTOR;
 
-  // Live timer
-  const [now, setNow] = useState(new Date());
+  const { elapsed, timeInfo, remainingDisplay } = useConsultationTimer({
+    startedAt: consultation?.startedAt,
+    slotStartTime,
+    slotDurationMinutes,
+  });
 
-  useEffect(() => {
-    if (!startedAt) return;
-    const interval = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(interval);
-  }, [startedAt]);
-
-  // Formatted elapsed time
-  const elapsed = useMemo(() => {
-    if (!startedAt) return null;
-    const diff = now.getTime() - new Date(startedAt).getTime();
-    const totalSeconds = Math.max(0, Math.floor(diff / 1000));
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-
-    if (hours > 0) {
-      return `${hours}h ${minutes.toString().padStart(2, '0')}m`;
-    }
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  }, [startedAt, now]);
-
-  // Calculate time remaining and warning states
-  const timeInfo = useMemo(() => {
-    if (!startedAt || !slotStartTime || !slotDurationMinutes) {
-      return null;
-    }
-
-    const slotStart = new Date(slotStartTime);
-    const slotEnd = new Date(slotStart.getTime() + slotDurationMinutes * 60000);
-    const elapsed = now.getTime() - new Date(startedAt).getTime();
-    const totalMs = slotDurationMinutes * 60000;
-    const remaining = Math.max(0, slotEnd.getTime() - now.getTime());
-    const remainingMinutes = Math.ceil(remaining / 60000);
-    const percentUsed = Math.min(100, Math.round((elapsed / totalMs) * 100));
-
-    // Warning thresholds
-    const isWarning = percentUsed >= 80 && percentUsed < 100; // 80-100%
-    const isOverrun = percentUsed >= 100; // >100%
-
-    return {
-      remaining,
-      remainingMinutes,
-      percentUsed,
-      isWarning,
-      isOverrun,
-      slotEnd,
-    };
-  }, [startedAt, slotStartTime, slotDurationMinutes, now]);
-
-  // Formatted remaining time
-  const remainingDisplay = useMemo(() => {
-    if (!timeInfo) return null;
-    
-    if (timeInfo.isOverrun) {
-      const overrunMinutes = Math.floor(
-        (now.getTime() - timeInfo.slotEnd.getTime()) / 60000
-      );
-      return `+${overrunMinutes}m over`;
-    }
-
-    if (timeInfo.remainingMinutes <= 0) return 'Time\'s up';
-    if (timeInfo.remainingMinutes > 60) {
-      const hours = Math.floor(timeInfo.remainingMinutes / 60);
-      const mins = timeInfo.remainingMinutes % 60;
-      return `${hours}h ${mins}m left`;
-    }
-    return `${timeInfo.remainingMinutes}m left`;
-  }, [timeInfo, now]);
-
-  // Patient initials
   const initials = patientName
     .split(' ')
     .map(n => n[0])
@@ -152,7 +80,6 @@ export function ConsultationSessionHeader({
       <div className="flex items-center justify-between px-4 lg:px-6 h-16 w-full">
         {/* Left: Back + Patient Identity */}
         <div className="flex items-center gap-4 min-w-0">
-          {/* Back button */}
           <motion.div whileHover={{ x: -2 }} whileTap={{ scale: 0.95 }}>
             <Button
               variant="ghost"
@@ -167,82 +94,22 @@ export function ConsultationSessionHeader({
 
           {/* Patient identity container */}
           <div className="flex items-center gap-3 min-w-0 group cursor-default">
-            {/* Patient avatar */}
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className={cn(
-                'h-10 w-10 rounded-xl flex items-center justify-center shrink-0 font-bold text-sm shadow-sm transition-all duration-300',
-                isActive
-                  ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200'
-                  : isCompleted
-                    ? 'bg-slate-100 text-slate-500'
-                    : 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-200'
-              )}
-            >
-              {initials}
-            </motion.div>
-
-            {/* Patient name & status */}
+            <PatientAvatar initials={initials} isActive={isActive} isCompleted={isCompleted} />
+            
             <div className="min-w-0">
               <div className="flex items-center gap-2.5">
                 <h1 className="text-[15px] font-bold text-slate-900 tracking-tight transition-colors">
                   {patientName}
                 </h1>
-                <StatusBadge
-                  isActive={isActive}
-                  isCompleted={isCompleted}
-                />
+                <StatusBadge isActive={isActive} isCompleted={isCompleted} />
               </div>
-              {/* Timer row */}
+              
               <div className="flex items-center gap-3 mt-0.5">
-                {elapsed && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium"
-                  >
-                    <Clock className="h-3 w-3 text-emerald-500/70" />
-                    <span className="font-mono tabular-nums tracking-wider">{elapsed}</span>
-                    
-                    {/* Remaining time and progress indicator */}
-                    {timeInfo && (
-                      <>
-                        {' • '}
-                        <div
-                          className={cn(
-                            'flex items-center gap-1 px-2 py-0.5 rounded-md font-mono tabular-nums',
-                            timeInfo.isOverrun
-                              ? 'bg-red-50 text-red-600 font-bold'
-                              : timeInfo.isWarning
-                                ? 'bg-amber-50 text-amber-600 font-bold'
-                                : 'text-slate-500'
-                          )}
-                        >
-                          {remainingDisplay}
-                        </div>
-                        
-                        {/* Progress bar */}
-                        <div className="w-12 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{
-                              width: `${Math.min(100, timeInfo.percentUsed)}%`,
-                            }}
-                            className={cn(
-                              'h-full transition-colors',
-                              timeInfo.isOverrun
-                                ? 'bg-red-500'
-                                : timeInfo.isWarning
-                                  ? 'bg-amber-500'
-                                  : 'bg-emerald-500'
-                            )}
-                          />
-                        </div>
-                      </>
-                    )}
-                  </motion.div>
-                )}
+                <TimerDisplay 
+                  elapsed={elapsed} 
+                  timeInfo={timeInfo} 
+                  remainingDisplay={remainingDisplay} 
+                />
                 <AutoSaveIndicator status={autoSaveStatus} isSaving={isSaving} />
               </div>
             </div>
@@ -251,48 +118,14 @@ export function ConsultationSessionHeader({
 
         {/* Right: Actions */}
         <div className="flex items-center gap-3 shrink-0">
-          {isActive && (
-            <>
-              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onSaveDraft}
-                  disabled={isSaving}
-                  className="h-9 gap-2 text-slate-600 border-slate-200 bg-white hover:bg-slate-50 hover:text-indigo-600 font-medium shadow-sm transition-all"
-                >
-                  {isSaving ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-500" />
-                  ) : (
-                    <Save className="h-3.5 w-3.5 opacity-70" />
-                  )}
-                  <span className="hidden sm:inline">Save Draft</span>
-                </Button>
-              </motion.div>
-
-              {canCompleteConsultation && (
-                <motion.div whileHover={{ scale: 1.02, y: -1 }} whileTap={{ scale: 0.98 }}>
-                  <Button
-                    onClick={onComplete}
-                    size="sm"
-                    className="h-9 gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 shadow-sm transition-all border-none"
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Complete Session</span>
-                  </Button>
-                </motion.div>
-              )}
-            </>
-          )}
-          {isCompleted && (
-            <Badge
-              variant="outline"
-              className="bg-emerald-50 text-emerald-600 border-emerald-100 gap-1.5 py-1.5 px-3 font-bold"
-            >
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              CONCLUDED
-            </Badge>
-          )}
+          <HeaderActions 
+            isActive={isActive} 
+            isCompleted={isCompleted}
+            isSaving={isSaving}
+            canComplete={canCompleteConsultation}
+            onSave={onSaveDraft}
+            onComplete={onComplete}
+          />
         </div>
       </div>
     </header>
@@ -300,88 +133,135 @@ export function ConsultationSessionHeader({
 }
 
 // ============================================================================
-// STATUS BADGE
+// SUB-COMPONENTS
 // ============================================================================
 
-function StatusBadge({
-  isActive,
-  isCompleted,
-}: {
+function PatientAvatar({ initials, isActive, isCompleted }: { 
+  initials: string; 
+  isActive: boolean; 
+  isCompleted: boolean; 
+}) {
+  return (
+    <motion.div
+      initial={{ scale: 0.8, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      className={cn(
+        'h-10 w-10 rounded-xl flex items-center justify-center shrink-0 font-bold text-sm shadow-sm transition-all duration-300',
+        isActive
+          ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200'
+          : isCompleted
+            ? 'bg-slate-100 text-slate-500'
+            : 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-200'
+      )}
+    >
+      {initials}
+    </motion.div>
+  );
+}
+
+function TimerDisplay({ elapsed, timeInfo, remainingDisplay }: {
+  elapsed: string | null;
+  timeInfo: any;
+  remainingDisplay: string | null;
+}) {
+  if (!elapsed) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 5 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium"
+    >
+      <Clock className="h-3 w-3 text-emerald-500/70" />
+      <span className="font-mono tabular-nums tracking-wider">{elapsed}</span>
+      
+      {timeInfo && (
+        <>
+          {' • '}
+          <div
+            className={cn(
+              'flex items-center gap-1 px-2 py-0.5 rounded-md font-mono tabular-nums',
+              timeInfo.isOverrun
+                ? 'bg-red-50 text-red-600 font-bold'
+                : timeInfo.isWarning
+                  ? 'bg-amber-50 text-amber-600 font-bold'
+                  : 'text-slate-500'
+            )}
+          >
+            {remainingDisplay}
+          </div>
+          
+          <div className="w-12 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{
+                width: `${Math.min(100, timeInfo.percentUsed)}%`,
+              }}
+              className={cn(
+                'h-full transition-colors',
+                timeInfo.isOverrun ? 'bg-red-500' : timeInfo.isWarning ? 'bg-amber-500' : 'bg-emerald-500'
+              )}
+            />
+          </div>
+        </>
+      )}
+    </motion.div>
+  );
+}
+
+function HeaderActions({ isActive, isCompleted, isSaving, canComplete, onSave, onComplete }: {
   isActive: boolean;
   isCompleted: boolean;
+  isSaving: boolean;
+  canComplete: boolean;
+  onSave: () => void;
+  onComplete: () => void;
 }) {
-  if (isActive) {
-    return (
-      <Badge
-        variant="outline"
-        className="bg-emerald-50 text-emerald-700 border-emerald-200/80 gap-1 text-[11px] font-medium px-2 py-0 h-5"
-      >
-        <Circle className="h-1.5 w-1.5 fill-emerald-500 text-emerald-500 animate-pulse" />
-        In Progress
-      </Badge>
-    );
-  }
-
   if (isCompleted) {
     return (
       <Badge
         variant="outline"
-        className="bg-slate-50 text-slate-500 border-slate-200 gap-1 text-[11px] font-medium px-2 py-0 h-5"
+        className="bg-emerald-50 text-emerald-600 border-emerald-100 gap-1.5 py-1.5 px-3 font-bold"
       >
-        <CheckCircle2 className="h-2.5 w-2.5" />
-        Completed
+        <CheckCircle2 className="h-3.5 w-3.5" />
+        CONCLUDED
       </Badge>
     );
   }
 
+  if (!isActive) return null;
+
   return (
-    <Badge
-      variant="outline"
-      className="bg-amber-50 text-amber-700 border-amber-200 gap-1 text-[11px] font-medium px-2 py-0 h-5"
-    >
-      <Activity className="h-2.5 w-2.5" />
-      Not Started
-    </Badge>
+    <>
+      <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onSave}
+          disabled={isSaving}
+          className="h-9 gap-2 text-slate-600 border-slate-200 bg-white hover:bg-slate-50 hover:text-indigo-600 font-medium shadow-sm transition-all"
+        >
+          {isSaving ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-500" />
+          ) : (
+            <Save className="h-3.5 w-3.5 opacity-70" />
+          )}
+          <span className="hidden sm:inline">Save Draft</span>
+        </Button>
+      </motion.div>
+
+      {canComplete && (
+        <motion.div whileHover={{ scale: 1.02, y: -1 }} whileTap={{ scale: 0.98 }}>
+          <Button
+            onClick={onComplete}
+            size="sm"
+            className="h-9 gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 shadow-sm transition-all border-none"
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Complete Session</span>
+          </Button>
+        </motion.div>
+      )}
+    </>
   );
-}
-
-// ============================================================================
-// AUTO-SAVE INDICATOR
-// ============================================================================
-
-function AutoSaveIndicator({
-  status,
-  isSaving,
-}: {
-  status: 'idle' | 'saving' | 'saved' | 'error';
-  isSaving: boolean;
-}) {
-  if (status === 'saving' || isSaving) {
-    return (
-      <div className="flex items-center gap-1.5 text-[11px] text-blue-600">
-        <div className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-pulse" />
-        <span>Saving…</span>
-      </div>
-    );
-  }
-
-  if (status === 'saved') {
-    return (
-      <div className="flex items-center gap-1.5 text-[11px] text-emerald-600">
-        <CheckCircle2 className="h-3 w-3" />
-        <span>All changes saved</span>
-      </div>
-    );
-  }
-
-  if (status === 'error') {
-    return (
-      <div className="flex items-center gap-1.5 text-[11px] text-red-600 font-medium">
-        <div className="h-1.5 w-1.5 rounded-full bg-red-500" />
-        <span>Save failed — retry</span>
-      </div>
-    );
-  }
-
-  return null;
 }

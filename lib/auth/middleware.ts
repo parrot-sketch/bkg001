@@ -97,6 +97,8 @@ export class JwtMiddleware {
 
       // Authenticate using instance method
       const user = await middleware.authenticate(authorizationHeader);
+      
+      console.log(`[JwtMiddleware.authenticate] AUTH SUCCESS for user: ${user.userId}, role: ${user.role}`);
 
       return { success: true, user };
     } catch (error) {
@@ -142,6 +144,8 @@ export class JwtMiddleware {
   async verifyToken(token: string): Promise<AuthContext> {
     try {
       const payload: TokenPayload = await this.authService.verifyAccessToken(token);
+      
+      console.log(`[JwtMiddleware.verifyToken] Decoded payload:`, JSON.stringify(payload));
 
       return {
         userId: payload.userId,
