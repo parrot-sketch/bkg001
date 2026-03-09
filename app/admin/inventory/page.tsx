@@ -45,12 +45,6 @@ export default async function InventoryPage() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h2 className="text-3xl font-bold tracking-tight">Inventory Management</h2>
-                <p className="text-muted-foreground">
-                    Track high-value implants, monitor expiry dates, and manage stock levels.
-                </p>
-            </div>
 
             <InventoryDashboard
                 initialBatches={batches.map(b => ({

@@ -13,13 +13,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { readFile } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+import { getFileUrl, downloadResource } from '@/lib/cloudinary';
 import * as jwt from 'jsonwebtoken';
-
-// Storage directory for consent templates
-const STORAGE_DIR = join(process.cwd(), 'storage', 'consent-templates');
 
 /** Verify a raw JWT token string against the server secret. */
 function verifyToken(token: string): boolean {
@@ -89,19 +84,26 @@ export async function GET(
             );
         }
 
-        // Construct file path
-        const filePath = join(STORAGE_DIR, userId, filename);
+        // Construct Cloudinary Public ID
+        const cloudinaryPublicId = `consent-templates/${userId}/${filename}`;
+        
+        // Generate Cloudinary URL (raw resource, unsigned by default)
+        const cloudinaryUrl = getFileUrl(cloudinaryPublicId, {
+            resource_type: 'raw',
+        });
 
-        // Verify file exists
-        if (!existsSync(filePath)) {
+        // Fetch from Cloudinary using authentication
+        const response = await downloadResource(cloudinaryPublicId, 'raw');
+        
+        if (!response.ok) {
+            console.error(`[API] Cloudinary fetch failed for template: ${response.status} ${response.statusText}`);
             return NextResponse.json(
-                { success: false, error: 'File not found' },
+                { success: false, error: 'Template file not found on storage' },
                 { status: 404 }
             );
         }
 
-        // Read file
-        const fileBuffer = await readFile(filePath);
+        const fileBuffer = Buffer.from(await response.arrayBuffer());
 
         // Return PDF with appropriate headers
         return new NextResponse(fileBuffer, {

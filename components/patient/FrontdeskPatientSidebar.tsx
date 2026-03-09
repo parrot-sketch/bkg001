@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { BookingChannel } from "@/domain/enums/BookingChannel";
+import { useBookAppointmentStore } from "@/hooks/frontdesk/useBookAppointmentStore";
+import { AppointmentSource } from "@/domain/enums/AppointmentSource";
 
 interface FrontdeskPatientSidebarProps {
     patientId: string;
@@ -31,13 +33,6 @@ const QUICK_ACTIONS = [
         iconClass: "text-blue-600 bg-blue-50",
     },
     {
-        label: "Clinical Records",
-        description: "View medical records",
-        icon: ClipboardList,
-        tabKey: "medical-history",
-        iconClass: "text-teal-600 bg-teal-50",
-    },
-    {
         label: "Billing & Payments",
         description: "View billing history",
         icon: CreditCard,
@@ -51,7 +46,6 @@ const EXTERNAL_ACTION = {
     label: "Schedule Appointment",
     description: "Book a new appointment",
     icon: CalendarPlus,
-    getHref: (id: string) => `/frontdesk/appointments/new?patientId=${id}&source=profile`,
     iconClass: "text-emerald-600 bg-emerald-50",
 };
 
@@ -63,6 +57,7 @@ export function FrontdeskPatientSidebar({
 }: FrontdeskPatientSidebarProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { openBookingDialog } = useBookAppointmentStore();
     const currentTab = searchParams.get("cat") || "overview";
 
     const handleTabClick = (tabKey: string) => {
@@ -163,7 +158,11 @@ export function FrontdeskPatientSidebar({
 
                     {/* External Action (Schedule Appointment) */}
                     <button
-                        onClick={() => router.push(`/frontdesk/booking?patientId=${patientId}`)}
+                        onClick={() => openBookingDialog({ 
+                            initialPatientId: patientId, 
+                            source: AppointmentSource.FRONTDESK_SCHEDULED,
+                            bookingChannel: BookingChannel.DASHBOARD 
+                        })}
                         className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary/30 hover:bg-muted/40 transition-all group text-left"
                     >
                         <div className={`p-2 rounded-md flex-shrink-0 ${EXTERNAL_ACTION.iconClass}`}>
