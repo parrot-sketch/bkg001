@@ -195,7 +195,7 @@ export function MobileIntakeForm({
     const stepProgress = (step / STEPS.length) * 100;
     const currentStepLabel = STEPS[step - 1].label;
     return (
-        <div className="min-h-screen bg-slate-50/50 flex flex-col pt-4 pb-12 overflow-y-auto overscroll-y-contain">
+        <div className="min-h-screen bg-slate-50/50 flex flex-col pt-4 pb-12">
             {/* ── Clinic Header (Floating Card Style) ── */}
             <div className="px-5 mb-6 shrink-0">
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm px-5 py-4 flex items-center justify-between">
