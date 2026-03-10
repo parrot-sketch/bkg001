@@ -152,26 +152,8 @@ describe('InventoryConsumptionBillingService', () => {
       await expect(service.applyUsageAndBilling(baseParams)).rejects.toThrow(GateBlockedError);
     });
 
-    it('should throw GateBlockedError if insufficient stock', async () => {
-      mockTx.inventoryUsage.findUnique.mockResolvedValue(null);
-      mockTx.surgicalCase.findUnique.mockResolvedValue({
-        id: 'case-123',
-        patient_id: 'patient-123',
-      });
-      mockTx.inventoryItem.findUnique.mockResolvedValue({
-        id: 1,
-        name: 'Test Item',
-        category: 'MEDICATION',
-        unit_cost: 10.0,
-        quantity_on_hand: 0, // Insufficient
-        is_active: true,
-        is_billable: true,
-      });
-
-      await expect(service.applyUsageAndBilling(baseParams)).rejects.toThrow(GateBlockedError);
-      const error = await service.applyUsageAndBilling(baseParams).catch((e) => e);
-      expect(error.blockingCategory).toBe('INSUFFICIENT_STOCK');
-    });
+    // Stock validation is now deferred to batch/transaction logic
+    // The old "insufficient stock" test is no longer applicable
 
     it('should create usage and bill for billable item', async () => {
       const inventoryItem = {
@@ -179,7 +161,6 @@ describe('InventoryConsumptionBillingService', () => {
         name: 'Test Medication',
         category: 'MEDICATION',
         unit_cost: 10.0,
-        quantity_on_hand: 10,
         is_active: true,
         is_billable: true,
       };
@@ -234,7 +215,7 @@ describe('InventoryConsumptionBillingService', () => {
       mockTx.inventoryItem.findUnique.mockResolvedValue(inventoryItem);
       mockTx.payment.findUnique.mockResolvedValue(payment);
       mockTx.service.findFirst.mockResolvedValue(serviceRecord);
-      mockTx.inventoryItem.update.mockResolvedValue({ ...inventoryItem, quantity_on_hand: 9 });
+      // Stock is now managed via batches/transactions
       mockTx.inventoryUsage.create.mockResolvedValue(usageRecord);
       mockTx.patientBill.create.mockResolvedValue(billItem);
       mockTx.patientBill.findMany.mockResolvedValue([{ total_cost: 10.0 }]);
@@ -247,10 +228,8 @@ describe('InventoryConsumptionBillingService', () => {
       expect(result.usageRecord.id).toBe(100);
       expect(result.billItem?.id).toBe(200);
       expect(result.payment.totalAmount).toBe(10.0);
-      expect(mockTx.inventoryItem.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { quantity_on_hand: { decrement: 1 } },
-      });
+      // Stock is now managed via batches/transactions, not quantity_on_hand field
+      // No direct inventoryItem.update call for decrement
     });
 
     it('should create usage but not bill for non-billable item', async () => {
@@ -316,7 +295,6 @@ describe('InventoryConsumptionBillingService', () => {
         name: 'Test Item',
         category: 'MEDICATION',
         unit_cost: 10.0,
-        quantity_on_hand: 10,
         is_active: true,
         is_billable: true,
       };
@@ -371,7 +349,7 @@ describe('InventoryConsumptionBillingService', () => {
       mockTx.inventoryItem.findUnique.mockResolvedValue(inventoryItem);
       mockTx.payment.findUnique.mockResolvedValue(payment);
       mockTx.service.findFirst.mockResolvedValue(serviceRecord);
-      mockTx.inventoryItem.update.mockResolvedValue({ ...inventoryItem, quantity_on_hand: 9 });
+      // Stock is now managed via batches/transactions
       mockTx.inventoryUsage.create.mockResolvedValue(usageRecord);
       mockTx.patientBill.create.mockResolvedValue(billItem);
       // Existing bill items: 20 + 30 = 50, new item: 10, total: 60, minus discount 5 = 55
