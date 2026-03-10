@@ -136,15 +136,20 @@ export class GoodsReceiptService {
           },
         });
 
-        // If linked to inventory item, increment stock
+        // If linked to inventory item, record transaction
         if (receiptItem.inventory_item_id) {
-          await tx.inventoryItem.update({
-            where: { id: receiptItem.inventory_item_id },
+          // Record STOCK_IN transaction
+          await tx.inventoryTransaction.create({
             data: {
-              quantity_on_hand: {
-                increment: receiptItem.quantity_received,
-              },
-            },
+              inventory_item_id: receiptItem.inventory_item_id,
+              type: 'STOCK_IN',
+              quantity: receiptItem.quantity_received,
+              unit_price: receiptItem.unit_cost,
+              total_value: receiptItem.quantity_received * receiptItem.unit_cost,
+              reference: goodsReceipt.receipt_number,
+              notes: `Received via GRN ${goodsReceipt.receipt_number} for PO ${purchaseOrderId}`,
+              created_by_user_id: receivedByUserId,
+            }
           });
 
           // Create batch if batch number provided

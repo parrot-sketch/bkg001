@@ -21,9 +21,9 @@ export function ConsultationHistory({
 
     return (
         <div className="space-y-3">
-            <div className="flex items-center gap-2 px-4 py-2">
+            <div className="flex items-center gap-2 px-4 py-3 bg-slate-50/50 rounded-t-xl border-b border-slate-100">
                 <FileText className="h-4 w-4 text-slate-600" />
-                <h3 className="text-sm font-bold text-slate-900">Consultation History</h3>
+                <h3 className="text-[11px] text-muted-foreground font-bold uppercase tracking-widest">Consultation History</h3>
             </div>
             <div className="space-y-4">
                 {groups.map((group) => (

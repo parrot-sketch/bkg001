@@ -34,6 +34,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useServices } from '@/hooks/useServices';
 import { useAppointmentBilling, useSaveBilling } from '@/hooks/doctor/useBilling';
 import { cn } from '@/lib/utils';
+import { InventoryPicker } from '@/components/inventory/InventoryPicker';
+import { toast } from 'sonner';
 
 // ============================================================================
 // TYPES
@@ -211,6 +213,49 @@ export function BillingTab({ appointmentId, isReadOnly = false }: BillingTabProp
     setIsDirty(false);
   }, [appointmentId, consultationFee, extraItems, discount, consultationService, services, saveBilling]);
 
+  const handlePickInventory = useCallback(async (item: any) => {
+    if (!appointmentId) {
+      toast.error('Cannot record usage: No active appointment');
+      return;
+    }
+
+    try {
+      // 1. Record Usage (POST /api/inventory/usage)
+      const res = await fetch('/api/inventory/usage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          inventoryItemId: item.id,
+          appointmentId: appointmentId,
+          quantityUsed: 1, // Defaulting to 1 for quick pick
+          notes: `Consumed during consultation session.`
+        })
+      });
+
+      const result = await res.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to record inventory usage');
+      }
+
+      // 2. Add to Local Billing if successful
+      setExtraItems(prev => [
+        ...prev,
+        {
+          key: nextKey(),
+          description: item.name,
+          amount: item.unitCost,
+          serviceId: null, // We'll link to service if needed later, or just keep as description-based billing
+        },
+      ]);
+      setIsDirty(true);
+      toast.success(`${item.name} recorded and added to bill`);
+
+    } catch (error: any) {
+      console.error('Inventory pick error:', error);
+      toast.error(error.message || 'Error recording inventory usage');
+    }
+  }, [appointmentId]);
+
   // ── Loading ──
   if (billingLoading || servicesLoading) {
     return (
@@ -300,6 +345,12 @@ export function BillingTab({ appointmentId, isReadOnly = false }: BillingTabProp
           <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Additional Services</span>
             <Plus className="h-3.5 w-3.5 text-slate-300" />
+          </div>
+
+          <div className="p-6 border-b border-slate-50 bg-indigo-50/20">
+            <Label className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider mb-2 block">Link Surgery Supplies / Items</Label>
+            <InventoryPicker onSelect={handlePickInventory} placeholder="Search Botox, Fillers, Implants..." />
+            <p className="mt-2 text-[10px] text-slate-400 font-medium italic">Selecting an item automatically decrements stock & adds to bill.</p>
           </div>
 
           <div className="divide-y divide-slate-100">

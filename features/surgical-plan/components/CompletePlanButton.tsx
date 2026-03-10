@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { CheckCircle2, XCircle, Loader2, Send } from 'lucide-react';
+import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface PlanningReadinessItem {
@@ -60,9 +60,9 @@ export function CompletePlanButton({ caseId }: CompletePlanButtonProps) {
                 {isLoading ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
-                    <Send className="mr-2 h-4 w-4" />
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
                 )}
-                Complete Plan & Send to Frontdesk
+                Complete
             </Button>
 
             <Dialog open={showMissingModal} onOpenChange={setShowMissingModal}>

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { z } from 'zod';
-import { getCurrentUser } from '@/lib/auth/server-auth';
+import { JwtMiddleware } from '@/lib/auth/middleware';
+import { Role } from '@/domain/enums/Role';
+import { inventoryModule } from '@/application/inventory-module';
 
 // Validation Schema for Receiving Stock
 const receiveStockSchema = z.object({
@@ -16,16 +18,16 @@ const receiveStockSchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-    const user = await getCurrentUser();
-    if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(req.url);
-    const itemId = searchParams.get('itemId');
-    const expiringSoon = searchParams.get('expiringSoon') === 'true';
-
     try {
+        const authResult = await JwtMiddleware.authenticate(req);
+        if (!authResult.success) {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const { searchParams } = new URL(req.url);
+        const itemId = searchParams.get('itemId');
+        const expiringSoon = searchParams.get('expiringSoon') === 'true';
+
         const whereClause: any = {};
 
         if (itemId) {
@@ -37,7 +39,7 @@ export async function GET(req: NextRequest) {
             thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
             whereClause.expiry_date = {
                 lte: thirtyDaysFromNow,
-                gte: new Date(), // Generally want future expiries? Or past too? Let's say active stock
+                gte: new Date(),
             };
             whereClause.quantity_remaining = { gt: 0 };
         }
@@ -58,27 +60,32 @@ export async function GET(req: NextRequest) {
             },
         });
 
-        return NextResponse.json(batches);
+        return NextResponse.json({ success: true, data: batches });
     } catch (error) {
         console.error('Error fetching batches:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch inventory batches' },
+            { success: false, error: 'Failed to fetch inventory batches' },
             { status: 500 }
         );
     }
 }
 
 export async function POST(req: NextRequest) {
-    const user = await getCurrentUser();
-    if (!user || !['ADMIN', 'DOCTOR', 'NURSE'].includes(user.role as string)) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     try {
+        const authResult = await JwtMiddleware.authenticate(req);
+        if (!authResult.success || !authResult.user) {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const allowedRoles = [Role.ADMIN, Role.STORES, Role.THEATER_TECHNICIAN];
+        if (!allowedRoles.includes(authResult.user.role as Role)) {
+            return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
+        }
+
         const body = await req.json();
         const validatedData = receiveStockSchema.parse(body);
 
-        // Transaction: Create Batch + Update Item Quantity
+        // Transaction: Create Batch + Record Inventory Transaction
         const result = await db.$transaction(async (tx) => {
             // 1. Create Batch
             const batch = await tx.inventoryBatch.create({
@@ -94,29 +101,28 @@ export async function POST(req: NextRequest) {
                 },
             });
 
-            // 2. Update Master Quantity on InventoryItem
-            await tx.inventoryItem.update({
-                where: { id: validatedData.inventory_item_id },
-                data: {
-                    quantity_on_hand: {
-                        increment: validatedData.quantity,
-                    },
-                    // Optionally update last cost?
-                    // unit_cost: validatedData.cost_per_unit 
-                },
+            // 2. Record Stock Movement Transaction via Service
+            // Note: We use the service to ensure business rules (like generating logs) are followed.
+            await inventoryModule.inventoryService.recordStockIn({
+                inventoryItemId: validatedData.inventory_item_id,
+                quantity: validatedData.quantity,
+                unitPrice: validatedData.cost_per_unit,
+                reference: `Batch: ${validatedData.batch_number}`,
+                notes: validatedData.notes || 'Received via Batches API',
+                createdById: authResult.user!.userId,
             });
 
             return batch;
         });
 
-        return NextResponse.json(result, { status: 201 });
+        return NextResponse.json({ success: true, data: result }, { status: 201 });
     } catch (error) {
         if (error instanceof z.ZodError) {
-            return NextResponse.json({ error: 'Validation Error', details: error.errors }, { status: 400 });
+            return NextResponse.json({ success: false, error: 'Validation Error', details: error.errors }, { status: 400 });
         }
         console.error('Error receiving stock:', error);
         return NextResponse.json(
-            { error: 'Failed to receive stock' },
+            { success: false, error: error instanceof Error ? error.message : 'Failed to receive stock' },
             { status: 500 }
         );
     }

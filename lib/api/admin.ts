@@ -153,6 +153,13 @@ export const adminApi = {
   },
 
   /**
+   * Cancel an appointment (admin)
+   */
+  async cancelAppointment(id: number, reason?: string): Promise<ApiResponse<{ id: number; status: string }>> {
+    return apiClient.put(`/admin/appointments/${id}/cancel`, { reason });
+  },
+
+  /**
    * Get pre-op patients overview
    */
   async getPreOpOverview(): Promise<ApiResponse<AppointmentResponseDto[]>> {

@@ -15,6 +15,7 @@ import {
   Wrench,
   Play,
   Heart,
+  Package // Added Package 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -33,7 +34,7 @@ import { BlockerChips } from './BlockerChips';
 interface DayboardCaseCardProps {
   caseData: DayboardCaseDto;
   onTransition: (action: string, label: string) => void;
-  onChecklist: (phase: 'SIGN_IN' | 'TIME_OUT' | 'SIGN_OUT') => void;
+  onChecklist: (phase: 'SIGN_IN' | 'TIME_OUT' | 'SIGN_OUT' | 'INVENTORY') => void;
   onViewBlockers: () => void;
   onTimeline: () => void;
 }
@@ -193,26 +194,46 @@ export function DayboardCaseCard({
 
                 {/* Timeline button — visible for active cases */}
                 {['IN_PREP', 'IN_THEATER', 'RECOVERY', 'COMPLETED'].includes(caseData.status) && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={onTimeline}
-                        className={cn(
-                          'h-7 px-2.5 rounded-md text-[10px] font-bold border transition-colors',
-                          caseData.timeline &&
-                            (caseData.timeline.wheelsIn || caseData.timeline.incisionTime)
-                            ? 'bg-cyan-50 border-cyan-300 text-cyan-700 hover:bg-cyan-100'
-                            : 'bg-white border-slate-200 text-slate-400 hover:bg-cyan-50 hover:border-cyan-300 hover:text-cyan-700'
-                        )}
-                      >
-                        <Timer className="h-3 w-3 inline mr-0.5" />
-                        Timeline
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="text-xs">Operative timeline timestamps</p>
-                    </TooltipContent>
-                  </Tooltip>
+                  <div className="flex items-center gap-1">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => onChecklist('INVENTORY')}
+                          className={cn(
+                            'h-7 px-2.5 rounded-md text-[10px] font-bold border transition-colors',
+                            'bg-white border-slate-200 text-slate-400 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700'
+                          )}
+                        >
+                          <Package className="h-3 w-3 inline mr-0.5" />
+                          Inventory
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs">Surgical Pick-list & Consumption</p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={onTimeline}
+                          className={cn(
+                            'h-7 px-2.5 rounded-md text-[10px] font-bold border transition-colors',
+                            caseData.timeline &&
+                              (caseData.timeline.wheelsIn || caseData.timeline.incisionTime)
+                              ? 'bg-cyan-50 border-cyan-300 text-cyan-700 hover:bg-cyan-100'
+                              : 'bg-white border-slate-200 text-slate-400 hover:bg-cyan-50 hover:border-cyan-300 hover:text-cyan-700'
+                          )}
+                        >
+                          <Timer className="h-3 w-3 inline mr-0.5" />
+                          Timeline
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs">Operative timeline timestamps</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                 )}
 
                 {/* Primary CTA */}

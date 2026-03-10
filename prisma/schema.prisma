@@ -49,6 +49,7 @@ model User {
   staff_invites_sent         StaffInvite[]            @relation("StaffInviteInviter")
   staff_invites_received     StaffInvite[]            @relation("StaffInviteUser")
   stock_adjustments          StockAdjustment[]        @relation("StockAdjustmentUser")
+  inventory_transactions     InventoryTransaction[]   @relation("InventoryTransactionUser")
   checklist_sign_ins         SurgicalChecklist[]      @relation("ChecklistSignIn")
   checklist_sign_outs        SurgicalChecklist[]      @relation("ChecklistSignOut")
   checklist_time_outs        SurgicalChecklist[]      @relation("ChecklistTimeOut")
@@ -640,8 +641,8 @@ model InventoryItem {
   description          String?
   unit_of_measure      String                     @default("unit")
   unit_cost            Float                      @default(0)
-  quantity_on_hand     Int                        @default(0)
   reorder_point        Int                        @default(0)
+  low_stock_threshold  Int                        @default(0)
   supplier             String?
   is_active            Boolean                    @default(true)
   is_billable          Boolean                    @default(true)
@@ -656,12 +657,32 @@ model InventoryItem {
   purchase_order_items PurchaseOrderItem[]        @relation("POItemInventoryItem")
   stock_adjustments    StockAdjustment[]          @relation("StockAdjustmentInventoryItem")
   medication_records   SurgicalMedicationRecord[]
+  transactions         InventoryTransaction[]
 
   @@index([name])
   @@index([sku])
   @@index([category])
   @@index([is_active])
-  @@index([quantity_on_hand])
+}
+
+model InventoryTransaction {
+  id                String            @id @default(uuid())
+  inventory_item_id Int
+  type              StockMovementType
+  quantity          Int               @default(1)
+  unit_price        Float             @default(0)
+  total_value       Float             @default(0)
+  reference         String?
+  notes             String?
+  created_at        DateTime          @default(now())
+  created_by_user_id String?
+  inventory_item    InventoryItem     @relation(fields: [inventory_item_id], references: [id], onDelete: Cascade)
+  created_by        User?             @relation("InventoryTransactionUser", fields: [created_by_user_id], references: [id])
+
+  @@index([inventory_item_id])
+  @@index([type])
+  @@index([created_at])
+  @@index([reference])
 }
 
 model InventoryBatch {
@@ -1352,6 +1373,7 @@ model Theater {
   is_active         Boolean                   @default(true)
   operational_hours String?
   capabilities      String?
+  hourly_rate       Float                     @default(0) // Hourly rate for theater usage (KES)
   created_at        DateTime                  @default(now())
   updated_at        DateTime                  @updatedAt
   surgical_records  SurgicalProcedureRecord[]
@@ -2098,4 +2120,11 @@ enum DoctorPatientAssignmentStatus {
   DISCHARGED
   TRANSFERRED
   INACTIVE
+}
+
+enum StockMovementType {
+  STOCK_IN
+  STOCK_OUT
+  ADJUSTMENT
+  OPENING_BALANCE
 }

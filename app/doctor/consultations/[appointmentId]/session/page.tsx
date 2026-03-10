@@ -178,6 +178,40 @@ function LoadingState() {
   );
 }
 
+function NoPatientState({ waitingQueue, onRefresh, isRefreshing }: { 
+  waitingQueue: any[]; 
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
+}) {
+  return (
+    <div className="flex flex-col h-screen bg-white">
+      {/* Simple header */}
+      <div className="h-16 border-b border-slate-200 flex items-center justify-center px-4 bg-slate-50/50">
+        <h1 className="text-lg font-semibold text-slate-900">Consultation Room</h1>
+      </div>
+
+      {/* Main content area - centered message */}
+      <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50/30">
+        <div className="text-center max-w-sm">
+          <div className="h-16 w-16 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-4">
+            <Users className="h-8 w-8 text-emerald-500" />
+          </div>
+          <h2 className="text-xl font-semibold text-slate-900 mb-2">Waiting for Patient</h2>
+          <p className="text-sm text-slate-500 mb-4">
+            {waitingQueue.length > 0 
+              ? `${waitingQueue.length} patient${waitingQueue.length > 1 ? 's' : ''} waiting in queue`
+              : 'No patients currently in queue'
+            }
+          </p>
+          <p className="text-xs text-slate-400">
+            The queue will update automatically when new patients check in or complete triage.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ============================================================================
 // MAIN CONTENT (Uses Context)
 // ============================================================================
@@ -188,6 +222,8 @@ function ConsultationSessionContent() {
     isActive,
     isReadOnly,
     waitingQueue,
+    refetchQueue,
+    isQueueRefetching,
     saveDraft,
     startConsultation,
     openCompleteDialog,
@@ -239,9 +275,29 @@ function ConsultationSessionContent() {
     );
   }
 
-  // Require appointment and patient
+  // Require appointment and patient - show queue state if no patient
   if (!appointment || !patient) {
-    return <LoadingState />;
+    return (
+      <div className="flex h-screen">
+        <div className="flex-1">
+          <NoPatientState 
+            waitingQueue={waitingQueue} 
+            onRefresh={refetchQueue}
+            isRefreshing={isQueueRefetching}
+          />
+        </div>
+        {/* Queue Panel */}
+        <Suspense fallback={null}>
+          <ConsultationQueuePanel
+            appointments={waitingQueue}
+            onSwitchPatient={switchToPatient}
+            onRefresh={refetchQueue}
+            isRefreshing={isQueueRefetching}
+            defaultCollapsed={false}
+          />
+        </Suspense>
+      </div>
+    );
   }
 
   const patientName = `${patient.firstName} ${patient.lastName}`;
@@ -329,6 +385,8 @@ function ConsultationSessionContent() {
             currentAppointmentId={appointment.id}
             appointments={waitingQueue}
             onSwitchPatient={switchToPatient}
+            onRefresh={refetchQueue}
+            isRefreshing={isQueueRefetching}
             defaultCollapsed={true}
           />
         </Suspense>

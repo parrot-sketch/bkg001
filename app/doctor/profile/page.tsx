@@ -12,6 +12,7 @@
  * that the previous async Server Component caused.
  */
 
+import { useEffect } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { useRouter } from 'next/navigation';
 import { useDoctorMyProfile } from '@/hooks/doctor/useDoctorProfile';
@@ -29,11 +30,16 @@ export default function DoctorProfilePage() {
     error: profileError,
   } = useDoctorMyProfile();
 
+  useEffect(() => {
+    if (!authLoading && (!isAuthenticated || !user)) {
+      router.push('/login');
+    }
+  }, [authLoading, isAuthenticated, user, router]);
+
   // ─── Auth gate ──────────────────────────────────────────────────────────
   if (authLoading) return <DoctorProfileLoading />;
 
   if (!isAuthenticated || !user) {
-    router.push('/login');
     return null;
   }
 

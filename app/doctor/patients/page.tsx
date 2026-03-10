@@ -50,7 +50,7 @@ export default function DoctorPatientsPage() {
   const {
     data: appointments = [],
     isLoading: isLoadingAppointments,
-  } = useDoctorAppointments(user?.id, !!user);
+  } = useDoctorAppointments(user?.id, undefined, !!user);
 
   const loading = isLoadingPatients || isLoadingAppointments;
 
@@ -159,12 +159,10 @@ export default function DoctorPatientsPage() {
       <div className="space-y-5 animate-in fade-in duration-500 pb-8">
 
         {/* ─── Header ────────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
           <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">My Patients</h1>
-            <p className="text-sm text-slate-500 mt-0.5">
-              Patients you&apos;ve seen or have upcoming appointments with
-            </p>
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Your Patient Roster</p>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">My Patients</h1>
           </div>
           <Button
             variant="ghost"

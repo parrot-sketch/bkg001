@@ -281,3 +281,28 @@ export interface PhaseStatusDto {
   completedByRole: string | null;
   items: ChecklistItemConfirmation[] | null;
 }
+// ============================================================================
+// CLINICAL INVENTORY (Phase 3.5)
+// ============================================================================
+
+export interface PicklistItemDto {
+    id: string;
+    inventoryItemId: number;
+    name: string;
+    isImplant: boolean;
+    requiredQty: number;
+    consumedQty: number;
+    status: 'PENDING' | 'PARTIAL' | 'FULFILLED';
+    unitOfMeasure: string;
+}
+
+export interface InventoryBatchDto {
+    id: string;
+    inventory_item_id: number;
+    batch_number: string;
+    expiry_date: string | null;
+    quantity_remaining: number;
+    serial_number?: string;
+    supplier?: string;
+    notes?: string;
+}

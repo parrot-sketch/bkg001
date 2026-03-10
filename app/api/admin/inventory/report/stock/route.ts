@@ -63,25 +63,33 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       where.category = parsed.category;
     }
 
-    // Fetch inventory items
-    let items = await db.inventoryItem.findMany({
+    // Fetch inventory items with batch quantities
+    const rawItems = await db.inventoryItem.findMany({
       where,
-      select: {
-        id: true,
-        name: true,
-        sku: true,
-        category: true,
-        unit_of_measure: true,
-        quantity_on_hand: true,
-        reorder_point: true,
-        is_active: true,
-        unit_cost: true, // Will be omitted for STORES
+      include: {
+        batches: {
+          select: {
+            quantity_remaining: true,
+          },
+        },
       },
       orderBy: [
-        { quantity_on_hand: 'asc' }, // Low stock first
         { name: 'asc' },
       ],
     });
+
+    // Calculate quantity_on_hand from batches and pick needed fields
+    let items = rawItems.map((item) => ({
+      id: item.id,
+      name: item.name,
+      sku: item.sku,
+      category: item.category,
+      unit_of_measure: item.unit_of_measure,
+      reorder_point: item.reorder_point,
+      is_active: item.is_active,
+      unit_cost: item.unit_cost,
+      quantity_on_hand: item.batches.reduce((sum, batch) => sum + batch.quantity_remaining, 0),
+    }));
 
     // Filter by belowReorderOnly in application layer (Prisma doesn't support column comparison in where)
     if (parsed.belowReorderOnly) {

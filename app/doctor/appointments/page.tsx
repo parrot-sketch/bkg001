@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw, Play, AlertTriangle, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import { useDoctorAppointments } from '@/hooks/doctor/useDoctorAppointments';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { ClinicalDashboardShell } from '@/components/layouts/ClinicalDashboardShell';
 import { format, isToday, startOfDay } from 'date-fns';
@@ -44,40 +45,20 @@ type TabKey = 'today' | 'upcoming' | 'past';
 export default function DoctorAppointmentsPage() {
     const router = useRouter();
     const { user, isAuthenticated } = useAuth();
-    const [appointments, setAppointments] = useState<AppointmentResponseDto[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
     const [selectedAppointment, setSelectedAppointment] = useState<AppointmentResponseDto | null>(null);
     const [showCompleteConsultation, setShowCompleteConsultation] = useState(false);
     const [activeTab, setActiveTab] = useState<TabKey>('today');
     const [statusFilter, setStatusFilter] = useState('ALL');
     const [searchQuery, setSearchQuery] = useState('');
 
-    const loadAppointments = useCallback(async (silent = false) => {
-        if (!user) return;
-        try {
-            if (!silent) setLoading(true);
-            else setRefreshing(true);
-            const response = await doctorApi.getAppointments(user.id, ALL_ACTIVE_STATUSES, true);
-            if (response.success && response.data) {
-                setAppointments(response.data);
-            } else if (!response.success) {
-                if (!silent) toast.error(response.error || 'Failed to load appointments');
-            }
-        } catch (error) {
-            if (!silent) toast.error('An error occurred while loading appointments');
-            console.error('Error loading appointments:', error);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    }, [user]);
+    const {
+        data: appointmentData,
+        isLoading: loading,
+        isRefetching: refreshing,
+        refetch
+    } = useDoctorAppointments(user?.id, ALL_ACTIVE_STATUSES, isAuthenticated && !!user);
 
-    useEffect(() => {
-        if (isAuthenticated && user) {
-            loadAppointments();
-        }
-    }, [isAuthenticated, user, loadAppointments]);
+    const appointments = appointmentData || [];
 
     const handleCheckIn = async (appointmentId: number) => {
         if (!user) return;
@@ -85,7 +66,7 @@ export default function DoctorAppointmentsPage() {
             const response = await doctorApi.checkInPatient(appointmentId, user.id);
             if (response.success) {
                 toast.success('Patient checked in successfully');
-                loadAppointments(true);
+                refetch();
             } else {
                 toast.error(response.error || 'Failed to check in patient');
             }
@@ -106,7 +87,7 @@ export default function DoctorAppointmentsPage() {
     const handleConsultationSuccess = () => {
         setShowCompleteConsultation(false);
         setSelectedAppointment(null);
-        loadAppointments(true);
+        refetch();
     };
 
     const parsedData = useMemo(() => {
@@ -230,14 +211,14 @@ export default function DoctorAppointmentsPage() {
     return (
         <ClinicalDashboardShell>
             <div className="space-y-5 animate-in fade-in duration-500 pb-8">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
                     <div>
-                        <h1 className="text-xl font-bold text-slate-900 tracking-tight">Appointments</h1>
-                        <p className="text-sm text-slate-500 mt-0.5">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
+                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
+                        <h1 className="text-2xl font-bold tracking-tight text-foreground">Appointments</h1>
                     </div>
                     <Button
                         variant="ghost" size="sm" className="text-xs text-slate-500 gap-1.5 self-start sm:self-auto"
-                        onClick={() => loadAppointments(true)} disabled={refreshing}
+                        onClick={() => refetch()} disabled={refreshing}
                     >
                         <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
                         Refresh

@@ -32,27 +32,34 @@ export function TodayPatientFlow({ appointments, isLoading, onStartConsultation 
       )}
 
       {/* Main Flow */}
-      <section className="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/30">
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-slate-700" />
-            <h2 className="text-sm font-semibold text-slate-800">Today's Patient Flow</h2>
+      <section className="bg-white border border-slate-200/60 rounded-[2rem] shadow-sm overflow-hidden">
+        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center">
+              <Users className="h-5 w-5 text-indigo-600" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-0.5">Confirmed Sessions</p>
+              <h2 className="text-xl font-bold tracking-tight text-foreground">Today's Patient Flow</h2>
+            </div>
           </div>
           <Link href="/doctor/appointments">
-            <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-500 hover:text-slate-900 font-medium gap-1">
+            <Button variant="outline" size="sm" className="h-9 rounded-xl text-xs font-medium gap-1">
               Full Calendar
-              <ArrowRight className="h-3 w-3" />
+              <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
         </div>
-        <div className="p-4">
+        <div className="p-6">
           {isLoading ? (
             <ScheduleSkeleton />
           ) : appointments.length === 0 ? (
-            <div className="text-center py-10 bg-slate-50/30 rounded-lg border border-dashed border-slate-200">
-              <Calendar className="h-8 w-8 text-slate-300 mx-auto mb-3" />
-              <h3 className="text-sm font-semibold text-slate-800">Workspace Clear</h3>
-              <p className="text-xs text-slate-500">No sessions scheduled for today yet.</p>
+            <div className="text-center py-12 bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-200">
+              <div className="h-16 w-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4">
+                 <Calendar className="h-8 w-8 text-slate-300" />
+              </div>
+              <h3 className="text-lg font-bold tracking-tight text-foreground">Workspace Clear</h3>
+              <p className="text-sm text-muted-foreground mt-1">No sessions scheduled for today yet.</p>
             </div>
           ) : (
             <div className="space-y-3">

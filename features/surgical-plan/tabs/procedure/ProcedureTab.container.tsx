@@ -28,6 +28,8 @@ export function ProcedureTabContainer({ caseId }: ProcedureTabContainerProps) {
       onSave={hook.onSave}
       onRetry={() => hook.onReset()}
       canSave={hook.canSave}
+      services={hook.services}
+      servicesLoading={hook.servicesLoading}
     />
   );
 }

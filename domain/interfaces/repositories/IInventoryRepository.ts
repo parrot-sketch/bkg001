@@ -1,10 +1,20 @@
 import { InventoryCategory } from '../../enums/InventoryCategory';
 
 /**
+ * Stock Movement Types
+ */
+export enum StockMovementType {
+  STOCK_IN = 'STOCK_IN',
+  STOCK_OUT = 'STOCK_OUT',
+  ADJUSTMENT = 'ADJUSTMENT',
+  OPENING_BALANCE = 'OPENING_BALANCE'
+}
+
+/**
  * Inventory Item Entity
  * 
  * Represents a physical item in the clinic's inventory.
- * Items can be billable (charged to patient) or non-billable (overhead).
+ * Balances are DERIVED from transactions.
  */
 export interface InventoryItem {
   id: number;
@@ -14,47 +24,50 @@ export interface InventoryItem {
   description: string | null;
   unitOfMeasure: string;
   unitCost: number;
-  quantityOnHand: number;
   reorderPoint: number;
+  lowStockThreshold: number;
   supplier: string | null;
   manufacturer: string | null;
   isActive: boolean;
   isBillable: boolean;
+  isImplant: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
 /**
- * Inventory Usage Record
+ * Inventory Transaction Entity
  * 
- * Tracks consumption of inventory items during procedures or appointments.
- * Links to billing when the item is charged to the patient.
+ * Records a single movement of stock.
  */
-export interface InventoryUsage {
-  id: number;
+export interface InventoryTransaction {
+  id: string;
   inventoryItemId: number;
-  surgicalCaseId: string | null;
-  appointmentId: number | null;
-  quantityUsed: number;
-  unitCostAtTime: number;
-  totalCost: number;
-  recordedBy: string;
+  type: StockMovementType;
+  quantity: number;
+  unitPrice: number;
+  totalValue: number;
+  reference: string | null;
   notes: string | null;
-  billItemId: number | null;
+  createdById: string | null;
   createdAt: Date;
-  updatedAt: Date;
 }
 
 /**
- * Inventory usage with related item details for display
+ * Aggregated Inventory Summary
  */
-export interface InventoryUsageWithItem extends InventoryUsage {
-  item: {
-    name: string;
-    category: InventoryCategory;
-    unitOfMeasure: string;
-    isBillable: boolean;
-  };
+export interface InventorySummary {
+  itemId: number;
+  name: string;
+  sku: string | null;
+  category: InventoryCategory;
+  currentBalance: number;
+  totalStockIn: number;
+  totalStockOut: number;
+  unitCost: number;
+  totalValue: number;
+  lastMovement: Date | null;
+  status: 'OK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
 }
 
 /**
@@ -67,8 +80,8 @@ export interface CreateInventoryItemDto {
   description?: string;
   unitOfMeasure?: string;
   unitCost: number;
-  quantityOnHand?: number;
   reorderPoint?: number;
+  lowStockThreshold?: number;
   supplier?: string;
   manufacturer?: string;
   isBillable?: boolean;
@@ -76,28 +89,22 @@ export interface CreateInventoryItemDto {
 }
 
 /**
- * DTO for recording inventory usage
+ * DTO for recording a stock movement
  */
-export interface RecordInventoryUsageDto {
+export interface RecordTransactionDto {
   inventoryItemId: number;
-  surgicalCaseId?: string;
-  appointmentId?: number;
-  quantityUsed: number;
-  recordedBy: string;
+  type: StockMovementType;
+  quantity: number;
+  unitPrice?: number;
+  reference?: string;
   notes?: string;
+  createdById?: string;
 }
 
 /**
  * Repository Interface: IInventoryRepository
  * 
- * Manages inventory items and usage tracking.
- * Follows clean architecture — no infrastructure dependencies.
- * 
- * Business Rules:
- * - Inventory items have unique SKUs (when set)
- * - Usage records snapshot unit cost at time of use (immutable pricing)
- * - Stock is decremented when usage is recorded
- * - Low stock alerts are triggered when quantity falls below reorder point
+ * Manages inventory items and transaction-based tracking.
  */
 export interface IInventoryRepository {
   // ============================================================================
@@ -107,10 +114,10 @@ export interface IInventoryRepository {
   /** Find item by ID */
   findItemById(id: number): Promise<InventoryItem | null>;
 
-  /** Find all active items, optionally filtered by category */
+  /** Find all active items */
   findActiveItems(category?: InventoryCategory): Promise<InventoryItem[]>;
 
-  /** Find items below reorder point (low stock) */
+  /** Find items where current balance is at or below reorder point */
   findLowStockItems(): Promise<InventoryItem[]>;
 
   /** Create a new inventory item */
@@ -119,22 +126,39 @@ export interface IInventoryRepository {
   /** Update an inventory item */
   updateItem(id: number, data: Partial<CreateInventoryItemDto>): Promise<InventoryItem>;
 
-  /** Adjust stock quantity (restock) */
-  adjustStock(itemId: number, quantityChange: number): Promise<InventoryItem>;
-
   // ============================================================================
-  // INVENTORY USAGE
+  // TRANSACTIONS & BALANCES
   // ============================================================================
 
-  /** Record usage of an inventory item during a procedure */
-  recordUsage(dto: RecordInventoryUsageDto): Promise<InventoryUsage>;
+  /** Record a stock movement transaction */
+  recordTransaction(dto: RecordTransactionDto): Promise<InventoryTransaction>;
 
-  /** Get all usage records for a surgical case */
-  findUsageBySurgicalCase(surgicalCaseId: string): Promise<InventoryUsageWithItem[]>;
+  /** Get transaction history for an item */
+  findTransactionsByItem(itemId: number): Promise<InventoryTransaction[]>;
 
-  /** Get all usage records for an appointment */
-  findUsageByAppointment(appointmentId: number): Promise<InventoryUsageWithItem[]>;
+  /** Get aggregated summary for all items */
+  getInventorySummary(): Promise<InventorySummary[]>;
 
-  /** Link usage to a bill item (after billing) */
-  linkUsageToBillItem(usageId: number, billItemId: number): Promise<InventoryUsage>;
+  /** Get current balance for a specific item */
+  getItemBalance(itemId: number): Promise<number>;
+
+  // ============================================================================
+  // USAGE RECORDS
+  // ============================================================================
+
+  /** Find usage records by surgical case ID */
+  findUsageBySurgicalCase(surgicalCaseId: string): Promise<{ totalCost: number; item: { isBillable: boolean } }[]>;
+
+  /** Find usage records by appointment ID */
+  findUsageByAppointment(appointmentId: number): Promise<{ totalCost: number; item: { isBillable: boolean } }[]>;
+
+  /** Record inventory usage */
+  recordUsage(dto: {
+    inventoryItemId: number;
+    surgicalCaseId?: string;
+    appointmentId?: number;
+    quantityUsed: number;
+    recordedBy: string;
+    notes?: string;
+  }): Promise<unknown>;
 }

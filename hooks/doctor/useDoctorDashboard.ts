@@ -26,7 +26,7 @@ import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
  * @param enabled - Whether the query should run (default: true)
  */
 export function useDoctorTodayAppointments(doctorId: string | undefined, enabled = true) {
-  return useQuery({
+  const query = useQuery({
     queryKey: ['doctor', doctorId, 'appointments', 'today'],
     queryFn: async () => {
       if (!doctorId) {
@@ -83,14 +83,20 @@ export function useDoctorTodayAppointments(doctorId: string | undefined, enabled
         return true;
       });
     },
-    staleTime: 1000 * 30, // 30 seconds - moderate freshness for clinical workflows
+    staleTime: 1000 * 10, // 10 seconds - faster stale time for queue updates
     gcTime: 1000 * 60 * 5, // 5 minutes
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     refetchOnWindowFocus: true, // Refetch on focus for clinical safety
     refetchOnReconnect: true,
+    refetchInterval: 15000, // Poll every 15 seconds for new patients in queue
     enabled: enabled && !!doctorId,
   });
+
+  return {
+    ...query,
+    refetch: query.refetch,
+  };
 }
 
 /**

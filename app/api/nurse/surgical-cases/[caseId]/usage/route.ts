@@ -104,7 +104,7 @@ export async function POST(
     // Enrich response with item and service names
     const inventoryItem = await db.inventoryItem.findUnique({
       where: { id: result.usageRecord.inventoryItemId },
-      select: { name: true, quantity_on_hand: true, reorder_point: true },
+      select: { name: true, reorder_point: true },
     });
 
     const serviceName = result.billItem
@@ -115,11 +115,8 @@ export async function POST(
       : null;
 
     const stockWarnings: string[] = [];
-    if (inventoryItem && inventoryItem.quantity_on_hand <= inventoryItem.reorder_point) {
-      stockWarnings.push(
-        `Low stock: ${inventoryItem.name} has ${inventoryItem.quantity_on_hand} units remaining (reorder point: ${inventoryItem.reorder_point})`
-      );
-    }
+    // Dynamic stock calculations should happen instead of item-level checks
+    // For now we don't emit warnings from this endpoint because we don't calculate stock sync
 
     const responseDto = {
       usageRecord: {

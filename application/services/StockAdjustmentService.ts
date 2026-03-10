@@ -51,47 +51,45 @@ export class StockAdjustmentService {
     }
 
     // Calculate new quantity
-    const previousQuantity = inventoryItem.quantity_on_hand;
+    // Stock is now dynamically calculated. Instead of preventing negative stock here based on
+    // a cached `quantity_on_hand` property, the transaction handles it.
+    // For legacy auditing we specify 0.
+    const previousQuantity = 0;
     let newQuantity: number;
     if (dto.adjustmentType === 'INCREMENT') {
       newQuantity = previousQuantity + dto.quantityChange;
     } else {
-      newQuantity = previousQuantity - dto.quantityChange;
-      if (newQuantity < 0) {
-        throw new ValidationError(
-          `Cannot decrement ${dto.quantityChange} from ${previousQuantity}. Would result in negative stock.`,
-          [
-            {
-              field: 'quantityChange',
-              message: `Maximum decrement is ${previousQuantity}`,
-            },
-          ]
-        );
-      }
     }
 
-    // Transaction: create adjustment record + update stock
+    // Transaction: create adjustment record + record inventory transaction
     return this.db.$transaction(async (tx) => {
-      // Create adjustment record
+      // Create adjustment record (legacy audit trail)
       const adjustment = await tx.stockAdjustment.create({
         data: {
           inventory_item_id: inventoryItemId,
           adjustment_type: dto.adjustmentType,
           adjustment_reason: dto.adjustmentReason,
           quantity_change: dto.quantityChange,
-          previous_quantity: previousQuantity,
-          new_quantity: newQuantity,
+          previous_quantity: 0, // Legacy field, setting to 0 as balance is now derived
+          new_quantity: 0,      // Legacy field
           adjusted_by_user_id: adjustedByUserId,
           notes: dto.notes || null,
         },
       });
 
-      // Update inventory stock
-      await tx.inventoryItem.update({
-        where: { id: inventoryItemId },
+      // Record actual Stock Movement Transaction
+      const multiplier = dto.adjustmentType === 'INCREMENT' ? 1 : -1;
+      await tx.inventoryTransaction.create({
         data: {
-          quantity_on_hand: newQuantity,
-        },
+          inventory_item_id: inventoryItemId,
+          type: 'ADJUSTMENT',
+          quantity: dto.quantityChange * multiplier,
+          unit_price: inventoryItem.unit_cost,
+          total_value: (dto.quantityChange * multiplier) * inventoryItem.unit_cost,
+          reference: `ADJ-${adjustment.id.toString().slice(-4)}`,
+          notes: `Manual adjustment: ${dto.adjustmentReason}. ${dto.notes || ''}`,
+          created_by_user_id: adjustedByUserId,
+        }
       });
 
       return adjustment;

@@ -100,13 +100,24 @@ export async function GET(
                     ...searchKeywords.map(k => ({ sku: { contains: k, mode: Prisma.QueryMode.insensitive } }))
                 ]
             },
+            include: {
+                batches: {
+                    select: { quantity_remaining: true }
+                }
+            },
             take: 5,
         });
 
+        // Calculate quantity_on_hand from batches
+        const itemsWithStock = matches.map(m => ({
+            ...m,
+            quantity_on_hand: m.batches.reduce((sum, b) => sum + b.quantity_remaining, 0)
+        }));
+
         // Determine status
         let status = 'UNAVAILABLE';
-        if (matches.length > 0) {
-            const hasStock = matches.some(m => m.quantity_on_hand > 0);
+        if (itemsWithStock.length > 0) {
+            const hasStock = itemsWithStock.some(m => m.quantity_on_hand > 0);
             status = hasStock ? 'AVAILABLE' : 'OUT_OF_STOCK';
         } else {
             // If we found no matches in the database for the text
@@ -116,7 +127,7 @@ export async function GET(
         return NextResponse.json({
             status,
             required: requiredDisplay, // This can now be an object or string
-            matches: matches.map(m => ({
+            matches: itemsWithStock.map(m => ({
                 id: m.id,
                 name: m.name,
                 quantity: m.quantity_on_hand,

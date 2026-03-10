@@ -18,25 +18,22 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-interface Theater {
-    id: string;
-    name: string;
-}
-
 interface BookTheaterSlotDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    theater: Theater;
+    theaterId: string;
+    theaterName: string;
     initialDate?: Date;
-    onSuccess?: () => void;
+    onBookSuccess?: () => void;
 }
 
 export function BookTheaterSlotDialog({
     open,
     onOpenChange,
-    theater,
+    theaterId,
+    theaterName,
     initialDate,
-    onSuccess
+    onBookSuccess
 }: BookTheaterSlotDialogProps) {
     // Steps: 1=Select Case, 2=Select Time/Lock, 3=Confirm
     const [step, setStep] = useState(1);
@@ -132,7 +129,7 @@ export function BookTheaterSlotDialog({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     caseId: selectedCase.id,
-                    theaterId: theater.id,
+                    theaterId: theaterId,
                     startTime: startDateTime.toISOString(),
                     endTime: endDateTime.toISOString(),
                 })
@@ -183,7 +180,7 @@ export function BookTheaterSlotDialog({
             }
 
             toast.success('Booking confirmed successfully');
-            onSuccess?.();
+            onBookSuccess?.();
             onOpenChange(false);
         } catch (error: any) {
             toast.error(error.message);
@@ -198,7 +195,7 @@ export function BookTheaterSlotDialog({
                 <DialogHeader>
                     <DialogTitle>Book Theater Slot</DialogTitle>
                     <DialogDescription>
-                        Schedule a surgical case for {theater.name}
+                        Schedule a surgical case for {theaterName}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -347,7 +344,7 @@ export function BookTheaterSlotDialog({
                         <div className="rounded-lg border bg-slate-50 p-4 space-y-3 text-sm">
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Theater</span>
-                                <span className="font-medium text-slate-900">{theater.name}</span>
+                                <span className="font-medium text-slate-900">{theaterName}</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-muted-foreground">Date</span>

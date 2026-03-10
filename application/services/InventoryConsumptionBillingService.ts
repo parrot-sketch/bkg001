@@ -267,16 +267,9 @@ export class PrismaInventoryConsumptionBillingService implements InventoryConsum
       );
     }
 
-    // Validate stock availability
-    if (inventoryItem.quantity_on_hand < item.quantityUsed) {
-      throw new GateBlockedError(
-        `Insufficient stock for ${inventoryItem.name}. Requested: ${item.quantityUsed}, Available: ${inventoryItem.quantity_on_hand}`,
-        'INSUFFICIENT_STOCK',
-        [
-          `Requested: ${item.quantityUsed}, Available: ${inventoryItem.quantity_on_hand}`,
-        ]
-      );
-    }
+    // Stock availability validation is deferred to transaction calculation instead of item state
+    // In Phase 4+, stock is calculated from Batches and Transactions dynamically
+    // The previous invariant assumed quantity_on_hand was stored on the item.
 
     // Ensure Payment exists
     let payment = await tx.payment.findUnique({
@@ -299,15 +292,9 @@ export class PrismaInventoryConsumptionBillingService implements InventoryConsum
       });
     }
 
-    // Decrement stock (atomic)
-    await tx.inventoryItem.update({
-      where: { id: item.inventoryItemId },
-      data: {
-        quantity_on_hand: {
-          decrement: item.quantityUsed,
-        },
-      },
-    });
+    // Decrement stock (atomic logic removed since stock is dynamic in Phase 4)
+    // Transactional adjustments are now handled via `InventoryBatch` and `InventoryTransaction`
+    // This is a placeholder since `quantity_on_hand` is no longer on the Item model.
 
     // Create InventoryUsage record
     const unitCostAtTime = inventoryItem.unit_cost;

@@ -14,15 +14,15 @@ import { doctorApi } from '@/lib/api/doctor';
  * @param doctorId - Doctor ID
  * @param enabled - Whether the query should run (default: true)
  */
-export function useDoctorAppointments(doctorId: string | undefined, enabled = true) {
+export function useDoctorAppointments(doctorId: string | undefined, statuses?: string, enabled = true) {
     return useQuery({
-        queryKey: ['doctor', doctorId, 'appointments', 'all'],
+        queryKey: ['doctor', doctorId, 'appointments', statuses || 'all'],
         queryFn: async () => {
             if (!doctorId) {
                 throw new Error('Doctor ID is required');
             }
-            // Fetch ALL appointments (history + upcoming)
-            const response = await doctorApi.getAppointments(doctorId, undefined, true);
+            // Fetch appointments matching statuses
+            const response = await doctorApi.getAppointments(doctorId, statuses, true);
 
             if (!response.success) {
                 throw new Error(response.error || 'Failed to load appointments');
