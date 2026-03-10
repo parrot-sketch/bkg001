@@ -243,10 +243,8 @@ export default function DoctorSurgicalCasesPage() {
             <div className="space-y-6 animate-in fade-in duration-500 pb-12">
                 {/* ── Header ─────────────────────────────────────────── */}
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Surgical Cases</h1>
-                    <p className="text-sm text-muted-foreground mt-1">
-                        Manage and track your surgical cases from planning through completion.
-                    </p>
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Your Interventions</p>
+                    <h1 className="text-2xl font-bold tracking-tight text-foreground">Surgical Cases</h1>
                 </div>
 
                 {/* ── Metrics Bar ────────────────────────────────────── */}

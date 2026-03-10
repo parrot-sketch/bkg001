@@ -100,6 +100,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           phone: true,
           role: true,
           status: true,
+          last_login_at: true,
           created_at: true,
           updated_at: true,
         },
@@ -118,6 +119,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       phone: user.phone,
       role: user.role,
       status: user.status,
+      lastLoginAt: user.last_login_at,
       createdAt: user.created_at,
       updatedAt: user.updated_at,
     }));

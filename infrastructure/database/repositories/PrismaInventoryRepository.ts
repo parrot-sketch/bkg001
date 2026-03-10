@@ -1,77 +1,59 @@
-import { PrismaClient } from '@prisma/client';
-import {
-  IInventoryRepository,
-  InventoryItem,
-  InventoryUsage,
-  InventoryUsageWithItem,
-  CreateInventoryItemDto,
-  RecordInventoryUsageDto,
+import { PrismaClient, InventoryCategory as PrismaCategory, StockMovementType as PrismaMovementType } from '@prisma/client';
+import { 
+  IInventoryRepository, 
+  InventoryItem, 
+  InventoryTransaction, 
+  InventorySummary, 
+  CreateInventoryItemDto, 
+  RecordTransactionDto,
+  StockMovementType
 } from '../../../domain/interfaces/repositories/IInventoryRepository';
 import { InventoryCategory } from '../../../domain/enums/InventoryCategory';
 
-/**
- * Prisma Implementation: PrismaInventoryRepository
- * 
- * Manages inventory items and usage tracking in the database.
- * 
- * Key behaviors:
- * - Stock is decremented atomically when usage is recorded
- * - Unit cost is snapshotted at time of use (immutable pricing)
- * - Low stock alerts based on reorder point
- */
 export class PrismaInventoryRepository implements IInventoryRepository {
-  constructor(private readonly prisma: PrismaClient) { }
+  private prisma: PrismaClient;
+
+  constructor(prisma: PrismaClient) {
+    this.prisma = prisma;
+  }
 
   // ============================================================================
   // MAPPERS
   // ============================================================================
 
-  private mapToItem(data: any): InventoryItem {
+  private mapToInventoryItem(item: any): InventoryItem {
     return {
-      id: data.id,
-      name: data.name,
-      sku: data.sku ?? null,
-      category: data.category as InventoryCategory,
-      description: data.description ?? null,
-      unitOfMeasure: data.unit_of_measure,
-      unitCost: data.unit_cost,
-      quantityOnHand: data.quantity_on_hand,
-      reorderPoint: data.reorder_point,
-      supplier: data.supplier ?? null,
-      manufacturer: data.manufacturer ?? null,
-      isActive: data.is_active,
-      isBillable: data.is_billable,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
+      id: item.id,
+      name: item.name,
+      sku: item.sku,
+      category: item.category as unknown as InventoryCategory,
+      description: item.description,
+      unitOfMeasure: item.unit_of_measure,
+      unitCost: item.unit_cost,
+      reorderPoint: item.reorder_point,
+      lowStockThreshold: item.low_stock_threshold,
+      supplier: item.supplier,
+      manufacturer: item.manufacturer,
+      isActive: item.is_active,
+      isBillable: item.is_billable,
+      isImplant: item.is_implant,
+      createdAt: item.created_at,
+      updatedAt: item.updated_at,
     };
   }
 
-  private mapToUsage(data: any): InventoryUsage {
+  private mapToTransaction(t: any): InventoryTransaction {
     return {
-      id: data.id,
-      inventoryItemId: data.inventory_item_id,
-      surgicalCaseId: data.surgical_case_id ?? null,
-      appointmentId: data.appointment_id ?? null,
-      quantityUsed: data.quantity_used,
-      unitCostAtTime: data.unit_cost_at_time,
-      totalCost: data.total_cost,
-      recordedBy: data.recorded_by,
-      notes: data.notes ?? null,
-      billItemId: data.bill_item_id ?? null,
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
-    };
-  }
-
-  private mapToUsageWithItem(data: any): InventoryUsageWithItem {
-    return {
-      ...this.mapToUsage(data),
-      item: {
-        name: data.inventory_item?.name || 'Unknown Item',
-        category: data.inventory_item?.category as InventoryCategory,
-        unitOfMeasure: data.inventory_item?.unit_of_measure || 'unit',
-        isBillable: data.inventory_item?.is_billable ?? true,
-      },
+      id: t.id,
+      inventoryItemId: t.inventory_item_id,
+      type: t.type as unknown as StockMovementType,
+      quantity: t.quantity,
+      unitPrice: t.unit_price,
+      totalValue: t.total_value,
+      reference: t.reference,
+      notes: t.notes,
+      createdById: t.created_by_user_id,
+      createdAt: t.created_at,
     };
   }
 
@@ -80,167 +62,286 @@ export class PrismaInventoryRepository implements IInventoryRepository {
   // ============================================================================
 
   async findItemById(id: number): Promise<InventoryItem | null> {
-    const result = await this.prisma.inventoryItem.findUnique({
+    const item = await this.prisma.inventoryItem.findUnique({
       where: { id },
     });
-    return result ? this.mapToItem(result) : null;
+    return item ? this.mapToInventoryItem(item) : null;
   }
 
   async findActiveItems(category?: InventoryCategory): Promise<InventoryItem[]> {
-    const results = await this.prisma.inventoryItem.findMany({
+    const items = await this.prisma.inventoryItem.findMany({
       where: {
         is_active: true,
-        ...(category ? { category } : {}),
+        ...(category ? { category: category as unknown as PrismaCategory } : {}),
       },
-      orderBy: [{ category: 'asc' }, { name: 'asc' }],
+      orderBy: { name: 'asc' },
     });
-    return results.map(this.mapToItem.bind(this));
+    return items.map(this.mapToInventoryItem);
   }
 
   async findLowStockItems(): Promise<InventoryItem[]> {
-    const results = await this.prisma.inventoryItem.findMany({
-      where: {
-        is_active: true,
-        // Raw comparison: quantity_on_hand <= reorder_point
-        // Prisma doesn't support field-to-field comparison directly,
-        // so we use raw SQL via $queryRaw
-      },
-      orderBy: { quantity_on_hand: 'asc' },
+    const items = await this.prisma.inventoryItem.findMany({
+      where: { is_active: true },
     });
 
-    // Filter in application layer (Prisma limitation for field-to-field comparison)
-    return results
-      .filter(r => r.quantity_on_hand <= r.reorder_point)
-      .map(this.mapToItem.bind(this));
+    const lowStockItems: Awaited<ReturnType<typeof this.mapToInventoryItem>>[] = [];
+
+    for (const item of items) {
+      const balance = await this.getItemBalance(item.id);
+      if (balance <= item.reorder_point) {
+        lowStockItems.push(this.mapToInventoryItem(item));
+      }
+    }
+
+    return lowStockItems;
   }
 
   async createItem(dto: CreateInventoryItemDto): Promise<InventoryItem> {
-    const result = await this.prisma.inventoryItem.create({
+    // 1. Create the item first to get the auto-increment ID
+    const initialItem = await this.prisma.inventoryItem.create({
       data: {
         name: dto.name,
-        sku: dto.sku ?? null,
-        category: dto.category ?? 'OTHER',
-        description: dto.description ?? null,
-        unit_of_measure: dto.unitOfMeasure ?? 'unit',
+        sku: dto.sku || 'PENDING', // Temporary SKU
+        category: dto.category as unknown as PrismaCategory,
+        description: dto.description,
+        unit_of_measure: dto.unitOfMeasure,
         unit_cost: dto.unitCost,
-        quantity_on_hand: dto.quantityOnHand ?? 0,
-        reorder_point: dto.reorderPoint ?? 0,
-        supplier: dto.supplier ?? null,
-        manufacturer: dto.manufacturer ?? null,
-        is_billable: dto.isBillable ?? true,
-        is_implant: dto.isImplant ?? false,
+        reorder_point: dto.reorderPoint,
+        low_stock_threshold: dto.lowStockThreshold,
+        supplier: dto.supplier,
+        manufacturer: dto.manufacturer,
+        is_billable: dto.isBillable,
+        is_implant: dto.isImplant,
       },
     });
-    return this.mapToItem(result);
+
+    // 2. If no SKU provided, generate one based on ID
+    if (!dto.sku) {
+      const CATEGORY_PREFIXES: Record<string, string> = {
+        IMPLANT: 'IMP',
+        SUTURE: 'SUT',
+        ANESTHETIC: 'ANS',
+        MEDICATION: 'MED',
+        DISPOSABLE: 'DSP',
+        INSTRUMENT: 'INS',
+        DRESSING: 'DRS',
+        OTHER: 'OTH',
+      };
+      
+      const prefix = CATEGORY_PREFIXES[initialItem.category as string] || 'GEN';
+      const paddedId = initialItem.id.toString().padStart(5, '0');
+      const generatedSku = `${prefix}-${paddedId}`;
+
+      const updatedItem = await this.prisma.inventoryItem.update({
+        where: { id: initialItem.id },
+        data: { sku: generatedSku }
+      });
+      return this.mapToInventoryItem(updatedItem);
+    }
+
+    return this.mapToInventoryItem(initialItem);
   }
 
   async updateItem(id: number, data: Partial<CreateInventoryItemDto>): Promise<InventoryItem> {
-    const updateData: any = {};
-    if (data.name !== undefined) updateData.name = data.name;
-    if (data.sku !== undefined) updateData.sku = data.sku;
-    if (data.category !== undefined) updateData.category = data.category;
-    if (data.description !== undefined) updateData.description = data.description;
-    if (data.unitOfMeasure !== undefined) updateData.unit_of_measure = data.unitOfMeasure;
-    if (data.unitCost !== undefined) updateData.unit_cost = data.unitCost;
-    if (data.quantityOnHand !== undefined) updateData.quantity_on_hand = data.quantityOnHand;
-    if (data.reorderPoint !== undefined) updateData.reorder_point = data.reorderPoint;
-    if (data.supplier !== undefined) updateData.supplier = data.supplier;
-    if (data.manufacturer !== undefined) updateData.manufacturer = data.manufacturer;
-    if (data.isBillable !== undefined) updateData.is_billable = data.isBillable;
-
-    const result = await this.prisma.inventoryItem.update({
+    const item = await this.prisma.inventoryItem.update({
       where: { id },
-      data: updateData,
+      data: {
+        name: data.name,
+        sku: data.sku,
+        category: data.category as unknown as PrismaCategory,
+        description: data.description,
+        unit_of_measure: data.unitOfMeasure,
+        unit_cost: data.unitCost,
+        reorder_point: data.reorderPoint,
+        low_stock_threshold: data.lowStockThreshold,
+        supplier: data.supplier,
+        manufacturer: data.manufacturer,
+        is_billable: data.isBillable,
+        is_implant: data.isImplant,
+      },
     });
-    return this.mapToItem(result);
+    return this.mapToInventoryItem(item);
   }
 
-  async adjustStock(itemId: number, quantityChange: number): Promise<InventoryItem> {
-    const result = await this.prisma.inventoryItem.update({
-      where: { id: itemId },
+  // ============================================================================
+  // TRANSACTIONS & BALANCES
+  // ============================================================================
+
+  async recordTransaction(dto: RecordTransactionDto): Promise<InventoryTransaction> {
+    const totalValue = dto.quantity * (dto.unitPrice || 0);
+    
+    const transaction = await this.prisma.inventoryTransaction.create({
       data: {
-        quantity_on_hand: {
-          increment: quantityChange,
+        inventory_item_id: dto.inventoryItemId,
+        type: dto.type as unknown as PrismaMovementType,
+        quantity: dto.quantity,
+        unit_price: dto.unitPrice || 0,
+        total_value: totalValue,
+        reference: dto.reference,
+        notes: dto.notes,
+        created_by_user_id: dto.createdById,
+      },
+    });
+
+    return this.mapToTransaction(transaction);
+  }
+
+  async findTransactionsByItem(itemId: number): Promise<InventoryTransaction[]> {
+    const transactions = await this.prisma.inventoryTransaction.findMany({
+      where: { inventory_item_id: itemId },
+      orderBy: { created_at: 'desc' },
+    });
+    return transactions.map(this.mapToTransaction);
+  }
+
+  async getInventorySummary(): Promise<InventorySummary[]> {
+    // 1. Get all active items
+    const items = await this.prisma.inventoryItem.findMany({
+      where: { is_active: true },
+    });
+
+    // 2. Aggregate transactions for each item
+    // Note: In production, this would be a single complex SQL query or a cached view.
+    // For Nairobi Sculpt, we'll derive it by summing transactions per product.
+    
+    const summaries: InventorySummary[] = await Promise.all(
+      items.map(async (item) => {
+        const transactions = await this.prisma.inventoryTransaction.findMany({
+          where: { inventory_item_id: item.id },
+        });
+
+        let totalIn = 0;
+        let totalOut = 0;
+        let lastMovement: Date | null = null;
+
+        transactions.forEach((t) => {
+          if (t.type === 'STOCK_IN' || t.type === 'OPENING_BALANCE' || (t.type === 'ADJUSTMENT' && t.quantity > 0)) {
+            totalIn += Math.abs(t.quantity);
+          } else if (t.type === 'STOCK_OUT' || (t.type === 'ADJUSTMENT' && t.quantity < 0)) {
+            totalOut += Math.abs(t.quantity);
+          }
+          
+          if (!lastMovement || t.created_at > lastMovement) {
+            lastMovement = t.created_at;
+          }
+        });
+
+        const currentBalance = totalIn - totalOut;
+        
+        let status: 'OK' | 'LOW_STOCK' | 'OUT_OF_STOCK' = 'OK';
+        if (currentBalance <= 0) {
+          status = 'OUT_OF_STOCK';
+        } else if (currentBalance <= (item.low_stock_threshold || item.reorder_point)) {
+          status = 'LOW_STOCK';
+        }
+
+        return {
+          itemId: item.id,
+          name: item.name,
+          sku: item.sku,
+          category: item.category as unknown as InventoryCategory,
+          currentBalance,
+          totalStockIn: totalIn,
+          totalStockOut: totalOut,
+          unitCost: item.unit_cost,
+          totalValue: currentBalance * item.unit_cost,
+          lastMovement,
+          status,
+        };
+      })
+    );
+
+    return summaries;
+  }
+
+  async getItemBalance(itemId: number): Promise<number> {
+    const transactions = await this.prisma.inventoryTransaction.findMany({
+      where: { inventory_item_id: itemId },
+    });
+
+    let totalIn = 0;
+    let totalOut = 0;
+
+    transactions.forEach((t) => {
+      if (t.type === 'STOCK_IN' || t.type === 'OPENING_BALANCE' || (t.type === 'ADJUSTMENT' && t.quantity > 0)) {
+        totalIn += Math.abs(t.quantity);
+      } else if (t.type === 'STOCK_OUT' || (t.type === 'ADJUSTMENT' && t.quantity < 0)) {
+        totalOut += Math.abs(t.quantity);
+      }
+    });
+
+    return totalIn - totalOut;
+  }
+
+  // ============================================================================
+  // USAGE RECORDS
+  // ============================================================================
+
+  async findUsageBySurgicalCase(surgicalCaseId: string): Promise<{ totalCost: number; item: { isBillable: boolean } }[]> {
+    const usageRecords = await this.prisma.inventoryUsage.findMany({
+      where: { surgical_case_id: surgicalCaseId },
+      include: {
+        inventory_item: {
+          select: { is_billable: true },
         },
       },
     });
-    return this.mapToItem(result);
+
+    return usageRecords.map((u) => ({
+      totalCost: u.total_cost,
+      item: { isBillable: u.inventory_item.is_billable },
+    }));
   }
 
-  // ============================================================================
-  // INVENTORY USAGE
-  // ============================================================================
+  async findUsageByAppointment(appointmentId: number): Promise<{ totalCost: number; item: { isBillable: boolean } }[]> {
+    const usageRecords = await this.prisma.inventoryUsage.findMany({
+      where: { appointment_id: appointmentId },
+      include: {
+        inventory_item: {
+          select: { is_billable: true },
+        },
+      },
+    });
 
-  async recordUsage(dto: RecordInventoryUsageDto): Promise<InventoryUsage> {
-    // Fetch item for cost snapshot
+    return usageRecords.map((u) => ({
+      totalCost: u.total_cost,
+      item: { isBillable: u.inventory_item.is_billable },
+    }));
+  }
+
+  async recordUsage(dto: {
+    inventoryItemId: number;
+    surgicalCaseId?: string;
+    appointmentId?: number;
+    quantityUsed: number;
+    recordedBy: string;
+    notes?: string;
+  }): Promise<unknown> {
     const item = await this.prisma.inventoryItem.findUnique({
       where: { id: dto.inventoryItemId },
     });
 
     if (!item) {
-      throw new Error(`Inventory item ${dto.inventoryItemId} not found`);
+      throw new Error('Inventory item not found');
     }
 
     if (!item.is_active) {
-      throw new Error(`Inventory item "${item.name}" is inactive`);
+      throw new Error('Inventory item is inactive');
     }
 
-    if (item.quantity_on_hand < dto.quantityUsed) {
-      throw new Error(
-        `Insufficient stock for "${item.name}": requested ${dto.quantityUsed}, available ${item.quantity_on_hand}`
-      );
-    }
-
-    // Use a transaction: record usage + decrement stock atomically
-    const [usage] = await this.prisma.$transaction([
-      this.prisma.inventoryUsage.create({
-        data: {
-          inventory_item_id: dto.inventoryItemId,
-          surgical_case_id: dto.surgicalCaseId ?? null,
-          appointment_id: dto.appointmentId ?? null,
-          quantity_used: dto.quantityUsed,
-          unit_cost_at_time: item.unit_cost,
-          total_cost: dto.quantityUsed * item.unit_cost,
-          recorded_by: dto.recordedBy,
-          notes: dto.notes ?? null,
-        },
-      }),
-      this.prisma.inventoryItem.update({
-        where: { id: dto.inventoryItemId },
-        data: {
-          quantity_on_hand: {
-            decrement: dto.quantityUsed,
-          },
-        },
-      }),
-    ]);
-
-    return this.mapToUsage(usage);
-  }
-
-  async findUsageBySurgicalCase(surgicalCaseId: string): Promise<InventoryUsageWithItem[]> {
-    const results = await this.prisma.inventoryUsage.findMany({
-      where: { surgical_case_id: surgicalCaseId },
-      include: { inventory_item: true },
-      orderBy: { created_at: 'asc' },
+    const usage = await this.prisma.inventoryUsage.create({
+      data: {
+        inventory_item_id: dto.inventoryItemId,
+        surgical_case_id: dto.surgicalCaseId,
+        appointment_id: dto.appointmentId,
+        quantity_used: dto.quantityUsed,
+        unit_cost_at_time: item.unit_cost,
+        total_cost: dto.quantityUsed * item.unit_cost,
+        recorded_by: dto.recordedBy,
+        notes: dto.notes,
+      },
     });
-    return results.map(this.mapToUsageWithItem.bind(this));
-  }
 
-  async findUsageByAppointment(appointmentId: number): Promise<InventoryUsageWithItem[]> {
-    const results = await this.prisma.inventoryUsage.findMany({
-      where: { appointment_id: appointmentId },
-      include: { inventory_item: true },
-      orderBy: { created_at: 'asc' },
-    });
-    return results.map(this.mapToUsageWithItem.bind(this));
-  }
-
-  async linkUsageToBillItem(usageId: number, billItemId: number): Promise<InventoryUsage> {
-    const result = await this.prisma.inventoryUsage.update({
-      where: { id: usageId },
-      data: { bill_item_id: billItemId },
-    });
-    return this.mapToUsage(result);
+    return usage;
   }
 }

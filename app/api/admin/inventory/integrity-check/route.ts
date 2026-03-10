@@ -33,19 +33,24 @@ export async function GET(request: NextRequest) {
       details?: Record<string, unknown>;
     }> = [];
 
-    // Check 1: Items with negative stock
-    const negativeStockItems = await db.inventoryItem.findMany({
-      where: {
-        quantity_on_hand: {
-          lt: 0,
+    // Check 1: Items with negative stock (calculate from batches)
+    const itemsWithStock = await db.inventoryItem.findMany({
+      include: {
+        batches: {
+          select: {
+            quantity_remaining: true,
+          },
         },
       },
-      select: {
-        id: true,
-        name: true,
-        quantity_on_hand: true,
-      },
     });
+
+    const negativeStockItems = itemsWithStock
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        quantity_on_hand: item.batches.reduce((sum, batch) => sum + batch.quantity_remaining, 0),
+      }))
+      .filter((item) => item.quantity_on_hand < 0);
 
     for (const item of negativeStockItems) {
       issues.push({

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, AlertTriangle, Lock, CheckCircle2 } from 'lucide-react';
+import { Loader2, AlertTriangle, Lock, CheckCircle2, Calculator } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -22,6 +22,39 @@ interface Theater {
     id: string;
     name: string;
     type: string;
+    hourlyRate: number;
+}
+
+interface BookTheaterSlotDialogProps {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    surgicalCase: any;
+    onSuccess?: () => void;
+}
+
+// Helper to format currency
+function formatCurrency(amount: number): string {
+    return new Intl.NumberFormat('en-KE', {
+        style: 'currency',
+        currency: 'KES',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(amount);
+}
+
+// Calculate fee based on start/end time and hourly rate
+function calculateFee(startTime: string, endTime: string, hourlyRate: number): { hours: number; fee: number } {
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
+    
+    const startMinutes = startHour * 60 + startMin;
+    const endMinutes = endHour * 60 + endMin;
+    
+    const durationMinutes = endMinutes - startMinutes;
+    const hours = durationMinutes / 60;
+    const fee = Math.round(hourlyRate * hours);
+    
+    return { hours: Math.round(hours * 100) / 100, fee };
 }
 
 interface BookTheaterSlotDialogProps {
@@ -180,6 +213,41 @@ export function BookTheaterSlotDialog({
                             </div>
                         </div>
 
+                        {/* Theater Fee Calculator */}
+                        {selectedTheater && (
+                            <div className="rounded-lg border bg-emerald-50 p-4 space-y-3">
+                                <div className="flex items-center gap-2 text-emerald-800">
+                                    <Calculator className="h-4 w-4" />
+                                    <span className="font-semibold text-sm">Theater Fee Estimate</span>
+                                </div>
+                                {(() => {
+                                    const selectedTheaterData = theaters.find(t => t.id === selectedTheater);
+                                    const { hours, fee } = calculateFee(startTime, endTime, selectedTheaterData?.hourlyRate || 0);
+                                    return (
+                                        <>
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-emerald-700">Theater Rate</span>
+                                                <span className="font-medium text-emerald-900">
+                                                    {formatCurrency(selectedTheaterData?.hourlyRate || 0)}/hr
+                                                </span>
+                                            </div>
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-emerald-700">Duration</span>
+                                                <span className="font-medium text-emerald-900">{hours} hours</span>
+                                            </div>
+                                            <div className="border-t border-emerald-200 pt-2 flex justify-between">
+                                                <span className="font-semibold text-emerald-800">Estimated Total</span>
+                                                <span className="font-bold text-emerald-900 text-lg">{formatCurrency(fee)}</span>
+                                            </div>
+                                            <p className="text-xs text-emerald-600">
+                                                * Final billing may vary based on actual surgery duration
+                                            </p>
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                        )}
+
                         <div className="flex items-center gap-2 mt-4 text-amber-600 bg-amber-50 p-3 rounded-md border border-amber-200">
                             <Lock className="h-4 w-4 shrink-0" />
                             <p className="text-xs">
@@ -237,6 +305,16 @@ export function BookTheaterSlotDialog({
                                 <span className="text-muted-foreground">Time</span>
                                 <span className="font-medium text-slate-900">{startTime} - {endTime}</span>
                             </div>
+                            {(() => {
+                                const selectedTheaterData = theaters.find(t => t.id === selectedTheater);
+                                const { hours, fee } = calculateFee(startTime, endTime, selectedTheaterData?.hourlyRate || 0);
+                                return (
+                                    <div className="border-t border-slate-200 pt-3 flex justify-between">
+                                        <span className="font-semibold text-slate-800">Theater Fee</span>
+                                        <span className="font-bold text-slate-900">{formatCurrency(fee)}</span>
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </div>
                 )}

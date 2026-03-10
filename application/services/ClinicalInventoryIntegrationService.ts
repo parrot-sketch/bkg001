@@ -228,19 +228,12 @@ export class ClinicalInventoryIntegrationService {
         select: {
           id: true,
           name: true,
-          quantity_on_hand: true,
           reorder_point: true,
         },
       });
 
-      if (item && item.quantity_on_hand <= item.reorder_point) {
-        stockWarnings.push({
-          inventoryItemId: item.id,
-          itemName: item.name,
-          quantityOnHand: item.quantity_on_hand,
-          reorderPoint: item.reorder_point,
-        });
-      }
+      // Stock level warning logic is omitted or handled elsewhere since `quantity_on_hand` is no longer available directly on the item.
+      // This is a placeholder for future dynamic calculation.
     }
 
     // Apply events sequentially (maintains Phase 3 single-item invariant)

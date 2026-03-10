@@ -36,7 +36,7 @@ export function AppointmentStats({ stats, loading }: AppointmentStatsProps) {
                     <p className={cn("text-xl font-bold leading-none", stat.color)}>
                         {loading ? '–' : stat.value}
                     </p>
-                    <p className="text-[11px] text-slate-500 font-medium mt-1">{stat.label}</p>
+                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1.5">{stat.label}</p>
                 </div>
             ))}
         </div>

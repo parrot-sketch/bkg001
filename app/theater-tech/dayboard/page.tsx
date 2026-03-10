@@ -59,6 +59,7 @@ import { TransitionDialog } from '@/components/theater-tech/dayboard/TransitionD
 import { ChecklistPhaseDialog } from '@/components/theater-tech/dayboard/ChecklistPhaseDialog';
 import { BlockersDetailDialog } from '@/components/theater-tech/dayboard/BlockersDetailDialog';
 import { TimelineDialog } from '@/components/theater-tech/dayboard/TimelineDialog';
+import { InventoryPicklistDialog } from '@/components/theater-tech/dayboard/InventoryPicklistDialog';
 
 // ============================================================================
 // CONSTANTS
@@ -148,7 +149,7 @@ export default function TheaterTechDayboard() {
   } | null>(null);
   const [checklistDialog, setChecklistDialog] = useState<{
     caseData: DayboardCaseDto;
-    phase: 'SIGN_IN' | 'TIME_OUT' | 'SIGN_OUT';
+    phase: 'SIGN_IN' | 'TIME_OUT' | 'SIGN_OUT' | 'INVENTORY';
   } | null>(null);
   const [blockersDialog, setBlockersDialog] = useState<DayboardCaseDto | null>(null);
   const [timelineDialog, setTimelineDialog] = useState<DayboardCaseDto | null>(null);
@@ -428,10 +429,18 @@ export default function TheaterTechDayboard() {
         />
 
         {/* ── WHO Checklist Phase Dialog ── */}
-        {checklistDialog && (
+        {checklistDialog && checklistDialog.phase !== 'INVENTORY' && (
           <ChecklistPhaseDialog
             caseData={checklistDialog.caseData}
             phase={checklistDialog.phase}
+            onClose={() => setChecklistDialog(null)}
+          />
+        )}
+
+        {/* ── Inventory Picklist Dialog ── */}
+        {checklistDialog && checklistDialog.phase === 'INVENTORY' && (
+          <InventoryPicklistDialog
+            caseData={checklistDialog.caseData}
             onClose={() => setChecklistDialog(null)}
           />
         )}

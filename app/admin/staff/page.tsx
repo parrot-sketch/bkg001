@@ -1,361 +1,365 @@
 'use client';
 
-/**
- * Admin Staff Page
- * 
- * Manage all staff members:
- * - View all staff
- * - Create new staff accounts
- * - Update staff information
- * - Activate/deactivate accounts
- */
-
-import { useEffect, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
-import { adminApi } from '@/lib/api/admin';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { UserCheck, Search, Plus, UserX, UserCheck2 } from 'lucide-react';
+import { useAllStaff, useUpdateStaffStatus } from '@/hooks/staff/useStaff';
+import { 
+  Search, Plus, RefreshCw, MoreHorizontal, Pencil, PowerOff, Power, Loader2, Users
+} from 'lucide-react';
+import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { CreateStaffDialog } from '@/components/admin/CreateStaffDialog';
+import { UpdateStaffDialog } from '@/components/admin/UpdateStaffDialog';
+import { StaffStatusDialog } from '@/components/admin/StaffStatusDialog';
 import type { UserResponseDto } from '@/application/dtos/UserResponseDto';
 import { Role } from '@/domain/enums/Role';
 import { Status } from '@/domain/enums/Status';
-import { CreateStaffDialog } from '@/components/admin/CreateStaffDialog';
-import { UpdateStaffDialog } from '@/components/admin/UpdateStaffDialog';
+import { cn } from '@/lib/utils';
+
+const ROLES = [
+  { label: 'All Staff', value: 'ALL' },
+  { label: 'Doctors', value: Role.DOCTOR },
+  { label: 'Nurses', value: Role.NURSE },
+  { label: 'Frontdesk', value: Role.FRONTDESK },
+  { label: 'Admins', value: Role.ADMIN },
+];
+
+const ROLE_COLORS: Record<string, string> = {
+  [Role.DOCTOR]: 'bg-indigo-50 text-indigo-700 border-indigo-100',
+  [Role.NURSE]: 'bg-sky-50 text-sky-700 border-sky-100',
+  [Role.FRONTDESK]: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+  [Role.ADMIN]: 'bg-amber-50 text-amber-700 border-amber-100',
+};
+
+const ROLE_LABELS: Record<string, string> = {
+  [Role.DOCTOR]: 'Doctor',
+  [Role.NURSE]: 'Nurse',
+  [Role.FRONTDESK]: 'Frontdesk',
+  [Role.ADMIN]: 'Admin',
+};
 
 export default function AdminStaffPage() {
   const { user, isAuthenticated } = useAuth();
-  const [staff, setStaff] = useState<UserResponseDto[]>([]);
-  const [filteredStaff, setFilteredStaff] = useState<UserResponseDto[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [roleFilter, setRoleFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState<string>('ALL');
-  const [selectedStaff, setSelectedStaff] = useState<UserResponseDto | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState<UserResponseDto | null>(null);
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
+  const [statusTarget, setStatusTarget] = useState<UserResponseDto | null>(null);
+  const [showStatusDialog, setShowStatusDialog] = useState(false);
 
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      loadStaff();
-    }
-  }, [isAuthenticated, user]);
+  const { data: staff = [], isLoading, refetch, isRefetching } = useAllStaff(isAuthenticated && !!user);
+  const statusMutation = useUpdateStaffStatus();
 
-  useEffect(() => {
-    let filtered = staff;
-
-    // Filter by role
-    if (roleFilter !== 'ALL') {
-      filtered = filtered.filter((s) => s.role === roleFilter);
-    }
-
-    // Filter by search
+  const filteredStaff = useMemo(() => {
+    let list = staff as UserResponseDto[];
+    if (roleFilter !== 'ALL') list = list.filter((s) => s.role === roleFilter);
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
+      const q = searchQuery.toLowerCase();
+      list = list.filter(
         (s) =>
-          s.firstName?.toLowerCase().includes(query) ||
-          s.lastName?.toLowerCase().includes(query) ||
-          s.email.toLowerCase().includes(query) ||
-          s.role.toLowerCase().includes(query),
+          s.firstName?.toLowerCase().includes(q) ||
+          s.lastName?.toLowerCase().includes(q) ||
+          s.email.toLowerCase().includes(q) ||
+          s.phone?.toLowerCase().includes(q)
       );
     }
-
-    setFilteredStaff(filtered);
+    return list;
   }, [staff, roleFilter, searchQuery]);
 
-  const loadStaff = async () => {
+  const counts = useMemo(() => ({
+    ALL: (staff as UserResponseDto[]).length,
+    [Role.DOCTOR]: (staff as UserResponseDto[]).filter((s) => s.role === Role.DOCTOR).length,
+    [Role.NURSE]: (staff as UserResponseDto[]).filter((s) => s.role === Role.NURSE).length,
+    [Role.FRONTDESK]: (staff as UserResponseDto[]).filter((s) => s.role === Role.FRONTDESK).length,
+    [Role.ADMIN]: (staff as UserResponseDto[]).filter((s) => s.role === Role.ADMIN).length,
+  }), [staff]);
+
+  const activeCount = (staff as UserResponseDto[]).filter((s) => s.status === Status.ACTIVE).length;
+
+  const handleStatusConfirm = async () => {
+    if (!statusTarget || !user) return;
+    const newStatus = statusTarget.status === Status.ACTIVE ? Status.INACTIVE : Status.ACTIVE;
     try {
-      setLoading(true);
-      const response = await adminApi.getAllStaff();
-
-      if (response.success && response.data) {
-        setStaff(response.data);
-        setFilteredStaff(response.data);
-      } else if (!response.success) {
-        toast.error(response.error || 'Failed to load staff');
-      } else {
-        toast.error('Failed to load staff');
-      }
-    } catch (error) {
-      toast.error('An error occurred while loading staff');
-      console.error('Error loading staff:', error);
-    } finally {
-      setLoading(false);
+      await statusMutation.mutateAsync({ userId: statusTarget.id, status: newStatus, updatedBy: user.id });
+      toast.success(`Account ${newStatus === Status.ACTIVE ? 'reactivated' : 'deactivated'} successfully`);
+      setShowStatusDialog(false);
+      setStatusTarget(null);
+    } catch {
+      toast.error('Failed to update account status');
     }
-  };
-
-  const handleCreate = () => {
-    setShowCreateDialog(true);
-  };
-
-  const handleUpdate = (staffMember: UserResponseDto) => {
-    setSelectedStaff(staffMember);
-    setShowUpdateDialog(true);
-  };
-
-  const handleToggleStatus = async (staffMember: UserResponseDto) => {
-    const newStatus = staffMember.status === Status.ACTIVE ? Status.INACTIVE : Status.ACTIVE;
-    const action = newStatus === Status.ACTIVE ? 'activate' : 'deactivate';
-
-    if (!confirm(`Are you sure you want to ${action} ${staffMember.firstName} ${staffMember.lastName || staffMember.email}?`)) {
-      return;
-    }
-
-    try {
-      const response = await adminApi.updateStaffStatus({
-        userId: staffMember.id,
-        status: newStatus,
-        updatedBy: user!.id,
-      });
-
-      if (response.success && response.data) {
-        toast.success(`Staff member ${action}d successfully`);
-        loadStaff();
-      } else if (!response.success) {
-        toast.error(response.error || `Failed to ${action} staff member`);
-      } else {
-        toast.error(`Failed to ${action} staff member`);
-      }
-    } catch (error) {
-      toast.error(`An error occurred while ${action}ing staff member`);
-      console.error(`Error ${action}ing staff member:`, error);
-    }
-  };
-
-  const handleSuccess = () => {
-    setShowCreateDialog(false);
-    setShowUpdateDialog(false);
-    setSelectedStaff(null);
-    loadStaff();
   };
 
   if (!isAuthenticated || !user) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <p className="text-muted-foreground">Please log in to view staff</p>
+      <div className="h-[60vh] flex flex-col items-center justify-center gap-4 max-w-md mx-auto text-center">
+        <div className="h-16 w-16 bg-slate-100 rounded-2xl flex items-center justify-center">
+          <Loader2 className="h-8 w-8 text-slate-400 animate-spin" />
         </div>
+        <h3 className="text-lg font-bold text-slate-900">Protected Directory</h3>
+        <p className="text-sm text-slate-500 font-medium">Please verify your access to manage staff accounts.</p>
       </div>
     );
   }
 
-  const doctors = filteredStaff.filter((s) => s.role === Role.DOCTOR).length;
-  const nurses = filteredStaff.filter((s) => s.role === Role.NURSE).length;
-  const frontdesk = filteredStaff.filter((s) => s.role === Role.FRONTDESK).length;
-
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Staff Management</h1>
-          <p className="mt-2 text-muted-foreground">Manage all staff members</p>
+    <>
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        {/* Header */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight text-slate-900">User Management</h2>
+            <p className="text-slate-500 font-medium">
+              Institution-wide account control for all clinical roles
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              className="rounded-xl bg-slate-900 shadow-lg shadow-slate-900/10 font-bold"
+              onClick={() => setShowCreateDialog(true)}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Onboard Staff
+            </Button>
+          </div>
         </div>
-        <Button onClick={handleCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Staff
-        </Button>
-      </div>
 
-      {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Doctors</CardTitle>
-            <UserCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{doctors}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Nurses</CardTitle>
-            <UserCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{nurses}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Frontdesk</CardTitle>
-            <UserCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{frontdesk}</div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <label htmlFor="role" className="text-sm font-medium">
-                Role
-              </label>
-              <select
-                id="role"
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                <option value="ALL">All Roles</option>
-                <option value={Role.DOCTOR}>Doctor</option>
-                <option value={Role.NURSE}>Nurse</option>
-                <option value={Role.FRONTDESK}>Frontdesk</option>
-                <option value={Role.ADMIN}>Admin</option>
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="search" className="text-sm font-medium">
-                Search
-              </label>
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="search"
-                  placeholder="Search by name, email, or role..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
+        {/* Stats Strip */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { label: 'Total Staff', value: (staff as UserResponseDto[]).length, color: 'text-slate-600 bg-slate-50 border-slate-200' },
+            { label: 'Active Accounts', value: activeCount, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
+            { label: 'Clinical Team', value: counts[Role.DOCTOR] + counts[Role.NURSE], color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
+            { label: 'Support Staff', value: counts[Role.FRONTDESK], color: 'text-sky-600 bg-sky-50 border-sky-100' },
+          ].map(({ label, value, color }) => (
+            <div key={label} className={cn('flex items-center gap-3 rounded-2xl border p-4', color)}>
+              <div>
+                <p className="text-2xl font-bold tracking-tight">{value}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">{label}</p>
               </div>
             </div>
+          ))}
+        </div>
+
+        {/* Toolbar: Role Tabs + Search */}
+        <div className="flex flex-col lg:flex-row gap-4">
+          {/* Role Tabs */}
+          <div className="flex gap-1.5 bg-slate-100 p-1.5 rounded-2xl">
+            {ROLES.map((r) => (
+              <button
+                key={r.value}
+                onClick={() => setRoleFilter(r.value)}
+                className={cn(
+                  'flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all',
+                  roleFilter === r.value
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-900'
+                )}
+              >
+                {r.label}
+                <span className={cn(
+                  'text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md',
+                  roleFilter === r.value ? 'bg-slate-100 text-slate-600' : 'text-slate-400'
+                )}>
+                  {counts[r.value as keyof typeof counts] ?? 0}
+                </span>
+              </button>
+            ))}
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Staff List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>All Staff</CardTitle>
-          <CardDescription>Total: {filteredStaff.length} staff member(s)</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-4 text-sm text-muted-foreground">Loading staff...</p>
-            </div>
-          ) : filteredStaff.length === 0 ? (
-            <div className="text-center py-8">
-              <UserCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-sm text-muted-foreground">
-                {searchQuery || roleFilter !== 'ALL' ? 'No staff match your filters' : 'No staff found'}
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {filteredStaff.map((staffMember) => (
-                <div
-                  key={staffMember.id}
-                  className="flex items-center justify-between rounded-lg border border-border p-4 hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center space-x-4">
-                    <div
-                      className={`flex h-12 w-12 items-center justify-center rounded-lg ${staffMember.status === Status.ACTIVE ? 'bg-success/10' : 'bg-muted'
-                        }`}
-                    >
-                      {staffMember.status === Status.ACTIVE ? (
-                        <UserCheck2 className="h-6 w-6 text-success" />
-                      ) : (
-                        <UserX className="h-6 w-6 text-muted-foreground" />
-                      )}
-                    </div>
-                    <div className="space-y-1">
-                      <p className="font-medium">
-                        {staffMember.firstName || ''} {staffMember.lastName || ''} (
-                        {staffMember.email})
-                      </p>
-                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                        <span>Role: {staffMember.role}</span>
-                        <span>•</span>
-                        <span
-                          className={
-                            staffMember.status === Status.ACTIVE ? 'text-success' : 'text-muted-foreground'
-                          }
-                        >
-                          Status: {staffMember.status}
-                        </span>
-                        {staffMember.phone && (
-                          <>
-                            <span>•</span>
-                            <span>{staffMember.phone}</span>
-                          </>
-                        )}
-                      </div>
-                      {staffMember.lastLoginAt && (
-                        <p className="text-xs text-muted-foreground">
-                          Last login: {new Date(staffMember.lastLoginAt).toLocaleString()}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button variant="outline" size="sm" onClick={() => handleUpdate(staffMember)}>
-                      Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleToggleStatus(staffMember)}
-                      className={
-                        staffMember.status === Status.ACTIVE
-                          ? 'text-destructive hover:text-destructive'
-                          : 'text-success hover:text-success'
-                      }
-                    >
-                      {staffMember.status === Status.ACTIVE ? (
-                        <>
-                          <UserX className="mr-2 h-4 w-4" />
-                          Deactivate
-                        </>
-                      ) : (
-                        <>
-                          <UserCheck2 className="mr-2 h-4 w-4" />
-                          Activate
-                        </>
-                      )}
-                    </Button>
-                  </div>
+          {/* Search + Refresh */}
+          <div className="flex flex-1 gap-4">
+            <Card className="flex-1 rounded-2xl border-slate-200 shadow-sm overflow-hidden bg-white">
+              <CardContent className="p-0">
+                <div className="relative group">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-600 transition-colors" />
+                  <Input
+                    placeholder="Search by name, email, or phone..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-12 pl-12 pr-4 border-none rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent font-medium placeholder:text-slate-400"
+                  />
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </CardContent>
+            </Card>
+            <Button
+              variant="outline" size="icon"
+              onClick={() => refetch()}
+              disabled={isRefetching}
+              className="h-12 w-12 rounded-2xl shrink-0 bg-white border-slate-200 hover:bg-slate-50"
+            >
+              <RefreshCw className={cn('h-4 w-4 text-slate-500', isRefetching && 'animate-spin')} />
+            </Button>
+          </div>
+        </div>
 
-      {/* Create Staff Dialog */}
-      {showCreateDialog && (
-        <CreateStaffDialog
-          open={showCreateDialog}
-          onClose={() => setShowCreateDialog(false)}
-          onSuccess={handleSuccess}
-        />
-      )}
+        {/* Table */}
+        <div className="rounded-[2rem] border border-slate-200 bg-white shadow-sm overflow-hidden">
+          <Table>
+            <TableHeader className="bg-slate-50/50">
+              <TableRow className="hover:bg-transparent border-slate-100">
+                <TableHead className="h-14 pl-8 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Staff Member</TableHead>
+                <TableHead className="h-14 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Role</TableHead>
+                <TableHead className="h-14 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Contact</TableHead>
+                <TableHead className="h-14 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Last Login</TableHead>
+                <TableHead className="h-14 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</TableHead>
+                <TableHead className="h-14 pr-8 text-right text-[10px] font-bold text-slate-400 uppercase tracking-widest">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-24 text-center">
+                    <div className="flex flex-col items-center gap-4">
+                      <Loader2 className="h-8 w-8 text-slate-300 animate-spin" />
+                      <span className="text-sm text-slate-400 font-medium">Loading staff directory…</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : filteredStaff.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-24 text-center">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="h-16 w-16 rounded-3xl bg-slate-50 flex items-center justify-center">
+                        <Users className="h-8 w-8 text-slate-300" />
+                      </div>
+                      <p className="text-sm text-slate-400 font-medium">
+                        {searchQuery || roleFilter !== 'ALL' ? 'No staff match your filters' : 'No staff found'}
+                      </p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredStaff.map((s) => (
+                  <TableRow key={s.id} className="group border-slate-50 hover:bg-slate-50/50 transition-colors">
+                    {/* Identity */}
+                    <TableCell className="pl-8 py-5">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs group-hover:bg-white group-hover:shadow-sm transition-all shrink-0">
+                          {s.firstName?.charAt(0)}{s.lastName?.charAt(0) || s.email.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900 leading-none">
+                            {s.firstName ? `${s.firstName} ${s.lastName || ''}`.trim() : '—'}
+                          </p>
+                          <p className="text-xs text-slate-400 font-medium mt-1">{s.email}</p>
+                        </div>
+                      </div>
+                    </TableCell>
 
-      {/* Update Staff Dialog */}
-      {showUpdateDialog && selectedStaff && (
+                    {/* Role */}
+                    <TableCell className="py-5">
+                      <Badge className={cn('font-bold text-[10px] uppercase tracking-wider rounded-lg border px-2.5', ROLE_COLORS[s.role] || 'bg-slate-50 text-slate-600 border-slate-200')}>
+                        {ROLE_LABELS[s.role] || s.role}
+                      </Badge>
+                    </TableCell>
+
+                    {/* Contact */}
+                    <TableCell className="py-5">
+                      <span className="text-xs font-bold text-slate-600">{s.phone || '—'}</span>
+                    </TableCell>
+
+                    {/* Last Login */}
+                    <TableCell className="py-5">
+                      {s.lastLoginAt ? (
+                        <span className="text-xs font-bold text-slate-600">
+                          {format(new Date(s.lastLoginAt), 'dd MMM yyyy, HH:mm')}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-400 font-medium italic">Never</span>
+                      )}
+                    </TableCell>
+
+                    {/* Status */}
+                    <TableCell className="py-5">
+                      <Badge
+                        className={cn('font-bold text-[9px] uppercase tracking-wider rounded-md border px-2 py-0.5',
+                          s.status === Status.ACTIVE
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                            : s.status === Status.INACTIVE
+                            ? 'bg-slate-50 text-slate-500 border-slate-200'
+                            : 'bg-rose-50 text-rose-700 border-rose-100'
+                        )}
+                      >
+                        {s.status}
+                      </Badge>
+                    </TableCell>
+
+                    {/* Actions */}
+                    <TableCell className="pr-8 py-5 text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-slate-100">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="rounded-2xl border-slate-200 w-48 p-2 shadow-xl">
+                          <DropdownMenuItem
+                            className="rounded-xl font-bold cursor-pointer gap-3"
+                            onClick={() => { setSelectedStaff(s); setShowUpdateDialog(true); }}
+                          >
+                            <Pencil className="h-4 w-4 text-slate-400" />
+                            Edit Profile
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator className="my-1 bg-slate-100" />
+                          <DropdownMenuItem
+                            className={cn(
+                              'rounded-xl font-bold cursor-pointer gap-3',
+                              s.status === Status.ACTIVE
+                                ? 'text-rose-600 focus:text-rose-700 focus:bg-rose-50'
+                                : 'text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50'
+                            )}
+                            onClick={() => { setStatusTarget(s); setShowStatusDialog(true); }}
+                          >
+                            {s.status === Status.ACTIVE
+                              ? <><PowerOff className="h-4 w-4" />Deactivate</>
+                              : <><Power className="h-4 w-4" />Reactivate</>
+                            }
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      {/* Dialogs */}
+      <CreateStaffDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        onSuccess={() => setShowCreateDialog(false)}
+      />
+
+      {selectedStaff && (
         <UpdateStaffDialog
           open={showUpdateDialog}
-          onClose={() => {
-            setShowUpdateDialog(false);
-            setSelectedStaff(null);
-          }}
-          onSuccess={handleSuccess}
+          onOpenChange={(v) => { setShowUpdateDialog(v); if (!v) setSelectedStaff(null); }}
+          onSuccess={() => { setShowUpdateDialog(false); setSelectedStaff(null); }}
           staff={selectedStaff}
         />
       )}
-    </div>
+
+      <StaffStatusDialog
+        open={showStatusDialog}
+        onOpenChange={(v) => { setShowStatusDialog(v); if (!v) setStatusTarget(null); }}
+        staff={statusTarget}
+        isPending={statusMutation.isPending}
+        onConfirm={handleStatusConfirm}
+      />
+    </>
   );
 }

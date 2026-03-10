@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Theater" ADD COLUMN     "hourly_rate" DOUBLE PRECISION NOT NULL DEFAULT 0;

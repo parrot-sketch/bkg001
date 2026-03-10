@@ -9,9 +9,10 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { surgicalPlanApi } from '../../shared/api/surgicalPlanApi';
+import { useSurgicalCasePlanPage } from '../../shared/hooks/useSurgicalCasePlanPage';
+import { useServices } from '@/hooks/useServices';
 import { parseUpdateProcedureRequest } from './procedureParsers';
 import { buildUpdateProcedurePayload } from './procedureMappers';
-import { useSurgicalCasePlanPage } from '../../shared/hooks/useSurgicalCasePlanPage';
 
 interface ProcedureViewModel {
   procedureName: string;
@@ -21,6 +22,8 @@ interface ProcedureViewModel {
 interface UseProcedureTabResult {
   // Data
   viewModel: ProcedureViewModel | null;
+  services: { id: string; name: string; category: string }[];
+  servicesLoading: boolean;
   
   // Loading states
   isLoading: boolean;
@@ -47,6 +50,7 @@ interface UseProcedureTabResult {
 export function useProcedureTab(caseId: string): UseProcedureTabResult {
   const queryClient = useQueryClient();
   const { data, isLoading, error, refetch } = useSurgicalCasePlanPage(caseId);
+  const { services, loading: servicesLoading } = useServices();
   
   // Local editable state
   const [localProcedureName, setLocalProcedureName] = useState('');
@@ -110,9 +114,18 @@ export function useProcedureTab(caseId: string): UseProcedureTabResult {
       setLocalProcedurePlan(data.casePlan?.procedurePlan || '');
     }
   }, [data]);
+
+  // Map all services for the dropdown - include all categories
+  const procedureServices = services.map(s => ({
+    id: String(s.id),
+    name: s.service_name,
+    category: s.category || ''
+  }));
   
   return {
     viewModel,
+    services: procedureServices,
+    servicesLoading,
     isLoading,
     isSaving: saveMutation.isPending,
     error: error as Error | null,

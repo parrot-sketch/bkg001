@@ -27,9 +27,9 @@ export function AppointmentSection({
 
     return (
         <div className="space-y-2">
-            <div className="flex items-center gap-2 px-4 py-2">
+            <div className="flex items-center gap-2 px-4 py-3 bg-slate-50/50 rounded-t-xl border-b border-slate-100">
                 <Icon className={`h-4 w-4 ${iconColor}`} />
-                <h3 className="text-sm font-bold text-slate-900">
+                <h3 className="text-[11px] text-muted-foreground font-bold uppercase tracking-widest">
                     {title} ({appointments.length})
                 </h3>
             </div>

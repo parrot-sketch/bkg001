@@ -14,11 +14,14 @@ import { LoadingState } from '../../shared/components/LoadingState';
 import { ErrorState } from '../../shared/components/ErrorState';
 import { SaveBar } from '../../shared/components/SaveBar';
 import { Stethoscope } from 'lucide-react';
+import { ProcedureSelect } from '@/components/ui/procedure-select';
 
 interface ProcedureTabViewProps {
   // Data
   procedureName: string;
   procedurePlan: string;
+  services: { id: string; name: string; category: string }[];
+  servicesLoading: boolean;
   
   // Loading states
   isLoading: boolean;
@@ -40,6 +43,8 @@ interface ProcedureTabViewProps {
 export function ProcedureTabView({
   procedureName,
   procedurePlan,
+  services,
+  servicesLoading,
   isLoading,
   isSaving,
   error,
@@ -67,11 +72,12 @@ export function ProcedureTabView({
       <div className="space-y-4">
         <div className="space-y-1.5">
           <Label className="text-sm font-medium">Procedure Name</Label>
-          <Input
+          <ProcedureSelect
             value={procedureName}
-            onChange={(e) => onProcedureNameChange(e.target.value)}
-            placeholder="e.g. Total Knee Replacement"
-            className="bg-background"
+            onChange={onProcedureNameChange}
+            services={services}
+            loading={servicesLoading}
+            placeholder="Search or select a procedure..."
           />
           <p className="text-xs text-muted-foreground">
             Procedure name for print summary and documentation

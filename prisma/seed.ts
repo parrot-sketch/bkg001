@@ -146,7 +146,8 @@ async function main() {
       type: 'MAJOR',
       status: 'ACTIVE',
       color_code: '#EF4444', // Red
-      notes: 'Equipped for general anesthesia and complex reconstructive surgeries.'
+      notes: 'Equipped for general anesthesia and complex reconstructive surgeries.',
+      hourly_rate: 50000, // KES per hour
     }
   });
 
@@ -156,7 +157,8 @@ async function main() {
       type: 'MINOR',
       status: 'ACTIVE',
       color_code: '#3B82F6', // Blue
-      notes: 'Local anesthesia and sedation procedures only.'
+      notes: 'Local anesthesia and sedation procedures only.',
+      hourly_rate: 35000, // KES per hour
     }
   });
 
@@ -166,7 +168,8 @@ async function main() {
       type: 'PROCEDURE_ROOM',
       status: 'ACTIVE',
       color_code: '#10B981', // Green
-      notes: 'Injectables and non-invasive treatments.'
+      notes: 'Injectables and non-invasive treatments.',
+      hourly_rate: 20000, // KES per hour
     }
   });
 
@@ -1561,7 +1564,6 @@ async function main() {
           description: 'Normal saline for IV administration',
           unit_of_measure: 'bottle',
           unit_cost: 250,
-          quantity_on_hand: 50,
           reorder_point: 20,
           supplier: vendor1.name,
           is_active: true,
@@ -1576,7 +1578,6 @@ async function main() {
           description: 'Pain relief medication',
           unit_of_measure: 'tablet',
           unit_cost: 5,
-          quantity_on_hand: 500,
           reorder_point: 200,
           supplier: vendor1.name,
           is_active: true,
@@ -1592,7 +1593,6 @@ async function main() {
           description: 'Sterile surgical gloves, latex-free, size medium',
           unit_of_measure: 'pair',
           unit_cost: 15,
-          quantity_on_hand: 200,
           reorder_point: 100,
           supplier: vendor1.name,
           is_active: true,
@@ -1607,7 +1607,6 @@ async function main() {
           description: '3-ply disposable surgical masks',
           unit_of_measure: 'piece',
           unit_cost: 10,
-          quantity_on_hand: 300,
           reorder_point: 150,
           supplier: vendor1.name,
           is_active: true,
@@ -1622,8 +1621,6 @@ async function main() {
           category: 'IMPLANT',
           description: 'Round silicone breast implant, 300cc',
           unit_of_measure: 'unit',
-          unit_cost: 45000,
-          quantity_on_hand: 4,
           reorder_point: 2,
           supplier: vendor2.name,
           manufacturer: 'Allergan',
@@ -1640,7 +1637,6 @@ async function main() {
           description: 'Absorbable surgical suture, 3-0 Vicryl',
           unit_of_measure: 'pack',
           unit_cost: 500,
-          quantity_on_hand: 25,
           reorder_point: 10,
           supplier: vendor1.name,
           is_active: true,
@@ -1720,14 +1716,8 @@ async function main() {
     });
 
     // Update inventory quantities (goods receipt should have done this, but ensure it's correct)
-    await prisma.inventoryItem.update({
-      where: { id: inventoryItems[0].id },
-      data: { quantity_on_hand: { increment: 30 } }
-    });
-    await prisma.inventoryItem.update({
-      where: { id: inventoryItems[2].id },
-      data: { quantity_on_hand: { increment: 100 } }
-    });
+    // NOTE: quantity_on_hand has been removed from the schema.
+    // Stock is now dynamically calculated from batches and transactions.
 
     console.log('✅ Inventory System Seeded:');
     console.log(`   - 2 Vendors`);

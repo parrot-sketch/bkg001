@@ -15,7 +15,6 @@
  */
 
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -110,38 +109,42 @@ export function TheatreScheduleView({ cases, loading = false }: TheatreScheduleV
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Theatre Schedule</CardTitle>
-          <CardDescription>Your surgical cases with readiness status</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <section className="bg-white border border-slate-200/60 rounded-[2rem] shadow-sm overflow-hidden">
+        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div>
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-0.5">Your surgical cases</p>
+            <h2 className="text-xl font-bold tracking-tight text-foreground">Theatre Schedule</h2>
+          </div>
+        </div>
+        <div className="p-6">
           <div className="text-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-4 text-sm text-muted-foreground">Loading schedule...</p>
+            <p className="mt-4 text-sm font-medium text-slate-500">Loading schedule...</p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     );
   }
 
   if (cases.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Theatre Schedule</CardTitle>
-          <CardDescription>Your surgical cases with readiness status</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-12">
-            <div className="h-16 w-16 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-4">
-              <Calendar className="h-8 w-8 text-gray-400" />
-            </div>
-            <p className="text-sm font-medium text-gray-600 mb-1">No cases scheduled</p>
-            <p className="text-xs text-gray-500">Your theatre schedule is clear</p>
+      <section className="bg-white border border-slate-200/60 rounded-[2rem] shadow-sm overflow-hidden">
+        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div>
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-0.5">Your surgical cases</p>
+            <h2 className="text-xl font-bold tracking-tight text-foreground">Theatre Schedule</h2>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+        <div className="p-6">
+          <div className="text-center py-12 bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-200">
+            <div className="h-16 w-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-4">
+              <Calendar className="h-8 w-8 text-slate-300" />
+            </div>
+            <h3 className="text-lg font-bold tracking-tight text-foreground">No cases scheduled</h3>
+            <p className="text-sm text-muted-foreground mt-1">Your theatre schedule is clear</p>
+          </div>
+        </div>
+      </section>
     );
   }
 
@@ -149,21 +152,19 @@ export function TheatreScheduleView({ cases, loading = false }: TheatreScheduleV
   const notReadyCases = cases.filter(c => !c.casePlan?.ready_for_surgery || !c.casePlan);
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Theatre Schedule</CardTitle>
-            <CardDescription>
-              {cases.length} case{cases.length !== 1 ? 's' : ''} scheduled
-              {readyCases.length > 0 && ` • ${readyCases.length} ready`}
-              {notReadyCases.length > 0 && ` • ${notReadyCases.length} need attention`}
-            </CardDescription>
-          </div>
+    <section className="bg-white border border-slate-200/60 rounded-[2rem] shadow-sm overflow-hidden">
+      <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <div>
+          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-0.5">
+            {cases.length} case{cases.length !== 1 ? 's' : ''} scheduled
+            {readyCases.length > 0 && ` • ${readyCases.length} ready`}
+            {notReadyCases.length > 0 && ` • ${notReadyCases.length} need attention`}
+          </p>
+          <h2 className="text-xl font-bold tracking-tight text-foreground">Theatre Schedule</h2>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
+      </div>
+      <div className="p-6">
+        <div className="space-y-6">
           {/* Ready Cases */}
           {readyCases.length > 0 && (
             <div className="space-y-3">
@@ -200,8 +201,8 @@ export function TheatreScheduleView({ cases, loading = false }: TheatreScheduleV
             </div>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
 

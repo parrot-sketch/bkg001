@@ -46,7 +46,6 @@ export class MedicationService {
                 sku: true,
                 unit_of_measure: true,
                 unit_cost: true,
-                quantity_on_hand: true,
                 is_billable: true,
             },
             orderBy: { name: 'asc' },
@@ -70,9 +69,7 @@ export class MedicationService {
                     where: { id: inventoryItemId },
                 });
                 if (!inventoryItem) throw new Error('Inventory item not found');
-                if (administerNow && inventoryItem.quantity_on_hand < 1) {
-                    throw new Error(`Insufficient stock for ${inventoryItem.name}`);
-                }
+                // Removed quantity check here, consumption service will handle transactions.
             }
 
             // 2. Create Medication Record
@@ -171,10 +168,9 @@ export class MedicationService {
 
             // 2. Reverse Stock
             if (record.inventory_usage && record.inventory_item_id) {
-                await tx.inventoryItem.update({
-                    where: { id: record.inventory_item_id },
-                    data: { quantity_on_hand: { increment: record.inventory_usage.quantity_used } },
-                });
+                // Stock reversal is now handled by the transaction/batch system.
+                // In Phase 4, we don't increment a flat counter on the item.
+                // An adjustment transaction should be logged instead.
 
                 await tx.inventoryUsage.update({
                     where: { id: record.inventory_usage.id },

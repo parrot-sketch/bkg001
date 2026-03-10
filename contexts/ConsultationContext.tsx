@@ -259,6 +259,8 @@ interface ConsultationContextValue {
   canSave: boolean;
   canComplete: boolean;
   waitingQueue: AppointmentResponseDto[];
+  refetchQueue: () => Promise<unknown>;
+  isQueueRefetching: boolean;
 
   // Actions
   loadAppointment: (appointmentId: number) => Promise<void>;
@@ -297,7 +299,7 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
 
   // External hooks
   const saveDraftMutation = useSaveConsultationDraft();
-  const { data: todayAppointments = [] } = useDoctorTodayAppointments(user?.id, !!user);
+  const { data: todayAppointments = [], refetch: refetchQueue, isRefetching: isQueueRefetching } = useDoctorTodayAppointments(user?.id, !!user);
 
   // Refs for debounced save
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -591,7 +593,7 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
     queryClient.invalidateQueries({ queryKey: ['billing'] });
     queryClient.invalidateQueries({ queryKey: ['appointment-billing'] });
 
-    // Navigate: explicit redirect > next in queue > back to consultations list
+    // Navigate: explicit redirect > next in queue > consultation list (with queue)
     if (redirectPath) {
       router.push(redirectPath);
     } else if (waitingQueue.length > 0) {
@@ -599,6 +601,9 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
       toast.info(`Loading next patient: ${nextPatient.patient?.firstName || 'Patient'}…`);
       router.push(`/doctor/consultations/${nextPatient.id}/session`);
     } else {
+      // No more patients - go to consultation list which shows the queue
+      // Doctor can wait there for new patients to check in
+      toast.info('No more patients in queue. Waiting for new check-ins...');
       router.push('/doctor/consultations');
     }
   }, [state.appointment, waitingQueue, queryClient, router]);
@@ -710,6 +715,8 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
     canSave,
     canComplete,
     waitingQueue,
+    refetchQueue,
+    isQueueRefetching,
     loadAppointment,
     startConsultation,
     saveDraft,
@@ -728,6 +735,8 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
     canSave,
     canComplete,
     waitingQueue,
+    refetchQueue,
+    isQueueRefetching,
     loadAppointment,
     startConsultation,
     saveDraft,

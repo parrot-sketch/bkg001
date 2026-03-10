@@ -158,7 +158,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       description: body.description,
       unitOfMeasure: body.unitOfMeasure,
       unitCost: body.unitCost || 0,
-      quantityOnHand: body.quantityOnHand,
       reorderPoint: body.reorderPoint,
       supplier: body.supplier,
       manufacturer: body.manufacturer,

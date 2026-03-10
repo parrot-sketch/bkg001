@@ -33,6 +33,8 @@ interface ConsultationQueuePanelProps {
   hasDrafts?: boolean;
   className?: string;
   defaultCollapsed?: boolean;
+  onRefresh?: () => void;
+  isRefreshing?: boolean;
 }
 
 export function ConsultationQueuePanel({
@@ -44,6 +46,8 @@ export function ConsultationQueuePanel({
   hasDrafts = false,
   className,
   defaultCollapsed = false,
+  onRefresh,
+  isRefreshing,
 }: ConsultationQueuePanelProps) {
   const router = useRouter();
   const { user } = useAuth();
@@ -145,7 +149,7 @@ export function ConsultationQueuePanel({
           <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-[60px] rounded-full pointer-events-none" />
         )}
 
-        <QueueHeader queueCount={queueCount} onCollapse={() => setIsCollapsed(true)} />
+        <QueueHeader queueCount={queueCount} onCollapse={() => setIsCollapsed(true)} onRefresh={onRefresh} isRefreshing={isRefreshing} />
 
         <div className="flex-1 overflow-y-auto custom-scrollbar-light px-2 bg-transparent">
           {queueCount === 0 ? (

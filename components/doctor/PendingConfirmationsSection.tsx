@@ -160,20 +160,20 @@ export function PendingConfirmationsSection({
 
   return (
     <>
-      <section className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-2xl shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-amber-200/60 flex items-center justify-between bg-amber-100/30">
+      <section className="bg-white border border-amber-200/60 rounded-[2rem] shadow-sm overflow-hidden">
+        <div className="px-6 py-5 border-b border-amber-100 flex items-center justify-between bg-amber-50/50">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-amber-500 rounded-xl shadow-lg shadow-amber-500/20">
-              <AlertCircle className="h-5 w-5 text-white" />
+            <div className="h-10 w-10 rounded-xl bg-amber-100 flex items-center justify-center">
+              <AlertCircle className="h-5 w-5 text-amber-600" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-900">Pending Confirmations</h2>
-              <p className="text-sm text-amber-700">
-                {appointments.length} appointment{appointments.length !== 1 ? 's' : ''} awaiting your review
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-0.5">
+                {appointments.length} appointment{appointments.length !== 1 ? 's' : ''} awaiting review
               </p>
+              <h2 className="text-xl font-bold tracking-tight text-foreground">Pending Confirmations</h2>
             </div>
           </div>
-          <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 font-bold">
+          <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200 font-bold">
             Action Required
           </Badge>
         </div>

@@ -1,14 +1,19 @@
 import db from '@/lib/db';
 import { InventoryDashboard } from './_components/InventoryDashboard';
+import { inventoryModule } from '@/application/inventory-module';
 
 export const dynamic = 'force-dynamic';
 
 export default async function InventoryPage() {
-    // Parallel Data Fetching
-    const [batches, items] = await Promise.all([
+    // 1. Fetch Aggregated Summary (Derived Balances)
+    // 2. Fetch Detailed Batches (For lifecycle tracking)
+    // 3. Fetch Master Catalog Items (For select dropdowns)
+    
+    const [summary, batches, items] = await Promise.all([
+        inventoryModule.inventoryService.getDashboardSummary(),
         db.inventoryBatch.findMany({
             where: {
-                quantity_remaining: { gt: 0 } // Only show active stock by default?
+                quantity_remaining: { gt: 0 }
             },
             include: {
                 inventory_item: {
@@ -40,13 +45,10 @@ export default async function InventoryPage() {
         })
     ]);
 
-    // Transform Category Enum to string if needed, but Prisma types should align mostly.
-    // The client component expects 'string' for category.
-
     return (
         <div className="space-y-6">
-
             <InventoryDashboard
+                summary={summary}
                 initialBatches={batches.map(b => ({
                     ...b,
                     inventory_item: {

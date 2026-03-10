@@ -33,7 +33,7 @@ export function PatientStats({ stats, loading }: PatientStatsProps) {
             <p className={cn("text-lg font-bold leading-none", stat.color)}>
               {loading ? '–' : stat.value}
             </p>
-            <p className="text-[10px] text-slate-500 font-medium mt-0.5">{stat.label}</p>
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">{stat.label}</p>
           </div>
         </div>
       ))}

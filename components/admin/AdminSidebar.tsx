@@ -6,6 +6,7 @@
  * Uses the UnifiedSidebar component for consistent design.
  */
 
+import { useEffect, useState } from 'react';
 import {
   LayoutDashboard,
   Users,
@@ -17,6 +18,7 @@ import {
   Building2,
   Syringe,
   ShieldCheck,
+  Package,
 } from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { useAuth } from '@/hooks/patient/useAuth';
@@ -43,11 +45,6 @@ const navItems: NavItem[] = [
     icon: Calendar,
   },
   {
-    name: 'Consent Approvals',
-    href: '/admin/consents',
-    icon: ShieldCheck,
-  },
-  {
     name: 'Recovery Care',
     href: '/admin/pre-post-op',
     icon: FileText,
@@ -58,9 +55,9 @@ const navItems: NavItem[] = [
     icon: BarChart3,
   },
   {
-    name: 'Clinic Settings',
-    href: '/admin/clinic',
-    icon: Building2,
+    name: 'Inventory',
+    href: '/admin/inventory',
+    icon: Package,
   },
   {
     name: 'Theaters',
@@ -81,6 +78,11 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
   const { logout, user } = useAuth();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -90,11 +92,11 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
     }
   };
 
-  const userInfo: UserInfo | null = user
+  const userInfo: UserInfo | null = mounted && user
     ? {
-      name: user.firstName || user.email,
+      name: user.firstName ? `${user.firstName} ${user.lastName || ''}` : user.email,
       email: user.email,
-      role: 'ADMIN',
+      role: user.role as any, // Cast to any to satisfy the complex role enum mapping in UnifiedSidebar
     }
     : null;
 

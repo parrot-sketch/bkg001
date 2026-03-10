@@ -60,6 +60,7 @@ export async function GET(request: NextRequest) {
             name: theater.name,
             type: theater.type,
             isActive: theater.is_active,
+            hourlyRate: theater.hourly_rate || 0,
             bookings: theater.bookings.map((booking) => ({
                 id: booking.id,
                 caseId: booking.surgical_case_id,

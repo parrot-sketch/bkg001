@@ -44,7 +44,12 @@ export async function GET(request: NextRequest) {
             where: {
                 status: SurgicalCaseStatus.READY_FOR_SCHEDULING,
             },
-            include: {
+            select: {
+                id: true,
+                status: true,
+                procedure_name: true,
+                urgency: true,
+                created_at: true,
                 patient: {
                     select: {
                         id: true,
@@ -126,9 +131,7 @@ export async function GET(request: NextRequest) {
                           specialization: c.primary_surgeon.specialization,
                       }
                     : null,
-                procedure: c.case_plan?.procedure_plan
-                    ? (c.case_plan.procedure_plan as any)?.procedureName || 'Unspecified'
-                    : 'Unspecified',
+                procedure: c.procedure_name || 'Unspecified',
                 urgency: c.urgency || 'ELECTIVE',
                 preOpChecklistFinalized: !!preOpChecklist,
                 preOpChecklistFinalizedAt: preOpChecklist?.signed_at || null,
