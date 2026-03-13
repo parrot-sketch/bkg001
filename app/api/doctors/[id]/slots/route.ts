@@ -116,10 +116,12 @@ export async function GET(
       );
     }
 
-    // 5. Parse date
+    // 5. Parse date - use local timezone to avoid UTC midnight issues
     let date: Date;
     try {
-      date = new Date(dateParam);
+      // Parse YYYY-MM-DD in local timezone to match server timezone
+      const [year, month, day] = dateParam.split('-').map(Number);
+      date = new Date(year, month - 1, day); // Local timezone
       if (isNaN(date.getTime())) {
         throw new Error('Invalid date format');
       }

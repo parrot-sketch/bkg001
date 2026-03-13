@@ -41,9 +41,9 @@ export function BookAppointmentDialog() {
 
   return (
     <Dialog open={isOpen} onOpenChange={closeBookingDialog}>
-      <DialogContent className="max-w-5xl w-[95vw] max-h-[92vh] overflow-hidden p-0 border-none bg-white rounded-[2rem] shadow-2xl ring-1 ring-slate-200/50">
+      <DialogContent className="max-w-5xl w-[95vw] sm:w-[90vw] max-h-[85vh] sm:max-h-[90vh] overflow-hidden p-0 border-none bg-white rounded-2xl sm:rounded-[2rem] shadow-2xl ring-1 ring-slate-200/50">
         <DialogTitle className="sr-only">Book Appointment</DialogTitle>
-        <div className="h-full flex flex-col overflow-y-auto custom-scrollbar bg-white">
+        <div className="h-full flex flex-col overflow-y-auto custom-scrollbar bg-white rounded-2xl sm:rounded-[2rem]">
           <AppointmentBookingForm
             mode="full"
             initialPatientId={initialPatientId}

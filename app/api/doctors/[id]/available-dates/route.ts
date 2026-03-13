@@ -79,12 +79,15 @@ export async function GET(
       );
     }
 
-    // 5. Parse dates
+    // 5. Parse dates - use local timezone to avoid UTC midnight issues
     let startDate: Date;
     let endDate: Date;
     try {
-      startDate = new Date(startDateParam);
-      endDate = new Date(endDateParam);
+      // Parse YYYY-MM-DD in local timezone to match server timezone
+      const [startYear, startMonth, startDay] = startDateParam.split('-').map(Number);
+      const [endYear, endMonth, endDay] = endDateParam.split('-').map(Number);
+      startDate = new Date(startYear, startMonth - 1, startDay);
+      endDate = new Date(endYear, endMonth - 1, endDay);
 
       if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
         throw new Error('Invalid date format');
