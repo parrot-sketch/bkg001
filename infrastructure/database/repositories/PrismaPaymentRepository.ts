@@ -261,34 +261,61 @@ export class PrismaPaymentRepository implements IPaymentRepository {
 
   async generateReceipt(paymentId: number): Promise<Payment> {
     // Generate receipt number: RCP-YYYYMMDD-XXXX
-    const today = new Date();
-    const dateStr = today.toISOString().slice(0, 10).replace(/-/g, '');
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
     
-    // Get count of receipts today for sequence
-    const todayStart = new Date(today.setHours(0, 0, 0, 0));
-    const todayEnd = new Date(today.setHours(23, 59, 59, 999));
-    
-    const todayCount = await this.prisma.payment.count({
-      where: {
-        receipt_number: {
-          not: null,
+    // Use a transaction to ensure unique receipt number
+    return await this.prisma.$transaction(async (tx) => {
+      // Get count of receipts today for sequence
+      const todayStart = new Date(now);
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date(now);
+      todayEnd.setHours(23, 59, 59, 999);
+      
+      const todayCount = await tx.payment.count({
+        where: {
+          receipt_number: {
+            not: null,
+          },
+          created_at: {
+            gte: todayStart,
+            lte: todayEnd,
+          },
         },
-        created_at: {
-          gte: todayStart,
-          lte: todayEnd,
-        },
-      },
+      });
+
+      // Generate with retry for collision
+      let receiptNumber: string;
+      let attempts = 0;
+      const maxAttempts = 10;
+      
+      do {
+        const sequence = String(todayCount + attempts + 1).padStart(4, '0');
+        receiptNumber = `RCP-${dateStr}-${sequence}`;
+        
+        // Check if this number already exists
+        const existing = await tx.payment.findUnique({
+          where: { receipt_number: receiptNumber },
+        });
+        
+        if (!existing) {
+          break; // Found unused number
+        }
+        attempts++;
+      } while (attempts < maxAttempts);
+
+      if (attempts >= maxAttempts) {
+        // Fallback: use timestamp-based number
+        receiptNumber = `RCP-${dateStr}-${Date.now().toString().slice(-6)}`;
+      }
+
+      const result = await tx.payment.update({
+        where: { id: paymentId },
+        data: { receipt_number: receiptNumber },
+      });
+
+      return this.mapToPayment(result);
     });
-
-    const sequence = String(todayCount + 1).padStart(4, '0');
-    const receiptNumber = `RCP-${dateStr}-${sequence}`;
-
-    const result = await this.prisma.payment.update({
-      where: { id: paymentId },
-      data: { receipt_number: receiptNumber },
-    });
-
-    return this.mapToPayment(result);
   }
 
   async getTodaySummary(): Promise<{
