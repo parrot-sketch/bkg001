@@ -97,12 +97,38 @@ export async function POST(
             role
         );
 
-        // 6. Fetch updated case with related data for notifications
+        // 6. Get theater fee service and theater details for pricing
+        const [theaterFeeService, confirmedBookingWithTheater] = await Promise.all([
+            db.service.findFirst({
+                where: { 
+                    service_name: 'Theater Usage Fee',
+                    is_active: true 
+                }
+            }),
+            db.theaterBooking.findUnique({
+                where: { id: bookingId },
+                include: { theater: true }
+            })
+        ]);
+
+        // Calculate theater fee based on duration and hourly rate
+        let theaterFeeAmount = 0;
+        if (confirmedBookingWithTheater?.theater?.hourly_rate) {
+            const startTime = new Date(confirmedBooking.start_time);
+            const endTime = new Date(confirmedBooking.end_time);
+            const durationHours = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
+            // Round to nearest hour, minimum 1 hour
+            const hours = Math.max(1, Math.round(durationHours));
+            theaterFeeAmount = hours * confirmedBookingWithTheater.theater.hourly_rate;
+        }
+
+        // 7. Fetch updated case with related data for notifications
         const updatedCase = await db.surgicalCase.findUnique({
             where: { id: caseId },
             include: {
                 patient: { 
                     select: { 
+                        id: true,
                         first_name: true, 
                         last_name: true, 
                         file_number: true 
@@ -120,8 +146,6 @@ export async function POST(
                     } 
                 },
                 theater_booking: {
-                    // theater_booking is singular (optional), not an array
-                    // We already validated bookingId matches, so this should be the correct booking
                     include: { 
                         theater: { 
                             select: { 
@@ -133,7 +157,65 @@ export async function POST(
             },
         });
 
-        // 7. Notify surgeon and nurse about theater booking
+        // 8. Create billing record with theater fee
+        if (theaterFeeService && updatedCase?.patient && theaterFeeAmount > 0) {
+            const existingPayment = await db.payment.findUnique({
+                where: { surgical_case_id: caseId }
+            });
+
+            if (!existingPayment) {
+                // Create new payment with theater fee
+                await db.payment.create({
+                    data: {
+                        patient_id: updatedCase.patient.id,
+                        surgical_case_id: caseId,
+                        payment_method: 'CASH',
+                        status: 'UNPAID',
+                        total_amount: theaterFeeAmount,
+                        amount_paid: 0,
+                        bill_type: 'SURGERY',
+                        bill_date: new Date(),
+                    }
+                });
+            } else {
+                // Add theater fee to existing payment
+                await db.payment.update({
+                    where: { id: existingPayment.id },
+                    data: { 
+                        total_amount: { increment: theaterFeeAmount }
+                    }
+                });
+            }
+
+            // Add theater fee as a bill item
+            const payment = await db.payment.findUnique({
+                where: { surgical_case_id: caseId }
+            });
+
+            if (payment) {
+                const existingBillItem = await db.patientBill.findFirst({
+                    where: {
+                        payment_id: payment.id,
+                        service_id: theaterFeeService.id
+                    }
+                });
+
+                if (!existingBillItem) {
+                    await db.patientBill.create({
+                        data: {
+                            payment_id: payment.id,
+                            service_id: theaterFeeService.id,
+                            quantity: 1,
+                            unit_cost: theaterFeeAmount,
+                            total_cost: theaterFeeAmount,
+                            service_date: new Date(),
+                        }
+                    });
+                }
+            }
+        }
+
+        // 9. Notify surgeon and nurse about theater booking
         if (updatedCase) {
             const { createNotification } = await import('@/lib/notifications/createNotification');
             const procedureName = (updatedCase.case_plan?.procedure_plan as any)?.procedureName || 'Surgical procedure';
@@ -188,6 +270,12 @@ export async function POST(
                 endTime: confirmedBooking.end_time,
                 confirmedAt: confirmedBooking.confirmed_at,
                 caseStatus: updatedCase?.status,
+                billingCreated: theaterFeeAmount > 0,
+                theaterFee: theaterFeeAmount > 0 ? {
+                    amount: theaterFeeAmount,
+                    serviceName: 'Theater Usage Fee',
+                    theaterName: confirmedBookingWithTheater?.theater?.name
+                } : null,
             },
         });
     } catch (error) {

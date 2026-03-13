@@ -13,6 +13,9 @@ describe('MedicationService', () => {
                 findUnique: vi.fn(),
                 update: vi.fn(),
             },
+            inventoryBatch: {
+                findMany: vi.fn(),
+            },
             inventoryUsage: {
                 create: vi.fn(),
                 findUnique: vi.fn(),
@@ -51,13 +54,18 @@ describe('MedicationService', () => {
 
     it('should list eligible medications correctly', async () => {
         prismaMock.inventoryItem.findMany.mockResolvedValue([
-            { id: 1, name: 'Paracetamol', quantity_on_hand: 100, is_active: true }
+            { id: 1, name: 'Paracetamol', sku: null, unit_of_measure: 'tablet', unit_cost: 0.5, is_billable: true, is_active: true }
+        ]);
+        prismaMock.inventoryBatch.findMany.mockResolvedValue([
+            { batch_number: 'LOT001', quantity_remaining: 100, expiry_date: null }
         ]);
 
         const result = await medicationService.listEligibleMedications('Para');
 
         expect(result).toHaveLength(1);
         expect(result[0].name).toBe('Paracetamol');
+        expect(result[0].quantity_on_hand).toBe(100);
+        expect(result[0].available_lot_numbers).toContain('LOT001');
         expect(prismaMock.inventoryItem.findMany).toHaveBeenCalledWith(expect.objectContaining({
             where: expect.objectContaining({
                 is_active: true
