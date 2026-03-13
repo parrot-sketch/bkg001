@@ -4,15 +4,17 @@
  * Patient Dashboard Layout
  * 
  * Main layout for all patient dashboard pages.
- * Uses UnifiedSidebar via PatientSidebar and ClinicalDashboardShell.
+ * Uses UnifiedSidebar and ClinicalDashboardShell for consistent design.
  * Mobile-responsive with sidebar toggle functionality.
  */
 
-import { useState } from 'react';
+import { useState, ReactNode, useEffect } from 'react';
 import { PatientSidebar } from '@/components/patient/PatientSidebar';
 import { Menu } from 'lucide-react';
-import { ReactNode } from 'react';
 import { ClinicalDashboardShell } from '@/components/layouts/ClinicalDashboardShell';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/patient/useAuth';
+import { toast } from 'sonner';
 
 interface PatientLayoutProps {
   children: ReactNode;
@@ -20,13 +22,56 @@ interface PatientLayoutProps {
 
 export default function PatientLayout({ children }: PatientLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const router = useRouter();
+  const { user, isLoading, logout } = useAuth();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Auth validation
+  useEffect(() => {
+    if (mounted && !isLoading) {
+      if (!user) {
+        router.replace('/login');
+      } else if (user.role !== 'PATIENT') {
+        // Allow admin and other staff to access patient portal for testing
+        if (user.role !== 'ADMIN' && user.role !== 'DOCTOR' && user.role !== 'NURSE') {
+          toast.error('Access Denied: Patient portal access required');
+          router.replace('/login');
+        }
+      }
+    }
+  }, [mounted, isLoading, user, router]);
+
+  if (isLoading || !mounted) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="h-12 w-12 bg-slate-200 rounded-full mb-4" />
+          <div className="h-4 w-32 bg-slate-100 rounded" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  // Allow access for PATIENT, ADMIN, DOCTOR, NURSE roles
+  const allowedRoles = ['PATIENT', 'ADMIN', 'DOCTOR', 'NURSE'];
+  if (!allowedRoles.includes(user.role)) {
+    return null;
+  }
 
   return (
-    <div className="flex min-h-screen bg-background">
-      {/* Mobile Menu Button */}
+    <div className="flex h-screen overflow-hidden bg-background">
+      {/* Mobile Menu Button - CONSISTENT positioning (top-4 left-4) */}
       <button
         onClick={() => setSidebarOpen(true)}
-        className="fixed top-4 right-4 z-50 lg:hidden p-2.5 rounded-lg bg-card border border-border shadow-lg hover:bg-muted transition-colors"
+        className="fixed top-4 left-4 z-50 lg:hidden p-2.5 rounded-lg bg-card border border-border shadow-lg hover:bg-muted transition-colors"
         aria-label="Open sidebar"
       >
         <Menu className="h-5 w-5 text-foreground" />
@@ -36,7 +81,7 @@ export default function PatientLayout({ children }: PatientLayoutProps) {
       <PatientSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Content Area - Using the shared ClinicalDashboardShell */}
-      <div className="flex-1 lg:ml-72 flex flex-col min-w-0">
+      <div className="flex-1 lg:ml-72 flex flex-col min-w-0 h-full overflow-hidden">
         <ClinicalDashboardShell>
           {children}
         </ClinicalDashboardShell>

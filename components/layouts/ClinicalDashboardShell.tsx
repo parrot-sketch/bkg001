@@ -6,7 +6,7 @@
  * A reusable container component that standardizes spacing, responsiveness,
  * and visual hierarchy across all clinical role dashboards.
  * 
- * REFINED: Smoother scrolling, refined padding, and elegant transitions.
+ * REFINED: Added mobile menu button accommodation - accounts for fixed menu on mobile.
  */
 
 import { ReactNode } from 'react';
@@ -37,7 +37,10 @@ export function ClinicalDashboardShell({
             )}>
                 <div className={cn(
                     "w-full",
-                    !isImmersive && "mx-auto max-w-[1600px] px-4 py-5 sm:px-5 sm:py-6 lg:px-8 lg:py-7 xl:px-10 xl:py-8",
+                    !isImmersive && "min-h-full",
+                    // Account for mobile menu button: add top padding on mobile
+                    // The button is fixed at top-4 left-4, so we need to avoid content overlap
+                    !isImmersive && "mx-auto max-w-[1600px] px-4 sm:px-5 py-5 sm:py-6 lg:px-8 lg:py-7 xl:px-10 xl:py-8 pb-8 sm:pb-10 pt-14 sm:pt-16 lg:pt-0",
                     isImmersive && "h-full",
                     className
                 )}>
