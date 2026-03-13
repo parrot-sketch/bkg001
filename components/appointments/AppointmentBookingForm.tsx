@@ -807,7 +807,16 @@ export function AppointmentBookingForm({
 
                                     <div className="flex items-center justify-between py-1 border-b border-slate-200/50">
                                         <span className="text-xs text-slate-500 font-medium">Doctor</span>
-                                        <span className="text-xs font-bold text-slate-900">{selectedDoctor?.title} {selectedDoctor?.name || `${selectedDoctor?.firstName} ${selectedDoctor?.lastName}`}</span>
+                                        <span className="text-xs font-bold text-slate-900">
+                                            {(() => {
+                                                const doctorName = selectedDoctor?.name || `${selectedDoctor?.firstName} ${selectedDoctor?.lastName}`;
+                                                const title = selectedDoctor?.title;
+                                                if (title && doctorName.startsWith(title)) {
+                                                    return doctorName;
+                                                }
+                                                return title ? `${title} ${doctorName}` : `Dr. ${doctorName}`;
+                                            })()}
+                                        </span>
                                     </div>
 
                                     <div className="flex items-center justify-between py-1 border-b border-slate-200/50">
