@@ -1,29 +1,19 @@
 'use client';
 
 /**
- * MobileIntakeForm — Clinic-branded, mobile-first 5-step patient intake form
- *
- * Steps:
- *   1. Personal Info (name, DOB, gender)
- *   2. Contact Info (phone, WhatsApp, email, address, marital status)
- *   3. Emergency + Insurance (merged — both are short)
- *   4. Medical History (blood group, allergies, conditions)
- *   5. Consent + Review
- *
- * localStorage isolation: draft key includes sessionId so multiple
- * patients on the same device don't share drafts.
+ * MobileIntakeForm — Modern mobile-first patient intake wizard
+ * Clean design optimized for mobile users
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { PatientIntakeFormSchema } from '@/lib/schema';
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
-import { Shield, ChevronLeft, ChevronRight, CheckCircle2, Loader2, Clock, AlertCircle } from 'lucide-react';
+import { Shield, Check, Loader2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-/* ── Types ── */
 type FormData = {
     firstName: string; lastName: string; dateOfBirth: string; gender: string;
     email: string; phone: string; whatsappPhone?: string; address: string;
@@ -34,29 +24,15 @@ type FormData = {
 };
 
 const STEPS = [
-    { id: 1, label: 'Personal', fields: ['firstName', 'lastName', 'dateOfBirth', 'gender'] as const },
-    { id: 2, label: 'Contact', fields: ['email', 'phone', 'whatsappPhone', 'address', 'maritalStatus', 'occupation'] as const },
-    { id: 3, label: 'Emergency', fields: ['emergencyContactName', 'emergencyContactNumber', 'emergencyContactRelation'] as const },
-    { id: 4, label: 'Medical', fields: ['bloodGroup', 'allergies', 'medicalConditions'] as const },
+    { id: 1, title: 'Personal Info', description: 'Tell us about yourself' },
+    { id: 2, title: 'Contact', description: 'How can we reach you?' },
+    { id: 3, title: 'Emergency', description: 'Emergency contact details' },
+    { id: 4, title: 'Medical', description: 'Your medical overview' },
 ];
 
-/* ── Input helpers ── */
-function Field({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) {
-    return (
-        <div className="space-y-1">
-            <label className="block text-sm font-medium text-slate-900">
-                {label}{required && <span className="text-red-600 ml-0.5">*</span>}
-            </label>
-            {children}
-            {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
-        </div>
-    );
-}
+const inputClass = "w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all";
+const labelClass = "block text-sm font-medium text-slate-700 mb-2";
 
-const inputClass = "w-full h-11 px-3 rounded-none border-b border-slate-300 bg-transparent text-base text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-brand-primary transition-colors";
-const selectClass = `${inputClass} appearance-none bg-white`;
-
-/* ── Main component ── */
 export function MobileIntakeForm({
     sessionId,
     minutesRemaining: initialMinutes,
@@ -70,7 +46,7 @@ export function MobileIntakeForm({
     const [submitted, setSubmitted] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [minutesLeft, setMinutesLeft] = useState(initialMinutes);
-    const [draftSaved, setDraftSaved] = useState(false);
+    const formRef = useRef<HTMLDivElement>(null);
 
     const form = useForm<FormData>({
         resolver: zodResolver(PatientIntakeFormSchema) as any,
@@ -85,7 +61,7 @@ export function MobileIntakeForm({
         },
     });
 
-    const { register, control, formState: { errors }, trigger, getValues, watch } = form;
+    const { register, control, formState: { errors }, trigger, getValues, watch, setValue } = form;
 
     /* Load draft on mount */
     useEffect(() => {
@@ -96,17 +72,13 @@ export function MobileIntakeForm({
                 form.reset(draft);
             }
         } catch { }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [form, DRAFT_KEY]);
 
     /* Auto-save draft */
     useEffect(() => {
         const sub = form.watch((data) => {
             try {
                 localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
-                setDraftSaved(true);
-                const t = setTimeout(() => setDraftSaved(false), 1500);
-                return () => clearTimeout(t);
             } catch { }
         });
         return () => sub.unsubscribe();
@@ -120,19 +92,33 @@ export function MobileIntakeForm({
 
     /* Step navigation */
     const goNext = useCallback(async () => {
-        const currentFields = STEPS[step - 1].fields as unknown as string[];
-        // Skip validation for optional-only steps (insurance)
-        const fieldsToValidate = currentFields.filter(f => !['insuranceProvider', 'insuranceNumber', 'occupation', 'whatsappPhone', 'bloodGroup', 'allergies', 'medicalConditions', 'medicalHistory'].includes(f));
-        const valid = step < 5 ? await trigger(fieldsToValidate as any) : true;
+        let fieldsToValidate: string[] = [];
+        
+        if (step === 1) {
+            fieldsToValidate = ['firstName', 'lastName', 'dateOfBirth', 'gender'];
+        } else if (step === 2) {
+            fieldsToValidate = ['phone', 'email', 'address'];
+        } else if (step === 3) {
+            fieldsToValidate = [];
+        } else if (step === 4) {
+            fieldsToValidate = [];
+        }
+        
+        const valid = fieldsToValidate.length === 0 || await trigger(fieldsToValidate as any);
+        
         if (valid) {
             setStep((s) => Math.min(s + 1, STEPS.length));
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (formRef.current) {
+                formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
         }
     }, [step, trigger]);
 
     const goPrev = useCallback(() => {
         setStep((s) => Math.max(s - 1, 1));
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (formRef.current) {
+            formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
     }, []);
 
     /* Submit */
@@ -162,318 +148,333 @@ export function MobileIntakeForm({
         }
     };
 
-    const pw = watch('privacyConsent');
-    const sw = watch('serviceConsent');
-    const mw = watch('medicalConsent');
+    const stepProgress = (step / STEPS.length) * 100;
 
-    /* ── Success screen ── */
+    /* Success screen */
     if (submitted) {
         const firstName = getValues('firstName');
         return (
             <div className="min-h-screen bg-white flex flex-col">
-                <ClinicHeader />
-                <div className="flex-1 flex flex-col items-center justify-center px-6 text-center max-w-sm mx-auto w-full">
-                    <div className="h-20 w-20 rounded-full bg-emerald-50 flex items-center justify-center mb-6">
-                        <CheckCircle2 className="h-10 w-10 text-emerald-500" />
+                <div className="px-6 pt-12 pb-6 text-center border-b border-slate-100">
+                    <div className="inline-flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-full bg-rose-600 flex items-center justify-center">
+                            <span className="text-white font-bold text-sm">NS</span>
+                        </div>
+                        <span className="font-bold text-slate-900">Nairobi Sculpt</span>
+                    </div>
+                </div>
+                <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+                    <div className="h-24 w-24 rounded-full bg-emerald-100 flex items-center justify-center mb-6">
+                        <Check className="h-12 w-12 text-emerald-600" />
                     </div>
                     <h1 className="text-2xl font-bold text-slate-900 mb-3">
-                        {firstName ? `You're all set, ${firstName}!` : 'You\'re all set!'}
+                        {firstName ? `You're all set, ${firstName}!` : "You're all set!"}
                     </h1>
                     <p className="text-slate-500 text-sm leading-relaxed mb-2">
-                        Your details have been received by the Nairobi Sculpt team.
+                        Your details have been received.
                     </p>
-                    <p className="text-slate-500 text-sm leading-relaxed mb-4">
-                        Please take a seat — a member of our team will call your name shortly.
+                    <p className="text-slate-500 text-sm mb-6">
+                        Please take a seat — we'll call your name shortly.
                     </p>
-                    <p className="text-xs text-slate-400">You can close this browser tab.</p>
                 </div>
-                <PrivacyFooter />
+                <div className="px-6 pb-8">
+                    <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
+                        <Shield className="h-3 w-3" />
+                        <span>Your information is encrypted</span>
+                    </div>
+                </div>
             </div>
         );
     }
 
-    const stepProgress = (step / STEPS.length) * 100;
-    const currentStepLabel = STEPS[step - 1].label;
     return (
-        <div className="min-h-screen bg-slate-50/50 flex flex-col pt-4 pb-12">
-            {/* ── Clinic Header (Floating Card Style) ── */}
-            <div className="px-5 mb-6 shrink-0">
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm px-5 py-4 flex items-center justify-between">
-                    <div>
-                        <h1 className="text-lg font-bold text-slate-900 leading-tight">Patient Intake</h1>
-                        <p className="text-xs text-slate-500 font-medium">Nairobi Sculpt Aesthetic Centre</p>
-                    </div>
-                    <div className="h-10 w-10 rounded-xl bg-rose-600 flex items-center justify-center shadow-sm">
-                        <span className="text-white font-bold text-xs">NS</span>
-                    </div>
-                </div>
-            </div>
-
-            {/* ── Main Form Area ── */}
-            <div className="flex-1 px-5">
-                <div className="max-w-lg mx-auto space-y-6">
-
-                    {/* ── Progress & Timer Card ── */}
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                        <div className="flex items-center justify-between mb-3">
-                            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                                Step {step} of {STEPS.length}
-                            </span>
-                            <div className={cn(
-                                "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold",
-                                minutesLeft <= 10 ? 'bg-red-50 text-red-600' : 'bg-slate-50 text-slate-500'
-                            )}>
-                                <Clock className="h-3 w-3" />
-                                {minutesLeft}m remaining
+        <div ref={formRef} className="min-h-screen bg-slate-50">
+            {/* Header */}
+            <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
+                <div className="px-5 py-4">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-full bg-rose-600 flex items-center justify-center">
+                                <span className="text-white font-bold text-sm">NS</span>
+                            </div>
+                            <div>
+                                <p className="font-semibold text-slate-900">Patient Intake</p>
+                                <p className="text-xs text-slate-500">{minutesLeft}m remaining</p>
                             </div>
                         </div>
-                        <div className="h-1.5 bg-slate-100 w-full rounded-full overflow-hidden">
-                            <div
-                                className="h-full bg-slate-900 transition-all duration-500 ease-out"
-                                style={{ width: `${stepProgress}%` }}
-                            />
-                        </div>
-                        <div className="mt-3 flex justify-between items-center">
-                            <h2 className="text-sm font-bold text-slate-900">{currentStepLabel}</h2>
-                            {draftSaved && (
-                                <span className="text-[10px] font-medium text-emerald-500 flex items-center gap-1">
-                                    <div className="h-1 w-1 rounded-full bg-emerald-500" />
-                                    Progress saved
-                                </span>
-                            )}
+                        <div className="text-right">
+                            <p className="text-xs text-slate-500">Step {step} of {STEPS.length}</p>
                         </div>
                     </div>
+                    {/* Progress bar */}
+                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div 
+                            className="h-full bg-rose-600 transition-all duration-300"
+                            style={{ width: `${stepProgress}%` }}
+                        />
+                    </div>
+                </div>
+            </div>
 
-                    {/* ── Content Card ── */}
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm min-h-[300px] overflow-hidden">
-                        <div className="p-6 space-y-7">
-                            {/* ─ Step 1: Personal Info ─ */}
-                            {step === 1 && (
+            {/* Content */}
+            <div className="px-5 py-6 pb-24">
+                <div className="max-w-md mx-auto">
+                    {/* Step title */}
+                    <div className="mb-6">
+                        <h2 className="text-xl font-semibold text-slate-900">{STEPS[step - 1].title}</h2>
+                        <p className="text-sm text-slate-500 mt-1">{STEPS[step - 1].description}</p>
+                    </div>
+
+                    {/* Form fields */}
+                    <div className="space-y-4">
+                        {/* Step 1: Personal */}
+                        {step === 1 && (
+                            <div className="space-y-4">
+                                <div>
+                                    <label className={labelClass}>First Name *</label>
+                                    <input 
+                                        {...register('firstName')} 
+                                        placeholder="Your first name"
+                                        className={inputClass}
+                                        autoFocus
+                                    />
+                                    {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName.message}</p>}
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Last Name *</label>
+                                    <input 
+                                        {...register('lastName')} 
+                                        placeholder="Your last name"
+                                        className={inputClass}
+                                    />
+                                    {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName.message}</p>}
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Date of Birth *</label>
+                                    <input 
+                                        {...register('dateOfBirth')} 
+                                        type="date"
+                                        className={inputClass}
+                                    />
+                                    {errors.dateOfBirth && <p className="text-red-500 text-xs mt-1">{errors.dateOfBirth.message}</p>}
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Gender *</label>
+                                    <select {...register('gender')} className={inputClass}>
+                                        <option value="FEMALE">Female</option>
+                                        <option value="MALE">Male</option>
+                                        <option value="OTHER">Other / Prefer not to say</option>
+                                    </select>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Step 2: Contact */}
+                        {step === 2 && (
+                            <div className="space-y-4">
+                                <div>
+                                    <label className={labelClass}>Phone Number *</label>
+                                    <Controller
+                                        name="phone"
+                                        control={control}
+                                        render={({ field }) => (
+                                            <PhoneInput
+                                                {...field}
+                                                international
+                                                defaultCountry="KE"
+                                                className="phone-input-custom"
+                                                inputClassName={inputClass}
+                                            />
+                                        )}
+                                    />
+                                    {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
+                                </div>
+                                <div>
+                                    <label className={labelClass}>WhatsApp Number</label>
+                                    <Controller
+                                        name="whatsappPhone"
+                                        control={control}
+                                        render={({ field }) => (
+                                            <PhoneInput
+                                                {...field}
+                                                international
+                                                defaultCountry="KE"
+                                                inputClassName={inputClass}
+                                            />
+                                        )}
+                                    />
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Email *</label>
+                                    <input 
+                                        {...register('email')} 
+                                        type="email"
+                                        placeholder="your@email.com"
+                                        className={inputClass}
+                                    />
+                                    {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Home Address *</label>
+                                    <input 
+                                        {...register('address')} 
+                                        placeholder="e.g. Westlands, Nairobi"
+                                        className={inputClass}
+                                    />
+                                    {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address.message}</p>}
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Marital Status</label>
+                                    <select {...register('maritalStatus')} className={inputClass}>
+                                        <option value="">Prefer not to say</option>
+                                        <option value="SINGLE">Single</option>
+                                        <option value="MARRIED">Married</option>
+                                        <option value="DIVORCED">Divorced</option>
+                                        <option value="WIDOWED">Widowed</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Occupation</label>
+                                    <input 
+                                        {...register('occupation')} 
+                                        placeholder="Your occupation"
+                                        className={inputClass}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Step 3: Emergency */}
+                        {step === 3 && (
+                            <div className="space-y-4">
+                                <div>
+                                    <label className={labelClass}>Contact Name</label>
+                                    <input 
+                                        {...register('emergencyContactName')} 
+                                        placeholder="Full name"
+                                        className={inputClass}
+                                    />
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Contact Phone</label>
+                                    <Controller
+                                        name="emergencyContactNumber"
+                                        control={control}
+                                        render={({ field }) => (
+                                            <PhoneInput
+                                                {...field}
+                                                international
+                                                defaultCountry="KE"
+                                                inputClassName={inputClass}
+                                            />
+                                        )}
+                                    />
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Relationship</label>
+                                    <select {...register('emergencyContactRelation')} className={inputClass}>
+                                        <option value="">Select relationship</option>
+                                        <option value="SPOUSE">Spouse / Partner</option>
+                                        <option value="PARENT">Parent</option>
+                                        <option value="SIBLING">Sibling</option>
+                                        <option value="CHILD">Child</option>
+                                        <option value="FRIEND">Friend</option>
+                                        <option value="OTHER">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Step 4: Medical */}
+                        {step === 4 && (
+                            <div className="space-y-4">
+                                <div>
+                                    <label className={labelClass}>Blood Group</label>
+                                    <select {...register('bloodGroup')} className={inputClass}>
+                                        <option value="">Not sure / prefer not to say</option>
+                                        {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => (
+                                            <option key={bg} value={bg}>{bg}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Known Allergies</label>
+                                    <textarea
+                                        {...register('allergies')}
+                                        rows={3}
+                                        placeholder="e.g. Penicillin, latex... or leave blank"
+                                        className={cn(inputClass, "resize-none")}
+                                    />
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Medical Conditions</label>
+                                    <textarea
+                                        {...register('medicalConditions')}
+                                        rows={3}
+                                        placeholder="e.g. Diabetes, hypertension... or leave blank"
+                                        className={cn(inputClass, "resize-none")}
+                                    />
+                                </div>
+
+                                {submitError && (
+                                    <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex items-start gap-2">
+                                        <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                                        <p className="text-xs font-medium text-red-600">{submitError}</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Fixed bottom navigation */}
+            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-5 py-4 z-20">
+                <div className="max-w-md mx-auto flex gap-3">
+                    {step > 1 ? (
+                        <button
+                            type="button"
+                            onClick={goPrev}
+                            className="px-5 py-3.5 border border-slate-200 rounded-xl font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                        >
+                            Back
+                        </button>
+                    ) : (
+                        <div className="flex-1" />
+                    )}
+                    
+                    {step < STEPS.length ? (
+                        <button
+                            type="button"
+                            onClick={goNext}
+                            className="flex-1 px-5 py-3.5 bg-slate-900 text-white rounded-xl font-medium hover:bg-slate-800 transition-colors"
+                        >
+                            Continue
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={handleSubmit}
+                            disabled={submitting}
+                            className={cn(
+                                "flex-1 px-5 py-3.5 rounded-xl font-medium transition-colors flex items-center justify-center gap-2",
+                                submitting
+                                    ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                                    : "bg-emerald-600 text-white hover:bg-emerald-700"
+                            )}
+                        >
+                            {submitting ? (
                                 <>
-                                    <StepHeading title="Tell us about yourself" />
-                                    <Field label="First Name" required error={errors.firstName?.message as string}>
-                                        <input {...register('firstName')} placeholder="e.g. Amina" className={inputClass} autoFocus />
-                                    </Field>
-                                    <Field label="Last Name" required error={errors.lastName?.message as string}>
-                                        <input {...register('lastName')} placeholder="e.g. Wanjiku" className={inputClass} />
-                                    </Field>
-                                    <Field label="Date of Birth" required error={errors.dateOfBirth?.message as string}>
-                                        <input {...register('dateOfBirth')} type="date" className={inputClass} />
-                                    </Field>
-                                    <Field label="Gender" required error={errors.gender?.message as string}>
-                                        <select {...register('gender')} className={selectClass}>
-                                            <option value="FEMALE">Female</option>
-                                            <option value="MALE">Male</option>
-                                            <option value="OTHER">Other / Prefer not to say</option>
-                                        </select>
-                                    </Field>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Submitting...
                                 </>
-                            )}
-
-                            {/* ─ Step 2: Contact Info ─ */}
-                            {step === 2 && (
-                                <>
-                                    <StepHeading title="How can we reach you?" />
-                                    <Field label="Phone Number" required error={errors.phone?.message as string}>
-                                        <Controller
-                                            name="phone"
-                                            control={control}
-                                            render={({ field }) => (
-                                                <PhoneInput
-                                                    {...field}
-                                                    international
-                                                    defaultCountry="KE"
-                                                    className={inputClass}
-                                                />
-                                            )}
-                                        />
-                                    </Field>
-                                    <Field label="WhatsApp Number" error={errors.whatsappPhone?.message as string}>
-                                        <Controller
-                                            name="whatsappPhone"
-                                            control={control}
-                                            render={({ field }) => (
-                                                <PhoneInput
-                                                    {...field}
-                                                    international
-                                                    defaultCountry="KE"
-                                                    className={inputClass}
-                                                />
-                                            )}
-                                        />
-                                    </Field>
-                                    <Field label="Email Address" required error={errors.email?.message as string}>
-                                        <input {...register('email')} type="email" placeholder="your@email.com" className={inputClass} />
-                                    </Field>
-                                    <Field label="Home Address" required error={errors.address?.message as string}>
-                                        <input {...register('address')} placeholder="e.g. Westlands, Nairobi" className={inputClass} />
-                                    </Field>
-                                    <Field label="Marital Status" error={errors.maritalStatus?.message as string}>
-                                        <select {...register('maritalStatus')} className={selectClass}>
-                                            <option value="">Prefer not to say</option>
-                                            <option value="SINGLE">Single</option>
-                                            <option value="MARRIED">Married</option>
-                                            <option value="DIVORCED">Divorced</option>
-                                            <option value="WIDOWED">Widowed</option>
-                                        </select>
-                                    </Field>
-                                    <Field label="Occupation" error={errors.occupation?.message as string}>
-                                        <input {...register('occupation')} placeholder="e.g. Teacher (optional)" className={inputClass} />
-                                    </Field>
-                                </>
-                            )}
-
-                            {/* ─ Step 3: Emergency Contact ─ */}
-                            {step === 3 && (
-                                <>
-                                    <StepHeading title="Emergency Contact" />
-                                    <Field label="Contact Name" error={errors.emergencyContactName?.message as string}>
-                                        <input {...register('emergencyContactName')} placeholder="Full name" className={inputClass} autoFocus />
-                                    </Field>
-                                    <Field label="Contact Phone" error={errors.emergencyContactNumber?.message as string}>
-                                        <Controller
-                                            name="emergencyContactNumber"
-                                            control={control}
-                                            render={({ field }) => (
-                                                <PhoneInput
-                                                    {...field}
-                                                    international
-                                                    defaultCountry="KE"
-                                                    className={inputClass}
-                                                />
-                                            )}
-                                        />
-                                    </Field>
-                                    <Field label="Relationship" error={errors.emergencyContactRelation?.message as string}>
-                                        <select {...register('emergencyContactRelation')} className={selectClass}>
-                                            <option value="">Select relationship</option>
-                                            <option value="SPOUSE">Spouse / Partner</option>
-                                            <option value="PARENT">Parent</option>
-                                            <option value="SIBLING">Sibling</option>
-                                            <option value="CHILD">Child</option>
-                                            <option value="FRIEND">Friend</option>
-                                            <option value="OTHER">Other</option>
-                                        </select>
-                                    </Field>
-                                </>
-                            )}
-
-                            {/* ─ Step 4: Medical History ─ */}
-                            {step === 4 && (
-                                <>
-                                    <StepHeading title="Medical Overview" />
-                                    <Field label="Blood Group">
-                                        <select {...register('bloodGroup')} className={selectClass}>
-                                            <option value="">Not sure / prefer not to say</option>
-                                            {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => (
-                                                <option key={bg} value={bg}>{bg}</option>
-                                            ))}
-                                        </select>
-                                    </Field>
-                                    <Field label="Known Allergies">
-                                        <textarea
-                                            {...register('allergies')}
-                                            rows={3}
-                                            placeholder="e.g. Penicillin, latex, pollen… or leave blank"
-                                            className={`${inputClass} !h-auto py-3 resize-none`}
-                                        />
-                                    </Field>
-                                    <Field label="Medical Conditions">
-                                        <textarea
-                                            {...register('medicalConditions')}
-                                            rows={3}
-                                            placeholder="e.g. Diabetes, hypertension… or leave blank"
-                                            className={`${inputClass} !h-auto py-3 resize-none`}
-                                        />
-                                    </Field>
-
-                                    {submitError && (
-                                        <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3 flex items-start gap-2">
-                                            <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-                                            <p className="text-xs font-medium text-red-600">{submitError}</p>
-                                        </div>
-                                    )}
-                                </>
-                            )}
-                        </div>
-
-                        {/* ── Action Buttons (Fixed inside Card for cohesion) ── */}
-                        <div className="px-6 py-6 bg-slate-50 border-t border-slate-100 flex items-center gap-3">
-                            {step > 1 && (
-                                <button
-                                    type="button"
-                                    onClick={goPrev}
-                                    className="h-12 w-12 rounded-xl border border-slate-200 bg-white text-slate-600 flex items-center justify-center hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
-                                >
-                                    <ChevronLeft className="h-5 w-5" />
-                                </button>
-                            )}
-                            {step < STEPS.length ? (
-                                <button
-                                    type="button"
-                                    onClick={goNext}
-                                    className="flex-1 h-12 bg-slate-900 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-black active:scale-[0.98] transition-all shadow-md shadow-slate-200"
-                                >
-                                    Continue
-                                    <ChevronRight className="h-4 w-4" />
-                                </button>
                             ) : (
-                                <button
-                                    type="button"
-                                    onClick={handleSubmit}
-                                    disabled={submitting}
-                                    className={cn(
-                                        "flex-1 h-12 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-md active:scale-[0.98]",
-                                        submitting
-                                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                            : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-100'
-                                    )}
-                                >
-                                    {submitting ? (
-                                        <><Loader2 className="h-4 w-4 animate-spin" /> Submitting…</>
-                                    ) : (
-                                        <><CheckCircle2 className="h-4 w-4" /> Complete Intake</>
-                                    )}
-                                </button>
+                                'Complete Intake'
                             )}
-                        </div>
-                    </div>
-
-                    <PrivacyFooter />
+                        </button>
+                    )}
                 </div>
             </div>
         </div>
     );
 }
-
-/* ── Sub-components ── */
-
-function ClinicHeader() {
-    return (
-        <div className="px-5 pt-6 pb-4 border-b border-slate-200">
-            <h1 className="text-xl font-semibold text-slate-900">Patient Intake Form</h1>
-            <p className="text-sm text-slate-500 mt-1">Nairobi Sculpt Aesthetic Centre</p>
-        </div>
-    );
-}
-
-function PrivacyFooter() {
-    return (
-        <div className="px-5 pb-6 pt-4 text-center border-t border-slate-100">
-            <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
-                <Shield className="h-4 w-4 shrink-0" />
-                <span>Encrypted & secure clinical record.</span>
-            </div>
-        </div>
-    );
-}
-
-function StepHeading({ title }: { title: string }) {
-    return (
-        <div className="pb-4 border-b border-slate-200 mb-6">
-            <h2 className="text-xl font-medium text-slate-900">{title}</h2>
-        </div>
-    );
-}
-
-
