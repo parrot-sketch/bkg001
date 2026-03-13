@@ -2,21 +2,31 @@
 
 /**
  * Frontdesk Billing Page
- * 
- * Manage patient payments and billing.
- * Clean, professional, and structurally organized.
+ * Clean, modern UI with simple elements
  */
 
 import { useState } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { usePendingPayments, useRecordPayment } from '@/hooks/frontdesk/useBilling';
-import { BillingSummary } from './components/BillingSummary';
-import { PendingPaymentsList } from './components/PendingPaymentsList';
 import { PaymentDialog } from './components/PaymentDialog';
 import type { PaymentWithRelations } from '@/domain/interfaces/repositories/IPaymentRepository';
 import { PaymentMethod } from '@/domain/enums/PaymentMethod';
-import { CreditCard, Users, Clock, TrendingUp, Activity } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { PaymentStatus, getPaymentStatusLabel } from '@/domain/enums/PaymentStatus';
+import { BillType } from '@/domain/enums/BillType';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+
+const BILL_TYPE_CONFIG: Record<string, { label: string; className: string }> = {
+  [BillType.CONSULTATION]: { label: 'Consultation', className: 'bg-blue-50 text-blue-700' },
+  [BillType.SURGERY]: { label: 'Surgery', className: 'bg-purple-50 text-purple-700' },
+  [BillType.LAB_TEST]: { label: 'Lab', className: 'bg-teal-50 text-teal-700' },
+  [BillType.FOLLOW_UP]: { label: 'Follow-up', className: 'bg-sky-50 text-sky-700' },
+  [BillType.OTHER]: { label: 'Other', className: 'bg-slate-50 text-slate-700' },
+};
 
 export default function FrontdeskBillingPage() {
   const { user, isAuthenticated } = useAuth();
@@ -38,6 +48,13 @@ export default function FrontdeskBillingPage() {
   const pendingPayments = billingData?.payments || [];
   const summary = billingData?.summary;
 
+  const filteredPayments = searchQuery
+    ? pendingPayments.filter((p) =>
+        p.patient?.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.patient?.lastName?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : pendingPayments;
+
   const handleOpenPaymentDialog = (payment: PaymentWithRelations) => {
     setSelectedPayment(payment);
     setPaymentDialogOpen(true);
@@ -57,83 +74,159 @@ export default function FrontdeskBillingPage() {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 max-w-6xl mx-auto">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center shadow-sm">
-            <CreditCard className="h-6 w-6 text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Billing & Payments</h1>
-            <p className="text-sm text-slate-500">
-              Manage patient bills and collect payments
-            </p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Billing & Payments</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Manage patient bills and collect payments
+          </p>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <BillingSummary summary={summary} />
-
-      {/* Quick Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border-slate-200/60 bg-white/50">
+        <Card className="border-slate-200">
           <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="h-10 w-10 rounded-lg bg-amber-100 flex items-center justify-center">
-                <Clock className="h-5 w-5 text-amber-600" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Pending</p>
-                <p className="text-xl font-bold text-slate-900">{summary?.pendingCount || 0}</p>
-              </div>
-            </div>
+            <p className="text-sm text-slate-500">Total Billed</p>
+            <p className="text-2xl font-bold text-slate-900 mt-1">
+              KES {(summary?.totalBilled || 0).toLocaleString()}
+            </p>
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200/60 bg-white/50">
+        <Card className="border-slate-200">
           <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="h-10 w-10 rounded-lg bg-emerald-100 flex items-center justify-center">
-                <TrendingUp className="h-5 w-5 text-emerald-600" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Collected</p>
-                <p className="text-xl font-bold text-slate-900">KES {(summary?.totalCollected || 0).toLocaleString()}</p>
-              </div>
-            </div>
+            <p className="text-sm text-slate-500">Collected</p>
+            <p className="text-2xl font-bold text-emerald-600 mt-1">
+              KES {(summary?.totalCollected || 0).toLocaleString()}
+            </p>
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200/60 bg-white/50">
+        <Card className="border-slate-200">
           <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                <Activity className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Collection Rate</p>
-                <p className="text-xl font-bold text-slate-900">
-                  {summary?.totalBilled ? Math.round((summary.totalCollected / summary.totalBilled) * 100) : 0}%
-                </p>
-              </div>
-            </div>
+            <p className="text-sm text-slate-500">Pending Bills</p>
+            <p className="text-2xl font-bold text-amber-600 mt-1">
+              {summary?.pendingCount || 0}
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Pending Payments List */}
-      <PendingPaymentsList 
-        payments={pendingPayments}
-        isLoading={isLoading}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        onCollectPayment={handleOpenPaymentDialog}
-      />
+      {/* Search */}
+      <div className="relative">
+        <Input
+          placeholder="Search by patient name..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="h-11 bg-white border-slate-200"
+        />
+      </div>
+
+      {/* Payments List */}
+      {isLoading ? (
+        <Card className="border-slate-200">
+          <CardContent className="py-16 text-center text-slate-500">
+            Loading payments...
+          </CardContent>
+        </Card>
+      ) : filteredPayments.length === 0 ? (
+        <Card className="border-slate-200">
+          <CardContent className="py-16 text-center">
+            <p className="text-lg font-medium text-slate-900">
+              {searchQuery ? 'No matching payments found' : 'No pending payments'}
+            </p>
+            <p className="text-sm text-slate-500 mt-1">
+              {searchQuery ? 'Try a different search term' : 'All bills have been collected'}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {filteredPayments.map((payment) => {
+            const payable = payment.totalAmount - payment.discount;
+            const remaining = payable - payment.amountPaid;
+            const billTypeCfg = BILL_TYPE_CONFIG[payment.billType] || BILL_TYPE_CONFIG.OTHER;
+
+            return (
+              <Card
+                key={payment.id}
+                className="border-slate-200 hover:border-slate-300 transition-colors"
+              >
+                <CardContent className="p-4 sm:p-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    {/* Patient & Bill Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <p className="font-semibold text-slate-900">
+                          {payment.patient?.firstName} {payment.patient?.lastName}
+                        </p>
+                        <Badge className={cn("text-xs", billTypeCfg.className)}>
+                          {billTypeCfg.label}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-3 mt-2 text-sm text-slate-500">
+                        <span>{format(new Date(payment.billDate), 'MMM dd, yyyy')}</span>
+                        {payment.appointment && (
+                          <span className="text-slate-400">•</span>
+                        )}
+                        {payment.appointment && (
+                          <span>{payment.appointment.time}</span>
+                        )}
+                        {payment.surgicalCase && (
+                          <>
+                            <span className="text-slate-400">•</span>
+                            <span className="text-purple-600">
+                              {payment.surgicalCase.procedureName || 'Surgery'}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Amount & Action */}
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="text-sm text-slate-500">Balance Due</p>
+                        <p className="text-xl font-bold text-slate-900">
+                          KES {remaining.toLocaleString()}
+                        </p>
+                        {payment.discount > 0 && (
+                          <p className="text-xs text-emerald-600">
+                            -{payment.discount.toLocaleString()} discount
+                          </p>
+                        )}
+                      </div>
+
+                      <Badge
+                        className={cn(
+                          "text-xs font-medium px-2.5 py-1",
+                          payment.status === PaymentStatus.PART && "bg-amber-50 text-amber-700",
+                          payment.status === PaymentStatus.UNPAID && "bg-red-50 text-red-700"
+                        )}
+                      >
+                        {getPaymentStatusLabel(payment.status)}
+                      </Badge>
+
+                      <Button
+                        onClick={() => handleOpenPaymentDialog(payment)}
+                        className="bg-slate-900 hover:bg-slate-800 text-white"
+                      >
+                        Collect
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       {/* Record Payment Dialog */}
-      <PaymentDialog 
+      <PaymentDialog
         open={paymentDialogOpen}
         onOpenChange={setPaymentDialogOpen}
         payment={selectedPayment}
