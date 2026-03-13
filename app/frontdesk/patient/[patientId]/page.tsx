@@ -24,15 +24,20 @@ const FrontdeskPatientProfile = async (props: ParamsProps) => {
   const id = params.patientId;
   const cat = (searchParams?.cat as string) || "overview";
 
-  const { data } = await getPatientFullDataById(id);
+  const { data, success, status } = await getPatientFullDataById(id);
 
-  if (!data) {
+  if (!success || !data) {
+    const isNotFound = status === 404;
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center space-y-2">
-          <p className="text-lg font-medium text-foreground">Patient not found</p>
+          <p className="text-lg font-medium text-foreground">
+            {isNotFound ? "Patient not found" : "Unable to load patient"}
+          </p>
           <p className="text-sm text-muted-foreground">
-            The patient record you&apos;re looking for doesn&apos;t exist.
+            {isNotFound
+              ? "The patient record you're looking for doesn't exist."
+              : "There was a problem loading the patient data. Please try again."}
           </p>
           <Link
             href="/frontdesk/patients"
