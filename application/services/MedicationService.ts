@@ -18,6 +18,30 @@ export interface AdministerMedicationDto {
     externalRef?: string; // Optional idempotency key for consumption service
 }
 
+export interface EligibleImplant {
+    id: number;
+    name: string;
+    sku: string | null;
+    category: string;
+    unit_of_measure: string;
+    unit_cost: number;
+    quantity_on_hand: number;
+    is_billable: boolean;
+    available_sizes: string[];
+    available_lot_numbers: string[];
+}
+
+export interface EligibleMedication {
+    id: number;
+    name: string;
+    sku: string | null;
+    unit_of_measure: string;
+    unit_cost: number;
+    is_billable: boolean;
+    quantity_on_hand: number;
+    available_lot_numbers: string[];
+}
+
 export class MedicationService {
     private consumptionService: PrismaInventoryConsumptionBillingService;
 
@@ -26,12 +50,12 @@ export class MedicationService {
     }
 
     /**
-     * List all medications in inventory (active and categorized as MEDICATION)
+     * List all medications in inventory (active and categorized as MEDICATION or ANESTHETIC)
      */
-    async listEligibleMedications(query?: string) {
-        return this.db.inventoryItem.findMany({
+    async listEligibleMedications(query?: string): Promise<EligibleMedication[]> {
+        const medications = await this.db.inventoryItem.findMany({
             where: {
-                category: InventoryCategory.MEDICATION,
+                category: { in: [InventoryCategory.MEDICATION, InventoryCategory.ANESTHETIC] },
                 is_active: true,
                 OR: query ? [
                     { name: { contains: query, mode: 'insensitive' } },
@@ -50,6 +74,85 @@ export class MedicationService {
             },
             orderBy: { name: 'asc' },
         });
+
+        // Get available lot numbers and quantity from inventory batches
+        const medicationsWithStock = await Promise.all(
+            medications.map(async (med) => {
+                const batches = await this.db.inventoryBatch.findMany({
+                    where: {
+                        inventory_item_id: med.id,
+                        quantity_remaining: { gt: 0 },
+                    },
+                    select: {
+                        batch_number: true,
+                        quantity_remaining: true,
+                        expiry_date: true,
+                    },
+                    take: 10,
+                });
+
+                return {
+                    ...med,
+                    quantity_on_hand: batches.reduce((sum, b) => sum + b.quantity_remaining, 0),
+                    available_lot_numbers: batches.map(b => b.batch_number).filter(Boolean),
+                };
+            })
+        );
+
+        return medicationsWithStock;
+    }
+
+    /**
+     * List all implants in inventory (active and categorized as IMPLANT)
+     */
+    async listEligibleImplants(query?: string): Promise<EligibleImplant[]> {
+        const implants = await this.db.inventoryItem.findMany({
+            where: {
+                category: InventoryCategory.IMPLANT,
+                is_active: true,
+                OR: query ? [
+                    { name: { contains: query, mode: 'insensitive' } },
+                    { sku: { contains: query, mode: 'insensitive' } },
+                ] : undefined,
+            },
+            select: {
+                id: true,
+                name: true,
+                sku: true,
+                category: true,
+                unit_of_measure: true,
+                unit_cost: true,
+                is_billable: true,
+            },
+            orderBy: { name: 'asc' },
+        });
+
+        // Get available sizes and lot numbers from inventory batches
+        const implantsWithDetails = await Promise.all(
+            implants.map(async (implant) => {
+                const batches = await this.db.inventoryBatch.findMany({
+                    where: {
+                        inventory_item_id: implant.id,
+                        quantity_remaining: { gt: 0 },
+                    },
+                    select: {
+                        batch_number: true,
+                        quantity_remaining: true,
+                        expiry_date: true,
+                    },
+                    take: 10,
+                });
+
+                return {
+                    ...implant,
+                    quantity_on_hand: batches.reduce((sum, b) => sum + b.quantity_remaining, 0),
+                    available_sizes: [],
+                    available_lot_numbers: batches.map(b => b.batch_number).filter(Boolean),
+                };
+            })
+        );
+
+        return implantsWithDetails;
     }
 
     /**
