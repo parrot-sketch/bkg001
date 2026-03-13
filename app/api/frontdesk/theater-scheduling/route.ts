@@ -12,7 +12,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
-import { SurgicalCaseStatus } from '@prisma/client';
 import { db } from '@/lib/db';
 
 export async function GET(request: NextRequest) {
@@ -42,7 +41,7 @@ export async function GET(request: NextRequest) {
         // 3. Fetch cases ready for theater booking
         const cases = await db.surgicalCase.findMany({
             where: {
-                status: SurgicalCaseStatus.READY_FOR_SCHEDULING,
+                status: 'READY_FOR_THEATER_BOOKING',
             },
             select: {
                 id: true,
