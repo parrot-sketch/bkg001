@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -12,19 +12,23 @@ import {
   Calendar, 
   ChevronDown, 
   ChevronUp, 
-  Package 
+  Package,
+  Receipt,
+  CreditCard,
+  AlertCircle
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { PaymentStatus, getPaymentStatusLabel } from '@/domain/enums/PaymentStatus';
 import { BillType } from '@/domain/enums/BillType';
 import type { PaymentWithRelations } from '@/domain/interfaces/repositories/IPaymentRepository';
+import { cn } from '@/lib/utils';
 
 const BILL_TYPE_CONFIG: Record<string, { label: string; className: string }> = {
-  [BillType.CONSULTATION]: { label: 'Consultation', className: 'bg-blue-100 text-blue-700 border-blue-200' },
-  [BillType.SURGERY]: { label: 'Surgery', className: 'bg-purple-100 text-purple-700 border-purple-200' },
-  [BillType.LAB_TEST]: { label: 'Lab Test', className: 'bg-teal-100 text-teal-700 border-teal-200' },
-  [BillType.FOLLOW_UP]: { label: 'Follow-Up', className: 'bg-sky-100 text-sky-700 border-sky-200' },
-  [BillType.OTHER]: { label: 'Other', className: 'bg-gray-100 text-gray-700 border-gray-200' },
+  [BillType.CONSULTATION]: { label: 'Consultation', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+  [BillType.SURGERY]: { label: 'Surgery', className: 'bg-purple-50 text-purple-700 border-purple-200' },
+  [BillType.LAB_TEST]: { label: 'Lab Test', className: 'bg-teal-50 text-teal-700 border-teal-200' },
+  [BillType.FOLLOW_UP]: { label: 'Follow-Up', className: 'bg-sky-50 text-sky-700 border-sky-200' },
+  [BillType.OTHER]: { label: 'Other', className: 'bg-slate-50 text-slate-700 border-slate-200' },
 };
 
 interface PendingPaymentsListProps {
@@ -51,59 +55,87 @@ export function PendingPaymentsList({
       )
     : payments;
 
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Pending Payments</CardTitle>
-            <CardDescription>Bills waiting for payment collection</CardDescription>
+  if (isLoading) {
+    return (
+      <Card className="border-slate-200">
+        <CardContent className="flex items-center justify-center py-16">
+          <div className="flex flex-col items-center gap-3">
+            <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm text-muted-foreground">Loading payments...</p>
           </div>
-          <div className="relative w-64">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (filteredPayments.length === 0) {
+    return (
+      <Card className="border-slate-200">
+        <CardContent className="flex flex-col items-center justify-center py-16">
+          <div className="h-14 w-14 rounded-2xl bg-emerald-50 flex items-center justify-center mb-4">
+            <CheckCircle className="h-7 w-7 text-emerald-500" />
+          </div>
+          <p className="text-lg font-semibold text-slate-900">All caught up!</p>
+          <p className="text-sm text-slate-500 mt-1">
+            No pending payments at the moment
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="border-slate-200 shadow-sm">
+      <CardHeader className="pb-4 border-b border-slate-100">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-amber-50 flex items-center justify-center">
+              <Receipt className="h-5 w-5 text-amber-600" />
+            </div>
+            <div>
+              <CardTitle className="text-lg font-semibold">Pending Payments</CardTitle>
+              <CardDescription className="text-sm">
+                {filteredPayments.length} bill{filteredPayments.length !== 1 ? 's' : ''} awaiting collection
+              </CardDescription>
+            </div>
+          </div>
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
-              placeholder="Search patient..."
+              placeholder="Search by patient name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
+              className="pl-9 bg-slate-50/50 border-slate-200"
             />
           </div>
         </div>
       </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-4 text-sm text-muted-foreground">Loading payments...</p>
-          </div>
-        ) : filteredPayments.length === 0 ? (
-          <div className="text-center py-12">
-            <CheckCircle className="h-12 w-12 text-emerald-500 mx-auto mb-4" />
-            <p className="text-lg font-medium">All caught up!</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              No pending payments at the moment
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filteredPayments.map((payment) => {
-              const payable = payment.totalAmount - payment.discount;
-              const remaining = payable - payment.amountPaid;
-              const isExpanded = expandedPaymentId === payment.id;
-              const hasBillItems = payment.billItems && payment.billItems.length > 0;
-              
-              return (
-                <div
-                  key={payment.id}
-                  className="border rounded-lg hover:bg-muted/30 transition-colors"
-                >
-                  <div className="flex items-center justify-between p-4">
-                    <div className="flex items-center gap-4">
+      <CardContent className="p-0">
+        <div className="divide-y divide-slate-100">
+          {filteredPayments.map((payment) => {
+            const payable = payment.totalAmount - payment.discount;
+            const remaining = payable - payment.amountPaid;
+            const isExpanded = expandedPaymentId === payment.id;
+            const hasBillItems = payment.billItems && payment.billItems.length > 0;
+            const billTypeCfg = BILL_TYPE_CONFIG[payment.billType] || BILL_TYPE_CONFIG.OTHER;
+            
+            return (
+              <div
+                key={payment.id}
+                className={cn(
+                  "transition-colors hover:bg-slate-50/80",
+                  isExpanded && "bg-slate-50/50"
+                )}
+              >
+                <div className="p-4 sm:px-6">
+                  <div className="flex items-center justify-between gap-4">
+                    {/* Patient Info */}
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
                       {hasBillItems ? (
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 flex-shrink-0"
+                          className="h-8 w-8 flex-shrink-0 text-slate-400 hover:text-slate-600"
                           onClick={() => setExpandedPaymentId(isExpanded ? null : payment.id)}
                         >
                           {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -112,50 +144,41 @@ export function PendingPaymentsList({
                         <div className="w-8" />
                       )}
 
-                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <User className="h-5 w-5 text-primary" />
+                      <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center flex-shrink-0">
+                        <User className="h-5 w-5 text-slate-500" />
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-semibold">
+                      
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-semibold text-slate-900 truncate">
                             {payment.patient?.firstName} {payment.patient?.lastName}
                           </p>
-                          {payment.billType && BILL_TYPE_CONFIG[payment.billType] && (
-                            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${BILL_TYPE_CONFIG[payment.billType].className}`}>
-                              {BILL_TYPE_CONFIG[payment.billType].label}
-                            </Badge>
-                          )}
+                          <Badge variant="outline" className={cn("text-[10px] px-2 py-0 h-5 flex-shrink-0", billTypeCfg.className)}>
+                            {billTypeCfg.label}
+                          </Badge>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Calendar className="h-3 w-3" />
-                          <span>{format(new Date(payment.billDate), 'MMM dd, yyyy')}</span>
+                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5 flex-wrap">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            {format(new Date(payment.billDate), 'MMM dd, yyyy')}
+                          </span>
                           {payment.appointment && (
-                            <>
-                              <span>•</span>
-                              <span>{payment.appointment.time}</span>
-                            </>
+                            <span>• {payment.appointment.time}</span>
                           )}
                           {payment.surgicalCase && (
-                            <>
-                              <span>•</span>
-                              <span className="text-purple-600">{payment.surgicalCase.procedureName || 'Surgery'}</span>
-                            </>
-                          )}
-                          {hasBillItems && (
-                            <>
-                              <span>•</span>
-                              <Package className="h-3 w-3" />
-                              <span>{payment.billItems!.length} item{payment.billItems!.length !== 1 ? 's' : ''}</span>
-                            </>
+                            <span className="text-purple-600">• {payment.surgicalCase.procedureName || 'Surgery'}</span>
                           )}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-6">
-                      <div className="text-right">
-                        <p className="text-sm text-muted-foreground">Amount Due</p>
-                        <p className="font-bold text-lg">{remaining.toLocaleString()}</p>
+                    {/* Amount & Action */}
+                    <div className="flex items-center gap-4 flex-shrink-0">
+                      <div className="text-right hidden sm:block">
+                        <p className="text-xs text-slate-500">Balance Due</p>
+                        <p className="text-lg font-bold text-slate-900">
+                          KES {remaining.toLocaleString()}
+                        </p>
                         {payment.discount > 0 && (
                           <p className="text-xs text-emerald-600">
                             -{payment.discount.toLocaleString()} discount
@@ -164,73 +187,89 @@ export function PendingPaymentsList({
                       </div>
 
                       <Badge
-                        variant={payment.status === PaymentStatus.PART ? 'secondary' : 'outline'}
-                        className={payment.status === PaymentStatus.PART ? 'bg-amber-100 text-amber-700 border-amber-200' : ''}
+                        className={cn(
+                          "text-xs font-medium px-2.5 py-1",
+                          payment.status === PaymentStatus.PART && "bg-amber-50 text-amber-700 border-amber-200",
+                          payment.status === PaymentStatus.UNPAID && "bg-red-50 text-red-700 border-red-200"
+                        )}
                       >
                         {getPaymentStatusLabel(payment.status)}
-                        {payment.status === PaymentStatus.PART && (
-                          <span className="ml-1">
-                            ({payment.amountPaid.toLocaleString()} paid)
-                          </span>
-                        )}
                       </Badge>
 
-                      <Button onClick={() => onCollectPayment(payment)}>
-                        Collect Payment
+                      <Button 
+                        onClick={() => onCollectPayment(payment)}
+                        size="sm"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                      >
+                        <CreditCard className="h-3.5 w-3.5 mr-1.5" />
+                        Collect
                       </Button>
                     </div>
                   </div>
+                  
+                  {/* Mobile amount display */}
+                  <div className="flex items-center justify-between sm:hidden mt-3 pt-3 border-t border-slate-100">
+                    <div>
+                      <p className="text-xs text-slate-500">Balance Due</p>
+                      <p className="text-lg font-bold text-slate-900">
+                        KES {remaining.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
-                  {isExpanded && hasBillItems && (
-                    <div className="border-t bg-muted/20 px-4 py-3 mx-4 mb-4 rounded-md">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                {/* Expanded Bill Items */}
+                {isExpanded && hasBillItems && (
+                  <div className="px-6 pb-4">
+                    <div className="bg-white border border-slate-200 rounded-lg p-4 ml-11">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
                         Itemized Bill
                       </p>
-                      <div className="space-y-1.5">
+                      <div className="space-y-2">
                         {payment.billItems!.map((item, idx) => (
                           <div
                             key={item.id ?? idx}
                             className="flex items-center justify-between text-sm"
                           >
-                            <span className="text-foreground">{item.serviceName}</span>
-                            <div className="flex items-center gap-4 text-muted-foreground">
-                              <span>{item.quantity} × {item.unitCost.toLocaleString()}</span>
-                              <span className="font-medium text-foreground w-20 text-right">
+                            <span className="text-slate-700">{item.serviceName}</span>
+                            <div className="flex items-center gap-4 text-slate-500">
+                              <span className="text-xs">{item.quantity} × {item.unitCost.toLocaleString()}</span>
+                              <span className="font-medium text-slate-900 w-20 text-right">
                                 {item.totalCost.toLocaleString()}
                               </span>
                             </div>
                           </div>
                         ))}
                       </div>
-                      <div className="flex items-center justify-between mt-2 pt-2 border-t text-sm">
-                        <span className="font-medium">Subtotal</span>
-                        <span className="font-bold">
-                          {payment.totalAmount.toLocaleString()}
-                        </span>
-                      </div>
-                      {payment.discount > 0 && (
-                        <div className="flex items-center justify-between text-sm text-emerald-600">
-                          <span>Discount</span>
-                          <span>-{payment.discount.toLocaleString()}</span>
+                      <div className="mt-3 pt-3 border-t border-slate-100 space-y-1.5">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-slate-600">Subtotal</span>
+                          <span className="font-semibold">{payment.totalAmount.toLocaleString()}</span>
                         </div>
-                      )}
-                      {payment.amountPaid > 0 && (
-                        <div className="flex items-center justify-between text-sm text-muted-foreground">
-                          <span>Already Paid</span>
-                          <span>-{payment.amountPaid.toLocaleString()}</span>
+                        {payment.discount > 0 && (
+                          <div className="flex items-center justify-between text-sm text-emerald-600">
+                            <span>Discount</span>
+                            <span>-{payment.discount.toLocaleString()}</span>
+                          </div>
+                        )}
+                        {payment.amountPaid > 0 && (
+                          <div className="flex items-center justify-between text-sm text-slate-500">
+                            <span>Already Paid</span>
+                            <span>-{payment.amountPaid.toLocaleString()}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between text-sm font-bold pt-1 border-t border-slate-100">
+                          <span>Balance Due</span>
+                          <span className="text-amber-600">{remaining.toLocaleString()}</span>
                         </div>
-                      )}
-                      <div className="flex items-center justify-between text-sm font-bold mt-1 pt-1 border-t">
-                        <span>Balance Due</span>
-                        <span>{remaining.toLocaleString()}</span>
                       </div>
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </CardContent>
     </Card>
   );
