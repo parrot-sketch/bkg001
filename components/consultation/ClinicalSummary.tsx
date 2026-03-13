@@ -34,7 +34,7 @@ export function ClinicalSummary({
     : appointment.type || 'Consultation';
 
   // Determine if this is first-time patient
-  const isFirstTime = !appointment.note && !patient.medicalHistory;
+  const isFirstTime = !appointment.note && !patient?.medicalHistory;
 
   if (compact) {
     return (

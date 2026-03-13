@@ -48,7 +48,7 @@ export function PatientInfoSidebar({
     ? extractPrimaryConcern(appointment.note)
     : appointment?.type || 'Consultation';
 
-  const isFirstTime = !appointment?.note && !patient.medicalHistory;
+  const isFirstTime = !appointment?.note && !patient?.medicalHistory;
 
   return (
     <div className="space-y-1 h-full selection:bg-indigo-500/10 bg-transparent">
@@ -81,13 +81,13 @@ export function PatientInfoSidebar({
       )}
 
       {/* ─── Medical Background ─── */}
-      {(patient.medicalConditions || patient.medicalHistory) && (
+      {(patient?.medicalConditions || patient?.medicalHistory) && (
         <>
           <ConsultationDivider />
           <ConsultationSection icon={Heart} title="Medical Background">
             <MedicalBackground 
-              conditions={patient.medicalConditions} 
-              history={patient.medicalHistory} 
+              conditions={patient?.medicalConditions} 
+              history={patient?.medicalHistory} 
             />
           </ConsultationSection>
         </>
@@ -113,7 +113,7 @@ export function PatientInfoSidebar({
       )}
 
       {/* No history indicator */}
-      {!patient.allergies && !patient.medicalConditions && !patient.medicalHistory && (
+      {!patient?.allergies && !patient?.medicalConditions && !patient?.medicalHistory && (
         <>
           <ConsultationDivider />
           <div className="px-5 py-4">
