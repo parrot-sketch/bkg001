@@ -2,13 +2,12 @@
  * PatientBillingPanel Component
  * 
  * Displays patient billing and payment history.
- * Uses React Query to fetch data without extra API calls if already cached.
  */
 
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { CreditCard, Calendar, DollarSign, FileText, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { CreditCard, Calendar, DollarSign, FileText, Loader2, AlertCircle, CheckCircle, Receipt } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -16,43 +15,69 @@ import { apiClient } from '@/lib/api/client';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { PaymentStatus } from '@/domain/enums/PaymentStatus';
+import { BillType } from '@/domain/enums/BillType';
 
 interface Payment {
     id: number;
-    appointment_id: number;
-    total_amount: number;
-    discount?: number;
-    status: string;
-    payment_method?: string;
-    created_at: string;
+    patientId: string;
+    appointmentId: number | null;
+    surgicalCaseId: string | null;
+    billType: BillType;
+    billDate: Date;
+    paymentDate: Date | null;
+    discount: number;
+    totalAmount: number;
+    amountPaid: number;
+    paymentMethod: string | null;
+    status: PaymentStatus;
+    receiptNumber: string | null;
+    notes: string | null;
+    createdAt: Date;
+    updatedAt: Date;
     appointment?: {
         id: number;
-        appointment_date: string;
-        doctor?: {
-            name: string;
-        };
-    };
+        appointmentDate: Date;
+        time: string;
+        doctorId: string;
+        doctorName?: string;
+    } | null;
+    patient?: {
+        id: string;
+        firstName: string;
+        lastName: string;
+    } | null;
 }
 
 interface PatientBillingPanelProps {
     patientId: string;
 }
 
+const STATUS_CONFIG: Record<PaymentStatus, { bg: string; border: string; label: string }> = {
+    [PaymentStatus.PAID]: { bg: 'bg-emerald-50', border: 'border-emerald-200', label: 'Paid' },
+    [PaymentStatus.PART]: { bg: 'bg-amber-50', border: 'border-amber-200', label: 'Partial' },
+    [PaymentStatus.UNPAID]: { bg: 'bg-red-50', border: 'border-red-200', label: 'Unpaid' },
+};
+
+const BILL_TYPE_CONFIG: Record<string, { label: string; className: string }> = {
+    [BillType.CONSULTATION]: { label: 'Consultation', className: 'bg-blue-100 text-blue-700 border-blue-200' },
+    [BillType.SURGERY]: { label: 'Surgery', className: 'bg-purple-100 text-purple-700 border-purple-200' },
+    [BillType.LAB_TEST]: { label: 'Lab Test', className: 'bg-teal-100 text-teal-700 border-teal-200' },
+    [BillType.FOLLOW_UP]: { label: 'Follow-Up', className: 'bg-sky-100 text-sky-700 border-sky-200' },
+    [BillType.OTHER]: { label: 'Other', className: 'bg-gray-100 text-gray-700 border-gray-200' },
+};
+
 export function PatientBillingPanel({ patientId }: PatientBillingPanelProps) {
     const { data, isLoading, isError } = useQuery<Payment[]>({
         queryKey: ['payments', 'patient', patientId],
         queryFn: async (): Promise<Payment[]> => {
-            // Fetch payments for this patient via appointments
-            const response = await apiClient.get<Payment[]>(`/appointments?patientId=${patientId}`);
+            const response = await apiClient.get<Payment[]>(`/payments/patient/${patientId}`);
             if (!response.success) {
                 throw new Error(response.error || 'Failed to load payments');
             }
-            
-            // For now, we'll show a message that billing is linked to appointments
-            // In a full implementation, you'd fetch payments directly
             return response.data || [];
         },
-        staleTime: 1000 * 60 * 2, // 2 minutes
+        staleTime: 1000 * 60 * 2,
         enabled: !!patientId,
     });
     
@@ -78,9 +103,12 @@ export function PatientBillingPanel({ patientId }: PatientBillingPanelProps) {
         );
     }
 
-    // Calculate totals - with null safety
-    const totalPaid = (payments || []).reduce((sum, p) => sum + (p.total_amount || 0), 0);
-    const totalPending = (payments || []).filter(p => p.status === 'PENDING').reduce((sum, p) => sum + (p.total_amount || 0), 0);
+    // Calculate totals
+    const totalBilled = payments.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+    const totalPaid = payments.reduce((sum, p) => sum + (p.amountPaid || 0), 0);
+    const pending = totalBilled - totalPaid;
+    const paidCount = payments.filter(p => p.status === PaymentStatus.PAID).length;
+    const pendingCount = payments.filter(p => p.status === PaymentStatus.UNPAID || p.status === PaymentStatus.PART).length;
 
     return (
         <div className="space-y-6">
@@ -95,10 +123,31 @@ export function PatientBillingPanel({ patientId }: PatientBillingPanelProps) {
                         Payment history and billing information
                     </p>
                 </div>
+                <Badge variant="outline" className="text-xs">
+                    {payments.length} bill{payments.length !== 1 ? 's' : ''}
+                </Badge>
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Card className="border-slate-200">
+                    <CardContent className="pt-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                                    Total Billed
+                                </p>
+                                <p className="text-2xl font-bold text-foreground">
+                                    KES {totalBilled.toLocaleString()}
+                                </p>
+                            </div>
+                            <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center">
+                                <Receipt className="h-6 w-6 text-slate-600" />
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
                 <Card className="border-slate-200">
                     <CardContent className="pt-6">
                         <div className="flex items-center justify-between">
@@ -106,7 +155,7 @@ export function PatientBillingPanel({ patientId }: PatientBillingPanelProps) {
                                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
                                     Total Paid
                                 </p>
-                                <p className="text-2xl font-bold text-foreground">
+                                <p className="text-2xl font-bold text-emerald-600">
                                     KES {totalPaid.toLocaleString()}
                                 </p>
                             </div>
@@ -122,10 +171,10 @@ export function PatientBillingPanel({ patientId }: PatientBillingPanelProps) {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                                    Pending
+                                    Balance Due
                                 </p>
-                                <p className="text-2xl font-bold text-foreground">
-                                    KES {totalPending.toLocaleString()}
+                                <p className="text-2xl font-bold text-amber-600">
+                                    KES {pending.toLocaleString()}
                                 </p>
                             </div>
                             <div className="h-12 w-12 rounded-full bg-amber-50 flex items-center justify-center">
@@ -147,82 +196,100 @@ export function PatientBillingPanel({ patientId }: PatientBillingPanelProps) {
                             <div>
                                 <p className="text-sm font-medium text-foreground">No billing records yet</p>
                                 <p className="text-xs text-muted-foreground mt-0.5">
-                                    Billing information will appear here after appointments
+                                    Billing information will appear here after consultations
                                 </p>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-2">
-                                💡 Billing is linked to appointments. View appointments to see billing details.
-                            </p>
                         </div>
                     </CardContent>
                 </Card>
             ) : (
                 <div className="space-y-3">
-                    {payments.map((payment) => (
-                        <Card key={payment.id} className="border-slate-200 hover:border-primary/30 transition-colors">
-                            <CardContent className="pt-6">
-                                <div className="flex items-start justify-between gap-4">
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Calendar size={14} className="text-muted-foreground" />
-                                            {payment.appointment?.appointment_date && (
+                    {payments.map((payment) => {
+                        const statusCfg = STATUS_CONFIG[payment.status] || STATUS_CONFIG.UNPAID;
+                        const billTypeCfg = BILL_TYPE_CONFIG[payment.billType] || BILL_TYPE_CONFIG.OTHER;
+                        const balance = (payment.totalAmount || 0) - (payment.amountPaid || 0);
+                        
+                        return (
+                            <Card key={payment.id} className={cn("border-slate-200 hover:border-primary/30 transition-colors", statusCfg.bg)}>
+                                <CardContent className="pt-6">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <Badge className={cn("text-xs", billTypeCfg.className)}>
+                                                    {billTypeCfg.label}
+                                                </Badge>
                                                 <span className="text-xs text-muted-foreground">
-                                                    {format(new Date(payment.appointment.appointment_date), "MMM d, yyyy")}
+                                                    {payment.billDate && format(new Date(payment.billDate), 'MMM d, yyyy')}
                                                 </span>
+                                                {payment.receiptNumber && (
+                                                    <span className="text-xs text-muted-foreground">
+                                                        · #{payment.receiptNumber}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            
+                                            <div className="flex items-center gap-6">
+                                                <div>
+                                                    <p className="text-xs text-muted-foreground mb-1">Total</p>
+                                                    <p className="text-lg font-semibold text-foreground">
+                                                        KES {(payment.totalAmount || 0).toLocaleString()}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-muted-foreground mb-1">Paid</p>
+                                                    <p className="text-lg font-semibold text-emerald-600">
+                                                        KES {(payment.amountPaid || 0).toLocaleString()}
+                                                    </p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-muted-foreground mb-1">Balance</p>
+                                                    <p className={cn("text-lg font-semibold", balance > 0 ? "text-amber-600" : "text-slate-600")}>
+                                                        KES {balance.toLocaleString()}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            
+                                            {payment.appointment && (
+                                                <div className="flex items-center gap-2 mt-3">
+                                                    <Calendar size={12} className="text-muted-foreground" />
+                                                    <span className="text-xs text-muted-foreground">
+                                                        {format(new Date(payment.appointment.appointmentDate), 'MMM d, yyyy')} at {payment.appointment.time}
+                                                    </span>
+                                                    {payment.appointment.doctorName && (
+                                                        <span className="text-xs text-muted-foreground">
+                                                            · Dr. {payment.appointment.doctorName}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             )}
                                         </div>
-                                        {payment.appointment?.doctor && (
-                                            <p className="text-sm text-muted-foreground mb-1">
-                                                Dr. {payment.appointment.doctor.name}
-                                            </p>
-                                        )}
-                                        <div className="flex items-center gap-2 mt-2">
-                                            <DollarSign size={14} className="text-muted-foreground" />
-                                            <span className="text-lg font-semibold text-foreground">
-                                                KES {(payment.total_amount || 0).toLocaleString()}
-                                            </span>
+                                        
+                                        <div className="flex flex-col items-end gap-2">
+                                            <Badge
+                                                className={cn(
+                                                    "text-xs font-medium",
+                                                    payment.status === PaymentStatus.PAID && "bg-emerald-100 text-emerald-700 border-emerald-200",
+                                                    payment.status === PaymentStatus.PART && "bg-amber-100 text-amber-700 border-amber-200",
+                                                    payment.status === PaymentStatus.UNPAID && "bg-red-100 text-red-700 border-red-200"
+                                                )}
+                                            >
+                                                {statusCfg.label}
+                                            </Badge>
+                                            {payment.appointmentId && (
+                                                <Link href={`/frontdesk/appointments/${payment.appointmentId}`}>
+                                                    <Button size="sm" variant="ghost" className="h-7 text-xs">
+                                                        View Details
+                                                    </Button>
+                                                </Link>
+                                            )}
                                         </div>
                                     </div>
-                                    <div className="flex flex-col items-end gap-2">
-                                        <Badge
-                                            variant={payment.status === 'PAID' ? 'default' : 'secondary'}
-                                            className={cn(
-                                                payment.status === 'PAID' && 'bg-emerald-100 text-emerald-700 border-emerald-200',
-                                                payment.status === 'PENDING' && 'bg-amber-100 text-amber-700 border-amber-200'
-                                            )}
-                                        >
-                                            {payment.status}
-                                        </Badge>
-                                        {payment.appointment_id && (
-                                            <Link href={`/frontdesk/appointments/${payment.appointment_id}`}>
-                                                <Button size="sm" variant="ghost" className="h-7 text-xs">
-                                                    View Details
-                                                </Button>
-                                            </Link>
-                                        )}
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    ))}
+                                </CardContent>
+                            </Card>
+                        );
+                    })}
                 </div>
             )}
-
-            {/* Info Note */}
-            <Card className="border-blue-200 bg-blue-50/50">
-                <CardContent className="pt-6">
-                    <div className="flex items-start gap-3">
-                        <FileText size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-blue-900 mb-1">Billing Information</p>
-                            <p className="text-xs text-blue-700 leading-relaxed">
-                                Billing details are linked to appointments. To view detailed bills, visit the appointment details page.
-                                Payments are processed after consultations.
-                            </p>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
         </div>
     );
 }
