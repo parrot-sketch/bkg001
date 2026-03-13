@@ -47,6 +47,7 @@ export default function PendingIntakesPage() {
   const [error, setError] = useState<string | null>(null);
   const [intakes, setIntakes] = useState<PendingIntake[]>([]);
   const [total, setTotal] = useState(0);
+  const [lastFetched, setLastFetched] = useState<Date | null>(null);
 
   const fetchPendingIntakes = async () => {
     try {
@@ -62,6 +63,7 @@ export default function PendingIntakesPage() {
       const data = (result as any).data as PendingIntakesResponse;
       setIntakes(data.intakes);
       setTotal(data.total);
+      setLastFetched(new Date());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -69,6 +71,16 @@ export default function PendingIntakesPage() {
     }
   };
 
+  // Auto-refresh every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchPendingIntakes();
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Also fetch on page load
   useEffect(() => {
     fetchPendingIntakes();
   }, []);
@@ -101,9 +113,16 @@ export default function PendingIntakesPage() {
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
                 Pending Intakes
               </h1>
-              <p className="text-gray-600">
-                {total} patient intake{total !== 1 ? 's' : ''} awaiting review and confirmation
-              </p>
+              <div className="flex items-center gap-3">
+                <p className="text-gray-600">
+                  {total} patient intake{total !== 1 ? 's' : ''} awaiting review and confirmation
+                </p>
+                {lastFetched && (
+                  <span className="text-xs text-gray-400">
+                    • Updated {formatDistanceToNow(lastFetched, { addSuffix: true })}
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex gap-2">
               <Button

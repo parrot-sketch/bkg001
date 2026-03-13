@@ -36,6 +36,10 @@ import {
     SKIN_PREP_AREA_LABELS,
     URINALYSIS_LABELS,
     normalizeLegacyChecklistData,
+    HB_PCV_OPTIONS,
+    UECS_OPTIONS,
+    HB_PCV_LABELS,
+    UECS_LABELS,
 } from '@/domain/clinical-forms/NursePreopWardChecklist';
 import type { UrinalysisValue } from '@/domain/clinical-forms/NursePreopWardChecklist';
 import { getVitalsWarningMap } from '@/domain/helpers/vitalsWarnings';
@@ -91,11 +95,13 @@ import {
     Printer,
     AlertCircle,
     FilePen,
+    Clock,
 } from 'lucide-react';
 import { Textarea as UITextarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { MedicationAdministrationList } from '@/components/nurse/MedicationAdministrationList';
+import { HandoverSection } from '@/components/nurse/ward-prep-checklist/sections';
 
 
 // ──────────────────────────────────────────────────────────────────────
@@ -184,13 +190,16 @@ function TimeField({
     return (
         <div className="space-y-1.5">
             <Label className="text-sm">{label}</Label>
-            <Input
-                type="time"
-                value={value || ''}
-                onChange={(e) => onChange(e.target.value)}
-                disabled={disabled}
-                className="h-9 max-w-[140px]"
-            />
+            <div className="relative">
+                <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                <Input
+                    type="time"
+                    value={value || ''}
+                    onChange={(e) => onChange(e.target.value)}
+                    disabled={disabled}
+                    className="h-9 pl-10 pr-3 max-w-[160px] font-mono"
+                />
+            </div>
         </div>
     );
 }
@@ -466,12 +475,107 @@ function DocumentationSection({ data, onChange, disabled }: SectionProps) {
 function BloodResultsSection({ data, onChange, disabled }: SectionProps) {
     const d = data.bloodResults ?? {};
     const set = (field: string, value: any) => onChange({ ...data, bloodResults: { ...d, [field]: value } });
+
+    const NONE_VALUE = '__none__';
+
+    const hbPcvValue = d.hbPcv || NONE_VALUE;
+    const uecsValue = d.uecs || NONE_VALUE;
+
+    const showHbPcvNotes = hbPcvValue !== '' && hbPcvValue !== NONE_VALUE && hbPcvValue !== 'normal' && hbPcvValue !== 'not_done';
+    const showUecsNotes = uecsValue !== '' && uecsValue !== NONE_VALUE && uecsValue !== 'normal' && uecsValue !== 'not_done';
+
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <TextField label="Hb / PCV" value={d.hbPcv} onChange={(v) => set('hbPcv', v)} disabled={disabled} />
-            <TextField label="UECs" value={d.uecs} onChange={(v) => set('uecs', v)} disabled={disabled} />
-            <NumberField label="X-match units available" value={d.xMatchUnitsAvailable} onChange={(v) => set('xMatchUnitsAvailable', v)} min={0} disabled={disabled} />
-            <TextField label="Other lab results / notes" value={d.otherLabResults} onChange={(v) => set('otherLabResults', v)} disabled={disabled} />
+        <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Hb/PCV */}
+                <div className="space-y-1.5">
+                    <Label className="text-sm">Hb / PCV</Label>
+                    <Select
+                        value={hbPcvValue}
+                        onValueChange={(v) => set('hbPcv', v === NONE_VALUE ? '' : v)}
+                        disabled={disabled}
+                    >
+                        <SelectTrigger className="h-9 w-full">
+                            <SelectValue placeholder="Select result" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value={NONE_VALUE}>— Not recorded —</SelectItem>
+                            {HB_PCV_OPTIONS.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                </SelectItem>
+                            ))}
+                            <SelectItem value="__custom__">Other (specify)</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    {showHbPcvNotes && (
+                        <Input
+                            placeholder="Add notes..."
+                            value={d.hbPcvNotes || ''}
+                            onChange={(e) => set('hbPcvNotes', e.target.value)}
+                            disabled={disabled}
+                            className="h-8 mt-1"
+                        />
+                    )}
+                    {hbPcvValue === '__custom__' && (
+                        <Input
+                            placeholder="Specify Hb/PCV value..."
+                            value={d.hbPcvNotes || ''}
+                            onChange={(e) => set('hbPcv', e.target.value)}
+                            disabled={disabled}
+                            className="h-8 mt-1"
+                        />
+                    )}
+                </div>
+
+                {/* UECs */}
+                <div className="space-y-1.5">
+                    <Label className="text-sm">UECs</Label>
+                    <Select
+                        value={uecsValue}
+                        onValueChange={(v) => set('uecs', v === NONE_VALUE ? '' : v)}
+                        disabled={disabled}
+                    >
+                        <SelectTrigger className="h-9 w-full">
+                            <SelectValue placeholder="Select result" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value={NONE_VALUE}>— Not recorded —</SelectItem>
+                            {UECS_OPTIONS.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                </SelectItem>
+                            ))}
+                            <SelectItem value="__custom__">Other (specify)</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    {showUecsNotes && (
+                        <Input
+                            placeholder="Add notes..."
+                            value={d.uecsNotes || ''}
+                            onChange={(e) => set('uecsNotes', e.target.value)}
+                            disabled={disabled}
+                            className="h-8 mt-1"
+                        />
+                    )}
+                    {uecsValue === '__custom__' && (
+                        <Input
+                            placeholder="Specify UECs value..."
+                            value={d.uecsNotes || ''}
+                            onChange={(e) => set('uecs', e.target.value)}
+                            disabled={disabled}
+                            className="h-8 mt-1"
+                        />
+                    )}
+                </div>
+            </div>
+
+            <Separator />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <NumberField label="X-match units available" value={d.xMatchUnitsAvailable} onChange={(v) => set('xMatchUnitsAvailable', v)} min={0} disabled={disabled} />
+                <TextField label="Other lab results / notes" value={d.otherLabResults} onChange={(v) => set('otherLabResults', v)} disabled={disabled} />
+            </div>
         </div>
     );
 }
@@ -508,11 +612,11 @@ function AllergiesNpoSection({ data, onChange, disabled, patientAllergies }: Sec
     return (
         <div className="space-y-4">
             {patientAllergies && (
-                <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
-                    <ShieldAlert className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                    <div>
-                        <p className="text-sm font-medium text-destructive">Known Allergies (from patient record)</p>
-                        <p className="text-sm text-destructive/80">{patientAllergies}</p>
+                <div className="flex items-start gap-3 p-4 bg-red-50 border-2 border-red-200 rounded-lg shadow-sm">
+                    <ShieldAlert className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                        <p className="text-sm font-bold text-red-700">KNOWN ALLERGIES - PATIENT RECORD</p>
+                        <p className="text-base font-semibold text-red-800 mt-1">{patientAllergies}</p>
                     </div>
                 </div>
             )}
@@ -606,7 +710,7 @@ function VitalsSection({ data, onChange, disabled }: SectionProps) {
                 <NumberField label="BP Systolic" value={d.bpSystolic} onChange={(v) => set('bpSystolic', v)} min={60} max={260} unit="mmHg" disabled={disabled} warning={warningMap.get('bpSystolic')} />
                 <NumberField label="BP Diastolic" value={d.bpDiastolic} onChange={(v) => set('bpDiastolic', v)} min={30} max={160} unit="mmHg" disabled={disabled} warning={warningMap.get('bpDiastolic')} />
                 <NumberField label="Pulse" value={d.pulse} onChange={(v) => set('pulse', v)} min={30} max={220} unit="bpm" disabled={disabled} warning={warningMap.get('pulse')} />
-                <NumberField label="Respiratory Rate" value={d.respiratoryRate} onChange={(v) => set('respiratoryRate', v)} min={6} max={60} unit="/min" disabled={disabled} warning={warningMap.get('respiratoryRate')} />
+                <NumberField label="Respiratory Rate" value={d.respiratoryRate} onChange={(v) => set('respiratoryRate', v)} min={6} max={120} unit="/min" disabled={disabled} warning={warningMap.get('respiratoryRate')} />
                 <NumberField label="Temperature" value={d.temperature} onChange={(v) => set('temperature', v)} min={34} max={42} step={0.1} unit="°C" disabled={disabled} warning={warningMap.get('temperature')} />
                 <NumberField label="SpO₂" value={d.spo2} onChange={(v) => set('spo2', v)} min={50} max={100} unit="%" disabled={disabled} warning={warningMap.get('spo2')} />
                 <TextField label="CVP (if applicable)" value={d.cvp} onChange={(v) => set('cvp', v)} disabled={disabled} />
@@ -625,21 +729,7 @@ function VitalsSection({ data, onChange, disabled }: SectionProps) {
                 options={urinalysisOptions}
                 disabled={disabled}
             />
-            <BooleanField label="X-rays / scans present" value={d.xRaysScansPresent} onChange={(v) => set('xRaysScansPresent', v)} disabled={disabled} />
             <TextField label="Other forms required / notes" value={d.otherFormsRequired} onChange={(v) => set('otherFormsRequired', v)} disabled={disabled} />
-        </div>
-    );
-}
-
-function HandoverSection({ data, onChange, disabled }: SectionProps) {
-    const d = data.handover ?? {};
-    const set = (field: string, value: any) => onChange({ ...data, handover: { ...d, [field]: value } });
-    return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <TextField label="Prepared by (name)" value={d.preparedByName} onChange={(v) => set('preparedByName', v)} disabled={disabled} />
-            <TimeField label="Time arrived in theatre" value={d.timeArrivedInTheatre} onChange={(v) => set('timeArrivedInTheatre', v)} disabled={disabled} />
-            <TextField label="Received by (name)" value={d.receivedByName} onChange={(v) => set('receivedByName', v)} disabled={disabled} />
-            <TextField label="Handed over by (name)" value={d.handedOverByName} onChange={(v) => set('handedOverByName', v)} disabled={disabled} />
         </div>
     );
 }
@@ -656,6 +746,7 @@ interface SectionProps {
     patient: any;
     formResponseId: string;
     patientAllergies?: string | null;
+    currentUser?: { firstName?: string; lastName?: string; email?: string } | null;
 }
 
 const SECTION_RENDERERS: Record<string, React.FC<SectionProps>> = {
@@ -786,10 +877,29 @@ export default function NursePreopWardChecklistPage() {
     // Initialize form data from server — apply normalizer for backward compat
     useEffect(() => {
         if (response?.form?.data) {
-            setFormData(normalizeLegacyChecklistData(response.form.data));
+            const normalizedData = normalizeLegacyChecklistData(response.form.data);
+            
+            // Auto-fill handover with current user if not already set
+            const userName = user?.firstName 
+                ? `${user.firstName} ${user.lastName || ''}`.trim() 
+                : user?.email || '';
+            
+            if (userName) {
+                // Ensure handover object exists
+                normalizedData.handover = normalizedData.handover || {};
+                
+                if (!normalizedData.handover.preparedByName) {
+                    normalizedData.handover.preparedByName = userName;
+                }
+                if (!normalizedData.handover.handedOverByName) {
+                    normalizedData.handover.handedOverByName = userName;
+                }
+            }
+            
+            setFormData(normalizedData);
             setIsDirty(false);
         }
-    }, [response?.form?.data]);
+    }, [response?.form?.data, user]);
 
     const formStatus = response?.form?.status;
     const isFinalized = formStatus === 'FINAL';
@@ -839,7 +949,23 @@ export default function NursePreopWardChecklistPage() {
 
     // Save handler
     const handleSave = () => {
-        saveMutation.mutate(formData, {
+        // Auto-fill handover fields with current user if empty
+        const userName = user?.firstName 
+            ? `${user.firstName} ${user.lastName || ''}`.trim() 
+            : user?.email || '';
+        
+        const dataToSave = { ...formData };
+        if (userName) {
+            dataToSave.handover = dataToSave.handover || {};
+            if (!dataToSave.handover.preparedByName) {
+                dataToSave.handover.preparedByName = userName;
+            }
+            if (!dataToSave.handover.handedOverByName) {
+                dataToSave.handover.handedOverByName = userName;
+            }
+        }
+        
+        saveMutation.mutate(dataToSave, {
             onSuccess: () => setIsDirty(false),
         });
     };
@@ -1111,6 +1237,7 @@ export default function NursePreopWardChecklistPage() {
                                         caseId={caseId}
                                         patient={patient}
                                         formResponseId={form.id}
+                                        currentUser={user}
                                     />
                                 )}
                             </AccordionContent>

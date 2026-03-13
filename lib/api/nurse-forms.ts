@@ -11,6 +11,7 @@ import type { ClinicalFormStatus } from '@prisma/client';
 import type { NursePreopWardChecklistDraft } from '@/domain/clinical-forms/NursePreopWardChecklist';
 import type { NurseIntraOpRecordDraft } from '@/domain/clinical-forms/NurseIntraOpRecord';
 import type { NurseRecoveryRecordDraft } from '@/domain/clinical-forms/NurseRecoveryRecord';
+import type { ImmediateRecoveryCareRecordDraft } from '@/domain/clinical-forms/ImmediateRecoveryCareRecord';
 
 // ──────────────────────────────────────────────────────────────────────
 // Response DTOs
@@ -153,6 +154,47 @@ export const nurseFormsApi = {
             `/nurse/surgical-cases/${caseId}/medications?q=${encodeURIComponent(query)}`,
         );
     },
+
+    /**
+     * Search for eligible implants/prosthetics in inventory.
+     */
+    async searchImplants(caseId: string, query: string): Promise<ApiResponse<ImplantSearchItem[]>> {
+        return apiClient.get<ImplantSearchItem[]>(
+            `/nurse/surgical-cases/${caseId}/implants?q=${encodeURIComponent(query)}`,
+        );
+    },
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Immediate Recovery Care Record
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * Get the Immediate Recovery Care Record for a surgical case.
+     */
+    async getImmediateRecoveryCareRecord(caseId: string): Promise<ApiResponse<any>> {
+        return apiClient.get<any>(
+            `/nurse/surgical-cases/${caseId}/forms/immediate-recovery-care`,
+        );
+    },
+
+    /**
+     * Save draft updates to the Immediate Recovery Care Record.
+     */
+    async saveImmediateRecoveryCareRecord(caseId: string, data: any): Promise<ApiResponse<any>> {
+        return apiClient.put<any>(
+            `/nurse/surgical-cases/${caseId}/forms/immediate-recovery-care`,
+            { data },
+        );
+    },
+
+    /**
+     * Finalize the Immediate Recovery Care Record.
+     */
+    async finalizeImmediateRecoveryCareRecord(caseId: string): Promise<ApiResponse<FinalizeResult>> {
+        return apiClient.post<FinalizeResult>(
+            `/nurse/surgical-cases/${caseId}/forms/immediate-recovery-care/finalize`,
+        );
+    },
 };
 
 export interface MedicationAdministration {
@@ -180,6 +222,19 @@ export interface MedicationSearchItem {
     unit_cost: number;
     quantity_on_hand: number;
     is_billable: boolean;
+}
+
+export interface ImplantSearchItem {
+    id: number;
+    name: string;
+    sku: string | null;
+    category: string;
+    unit_of_measure: string;
+    unit_cost: number;
+    quantity_on_hand: number;
+    is_billable: boolean;
+    available_sizes: string[];
+    available_lot_numbers: string[];
 }
 
 
@@ -334,6 +389,38 @@ export const nurseRecoveryApi = {
     async finalizeRecoveryRecord(caseId: string): Promise<ApiResponse<FinalizeResult>> {
         return apiClient.post<FinalizeResult>(
             `/nurse/surgical-cases/${caseId}/forms/recovery/finalize`,
+        );
+    },
+
+    // ─────────────────────────────────────────────────────────────────────
+    // Immediate Recovery Care Record
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * Get the Immediate Recovery Care Record for a surgical case.
+     */
+    async getImmediateRecoveryCareRecord(caseId: string): Promise<ApiResponse<any>> {
+        return apiClient.get<any>(
+            `/nurse/surgical-cases/${caseId}/forms/immediate-recovery-care`,
+        );
+    },
+
+    /**
+     * Save draft updates to the Immediate Recovery Care Record.
+     */
+    async saveImmediateRecoveryCareRecord(caseId: string, data: any): Promise<ApiResponse<any>> {
+        return apiClient.put<any>(
+            `/nurse/surgical-cases/${caseId}/forms/immediate-recovery-care`,
+            { data },
+        );
+    },
+
+    /**
+     * Finalize the Immediate Recovery Care Record.
+     */
+    async finalizeImmediateRecoveryCareRecord(caseId: string): Promise<ApiResponse<FinalizeResult>> {
+        return apiClient.post<FinalizeResult>(
+            `/nurse/surgical-cases/${caseId}/forms/immediate-recovery-care/finalize`,
         );
     },
 };

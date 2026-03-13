@@ -148,11 +148,54 @@ export const documentationSchema = z.object({
     correctConsent: z.boolean(),
 });
 
+// ──────────────────────────────────────────────────────────────────────
+// Blood Results Options
+// ──────────────────────────────────────────────────────────────────────
+
+export const HB_PCV_OPTIONS = [
+    { value: 'normal', label: 'Normal' },
+    { value: 'low_mild', label: 'Low - Mild' },
+    { value: 'low_moderate', label: 'Low - Moderate' },
+    { value: 'low_severe', label: 'Low - Severe' },
+    { value: 'high', label: 'High' },
+    { value: 'not_done', label: 'Not Done' },
+] as const;
+
+export const UECS_OPTIONS = [
+    { value: 'normal', label: 'Normal' },
+    { value: 'abnormal_aki', label: 'Abnormal (AKI)' },
+    { value: 'abnormal_ckd', label: 'Abnormal (CKD)' },
+    { value: 'abnormal_other', label: 'Abnormal - Other' },
+    { value: 'not_done', label: 'Not Done' },
+] as const;
+
+export const X_MATCH_UNITS = [0, 1, 2, 3, 4] as const;
+
+export type HbPcvValue = typeof HB_PCV_OPTIONS[number]['value'];
+export type UecsValue = typeof UECS_OPTIONS[number]['value'];
+
+export const HB_PCV_LABELS: Record<HbPcvValue, string> = {
+    normal: 'Normal',
+    low_mild: 'Low - Mild',
+    low_moderate: 'Low - Moderate',
+    low_severe: 'Low - Severe',
+    high: 'High',
+    not_done: 'Not Done',
+};
+
+export const UECS_LABELS: Record<UecsValue, string> = {
+    normal: 'Normal',
+    abnormal_aki: 'Abnormal (AKI)',
+    abnormal_ckd: 'Abnormal (CKD)',
+    abnormal_other: 'Abnormal - Other',
+    not_done: 'Not Done',
+};
+
 export const bloodResultsSchema = z.object({
     hbPcv: z.string().optional().default(''),
-    hbPcvNotes: z.string().optional().default(''), // Optional notes when structured option selected
+    hbPcvNotes: z.string().optional().default(''),
     uecs: z.string().optional().default(''),
-    uecsNotes: z.string().optional().default(''), // Optional notes when structured option selected
+    uecsNotes: z.string().optional().default(''),
     xMatchUnitsAvailable: z.number().int().min(0).optional(),
     otherLabResults: z.string().optional().default(''),
 });
@@ -199,7 +242,7 @@ export const vitalsSchema = z.object({
     bpSystolic: z.number().int().min(60, 'BP systolic must be ≥ 60').max(260, 'BP systolic must be ≤ 260'),
     bpDiastolic: z.number().int().min(30, 'BP diastolic must be ≥ 30').max(160, 'BP diastolic must be ≤ 160'),
     pulse: z.number().int().min(30, 'Pulse must be ≥ 30').max(220, 'Pulse must be ≤ 220'),
-    respiratoryRate: z.number().int().min(6, 'RR must be ≥ 6').max(60, 'RR must be ≤ 60'),
+    respiratoryRate: z.number().int().min(6, 'RR must be ≥ 6').max(120, 'RR must be ≤ 120'),
     temperature: z.number().min(34.0, 'Temp must be ≥ 34°C').max(42.0, 'Temp must be ≤ 42°C'),
     /** SpO₂ (peripheral oxygen saturation) — optional at finalization */
     spo2: z.number().int().min(50, 'SpO₂ must be ≥ 50%').max(100, 'SpO₂ must be ≤ 100%').optional(),
