@@ -8,13 +8,35 @@ import { PatientBillingPanel } from "@/components/patient/PatientBillingPanel";
 import { Card, CardContent } from "@/components/ui/card";
 import { getPatientFullDataById } from "@/utils/services/patient";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 interface ParamsProps {
   params: Promise<{ patientId: string }>;
   searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}
+
+function PatientLoadingSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <div className="h-8 w-48 bg-slate-200 rounded animate-pulse" />
+          <div className="h-4 w-64 bg-slate-200 rounded animate-pulse" />
+        </div>
+      </div>
+      <div className="h-48 bg-slate-200 rounded-xl animate-pulse" />
+      <div className="border rounded-xl p-6 space-y-4">
+        <div className="h-10 bg-slate-200 rounded animate-pulse" />
+        <div className="grid grid-cols-3 gap-4">
+          <div className="h-32 bg-slate-200 rounded animate-pulse" />
+          <div className="h-32 bg-slate-200 rounded animate-pulse" />
+          <div className="h-32 bg-slate-200 rounded animate-pulse" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 const FrontdeskPatientProfile = async (props: ParamsProps) => {
@@ -24,7 +46,21 @@ const FrontdeskPatientProfile = async (props: ParamsProps) => {
   const id = params.patientId;
   const cat = (searchParams?.cat as string) || "overview";
 
-  const { data, success, status } = await getPatientFullDataById(id);
+  let data;
+  let success = false;
+  let status = 500;
+
+  try {
+    const result = await getPatientFullDataById(id);
+    data = result.data;
+    success = result.success;
+    status = result.status ?? 500;
+  } catch (error) {
+    console.error('[PatientProfile] Error loading patient:', error);
+    data = null;
+    success = false;
+    status = 500;
+  }
 
   if (!success || !data) {
     const isNotFound = status === 404;
@@ -91,7 +127,7 @@ const FrontdeskPatientProfile = async (props: ParamsProps) => {
 
       {/* Tab Navigation */}
       <div className="rounded-xl overflow-hidden border border-border shadow-sm bg-white">
-        <Suspense fallback={null}>
+        <Suspense fallback={<div className="h-12 border-b border-border" />}>
           <PatientProfileTabs patientId={id} />
         </Suspense>
 
