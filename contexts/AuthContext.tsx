@@ -8,7 +8,6 @@
  */
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
 import { authApi } from '@/lib/api/auth';
 import { tokenStorage, type StoredUser } from '@/lib/auth/token';
 import { apiClient } from '@/lib/api/client';
@@ -82,7 +81,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<StoredUser | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
-    const router = useRouter();
 
     // Initialize auth state on mount
     useEffect(() => {
@@ -126,12 +124,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             });
         }
         
-        // 4. Navigate immediately using replace to prevent back navigation
-        router.replace('/login');
+        // 4. Navigate immediately using window.location to bypass React render cycle
+        // This prevents the brief flash of unauthenticated UI before redirect
+        window.location.href = '/login';
         
         // 5. Reset state after navigation
         setIsLoggingOut(false);
-    }, [router]);
+    }, []);
 
     // Refresh token function
     const refreshToken = useCallback(async () => {

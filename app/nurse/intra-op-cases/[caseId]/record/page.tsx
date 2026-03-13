@@ -97,6 +97,8 @@ import {
     type TimelineFieldName,
 } from '@/domain/helpers/operativeTimeline';
 import type { TimelineResultDto } from '@/application/dtos/TheaterTechDtos';
+import { MedicationAdministrationList } from '@/components/nurse/MedicationAdministrationList';
+import { ImplantSearchModal } from '@/components/nurse/ImplantSearchModal';
 
 // ──────────────────────────────────────────────────────────────────────
 // Icon Map
@@ -249,6 +251,16 @@ interface SectionProps {
     disabled: boolean;
     /** Server-side staffing suggestions from accepted StaffInvites */
     suggestedStaffing?: Record<string, string>;
+    /** Case ID for medication/inventory integration */
+    caseId?: string;
+    /** Patient info for medication administration */
+    patient?: {
+        first_name: string;
+        last_name: string;
+        file_number: string;
+    };
+    /** Form response ID for medication administration */
+    formResponseId?: string;
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -874,7 +886,7 @@ function FluidsSection({ data, onChange, disabled }: SectionProps) {
     );
 }
 
-function DynamicTableSection({ data, onChange, disabled }: SectionProps) {
+function DynamicTableSection({ data, onChange, disabled, caseId, patient, formResponseId }: SectionProps) {
     // This section handles Medications, Implants, and Specimens
     const medications = Array.isArray(data.medications) ? data.medications : [];
     const implants = Array.isArray(data.implants) ? data.implants : [];
@@ -884,50 +896,79 @@ function DynamicTableSection({ data, onChange, disabled }: SectionProps) {
     const setImplants = (v: any[]) => onChange({ ...data, implants: v });
     const setSpecimens = (v: any[]) => onChange({ ...data, specimens: v });
 
+    // Implant search modal state
+    const [isImplantSearchOpen, setIsImplantSearchOpen] = useState(false);
+
+    const handleImplantSelect = (implant: any) => {
+        setImplants([...implants, {
+            item: implant.name,
+            lotNo: implant.available_lot_numbers?.[0] || '',
+            size: implant.available_sizes?.[0] || '',
+            inventoryItemId: implant.id,
+            sku: implant.sku,
+            unitCost: implant.unit_cost,
+        }]);
+        setIsImplantSearchOpen(false);
+    };
+
     return (
         <div className="space-y-12">
-            {/* Medications */}
+            {/* Medications - Using MedicationAdministrationList for inventory integration */}
             <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-700">Medications</h4>
-                    <Button variant="outline" size="sm" onClick={() => setMeds([...medications, { drug: '', route: '', time: '', sign: '' }])} disabled={disabled}>
-                        <Plus className="h-4 w-4 mr-2" /> Add Medication
-                    </Button>
-                </div>
-                <div className="border rounded-lg overflow-hidden">
-                    <table className="w-full text-sm">
-                        <thead className="bg-slate-50 h-10">
-                            <tr>
-                                <th className="px-3 font-medium text-left">Medication/Drug</th>
-                                <th className="px-3 font-medium text-left">Route</th>
-                                <th className="px-3 font-medium text-left w-32">Time</th>
-                                <th className="px-3 font-medium text-left w-32">Sign</th>
-                                <th className="w-10"></th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                            {medications.map((item, idx) => (
-                                <tr key={idx}>
-                                    <td className="p-2"><Input value={item.drug} onChange={(e) => { const n = [...medications]; n[idx].drug = e.target.value; setMeds(n); }} disabled={disabled} className="h-8" /></td>
-                                    <td className="p-2"><Input value={item.route} onChange={(e) => { const n = [...medications]; n[idx].route = e.target.value; setMeds(n); }} disabled={disabled} className="h-8" /></td>
-                                    <td className="p-2"><Input type="time" value={item.time} onChange={(e) => { const n = [...medications]; n[idx].time = e.target.value; setMeds(n); }} disabled={disabled} className="h-8" /></td>
-                                    <td className="p-2"><Input value={item.sign} onChange={(e) => { const n = [...medications]; n[idx].sign = e.target.value; setMeds(n); }} disabled={disabled} className="h-8" /></td>
-                                    <td className="p-2"><Button variant="ghost" size="icon" onClick={() => setMeds(medications.filter((_, i) => i !== idx))} disabled={disabled}><Trash2 className="h-4 w-4 text-red-500" /></Button></td>
+                <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-700">Medications</h4>
+                {caseId && patient ? (
+                    <MedicationAdministrationList
+                        caseId={caseId}
+                        patient={{
+                            first_name: patient.first_name,
+                            last_name: patient.last_name,
+                            file_number: patient.file_number,
+                        }}
+                        formResponseId={formResponseId}
+                        readOnly={disabled}
+                    />
+                ) : (
+                    <div className="border rounded-lg overflow-hidden">
+                        <table className="w-full text-sm">
+                            <thead className="bg-slate-50 h-10">
+                                <tr>
+                                    <th className="px-3 font-medium text-left">Medication/Drug</th>
+                                    <th className="px-3 font-medium text-left">Route</th>
+                                    <th className="px-3 font-medium text-left w-32">Time</th>
+                                    <th className="px-3 font-medium text-left w-32">Sign</th>
+                                    <th className="w-10"></th>
                                 </tr>
-                            ))}
-                            {medications.length === 0 && <tr><td colSpan={5} className="p-4 text-center text-muted-foreground italic">No medications recorded</td></tr>}
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody className="divide-y">
+                                {medications.map((item, idx) => (
+                                    <tr key={idx}>
+                                        <td className="p-2"><Input value={item.drug} onChange={(e) => { const n = [...medications]; n[idx].drug = e.target.value; setMeds(n); }} disabled={disabled} className="h-8" /></td>
+                                        <td className="p-2"><Input value={item.route} onChange={(e) => { const n = [...medications]; n[idx].route = e.target.value; setMeds(n); }} disabled={disabled} className="h-8" /></td>
+                                        <td className="p-2"><Input type="time" value={item.time} onChange={(e) => { const n = [...medications]; n[idx].time = e.target.value; setMeds(n); }} disabled={disabled} className="h-8" /></td>
+                                        <td className="p-2"><Input value={item.sign} onChange={(e) => { const n = [...medications]; n[idx].sign = e.target.value; setMeds(n); }} disabled={disabled} className="h-8" /></td>
+                                        <td className="p-2"><Button variant="ghost" size="icon" onClick={() => setMeds(medications.filter((_, i) => i !== idx))} disabled={disabled}><Trash2 className="h-4 w-4 text-red-500" /></Button></td>
+                                    </tr>
+                                ))}
+                                {medications.length === 0 && <tr><td colSpan={5} className="p-4 text-center text-muted-foreground italic">No medications recorded</td></tr>}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
 
-            {/* Implants */}
+            {/* Implants - Using search modal for inventory integration */}
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
                     <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-700">Surgical Implants / Prosthesis</h4>
-                    <Button variant="outline" size="sm" onClick={() => setImplants([...implants, { item: '', lotNo: '', size: '' }])} disabled={disabled}>
-                        <Plus className="h-4 w-4 mr-2" /> Add Implant
-                    </Button>
+                    {caseId ? (
+                        <Button variant="outline" size="sm" onClick={() => setIsImplantSearchOpen(true)} disabled={disabled}>
+                            <Plus className="h-4 w-4 mr-2" /> Search Inventory
+                        </Button>
+                    ) : (
+                        <Button variant="outline" size="sm" onClick={() => setImplants([...implants, { item: '', lotNo: '', size: '' }])} disabled={disabled}>
+                            <Plus className="h-4 w-4 mr-2" /> Add Implant
+                        </Button>
+                    )}
                 </div>
                 <div className="border rounded-lg overflow-hidden">
                     <table className="w-full text-sm">
@@ -952,6 +993,16 @@ function DynamicTableSection({ data, onChange, disabled }: SectionProps) {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Implant Search Modal */}
+                {caseId && (
+                    <ImplantSearchModal
+                        caseId={caseId}
+                        isOpen={isImplantSearchOpen}
+                        onClose={() => setIsImplantSearchOpen(false)}
+                        onSelect={handleImplantSelect}
+                    />
+                )}
             </div>
 
             {/* Specimens */}
@@ -1716,6 +1767,11 @@ export default function NurseIntraOpRecordPage() {
                                             procedureName: response.procedureName, 
                                             side: response.side,
                                             verificationSources: verificationSources
+                                        } : {})}
+                                        {...(section.key === 'tables' ? { 
+                                            caseId: caseId,
+                                            patient: patient,
+                                            formResponseId: response.form?.id
                                         } : {})}
                                     />
                                 )}

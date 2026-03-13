@@ -576,6 +576,12 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
 
     const completedAppointmentId = state.appointment.id;
 
+    // Clear any pending auto-save to prevent race conditions during transition
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+
     dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.TRANSITIONING });
     dispatch({ type: 'SHOW_COMPLETE_DIALOG', payload: false });
 
@@ -609,9 +615,19 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
   }, [state.appointment, waitingQueue, queryClient, router]);
 
   const switchToPatient = useCallback((appointmentId: number) => {
+    // Clear any pending auto-save before switching
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+    
     if (state.workflow.isDirty) {
-      // Save before switching
+      // Save before switching - with proper error handling
       saveDraft().then(() => {
+        router.push(`/doctor/consultations/${appointmentId}/session`);
+      }).catch((error) => {
+        console.error('Failed to save draft before switching:', error);
+        // Navigate anyway - draft is not critical for switching
         router.push(`/doctor/consultations/${appointmentId}/session`);
       });
     } else {
