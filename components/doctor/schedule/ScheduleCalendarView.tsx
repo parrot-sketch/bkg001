@@ -191,13 +191,13 @@ function AppointmentEvent({ event }: { event: CalendarEvent }) {
 
     if (isShort) {
         return (
-            <div className="flex items-center gap-1.5 overflow-hidden h-full px-0.5">
+            <div className="flex items-center gap-1 overflow-hidden h-full px-0.5">
                 <span
                     className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                     style={{ backgroundColor: cfg.dot }}
                 />
                 <span className={cn(
-                    'text-[0.67rem] font-semibold leading-none truncate',
+                    'text-[0.6rem] font-semibold leading-none truncate',
                     isCancelled && 'line-through opacity-60'
                 )}>
                     {event.title}
@@ -209,18 +209,18 @@ function AppointmentEvent({ event }: { event: CalendarEvent }) {
     return (
         <div className="flex flex-col gap-0.5 overflow-hidden h-full px-0.5 py-0.5">
             {/* Patient name row */}
-            <div className="flex items-center gap-1.5">
-                <User className="h-3 w-3 flex-shrink-0 opacity-80" />
+            <div className="flex items-center gap-1">
+                <User className="h-2.5 w-2.5 flex-shrink-0 opacity-80" />
                 <span className={cn(
-                    'text-[0.72rem] font-bold leading-tight truncate',
+                    'text-[0.65rem] font-bold leading-tight truncate',
                     isCancelled && 'line-through opacity-50'
                 )}>
                     {event.title}
                 </span>
             </div>
             {/* Type + time */}
-            <div className="flex items-center gap-1.5 text-[0.62rem] opacity-85">
-                <TypeIcon className="h-2.5 w-2.5 flex-shrink-0" />
+            <div className="flex items-center gap-1 text-[0.55rem] opacity-85">
+                <TypeIcon className="h-2 w-2 flex-shrink-0" />
                 <span className="truncate">{event.type}</span>
                 <span className="opacity-60">·</span>
                 <span className="whitespace-nowrap">{format(event.start, 'h:mm a')}</span>
@@ -229,7 +229,7 @@ function AppointmentEvent({ event }: { event: CalendarEvent }) {
             {durationMins >= 45 && (
                 <div className="flex items-center justify-between mt-auto">
                     <span
-                        className="text-[0.58rem] font-medium px-1.5 py-0.5 rounded-full leading-none"
+                        className="text-[0.52rem] font-medium px-1 py-0.5 rounded-full leading-none"
                         style={{
                             backgroundColor: 'rgba(255,255,255,0.25)',
                             color: 'inherit',
@@ -237,7 +237,7 @@ function AppointmentEvent({ event }: { event: CalendarEvent }) {
                     >
                         {cfg.label}
                     </span>
-                    <span className="text-[0.58rem] opacity-70">
+                    <span className="text-[0.52rem] opacity-70">
                         {durationMins}min
                     </span>
                 </div>
@@ -378,12 +378,13 @@ export function ScheduleCalendarView({
                 borderTop: 'none',
                 borderRight: 'none',
                 borderBottom: 'none',
-                borderRadius: '5px',
-                padding: '2px 5px',
+                borderRadius: '4px',
+                padding: '1px 4px',
                 opacity: event.isOptimistic ? 0.5 : 1,
-                boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
-                fontSize: '0.72rem',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+                fontSize: '0.7rem',
                 overflow: 'hidden',
+                minHeight: '28px',
             },
         };
     }, []);
@@ -480,13 +481,13 @@ export function ScheduleCalendarView({
 
                     <StatusLegend />
 
-                    <div ref={calendarRef} className="min-h-[620px]">
+                    <div ref={calendarRef} className="min-h-[500px]">
                         <DnDCalendar
                             localizer={calendarLocalizer}
                             events={events}
                             startAccessor="start"
                             endAccessor="end"
-                            style={{ height: 620 }}
+                            style={{ height: 500 }}
                             view={view}
                             onView={setView}
                             date={date}
@@ -518,8 +519,8 @@ export function ScheduleCalendarView({
                             scrollToTime={new Date()}
                             min={minTime}
                             max={maxTime}
-                            step={15}
-                            timeslots={4}
+                            step={30}
+                            timeslots={2}
                             dayPropGetter={(day: Date) => ({
                                 className: isToday(day) ? 'rbc-today' : '',
                             })}
