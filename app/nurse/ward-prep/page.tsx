@@ -27,7 +27,8 @@ import {
   Clock,
   ClipboardList,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  FileText
 } from 'lucide-react';
 import {
   Table,
@@ -72,6 +73,12 @@ export default function PreOpCasesPage() {
     );
   }, [data?.cases, searchQuery]);
 
+  // Calculate completed checklists count
+  const completedChecklistsCount = useMemo(() => {
+    if (!data?.cases) return 0;
+    return data.cases.filter((c) => c.wardChecklist?.isComplete).length;
+  }, [data?.cases]);
+
   if (!isAuthenticated || !user) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
@@ -94,7 +101,7 @@ export default function PreOpCasesPage() {
 
         {/* Stats Grid */}
         {data?.summary && (
-          <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
             <NurseStatCard
               title="Total Cases"
               value={data.summary.total}
@@ -118,6 +125,14 @@ export default function PreOpCasesPage() {
               subtitle="Missing Items"
               icon={Clock}
               color="amber"
+              loading={isLoading}
+            />
+            <NurseStatCard
+              title="Checklists Completed"
+              value={completedChecklistsCount}
+              subtitle="Ward checklists done"
+              icon={FileText}
+              color="emerald"
               loading={isLoading}
             />
             <NurseStatCard

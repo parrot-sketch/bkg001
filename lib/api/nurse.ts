@@ -84,6 +84,19 @@ export interface PreOpReadiness {
   percentage: number;
   missingItems: string[];
   isReady: boolean;
+  wardChecklistComplete?: boolean;
+}
+
+export interface WardChecklistStatus {
+  status: 'DRAFT' | 'FINAL' | null;
+  isComplete: boolean;
+  isStarted: boolean;
+  formId: string | null;
+  signedAt: Date | string | null;
+  signedBy: string | null;
+  signedByUserId: string | null;
+  createdAt: Date | string | null;
+  updatedAt: Date | string | null;
 }
 
 export interface PreOpSurgicalCase {
@@ -109,7 +122,10 @@ export interface PreOpSurgicalCase {
     doctorNotes?: string;
     completedAt?: Date;
   };
-  readiness: PreOpReadiness;
+  wardChecklist: WardChecklistStatus;
+  readiness: PreOpReadiness & {
+    wardChecklistComplete?: boolean;
+  };
 }
 
 export interface PreOpCasesSummary {

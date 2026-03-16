@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, ChevronDown, Check, Loader2 } from 'lucide-react';
+import { Search, ChevronDown, Check, Loader2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface UserOption {
@@ -32,7 +32,8 @@ export function UserSelect({
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [users, setUsers] = useState<UserOption[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -40,22 +41,32 @@ export function UserSelect({
     async function fetchUsers() {
       try {
         setLoading(true);
+        setError(null);
         const params = new URLSearchParams();
         if (role) params.append('role', role);
         if (search) params.append('search', search);
 
         const response = await fetch(`/api/users?${params.toString()}`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const result = await response.json();
 
-        if (result.success && result.data) {
-          let filteredUsers = result.data;
-          if (excludeCurrentUser && currentUserId) {
-            filteredUsers = filteredUsers.filter((u: UserOption) => u.id !== currentUserId);
-          }
-          setUsers(filteredUsers);
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to fetch users');
         }
-      } catch (error) {
-        console.error('Failed to fetch users:', error);
+
+        let filteredUsers = result.data || [];
+        if (excludeCurrentUser && currentUserId) {
+          filteredUsers = filteredUsers.filter((u: UserOption) => u.id !== currentUserId);
+        }
+        setUsers(filteredUsers);
+      } catch (err) {
+        console.error('Failed to fetch users:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load users');
+        setUsers([]);
       } finally {
         setLoading(false);
       }
@@ -108,13 +119,18 @@ export function UserSelect({
           'hover:border-primary/50 hover:shadow-sm',
           'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary',
           'disabled:opacity-50 disabled:cursor-not-allowed',
-          isOpen ? 'border-primary ring-2 ring-primary/20' : 'border-input'
+          error ? 'border-red-300 bg-red-50' : isOpen ? 'border-primary ring-2 ring-primary/20' : 'border-input'
         )}
       >
         {loading ? (
           <span className="flex items-center gap-2 text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
             Loading users...
+          </span>
+        ) : error ? (
+          <span className="flex items-center gap-2 text-red-600 text-sm">
+            <AlertCircle className="h-4 w-4" />
+            {error}
           </span>
         ) : selectedUser ? (
           <div className="flex items-center gap-3">
@@ -146,9 +162,26 @@ export function UserSelect({
           </div>
 
           <div className="max-h-[280px] overflow-y-auto p-1">
-            {users.length === 0 ? (
+            {error ? (
+              <div className="py-6 text-center">
+                <AlertCircle className="h-8 w-8 text-red-400 mx-auto mb-2" />
+                <p className="text-sm text-red-600 font-medium">Failed to load users</p>
+                <p className="text-xs text-red-500 mt-1">{error}</p>
+                <button 
+                  onClick={() => setIsOpen(false)} 
+                  className="text-sm text-primary hover:underline mt-3"
+                >
+                  Try again
+                </button>
+              </div>
+            ) : loading ? (
+              <div className="py-8 text-center">
+                <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                <p className="text-sm text-muted-foreground mt-2">Loading users...</p>
+              </div>
+            ) : users.length === 0 ? (
               <div className="py-8 text-center text-muted-foreground">
-                <p className="text-sm">No users found</p>
+                <p className="text-sm">No {role ? role.toLowerCase() + 's' : 'users'} found</p>
                 {search && (
                   <button onClick={() => setSearch('')} className="text-sm text-primary hover:underline mt-1">
                     Clear search

@@ -158,9 +158,15 @@ export class GetAvailableSlotsForDateUseCase {
     // Step 8: Map to DTOs (preserving isAvailable flag from AvailabilityService)
     // Filter out non-CLINIC slots (e.g. SURGERY)
     // Also filter out past slots for today (but keep all slots for future dates)
-    // Note: 'now' was normalized to start of day, so we need a fresh Date for time comparison
-    const currentTimestamp = new Date(); // Full timestamp for comparing with slot times
-    const isToday = requestDate.toDateString() === currentTimestamp.toDateString();
+    const currentNow = new Date();
+    const requestDateStart = new Date(requestDate);
+    requestDateStart.setHours(0, 0, 0, 0);
+    const todayStart = new Date(currentNow);
+    todayStart.setHours(0, 0, 0, 0);
+    const isToday = requestDateStart.getTime() === todayStart.getTime();
+    
+    // For today, also get current time to filter out past slots
+    const currentTime = isToday ? new Date() : null;
     
     return slots
       .filter(slot => {
@@ -169,7 +175,7 @@ export class GetAvailableSlotsForDateUseCase {
           return false;
         }
         // For today, filter out slots that have already passed
-        if (isToday && slot.startTime < currentTimestamp) {
+        if (isToday && currentTime && slot.startTime <= currentTime) {
           return false;
         }
         return true;

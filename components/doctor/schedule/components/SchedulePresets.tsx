@@ -12,15 +12,15 @@ import { Briefcase, Sun, Clock, Moon } from 'lucide-react';
 import { CalendarAvailabilitySlot, SlotType } from '@/domain/types/schedule';
 import { BASE_DATE } from '../constants';
 
-type PresetKey = 'business' | 'morning' | 'split' | 'night';
+export type PresetKey = 'business' | 'morning' | 'split' | 'night';
 
-interface PresetConfig {
+export interface PresetConfig {
   label: string;
   days: number[];
   blocks: { start: number; end: number; type: SlotType }[];
 }
 
-const PRESET_CONFIG: Record<PresetKey, PresetConfig> = {
+export const PRESET_CONFIG: Record<PresetKey, PresetConfig> = {
   business: { 
     label: '9 am – 5 pm Mon–Fri', 
     days: [1,2,3,4,5], 

@@ -16,6 +16,9 @@ import { CaseReadinessStatus, ClinicalFormStatus, SurgicalCaseStatus } from '@pr
 import { getMissingPlanningItems } from '@/domain/helpers/planningReadiness';
 import { TEMPLATE_KEY, TEMPLATE_VERSION } from '@/domain/clinical-forms/NursePreopWardChecklist';
 
+const WARD_CHECKLIST_TEMPLATE_KEY = TEMPLATE_KEY;
+const WARD_CHECKLIST_TEMPLATE_VERSION = TEMPLATE_VERSION;
+
 /**
  * GET /api/nurse/pre-op/:id
  *
@@ -89,7 +92,36 @@ export async function GET(
       );
     }
 
-    // 4. Calculate detailed readiness checklist
+    // 4. Fetch ward checklist form status (if exists)
+    const wardChecklistForm = await db.clinicalFormResponse.findUnique({
+      where: {
+        template_key_template_version_surgical_case_id: {
+          template_key: WARD_CHECKLIST_TEMPLATE_KEY,
+          template_version: WARD_CHECKLIST_TEMPLATE_VERSION,
+          surgical_case_id: params.id,
+        },
+      },
+      select: {
+        id: true,
+        status: true,
+        signed_by_user_id: true,
+        signed_at: true,
+        created_at: true,
+        updated_at: true,
+      },
+    });
+
+    // Get signer info if finalized
+    let wardChecklistSignedBy: { first_name: string | null; last_name: string | null } | null = null;
+    if (wardChecklistForm?.signed_by_user_id) {
+      const signer = await db.user.findUnique({
+        where: { id: wardChecklistForm.signed_by_user_id },
+        select: { first_name: true, last_name: true },
+      });
+      wardChecklistSignedBy = signer;
+    }
+
+    // 5. Calculate detailed readiness checklist
     const casePlan = surgicalCase.case_plan;
     const readinessChecklist = {
       intakeForm: {
@@ -145,6 +177,10 @@ export async function GET(
     const readinessPercentage = Math.round((completedCount / allRequired.length) * 100);
 
     // Map response
+    const wardChecklistStatus = wardChecklistForm?.status || null;
+    const isWardChecklistComplete = wardChecklistStatus === ClinicalFormStatus.FINAL;
+    const isWardChecklistStarted = wardChecklistForm !== null;
+
     const response = {
       id: surgicalCase.id,
       status: surgicalCase.status,
@@ -180,6 +216,19 @@ export async function GET(
             implantDetails: casePlan.implant_details,
           }
         : null,
+      wardChecklist: {
+        status: wardChecklistStatus,
+        isComplete: isWardChecklistComplete,
+        isStarted: isWardChecklistStarted,
+        formId: wardChecklistForm?.id || null,
+        signedAt: wardChecklistForm?.signed_at || null,
+        signedBy: wardChecklistSignedBy
+          ? `${wardChecklistSignedBy.first_name || ''} ${wardChecklistSignedBy.last_name || ''}`.trim() || null
+          : null,
+        signedByUserId: wardChecklistForm?.signed_by_user_id || null,
+        createdAt: wardChecklistForm?.created_at || null,
+        updatedAt: wardChecklistForm?.updated_at || null,
+      },
       readinessChecklist,
       readinessPercentage,
       isReadyForScheduling: readinessPercentage === 100,
@@ -196,12 +245,30 @@ export async function GET(
       },
     };
 
-    // Calculate missing items
+    // Calculate missing items - include ward checklist
     if (!readinessChecklist.intakeForm.complete) response.readiness.missingItems.push('Pre-op intake');
     if (!readinessChecklist.medicalHistory.complete) response.readiness.missingItems.push('Medical history');
     if (!readinessChecklist.clinicalPhotos.complete) response.readiness.missingItems.push('Clinical photos');
     if (!readinessChecklist.consentForms.complete) response.readiness.missingItems.push('Consent form');
     if (!readinessChecklist.procedurePlan.complete) response.readiness.missingItems.push('Procedure plan');
+    
+    // Add ward checklist to readiness calculation
+    const wardChecklistComplete = isWardChecklistComplete;
+    
+    // Update readiness percentage to include ward checklist
+    const allRequiredWithChecklist = [...allRequired, wardChecklistComplete];
+    const completedCountWithChecklist = allRequiredWithChecklist.filter(Boolean).length;
+    const readinessPercentageWithChecklist = Math.round((completedCountWithChecklist / allRequiredWithChecklist.length) * 100);
+    
+    response.readinessPercentage = readinessPercentageWithChecklist;
+    response.isReadyForScheduling = readinessPercentageWithChecklist === 100;
+    (response.readiness as any).percentage = readinessPercentageWithChecklist;
+    (response.readiness as any).isReady = readinessPercentageWithChecklist === 100;
+    (response.readiness as any).wardChecklistComplete = wardChecklistComplete;
+    
+    if (!wardChecklistComplete) {
+      response.readiness.missingItems.push('Ward checklist');
+    }
 
     return NextResponse.json(
       {
