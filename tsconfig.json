@@ -44,7 +44,6 @@
     "**/*.test.ts",
     "**/*.test.tsx",
     "**/*.spec.ts",
-    "**/*.spec.tsx",
-    "infrastructure/database/seeds"
+    "**/*.spec.tsx"
   ]
 }

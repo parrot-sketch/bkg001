@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import {
@@ -12,7 +12,13 @@ import {
     Filter,
     ClipboardCheck,
     ArrowRightLeft,
-    RefreshCw
+    RefreshCw,
+    ChevronLeft,
+    ChevronRight,
+    Package2,
+    TrendingUp,
+    TrendingDown,
+    Clock
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -88,6 +94,8 @@ export function InventoryDashboard({ summary, initialBatches, inventoryItems }: 
     const [showExpiringOnly, setShowExpiringOnly] = useState(false);
     const [isReceiveOpen, setIsReceiveOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize] = useState(15);
 
     // Form State for Receive Stock
     const [newItemId, setNewItemId] = useState<string>('');
@@ -104,6 +112,45 @@ export function InventoryDashboard({ summary, initialBatches, inventoryItems }: 
         return daysUntilExpiry <= 30 && daysUntilExpiry > 0;
     }).length;
     const expiredCount = initialBatches.filter(b => new Date(b.expiry_date) < new Date()).length;
+
+    // Category aggregations
+    const categoryAggregations = useMemo(() => {
+        const cats: Record<string, { count: number; value: number; items: number }> = {};
+        summary.forEach(s => {
+            const cat = s.category || 'OTHER';
+            if (!cats[cat]) {
+                cats[cat] = { count: 0, value: 0, items: 0 };
+            }
+            cats[cat].count += s.currentBalance;
+            cats[cat].value += s.totalValue;
+            cats[cat].items += 1;
+        });
+        return Object.entries(cats).map(([name, data]) => ({ name, ...data }));
+    }, [summary]);
+
+    // Filtered Data with pagination
+    const filteredSummary = useMemo(() => {
+        return summary
+            .filter(s => 
+                s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                s.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                s.category.toLowerCase().includes(searchTerm.toLowerCase())
+            )
+            .sort((a, b) => a.name.localeCompare(b.name));
+    }, [summary, searchTerm]);
+
+    const paginatedSummary = useMemo(() => {
+        const start = (currentPage - 1) * pageSize;
+        return filteredSummary.slice(start, start + pageSize);
+    }, [filteredSummary, currentPage, pageSize]);
+
+    const totalPages = Math.ceil(filteredSummary.length / pageSize);
+
+    // Reset page when search changes
+    const handleSearchChange = (term: string) => {
+        setSearchTerm(term);
+        setCurrentPage(1);
+    };
 
     // Filtered Data
     const filteredBatches = initialBatches.filter(batch => {
@@ -203,6 +250,29 @@ export function InventoryDashboard({ summary, initialBatches, inventoryItems }: 
                 </div>
             </div>
 
+            {/* Category Aggregation */}
+            {view === 'summary' && categoryAggregations.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                    {categoryAggregations.map((cat) => (
+                        <div 
+                            key={cat.name} 
+                            className="p-3 rounded-lg border bg-white shadow-sm hover:shadow-md transition-shadow cursor-default"
+                            onClick={() => handleSearchChange(cat.name)}
+                            title="Click to filter by category"
+                        >
+                            <div className="flex items-center justify-between mb-1">
+                                <Badge variant="outline" className="text-xs">{cat.name}</Badge>
+                                <Package2 className="h-3 w-3 text-muted-foreground" />
+                            </div>
+                            <div className="text-lg font-bold">{cat.items} items</div>
+                            <div className="text-xs text-muted-foreground">
+                                {cat.count.toLocaleString()} units • KES {(cat.value / 1000).toFixed(1)}k value
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
             {/* Toolbar */}
             <div className="flex flex-col sm:flex-row gap-4 justify-between items-center">
                 <div className="flex w-full sm:w-auto items-center gap-2">
@@ -242,7 +312,7 @@ export function InventoryDashboard({ summary, initialBatches, inventoryItems }: 
                             placeholder={view === 'summary' ? "Search products..." : "Search batches..."}
                             className="pl-8"
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e) => handleSearchChange(e.target.value)}
                         />
                     </div>
                     {view === 'batches' && (
@@ -356,78 +426,138 @@ export function InventoryDashboard({ summary, initialBatches, inventoryItems }: 
             {/* Data Table */}
             <div className="rounded-md border bg-white shadow-sm overflow-hidden">
                 {view === 'summary' ? (
-                    <Table>
-                        <TableHeader>
-                            <TableRow className="bg-muted/30">
-                                <TableHead className="w-[300px]">Product / SKU</TableHead>
-                                <TableHead>Category</TableHead>
-                                <TableHead className="text-right">Balance</TableHead>
-                                <TableHead className="text-right">Unit Cost</TableHead>
-                                <TableHead className="text-right">Total Value</TableHead>
-                                <TableHead className="text-right">Total In</TableHead>
-                                <TableHead className="text-right">Total Out</TableHead>
-                                <TableHead className="text-center">Status</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {summary
-                                .filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()) || s.sku?.toLowerCase().includes(searchTerm.toLowerCase()))
-                                .map((item) => (
-                                    <TableRow key={item.itemId}>
-                                        <TableCell>
-                                            <div className="font-medium">{item.name}</div>
-                                            <div className="text-xs font-mono text-muted-foreground">{item.sku || 'NO SKU'}</div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline">{item.category}</Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right font-bold text-lg">
-                                            {item.currentBalance}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <p className="text-sm font-medium leading-none">
-                                                {item.unitCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                            </p>
-                                        </TableCell>
-                                        <TableCell className="text-right font-medium">
-                                            {item.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                        </TableCell>
-                                        <TableCell className="text-right text-muted-foreground">
-                                            +{item.totalStockIn}
-                                        </TableCell>
-                                        <TableCell className="text-right text-muted-foreground">
-                                            -{item.totalStockOut}
-                                        </TableCell>
-                                        <TableCell className="text-center">
-                                            <Badge 
-                                                className={cn(
-                                                    item.status === 'OK' ? "bg-emerald-500 hover:bg-emerald-600" :
-                                                    item.status === 'LOW_STOCK' ? "bg-amber-500 hover:bg-amber-600" :
-                                                    "bg-red-500 hover:bg-red-600"
-                                                )}
-                                            >
-                                                {item.status.replace('_', ' ')}
-                                            </Badge>
+                    <>
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="bg-muted/30">
+                                    <TableHead className="w-[250px]">Product Name</TableHead>
+                                    <TableHead className="w-[120px]">SKU</TableHead>
+                                    <TableHead className="w-[140px]">Category</TableHead>
+                                    <TableHead className="text-right w-[100px]">Balance</TableHead>
+                                    <TableHead className="text-right w-[110px]">Unit Cost</TableHead>
+                                    <TableHead className="text-right w-[120px]">Total Value</TableHead>
+                                    <TableHead className="text-right w-[90px]">In</TableHead>
+                                    <TableHead className="text-right w-[90px]">Out</TableHead>
+                                    <TableHead className="text-center w-[100px]">Status</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {paginatedSummary.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+                                            No items found.
                                         </TableCell>
                                     </TableRow>
-                                ))}
-                        </TableBody>
-                    </Table>
+                                ) : (
+                                    paginatedSummary.map((item) => (
+                                        <TableRow key={item.itemId}>
+                                            <TableCell className="font-medium">
+                                                {item.name}
+                                            </TableCell>
+                                            <TableCell>
+                                                <span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded">
+                                                    {item.sku || '—'}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline" className="text-xs">
+                                                    {item.category}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <span className={cn(
+                                                    "font-bold text-lg",
+                                                    item.currentBalance === 0 ? "text-red-500" :
+                                                    item.status === 'LOW_STOCK' ? "text-amber-500" : "text-emerald-600"
+                                                )}>
+                                                    {item.currentBalance}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell className="text-right text-sm">
+                                                {item.unitCost > 0 
+                                                    ? `KES ${item.unitCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                                    : '—'
+                                                }
+                                            </TableCell>
+                                            <TableCell className="text-right font-semibold">
+                                                KES {item.totalValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <span className="inline-flex items-center text-emerald-600 font-medium">
+                                                    <TrendingUp className="h-3 w-3 mr-1" />
+                                                    +{item.totalStockIn}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                <span className="inline-flex items-center text-red-500 font-medium">
+                                                    <TrendingDown className="h-3 w-3 mr-1" />
+                                                    {item.totalStockOut}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <Badge 
+                                                    className={cn(
+                                                        "text-xs",
+                                                        item.status === 'OK' ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" :
+                                                        item.status === 'LOW_STOCK' ? "bg-amber-100 text-amber-700 hover:bg-amber-200" :
+                                                        "bg-red-100 text-red-700 hover:bg-red-200"
+                                                    )}
+                                                >
+                                                    {item.status === 'OK' ? 'In Stock' : item.status === 'LOW_STOCK' ? 'Low Stock' : 'Out of Stock'}
+                                                </Badge>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                        
+                        {/* Pagination */}
+                        {totalPages > 1 && (
+                            <div className="flex items-center justify-between px-4 py-3 border-t bg-slate-50/50">
+                                <div className="text-sm text-muted-foreground">
+                                    Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, filteredSummary.length)} of {filteredSummary.length} items
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={currentPage === 1}
+                                    >
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                    <span className="text-sm font-medium">
+                                        Page {currentPage} of {totalPages}
+                                    </span>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+                    </>
                 ) : view === 'batches' ? (
                     <Table>
                         <TableHeader>
                             <TableRow className="bg-muted/30">
-                                <TableHead>Item Name</TableHead>
-                                <TableHead>Batch / Serial</TableHead>
-                                <TableHead>Category</TableHead>
-                                <TableHead>Expiry Status</TableHead>
-                                <TableHead className="text-right">Qty</TableHead>
+                                <TableHead className="w-[200px]">Product Name</TableHead>
+                                <TableHead className="w-[100px]">SKU</TableHead>
+                                <TableHead className="w-[120px]">Batch No.</TableHead>
+                                <TableHead className="w-[120px]">Category</TableHead>
+                                <TableHead className="w-[150px]">Expiry Date</TableHead>
+                                <TableHead className="text-right w-[80px]">Qty</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {filteredBatches.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                                         No batches found based on current filters.
                                     </TableCell>
                                 </TableRow>
@@ -442,36 +572,48 @@ export function InventoryDashboard({ summary, initialBatches, inventoryItems }: 
                                         <TableRow key={batch.id}>
                                             <TableCell className="font-medium">
                                                 {batch.inventory_item.name}
-                                                {batch.inventory_item.sku && (
-                                                    <span className="block text-xs font-mono text-muted-foreground">{batch.inventory_item.sku}</span>
-                                                )}
                                             </TableCell>
                                             <TableCell>
-                                                <div className="text-sm font-medium">{batch.batch_number}</div>
-                                                {batch.serial_number && (
-                                                    <div className="text-xs font-mono text-muted-foreground">{batch.serial_number}</div>
-                                                )}
+                                                <span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded">
+                                                    {batch.inventory_item.sku || '—'}
+                                                </span>
                                             </TableCell>
                                             <TableCell>
-                                                <Badge variant="outline">{batch.inventory_item.category}</Badge>
+                                                <span className="text-sm font-medium">{batch.batch_number}</span>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline" className="text-xs">
+                                                    {batch.inventory_item.category}
+                                                </Badge>
                                             </TableCell>
                                             <TableCell>
                                                 {isExpired ? (
-                                                    <Badge variant="destructive" className="gap-1">
-                                                        Expired {format(expiry, 'MMM d, yyyy')}
-                                                    </Badge>
+                                                    <div className="flex items-center gap-1.5 text-red-600">
+                                                        <Clock className="h-3.5 w-3.5" />
+                                                        <span className="text-sm font-medium">Expired</span>
+                                                        <span className="text-xs">({format(expiry, 'MMM d, yyyy')})</span>
+                                                    </div>
                                                 ) : isExpiringSoon ? (
-                                                    <Badge className="bg-amber-500 hover:bg-amber-600 gap-1">
-                                                        Expiring {format(expiry, 'MMM d, yyyy')}
-                                                    </Badge>
+                                                    <div className="flex items-center gap-1.5 text-amber-600">
+                                                        <AlertTriangle className="h-3.5 w-3.5" />
+                                                        <span className="text-sm font-medium">{daysUntil}d left</span>
+                                                        <span className="text-xs">({format(expiry, 'MMM d, yyyy')})</span>
+                                                    </div>
                                                 ) : (
-                                                    <span className="text-sm text-muted-foreground text-center">
+                                                    <span className="text-sm text-muted-foreground">
                                                         {format(expiry, 'MMM d, yyyy')}
                                                     </span>
                                                 )}
                                             </TableCell>
-                                            <TableCell className="text-right font-bold">
-                                                {batch.quantity_remaining}
+                                            <TableCell className="text-right">
+                                                <span className={cn(
+                                                    "font-bold text-lg",
+                                                    batch.quantity_remaining === 0 ? "text-red-500" :
+                                                    isExpired ? "text-red-400" :
+                                                    isExpiringSoon ? "text-amber-500" : "text-emerald-600"
+                                                )}>
+                                                    {batch.quantity_remaining}
+                                                </span>
                                             </TableCell>
                                         </TableRow>
                                     );

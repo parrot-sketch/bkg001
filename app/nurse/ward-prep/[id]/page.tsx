@@ -43,7 +43,11 @@ import {
   Edit,
   Save,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  FileText,
+  Eye,
+  Clock,
+  Printer
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -263,16 +267,52 @@ export default function PreOpCaseDetailPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              asChild
-              className="bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-sm"
-            >
-              <Link href={`/nurse/ward-prep/${caseId}/checklist`}>
-                <ClipboardList className="w-4 h-4 mr-2" />
-                Complete Ward Checklist
-              </Link>
-            </Button>
+            {caseData.wardChecklist?.isComplete ? (
+              <>
+                <Button
+                  variant="outline"
+                  asChild
+                  className="bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700 shadow-sm"
+                >
+                  <Link href={`/nurse/ward-prep/${caseId}/checklist`}>
+                    <Eye className="w-4 h-4 mr-2" />
+                    View Completed Checklist
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  asChild
+                  className="bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-sm"
+                >
+                  <Link href={`/nurse/ward-prep/${caseId}/checklist/print`} target="_blank">
+                    <FileText className="w-4 h-4 mr-2" />
+                    Print Checklist
+                  </Link>
+                </Button>
+              </>
+            ) : caseData.wardChecklist?.isStarted ? (
+              <Button
+                variant="outline"
+                asChild
+                className="bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-700 shadow-sm"
+              >
+                <Link href={`/nurse/ward-prep/${caseId}/checklist`}>
+                  <Clock className="w-4 h-4 mr-2" />
+                  Continue Ward Checklist
+                </Link>
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                asChild
+                className="bg-white hover:bg-slate-50 border-slate-200 text-slate-700 shadow-sm"
+              >
+                <Link href={`/nurse/ward-prep/${caseId}/checklist`}>
+                  <ClipboardList className="w-4 h-4 mr-2" />
+                  Complete Ward Checklist
+                </Link>
+              </Button>
+            )}
 
             {readiness?.isReady && caseData.status !== 'READY_FOR_SCHEDULING' && caseData.status !== 'SCHEDULED' && (
               <Button
@@ -355,6 +395,16 @@ export default function PreOpCaseDetailPage() {
                   description="Confirm procedure plan is documented"
                   complete={readiness?.procedurePlanComplete || false}
                   icon={Calendar}
+                />
+                <ChecklistItem
+                  label="Ward Checklist"
+                  description={caseData.wardChecklist?.isComplete 
+                    ? `Completed by ${caseData.wardChecklist.signedBy || 'Nurse'}`
+                    : 'Complete pre-operative ward checklist'}
+                  complete={caseData.wardChecklist?.isComplete || false}
+                  icon={ClipboardList}
+                  onAction={() => router.push(`/nurse/ward-prep/${caseId}/checklist`)}
+                  actionLabel={caseData.wardChecklist?.isComplete ? 'View' : caseData.wardChecklist?.isStarted ? 'Continue' : 'Start'}
                 />
               </CardContent>
             </Card>
@@ -523,6 +573,95 @@ export default function PreOpCaseDetailPage() {
                   <div className="pt-2 border-t border-slate-100">
                     <p className="text-xs text-slate-500 mb-1">Diagnosis</p>
                     <p className="text-sm text-slate-800">{caseData.diagnosis}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Ward Checklist Status Card */}
+            <Card className={`border-slate-200 shadow-sm ${caseData.wardChecklist?.isComplete ? 'border-emerald-200 bg-emerald-50/30' : ''}`}>
+              <CardHeader className={`pb-3 border-b ${caseData.wardChecklist?.isComplete ? 'border-emerald-100 bg-emerald-50/50' : 'border-slate-100 bg-slate-50/50'}`}>
+                <CardTitle className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                  <ClipboardList className="h-4 w-4" />
+                  Ward Checklist
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4">
+                {caseData.wardChecklist?.isComplete ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                      <span className="text-sm font-semibold text-emerald-700">Completed</span>
+                    </div>
+                    <div className="text-xs text-slate-600 space-y-1">
+                      <p>
+                        <span className="text-slate-500">Signed by:</span>{' '}
+                        <span className="font-medium">{caseData.wardChecklist.signedBy || 'Nurse'}</span>
+                      </p>
+                      {caseData.wardChecklist.signedAt && (
+                        <p>
+                          <span className="text-slate-500">Signed at:</span>{' '}
+                          <span className="font-medium">
+                            {format(new Date(caseData.wardChecklist.signedAt), 'MMM d, yyyy h:mm a')}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full mt-2 border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                      asChild
+                    >
+                      <Link href={`/nurse/ward-prep/${caseId}/checklist/print`} target="_blank">
+                        <FileText className="h-3.5 w-3.5 mr-2" />
+                        Print Checklist
+                      </Link>
+                    </Button>
+                  </div>
+                ) : caseData.wardChecklist?.isStarted ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-amber-600" />
+                      <span className="text-sm font-semibold text-amber-700">In Progress</span>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      Started: {caseData.wardChecklist.createdAt 
+                        ? format(new Date(caseData.wardChecklist.createdAt), 'MMM d, yyyy h:mm a')
+                        : 'Unknown'}
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full mt-2 border-amber-200 text-amber-700 hover:bg-amber-50"
+                      asChild
+                    >
+                      <Link href={`/nurse/ward-prep/${caseId}/checklist`}>
+                        <ClipboardList className="h-3.5 w-3.5 mr-2" />
+                        Continue Checklist
+                      </Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-5 w-5 text-slate-400" />
+                      <span className="text-sm font-medium text-slate-600">Not Started</span>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      Complete the ward checklist to prepare the patient for surgery.
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full mt-2"
+                      asChild
+                    >
+                      <Link href={`/nurse/ward-prep/${caseId}/checklist`}>
+                        <ClipboardList className="h-3.5 w-3.5 mr-2" />
+                        Start Checklist
+                      </Link>
+                    </Button>
                   </div>
                 )}
               </CardContent>

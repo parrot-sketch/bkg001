@@ -1,8 +1,8 @@
 /**
  * Prisma Inventory Seed Script
  * 
- * Seeds inventory using the data from infrastructure/database/seeds/data/inventory.catalogue.ts
- * This replaces the old/uncategorized data with the properly organized inventory catalogue.
+ * Seeds inventory with 209 medical supply items across 7 categories.
+ * Replaces old/uncategorized data with properly organized inventory catalogue.
  * 
  * Run with: npx tsx prisma/inventory.seed.ts
  */

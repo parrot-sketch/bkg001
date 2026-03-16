@@ -21,8 +21,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Users,
-  UserPlus,
   Search,
   Eye,
   Calendar,
@@ -32,8 +30,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
-  UserCheck,
-  TrendingUp,
   ArrowRight,
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -44,42 +40,25 @@ import { useBookAppointmentStore } from '@/hooks/frontdesk/useBookAppointmentSto
 import { BookingChannel } from '@/domain/enums/BookingChannel';
 import { AppointmentSource } from '@/domain/enums/AppointmentSource';
 
-/* ═══════════════════ Sub Components ═══════════════════ */
+/* ═══════════════════ Stat Card (Simple) ═══════════════════ */
 
 function StatCard({
   title,
   value,
-  icon: Icon,
-  color,
   loading = false,
 }: {
   title: string;
   value: number;
-  icon: React.ComponentType<{ className?: string }>;
-  color: 'slate' | 'cyan' | 'emerald' | 'amber';
   loading?: boolean;
 }) {
-  const colorClasses: Record<string, { bg: string; icon: string }> = {
-    slate: { bg: 'bg-slate-100', icon: 'text-slate-600' },
-    cyan: { bg: 'bg-cyan-100', icon: 'text-cyan-600' },
-    emerald: { bg: 'bg-emerald-100', icon: 'text-emerald-600' },
-    amber: { bg: 'bg-amber-100', icon: 'text-amber-600' },
-  };
-  const styles = colorClasses[color];
-
   return (
-    <div className="flex items-center gap-3 p-3.5 rounded-xl bg-white border border-slate-100 shadow-sm">
-      <div className={cn('p-2 rounded-lg', styles.bg)}>
-        <Icon className={cn('h-4 w-4', styles.icon)} />
-      </div>
-      <div className="min-w-0">
-        <p className="text-[10px] uppercase tracking-wide font-medium text-slate-400">{title}</p>
-        {loading ? (
-          <Skeleton className="h-6 w-10 mt-0.5" />
-        ) : (
-          <p className="text-xl font-bold text-slate-800">{value.toLocaleString()}</p>
-        )}
-      </div>
+    <div className="flex items-center justify-between p-4 rounded-xl bg-white border border-slate-200">
+      <p className="text-sm text-slate-500">{title}</p>
+      {loading ? (
+        <div className="h-7 w-12 bg-slate-100 rounded animate-pulse" />
+      ) : (
+        <p className="text-xl font-bold text-slate-900">{value.toLocaleString()}</p>
+      )}
     </div>
   );
 }
@@ -108,7 +87,7 @@ function EmptyState({ hasSearch, onClear }: { hasSearch: boolean; onClear: () =>
   return (
     <div className="flex flex-col items-center justify-center py-16 px-6">
       <div className="h-16 w-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-5">
-        <Users className="h-8 w-8 text-slate-300" />
+        <Search className="h-8 w-8 text-slate-300" />
       </div>
       <h3 className="text-base font-semibold text-slate-700 mb-1">
         {hasSearch ? 'No patients found' : 'No patients registered yet'}
@@ -129,8 +108,7 @@ function EmptyState({ hasSearch, onClear }: { hasSearch: boolean; onClear: () =>
         </Button>
       ) : (
         <Link href="/frontdesk/patient-intake">
-          <Button size="sm" className="bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl shadow-sm shadow-cyan-200/50">
-            <UserPlus className="h-4 w-4 mr-2" />
+          <Button size="sm" className="bg-slate-900 hover:bg-slate-800 text-white">
             Register First Patient
           </Button>
         </Link>
@@ -261,8 +239,7 @@ function FrontdeskPatientsContent() {
           </p>
         </div>
         <Link href="/frontdesk/patient-intake">
-          <Button className="bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl shadow-sm shadow-cyan-200/50 h-10 px-5 w-full sm:w-auto">
-            <UserPlus className="h-4 w-4 mr-2" />
+          <Button className="bg-slate-900 hover:bg-slate-800 text-white h-10 px-5 w-full sm:w-auto">
             Register Patient
           </Button>
         </Link>
@@ -273,29 +250,21 @@ function FrontdeskPatientsContent() {
         <StatCard
           title="Total Patients"
           value={stats?.totalRecords ?? 0}
-          icon={Users}
-          color="slate"
           loading={isStatsLoading}
         />
         <StatCard
           title="New Today"
           value={stats?.newToday ?? 0}
-          icon={UserPlus}
-          color="cyan"
           loading={isStatsLoading}
         />
         <StatCard
           title="This Month"
           value={stats?.newThisMonth ?? 0}
-          icon={TrendingUp}
-          color="emerald"
           loading={isStatsLoading}
         />
         <StatCard
           title="Showing"
           value={patients.length}
-          icon={UserCheck}
-          color="amber"
           loading={isLoading}
         />
       </section>

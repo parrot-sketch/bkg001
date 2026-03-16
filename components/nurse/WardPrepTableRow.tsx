@@ -13,6 +13,7 @@ import {
     Clock,
     MoreHorizontal,
     Stethoscope,
+    FileText,
 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -156,7 +157,43 @@ export function WardPrepTableRow({ surgicalCase }: WardPrepTableRowProps) {
 
                     {/* Status Indicators Row */}
                     <div className="flex items-center gap-2">
-                        {/* Checklist Status */}
+                        {/* Ward Checklist Status Indicator */}
+                        {surgicalCase.wardChecklist?.isComplete ? (
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <div className="flex items-center gap-1 text-[10px] text-emerald-600 font-medium cursor-help">
+                                            <FileText className="h-3 w-3" />
+                                            Checklist Done
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Ward checklist completed</p>
+                                        {surgicalCase.wardChecklist.signedBy && (
+                                            <p className="text-xs text-slate-500 mt-1">
+                                                Signed by: {surgicalCase.wardChecklist.signedBy}
+                                            </p>
+                                        )}
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        ) : surgicalCase.wardChecklist?.isStarted ? (
+                            <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <div className="flex items-center gap-1 text-[10px] text-amber-600 font-medium cursor-help">
+                                            <ClipboardList className="h-3 w-3" />
+                                            In Progress
+                                        </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Ward checklist in progress</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        ) : null}
+
+                        {/* General Readiness Status */}
                         {readiness.missingItems.length > 0 ? (
                             <TooltipProvider>
                                 <Tooltip>
