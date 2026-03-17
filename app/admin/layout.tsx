@@ -51,11 +51,6 @@ const navItems: NavItem[] = [
     href: '/admin/reports',
     icon: FileText,
   },
-  {
-    name: 'Settings',
-    href: '/admin/settings',
-    icon: Settings,
-  },
 ];
 
 interface AdminLayoutProps {
