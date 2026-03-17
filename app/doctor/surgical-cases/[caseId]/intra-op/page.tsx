@@ -57,11 +57,11 @@ interface SurgicalCase {
         last_name: string;
         file_number: string;
         allergies: string;
-    };
+    } | null;
     primary_surgeon: {
-        id: string;
-        name: string;
-    };
+        first_name: string;
+        last_name: string;
+    } | null;
 }
 
 interface DoctorIntraOpData {
@@ -151,14 +151,32 @@ export default function DoctorIntraOpPage() {
     useEffect(() => {
         async function loadData() {
             try {
-                const res = await fetch(`/api/doctor/surgical-cases/${caseId}`);
+                const res = await fetch(`/api/doctor/surgical-cases/${caseId}/plan`);
                 const json = await res.json();
                 if (json.success && json.data) {
-                    setSurgicalCase(json.data);
+                    const caseData = json.data.case;
+                    setSurgicalCase({
+                        id: caseData.id,
+                        status: caseData.status,
+                        diagnosis: caseData.diagnosis,
+                        procedure_name: caseData.procedureName,
+                        side: caseData.side,
+                        patient: caseData.patient ? {
+                            id: caseData.patient.id,
+                            first_name: caseData.patient.firstName || '',
+                            last_name: caseData.patient.lastName || '',
+                            file_number: caseData.patient.fileNumber || '',
+                            allergies: caseData.patient.allergies || '',
+                        } : null,
+                        primary_surgeon: caseData.primarySurgeon ? {
+                            first_name: caseData.primarySurgeon.firstName || '',
+                            last_name: caseData.primarySurgeon.lastName || '',
+                        } : null,
+                    });
                     
                     // Pre-populate from case
-                    const surgeonName = json.data.primary_surgeon 
-                        ? `${json.data.primary_surgeon.first_name || ''} ${json.data.primary_surgeon.last_name || ''}`.trim()
+                    const surgeonName = caseData.primarySurgeon 
+                        ? `${caseData.primarySurgeon.firstName || ''} ${caseData.primarySurgeon.lastName || ''}`.trim()
                         : '';
                     const userName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '';
                     
@@ -170,12 +188,12 @@ export default function DoctorIntraOpPage() {
                             surgeon: surgeonName || userName || '',
                         },
                         diagnosis: {
-                            preOperative: json.data.diagnosis || '',
+                            preOperative: caseData.diagnosis || '',
                             operative: '',
                         },
                         procedure: {
-                            planned: json.data.procedure_name || '',
-                            performed: json.data.procedure_name || '',
+                            planned: caseData.procedureName || '',
+                            performed: caseData.procedureName || '',
                         },
                     };
                     setFormData(newFormData);
