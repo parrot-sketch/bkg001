@@ -43,6 +43,7 @@ import {
     Stethoscope,
     ShieldCheck,
     ImageIcon,
+    ClipboardCheck,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -110,6 +111,7 @@ interface CaseAction {
     disabled: boolean;
     reason?: string;
     variant: 'default' | 'outline' | 'ghost' | 'secondary';
+    isIntraOp?: boolean;
 }
 
 /**
@@ -144,9 +146,11 @@ function getCasePrimaryAction(sc: SurgicalCaseListItemDto): CaseAction {
             return { label: 'View Booking', href: planRoute, disabled: false, variant: 'outline' };
 
         case 'IN_PREP':
+            return { label: 'Prepare Case', href: planRoute, disabled: false, variant: 'outline' };
+
         case 'IN_THEATER':
         case 'RECOVERY':
-            return { label: 'Open Case', href: planRoute, disabled: false, variant: 'secondary' };
+            return { label: 'Fill Operative Record', href: `/doctor/surgical-cases/${sc.id}/intra-op`, disabled: false, variant: 'default', isIntraOp: true };
 
         case 'COMPLETED':
         case 'CANCELLED':
@@ -580,12 +584,16 @@ function CaseCard({
                             <Button
                                 size="sm"
                                 variant={action.variant}
-                                className={cn("text-xs h-7 gap-1.5 shadow-sm transition-all", action.variant === 'default' && "bg-slate-900 hover:bg-slate-800")}
+                                className={cn(
+                                    "text-xs h-7 gap-1.5 shadow-sm transition-all",
+                                    action.variant === 'default' && (action.isIntraOp ? "bg-red-600 hover:bg-red-700 text-white" : "bg-slate-900 hover:bg-slate-800")
+                                )}
                                 onClick={() => action.href && onNavigate(action.href)}
                                 disabled={action.disabled}
                             >
+                                {action.isIntraOp && <ClipboardCheck className="h-3 w-3" />}
                                 {action.label}
-                                <ArrowRight className="h-3 w-3 opacity-70" />
+                                {!action.isIntraOp && <ArrowRight className="h-3 w-3 opacity-70" />}
                             </Button>
                         </div>
                     </div>
