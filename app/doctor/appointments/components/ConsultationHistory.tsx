@@ -20,18 +20,19 @@ export function ConsultationHistory({
     if (groups.length === 0) return null;
 
     return (
-        <div className="space-y-3">
-            <div className="flex items-center gap-2 px-4 py-3 bg-slate-50/50 rounded-t-xl border-b border-slate-100">
-                <FileText className="h-4 w-4 text-slate-600" />
-                <h3 className="text-[11px] text-muted-foreground font-bold uppercase tracking-widest">Consultation History</h3>
+        <div className="space-y-4">
+            <div className="flex items-center gap-2.5 px-4">
+                <div className="w-1.5 h-4 rounded-full bg-stone-300" />
+                <FileText className="h-4 w-4 text-stone-400" />
+                <h3 className="text-[11px] font-semibold uppercase tracking-wider text-stone-500">Consultation History</h3>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-4 mx-4">
                 {groups.map((group) => (
                     <div key={group.label} className="space-y-2">
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide px-4">
+                        <p className="text-xs font-medium text-stone-500 px-2">
                             {group.label}
                         </p>
-                        <div className="space-y-2">
+                        <div className="space-y-1 border border-stone-100 rounded-lg bg-white/50 overflow-hidden">
                             {group.items.map((apt) => (
                                 <AppointmentRow
                                     key={apt.id}

@@ -213,11 +213,11 @@ export default function DoctorAppointmentsPage() {
             <div className="space-y-5 animate-in fade-in duration-500 pb-8">
                 <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
                     <div>
-                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
-                        <h1 className="text-2xl font-bold tracking-tight text-foreground">Appointments</h1>
+                        <p className="text-xs text-stone-500 font-medium mb-1">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
+                        <h1 className="text-xl font-semibold tracking-tight text-stone-900">Appointments</h1>
                     </div>
                     <Button
-                        variant="ghost" size="sm" className="text-xs text-slate-500 gap-1.5 self-start sm:self-auto"
+                        variant="ghost" size="sm" className="text-xs text-stone-500 gap-1.5 self-start sm:self-auto hover:text-stone-700"
                         onClick={() => refetch()} disabled={refreshing}
                     >
                         <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
@@ -269,10 +269,12 @@ export default function DoctorAppointmentsPage() {
                         />
 
                         {!loading && Object.values(parsedData).every(val => Array.isArray(val) && val.length === 0) && (
-                            <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-slate-200">
-                                <Play className="h-8 w-8 text-slate-300 mb-3" />
-                                <h3 className="text-sm font-semibold text-slate-700">No appointments</h3>
-                                <p className="text-xs text-slate-400 max-w-xs text-center mt-1">No appointments or consultations scheduled.</p>
+                            <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-stone-200">
+                                <div className="w-12 h-12 rounded-full bg-stone-50 flex items-center justify-center mb-3">
+                                    <Play className="h-5 w-5 text-stone-300" />
+                                </div>
+                                <h3 className="text-sm font-medium text-stone-700">No appointments</h3>
+                                <p className="text-xs text-stone-400 max-w-xs text-center mt-1">No appointments or consultations scheduled.</p>
                             </div>
                         )}
                     </div>
