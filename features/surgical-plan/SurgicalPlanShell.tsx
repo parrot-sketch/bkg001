@@ -8,7 +8,9 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { useSurgicalCasePlanPage } from './shared/hooks/useSurgicalCasePlanPage';
 import { LoadingState } from './shared/components/LoadingState';
 import { ErrorState } from './shared/components/ErrorState';
@@ -16,6 +18,7 @@ import { getTabsForRole } from './core/tabRegistry';
 import { Role } from '@/domain/enums/Role';
 import { cn } from '@/lib/utils';
 import { CompletePlanButton } from './components/CompletePlanButton';
+import { ClipboardList, ArrowRight } from 'lucide-react';
 
 interface SurgicalPlanShellProps {
   caseId: string;
@@ -26,6 +29,7 @@ export function SurgicalPlanShell({
   caseId,
   userRole = Role.DOCTOR, // Default for Phase 1
 }: SurgicalPlanShellProps) {
+  const router = useRouter();
   const { isLoading, error, data, refetch } = useSurgicalCasePlanPage(caseId);
   const [activeTab, setActiveTab] = useState('overview');
 
@@ -38,6 +42,7 @@ export function SurgicalPlanShell({
   }
 
   const tabs = getTabsForRole(userRole, data);
+  const isInTheater = data.case.status === 'IN_THEATER' || data.case.status === 'RECOVERY';
 
   return (
     <div className="space-y-5 animate-in fade-in duration-500 pb-16">
@@ -70,8 +75,22 @@ export function SurgicalPlanShell({
         
         {/* Actions Area */}
         {userRole === Role.DOCTOR && (data.case.status === 'PLANNING' || data.case.status === 'DRAFT') && (
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 mt-4">
              <CompletePlanButton caseId={caseId} />
+          </div>
+        )}
+
+        {/* Doctor Intra-Op Record Action - Show when case is in theater */}
+        {userRole === Role.DOCTOR && isInTheater && (
+          <div className="flex-shrink-0 mt-4">
+            <Button 
+              className="w-full md:w-auto bg-red-600 hover:bg-red-700"
+              onClick={() => router.push(`/doctor/surgical-cases/${caseId}/intra-op`)}
+            >
+              <ClipboardList className="h-4 w-4 mr-2" />
+              Fill Operative Record
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
           </div>
         )}
       </div>
