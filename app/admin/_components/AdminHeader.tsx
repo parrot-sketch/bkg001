@@ -7,7 +7,6 @@ import {
     Bell, 
     Search, 
     HelpCircle,
-    Settings,
     User
 } from 'lucide-react';
 import { 
@@ -111,10 +110,6 @@ export function AdminHeader() {
                             </div>
                         </DropdownMenuLabel>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="cursor-pointer">
-                            <Settings className="mr-2 h-4 w-4" />
-                            <span>Settings</span>
-                        </DropdownMenuItem>
                         <DropdownMenuItem className="cursor-pointer">
                             <HelpCircle className="mr-2 h-4 w-4" />
                             <span>Help Center</span>
