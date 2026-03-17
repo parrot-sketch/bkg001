@@ -19,24 +19,101 @@ import type { AppointmentResponseDto } from '@/application/dtos/AppointmentRespo
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 
 // ============================================================================
-// STATUS CONFIG
+// STATUS CONFIG - Refined palette
 // ============================================================================
 
-export const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string; sortOrder: number }> = {
-    IN_CONSULTATION: { label: 'In Consult', color: 'text-violet-700', bg: 'bg-violet-50 border-violet-200', dot: 'bg-violet-500', sortOrder: 0 },
-    CHECKED_IN: { label: 'Checked In', color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', dot: 'bg-emerald-500', sortOrder: 1 },
-    READY_FOR_CONSULTATION: { label: 'Ready', color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200', dot: 'bg-emerald-500', sortOrder: 2 },
-    PENDING_DOCTOR_CONFIRMATION: { label: 'Needs Confirm', color: 'text-orange-700', bg: 'bg-orange-50 border-orange-200', dot: 'bg-orange-400', sortOrder: 3 },
-    SCHEDULED: { label: 'Scheduled', color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200', dot: 'bg-blue-400', sortOrder: 4 },
-    CONFIRMED: { label: 'Confirmed', color: 'text-blue-700', bg: 'bg-blue-50 border-blue-200', dot: 'bg-blue-400', sortOrder: 5 },
-    COMPLETED: { label: 'Completed', color: 'text-slate-500', bg: 'bg-slate-50 border-slate-200', dot: 'bg-slate-300', sortOrder: 6 },
-    CANCELLED: { label: 'Cancelled', color: 'text-red-600', bg: 'bg-red-50 border-red-200', dot: 'bg-red-400', sortOrder: 7 },
-    NO_SHOW: { label: 'No Show', color: 'text-red-600', bg: 'bg-red-50 border-red-200', dot: 'bg-red-400', sortOrder: 8 },
-    PENDING: { label: 'Pending', color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200', dot: 'bg-amber-400', sortOrder: 9 },
+export const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string; border: string; sortOrder: number }> = {
+    IN_CONSULTATION: { 
+        label: 'In Consult', 
+        color: 'text-violet-700', 
+        bg: 'bg-violet-50', 
+        dot: 'bg-violet-500',
+        border: 'border-violet-200/60',
+        sortOrder: 0 
+    },
+    CHECKED_IN: { 
+        label: 'Checked In', 
+        color: 'text-emerald-700', 
+        bg: 'bg-emerald-50', 
+        dot: 'bg-emerald-500',
+        border: 'border-emerald-200/60',
+        sortOrder: 1 
+    },
+    READY_FOR_CONSULTATION: { 
+        label: 'Ready', 
+        color: 'text-emerald-700', 
+        bg: 'bg-emerald-50', 
+        dot: 'bg-emerald-500',
+        border: 'border-emerald-200/60',
+        sortOrder: 2 
+    },
+    PENDING_DOCTOR_CONFIRMATION: { 
+        label: 'Needs Confirm', 
+        color: 'text-amber-700', 
+        bg: 'bg-amber-50', 
+        dot: 'bg-amber-500',
+        border: 'border-amber-200/60',
+        sortOrder: 3 
+    },
+    SCHEDULED: { 
+        label: 'Scheduled', 
+        color: 'text-stone-600', 
+        bg: 'bg-stone-50', 
+        dot: 'bg-stone-400',
+        border: 'border-stone-200/60',
+        sortOrder: 4 
+    },
+    CONFIRMED: { 
+        label: 'Confirmed', 
+        color: 'text-stone-600', 
+        bg: 'bg-stone-50', 
+        dot: 'bg-stone-400',
+        border: 'border-stone-200/60',
+        sortOrder: 5 
+    },
+    COMPLETED: { 
+        label: 'Completed', 
+        color: 'text-stone-500', 
+        bg: 'bg-stone-50', 
+        dot: 'bg-stone-300',
+        border: 'border-stone-200/60',
+        sortOrder: 6 
+    },
+    CANCELLED: { 
+        label: 'Cancelled', 
+        color: 'text-red-600', 
+        bg: 'bg-red-50', 
+        dot: 'bg-red-400',
+        border: 'border-red-200/60',
+        sortOrder: 7 
+    },
+    NO_SHOW: { 
+        label: 'No Show', 
+        color: 'text-red-600', 
+        bg: 'bg-red-50', 
+        dot: 'bg-red-400',
+        border: 'border-red-200/60',
+        sortOrder: 8 
+    },
+    PENDING: { 
+        label: 'Pending', 
+        color: 'text-amber-700', 
+        bg: 'bg-amber-50', 
+        dot: 'bg-amber-500',
+        border: 'border-amber-200/60',
+        sortOrder: 9 
+    },
 };
 
 export function getStatusConfig(status: string) {
-    return STATUS_CONFIG[status] || { label: status, color: 'text-slate-500', bg: 'bg-slate-50 border-slate-200', dot: 'bg-slate-300', sortOrder: 99 };
+    return STATUS_CONFIG[status] || { 
+        label: status, 
+        color: 'text-stone-500', 
+        bg: 'bg-stone-50', 
+        dot: 'bg-stone-300',
+        border: 'border-stone-200/60',
+        sortOrder: 99 
+    };
 }
 
 interface AppointmentRowProps {
@@ -71,7 +148,6 @@ export function AppointmentRow({
     const isCompleted = appointment.status === AppointmentStatus.COMPLETED;
     const needsConfirm = appointment.status === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION;
 
-    // Time-aware overdue detection
     const isOverdue = useMemo(() => {
         if (!isInConsult) return false;
         const now = new Date();
@@ -83,55 +159,66 @@ export function AppointmentRow({
         return now > end;
     }, [appointment, isInConsult]);
 
-    // Border highlight for action items
-    const borderColor = isInConsult
-        ? (isOverdue ? 'border-l-amber-500' : 'border-l-violet-500')
+    const leftBorderColor = isInConsult
+        ? (isOverdue ? 'border-l-amber-400' : 'border-l-violet-400')
         : canStart
-            ? 'border-l-emerald-500'
+            ? 'border-l-emerald-400'
             : needsConfirm
-                ? 'border-l-orange-400'
-                : 'border-l-transparent';
+                ? 'border-l-amber-400'
+                : 'border-l-stone-200';
 
     return (
         <div
             className={cn(
-                "group flex items-center gap-3 p-3 rounded-xl bg-white border border-slate-100 hover:border-slate-200 hover:shadow-sm transition-all cursor-pointer border-l-[3px]",
-                borderColor
+                "group flex items-center gap-3 px-3 py-2.5 bg-white transition-all cursor-pointer border-l-[3px]",
+                leftBorderColor
             )}
             onClick={() => router.push(`/doctor/appointments/${appointment.id}`)}
         >
             {/* Time Block */}
-            <div className="flex-shrink-0 text-center w-14">
-                <p className="text-sm font-bold text-slate-900 leading-none">{appointment.time}</p>
+            <div className="flex-shrink-0 text-center w-12">
+                <p className="text-sm font-medium text-stone-900 leading-none">
+                    {appointment.time || '--:--'}
+                </p>
                 {showDate && (
-                    <p className="text-[10px] text-slate-400 mt-0.5">
+                    <p className="text-[10px] text-stone-400 mt-0.5">
                         {format(new Date(appointment.appointmentDate), 'MMM d')}
                     </p>
                 )}
             </div>
 
             {/* Status Dot */}
-            <div className={cn("w-1.5 h-8 rounded-full flex-shrink-0", statusCfg.dot)} />
+            <div className={cn("w-1 h-6 rounded-full flex-shrink-0", statusCfg.dot)} />
 
             {/* Patient Avatar */}
-            <Avatar className="h-8 w-8 rounded-lg flex-shrink-0">
+            <Avatar className="h-8 w-8 rounded-md flex-shrink-0">
                 <AvatarImage src={appointment.patient?.img ?? undefined} alt={patientName} />
-                <AvatarFallback className="rounded-lg bg-slate-100 text-slate-500 text-[10px] font-bold">
+                <AvatarFallback className="rounded-md bg-stone-100 text-stone-500 text-[10px] font-semibold">
                     {patientInitials}
                 </AvatarFallback>
             </Avatar>
 
             {/* Patient Info */}
             <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-800 truncate leading-tight">{patientName}</p>
-                <p className="text-[11px] text-slate-400 truncate">{appointment.type}</p>
+                <p className="text-sm font-medium text-stone-800 truncate leading-tight">
+                    {patientName}
+                </p>
+                <p className="text-[11px] text-stone-500 truncate">
+                    {appointment.type || 'Consultation'}
+                </p>
             </div>
 
             {/* Status Badge */}
             <Badge
                 variant="outline"
-                className={cn("text-[10px] font-semibold flex-shrink-0 px-2 py-0.5 border", statusCfg.bg, statusCfg.color)}
+                className={cn(
+                    "text-[10px] font-medium flex-shrink-0 px-2 py-0.5 border rounded-md",
+                    statusCfg.bg,
+                    statusCfg.color,
+                    statusCfg.border
+                )}
             >
+                <span className="w-1.5 h-1.5 rounded-full bg-current mr-1.5 opacity-60" />
                 {statusCfg.label}
             </Badge>
 
@@ -146,7 +233,7 @@ export function AppointmentRow({
                     <Button
                         size="sm"
                         className={cn(
-                            "h-7 px-3 text-[11px] font-semibold rounded-lg gap-1",
+                            "h-7 px-2.5 text-[11px] font-medium rounded-md gap-1",
                             isOverdue
                                 ? "bg-amber-600 hover:bg-amber-700 text-white"
                                 : "bg-violet-600 hover:bg-violet-700 text-white"
@@ -160,7 +247,7 @@ export function AppointmentRow({
                 {canStart && (
                     <Button
                         size="sm"
-                        className="h-7 px-3 text-[11px] font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                        className="h-7 px-2.5 text-[11px] font-medium rounded-md bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
                         onClick={() => onStartConsultation(appointment)}
                     >
                         <Stethoscope className="h-3 w-3" />
@@ -171,7 +258,7 @@ export function AppointmentRow({
                     <Button
                         size="sm"
                         variant="outline"
-                        className="h-7 px-3 text-[11px] font-semibold rounded-lg border-orange-300 text-orange-700 hover:bg-orange-50 gap-1"
+                        className="h-7 px-2.5 text-[11px] font-medium rounded-md border-stone-300 text-stone-700 hover:bg-stone-50 gap-1"
                         onClick={() => router.push(`/doctor/appointments/${appointment.id}`)}
                     >
                         Review
@@ -181,14 +268,14 @@ export function AppointmentRow({
                     <Button
                         size="sm"
                         variant="ghost"
-                        className="h-7 px-2 text-[11px] text-slate-400 hover:text-slate-600"
+                        className="h-7 px-2 text-[11px] text-stone-400 hover:text-stone-600"
                         onClick={() => router.push(`/doctor/consultations/${appointment.id}/session`)}
                     >
                         <FileText className="h-3 w-3" />
                     </Button>
                 )}
                 {!isInConsult && !canStart && !needsConfirm && !isCompleted && (
-                    <ChevronRight className="h-4 w-4 text-slate-300 group-hover:text-slate-500 transition-colors" />
+                    <ChevronRight className="h-4 w-4 text-stone-300 group-hover:text-stone-500 transition-colors" />
                 )}
             </div>
         </div>

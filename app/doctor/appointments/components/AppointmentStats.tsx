@@ -16,27 +16,80 @@ interface AppointmentStatsProps {
 
 export function AppointmentStats({ stats, loading }: AppointmentStatsProps) {
     const statItems = [
-        { label: 'In Progress', value: stats.inProgress, color: 'text-violet-700', bg: 'bg-violet-50' },
-        { label: 'Needs Action', value: stats.needsAction, color: 'text-orange-700', bg: 'bg-orange-50' },
-        { label: 'Avg Duration', value: `${stats.avgDuration}m`, color: 'text-blue-700', bg: 'bg-blue-50' },
-        { label: 'Completed', value: stats.completed, color: 'text-emerald-700', bg: 'bg-emerald-50' },
-        { label: 'Today', value: stats.total, color: 'text-slate-900', bg: 'bg-white' },
+        { 
+            label: 'In Progress', 
+            value: stats.inProgress, 
+            color: 'text-stone-900',
+            subColor: 'text-stone-500',
+            borderColor: 'border-stone-200',
+            iconBg: 'bg-stone-100',
+        },
+        { 
+            label: 'Needs Action', 
+            value: stats.needsAction, 
+            color: 'text-amber-700',
+            subColor: 'text-amber-600',
+            borderColor: 'border-amber-200/60',
+            iconBg: 'bg-amber-50',
+        },
+        { 
+            label: 'Avg Duration', 
+            value: `${stats.avgDuration}m`, 
+            color: 'text-stone-900',
+            subColor: 'text-stone-500',
+            borderColor: 'border-stone-200',
+            iconBg: 'bg-stone-100',
+        },
+        { 
+            label: 'Completed', 
+            value: stats.completed, 
+            color: 'text-emerald-800',
+            subColor: 'text-emerald-600',
+            borderColor: 'border-emerald-200/60',
+            iconBg: 'bg-emerald-50',
+        },
+        { 
+            label: 'Today', 
+            value: stats.total, 
+            color: 'text-stone-900',
+            subColor: 'text-stone-500',
+            borderColor: 'border-stone-900/10',
+            iconBg: 'bg-stone-50',
+            isPrimary: true,
+        },
     ];
 
     return (
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
             {statItems.map((stat) => (
                 <div
                     key={stat.label}
                     className={cn(
-                        "px-4 py-3 rounded-xl border border-slate-100 text-center",
-                        stat.bg
+                        "relative px-4 py-3.5 rounded-lg border transition-all duration-200",
+                        stat.borderColor,
+                        stat.isPrimary ? "bg-white shadow-sm" : "bg-white/60"
                     )}
                 >
-                    <p className={cn("text-xl font-bold leading-none", stat.color)}>
-                        {loading ? '–' : stat.value}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1.5">{stat.label}</p>
+                    <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                            <p className={cn("text-2xl font-semibold tracking-tight", stat.color)}>
+                                {loading ? '–' : stat.value}
+                            </p>
+                            <p className={cn("text-[11px] font-medium mt-1.5 tracking-wide", stat.subColor)}>
+                                {stat.label}
+                            </p>
+                        </div>
+                        {!stat.isPrimary && (
+                            <div className={cn("w-8 h-8 rounded-md flex items-center justify-center", stat.iconBg)}>
+                                <div className={cn("w-1.5 h-1.5 rounded-full", 
+                                    stat.label === 'In Progress' && "bg-violet-500",
+                                    stat.label === 'Needs Action' && "bg-amber-500",
+                                    stat.label === 'Avg Duration' && "bg-stone-400",
+                                    stat.label === 'Completed' && "bg-emerald-500"
+                                )} />
+                            </div>
+                        )}
+                    </div>
                 </div>
             ))}
         </div>
