@@ -17,7 +17,6 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { LogOut, X, ChevronRight, LayoutDashboard, Calendar, Users, Package, CreditCard, FileText, Shield, Activity, User, ClipboardCheck, Bell, HeartPulse } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 
@@ -226,51 +225,6 @@ export function UnifiedSidebar({
                             <X className="h-5 w-5" />
                         </Button>
                     </div>
-
-                    {/* User Info Section */}
-                    {userInfo && roleInfo && (
-                        <div className="px-4 py-5 border-b border-slate-800/30">
-                            <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-900/50 border border-slate-800/30">
-                                <div className={cn(
-                                    "h-12 w-12 rounded-xl bg-gradient-to-br flex items-center justify-center text-white font-bold text-sm shadow-lg",
-                                    roleInfo.accentColor
-                                )}>
-                                    {userInfo.avatarUrl ? (
-                                        <Image
-                                            src={userInfo.avatarUrl}
-                                            alt={userInfo.name}
-                                            width={48}
-                                            height={48}
-                                            className="h-full w-full rounded-xl object-cover"
-                                        />
-                                    ) : (
-                                        getInitials(userInfo.name)
-                                    )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-semibold text-white truncate">
-                                        {userInfo.name}
-                                    </p>
-                                    <p className="text-xs text-slate-400 truncate">
-                                        {userInfo.email}
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="mt-3 flex items-center justify-between">
-                                <Badge
-                                    className={cn(
-                                        'text-[10px] font-semibold uppercase tracking-wider border',
-                                        roleInfo.badgeColor
-                                    )}
-                                >
-                                    {roleInfo.label}
-                                </Badge>
-                                <span className="text-[10px] text-slate-500">
-                                    Online
-                                </span>
-                            </div>
-                        </div>
-                    )}
 
                     {/* Navigation Section */}
                     <nav className="flex-1 overflow-y-auto px-3 py-4">
