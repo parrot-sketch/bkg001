@@ -5,6 +5,12 @@ describe('NurseIntraOpRecord Schema', () => {
     describe('Final Schema Validation', () => {
         it('should validate a complete record', () => {
             const validData = {
+                patient: {
+                    patientFileNo: 'F12345',
+                    patientName: 'John Doe',
+                    age: 45,
+                    sex: 'Male',
+                },
                 entry: {
                     timeIn: '10:00',
                     arrivalMethod: 'STRETCHER',
