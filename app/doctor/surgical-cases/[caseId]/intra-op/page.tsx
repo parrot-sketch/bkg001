@@ -15,6 +15,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/patient/useAuth';
+import { useSurgicalCasePlanPage } from '@/features/surgical-plan';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -138,7 +139,6 @@ export default function DoctorIntraOpPage() {
     const { user, isAuthenticated } = useAuth();
     const caseId = params?.caseId as string;
 
-    const [loading, setLoading] = useState(true);
     const [surgicalCase, setSurgicalCase] = useState<SurgicalCase | null>(null);
     const [formData, setFormData] = useState<DoctorIntraOpData>(initialData);
     const [isDirty, setIsDirty] = useState(false);
@@ -147,67 +147,57 @@ export default function DoctorIntraOpPage() {
     const [signingName, setSigningName] = useState('');
     const [isFinalized, setIsFinalized] = useState(false);
 
+    // Use the surgical plan hook to load case data (handles auth)
+    const { isLoading: caseLoading, error: caseError, data: caseData } = useSurgicalCasePlanPage(caseId);
+
+    const loading = caseLoading;
+
     // Load case data
     useEffect(() => {
-        async function loadData() {
-            try {
-                const res = await fetch(`/api/doctor/surgical-cases/${caseId}/plan`);
-                const json = await res.json();
-                if (json.success && json.data) {
-                    const caseData = json.data.case;
-                    setSurgicalCase({
-                        id: caseData.id,
-                        status: caseData.status,
-                        diagnosis: caseData.diagnosis,
-                        procedure_name: caseData.procedureName,
-                        side: caseData.side,
-                        patient: caseData.patient ? {
-                            id: caseData.patient.id,
-                            first_name: caseData.patient.firstName || '',
-                            last_name: caseData.patient.lastName || '',
-                            file_number: caseData.patient.fileNumber || '',
-                            allergies: caseData.patient.allergies || '',
-                        } : null,
-                        primary_surgeon: caseData.primarySurgeon ? {
-                            first_name: caseData.primarySurgeon.firstName || '',
-                            last_name: caseData.primarySurgeon.lastName || '',
-                        } : null,
-                    });
-                    
-                    // Pre-populate from case
-                    const surgeonName = caseData.primarySurgeon 
-                        ? `${caseData.primarySurgeon.firstName || ''} ${caseData.primarySurgeon.lastName || ''}`.trim()
-                        : '';
-                    const userName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '';
-                    
-                    const newFormData: DoctorIntraOpData = {
-                        ...initialData,
-                        date: new Date().toISOString().split('T')[0],
-                        surgicalTeam: {
-                            ...initialData.surgicalTeam,
-                            surgeon: surgeonName || userName || '',
-                        },
-                        diagnosis: {
-                            preOperative: caseData.diagnosis || '',
-                            operative: '',
-                        },
-                        procedure: {
-                            planned: caseData.procedureName || '',
-                            performed: caseData.procedureName || '',
-                        },
-                    };
-                    setFormData(newFormData);
-                }
-            } catch (err) {
-                console.error('Failed to load case:', err);
-            } finally {
-                setLoading(false);
-            }
-        }
-        if (caseId && isAuthenticated) {
-            loadData();
-        }
-    }, [caseId, isAuthenticated, user]);
+        if (caseLoading || !caseData) return;
+        
+        const caseInfo = caseData.case;
+        setSurgicalCase({
+            id: caseInfo.id,
+            status: caseInfo.status,
+            diagnosis: caseInfo.diagnosis || '',
+            procedure_name: caseInfo.procedureName || '',
+            side: caseInfo.side || '',
+            patient: caseData.patient ? {
+                id: caseData.patient.id,
+                first_name: caseData.patient.fullName.split(' ')[0] || '',
+                last_name: caseData.patient.fullName.split(' ').slice(1).join(' ') || '',
+                file_number: caseData.patient.fileNumber || '',
+                allergies: caseData.patient.allergies || '',
+            } : null,
+            primary_surgeon: caseData.primarySurgeon ? {
+                first_name: caseData.primarySurgeon.name.split(' ')[0] || '',
+                last_name: caseData.primarySurgeon.name.split(' ').slice(1).join(' ') || '',
+            } : null,
+        });
+        
+        // Pre-populate from case
+        const surgeonName = caseData.primarySurgeon?.name || '';
+        const userName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '';
+        
+        const newFormData: DoctorIntraOpData = {
+            ...initialData,
+            date: new Date().toISOString().split('T')[0],
+            surgicalTeam: {
+                ...initialData.surgicalTeam,
+                surgeon: surgeonName || userName || '',
+            },
+            diagnosis: {
+                preOperative: caseInfo.diagnosis || '',
+                operative: '',
+            },
+            procedure: {
+                planned: caseInfo.procedureName || '',
+                performed: caseInfo.procedureName || '',
+            },
+        };
+        setFormData(newFormData);
+    }, [caseData, caseLoading, user]);
 
     // Auto-save every 30 seconds
     useEffect(() => {
