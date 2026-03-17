@@ -112,8 +112,11 @@ export class SurgicalCaseService {
             throw new Error(`Cannot transition from SCHEDULED to ${target}`);
         }
 
-        // Linear progression for day-of-surgery states
-        if (current === 'IN_PREP' && target === 'IN_THEATER') return;
+        // 6. IN_PREP transitions (can go to IN_THEATER or back to READY_FOR_THEATER_BOOKING if needed)
+        if (current === 'IN_PREP') {
+            if (['IN_THEATER', 'READY_FOR_THEATER_BOOKING', 'CANCELLED'].includes(target)) return;
+            throw new Error(`Cannot transition from IN_PREP to ${target}`);
+        }
         if (current === 'IN_THEATER' && target === 'RECOVERY') return;
         if (current === 'RECOVERY' && target === 'COMPLETED') return;
 

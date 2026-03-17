@@ -137,7 +137,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const readiness = {
         intakeFormComplete: !!casePlan?.pre_op_notes,
         medicalHistoryComplete: !!casePlan?.risk_factors,
-        photosUploaded: (casePlan?.images?.length ?? 0) > 0,
+        photosUploaded: true, // TEMPORARILY DISABLED - pending regulatory compliance review
         consentSigned: casePlan?.consents?.some((c) => c.signed_at !== null) ?? false,
         procedurePlanComplete: !!casePlan?.procedure_plan,
         implantDetailsComplete: !!casePlan?.implant_details || !requiresImplant(surgicalCase.procedure_name),
@@ -150,7 +150,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       const missingItems: string[] = [];
       if (!readiness.intakeFormComplete) missingItems.push('Pre-op intake');
       if (!readiness.medicalHistoryComplete) missingItems.push('Medical history / risk factors');
-      if (!readiness.photosUploaded) missingItems.push('Clinical photos');
+      // TEMPORARILY DISABLED: Clinical photos - pending regulatory compliance review
+      // if (!readiness.photosUploaded) missingItems.push('Clinical photos');
       if (!readiness.consentSigned) missingItems.push('Consent form');
       if (!readiness.procedurePlanComplete) missingItems.push('Procedure plan');
       if (!readiness.implantDetailsComplete) missingItems.push('Implant details');

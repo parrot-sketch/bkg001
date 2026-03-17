@@ -1,8 +1,8 @@
 /**
  * API Route: POST /api/frontdesk/theater-scheduling/[caseId]/book
  *
- * Books theater slot for a surgical case.
- * Uses two-phase booking: lock → confirm
+ * Locks a theater slot for a surgical case (provisional booking).
+ * Uses TheaterSchedulingUseCase for clean architecture.
  *
  * - Requires authentication (FRONTDESK or ADMIN)
  * - Validates case is in READY_FOR_THEATER_BOOKING status
@@ -13,8 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
-import { db } from '@/lib/db';
-import { TheaterService } from '@/application/services/TheaterService';
+import { TheaterSchedulingFactory } from '@/application/services/TheaterSchedulingFactory';
 import { z } from 'zod';
 
 const bookTheaterSchema = z.object({
@@ -22,8 +21,6 @@ const bookTheaterSchema = z.object({
     startTime: z.string().datetime(),
     endTime: z.string().datetime(),
 });
-
-const theaterService = new TheaterService(db);
 
 export async function POST(
     request: NextRequest,
@@ -55,30 +52,7 @@ export async function POST(
             );
         }
 
-        // 3. Validate case exists and is in correct status
-        const surgicalCase = await db.surgicalCase.findUnique({
-            where: { id: caseId },
-            select: { id: true, status: true },
-        });
-
-        if (!surgicalCase) {
-            return NextResponse.json(
-                { success: false, error: 'Surgical case not found' },
-                { status: 404 }
-            );
-        }
-
-        if (surgicalCase.status !== 'READY_FOR_THEATER_BOOKING') {
-            return NextResponse.json(
-                {
-                    success: false,
-                    error: `Case must be in READY_FOR_THEATER_BOOKING status (current: ${surgicalCase.status})`,
-                },
-                { status: 400 }
-            );
-        }
-
-        // 4. Parse and validate request body
+        // 3. Parse and validate request body
         const body = await request.json();
         const validationResult = bookTheaterSchema.safeParse(body);
 
@@ -95,25 +69,29 @@ export async function POST(
 
         const { theaterId, startTime, endTime } = validationResult.data;
 
-        // 5. Lock slot (provisional booking)
-        const booking = await theaterService.lockSlot(
-            caseId,
-            theaterId,
-            new Date(startTime),
-            new Date(endTime),
+        // 4. Lock slot using use case
+        const useCase = TheaterSchedulingFactory.getInstance();
+        const result = await useCase.lockSlot(
+            {
+                caseId,
+                theaterId,
+                startTime,
+                endTime,
+            },
             userId
         );
 
         return NextResponse.json({
             success: true,
             data: {
-                bookingId: booking.id,
-                status: booking.status,
-                theaterId: booking.theater_id,
-                startTime: booking.start_time,
-                endTime: booking.end_time,
-                lockedAt: booking.locked_at,
-                lockExpiresAt: booking.lock_expires_at,
+                bookingId: result.bookingId,
+                status: result.status,
+                theaterId: result.theaterId,
+                theaterName: result.theaterName,
+                startTime: result.startTime,
+                endTime: result.endTime,
+                lockedAt: result.lockedAt,
+                lockExpiresAt: result.lockExpiresAt,
             },
         });
     } catch (error) {

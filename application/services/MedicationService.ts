@@ -156,6 +156,34 @@ export class MedicationService {
     }
 
     /**
+     * List specimen items from inventory - searches all items, not just a specific category
+     */
+    async listSpecimenContainers(query?: string) {
+        const containers = await this.db.inventoryItem.findMany({
+            where: {
+                is_active: true,
+                OR: query ? [
+                    { name: { contains: query, mode: 'insensitive' } },
+                    { sku: { contains: query, mode: 'insensitive' } },
+                ] : undefined,
+            },
+            select: {
+                id: true,
+                name: true,
+                sku: true,
+                category: true,
+                unit_of_measure: true,
+                unit_cost: true,
+                is_billable: true,
+            },
+            orderBy: { name: 'asc' },
+            take: 50,
+        });
+
+        return containers;
+    }
+
+    /**
      * Administer (or draft) a medication for a surgical case.
      * Transactional: Record + Stock Deduction + Bill Line Item.
      */

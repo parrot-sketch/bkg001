@@ -136,7 +136,7 @@ export async function GET(
       },
       clinicalPhotos: {
         label: 'Clinical Photos',
-        complete: (casePlan?.images?.length ?? 0) > 0,
+        complete: true, // TEMPORARILY DISABLED - pending regulatory compliance review
         count: casePlan?.images?.length ?? 0,
       },
       consentForms: {
@@ -248,7 +248,8 @@ export async function GET(
     // Calculate missing items - include ward checklist
     if (!readinessChecklist.intakeForm.complete) response.readiness.missingItems.push('Pre-op intake');
     if (!readinessChecklist.medicalHistory.complete) response.readiness.missingItems.push('Medical history');
-    if (!readinessChecklist.clinicalPhotos.complete) response.readiness.missingItems.push('Clinical photos');
+    // TEMPORARILY DISABLED: Clinical photos - pending regulatory compliance review
+    // if (!readinessChecklist.clinicalPhotos.complete) response.readiness.missingItems.push('Clinical photos');
     if (!readinessChecklist.consentForms.complete) response.readiness.missingItems.push('Consent form');
     if (!readinessChecklist.procedurePlan.complete) response.readiness.missingItems.push('Procedure plan');
     

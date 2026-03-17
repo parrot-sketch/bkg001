@@ -4,7 +4,14 @@
  * Frontdesk Theater Scheduling Page
  *
  * View and book theater slots for surgical cases ready for theater booking.
- * Cases must be in READY_FOR_SCHEDULING status (doctor surgical plan finalized).
+ * 
+ * Workflow:
+ * 1. Doctor completes operative plan → case becomes READY_FOR_SCHEDULING
+ * 2. Nurse completes pre-op checklist → case becomes READY_FOR_THEATER_BOOKING
+ * 3. Frontdesk books theater → case becomes SCHEDULED
+ *
+ * This page shows cases in READY_FOR_THEATER_BOOKING status only.
+ * Cases in other statuses (e.g., READY_FOR_SCHEDULING) are managed elsewhere.
  *
  * Features:
  * - Filter by surgeon, urgency, date
@@ -352,10 +359,18 @@ export default function TheaterSchedulingPage() {
                     {filteredCases.length === 0 ? (
                         <Card className="border-slate-200">
                             <CardContent className="p-12 text-center">
-                                <Filter className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-                                <h3 className="text-lg font-semibold text-slate-900 mb-2">No cases match your filters</h3>
-                                <p className="text-sm text-slate-500">
-                                    Try adjusting your search or filter criteria.
+                                <Building2 className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+                                <h3 className="text-lg font-semibold text-slate-900 mb-2">No cases ready for theater booking</h3>
+                                <p className="text-sm text-slate-500 mb-4">
+                                    Cases appear here after:
+                                </p>
+                                <div className="text-left text-sm text-slate-600 space-y-1 max-w-md mx-auto bg-slate-50 p-4 rounded-lg">
+                                    <p>1. Doctor completes operative plan</p>
+                                    <p>2. Nurse completes pre-op checklist</p>
+                                    <p className="font-medium text-blue-600">→ Case appears here for theater scheduling</p>
+                                </div>
+                                <p className="text-xs text-slate-400 mt-4">
+                                    Cases still being prepared show on the Nurse Ward Prep page.
                                 </p>
                             </CardContent>
                         </Card>

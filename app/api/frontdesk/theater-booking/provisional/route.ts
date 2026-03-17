@@ -1,15 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { TheaterBookingService } from '@/application/services/TheaterBookingService';
+import { TheaterSchedulingFactory } from '@/application/services/TheaterSchedulingFactory';
 import { getCurrentUser } from '@/lib/auth/server-auth';
-
-const theaterBookingService = new TheaterBookingService(db);
+import { Role } from '@/domain/enums/Role';
 
 export async function POST(req: NextRequest) {
     try {
         const user = await getCurrentUser();
         if (!user) {
             return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
+
+        // Check permissions
+        if (user.role !== Role.FRONTDESK && user.role !== Role.ADMIN && user.role !== Role.NURSE) {
+            return NextResponse.json(
+                { success: false, error: 'Access denied: Only frontdesk, nurse, or admin can book theater' },
+                { status: 403 }
+            );
         }
 
         const body = await req.json();
@@ -32,17 +38,25 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const booking = await theaterBookingService.createProvisionalLock(
-            caseId,
-            theaterId,
-            start,
-            end,
+        // Use use case for locking
+        const useCase = TheaterSchedulingFactory.getInstance();
+        const result = await useCase.lockSlot(
+            { caseId, theaterId, startTime, endTime },
             user.userId
         );
 
         return NextResponse.json({
             success: true,
-            data: booking
+            data: {
+                id: result.bookingId,
+                status: result.status,
+                theater_id: result.theaterId,
+                theater_name: result.theaterName,
+                start_time: result.startTime,
+                end_time: result.endTime,
+                locked_at: result.lockedAt,
+                lock_expires_at: result.lockExpiresAt,
+            },
         });
 
     } catch (error: any) {

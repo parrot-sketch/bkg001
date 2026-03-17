@@ -224,8 +224,19 @@ export const specimenItemSchema = z.object({
 
 // 3. Root Schemas
 
+// Patient Info Section
+export const patientInfoSchema = z.object({
+    patientFileNo: z.string().optional(),
+    patientName: z.string().optional(),
+    age: z.number().optional(),
+    sex: z.enum(['Male', 'Female', 'Other']).optional(),
+    date: z.string().optional(),
+    doctor: z.string().optional(),
+});
+
 // Strict schema for Finalization
 export const nurseIntraOpRecordFinalSchema = z.object({
+    patient: patientInfoSchema,
     entry: theatreEntrySchema,
     safety: safetyChecksSchema,
     timings: timingsSchema,
@@ -254,15 +265,28 @@ export const nurseIntraOpRecordFinalSchema = z.object({
     medications: z.array(medicationItemSchema).default([]),
     implants: z.array(implantItemSchema).default([]),
     specimens: z.array(specimenItemSchema).default([]),
-    itemsToReturnToTheatre: z.string().default(''),
+    itemsToReturn: z.array(z.object({
+        inventoryItemId: z.number(),
+        name: z.string(),
+        sku: z.string().optional(),
+        quantity: z.number().default(1),
+        returned: z.boolean().default(false),
+    })).default([]),
     billing: z.object({
         anaestheticMaterialsCharge: z.string().default(''),
         theatreFee: z.string().default(''),
+        items: z.array(z.object({
+            serviceId: z.number(),
+            serviceName: z.string(),
+            quantity: z.number().default(1),
+            unitCost: z.number().default(0),
+        })).default([]),
     }),
 });
 
 // Draft schema allows everything to be optional
 export const nurseIntraOpRecordDraftSchema = z.object({
+    patient: patientInfoSchema.partial().optional().default({}),
     entry: theatreEntrySchema.partial().optional().default({}),
     safety: safetyChecksSchema.partial().optional().default({}),
     timings: timingsSchema.partial().optional().default({}),
@@ -291,10 +315,22 @@ export const nurseIntraOpRecordDraftSchema = z.object({
     medications: z.array(medicationItemSchema).optional().default([]),
     implants: z.array(implantItemSchema).optional().default([]),
     specimens: z.array(specimenItemSchema).optional().default([]),
-    itemsToReturnToTheatre: z.string().optional().default(''),
+    itemsToReturn: z.array(z.object({
+        inventoryItemId: z.number(),
+        name: z.string(),
+        sku: z.string().optional(),
+        quantity: z.number().default(1),
+        returned: z.boolean().default(false),
+    })).default([]),
     billing: z.object({
         anaestheticMaterialsCharge: z.string().optional().default(''),
         theatreFee: z.string().optional().default(''),
+        items: z.array(z.object({
+            serviceId: z.number(),
+            serviceName: z.string(),
+            quantity: z.number().default(1),
+            unitCost: z.number().default(0),
+        })).default([]),
     }).partial().optional().default({}),
 });
 
@@ -307,20 +343,23 @@ export type SpecimenItem = z.infer<typeof specimenItemSchema>;
 
 // 5. Constants for UI
 export const INTRAOP_SECTIONS = [
-    { key: 'entry', title: 'Arrival & Entry', icon: 'LogIn' },
+    { key: 'patient', title: 'Patient & Case Info', icon: 'User' },
+    { key: 'entry', title: 'Pre-Operative Checks', icon: 'LogIn' },
     { key: 'safety', title: 'Safety Checks & IV', icon: 'ShieldCheck', isCritical: true },
-    { key: 'timings', title: 'Theatrical Timings', icon: 'Clock' },
+    { key: 'timings', title: 'Theatre Timing & Safety', icon: 'Clock' },
     { key: 'staffing', title: 'Surgical Team', icon: 'Users' },
     { key: 'diagnoses', title: 'Diagnoses & Operation', icon: 'Stethoscope' },
-    { key: 'positioning', title: 'Positioning & alignment', icon: 'UserCheck' },
-    { key: 'catheter', title: 'Catheterization', icon: 'Droplets' },
+    { key: 'positioning', title: 'Patient Position', icon: 'UserCheck' },
+    { key: 'catheter', title: 'Catheters & Imaging', icon: 'Droplets' },
     { key: 'skinPrep', title: 'Skin Preparation', icon: 'Sparkles' },
     { key: 'equipment', title: 'Equipment (Cautery/Tourniquet)', icon: 'Zap' },
-    { key: 'surgicalDetails', title: 'Surgical Details (Drains/Class)', icon: 'Activity' },
-    { key: 'counts', title: 'Instruments & Sharps Count', icon: 'ListCheck', isCritical: true },
-    { key: 'closure', title: 'Closure & Dressing', icon: 'Bandage' },
-    { key: 'fluids', title: 'Fluids & Transfusions', icon: 'Droplet' },
+    { key: 'surgicalDetails', title: 'Wound Details & Drains', icon: 'Activity' },
+    { key: 'counts', title: 'Swab & Instrument Counts', icon: 'ListCheck', isCritical: true },
+    { key: 'closure', title: 'Wound Closure & Dressing', icon: 'Bandage' },
+    { key: 'fluids', title: 'IV Infusions & Transfusions', icon: 'Droplet' },
     { key: 'tables', title: 'Medications, Implants & Specimens', icon: 'Table' },
+    { key: 'itemsToReturn', title: 'Items to Return to Theatre', icon: 'RotateCcw' },
+    { key: 'billing', title: 'Billing & Charges', icon: 'Banknote' },
 ];
 
 // Heuristics for Completion
