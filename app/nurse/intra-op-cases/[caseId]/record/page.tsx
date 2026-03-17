@@ -29,7 +29,7 @@ import type {
     ImplantItem,
 } from '@/domain/clinical-forms/NurseIntraOpRecord';
 import { INTRAOP_SECTIONS } from '@/domain/clinical-forms/NurseIntraOpRecord';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -40,6 +40,7 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { UserSelect } from '@/components/ui/UserSelect';
 import {
     Accordion,
     AccordionContent,
@@ -91,14 +92,91 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
-import {
-    TIMELINE_FIELD_ORDER,
-    TIMELINE_FIELD_LABELS,
-    type TimelineFieldName,
-} from '@/domain/helpers/operativeTimeline';
-import type { TimelineResultDto } from '@/application/dtos/TheaterTechDtos';
 import { MedicationAdministrationList } from '@/components/nurse/MedicationAdministrationList';
+import { OperativeTimelinePanel } from '@/components/nurse/OperativeTimelinePanel';
+import { User } from 'lucide-react';
+
+// ──────────────────────────────────────────────────────────────────────
+// Patient Info Section
+// ──────────────────────────────────────────────────────────────────────
+
+// Helper to format doctor name without duplicating "Dr." prefix
+function formatDoctorName(name: string | null | undefined): string {
+    if (!name) return '';
+    return name.match(/^(Dr\.?|Dr\s)/i) ? name : `Dr. ${name}`;
+}
+
+function PatientSection({ data, onChange, disabled, caseId, patientInfo }: SectionProps & { patientInfo?: { first_name: string; last_name: string; file_number: string } }) {
+    const d = data.patient ?? {};
+    const set = (field: string, value: any) =>
+        onChange({ ...data, patient: { ...d, [field]: value } });
+
+    return (
+        <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                    <Label className="text-sm">Patient File No.</Label>
+                    <Input
+                        value={d.patientFileNo || ''}
+                        onChange={(e) => set('patientFileNo', e.target.value)}
+                        placeholder="Enter file number"
+                        disabled={disabled}
+                    />
+                </div>
+                <div className="space-y-1.5">
+                    <Label className="text-sm">Name</Label>
+                    <Input
+                        value={d.patientName || ''}
+                        onChange={(e) => set('patientName', e.target.value)}
+                        placeholder="Patient full name"
+                        disabled={disabled}
+                    />
+                </div>
+                <div className="space-y-1.5">
+                    <Label className="text-sm">Age</Label>
+                    <Input
+                        type="number"
+                        value={d.age || ''}
+                        onChange={(e) => set('age', e.target.value ? Number(e.target.value) : undefined)}
+                        placeholder="Years"
+                        disabled={disabled}
+                    />
+                </div>
+                <div className="space-y-1.5">
+                    <Label className="text-sm">Sex</Label>
+                    <Select value={d.sex || ''} onValueChange={(v) => set('sex', v as 'Male' | 'Female' | 'Other')} disabled={disabled}>
+                        <SelectTrigger className="h-9"><SelectValue placeholder="Select sex" /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Male">Male</SelectItem>
+                            <SelectItem value="Female">Female</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-1.5">
+                    <Label className="text-sm">Date</Label>
+                    <Input
+                        type="date"
+                        value={d.date || ''}
+                        onChange={(e) => set('date', e.target.value)}
+                        disabled={disabled}
+                    />
+                </div>
+                <div className="space-y-1.5">
+                    <Label className="text-sm">Doctor</Label>
+                    <Input
+                        value={d.doctor || ''}
+                        onChange={(e) => set('doctor', e.target.value)}
+                        placeholder="Surgeon's name"
+                        disabled={disabled}
+                    />
+                </div>
+            </div>
+        </div>
+    );
+}
 import { ImplantSearchModal } from '@/components/nurse/ImplantSearchModal';
+import { SpecimenSearchModal } from '@/components/nurse/SpecimenSearchModal';
 
 // ──────────────────────────────────────────────────────────────────────
 // Icon Map
@@ -476,11 +554,55 @@ function StaffingSection({ data, onChange, disabled, suggestedStaffing }: Sectio
                 </div>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <TextField label="Surgeon" value={d.surgeon} onChange={(v) => set('surgeon', v)} disabled={disabled} />
-                <TextField label="Assistant" value={d.assistant} onChange={(v) => set('assistant', v)} disabled={disabled} />
-                <TextField label="Anaesthesiologist" value={d.anaesthesiologist} onChange={(v) => set('anaesthesiologist', v)} disabled={disabled} />
-                <TextField label="Scrub Nurse" value={d.scrubNurse} onChange={(v) => set('scrubNurse', v)} disabled={disabled} />
-                <TextField label="Circulating Nurse" value={d.circulatingNurse} onChange={(v) => set('circulatingNurse', v)} disabled={disabled} />
+                <div className="space-y-1.5">
+                    <Label className="text-sm">Surgeon</Label>
+                    <UserSelect
+                        value={d.surgeon || ''}
+                        onChange={(v) => set('surgeon', v)}
+                        placeholder="Select surgeon..."
+                        role="DOCTOR"
+                        disabled={disabled}
+                    />
+                </div>
+                <div className="space-y-1.5">
+                    <Label className="text-sm">Assistant</Label>
+                    <UserSelect
+                        value={d.assistant || ''}
+                        onChange={(v) => set('assistant', v)}
+                        placeholder="Select assistant..."
+                        disabled={disabled}
+                    />
+                </div>
+                <div className="space-y-1.5">
+                    <Label className="text-sm">Anaesthesiologist</Label>
+                    <UserSelect
+                        value={d.anaesthesiologist || ''}
+                        onChange={(v) => set('anaesthesiologist', v)}
+                        placeholder="Select anaesthesiologist..."
+                        role="DOCTOR"
+                        disabled={disabled}
+                    />
+                </div>
+                <div className="space-y-1.5">
+                    <Label className="text-sm">Scrub Nurse</Label>
+                    <UserSelect
+                        value={d.scrubNurse || ''}
+                        onChange={(v) => set('scrubNurse', v)}
+                        placeholder="Select scrub nurse..."
+                        role="NURSE"
+                        disabled={disabled}
+                    />
+                </div>
+                <div className="space-y-1.5">
+                    <Label className="text-sm">Circulating Nurse</Label>
+                    <UserSelect
+                        value={d.circulatingNurse || ''}
+                        onChange={(v) => set('circulatingNurse', v)}
+                        placeholder="Select circulating nurse..."
+                        role="NURSE"
+                        disabled={disabled}
+                    />
+                </div>
                 <TextField label="Observers / Other" value={d.observers} onChange={(v) => set('observers', v)} disabled={disabled} />
             </div>
         </div>
@@ -723,8 +845,6 @@ function SurgicalDetailsSection({ data, onChange, disabled }: SectionProps) {
                     ))}
                 </div>
             </div>
-            <Separator />
-            <TextField label="Intra-op X-Rays taken" value={d.intraOpXraysTaken} onChange={(v) => set('intraOpXraysTaken', v)} disabled={disabled} />
         </div>
     );
 }
@@ -790,8 +910,26 @@ function CountsSection({ data, onChange, disabled }: SectionProps) {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <TextField label="Scrub Nurse Signature (Name)" value={d.scrubNurseSignature} onChange={(v) => set('scrubNurseSignature', v)} disabled={disabled} />
-                <TextField label="Circulating Nurse Signature (Name)" value={d.circulatingNurseSignature} onChange={(v) => set('circulatingNurseSignature', v)} disabled={disabled} />
+                <div className="space-y-1.5">
+                    <Label className="text-sm">Scrub Nurse Signature</Label>
+                    <UserSelect
+                        value={d.scrubNurseSignature || ''}
+                        onChange={(v) => set('scrubNurseSignature', v)}
+                        placeholder="Select scrub nurse..."
+                        role="NURSE"
+                        disabled={disabled}
+                    />
+                </div>
+                <div className="space-y-1.5">
+                    <Label className="text-sm">Circulating Nurse Signature</Label>
+                    <UserSelect
+                        value={d.circulatingNurseSignature || ''}
+                        onChange={(v) => set('circulatingNurseSignature', v)}
+                        placeholder="Select circulating nurse..."
+                        role="NURSE"
+                        disabled={disabled}
+                    />
+                </div>
             </div>
         </div>
     );
@@ -911,6 +1049,22 @@ function DynamicTableSection({ data, onChange, disabled, caseId, patient, formRe
         setIsImplantSearchOpen(false);
     };
 
+    // Specimen search modal state
+    const [isSpecimenSearchOpen, setIsSpecimenSearchOpen] = useState(false);
+
+    const handleSpecimenSelect = (specimen: any) => {
+        setSpecimens([...specimens, {
+            type: specimen.name,
+            histology: false,
+            cytology: false,
+            notForAnalysis: false,
+            disposition: '',
+            inventoryItemId: specimen.id,
+            sku: specimen.sku,
+        }]);
+        setIsSpecimenSearchOpen(false);
+    };
+
     return (
         <div className="space-y-12">
             {/* Medications - Using MedicationAdministrationList for inventory integration */}
@@ -1003,15 +1157,31 @@ function DynamicTableSection({ data, onChange, disabled, caseId, patient, formRe
                         onSelect={handleImplantSelect}
                     />
                 )}
+
+                {/* Specimen Search Modal */}
+                {caseId && (
+                    <SpecimenSearchModal
+                        caseId={caseId}
+                        isOpen={isSpecimenSearchOpen}
+                        onClose={() => setIsSpecimenSearchOpen(false)}
+                        onSelect={handleSpecimenSelect}
+                    />
+                )}
             </div>
 
             {/* Specimens */}
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
                     <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-700">Specimens</h4>
-                    <Button variant="outline" size="sm" onClick={() => setSpecimens([...specimens, { type: '', histology: false, cytology: false, notForAnalysis: false, disposition: '' }])} disabled={disabled}>
-                        <Plus className="h-4 w-4 mr-2" /> Add Specimen
-                    </Button>
+                    {caseId ? (
+                        <Button variant="outline" size="sm" onClick={() => setIsSpecimenSearchOpen(true)} disabled={disabled}>
+                            <Plus className="h-4 w-4 mr-2" /> Search Inventory
+                        </Button>
+                    ) : (
+                        <Button variant="outline" size="sm" onClick={() => setSpecimens([...specimens, { type: '', histology: false, cytology: false, notForAnalysis: false, disposition: '' }])} disabled={disabled}>
+                            <Plus className="h-4 w-4 mr-2" /> Add Specimen
+                        </Button>
+                    )}
                 </div>
                 <div className="border rounded-lg overflow-hidden">
                     <table className="w-full text-sm">
@@ -1039,18 +1209,6 @@ function DynamicTableSection({ data, onChange, disabled, caseId, patient, formRe
                             {specimens.length === 0 && <tr><td colSpan={6} className="p-4 text-center text-muted-foreground italic">No specimens recorded</td></tr>}
                         </tbody>
                     </table>
-                </div>
-            </div>
-
-            <Separator />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                <TextField label="Items to be returned to theatre" value={data.itemsToReturnToTheatre} onChange={(v) => onChange({ ...data, itemsToReturnToTheatre: v })} disabled={disabled} />
-                <div className="space-y-4">
-                    <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-700">Billing Information</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                        <TextField label="Anaesthetic Materials Charge" value={data.billing?.anaestheticMaterialsCharge} onChange={(v) => onChange({ ...data, billing: { ...data.billing, anaestheticMaterialsCharge: v } })} disabled={disabled} />
-                        <TextField label="Theatre Fee" value={data.billing?.theatreFee} onChange={(v) => onChange({ ...data, billing: { ...data.billing, theatreFee: v } })} disabled={disabled} />
-                    </div>
                 </div>
             </div>
         </div>
@@ -1139,7 +1297,16 @@ function ClosureAndFinalSection({ data, onChange, disabled }: SectionProps) {
                     )}
                 </div>
             </div>
-            <TextField label="Count Verified By" value={d.countVerifiedBy} onChange={(v) => set('countVerifiedBy', v)} disabled={disabled} />
+            <div className="space-y-1.5">
+                <Label className="text-sm">Count Verified By</Label>
+                <UserSelect
+                    value={d.countVerifiedBy || ''}
+                    onChange={(v) => set('countVerifiedBy', v)}
+                    placeholder="Select verifier..."
+                    role="NURSE"
+                    disabled={disabled}
+                />
+            </div>
         </div>
     );
 }
@@ -1148,210 +1315,39 @@ function ClosureAndFinalSection({ data, onChange, disabled }: SectionProps) {
 // Section renderers map
 // ──────────────────────────────────────────────────────────────────────
 
-const SECTION_RENDERERS: Record<string, React.FC<SectionProps>> = {
-    entry: ArrivalSection,
+import {
+    PatientSection as NewPatientSection,
+    EntrySection as NewEntrySection,
+    StaffingSection as NewStaffingSection,
+    TimingsSection as NewTimingsSection,
+    CountsSection as NewCountsSection,
+    ItemsToReturnSection,
+    BillingSection,
+} from '@/components/nurse/intra-op-record/sections';
+
+const SECTION_RENDERERS: Record<string, React.FC<SectionProps & { caseId?: string }>> = {
+    patient: NewPatientSection,
+    entry: NewEntrySection,
     safety: SafetyChecklistSection,
-    timings: TimingsSection,
-    staffing: StaffingSection,
+    timings: NewTimingsSection,
+    staffing: NewStaffingSection,
     diagnoses: DiagnosesSection,
     positioning: PositioningSection,
     catheter: CatheterSection,
     skinPrep: SkinPrepSection,
     equipment: EquipmentSection,
     surgicalDetails: SurgicalDetailsSection,
-    counts: CountsSection,
+    counts: NewCountsSection,
     closure: ClosureAndFinalSection,
     fluids: FluidsSection,
     tables: DynamicTableSection,
+    itemsToReturn: ItemsToReturnSection,
+    billing: BillingSection,
 };
 
 // ──────────────────────────────────────────────────────────────────────
-// Section Header with completion
+// Surgical Plan Reference Panel
 // ──────────────────────────────────────────────────────────────────────
-// Operative Timeline Panel (read-only or editable for NURSE)
-// ──────────────────────────────────────────────────────────────────────
-
-function getToken() {
-    return typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-}
-
-function OperativeTimelinePanel({ caseId, userRole }: { caseId: string; userRole: string }) {
-    const [loading, setLoading] = useState(true);
-    const [timelineData, setTimelineData] = useState<TimelineResultDto | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    const [collapsed, setCollapsed] = useState(false);
-
-    const canEdit = userRole === 'NURSE' || userRole === 'THEATER_TECHNICIAN' || userRole === 'ADMIN';
-
-    useEffect(() => {
-        const token = getToken();
-        fetch(`/api/theater-tech/surgical-cases/${caseId}/timeline`, {
-            headers: { Authorization: `Bearer ${token}` },
-        })
-            .then((res) => res.json())
-            .then((json) => {
-                if (json.success) {
-                    setTimelineData(json.data);
-                } else {
-                    setError(json.error || 'Failed to load timeline');
-                }
-            })
-            .catch(() => setError('Failed to load timeline'))
-            .finally(() => setLoading(false));
-    }, [caseId]);
-
-    const handleSetNow = async (field: TimelineFieldName) => {
-        const token = getToken();
-        const now = new Date().toISOString();
-        try {
-            const res = await fetch(`/api/theater-tech/surgical-cases/${caseId}/timeline`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({ [field]: now }),
-            });
-            const json = await res.json();
-            if (json.success) {
-                setTimelineData(json.data);
-            } else {
-                setError(json.error || 'Update failed');
-            }
-        } catch {
-            setError('Failed to update timestamp');
-        }
-    };
-
-    const formatTime = (iso: string | null): string => {
-        if (!iso) return '—';
-        try {
-            return format(parseISO(iso), 'HH:mm');
-        } catch {
-            return iso;
-        }
-    };
-
-    if (loading) {
-        return (
-            <Card className="border-cyan-200 bg-cyan-50/30">
-                <CardContent className="p-4">
-                    <div className="flex items-center gap-2">
-                        <Skeleton className="h-4 w-4 rounded" />
-                        <Skeleton className="h-4 w-32" />
-                    </div>
-                </CardContent>
-            </Card>
-        );
-    }
-
-    if (error) {
-        return (
-            <Card className="border-amber-200 bg-amber-50/30">
-                <CardContent className="p-4">
-                    <div className="flex items-center gap-2 text-xs text-amber-700">
-                        <AlertTriangle className="h-3.5 w-3.5" />
-                        <span>Timeline: {error}</span>
-                    </div>
-                </CardContent>
-            </Card>
-        );
-    }
-
-    const timeline = timelineData?.timeline;
-    const durations = timelineData?.durations;
-    const missingItems = timelineData?.missingItems ?? [];
-
-    return (
-        <Card className="border-cyan-200 bg-cyan-50/20">
-            <CardContent className="p-4 space-y-3">
-                {/* Header */}
-                <button
-                    onClick={() => setCollapsed(!collapsed)}
-                    className="flex items-center justify-between w-full"
-                >
-                    <div className="flex items-center gap-2">
-                        <Timer className="h-4 w-4 text-cyan-600" />
-                        <span className="text-sm font-semibold text-slate-800">Operative Timeline</span>
-                        {missingItems.length > 0 && (
-                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-amber-300 text-amber-700 bg-amber-50">
-                                {missingItems.length} missing
-                            </Badge>
-                        )}
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                        {collapsed ? 'Show' : 'Hide'}
-                    </span>
-                </button>
-
-                {!collapsed && timeline && (
-                    <>
-                        {/* Timeline Grid */}
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                            {TIMELINE_FIELD_ORDER.map((field) => {
-                                const value = timeline[field];
-                                return (
-                                    <div
-                                        key={field}
-                                        className={`rounded-md border px-2.5 py-2 ${value
-                                            ? 'bg-emerald-50/50 border-emerald-200'
-                                            : 'bg-white border-slate-200'
-                                            }`}
-                                    >
-                                        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                                            {TIMELINE_FIELD_LABELS[field]}
-                                        </p>
-                                        <div className="flex items-center justify-between mt-0.5">
-                                            <p className="text-sm font-semibold text-slate-800">
-                                                {formatTime(value)}
-                                            </p>
-                                            {canEdit && !value && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-6 px-1.5 text-[10px] text-cyan-700 hover:text-cyan-800 hover:bg-cyan-100"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleSetNow(field);
-                                                    }}
-                                                >
-                                                    <Clock className="h-2.5 w-2.5 mr-0.5" />
-                                                    Now
-                                                </Button>
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-
-                        {/* Derived Durations */}
-                        {durations && (
-                            <div className="flex flex-wrap items-center gap-3 pt-1">
-                                {[
-                                    { label: 'OR', value: durations.orTimeMinutes },
-                                    { label: 'Surgery', value: durations.surgeryTimeMinutes },
-                                    { label: 'Prep', value: durations.prepTimeMinutes },
-                                    { label: 'Close-out', value: durations.closeOutTimeMinutes },
-                                    { label: 'Anesthesia', value: durations.anesthesiaTimeMinutes },
-                                ]
-                                    .filter((d) => d.value !== null)
-                                    .map((d) => (
-                                        <span
-                                            key={d.label}
-                                            className="text-[11px] text-slate-600 font-medium"
-                                        >
-                                            {d.label}: <strong>{d.value}min</strong>
-                                        </span>
-                                    ))}
-                            </div>
-                        )}
-                    </>
-                )}
-            </CardContent>
-        </Card>
-    );
-}
 
 function SurgicalPlanReferencePanel({ casePlan }: { casePlan: any }) {
     if (!casePlan) return null;
@@ -1453,6 +1449,7 @@ export default function NurseIntraOpRecordPage() {
     const finalizeMutation = useFinalizeIntraOpRecord(caseId);
 
     const [formData, setFormData] = useState<NurseIntraOpRecordDraft>({
+        patient: {},
         entry: {},
         safety: {},
         timings: {},
@@ -1472,10 +1469,11 @@ export default function NurseIntraOpRecordPage() {
         medications: [],
         implants: [],
         specimens: [],
-        itemsToReturnToTheatre: '',
+        itemsToReturn: [] as any[],
         billing: {
             anaestheticMaterialsCharge: '',
             theatreFee: '',
+            items: [] as any[],
         },
     });
     const [isDirty, setIsDirty] = useState(false);
@@ -1489,7 +1487,28 @@ export default function NurseIntraOpRecordPage() {
             setFormData(response.form.data);
             setIsDirty(false);
         }
-    }, [response?.form?.data]);
+        
+        // Pre-populate patient info from patient profile if not already set
+        if (response?.patient && response.form?.data) {
+            const currentPatient = response.form.data.patient || {};
+            const hasPatientData = currentPatient.patientFileNo || currentPatient.patientName;
+            
+            if (!hasPatientData) {
+                const patientName = `${response.patient.first_name} ${response.patient.last_name}`.trim();
+                const prePopulatedPatient = {
+                    patientFileNo: response.patient.file_number || '',
+                    patientName: patientName || '',
+                    doctor: formatDoctorName(response.surgeonName),
+                    date: new Date().toISOString().split('T')[0],
+                };
+                setFormData(prev => ({
+                    ...prev,
+                    patient: { ...prev.patient, ...prePopulatedPatient }
+                }));
+                setIsDirty(true);
+            }
+        }
+    }, [response?.form?.data, response?.patient]);
 
     const isFinalized = response?.form?.status === 'FINAL';
     const isDisabled = isFinalized || !isAuthenticated;
@@ -1606,7 +1625,7 @@ export default function NurseIntraOpRecordPage() {
                                     {patient.file_number}
                                     {response.procedureName && ` · ${response.procedureName}`}
                                     {response.side && ` (${response.side})`}
-                                    {response.surgeonName && ` · Dr. ${response.surgeonName}`}
+                                    {response.surgeonName && ` · ${formatDoctorName(response.surgeonName)}`}
                                 </p>
                             </div>
                         </div>
@@ -1726,60 +1745,72 @@ export default function NurseIntraOpRecordPage() {
             <SurgicalPlanReferencePanel casePlan={response.casePlan} />
 
             {/* ── Accordion Sections ─────────────────────────────── */}
-            <Accordion type="multiple" defaultValue={INTRAOP_SECTIONS.map((s) => s.key)} className="space-y-3">
+            <div className="grid grid-cols-1 gap-4">
                 {INTRAOP_SECTIONS.map((section) => {
                     const SectionRenderer = SECTION_RENDERERS[section.key];
                     const Icon = SECTION_ICONS[section.key] || Circle;
                     const completion = sectionCompletion[section.key];
                     const isComplete = completion?.complete ?? false;
 
+                    if (!SectionRenderer) return null;
+
                     return (
-                        <AccordionItem
+                        <Card
                             key={section.key}
-                            value={section.key}
-                            className={`border rounded-lg px-4 data-[state=open]:shadow-sm transition-shadow ${section.isCritical ? 'border-amber-200 bg-amber-50/30' : ''
-                                }`}
+                            className={`overflow-hidden ${
+                                section.isCritical 
+                                    ? 'border-amber-300 border-l-4' 
+                                    : isComplete 
+                                        ? 'border-emerald-200 border-l-4 border-l-emerald-400' 
+                                        : 'border-slate-200'
+                            }`}
                         >
-                            <AccordionTrigger className="hover:no-underline py-3">
-                                <div className="flex items-center gap-3 flex-1">
-                                    <div className={`flex items-center justify-center w-7 h-7 rounded-full shrink-0 ${isComplete
-                                        ? 'bg-emerald-100 text-emerald-600'
-                                        : section.isCritical
-                                            ? 'bg-amber-100 text-amber-600'
-                                            : 'bg-slate-100 text-slate-400'
+                            <CardHeader className="py-3 px-4 bg-slate-50/50">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
+                                            isComplete 
+                                                ? 'bg-emerald-100 text-emerald-600' 
+                                                : section.isCritical 
+                                                    ? 'bg-amber-100 text-amber-600' 
+                                                    : 'bg-slate-200 text-slate-500'
                                         }`}>
-                                        {isComplete ? (
-                                            <CheckCircle2 className="h-4 w-4" />
-                                        ) : (
-                                            <Icon className="h-3.5 w-3.5" />
+                                            {isComplete ? (
+                                                <CheckCircle2 className="h-5 w-5" />
+                                            ) : (
+                                                <Icon className="h-4 w-4" />
+                                            )}
+                                        </div>
+                                        <CardTitle className="text-sm font-semibold text-slate-800">
+                                            {section.title}
+                                        </CardTitle>
+                                        {section.isCritical && (
+                                            <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">
+                                                Required
+                                            </span>
                                         )}
                                     </div>
-                                    <SectionStatus complete={isComplete} label={section.title} isCritical={section.isCritical} />
+                                    <span className={`text-xs ${
+                                        isComplete ? 'text-emerald-600' : 'text-slate-400'
+                                    }`}>
+                                        {isComplete ? 'Complete' : 'In Progress'}
+                                    </span>
                                 </div>
-                            </AccordionTrigger>
-                            <AccordionContent className="pt-2 pb-4">
-                                {SectionRenderer && (
-                                    <SectionRenderer
-                                        data={formData}
-                                        onChange={handleChange}
-                                        disabled={isDisabled}
-                                        {...(section.key === 'safety' ? { 
-                                            procedureName: response.procedureName, 
-                                            side: response.side,
-                                            verificationSources: verificationSources
-                                        } : {})}
-                                        {...(section.key === 'tables' ? { 
-                                            caseId: caseId,
-                                            patient: patient,
-                                            formResponseId: response.form?.id
-                                        } : {})}
-                                    />
-                                )}
-                            </AccordionContent>
-                        </AccordionItem>
+                            </CardHeader>
+                            <CardContent className="pt-4 pb-6">
+                                <SectionRenderer
+                                    data={formData}
+                                    onChange={handleChange}
+                                    disabled={isDisabled}
+                                    caseId={caseId}
+                                    patient={response.patient}
+                                    formResponseId={response.form?.id}
+                                />
+                            </CardContent>
+                        </Card>
                     );
                 })}
-            </Accordion>
+            </div>
 
             {/* ── Bottom Action Bar ──────────────────────────────── */}
             {

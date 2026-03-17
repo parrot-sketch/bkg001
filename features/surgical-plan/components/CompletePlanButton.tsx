@@ -7,7 +7,7 @@ import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface PlanningReadinessItem {
-    id: string;
+    key: string;
     label: string;
     done: boolean;
     required: boolean;
@@ -79,8 +79,8 @@ export function CompletePlanButton({ caseId }: CompletePlanButtonProps) {
                     
                     <div className="py-4">
                         <ul className="space-y-3">
-                            {missingItems.filter(item => item.required).map((item) => (
-                                <li key={item.id} className="flex items-start gap-3 text-sm">
+                            {missingItems.filter(item => item.required).map((item, index) => (
+                                <li key={item.key || `item-${index}`} className="flex items-start gap-3 text-sm">
                                     {item.done ? (
                                         <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
                                     ) : (

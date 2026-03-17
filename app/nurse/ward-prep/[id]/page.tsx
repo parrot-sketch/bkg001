@@ -374,6 +374,7 @@ export default function PreOpCaseDetailPage() {
                   }}
                   actionLabel="Review Risks"
                 />
+                {/* TEMPORARILY DISABLED: Clinical photos - pending regulatory compliance review
                 <ChecklistItem
                   label="Clinical Photos"
                   description="Upload pre-operative clinical photographs"
@@ -382,6 +383,7 @@ export default function PreOpCaseDetailPage() {
                   onAction={() => toast.info('Photo upload feature coming soon')}
                   actionLabel="Upload Photos"
                 />
+                */}
                 <ChecklistItem
                   label="Consent Form"
                   description="Obtain patient signature on consent form"

@@ -93,7 +93,10 @@ function mapCasePlanResponse(sc: any) {
         preOpPhotoCount: cp?.images?.filter((i: any) => i.timepoint === 'PRE_OP').length ?? 0,
     });
 
-    const readinessChecklist = readinessResult.items.map(item => ({
+    // Filter out photos from checklist (temporarily disabled - pending regulatory compliance)
+    const filteredItems = readinessResult.items.filter(item => item.key !== 'photos');
+    
+    const readinessChecklist = filteredItems.map(item => ({
         key: item.key,
         label: item.label,
         done: item.done,

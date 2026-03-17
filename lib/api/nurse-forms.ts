@@ -164,6 +164,15 @@ export const nurseFormsApi = {
         );
     },
 
+    /**
+     * Search for specimen containers in inventory.
+     */
+    async searchSpecimens(caseId: string, query: string): Promise<ApiResponse<ImplantSearchItem[]>> {
+        return apiClient.get<ImplantSearchItem[]>(
+            `/nurse/surgical-cases/${caseId}/specimens?q=${encodeURIComponent(query)}`,
+        );
+    },
+
     // ─────────────────────────────────────────────────────────────────────
     // Immediate Recovery Care Record
     // ─────────────────────────────────────────────────────────────────────

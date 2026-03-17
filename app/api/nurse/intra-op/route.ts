@@ -23,9 +23,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
         }
 
-        // Default to IN_THEATER
+        // Show both SCHEDULED (booked, waiting for patient) and IN_THEATER (in progress)
         const statusWhere = {
-            status: SurgicalCaseStatus.IN_THEATER,
+            status: {
+                in: [SurgicalCaseStatus.SCHEDULED, SurgicalCaseStatus.IN_THEATER],
+            },
         };
 
         const surgicalCases = await db.surgicalCase.findMany({

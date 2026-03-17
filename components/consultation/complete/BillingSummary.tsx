@@ -34,8 +34,8 @@ export function BillingSummary({
       {hasBilling ? (
         <div className="bg-slate-50 rounded-lg p-3 space-y-2">
           <div className="space-y-1">
-            {billItems.map((item) => (
-              <div key={item.serviceId} className="flex items-center justify-between text-xs">
+            {billItems.map((item, index) => (
+              <div key={`${item.serviceId}-${index}`} className="flex items-center justify-between text-xs">
                 <span className="text-slate-600 font-medium">{item.serviceName}</span>
                 <span className="font-bold text-slate-900">
                   KSH {item.totalCost.toLocaleString()}

@@ -1,15 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { TheaterBookingService } from '@/application/services/TheaterBookingService';
+import { TheaterSchedulingFactory } from '@/application/services/TheaterSchedulingFactory';
 import { getCurrentUser } from '@/lib/auth/server-auth';
-
-const theaterBookingService = new TheaterBookingService(db);
+import { Role } from '@/domain/enums/Role';
 
 export async function POST(req: NextRequest) {
     try {
         const user = await getCurrentUser();
         if (!user) {
             return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
+
+        // Check permissions
+        if (user.role !== Role.FRONTDESK && user.role !== Role.ADMIN && user.role !== Role.NURSE) {
+            return NextResponse.json(
+                { success: false, error: 'Access denied: Only frontdesk, nurse, or admin can confirm theater bookings' },
+                { status: 403 }
+            );
         }
 
         const body = await req.json();
@@ -22,14 +28,26 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const confirmedBooking = await theaterBookingService.confirmBooking(
-            bookingId,
+        // Use use case for confirmation (includes billing)
+        const useCase = TheaterSchedulingFactory.getInstance();
+        const result = await useCase.confirmBooking(
+            { bookingId },
             user.userId
         );
 
         return NextResponse.json({
             success: true,
-            data: confirmedBooking
+            data: {
+                id: result.bookingId,
+                status: result.status,
+                theater_id: result.theaterId,
+                theater_name: result.theaterName,
+                start_time: result.startTime,
+                end_time: result.endTime,
+                confirmed_at: result.confirmedAt,
+                case_status: result.caseStatus,
+                billing: result.billing,
+            },
         });
 
     } catch (error: any) {

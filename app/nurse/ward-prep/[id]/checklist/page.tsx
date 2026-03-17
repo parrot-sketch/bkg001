@@ -120,6 +120,15 @@ const SECTION_ICONS: Record<string, React.ElementType> = {
 };
 
 // ──────────────────────────────────────────────────────────────────────
+// Helper Functions
+// ──────────────────────────────────────────────────────────────────────
+
+function formatDoctorName(name: string | null | undefined): string {
+    if (!name) return '';
+    return name.match(/^(Dr\.?|Dr\s)/i) ? name : `Dr. ${name}`;
+}
+
+// ──────────────────────────────────────────────────────────────────────
 // Field Components (generic, data-driven)
 // ──────────────────────────────────────────────────────────────────────
 
@@ -1059,7 +1068,7 @@ export default function NursePreopWardChecklistPage() {
                                 <p className="text-sm text-muted-foreground">
                                     {patient.file_number} · {response.procedureName || 'Procedure TBD'}
                                     {response.side && ` (${response.side})`}
-                                    {response.surgeonName && ` · Dr. ${response.surgeonName}`}
+                                    {response.surgeonName && ` · ${formatDoctorName(response.surgeonName)}`}
                                 </p>
                             </div>
                         </div>

@@ -50,7 +50,9 @@ export class SurgicalCaseStatusTransitionService {
 
     /**
      * Transition case to READY_FOR_THEATER_BOOKING when pre-op checklist is finalized
-     * Transitions from IN_PREP → READY_FOR_THEATER_BOOKING
+     * Transitions from:
+     *   - IN_PREP → READY_FOR_THEATER_BOOKING (standard workflow)
+     *   - READY_FOR_SCHEDULING → READY_FOR_THEATER_BOOKING (direct from doctor plan)
      * This indicates patient is physically ready and frontdesk can now book theater
      */
     async transitionToReadyForTheater(caseId: string, userId: string): Promise<void> {
@@ -63,8 +65,13 @@ export class SurgicalCaseStatusTransitionService {
             throw new Error(`Surgical case ${caseId} not found`);
         }
 
-        // Only transition if currently IN_PREP
-        if (surgicalCase.status === SurgicalCaseStatus.IN_PREP) {
+        // Handle transition from IN_PREP or READY_FOR_SCHEDULING
+        const canTransition = 
+            surgicalCase.status === SurgicalCaseStatus.IN_PREP ||
+            surgicalCase.status === SurgicalCaseStatus.READY_FOR_SCHEDULING ||
+            surgicalCase.status === SurgicalCaseStatus.SCHEDULED;
+
+        if (canTransition) {
             const service = getSurgicalCaseService();
             await service.transitionTo(caseId, SurgicalCaseStatus.READY_FOR_THEATER_BOOKING, userId);
 
@@ -75,7 +82,7 @@ export class SurgicalCaseStatusTransitionService {
                     record_id: caseId,
                     action: 'UPDATE',
                     model: 'SurgicalCase',
-                    details: `Pre-op checklist finalized - case ready for theater booking by frontdesk`,
+                    details: `Pre-op checklist finalized - case ready for theater booking by frontdesk (from ${surgicalCase.status})`,
                 },
             });
         }
