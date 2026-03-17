@@ -1,6 +1,6 @@
 'use client';
 
-import { Search } from 'lucide-react';
+import { Search, Users } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
@@ -32,38 +32,44 @@ export function PatientFilters({
   return (
     <div className="flex flex-col sm:flex-row sm:items-center gap-3">
       {/* Search */}
-      <div className="relative flex-1 max-w-md">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+      <div className="relative flex-1 max-w-xs">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-400" />
         <Input
-          placeholder="Search name, email, phone, file #..."
+          placeholder="Search patients..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-8 h-8 text-xs bg-white border-slate-200 rounded-lg"
+          className="pl-8 h-8 text-xs bg-white border-stone-200 rounded-md"
         />
       </div>
 
       {/* Sort Tabs */}
-      <div className="flex items-center bg-slate-100 rounded-lg p-0.5 gap-0.5">
-        {SORT_OPTIONS.map((opt) => (
-          <button
-            key={opt.key}
-            onClick={() => setSortBy(opt.key)}
-            className={cn(
-              "px-3 py-1.5 rounded-md text-xs font-semibold transition-all",
-              sortBy === opt.key
-                ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-500 hover:text-slate-700"
-            )}
-          >
-            {opt.label}
-          </button>
-        ))}
+      <div className="flex items-center gap-3">
+        {SORT_OPTIONS.map((opt) => {
+          const isActive = sortBy === opt.key;
+          return (
+            <button
+              key={opt.key}
+              onClick={() => setSortBy(opt.key)}
+              className={cn(
+                "px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+                isActive
+                  ? "bg-stone-900 text-white"
+                  : "text-stone-500 hover:text-stone-700 hover:bg-stone-100"
+              )}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Result count */}
-      <span className="text-[11px] text-slate-400 font-medium whitespace-nowrap">
-        {loading ? '...' : `${resultCount} patient${resultCount !== 1 ? 's' : ''}`}
-      </span>
+      <div className="flex items-center gap-2 text-xs text-stone-400 ml-auto">
+        <Users className="h-3.5 w-3.5" />
+        <span className="font-medium">
+          {loading ? '...' : `${resultCount} patient${resultCount !== 1 ? 's' : ''}`}
+        </span>
+      </div>
     </div>
   );
 }

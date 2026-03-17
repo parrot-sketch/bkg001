@@ -196,7 +196,7 @@ export function UnifiedSidebar({
                             className="flex items-center gap-3 group"
                             onClick={onClose}
                         >
-                            <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center shadow-lg shadow-black/20 group-hover:scale-105 transition-transform duration-200">
+                            <div className="h-11 w-11 rounded-xl bg-white flex items-center justify-center shadow-lg shadow-black/10 group-hover:scale-105 transition-transform duration-200">
                                 <Image
                                     src="https://res.cloudinary.com/dcngzaxlv/image/upload/v1768807323/logo_tw2voz.png"
                                     alt="Logo"
@@ -227,7 +227,7 @@ export function UnifiedSidebar({
                     </div>
 
                     {/* Navigation Section */}
-                    <nav className="flex-1 overflow-y-auto px-3 py-4">
+                    <nav className="flex-1 overflow-y-auto px-3 pt-6">
                         <div className="space-y-1">
                             {navItems.map((item) => {
                                 const Icon = item.icon;

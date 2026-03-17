@@ -158,16 +158,16 @@ export default function DoctorPatientsPage() {
     <ClinicalDashboardShell>
       <div className="space-y-5 animate-in fade-in duration-500 pb-8">
 
-        {/* ─── Header ────────────────────────────────────────── */}
+        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
           <div>
-            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Your Patient Roster</p>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">My Patients</h1>
+            <p className="text-xs text-stone-500 font-medium mb-1">Your Patient Roster</p>
+            <h1 className="text-xl font-semibold tracking-tight text-stone-900">My Patients</h1>
           </div>
           <Button
             variant="ghost"
             size="sm"
-            className="text-xs text-slate-500 gap-1.5 self-start sm:self-auto"
+            className="text-xs text-stone-500 gap-1.5 self-start sm:self-auto hover:text-stone-700"
             onClick={handleRefresh}
             disabled={refreshing}
           >
@@ -176,10 +176,10 @@ export default function DoctorPatientsPage() {
           </Button>
         </div>
 
-        {/* ─── Stats Strip ───────────────────────────────────── */}
+        {/* Stats */}
         <PatientStats stats={stats} loading={loading} />
 
-        {/* ─── Search + Sort Bar ──────────────────────────────── */}
+        {/* Search + Sort */}
         <PatientFilters
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
@@ -189,11 +189,11 @@ export default function DoctorPatientsPage() {
           loading={loading}
         />
 
-        {/* ─── Patient List ──────────────────────────────────── */}
+        {/* Patient List */}
         {loading ? (
           <div className="space-y-2">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-white border border-slate-100">
+              <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-white border border-stone-100">
                 <Skeleton className="h-10 w-10 rounded-lg" />
                 <div className="flex-1 space-y-1.5">
                   <Skeleton className="h-4 w-44" />
@@ -204,7 +204,7 @@ export default function DoctorPatientsPage() {
             ))}
           </div>
         ) : sortedPatients.length > 0 ? (
-          <div className="space-y-1.5">
+          <div className="space-y-1 border border-stone-100 rounded-lg bg-white/50 overflow-hidden mx-4">
             {sortedPatients.map((patient) => (
               <PatientRow
                 key={patient.id}
@@ -215,12 +215,14 @@ export default function DoctorPatientsPage() {
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-slate-200">
-            <Users className="h-8 w-8 text-slate-300 mb-3" />
-            <h3 className="text-sm font-semibold text-slate-700">
+          <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-stone-200 mx-4">
+            <div className="w-12 h-12 rounded-full bg-stone-50 flex items-center justify-center mb-3">
+              <Users className="h-5 w-5 text-stone-300" />
+            </div>
+            <h3 className="text-sm font-medium text-stone-600">
               {searchQuery ? 'No patients match your search' : 'No patients yet'}
             </h3>
-            <p className="text-xs text-slate-400 max-w-xs text-center mt-1">
+            <p className="text-xs text-stone-400 max-w-xs text-center mt-1">
               {searchQuery
                 ? 'Try different search terms.'
                 : 'Patients will appear here after their first appointment with you.'

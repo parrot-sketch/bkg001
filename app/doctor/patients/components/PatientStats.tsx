@@ -15,25 +15,64 @@ interface PatientStatsProps {
 
 export function PatientStats({ stats, loading }: PatientStatsProps) {
   const statItems = [
-    { label: 'Total Patients', value: stats.total, icon: Users, color: 'text-slate-900', bg: 'bg-white' },
-    { label: 'New This Month', value: stats.newThisMonth, icon: Calendar, color: 'text-blue-700', bg: 'bg-blue-50' },
-    { label: 'With Allergies', value: stats.withAllergies, icon: AlertTriangle, color: 'text-amber-700', bg: 'bg-amber-50' },
-    { label: 'Medical Conditions', value: stats.withConditions, icon: Heart, color: 'text-rose-700', bg: 'bg-rose-50' },
+    { 
+      label: 'Total Patients', 
+      value: stats.total, 
+      icon: Users, 
+      color: 'text-stone-900',
+      subColor: 'text-stone-500',
+      borderColor: 'border-stone-200',
+    },
+    { 
+      label: 'New This Month', 
+      value: stats.newThisMonth, 
+      icon: Calendar, 
+      color: 'text-stone-900',
+      subColor: 'text-stone-500',
+      borderColor: 'border-stone-200',
+    },
+    { 
+      label: 'With Allergies', 
+      value: stats.withAllergies, 
+      icon: AlertTriangle, 
+      color: 'text-amber-700',
+      subColor: 'text-amber-600',
+      borderColor: 'border-amber-200/60',
+      iconBg: 'bg-amber-50',
+    },
+    { 
+      label: 'Medical Conditions', 
+      value: stats.withConditions, 
+      icon: Heart, 
+      color: 'text-rose-700',
+      subColor: 'text-rose-600',
+      borderColor: 'border-rose-200/60',
+      iconBg: 'bg-rose-50',
+    },
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
       {statItems.map((stat) => (
         <div
           key={stat.label}
-          className={cn("flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-100", stat.bg)}
+          className={cn(
+            "relative px-4 py-3.5 rounded-lg border transition-all duration-200 bg-white",
+            stat.borderColor
+          )}
         >
-          <stat.icon className={cn("h-4 w-4 flex-shrink-0", stat.color)} />
-          <div>
-            <p className={cn("text-lg font-bold leading-none", stat.color)}>
-              {loading ? '–' : stat.value}
-            </p>
-            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">{stat.label}</p>
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0">
+              <p className={cn("text-2xl font-semibold tracking-tight", stat.color)}>
+                {loading ? '–' : stat.value}
+              </p>
+              <p className={cn("text-[11px] font-medium mt-1.5 tracking-wide", stat.subColor)}>
+                {stat.label}
+              </p>
+            </div>
+            <div className={cn("w-8 h-8 rounded-md flex items-center justify-center", stat.iconBg || 'bg-stone-100')}>
+              <stat.icon className={cn("h-4 w-4", stat.color)} />
+            </div>
           </div>
         </div>
       ))}
