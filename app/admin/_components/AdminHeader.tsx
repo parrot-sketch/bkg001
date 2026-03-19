@@ -4,7 +4,6 @@ import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { 
     ChevronRight, 
-    Bell, 
     Search, 
     HelpCircle,
     User
@@ -21,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 export function AdminHeader() {
     const pathname = usePathname();
@@ -80,10 +80,7 @@ export function AdminHeader() {
 
                 <div className="h-6 w-px bg-slate-200 mx-2" />
 
-                <Button variant="ghost" size="icon" className="text-slate-500 hover:text-primary relative">
-                    <Bell className="h-5 w-5" />
-                    <span className="absolute top-2 right-2.5 h-2 w-2 bg-rose-500 rounded-full border-2 border-white" />
-                </Button>
+                <NotificationBell />
 
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
