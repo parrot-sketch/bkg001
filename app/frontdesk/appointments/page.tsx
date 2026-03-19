@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import Link from 'next/link';
 import { User, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { AppointmentsPipeline } from './components/AppointmentsPipeline';
 import { AppointmentsFilterBar } from './components/AppointmentsFilterBar';
 import { AppointmentsList } from './components/AppointmentsList';
 import { PatientContextBanner } from './components/PatientContextBanner';
+import { triggerAppointmentExpiry } from '@/app/actions/appointment-expiry';
 
 export default function FrontdeskAppointmentsPage() {
   return (
@@ -40,6 +41,13 @@ function FrontdeskAppointmentsContent() {
     patientIdFilter,
     highlightedId,
   } = useAppointmentsPage();
+
+  // Trigger appointment expiry check on page load
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      triggerAppointmentExpiry().catch(console.error);
+    }
+  }, [isAuthenticated, user]);
 
   if (authLoading) {
     return (

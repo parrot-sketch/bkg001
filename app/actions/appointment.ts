@@ -3,7 +3,7 @@
 import { VitalSignsFormData } from "@/components/dialogs/add-vital-signs";
 import db from "@/lib/db";
 import { AppointmentSchema, VitalSignsSchema } from "@/lib/schema";
-import { getCurrentUser } from "@/lib/auth/server-auth";
+import { getCurrentUser, getCurrentUserFull } from "@/lib/auth/server-auth";
 import { AppointmentStatus } from "@prisma/client";
 import { getScheduleAppointmentUseCase } from "@/lib/use-cases";
 import { DomainException } from "@/domain/exceptions/DomainException";
@@ -179,6 +179,522 @@ export async function addVitalSigns(
     };
   } catch (error) {
     console.log(error);
+    return { success: false, msg: "Internal Server Error" };
+  }
+}
+
+/**
+ * Mark an appointment as no-show (manual action by frontdesk)
+ */
+export async function markNoShow(appointmentId: number, reason?: string) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, msg: "Unauthorized" };
+    }
+
+    const appointment = await db.appointment.findUnique({
+      where: { id: appointmentId },
+      include: {
+        patient: {
+          select: { id: true, first_name: true, last_name: true, email: true },
+        },
+        doctor: {
+          select: { id: true, user_id: true, name: true },
+        },
+      },
+    });
+
+    if (!appointment) {
+      return { success: false, msg: "Appointment not found" };
+    }
+
+    // Check if appointment can be marked as no-show
+    const validStatuses: AppointmentStatus[] = [
+      AppointmentStatus.PENDING,
+      AppointmentStatus.PENDING_DOCTOR_CONFIRMATION,
+      AppointmentStatus.SCHEDULED,
+      AppointmentStatus.CONFIRMED,
+    ];
+
+    if (!validStatuses.includes(appointment.status)) {
+      return { success: false, msg: `Cannot mark appointment with status ${appointment.status} as no-show` };
+    }
+
+    // Get full user for name
+    const fullUser = await getCurrentUserFull();
+    
+    // Update appointment to NO_SHOW
+    const updated = await db.appointment.update({
+      where: { id: appointmentId },
+      data: {
+        status: AppointmentStatus.NO_SHOW,
+        no_show: true,
+        no_show_at: new Date(),
+        marked_no_show_at: new Date(),
+        no_show_reason: reason || null,
+        no_show_notes: `Manually marked as no-show by ${fullUser?.first_name || 'Staff'} ${fullUser?.last_name || ''}`,
+        status_changed_at: new Date(),
+        status_changed_by: user.userId,
+      },
+    });
+
+    // Send notifications
+    const { sendNoShowNotification } = await import('@/domain/utils/notification-helpers');
+    await sendNoShowNotification({
+      appointmentId: appointment.id,
+      patientName: `${appointment.patient.first_name} ${appointment.patient.last_name}`,
+      patientId: appointment.patient.id,
+      patientEmail: appointment.patient.email,
+      doctorId: appointment.doctor.id,
+      doctorUserId: appointment.doctor.user_id,
+      doctorName: appointment.doctor.name,
+      appointmentTime: appointment.time,
+      appointmentDate: appointment.appointment_date,
+      isAutomatic: false,
+    });
+
+    return { success: true, msg: "Appointment marked as no-show", appointment: updated };
+  } catch (error) {
+    console.error('[markNoShow]', error);
+    return { success: false, msg: "Internal Server Error" };
+  }
+}
+
+/**
+ * Reinstate a no-show appointment (patient arrives late, same day only)
+ */
+export async function reinstateAppointment(appointmentId: number) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, msg: "Unauthorized" };
+    }
+
+    const appointment = await db.appointment.findUnique({
+      where: { id: appointmentId },
+      include: {
+        patient: {
+          select: { id: true, first_name: true, last_name: true },
+        },
+        doctor: {
+          select: { id: true, user_id: true, name: true },
+        },
+      },
+    });
+
+    if (!appointment) {
+      return { success: false, msg: "Appointment not found" };
+    }
+
+    // Check if appointment is NO_SHOW
+    if (appointment.status !== AppointmentStatus.NO_SHOW) {
+      return { success: false, msg: "Only no-show appointments can be reinstated" };
+    }
+
+    // Check if same day
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const appointmentDay = new Date(appointment.appointment_date);
+    appointmentDay.setHours(0, 0, 0, 0);
+
+    if (appointmentDay.getTime() !== today.getTime()) {
+      return { success: false, msg: "Can only reinstate same-day appointments" };
+    }
+
+    // Get full user for name
+    const fullUser = await getCurrentUserFull();
+
+    // Update back to CONFIRMED
+    const updated = await db.appointment.update({
+      where: { id: appointmentId },
+      data: {
+        status: AppointmentStatus.CONFIRMED,
+        no_show: false,
+        no_show_at: null,
+        marked_no_show_at: null,
+        no_show_reason: null,
+        no_show_notes: `Reinstated by ${fullUser?.first_name || 'Staff'} ${fullUser?.last_name || ''} on ${new Date().toISOString()}`,
+        status_changed_at: new Date(),
+        status_changed_by: user.userId,
+      },
+    });
+
+    // Send reinstatement notifications
+    const { sendReinstatementNotification } = await import('@/domain/utils/notification-helpers');
+    await sendReinstatementNotification({
+      appointmentId: appointment.id,
+      patientName: `${appointment.patient.first_name} ${appointment.patient.last_name}`,
+      patientId: appointment.patient.id,
+      doctorUserId: appointment.doctor.user_id,
+      doctorName: appointment.doctor.name,
+      appointmentTime: appointment.time,
+    });
+
+    return { success: true, msg: "Appointment reinstated", appointment: updated };
+  } catch (error) {
+    console.error('[reinstateAppointment]', error);
+    return { success: false, msg: "Internal Server Error" };
+  }
+}
+
+export async function assignPatientToQueue(data: {
+  patientId: string;
+  doctorId: string;
+  appointmentId?: number;
+  notes?: string;
+}) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, msg: "Unauthorized" };
+    }
+
+    if (user.role !== 'FRONTDESK' && user.role !== 'ADMIN') {
+      return { success: false, msg: "Only frontdesk staff can assign patients to queue" };
+    }
+
+    const { patientId, doctorId, appointmentId, notes } = data;
+
+    if (!patientId || !doctorId) {
+      return { success: false, msg: "Patient ID and Doctor ID are required" };
+    }
+
+    // Check if patient exists
+    const patient = await db.patient.findUnique({
+      where: { id: patientId },
+      select: { id: true, first_name: true, last_name: true },
+    });
+
+    if (!patient) {
+      return { success: false, msg: "Patient not found" };
+    }
+
+    // Check if doctor exists
+    const doctor = await db.doctor.findUnique({
+      where: { id: doctorId },
+      select: { id: true, user_id: true, name: true },
+    });
+
+    if (!doctor) {
+      return { success: false, msg: "Doctor not found" };
+    }
+
+    // Check for existing active queue entry
+    if (appointmentId) {
+      const existingQueue = await db.patientQueue.findFirst({
+        where: {
+          appointment_id: appointmentId,
+          status: { in: ['WAITING', 'IN_CONSULTATION'] },
+        },
+      });
+
+      if (existingQueue) {
+        return { success: false, msg: "Patient is already in a queue for this appointment" };
+      }
+    } else {
+      // For walk-ins, check if patient already has an active queue entry
+      const existingWalkInQueue = await db.patientQueue.findFirst({
+        where: {
+          patient_id: patientId,
+          status: { in: ['WAITING', 'IN_CONSULTATION'] },
+          appointment_id: null,
+        },
+      });
+
+      if (existingWalkInQueue) {
+        return { success: false, msg: "Patient already has an active queue entry" };
+      }
+    }
+
+    // Create queue entry
+    const queueEntry = await db.patientQueue.create({
+      data: {
+        patient_id: patientId,
+        doctor_id: doctorId,
+        appointment_id: appointmentId,
+        status: 'WAITING',
+        added_by: user.userId,
+        notes,
+      },
+      include: {
+        patient: { select: { id: true, first_name: true, last_name: true, file_number: true } },
+        doctor: { select: { id: true, name: true, user_id: true } },
+        appointment: { select: { id: true, time: true, appointment_date: true } },
+      },
+    });
+
+    // Update appointment status if appointmentId provided
+    if (appointmentId) {
+      await db.appointment.update({
+        where: { id: appointmentId },
+        data: {
+          status: AppointmentStatus.READY_FOR_CONSULTATION,
+          status_changed_at: new Date(),
+          status_changed_by: user.userId,
+        },
+      });
+    }
+
+    // Send notification to doctor
+    const { sendPatientQueuedNotification } = await import('@/domain/utils/notification-helpers');
+    await sendPatientQueuedNotification({
+      patientName: `${patient.first_name} ${patient.last_name}`,
+      patientId: patient.id,
+      doctorUserId: doctor.user_id,
+      doctorName: doctor.name,
+      appointmentTime: (appointmentId && queueEntry.appointment?.time) ? queueEntry.appointment.time : 'Walk-in',
+    });
+
+    return { success: true, msg: "Patient added to queue", queueEntry };
+  } catch (error) {
+    console.error('[assignPatientToQueue]', error);
+    return { success: false, msg: "Internal Server Error" };
+  }
+}
+
+export async function removeFromQueue(queueId: number, reason?: string) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, msg: "Unauthorized" };
+    }
+
+    if (user.role !== 'FRONTDESK' && user.role !== 'ADMIN') {
+      return { success: false, msg: "Only frontdesk staff can remove patients from queue" };
+    }
+
+    const queueEntry = await db.patientQueue.findUnique({
+      where: { id: queueId },
+      include: {
+        patient: { select: { id: true, first_name: true, last_name: true } },
+        doctor: { select: { id: true, name: true, user_id: true } },
+        appointment: { select: { id: true } },
+      },
+    });
+
+    if (!queueEntry) {
+      return { success: false, msg: "Queue entry not found" };
+    }
+
+    if (queueEntry.status === 'REMOVED') {
+      return { success: false, msg: "Patient already removed from queue" };
+    }
+
+    // Update queue entry
+    const updated = await db.patientQueue.update({
+      where: { id: queueId },
+      data: {
+        status: 'REMOVED',
+        removed_at: new Date(),
+        removed_by: user.userId,
+        removal_reason: reason,
+      },
+    });
+
+    // Update appointment status back to CHECKED_IN
+    if (queueEntry.appointment) {
+      await db.appointment.update({
+        where: { id: queueEntry.appointment.id },
+        data: {
+          status: AppointmentStatus.CHECKED_IN,
+          status_changed_at: new Date(),
+          status_changed_by: user.userId,
+        },
+      });
+    }
+
+    // Send notification to doctor
+    const { sendPatientRemovedFromQueueNotification } = await import('@/domain/utils/notification-helpers');
+    await sendPatientRemovedFromQueueNotification({
+      patientName: `${queueEntry.patient.first_name} ${queueEntry.patient.last_name}`,
+      doctorUserId: queueEntry.doctor.user_id,
+      doctorName: queueEntry.doctor.name,
+      reason,
+    });
+
+    return { success: true, msg: "Patient removed from queue", queueEntry: updated };
+  } catch (error) {
+    console.error('[removeFromQueue]', error);
+    return { success: false, msg: "Internal Server Error" };
+  }
+}
+
+export async function reassignQueue(queueId: number, newDoctorId: string) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, msg: "Unauthorized" };
+    }
+
+    if (user.role !== 'FRONTDESK' && user.role !== 'ADMIN') {
+      return { success: false, msg: "Only frontdesk staff can reassign patients" };
+    }
+
+    const queueEntry = await db.patientQueue.findUnique({
+      where: { id: queueId },
+      include: {
+        patient: { select: { id: true, first_name: true, last_name: true } },
+        doctor: { select: { id: true, name: true, user_id: true } },
+        appointment: { select: { id: true, doctor_id: true } },
+      },
+    });
+
+    if (!queueEntry) {
+      return { success: false, msg: "Queue entry not found" };
+    }
+
+    if (queueEntry.status !== 'WAITING') {
+      return { success: false, msg: "Can only reassign patients who are waiting" };
+    }
+
+    // Check if new doctor exists
+    const newDoctor = await db.doctor.findUnique({
+      where: { id: newDoctorId },
+      select: { id: true, user_id: true, name: true },
+    });
+
+    if (!newDoctor) {
+      return { success: false, msg: "New doctor not found" };
+    }
+
+    if (newDoctorId === queueEntry.doctor_id) {
+      return { success: false, msg: "Patient is already assigned to this doctor" };
+    }
+
+    const oldDoctor = queueEntry.doctor;
+
+    // Update queue entry with new doctor
+    const updated = await db.patientQueue.update({
+      where: { id: queueId },
+      data: {
+        doctor_id: newDoctorId,
+      },
+      include: {
+        patient: { select: { id: true, first_name: true, last_name: true } },
+        doctor: { select: { id: true, name: true, user_id: true } },
+      },
+    });
+
+    // Update appointment's assigned doctor if applicable
+    if (queueEntry.appointment) {
+      await db.appointment.update({
+        where: { id: queueEntry.appointment.id },
+        data: {
+          doctor_id: newDoctorId,
+          status_changed_at: new Date(),
+          status_changed_by: user.userId,
+        },
+      });
+    }
+
+    // Notify new doctor
+    const { sendPatientQueuedNotification } = await import('@/domain/utils/notification-helpers');
+    await sendPatientQueuedNotification({
+      patientName: `${queueEntry.patient.first_name} ${queueEntry.patient.last_name}`,
+      patientId: queueEntry.patient.id,
+      doctorUserId: newDoctor.user_id,
+      doctorName: newDoctor.name,
+      appointmentTime: queueEntry.appointment?.id ? 'Reassigned' : 'Walk-in',
+    });
+
+    // Notify old doctor
+    const { sendPatientReassignedNotification } = await import('@/domain/utils/notification-helpers');
+    await sendPatientReassignedNotification({
+      patientName: `${queueEntry.patient.first_name} ${queueEntry.patient.last_name}`,
+      oldDoctorUserId: oldDoctor.user_id,
+      oldDoctorName: oldDoctor.name,
+      newDoctorName: newDoctor.name,
+    });
+
+    return { success: true, msg: "Patient reassigned successfully", queueEntry: updated };
+  } catch (error) {
+    console.error('[reassignQueue]', error);
+    return { success: false, msg: "Internal Server Error" };
+  }
+}
+
+export async function walkInCheckIn(patientId: string, notes?: string) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, msg: "Unauthorized" };
+    }
+
+    if (user.role !== 'FRONTDESK' && user.role !== 'ADMIN') {
+      return { success: false, msg: "Only frontdesk staff can check in walk-in patients" };
+    }
+
+    if (!patientId) {
+      return { success: false, msg: "Patient ID is required" };
+    }
+
+    // Check if patient exists
+    const patient = await db.patient.findUnique({
+      where: { id: patientId },
+      select: { id: true, first_name: true, last_name: true, file_number: true },
+    });
+
+    if (!patient) {
+      return { success: false, msg: "Patient not found. Please register the patient first." };
+    }
+
+    // Check if patient already has an active check-in (has a CHECKED_IN appointment for today)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const existingCheckIn = await db.appointment.findFirst({
+      where: {
+        patient_id: patientId,
+        status: AppointmentStatus.CHECKED_IN,
+        appointment_date: {
+          gte: today,
+          lt: tomorrow,
+        },
+      },
+    });
+
+    if (existingCheckIn) {
+      return { 
+        success: false, 
+        msg: "Patient already checked in today. They may be in the waiting area or with a doctor.",
+        checkedInAppointment: existingCheckIn,
+      };
+    }
+
+    // Check if patient already has an active queue entry (WAITING or IN_CONSULTATION)
+    const existingQueue = await db.patientQueue.findFirst({
+      where: {
+        patient_id: patientId,
+        status: { in: ['WAITING', 'IN_CONSULTATION'] },
+      },
+      include: {
+        doctor: { select: { name: true } },
+      },
+    });
+
+    if (existingQueue) {
+      return { 
+        success: false, 
+        msg: `Patient is already in ${existingQueue.doctor.name}'s queue`,
+        queueEntry: existingQueue,
+      };
+    }
+
+    // Walk-in doesn't create an appointment - they're just checked in as a walk-in
+    // The appointment_id will be null in the patient_queue table for walk-ins
+    // The patient will appear in "Checked In - Awaiting Assignment" panel
+
+    return {
+      success: true,
+      msg: "Walk-in patient checked in successfully",
+      patient,
+      requiresQueueAssignment: true,
+    };
+  } catch (error) {
+    console.error('[walkInCheckIn]', error);
     return { success: false, msg: "Internal Server Error" };
   }
 }

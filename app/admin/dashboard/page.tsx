@@ -47,9 +47,15 @@ interface DashboardStats {
   pendingApprovals: number;
 }
 
+interface RevenueSummary {
+  totalBilled: number;
+  totalCollected: number;
+}
+
 export default function AdminDashboardPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [revenue, setRevenue] = useState<RevenueSummary | null>(null);
   const [appointmentTrends, setAppointmentTrends] = useState<{ date: string; count: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
@@ -61,9 +67,10 @@ export default function AdminDashboardPage() {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const [statsResponse, trendsResponse] = await Promise.all([
+      const [statsResponse, trendsResponse, revenueResponse] = await Promise.all([
         adminApi.getDashboardStats(),
         adminApi.getAppointmentTrends(30),
+        fetch('/api/payments/all').then(r => r.json()).catch(() => ({ success: false, data: { summary: { totalCollected: 0, totalBilled: 0 } } })),
       ]);
 
       if (statsResponse.success && statsResponse.data) {
@@ -79,6 +86,10 @@ export default function AdminDashboardPage() {
 
       if (trendsResponse.success && trendsResponse.data) {
         setAppointmentTrends(trendsResponse.data);
+      }
+
+      if (revenueResponse.success && revenueResponse.data?.summary) {
+        setRevenue(revenueResponse.data.summary);
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -160,9 +171,9 @@ export default function AdminDashboardPage() {
         />
         <MetricCard 
             title="Revenue Ledger" 
-            value="KSh --"
-            subtext="Calculated monthly"
-            trend="+5.2%"
+            value={revenue ? `KSh ${(revenue.totalCollected / 1000000).toFixed(1)}M` : 'KSh --'}
+            subtext="Total collected"
+            trend={revenue && revenue.totalBilled > 0 ? `${Math.round((revenue.totalCollected / revenue.totalBilled) * 100)}%` : undefined}
             variant="emerald"
         />
         <MetricCard 

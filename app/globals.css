@@ -477,3 +477,54 @@ select:-webkit-autofill:focus {
     appearance: none;
   }
 }
+
+/* Phone Input Styles */
+.PhoneInput {
+  display: flex;
+  align-items: center;
+}
+
+.PhoneInputInput {
+  flex: 1;
+  min-width: 0;
+  padding: 0.875rem 1rem;
+  background: rgb(248 250 252);
+  border: 1px solid rgb(226 232 240);
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: rgb(15 23 42);
+  outline: none;
+  transition: all 0.2s;
+}
+
+.PhoneInputInput:focus {
+  border-color: rgb(34 197 94);
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.1);
+}
+
+.PhoneInputInput::placeholder {
+  color: rgb(148 163 184);
+}
+
+.PhoneInputCountry {
+  margin-right: 0.5rem;
+}
+
+.PhoneInputCountrySelect {
+  padding: 0.5rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: 0.5rem;
+}
+
+.PhoneInputCountrySelect:focus {
+  outline: none;
+  background: rgb(248 250 252);
+}
+
+.PhoneInputCountryIcon {
+  width: 1.5rem;
+  height: 1.125rem;
+}

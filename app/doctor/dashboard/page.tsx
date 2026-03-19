@@ -1,109 +1,57 @@
 'use client';
 
 /**
- * Surgeon Dashboard
+ * Surgeon Dashboard - Redesigned
  * 
- * Clean, minimal view showing only:
- * - Today's confirmed sessions
- * - Upcoming confirmed sessions
- * - Patient notes and procedure information
+ * Three-zone layout:
+ * - Zone 1: Today's workload (metric cards)
+ * - Zone 2: Patient queue (live queue for consultations)
+ * - Zone 3: Case pipeline (surgical cases by stage)
  * 
- * No noise. No rejected inquiries. No drafts. No pending items.
- * 
- * REFACTORED: Extracted core UI into standalone components for better maintainability.
+ * REFACTORED: Complete redesign to cover all doctor workflows
+ * - Removed: Pending confirmations section, Today's Patient Flow, Upcoming Schedule
+ * - Removed: Floating "Start consultation" card (replaced by PatientQueue)
+ * - Added: Stats cards, PatientQueue component, CasePipeline tabs
  */
 
 import { useAuth } from '@/hooks/patient/useAuth';
-import { useDoctorTodayAppointments, useDoctorUpcomingAppointments, useDoctorPendingConfirmations } from '@/hooks/doctor/useDoctorDashboard';
-import { useConfirmAppointment, useRescheduleAppointment } from '@/hooks/doctor/useConsultation';
-import { doctorApi } from '@/lib/api/doctor';
-import { PendingConfirmationsSection } from '@/components/doctor/PendingConfirmationsSection';
 import { useState, useEffect } from 'react';
 import { Activity, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { TheatreScheduleView } from '@/components/doctor/TheatreScheduleView';
-import { useRouter } from 'next/navigation';
+import { doctorApi } from '@/lib/api/doctor';
 
-// Refactored Components
-import { DashboardHeader } from './components/DashboardHeader';
-import { OnboardingWidget } from './components/OnboardingWidget';
-import { TodayPatientFlow } from './components/TodayPatientFlow';
-import { UpcomingSchedule } from './components/UpcomingSchedule';
+// New components
+import { DashboardStats } from './components/DashboardStats';
+import { PatientQueue } from './components/PatientQueue';
+import { CasePipeline } from './components/CasePipeline';
 
 export default function DoctorDashboardPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
-  const [theatreCases, setTheatreCases] = useState<any[]>([]);
-  const [loadingTheatre, setLoadingTheatre] = useState(false);
-  const router = useRouter();
-  const { mutateAsync: confirmAppointment } = useConfirmAppointment();
-  const { mutateAsync: rescheduleAppointment } = useRescheduleAppointment();
-
-  const {
-    data: todayAppointments = [],
-    isLoading: loadingToday
-  } = useDoctorTodayAppointments(user?.id, isAuthenticated && !!user);
-
-  const {
-    data: upcomingAppointments = [],
-    isLoading: loadingUpcoming
-  } = useDoctorUpcomingAppointments(user?.id, isAuthenticated && !!user);
-
-  const {
-    data: pendingConfirmations = [],
-    isLoading: loadingPendingConfirmations
-  } = useDoctorPendingConfirmations(user?.id, isAuthenticated && !!user);
-
-  const loading = loadingToday || loadingUpcoming;
-
-  // Load theater schedule
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      loadTheatreSchedule();
-    }
-  }, [isAuthenticated, user]);
-
-  const loadTheatreSchedule = async () => {
-    if (!user) return;
-    try {
-      setLoadingTheatre(true);
-      const startDate = new Date();
-      startDate.setHours(0, 0, 0, 0);
-      const endDate = new Date();
-      endDate.setDate(endDate.getDate() + 7);
-      const response = await doctorApi.getTheatreSchedule(startDate, endDate);
-      if (response.success && response.data) {
-        const now = new Date();
-        const currentHours = now.getHours();
-        const currentMinutes = now.getMinutes();
-
-        const relevantCases = response.data.filter((theatreCase: any) => {
-          const apt = theatreCase.appointment;
-          if (!apt?.time) return true;
-          try {
-            const [aptHours, aptMinutes] = apt.time.split(':').map(Number);
-            if (!isNaN(aptHours) && !isNaN(aptMinutes)) {
-              const aptTotalMinutes = aptHours * 60 + aptMinutes;
-              const nowTotalMinutes = currentHours * 60 + currentMinutes;
-              return (aptTotalMinutes + 60) > nowTotalMinutes;
-            }
-          } catch (e) {
-            console.error('Error parsing theatre case time:', apt.time);
-          }
-          return true;
-        });
-        setTheatreCases(relevantCases);
-      }
-    } catch (error) {
-      console.error('Error loading theater schedule:', error);
-    } finally {
-      setLoadingTheatre(false);
-    }
-  };
-
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [checkingOnboarding, setCheckingOnboarding] = useState(true);
 
+  // Get doctor ID - need to fetch doctor profile first
+  const [doctorId, setDoctorId] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    async function fetchDoctorId() {
+      if (!user?.id) return;
+      try {
+        const response = await doctorApi.getDoctorByUserId(user.id);
+        if (response.success && response.data) {
+          setDoctorId(response.data.id);
+        }
+      } catch (error) {
+        console.error('Error fetching doctor ID:', error);
+      }
+    }
+    if (isAuthenticated && user) {
+      fetchDoctorId();
+    }
+  }, [isAuthenticated, user]);
+
+  // Check onboarding status
   useEffect(() => {
     async function checkSetup() {
       if (!user) return;
@@ -124,22 +72,6 @@ export default function DoctorDashboardPage() {
       checkSetup();
     }
   }, [isAuthenticated, user]);
-
-  const handleStartConsultation = (appointment: any) => {
-    router.push(`/doctor/consultations/${appointment.id}/session`);
-  };
-
-  const handleConfirmAppointment = async (appointmentId: number, notes?: string) => {
-    await confirmAppointment({ appointmentId, action: 'confirm', notes });
-  };
-
-  const handleRejectAppointment = async (appointmentId: number, reason: string) => {
-    await confirmAppointment({ appointmentId, action: 'reject', rejectionReason: reason });
-  };
-
-  const handleRescheduleAppointment = async (appointmentId: number, newDate: Date | string, newTime: string, reason?: string) => {
-    await rescheduleAppointment({ appointmentId, newDate, newTime, reason });
-  };
 
   if (isLoading) {
     return (
@@ -177,46 +109,50 @@ export default function DoctorDashboardPage() {
   }
 
   return (
-    <div className="animate-in fade-in duration-500">
-      <DashboardHeader user={user} />
-
-      <div className="space-y-6">
-        <OnboardingWidget 
-          user={user} 
-          show={showOnboarding} 
-          isLoading={checkingOnboarding} 
-        />
-
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
-          <div className="xl:col-span-8 space-y-8">
-            <PendingConfirmationsSection
-              appointments={pendingConfirmations}
-              onConfirm={handleConfirmAppointment}
-              onReject={handleRejectAppointment}
-              onReschedule={handleRescheduleAppointment}
-              isLoading={loadingPendingConfirmations}
-            />
-
-            <TodayPatientFlow
-              appointments={todayAppointments}
-              isLoading={loading}
-              onStartConsultation={handleStartConsultation}
-            />
-
-            <UpcomingSchedule
-              appointments={upcomingAppointments}
-              isLoading={loading}
-            />
+    <div className="animate-in fade-in duration-500 pb-10">
+      {/* Onboarding Widget */}
+      {showOnboarding && !checkingOnboarding && (
+        <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-amber-800">Complete Your Profile</h3>
+              <p className="text-sm text-amber-600">Set up your availability to start receiving patients</p>
+            </div>
+            <Link href="/doctor/schedule">
+              <Button variant="outline" size="sm" className="border-amber-300 text-amber-700 hover:bg-amber-100">
+                Set Availability
+              </Button>
+            </Link>
           </div>
+        </div>
+      )}
 
-          <div className="xl:col-span-4 space-y-5">
-            <section className="sticky top-6 space-y-5">
-              <TheatreScheduleView
-                cases={theatreCases}
-                loading={loadingTheatre}
-              />
-            </section>
-          </div>
+      {/* Zone 1: Today's Workload - Stats Cards */}
+      <section className="mb-6">
+        <DashboardStats doctorId={doctorId} isAuthenticated={isAuthenticated} />
+      </section>
+
+      {/* Main Content: Queue + Pipeline */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+        {/* Zone 2: Patient Queue (~40% width on XL) */}
+        <div className="xl:col-span-5">
+          <PatientQueue 
+            doctorId={doctorId} 
+            isAuthenticated={isAuthenticated} 
+          />
+        </div>
+
+        {/* Zone 3: Case Pipeline (~60% width on XL) */}
+        <div className="xl:col-span-7">
+          <section className="bg-white border border-slate-200/60 rounded-xl shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50">
+              <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                <Activity className="h-4 w-4 text-blue-600" />
+                Surgical Case Pipeline
+              </h2>
+            </div>
+            <CasePipeline />
+          </section>
         </div>
       </div>
     </div>

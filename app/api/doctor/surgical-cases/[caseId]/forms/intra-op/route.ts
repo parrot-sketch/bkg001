@@ -11,6 +11,7 @@ import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import db from '@/lib/db';
 import { ClinicalFormStatus } from '@prisma/client';
+import { SurgicalCaseStatusTransitionService } from '@/application/services/SurgicalCaseStatusTransitionService';
 
 const TEMPLATE_KEY = 'DOCTOR_INTRA_OP';
 const TEMPLATE_VERSION = 1;
@@ -281,6 +282,14 @@ export async function POST(
                 updated_by_user_id: authResult.user.userId,
             }
         });
+
+        // Auto-transition case status: Intra-op finalized → RECOVERY
+        try {
+            const statusTransitionService = new SurgicalCaseStatusTransitionService(db);
+            await statusTransitionService.transitionToRecovery(caseId, authResult.user.userId);
+        } catch (error) {
+            console.error('[API] Intra-op finalize: Status transition error:', error);
+        }
 
         return NextResponse.json({
             success: true,

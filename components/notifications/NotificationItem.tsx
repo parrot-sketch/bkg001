@@ -20,8 +20,8 @@ interface NotificationItemProps {
     onClick: () => void;
 }
 
-// Get icon based on notification type
-function getNotificationIcon(type: string) {
+// Get icon based on notification type or metadata event
+function getNotificationIcon(type: string, metadata?: any) {
     const iconMap: Record<string, any> = {
         'APPOINTMENT_SCHEDULED': Calendar,
         'APPOINTMENT_CONFIRMED': CheckCircle,
@@ -30,15 +30,25 @@ function getNotificationIcon(type: string) {
         'APPOINTMENT_RESCHEDULED': Calendar,
         'PATIENT_CHECKED_IN': UserCheck,
         'URGENT': AlertCircle,
-        'INFO': Info,
+        'INFO': Bell,
+        'PATIENT_ADDED_TO_QUEUE': UserCheck,
+        'APPOINTMENT_PENDING_CONFIRMATION': Calendar,
+        'PREOP_CHECKLIST_COMPLETED': CheckCircle,
+        'THEATER_BOOKED': Calendar,
     };
 
-    const IconComponent = iconMap[type] || Bell;
-    return <IconComponent className="h-5 w-5" />;
+    const eventType = metadata?.event;
+    let iconKey = type;
+    if (eventType && iconMap[eventType]) {
+        iconKey = eventType;
+    }
+
+    const IconComponent = iconMap[iconKey] || Bell;
+    return IconComponent;
 }
 
 // Get color scheme based on notification type
-function getNotificationColor(type: string) {
+function getNotificationColor(type: string, metadata?: any) {
     const colorMap: Record<string, string> = {
         'APPOINTMENT_SCHEDULED': 'bg-blue-100 text-blue-600 dark:bg-blue-950 dark:text-blue-400',
         'APPOINTMENT_CONFIRMED': 'bg-green-100 text-green-600 dark:bg-green-950 dark:text-green-400',
@@ -48,9 +58,19 @@ function getNotificationColor(type: string) {
         'PATIENT_CHECKED_IN': 'bg-teal-100 text-teal-600 dark:bg-teal-950 dark:text-teal-400',
         'URGENT': 'bg-orange-100 text-orange-600 dark:bg-orange-950 dark:text-orange-400',
         'INFO': 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+        'PATIENT_ADDED_TO_QUEUE': 'bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-400',
+        'APPOINTMENT_PENDING_CONFIRMATION': 'bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400',
+        'PREOP_CHECKLIST_COMPLETED': 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400',
+        'THEATER_BOOKED': 'bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-400',
     };
 
-    return colorMap[type] || 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
+    const eventType = metadata?.event;
+    let colorKey = type;
+    if (eventType && colorMap[eventType]) {
+        colorKey = eventType;
+    }
+
+    return colorMap[colorKey] || 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400';
 }
 
 export function NotificationItem({ notification, onClick }: NotificationItemProps) {
@@ -59,6 +79,18 @@ export function NotificationItem({ notification, onClick }: NotificationItemProp
     // Safely parse the date
     const createdAt = notification.createdAt ? new Date(notification.createdAt) : new Date();
     const isValidDate = !isNaN(createdAt.getTime());
+
+    // Parse metadata if string
+    let metadata: any = notification.metadata;
+    if (typeof metadata === 'string') {
+        try {
+            metadata = JSON.parse(metadata);
+        } catch (e) {
+            metadata = {};
+        }
+    }
+
+    const NotificationIcon = getNotificationIcon(notification.type, metadata);
 
     return (
         <div
@@ -73,9 +105,9 @@ export function NotificationItem({ notification, onClick }: NotificationItemProp
             {/* Icon */}
             <div className={cn(
                 "h-10 w-10 rounded-full flex items-center justify-center shrink-0 transition-transform group-hover:scale-110",
-                getNotificationColor(notification.type)
+                getNotificationColor(notification.type, metadata)
             )}>
-                {getNotificationIcon(notification.type)}
+                <NotificationIcon className="h-5 w-5" />
             </div>
 
             {/* Content */}

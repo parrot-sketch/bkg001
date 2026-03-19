@@ -95,14 +95,22 @@ export class SurgicalCaseService {
         }
 
         // 3. READY_FOR_SCHEDULING transitions
+        // Doctor completed plan → Theater Tech adds team & items
         if (current === 'READY_FOR_SCHEDULING') {
-            if (['READY_FOR_THEATER_BOOKING', 'PLANNING', 'CANCELLED'].includes(target)) return;
+            if (['READY_FOR_THEATER_PREP', 'PLANNING', 'CANCELLED'].includes(target)) return;
             throw new Error(`Cannot transition from READY_FOR_SCHEDULING to ${target}`);
+        }
+
+        // 3b. READY_FOR_THEATER_PREP transitions
+        // Theater Tech completed team & items → Ready for pre-op (nurse)
+        if (current === 'READY_FOR_THEATER_PREP') {
+            if (['READY_FOR_THEATER_BOOKING', 'READY_FOR_SCHEDULING', 'CANCELLED'].includes(target)) return;
+            throw new Error(`Cannot transition from READY_FOR_THEATER_PREP to ${target}`);
         }
 
         // 4. READY_FOR_THEATER_BOOKING transitions
         if (current === 'READY_FOR_THEATER_BOOKING') {
-            if (['SCHEDULED', 'READY_FOR_SCHEDULING', 'CANCELLED'].includes(target)) return;
+            if (['SCHEDULED', 'READY_FOR_THEATER_PREP', 'CANCELLED'].includes(target)) return;
             throw new Error(`Cannot transition from READY_FOR_THEATER_BOOKING to ${target}`);
         }
 

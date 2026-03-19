@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,7 +22,16 @@ const EMPTY_FORM: Partial<CreateStaffDto> = {
 export default function NewStaffPage() {
   const router = useRouter();
   const [formData, setFormData] = useState<Partial<CreateStaffDto>>(EMPTY_FORM);
+  const [showPassword, setShowPassword] = useState(false);
   const createMutation = useCreateStaff();
+
+  const validatePassword = (password: string): string | null => {
+    if (password.length < 8) return 'Password must be at least 8 characters';
+    if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter';
+    if (!/[a-z]/.test(password)) return 'Password must contain at least one lowercase letter';
+    if (!/[0-9]/.test(password)) return 'Password must contain at least one number';
+    return null;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,8 +39,9 @@ export default function NewStaffPage() {
       toast.error('Email, password, and role are required');
       return;
     }
-    if (formData.password.length < 6) {
-      toast.error('Password must be at least 6 characters');
+    const passwordError = validatePassword(formData.password);
+    if (passwordError) {
+      toast.error(passwordError);
       return;
     }
     try {
@@ -134,15 +144,25 @@ export default function NewStaffPage() {
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Temporary Password *</Label>
-                <Input
-                  type="password"
-                  className="rounded-xl border-slate-200 bg-slate-50/50"
-                  placeholder="Min. 6 characters"
-                  value={formData.password || ''}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  required
-                  disabled={createMutation.isPending}
-                />
+                <div className="relative">
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    className="rounded-xl border-slate-200 bg-slate-50/50 pr-10"
+                    placeholder="Min. 8 characters"
+                    value={formData.password || ''}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    required
+                    disabled={createMutation.isPending}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <p className="text-xs text-slate-400">Min. 8 characters, uppercase, lowercase, and number</p>
               </div>
             </div>
 
