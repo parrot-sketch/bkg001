@@ -125,10 +125,16 @@ export function useDoctorIntraOp({
     
     const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
     const lastSavedRef = useRef<string>('');
+    const loadedCaseIdRef = useRef<string | null>(null);
+    const userRef = useRef(user);
+    userRef.current = user;
 
-    // Load case data when caseData changes
+    // Load case data when caseId changes (not on every render)
     useEffect(() => {
-        if (caseLoading || !caseData) return;
+        if (caseLoading || !caseData || caseId === loadedCaseIdRef.current) return;
+        
+        // Mark this case as loaded
+        loadedCaseIdRef.current = caseId;
         
         const caseInfo = caseData.case;
         setSurgicalCase({
@@ -148,7 +154,7 @@ export function useDoctorIntraOp({
 
         // Pre-populate from case
         const surgeonName = caseData.primarySurgeon?.name || '';
-        const userName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '';
+        const userName = userRef.current ? `${userRef.current.firstName || ''} ${userRef.current.lastName || ''}`.trim() : '';
         
         setFormData(prev => ({
             ...prev,
@@ -169,8 +175,41 @@ export function useDoctorIntraOp({
         
         // Check if already finalized based on status
         setIsFinalized(caseInfo.status === 'RECOVERY' || caseInfo.status === 'COMPLETED');
+        
+        // Fetch team members from theater tech input
+        fetchTeamMembers(caseId);
+        
         setLoading(false);
-    }, [caseData, caseLoading, user]);
+    }, [caseId, caseLoading]);
+
+    // Fetch team members from theater tech
+    const fetchTeamMembers = async (caseId: string) => {
+        try {
+            const res = await fetch(`/api/theater-tech/surgical-cases/${caseId}/theater-prep`);
+            const data = await res.json();
+            if (data.success && data.data?.teamMembers) {
+                const teamMembers = data.data.teamMembers;
+                const teamMap: Record<string, string> = {};
+                teamMembers.forEach((m: any) => {
+                    if (m.name) {
+                        teamMap[m.role] = m.name;
+                    }
+                });
+                setFormData(prev => ({
+                    ...prev,
+                    surgicalTeam: {
+                        surgeon: teamMap['SURGEON'] || prev.surgicalTeam.surgeon,
+                        anaesthesiologist: teamMap['ANAESTHESIOLOGIST'] || prev.surgicalTeam.anaesthesiologist,
+                        assistants: teamMap['ASSISTANT'] || prev.surgicalTeam.assistants,
+                        scrubNurse: teamMap['SCRUB_NURSE'] || prev.surgicalTeam.scrubNurse,
+                        circulatingNurse: teamMap['CIRCULATING_NURSE'] || prev.surgicalTeam.circulatingNurse,
+                    },
+                }));
+            }
+        } catch (error) {
+            console.error('Failed to fetch team members:', error);
+        }
+    };
 
     // Auto-save every 30 seconds when dirty
     useEffect(() => {

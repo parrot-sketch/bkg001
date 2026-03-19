@@ -18,6 +18,8 @@ export enum UserRole {
   NURSE = 'NURSE',
   LAB_TECHNICIAN = 'LAB_TECHNICIAN',
   CASHIER = 'CASHIER',
+  THEATER_TECHNICIAN = 'THEATER_TECHNICIAN',
+  STORES = 'STORES',
 }
 
 /**
@@ -78,6 +80,12 @@ export async function getPostAuthRedirect(
 
     case UserRole.CASHIER:
       return '/admin/dashboard'; // Cashiers use admin dashboard
+
+    case UserRole.THEATER_TECHNICIAN:
+      return '/theater-tech/dayboard';
+
+    case UserRole.STORES:
+      return '/admin/inventory';
 
     default:
       // Unknown role - try patient check as fallback

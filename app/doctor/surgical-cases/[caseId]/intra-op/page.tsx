@@ -180,9 +180,9 @@ export default function DoctorIntraOpPage() {
                     <CardContent className="pt-6 space-y-6">
                         <TabsContent value="patient">
                             <div className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <Label className="text-sm text-stone-500">Date</Label>
+                                        <Label className="text-sm text-stone-500">Date of Surgery</Label>
                                         <Input 
                                             value={formData.date}
                                             onChange={(e) => updateField('date', e.target.value)}
@@ -191,8 +191,29 @@ export default function DoctorIntraOpPage() {
                                         />
                                     </div>
                                     <div>
-                                        <Label className="text-sm text-stone-500">Case ID</Label>
-                                        <p className="mt-1 text-sm font-mono text-stone-700">{surgicalCase.id.slice(0, 8)}</p>
+                                        <Label className="text-sm text-stone-500">Patient</Label>
+                                        <p className="mt-1 text-sm font-medium text-stone-700">
+                                            {surgicalCase.patient?.first_name} {surgicalCase.patient?.last_name}
+                                        </p>
+                                        {surgicalCase.patient?.file_number && (
+                                            <p className="text-xs text-stone-400">File #: {surgicalCase.patient.file_number}</p>
+                                        )}
+                                    </div>
+                                </div>
+                                {surgicalCase.patient?.allergies && (
+                                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                                        <Label className="text-sm text-red-600 font-medium">Allergies</Label>
+                                        <p className="text-sm text-red-700">{surgicalCase.patient.allergies}</p>
+                                    </div>
+                                )}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                                    <div>
+                                        <Label className="text-sm text-stone-500">Procedure</Label>
+                                        <p className="mt-1 text-sm font-medium text-stone-700">{surgicalCase.procedure_name || 'Not specified'}</p>
+                                    </div>
+                                    <div>
+                                        <Label className="text-sm text-stone-500">Diagnosis</Label>
+                                        <p className="mt-1 text-sm font-medium text-stone-700">{surgicalCase.diagnosis || 'Not specified'}</p>
                                     </div>
                                 </div>
                             </div>
@@ -202,8 +223,11 @@ export default function DoctorIntraOpPage() {
                             <SurgicalTeamSection 
                                 surgicalTeam={formData.surgicalTeam}
                                 updateField={updateField}
-                                readOnly={isFinalized}
+                                readOnly={true}
                             />
+                            <p className="text-xs text-stone-400 mt-4">
+                                Team members are managed by the Theater Technician and cannot be modified here.
+                            </p>
                         </TabsContent>
 
                         <TabsContent value="diagnosis">

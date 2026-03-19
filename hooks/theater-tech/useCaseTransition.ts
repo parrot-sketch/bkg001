@@ -8,9 +8,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { ApiResponse, isSuccess, ApiErrorCode } from '@/lib/http/apiResponse';
 import { extractMissingItems, isGateBlockedError } from '@/lib/theater-tech/dayboardHelpers';
+import { tokenStorage } from '@/lib/auth/token';
 
 function getToken(): string | null {
-  return typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+  return tokenStorage.getAccessToken();
 }
 
 interface TransitionRequest {

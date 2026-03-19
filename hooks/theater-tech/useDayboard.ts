@@ -7,9 +7,10 @@
 import { useQuery } from '@tanstack/react-query';
 import type { DayboardDto } from '@/application/dtos/TheaterTechDtos';
 import { ApiResponse, isSuccess } from '@/lib/http/apiResponse';
+import { tokenStorage } from '@/lib/auth/token';
 
 function getToken(): string | null {
-  return typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+  return tokenStorage.getAccessToken();
 }
 
 async function fetchDayboard(date: string, theaterId?: string): Promise<DayboardDto> {
