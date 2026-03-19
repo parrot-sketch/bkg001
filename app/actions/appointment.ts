@@ -407,12 +407,33 @@ export async function assignPatientToQueue(data: {
       }
     }
 
+    // For walk-ins (no appointment), create a placeholder appointment
+    // This ensures the consultation room can work with walk-ins
+    let finalAppointmentId = appointmentId;
+    
+    if (!appointmentId) {
+      const walkInAppointment = await db.appointment.create({
+        data: {
+          patient_id: patientId,
+          doctor_id: doctorId,
+          appointment_date: new Date(),
+          time: new Date().toTimeString().slice(0, 5),
+          type: 'Walk-in',
+          status: AppointmentStatus.READY_FOR_CONSULTATION,
+          source: 'FRONTDESK_SCHEDULED',
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      });
+      finalAppointmentId = walkInAppointment.id;
+    }
+
     // Create queue entry
     const queueEntry = await db.patientQueue.create({
       data: {
         patient_id: patientId,
         doctor_id: doctorId,
-        appointment_id: appointmentId,
+        appointment_id: finalAppointmentId,
         status: 'WAITING',
         added_by: user.userId,
         notes,
@@ -424,17 +445,15 @@ export async function assignPatientToQueue(data: {
       },
     });
 
-    // Update appointment status if appointmentId provided
-    if (appointmentId) {
-      await db.appointment.update({
-        where: { id: appointmentId },
-        data: {
-          status: AppointmentStatus.READY_FOR_CONSULTATION,
-          status_changed_at: new Date(),
-          status_changed_by: user.userId,
-        },
-      });
-    }
+    // Update appointment status (either existing or newly created)
+    await db.appointment.update({
+      where: { id: finalAppointmentId },
+      data: {
+        status: AppointmentStatus.READY_FOR_CONSULTATION,
+        status_changed_at: new Date(),
+        status_changed_by: user.userId,
+      },
+    });
 
     // Send notification to doctor
     const { sendPatientQueuedNotification } = await import('@/domain/utils/notification-helpers');
