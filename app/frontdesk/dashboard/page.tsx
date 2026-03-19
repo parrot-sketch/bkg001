@@ -19,6 +19,7 @@ import { useDashboardData } from '@/components/frontdesk/hooks/useDashboardData'
 import { useTheaterSchedulingQueue } from '@/hooks/frontdesk/useTheaterScheduling';
 import { TodaysSchedule } from '@/components/frontdesk/TodaysSchedule';
 import { QueueManagementPanels } from '@/components/frontdesk/QueueManagementPanels';
+import { QuickAssignmentDialog } from '@/components/frontdesk/QuickAssignmentDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -46,7 +47,7 @@ import { BookingChannel } from '@/domain/enums/BookingChannel';
 import { useBookAppointmentStore } from '@/hooks/frontdesk/useBookAppointmentStore';
 import { AppointmentSource } from '@/domain/enums/AppointmentSource';
 import { triggerAppointmentExpiry } from '@/app/actions/appointment-expiry';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 export default function FrontdeskDashboardPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -56,6 +57,7 @@ export default function FrontdeskDashboardPage() {
   const router = useRouter();
   const { openBookingDialog } = useBookAppointmentStore();
   const [expiryLoading, setExpiryLoading] = useState(false);
+  const [quickAssignmentOpen, setQuickAssignmentOpen] = useState(false);
 
   // Trigger appointment expiry check on dashboard load
   useEffect(() => {
@@ -122,6 +124,23 @@ export default function FrontdeskDashboardPage() {
 
   return (
     <div className="space-y-5">
+        {/* ── Quick Assignment Banner ── */}
+        <div className="bg-gradient-to-r from-cyan-600 to-cyan-700 rounded-2xl p-4 text-white shadow-lg">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-bold">Quick Patient Assignment</h2>
+              <p className="text-cyan-100 text-sm">Add a patient directly to a doctor's queue — no appointment needed</p>
+            </div>
+            <Button
+              onClick={() => setQuickAssignmentOpen(true)}
+              className="bg-white text-cyan-700 hover:bg-cyan-50 font-semibold"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Patient to Queue
+            </Button>
+          </div>
+        </div>
+
         {/* ── Pipeline Bar: Live counts across the patient journey ── */}
         <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <PipelineCard
@@ -215,39 +234,6 @@ export default function FrontdeskDashboardPage() {
               </CardContent>
             </Card>
 
-            {/* Shift Summary */}
-            <Card className="border-slate-200/60 shadow-sm rounded-xl overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 text-white">
-              <CardHeader className="py-3 px-4 border-b border-white/10">
-                <CardTitle className="text-sm font-semibold text-slate-200 flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  Shift Summary
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4">
-                <div className="space-y-3">
-                  <ShiftRow label="Total Booked" value={stats.expectedPatients} valueClass="text-white" />
-                  <ShiftRow label="Arrived & Waiting" value={stats.checkedInPatients} valueClass="text-amber-400" />
-                  <ShiftRow label="In Consultation" value={stats.inConsultation ?? 0} valueClass="text-violet-400" />
-                  <ShiftRow label="Completed" value={stats.completedToday ?? 0} valueClass="text-emerald-400" />
-
-                  {/* Progress bar */}
-                  <div className="pt-1">
-                    <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-cyan-500 to-emerald-500 rounded-full transition-all duration-700"
-                        style={{ width: `${progressPct}%` }}
-                      />
-                    </div>
-                    <p className="text-[10px] text-slate-500 mt-1.5 text-center">
-                      {totalExpected > 0
-                        ? `${progressPct}% of appointments completed`
-                        : 'No appointments scheduled today'}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Pending Intakes alert (only when non-zero) */}
             {stats.pendingIntakeCount > 0 && (
               <Link href="/frontdesk/intake/pending">
@@ -267,6 +253,13 @@ export default function FrontdeskDashboardPage() {
             )}
           </div>
         </section>
+
+        {/* ── Quick Assignment Dialog ── */}
+        <QuickAssignmentDialog
+          open={quickAssignmentOpen}
+          onOpenChange={setQuickAssignmentOpen}
+          onSuccess={() => refetch()}
+        />
     </div>
   );
 }
