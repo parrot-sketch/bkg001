@@ -2,16 +2,9 @@
 
 import { useBookAppointmentStore } from '@/hooks/frontdesk/useBookAppointmentStore';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { AppointmentBookingForm } from './AppointmentBookingForm';
+import { AppointmentBookingWizard } from './AppointmentBookingWizard';
 import { useQueryClient } from '@tanstack/react-query';
 
-/**
- * Global Appointment Booking Dialog
- * 
- * Powered by Zustand `useBookAppointmentStore`. Can be triggered from anywhere
- * in the Frontdesk layout. Maintains the user's navigational context while
- * displaying the booking form inside a clean, modern modal.
- */
 export function BookAppointmentDialog() {
   const {
     isOpen,
@@ -31,7 +24,6 @@ export function BookAppointmentDialog() {
   const queryClient = useQueryClient();
 
   const handleSuccess = () => {
-    // Invalidate queries so the underlying pages refresh their data
     queryClient.invalidateQueries({ queryKey: ['appointments'] });
     queryClient.invalidateQueries({ queryKey: ['appointmentsByDate'] });
     queryClient.invalidateQueries({ queryKey: ['frontdesk-patients'] });
@@ -41,26 +33,25 @@ export function BookAppointmentDialog() {
 
   return (
     <Dialog open={isOpen} onOpenChange={closeBookingDialog}>
-      <DialogContent className="max-w-5xl w-[95vw] sm:w-[90vw] max-h-[85vh] sm:max-h-[90vh] overflow-hidden p-0 border-none bg-white rounded-2xl sm:rounded-[2rem] shadow-2xl ring-1 ring-slate-200/50">
+      <DialogContent 
+        className="max-w-4xl w-[95vw] max-h-[90vh] p-0 border-none bg-white rounded-2xl shadow-2xl"
+      >
         <DialogTitle className="sr-only">Book Appointment</DialogTitle>
-        <div className="h-full flex flex-col overflow-y-auto custom-scrollbar bg-white rounded-2xl sm:rounded-[2rem]">
-          <AppointmentBookingForm
-            mode="full"
-            initialPatientId={initialPatientId}
-            initialPatient={initialPatient}
-            initialDoctorId={initialDoctorId}
-            initialDoctor={initialDoctor}
-            initialDate={initialDate}
-            initialTime={initialTime}
-            source={source}
-            bookingChannel={bookingChannel}
-            parentAppointmentId={parentAppointmentId}
-            parentConsultationId={parentConsultationId}
-            userRole="frontdesk"
-            onSuccess={handleSuccess}
-            onCancel={closeBookingDialog}
-          />
-        </div>
+        <AppointmentBookingWizard
+          initialPatientId={initialPatientId}
+          initialPatient={initialPatient}
+          initialDoctorId={initialDoctorId}
+          initialDoctor={initialDoctor}
+          initialDate={initialDate}
+          initialTime={initialTime}
+          source={source}
+          bookingChannel={bookingChannel}
+          parentAppointmentId={parentAppointmentId}
+          parentConsultationId={parentConsultationId}
+          userRole="frontdesk"
+          onSuccess={handleSuccess}
+          onCancel={closeBookingDialog}
+        />
       </DialogContent>
     </Dialog>
   );

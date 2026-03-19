@@ -12,6 +12,7 @@ import type { CompleteConsultationDto } from '../../application/dtos/CompleteCon
 import type { CheckInPatientDto } from '../../application/dtos/CheckInPatientDto';
 import type { DoctorResponseDto } from '../../application/dtos/DoctorResponseDto';
 import type { ConfirmAppointmentDto } from '../../application/dtos/ConfirmAppointmentDto';
+import type { AvailableSlotResponseDto } from '../../application/dtos/AvailableSlotResponseDto';
 
 /**
  * Doctor API client
@@ -34,8 +35,8 @@ export const doctorApi = {
   /**
    * Get available slots for a doctor on a specific date
    */
-  async getAvailableSlots(doctorId: string, date: string): Promise<ApiResponse<string[]>> {
-    return apiClient.get<string[]>(`/doctors/${doctorId}/slots?date=${date}`);
+  async getAvailableSlots(doctorId: string, date: string): Promise<ApiResponse<AvailableSlotResponseDto[]>> {
+    return apiClient.get<AvailableSlotResponseDto[]>(`/doctors/${doctorId}/slots?date=${date}`);
   },
 
   /**
