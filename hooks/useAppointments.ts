@@ -227,6 +227,25 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
         },
     });
 
+    // Mutation: Reinstate no-show appointment
+    const reinstateMutation = useMutation({
+        mutationFn: async (appointmentId: number) => {
+            const response = await fetch(`/api/appointments/${appointmentId}/reinstate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            return response.json();
+        },
+        onSuccess: () => {
+            toast.success('Appointment reinstated');
+            queryClient.invalidateQueries({ queryKey: appointmentKeys.all });
+        },
+        onError: (err) => {
+            toast.error('Failed to reinstate appointment');
+            console.error('Reinstate error:', err);
+        },
+    });
+
     return {
         // Data
         appointments: (appointmentsQuery.data?.success ? appointmentsQuery.data.data : []) || [],
@@ -239,6 +258,7 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
         cancelAppointment: cancelMutation.mutate,
         markNoShow: markNoShowMutation.mutate,
         completeAppointment: completeMutation.mutate,
+        reinstateAppointment: reinstateMutation.mutate,
 
         // Loading states
         isConfirming: confirmMutation.isPending,
@@ -246,6 +266,7 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
         isCancelling: cancelMutation.isPending,
         isMarkingNoShow: markNoShowMutation.isPending,
         isCompleting: completeMutation.isPending,
+        isReinstating: reinstateMutation.isPending,
 
         // Refetch
         refetch: appointmentsQuery.refetch,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import {
     Dialog,
@@ -14,6 +14,27 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+const UOM_OPTIONS = ['Unit', 'Pack', 'Box', 'Vial', 'Bottle', 'Pair', 'Set', 'Bag', 'Canister', 'Tube', 'Strip'];
+
+const CATEGORY_CODES: Record<string, string> = {
+    MEDICATION: 'MED',
+    CONSUMABLE: 'CON',
+    EQUIPMENT: 'EQP',
+    IMPLANT: 'IMP',
+    OTHER: 'OTH',
+};
+
+function generateSku(name: string, category: string): string {
+    const prefix = CATEGORY_CODES[category] || 'GEN';
+    const namePart = name
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, '')
+        .substring(0, 4);
+    const random = Math.random().toString(36).substring(2, 5).toUpperCase();
+    const date = new Date().toISOString().slice(2, 7).replace('-', '');
+    return `${prefix}-${namePart || 'ITEM'}-${date}${random}`;
+}
+
 export function CreateItemDialog({ open, onOpenChange, onSuccess }: { open: boolean, onOpenChange: (open: boolean) => void, onSuccess: () => void }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     
@@ -25,6 +46,13 @@ export function CreateItemDialog({ open, onOpenChange, onSuccess }: { open: bool
     const [reorderPoint, setReorderPoint] = useState('10');
     const [isImplant, setIsImplant] = useState(false);
     const [manufacturer, setManufacturer] = useState('');
+
+    // Auto-generate SKU when name or category changes
+    useEffect(() => {
+        if (name) {
+            setSku(generateSku(name, category));
+        }
+    }, [name, category]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -77,6 +105,13 @@ export function CreateItemDialog({ open, onOpenChange, onSuccess }: { open: bool
         setManufacturer('');
     };
 
+    const handleNameChange = (value: string) => {
+        setName(value);
+        if (!sku) {
+            setSku(generateSku(value, category));
+        }
+    };
+
     return (
         <Dialog open={open} onOpenChange={(val) => {
             onOpenChange(val);
@@ -96,7 +131,7 @@ export function CreateItemDialog({ open, onOpenChange, onSuccess }: { open: bool
                             <Input
                                 id="name"
                                 value={name}
-                                onChange={(e) => setName(e.target.value)}
+                                onChange={(e) => handleNameChange(e.target.value)}
                                 className="col-span-3"
                                 placeholder="e.g. Saline Solution 500ml"
                                 required
@@ -109,7 +144,7 @@ export function CreateItemDialog({ open, onOpenChange, onSuccess }: { open: bool
                                 value={sku}
                                 onChange={(e) => setSku(e.target.value)}
                                 className="col-span-3"
-                                placeholder="e.g. MED-SAL-500"
+                                placeholder="Auto-generated"
                             />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
@@ -129,13 +164,16 @@ export function CreateItemDialog({ open, onOpenChange, onSuccess }: { open: bool
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="uom" className="text-right">Unit of Measure</Label>
-                            <Input
+                            <select
                                 id="uom"
                                 value={uom}
                                 onChange={(e) => setUom(e.target.value)}
-                                className="col-span-3"
-                                placeholder="e.g. Unit, Box, Bottle"
-                            />
+                                className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {UOM_OPTIONS.map((option) => (
+                                    <option key={option} value={option}>{option}</option>
+                                ))}
+                            </select>
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="reorder" className="text-right">Reorder Point</Label>

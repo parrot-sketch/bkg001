@@ -143,7 +143,7 @@ function getCasePrimaryAction(sc: SurgicalCaseListItemDto): CaseAction {
             return { label: 'View Plan', href: planRoute, disabled: false, variant: 'outline' };
 
         case 'SCHEDULED':
-            return { label: 'View Booking', href: planRoute, disabled: false, variant: 'outline' };
+            return { label: 'View Plan', href: planRoute, disabled: false, variant: 'outline' };
 
         case 'IN_PREP':
             return { label: 'Prepare Case', href: planRoute, disabled: false, variant: 'outline' };
@@ -812,7 +812,7 @@ function EmptyState({
                 <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => router.push('/doctor/queue')}
+                    onClick={() => router.push('/doctor/appointments')}
                 >
                     Go to Consultations
                 </Button>

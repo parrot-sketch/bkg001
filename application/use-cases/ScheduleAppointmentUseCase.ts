@@ -446,6 +446,7 @@ export class ScheduleAppointmentUseCase {
             `${sourceLabel} an appointment for ${patient.getFullName()} on ${dto.appointmentDate.toLocaleDateString()} at ${dto.time}. Please confirm, cancel, or reschedule.`,
             'warning',
             {
+              event: 'APPOINTMENT_PENDING_CONFIRMATION',
               resourceType: 'appointment',
               resourceId: savedAppointmentId,
               actionUrl: `/doctor/appointments/${savedAppointmentId}`

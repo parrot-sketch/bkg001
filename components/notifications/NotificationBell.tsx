@@ -86,9 +86,24 @@ export function NotificationBell() {
         else if (pathname.startsWith('/frontdesk')) rolePrefix = '/frontdesk';
         else if (pathname.startsWith('/nurse')) rolePrefix = '/nurse';
 
-        // Navigate based on resource type or custom navigateTo field
-        if (metadata?.navigateTo) {
-            // Custom navigation path (e.g., for rescheduled appointments with date/highlight params)
+        // Check for specific event types in metadata
+        const eventType = metadata?.event;
+
+        // Navigate based on event type
+        if (eventType === 'PATIENT_ADDED_TO_QUEUE') {
+            // Navigate to doctor dashboard with queue section
+            router.push('/doctor/dashboard#queue');
+        } else if (eventType === 'APPOINTMENT_PENDING_CONFIRMATION') {
+            // Navigate to appointments page for pending confirmations
+            router.push('/doctor/appointments');
+        } else if (eventType === 'PREOP_CHECKLIST_COMPLETED' && metadata?.surgicalCaseId) {
+            // Navigate to surgical case
+            router.push(`/doctor/surgical-cases/${metadata.surgicalCaseId}`);
+        } else if (eventType === 'THEATER_BOOKED' && metadata?.surgicalCaseId) {
+            // Navigate to surgical cases with scheduled tab
+            router.push('/doctor/surgical-cases?status=SCHEDULED');
+        } else if (metadata?.navigateTo) {
+            // Custom navigation path
             router.push(metadata.navigateTo);
         } else if (metadata?.resourceType === 'appointment' && metadata?.resourceId) {
             router.push(`${rolePrefix}/appointments/${metadata.resourceId}`);

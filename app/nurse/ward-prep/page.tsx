@@ -149,8 +149,8 @@ export default function PreOpCasesPage() {
         {/* Controls */}
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-slate-800 tracking-tight">Active Cases</h2>
-            <p className="text-sm text-slate-500">Manage patient readiness checklists</p>
+            <h2 className="text-lg font-bold text-slate-800 tracking-tight">Pre-Op Ward Cases</h2>
+            <p className="text-sm text-slate-500">Complete ward checklists to ready patients for surgery</p>
           </div>
 
           <div className="flex items-center gap-2 w-full md:w-auto">
@@ -209,11 +209,12 @@ export default function PreOpCasesPage() {
             <Table>
               <TableHeader className="bg-slate-50/80">
                 <TableRow>
-                  <TableHead className="w-[250px]">Patient & Procedure</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Surgeon & Info</TableHead>
-                  <TableHead className="w-[180px]">Checklist Progress</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="w-[220px]">Patient</TableHead>
+                  <TableHead>Case Status</TableHead>
+                  <TableHead>Surgeon</TableHead>
+                  <TableHead className="w-[180px]">Ward Checklist</TableHead>
+                  <TableHead className="w-[200px]">Quick Actions</TableHead>
+                  <TableHead className="text-right w-[100px]">More</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

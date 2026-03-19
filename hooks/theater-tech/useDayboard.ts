@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { DayboardDto } from '@/application/dtos/TheaterTechDtos';
 import { ApiResponse, isSuccess } from '@/lib/http/apiResponse';
 import { tokenStorage } from '@/lib/auth/token';
+import { useAuth } from '@/hooks/patient/useAuth';
 
 function getToken(): string | null {
   return tokenStorage.getAccessToken();
@@ -15,6 +16,9 @@ function getToken(): string | null {
 
 async function fetchDayboard(date: string, theaterId?: string): Promise<DayboardDto> {
   const token = getToken();
+  if (!token) {
+    throw new Error('No authentication token available');
+  }
   const params = new URLSearchParams({ date });
   if (theaterId) params.set('theaterId', theaterId);
   const res = await fetch(`/api/theater-tech/dayboard?${params}`, {
@@ -28,9 +32,12 @@ async function fetchDayboard(date: string, theaterId?: string): Promise<Dayboard
 }
 
 export function useDayboard(date: string, theaterId?: string) {
+  const { isAuthenticated } = useAuth();
+  
   return useQuery<DayboardDto>({
     queryKey: ['theater-tech-dayboard', date, theaterId || ''],
     queryFn: () => fetchDayboard(date, theaterId),
+    enabled: isAuthenticated,
     refetchInterval: 30_000,
     staleTime: 10_000,
     gcTime: 1000 * 60 * 5,

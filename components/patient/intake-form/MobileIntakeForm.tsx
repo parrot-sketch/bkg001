@@ -1,16 +1,22 @@
 'use client';
 
-/**
- * MobileIntakeForm — Modern mobile-first patient intake wizard
- * Clean design optimized for mobile users
- */
-
+import type { CSSProperties } from 'react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { PatientIntakeFormSchema } from '@/lib/schema';
 import PhoneInput from 'react-phone-number-input';
-import 'react-phone-number-input/style.css';
+
+declare module 'react-phone-number-input' {
+  interface PhoneInputProps extends CSSProperties {
+    className?: string;
+    international?: boolean;
+    defaultCountry?: string;
+    value?: string;
+    onChange?: (value: string | undefined) => void;
+  }
+}
+
 import { Shield, Check, Loader2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -283,7 +289,6 @@ export function MobileIntakeForm({
                                                 international
                                                 defaultCountry="KE"
                                                 className="phone-input-custom"
-                                                inputClassName={inputClass}
                                             />
                                         )}
                                     />
@@ -299,7 +304,7 @@ export function MobileIntakeForm({
                                                 {...field}
                                                 international
                                                 defaultCountry="KE"
-                                                inputClassName={inputClass}
+                                                className="phone-input-custom"
                                             />
                                         )}
                                     />
@@ -365,7 +370,7 @@ export function MobileIntakeForm({
                                                 {...field}
                                                 international
                                                 defaultCountry="KE"
-                                                inputClassName={inputClass}
+                                                className="phone-input-custom"
                                             />
                                         )}
                                     />

@@ -76,21 +76,8 @@ export function AppointmentBookingForm({
     const isFollowUp = source === AppointmentSource.DOCTOR_FOLLOW_UP || source === 'DOCTOR_FOLLOW_UP' || initialType === 'Follow-up';
 
     // Steps: 1. Doctor, 2. Patient, 3. DateTime, 4. Details/Review
-    const [currentStep, setCurrentStep] = useState(() => {
-        const hasPatient = !!(initialPatientId || initialPatient);
-        const hasDoctor = !!(initialDoctorId || initialDoctor);
-
-        // Pre-selected both: go to DateTime
-        if (hasPatient && hasDoctor) return 3;
-        
-        // Locked doctor and have doctor: skip to Step 2 (Patient)
-        if (lockDoctor && hasDoctor) {
-            return hasPatient ? 3 : 2;
-        }
-
-        // Default: Start at Step 1 (Doctor Selection)
-        return 1;
-    });
+    // Always start at step 1 for consistent UX regardless of entry point
+    const [currentStep, setCurrentStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Form Data
@@ -544,9 +531,12 @@ export function AppointmentBookingForm({
                                     {doctors.map((doctor) => {
                                         const isSelected = formData.doctorId === doctor.id;
                                         const doctorName = doctor.name || `${doctor.firstName} ${doctor.lastName}`;
-                                        const displayName = doctor.title ? 
-                                            (doctorName.startsWith(doctor.title) ? doctorName : `${doctor.title} ${doctorName}`) : 
-                                            (`Dr. ${doctorName}`);
+                                        const title = doctor.title;
+                                        // Check if title already appears at start of name (case-insensitive)
+                                        let displayName = doctorName;
+                                        if (title && !doctorName.toLowerCase().startsWith(title.toLowerCase()) && !doctorName.toLowerCase().startsWith('dr.')) {
+                                            displayName = `${title} ${doctorName}`;
+                                        }
                                         
                                         return (
                                             <div 
@@ -811,7 +801,12 @@ export function AppointmentBookingForm({
                                             {(() => {
                                                 const doctorName = selectedDoctor?.name || `${selectedDoctor?.firstName} ${selectedDoctor?.lastName}`;
                                                 const title = selectedDoctor?.title;
-                                                if (title && doctorName.startsWith(title)) {
+                                                // Check if title already appears at start of name (case-insensitive)
+                                                if (title && doctorName.toLowerCase().startsWith(title.toLowerCase())) {
+                                                    return doctorName;
+                                                }
+                                                // Check for "Dr." prefix already in name
+                                                if (doctorName.toLowerCase().startsWith('dr.')) {
                                                     return doctorName;
                                                 }
                                                 return title ? `${title} ${doctorName}` : `Dr. ${doctorName}`;

@@ -130,6 +130,7 @@ model Patient {
   surgical_cases           SurgicalCase[]
   surgical_outcomes        SurgicalOutcome[]
   vital_signs              VitalSign[]
+  patient_queue            PatientQueue[]
 
   @@index([email])
   @@index([user_id])
@@ -195,6 +196,7 @@ model Doctor {
   slot_configuration         SlotConfiguration?
   primary_surgical_cases     SurgicalCase[]
   surgical_outcomes          SurgicalOutcome[]
+  patient_queue              PatientQueue[]
 
   @@index([email])
   @@index([user_id])
@@ -370,6 +372,7 @@ model Appointment {
   payments                      Payment?
   surgical_outcome              SurgicalOutcome?
   vital_signs                   VitalSign[]                @relation("VitalSignAppointment")
+  patient_queue                 PatientQueue[]
 
   @@unique([doctor_id, scheduled_at], map: "unique_doctor_scheduled_slot")
   @@index([patient_id])
@@ -390,6 +393,32 @@ model Appointment {
   @@index([status_changed_at])
   @@index([status_changed_by])
   @@index([doctor_id, appointment_date, time])
+}
+
+model PatientQueue {
+  id             Int          @id @default(autoincrement())
+  patient_id     String
+  doctor_id      String
+  appointment_id Int?
+  status         QueueStatus  @default(WAITING)
+  added_by       String
+  added_at       DateTime     @default(now())
+  called_at      DateTime?
+  completed_at   DateTime?
+  notes          String?
+  position       Int?
+  removed_at     DateTime?
+  removed_by     String?
+  removal_reason String?
+  patient        Patient      @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+  doctor         Doctor       @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
+  appointment    Appointment? @relation(fields: [appointment_id], references: [id])
+
+  @@index([patient_id])
+  @@index([doctor_id])
+  @@index([appointment_id])
+  @@index([status])
+  @@index([added_at])
 }
 
 model Consultation {
@@ -666,18 +695,18 @@ model InventoryItem {
 }
 
 model InventoryTransaction {
-  id                String            @id @default(uuid())
-  inventory_item_id Int
-  type              StockMovementType
-  quantity          Int               @default(1)
-  unit_price        Float             @default(0)
-  total_value       Float             @default(0)
-  reference         String?
-  notes             String?
-  created_at        DateTime          @default(now())
+  id                 String            @id @default(uuid())
+  inventory_item_id  Int
+  type               StockMovementType
+  quantity           Int               @default(1)
+  unit_price         Float             @default(0)
+  total_value        Float             @default(0)
+  reference          String?
+  notes              String?
+  created_at         DateTime          @default(now())
   created_by_user_id String?
-  inventory_item    InventoryItem     @relation(fields: [inventory_item_id], references: [id], onDelete: Cascade)
-  created_by        User?             @relation("InventoryTransactionUser", fields: [created_by_user_id], references: [id])
+  inventory_item     InventoryItem     @relation(fields: [inventory_item_id], references: [id], onDelete: Cascade)
+  created_by         User?             @relation("InventoryTransactionUser", fields: [created_by_user_id], references: [id])
 
   @@index([inventory_item_id])
   @@index([type])
@@ -1552,6 +1581,7 @@ model SurgicalCase {
   medication_records SurgicalMedicationRecord[]
   procedure_record   SurgicalProcedureRecord?
   theater_booking    TheaterBooking?
+  team_members       SurgicalCaseTeamMember[]
 
   @@index([patient_id])
   @@index([primary_surgeon_id])
@@ -1604,15 +1634,25 @@ model SurgicalChecklist {
   sign_out_items        String?
   created_at            DateTime     @default(now())
   updated_at            DateTime     @updatedAt
-  sign_in_user          User?        @relation("ChecklistSignIn", fields: [sign_in_by_user_id], references: [id])
-  sign_out_user         User?        @relation("ChecklistSignOut", fields: [sign_out_by_user_id], references: [id])
   surgical_case         SurgicalCase @relation(fields: [surgical_case_id], references: [id], onDelete: Cascade)
-  time_out_user         User?        @relation("ChecklistTimeOut", fields: [time_out_by_user_id], references: [id])
+  sign_in_by            User?        @relation("ChecklistSignIn", fields: [sign_in_by_user_id], references: [id])
+  sign_out_by           User?        @relation("ChecklistSignOut", fields: [sign_out_by_user_id], references: [id])
+  time_out_by            User?        @relation("ChecklistTimeOut", fields: [time_out_by_user_id], references: [id])
 
   @@index([surgical_case_id])
-  @@index([sign_in_completed_at])
-  @@index([time_out_completed_at])
-  @@index([sign_out_completed_at])
+}
+
+model SurgicalCaseTeamMember {
+  id                 String       @id @default(uuid())
+  surgical_case_id   String
+  role               String       // SURGEON, ANAESTHESIOLOGIST, ASSISTANT, SCRUB_NURSE, CIRCULATING_NURSE
+  name               String
+  user_id            String?      // Optional link to staff user
+  created_at         DateTime     @default(now())
+  updated_at         DateTime     @updatedAt
+  surgical_case      SurgicalCase @relation(fields: [surgical_case_id], references: [id], onDelete: Cascade)
+
+  @@index([surgical_case_id])
 }
 
 model ClinicalAuditEvent {
@@ -2045,6 +2085,23 @@ enum AuditAction {
   SIGNED_UPLOADED
 }
 
+enum QueueStatus {
+  WAITING
+  IN_CONSULTATION
+  COMPLETED
+  REMOVED
+}
+
+enum NotificationEventType {
+  IN_APP
+  EMAIL
+  SMS
+  PUSH
+  PATIENT_QUEUED
+  PATIENT_REASSIGNED
+  PATIENT_REMOVED_FROM_QUEUE
+}
+
 enum OutboxStatus {
   PENDING
   PROCESSING
@@ -2064,13 +2121,14 @@ enum SurgicalCaseStatus {
   DRAFT
   PLANNING
   READY_FOR_SCHEDULING
+  READY_FOR_THEATER_PREP
+  READY_FOR_THEATER_BOOKING
   SCHEDULED
   IN_PREP
   IN_THEATER
   RECOVERY
   COMPLETED
   CANCELLED
-  READY_FOR_THEATER_BOOKING
 }
 
 enum TheaterBookingStatus {

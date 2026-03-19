@@ -9,12 +9,16 @@
  *   - Pipeline bar: visual status counters for today's flow
  *   - Main (8/12): Today's live patient queue (TodaysSchedule)
  *   - Sidebar (4/12): Quick actions + Shift summary + Doctors on duty
+ * 
+ * ENHANCEMENT: Triggers appointment expiry check on load to automatically
+ * mark overdue appointments as NO_SHOW.
  */
 
 import { useAuth } from '@/hooks/patient/useAuth';
 import { useDashboardData } from '@/components/frontdesk/hooks/useDashboardData';
 import { useTheaterSchedulingQueue } from '@/hooks/frontdesk/useTheaterScheduling';
 import { TodaysSchedule } from '@/components/frontdesk/TodaysSchedule';
+import { QueueManagementPanels } from '@/components/frontdesk/QueueManagementPanels';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -42,14 +46,40 @@ import {
 import { BookingChannel } from '@/domain/enums/BookingChannel';
 import { useBookAppointmentStore } from '@/hooks/frontdesk/useBookAppointmentStore';
 import { AppointmentSource } from '@/domain/enums/AppointmentSource';
+import { triggerAppointmentExpiry } from '@/app/actions/appointment-expiry';
+import { useEffect, useState } from 'react';
 
 export default function FrontdeskDashboardPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
-  const { stats, loading } = useDashboardData();
+  const { stats, loading, refetch } = useDashboardData();
   const { data: theaterSchedulingData, isLoading: loadingTheaterScheduling } =
     useTheaterSchedulingQueue(isAuthenticated && !!user);
   const router = useRouter();
   const { openBookingDialog } = useBookAppointmentStore();
+  const [expiryLoading, setExpiryLoading] = useState(false);
+
+  // Trigger appointment expiry check on dashboard load
+  useEffect(() => {
+    async function checkAndExpire() {
+      if (!isAuthenticated) return;
+      
+      try {
+        setExpiryLoading(true);
+        const result = await triggerAppointmentExpiry();
+        if (result.success && result.expiredCount > 0) {
+          // Refresh dashboard data if any appointments were expired
+          refetch();
+          console.log(`[FRONTDESK] Expired ${result.expiredCount} overdue appointments`);
+        }
+      } catch (error) {
+        console.error('[FRONTDESK] Error checking appointment expiry:', error);
+      } finally {
+        setExpiryLoading(false);
+      }
+    }
+
+    checkAndExpire();
+  }, [isAuthenticated, refetch]);
 
   if (authLoading) {
     return (
@@ -168,8 +198,10 @@ export default function FrontdeskDashboardPage() {
         {/* ── Main Content ── */}
         <section className="grid grid-cols-1 xl:grid-cols-12 gap-5">
           {/* Primary: Today's Patient Queue */}
-          <div className="xl:col-span-8">
+          <div className="xl:col-span-8 space-y-5">
             <TodaysSchedule />
+            {/* Queue Management Panels - New decoupled queue system */}
+            <QueueManagementPanels />
           </div>
 
           {/* Right Sidebar */}

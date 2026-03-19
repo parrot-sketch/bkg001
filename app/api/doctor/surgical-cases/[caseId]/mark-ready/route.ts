@@ -23,6 +23,7 @@ import { SurgicalCaseStatus } from '@prisma/client';
 import db from '@/lib/db';
 import { getSurgicalCaseService, getSurgicalCaseRepo } from '@/lib/factories/theaterTechFactory';
 import { ReadinessValidationError } from '@/application/services/SurgicalCaseService';
+import { Role } from '@/domain/enums/Role';
 
 export async function POST(
     request: NextRequest,
@@ -95,6 +96,62 @@ export async function POST(
                 details: `Case marked READY_FOR_SCHEDULING. Previous status: ${(currentCase as any).status}`,
             },
         });
+
+        // 6. Notify Theater Tech to add team and items
+        try {
+            const theaterTechUsers = await db.user.findMany({
+                where: { role: Role.THEATER_TECHNICIAN },
+                select: { id: true },
+            });
+
+            const patient = await db.patient.findUnique({
+                where: { id: (currentCase as any).patient_id },
+                select: { first_name: true, last_name: true },
+            });
+
+            for (const tech of theaterTechUsers) {
+                await db.notification.create({
+                    data: {
+                        user_id: tech.id,
+                        type: 'IN_APP',
+                        status: 'PENDING',
+                        subject: 'New Case Ready for Theater Prep',
+                        message: `Dr. ${doctorProfile.name} has completed the surgical plan for ${patient?.first_name} ${patient?.last_name}. Please add team members and planned items.`,
+                        metadata: JSON.stringify({
+                            event: 'THEATER_PREP_REQUIRED',
+                            surgicalCaseId: caseId,
+                            navigateTo: '/theater-tech/dashboard',
+                        }),
+                    },
+                });
+            }
+
+            // Also notify Admin
+            const adminUsers = await db.user.findMany({
+                where: { role: Role.ADMIN },
+                select: { id: true },
+            });
+
+            for (const admin of adminUsers) {
+                await db.notification.create({
+                    data: {
+                        user_id: admin.id,
+                        type: 'IN_APP',
+                        status: 'PENDING',
+                        subject: 'Surgical Case Ready for Scheduling',
+                        message: `Dr. ${doctorProfile.name} completed the plan for ${patient?.first_name} ${patient?.last_name}. Case is awaiting theater prep and scheduling.`,
+                        metadata: JSON.stringify({
+                            event: 'CASE_READY_FOR_SCHEDULING',
+                            surgicalCaseId: caseId,
+                            navigateTo: '/admin/surgical-cases',
+                        }),
+                    },
+                });
+            }
+        } catch (notifError) {
+            console.error('[API] Failed to send notifications:', notifError);
+            // Don't fail the main request if notifications fail
+        }
 
         return NextResponse.json({
             success: true,

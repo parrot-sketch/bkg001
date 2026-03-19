@@ -66,7 +66,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { format, isAfter, startOfDay } from 'date-fns';
+import { format, isAfter, startOfDay, differenceInMinutes } from 'date-fns';
+import { APPOINTMENT_NO_SHOW_GRACE_MINUTES } from '@/domain/constants/appointment-expiry';
 
 interface FrontdeskAppointmentCardProps {
   appointment: AppointmentResponseDto;
@@ -89,7 +90,9 @@ function isAppointmentOverdue(appointment: AppointmentResponseDto): boolean {
   const appointmentDate = new Date(appointment.appointmentDate);
   const [hours, minutes] = appointment.time.split(':').map(Number);
   appointmentDate.setHours(hours, minutes, 0, 0);
-  const overdueThreshold = new Date(appointmentDate.getTime() + 60 * 60 * 1000);
+  // Use the configured grace period (default 30 minutes)
+  const gracePeriodMs = APPOINTMENT_NO_SHOW_GRACE_MINUTES * 60 * 1000;
+  const overdueThreshold = new Date(appointmentDate.getTime() + gracePeriodMs);
   return now > overdueThreshold;
 }
 
@@ -97,7 +100,16 @@ function canCheckInAppointment(appointment: AppointmentResponseDto): {
   canCheckIn: boolean;
   reason?: string;
   daysUntil?: number;
+  isPastGracePeriod?: boolean;
 } {
+  // Cannot check in if already no-show
+  if (appointment.status === AppointmentStatus.NO_SHOW) {
+    return {
+      canCheckIn: false,
+      reason: 'Patient was marked as no-show',
+    };
+  }
+  
   if (!canCheckIn(appointment.status as AppointmentStatus)) {
     return {
       canCheckIn: false,
@@ -121,7 +133,22 @@ function canCheckInAppointment(appointment: AppointmentResponseDto): {
       daysUntil,
     };
   }
-  return { canCheckIn: true };
+  
+  // Check if past grace period (for same-day appointments)
+  const [hours, minutes] = appointment.time.split(':').map(Number);
+  const appointmentDateTime = new Date(appointmentDate);
+  appointmentDateTime.setHours(hours, minutes, 0, 0);
+  const graceCutoff = new Date(appointmentDateTime.getTime() + APPOINTMENT_NO_SHOW_GRACE_MINUTES * 60 * 1000);
+  
+  if (now > graceCutoff) {
+    return {
+      canCheckIn: false,
+      reason: 'Appointment time has passed',
+      isPastGracePeriod: true,
+    };
+  }
+  
+  return { canCheckIn: true, isPastGracePeriod: false };
 }
 
 /* ── Status Config ── */
