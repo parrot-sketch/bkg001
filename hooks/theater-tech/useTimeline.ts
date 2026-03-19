@@ -8,9 +8,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type { TimelineResultDto } from '@/application/dtos/TheaterTechDtos';
 import { ApiResponse, isSuccess } from '@/lib/http/apiResponse';
+import { tokenStorage } from '@/lib/auth/token';
 
 function getToken(): string | null {
-  return typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+  return tokenStorage.getAccessToken();
 }
 
 // ── Fetch Timeline ──

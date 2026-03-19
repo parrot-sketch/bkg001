@@ -9,9 +9,10 @@ import { toast } from 'sonner';
 import type { ChecklistStatusDto } from '@/application/dtos/TheaterTechDtos';
 import { ApiResponse, isSuccess, ApiErrorCode } from '@/lib/http/apiResponse';
 import { extractMissingItems, isGateBlockedError } from '@/lib/theater-tech/dayboardHelpers';
+import { tokenStorage } from '@/lib/auth/token';
 
 function getToken(): string | null {
-  return typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+  return tokenStorage.getAccessToken();
 }
 
 export interface ChecklistItemPayload {

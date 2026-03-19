@@ -7,9 +7,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ApiResponse, isSuccess } from '@/lib/http/apiResponse';
 import { toast } from 'sonner';
+import { tokenStorage } from '@/lib/auth/token';
 
 function getToken(): string | null {
-    return typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    return tokenStorage.getAccessToken();
 }
 
 export interface PicklistItem {

@@ -7,11 +7,16 @@
  * Provides navigation for theater technician operations.
  */
 
-import { Activity, LayoutDashboard, User } from 'lucide-react';
+import { Activity, LayoutDashboard, User, ClipboardList } from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { useAuth } from '@/hooks/patient/useAuth';
 
 const navItems: NavItem[] = [
+  {
+    name: 'Case Prep',
+    href: '/theater-tech/dashboard',
+    icon: ClipboardList,
+  },
   {
     name: 'Dayboard',
     href: '/theater-tech/dayboard',
@@ -55,7 +60,7 @@ export function TheaterTechSidebar({ isOpen, onClose }: TheaterTechSidebarProps)
       navItems={navItems}
       userInfo={userInfo}
       onLogout={handleLogout}
-      dashboardHref="/theater-tech/dayboard"
+      dashboardHref="/theater-tech/dashboard"
     />
   );
 }
