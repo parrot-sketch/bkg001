@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +20,8 @@ import { useCheckedInAwaitingAssignment, useLiveQueueBoard, CheckedInPatient, Qu
 import { assignPatientToQueue, removeFromQueue, reassignQueue } from '@/app/actions/appointment';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { patientApi } from '@/lib/api/patient';
+import { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';
 
 export function QueueManagementPanels() {
   const { data: checkedInAwaiting, isLoading: loadingCheckedIn, refetch: refetchCheckedIn } = useCheckedInAwaitingAssignment();
@@ -92,11 +94,24 @@ export function QueueManagementPanels() {
     }
   };
 
-  const mockDoctors = [
-    { id: 'doc-1', name: 'Dr. Sarah Johnson' },
-    { id: 'doc-2', name: 'Dr. Michael Chen' },
-    { id: 'doc-3', name: 'Dr. Emily Brown' },
-  ];
+  const [doctors, setDoctors] = useState<DoctorResponseDto[]>([]);
+  const [loadingDoctors, setLoadingDoctors] = useState(true);
+
+  useEffect(() => {
+    async function fetchDoctors() {
+      try {
+        const response = await patientApi.getAllDoctors();
+        if (response.success && response.data) {
+          setDoctors(response.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch doctors:', error);
+      } finally {
+        setLoadingDoctors(false);
+      }
+    }
+    fetchDoctors();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -149,13 +164,20 @@ export function QueueManagementPanels() {
                             className="text-sm border border-slate-200 rounded-md px-2 py-1 max-w-[140px]"
                             value={selectedDoctor}
                             onChange={(e) => setSelectedDoctor(e.target.value)}
+                            disabled={loadingDoctors}
                           >
-                            <option value="">Select doctor...</option>
-                            {mockDoctors.map((doc) => (
-                              <option key={doc.id} value={doc.id}>
-                                {doc.name}
-                              </option>
-                            ))}
+                            <option value="">{loadingDoctors ? 'Loading...' : 'Select doctor...'}</option>
+                            {doctors.map((doc) => {
+                              const docName = doc.name || `${doc.firstName} ${doc.lastName}`;
+                              const displayName = doc.title && !docName.toLowerCase().startsWith(doc.title.toLowerCase())
+                                ? `${doc.title} ${docName}`
+                                : docName;
+                              return (
+                                <option key={doc.id} value={doc.id}>
+                                  {displayName}
+                                </option>
+                              );
+                            })}
                           </select>
                           <Button
                             size="sm"
