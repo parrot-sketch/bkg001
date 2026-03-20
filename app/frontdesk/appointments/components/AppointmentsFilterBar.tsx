@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -15,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { format, isToday } from 'date-fns';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
+import type { StatusCounts } from '@/lib/constants/frontdesk';
 
 export const STATUS_CHIPS = [
   {
@@ -81,50 +83,68 @@ export const STATUS_CHIPS = [
     textClass: 'text-red-700',
     borderClass: 'border-red-300',
   },
-];
+] as const;
 
 interface AppointmentsFilterBarProps {
   selectedDate: Date;
   dateLabel: string;
-  navigateDate: (direction: 'prev' | 'next') => void;
-  goToToday: () => void;
+  handleNavigateDate: (direction: 'prev' | 'next') => void;
+  handleGoToToday: () => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   statusFilter: string;
   setStatusFilter: (status: string) => void;
-  statusCounts: Record<string, number>;
+  statusCounts: StatusCounts;
   isRefetching: boolean;
 }
 
 export function AppointmentsFilterBar({
   selectedDate,
   dateLabel,
-  navigateDate,
-  goToToday,
+  handleNavigateDate,
+  handleGoToToday,
   searchQuery,
   setSearchQuery,
   statusFilter,
   setStatusFilter,
   statusCounts,
   isRefetching,
-}: AppointmentsFilterBarProps) {
+}: AppointmentsFilterBarProps): React.ReactElement {
+  const handlePrevClick = useCallback((): void => {
+    handleNavigateDate('prev');
+  }, [handleNavigateDate]);
+
+  const handleNextClick = useCallback((): void => {
+    handleNavigateDate('next');
+  }, [handleNavigateDate]);
+
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
+    setSearchQuery(e.target.value);
+  }, [setSearchQuery]);
+
+  const handleClearSearch = useCallback((): void => {
+    setSearchQuery('');
+  }, [setSearchQuery]);
+
+  const handleStatusClick = useCallback((status: string) => {
+    setStatusFilter(status);
+  }, [setStatusFilter]);
+
   return (
     <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-4 space-y-4">
-      {/* Date navigator + search */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-        {/* Date navigation */}
         <div className="flex items-center gap-1.5 shrink-0">
           <Button
             variant="ghost"
             size="icon"
             className="h-9 w-9 rounded-lg text-slate-500 hover:text-slate-700"
-            onClick={() => navigateDate('prev')}
+            onClick={handlePrevClick}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
 
           <button
-            onClick={goToToday}
+            onClick={handleGoToToday}
             className={cn(
               'px-4 py-2 rounded-xl text-sm font-semibold transition-all border',
               isToday(selectedDate)
@@ -140,7 +160,7 @@ export function AppointmentsFilterBar({
             variant="ghost"
             size="icon"
             className="h-9 w-9 rounded-lg text-slate-500 hover:text-slate-700"
-            onClick={() => navigateDate('next')}
+            onClick={handleNextClick}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -149,7 +169,7 @@ export function AppointmentsFilterBar({
             <Button
               variant="ghost"
               size="sm"
-              onClick={goToToday}
+              onClick={handleGoToToday}
               className="text-xs text-cyan-600 hover:text-cyan-700 hover:bg-cyan-50 rounded-lg ml-1"
             >
               Today
@@ -157,18 +177,17 @@ export function AppointmentsFilterBar({
           )}
         </div>
 
-        {/* Search */}
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
           <Input
             placeholder="Search patient, doctor, type..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={handleSearchChange}
             className="pl-10 h-10 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white transition-colors"
           />
           {searchQuery && (
             <button
-              onClick={() => setSearchQuery('')}
+              onClick={handleClearSearch}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500"
             >
               ×
@@ -176,7 +195,6 @@ export function AppointmentsFilterBar({
           )}
         </div>
 
-        {/* Refetch indicator */}
         {isRefetching && (
           <div className="flex items-center gap-1.5 text-xs text-slate-400">
             <Loader2 className="h-3 w-3 animate-spin" />
@@ -185,7 +203,6 @@ export function AppointmentsFilterBar({
         )}
       </div>
 
-      {/* Status chip filters */}
       <div className="flex gap-1.5 overflow-x-auto pb-0.5 -mx-1 px-1 scrollbar-none">
         {STATUS_CHIPS.map((chip) => {
           const count = statusCounts[chip.key] || 0;
@@ -195,7 +212,7 @@ export function AppointmentsFilterBar({
           return (
             <button
               key={chip.key}
-              onClick={() => setStatusFilter(chip.key)}
+              onClick={() => handleStatusClick(chip.key)}
               className={cn(
                 'shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border',
                 isActive

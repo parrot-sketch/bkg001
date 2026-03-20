@@ -117,13 +117,13 @@ export function QueueManagementPanels() {
     <div className="space-y-6">
       {/* Panel A: Checked In Awaiting Assignment */}
       <Card className="border-slate-200 shadow-sm bg-white overflow-hidden rounded-xl">
-        <CardHeader className="border-b border-slate-100 bg-amber-50/50 py-3 px-4">
+        <CardHeader className="border-b border-slate-100 bg-slate-50/50 py-3 px-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
-              <Clock className="h-4 w-4 text-amber-600" />
+              <Clock className="h-4 w-4 text-slate-600" />
               Checked In — Awaiting Assignment
             </CardTitle>
-            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+            <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200">
               {loadingCheckedIn ? '...' : checkedInAwaiting?.length || 0}
             </Badge>
           </div>
@@ -151,7 +151,7 @@ export function QueueManagementPanels() {
                           {patient.isWalkIn ? 'Walk-in' : patient.time || 'No time'}
                         </span>
                         <span className="text-slate-300">•</span>
-                        <span className="text-xs text-amber-600 font-medium">
+                        <span className="text-xs text-slate-600 font-medium">
                           {patient.waitTime}
                         </span>
                       </div>
@@ -184,7 +184,7 @@ export function QueueManagementPanels() {
                             variant="outline"
                             onClick={() => handleAssignToQueue(patient)}
                             disabled={!selectedDoctor || actionLoading === `assign-${patient.id}`}
-                            className="h-7 bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
+                            className="h-7 bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200"
                           >
                             {actionLoading === `assign-${patient.id}` ? (
                               <Loader2 className="h-3 w-3 animate-spin" />
@@ -208,7 +208,7 @@ export function QueueManagementPanels() {
                         <Button
                           size="sm"
                           onClick={() => setShowDoctorSelect(patient.id)}
-                          className="h-7 bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
+                          className="h-7 bg-slate-800 hover:bg-slate-700 text-white text-xs"
                         >
                           <UserPlus className="h-3 w-3 mr-1" />
                           Assign
@@ -229,10 +229,10 @@ export function QueueManagementPanels() {
 
       {/* Panel B: Live Queue Board */}
       <Card className="border-slate-200 shadow-sm bg-white overflow-hidden rounded-xl">
-        <CardHeader className="border-b border-slate-100 bg-emerald-50/50 py-3 px-4">
+        <CardHeader className="border-b border-slate-100 bg-slate-50/50 py-3 px-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
-              <Users className="h-4 w-4 text-emerald-600" />
+              <Users className="h-4 w-4 text-slate-600" />
               Live Queue Board
             </CardTitle>
             <Button
@@ -261,7 +261,7 @@ export function QueueManagementPanels() {
                     <h4 className="font-medium text-slate-800 text-sm">
                       {doctorGroup.doctorName}
                     </h4>
-                    <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs">
+                    <Badge variant="outline" className="bg-slate-100 text-slate-700 border-slate-200 text-xs">
                       {doctorGroup.patients.length} waiting
                     </Badge>
                   </div>
@@ -272,14 +272,16 @@ export function QueueManagementPanels() {
                         className="flex items-center justify-between p-2 bg-slate-50 rounded-lg"
                       >
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-slate-900 truncate">
-                            {patient.patient.firstName} {patient.patient.lastName}
+                          <div className="text-sm font-medium text-slate-900 truncate flex items-center gap-2">
+                            <span className="truncate">
+                              {patient.patient.firstName} {patient.patient.lastName}
+                            </span>
                             {patient.isWalkIn && (
-                              <Badge variant="outline" className="ml-2 text-[10px] bg-indigo-50 text-indigo-700 border-indigo-200">
+                              <Badge variant="outline" className="text-[10px] bg-slate-100 text-slate-600 border-slate-200 shrink-0">
                                 Walk-in
                               </Badge>
                             )}
-                          </p>
+                          </div>
                           <p className="text-xs text-slate-500">
                             Waiting: {patient.waitTime}
                           </p>
@@ -290,7 +292,7 @@ export function QueueManagementPanels() {
                             className={cn(
                               'text-[10px]',
                               patient.status === 'IN_CONSULTATION'
-                                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                ? 'bg-slate-200 text-slate-700 border-slate-300'
                                 : 'bg-slate-100 text-slate-600 border-slate-200'
                             )}
                           >
