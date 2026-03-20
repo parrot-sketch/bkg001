@@ -25,7 +25,7 @@ export function TodaysSchedule() {
         return (
             <Card className="h-full min-h-[400px] flex items-center justify-center border-slate-200 shadow-sm">
                 <div className="flex flex-col items-center gap-2 text-slate-500">
-                    <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+                    <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
                     <p>Loading today's schedule...</p>
                 </div>
             </Card>
@@ -64,7 +64,7 @@ export function TodaysSchedule() {
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
                             <CardTitle className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                                <Calendar className="h-5 w-5 text-indigo-600" />
+                                <Calendar className="h-5 w-5 text-slate-600" />
                                 Today's Schedule
                             </CardTitle>
                             <p className="text-sm text-slate-500 mt-1">
@@ -77,7 +77,7 @@ export function TodaysSchedule() {
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                                 <Input
                                     placeholder="Search patient or doctor..."
-                                    className="pl-9 w-full sm:w-[250px] bg-white border-slate-200 focus:border-indigo-500 rounded-xl"
+                                    className="pl-9 w-full sm:w-[250px] bg-white border-slate-200 focus:border-slate-400 rounded-xl"
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
@@ -167,18 +167,11 @@ export function TodaysSchedule() {
 // Sub-components for cleaner code
 
 function Section({ title, count, children, color, icon: Icon, emptyMessage }: any) {
-    const colorMap: any = {
-        blue: "text-blue-600 bg-blue-50",
-        amber: "text-amber-600 bg-amber-50",
-        emerald: "text-emerald-600 bg-emerald-50",
-        slate: "text-slate-600 bg-slate-50",
-    };
-
     return (
         <div className="p-6">
             <div className="flex items-center gap-3 mb-4">
-                <div className={cn("p-2 rounded-lg", colorMap[color])}>
-                    <Icon className="h-4 w-4" />
+                <div className="p-2 rounded-lg bg-slate-100">
+                    <Icon className="h-4 w-4 text-slate-600" />
                 </div>
                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">{title}</h3>
                 <Badge variant="secondary" className="ml-auto font-bold bg-slate-100 text-slate-600">{count}</Badge>

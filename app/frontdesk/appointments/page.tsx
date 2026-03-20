@@ -4,6 +4,7 @@ import { Suspense, useEffect } from 'react';
 import Link from 'next/link';
 import { User, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useAppointmentsPage } from '@/hooks/frontdesk/appointments/useAppointmentsPage';
 import { AppointmentsHeader } from './components/AppointmentsHeader';
 import { AppointmentsPipeline } from './components/AppointmentsPipeline';
@@ -12,15 +13,17 @@ import { AppointmentsList } from './components/AppointmentsList';
 import { PatientContextBanner } from './components/PatientContextBanner';
 import { triggerAppointmentExpiry } from '@/app/actions/appointment-expiry';
 
-export default function FrontdeskAppointmentsPage() {
+export default function FrontdeskAppointmentsPage(): React.ReactElement {
   return (
-    <Suspense fallback={<AppointmentsPageSkeleton />}>
-      <FrontdeskAppointmentsContent />
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense fallback={<AppointmentsPageSkeleton />}>
+        <FrontdeskAppointmentsContent />
+      </Suspense>
+    </ErrorBoundary>
   );
 }
 
-function FrontdeskAppointmentsContent() {
+function FrontdeskAppointmentsContent(): React.ReactElement {
   const {
     user,
     isAuthenticated,
@@ -35,14 +38,13 @@ function FrontdeskAppointmentsContent() {
     isRefetching,
     pipelineStats,
     statusCounts,
-    navigateDate,
-    goToToday,
+    handleNavigateDate,
+    handleGoToToday,
     dateLabel,
     patientIdFilter,
     highlightedId,
   } = useAppointmentsPage();
 
-  // Trigger appointment expiry check on page load
   useEffect(() => {
     if (isAuthenticated && user) {
       triggerAppointmentExpiry().catch(console.error);
@@ -83,7 +85,6 @@ function FrontdeskAppointmentsContent() {
 
   return (
     <div className="space-y-5 animate-in fade-in duration-500">
-      {/* ═══ Patient Context Banner ═══ */}
       {patientIdFilter && (
         <PatientContextBanner 
           patientIdFilter={patientIdFilter} 
@@ -91,21 +92,18 @@ function FrontdeskAppointmentsContent() {
         />
       )}
 
-      {/* ═══ Page Header ═══ */}
       <AppointmentsHeader 
         patientIdFilter={patientIdFilter} 
         patientNameFromFilter={patientNameFromFilter} 
       />
 
-      {/* ═══ Pipeline Stats ═══ */}
       <AppointmentsPipeline pipelineStats={pipelineStats} />
 
-      {/* ═══ Controls Bar ═══ */}
       <AppointmentsFilterBar 
         selectedDate={selectedDate}
         dateLabel={dateLabel}
-        navigateDate={navigateDate}
-        goToToday={goToToday}
+        handleNavigateDate={handleNavigateDate}
+        handleGoToToday={handleGoToToday}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         statusFilter={statusFilter}
@@ -114,7 +112,6 @@ function FrontdeskAppointmentsContent() {
         isRefetching={isRefetching}
       />
 
-      {/* ═══ Appointments List ═══ */}
       <AppointmentsList 
         loading={loading}
         filteredAppointments={filteredAppointments}
@@ -131,7 +128,7 @@ function FrontdeskAppointmentsContent() {
   );
 }
 
-function AppointmentsPageSkeleton() {
+function AppointmentsPageSkeleton(): React.ReactElement {
   return (
     <div className="space-y-6">
       <div className="h-12 w-48 bg-slate-100 rounded-xl animate-pulse" />

@@ -1,23 +1,49 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { useAppointmentsByDate } from '@/hooks/appointments/useAppointments';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { format, addDays, subDays, isToday, isTomorrow, isYesterday } from 'date-fns';
 import { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
+import { APPOINTMENT_CONFIG, PipelineStats, StatusCounts } from '@/lib/constants/frontdesk';
 
-export function useAppointmentsPage() {
+interface UseAppointmentsPageResult {
+  user: ReturnType<typeof useAuth>['user'];
+  isAuthenticated: boolean;
+  authLoading: boolean;
+  selectedDate: Date;
+  setSelectedDate: (date: Date) => void;
+  statusFilter: string;
+  setStatusFilter: (status: string) => void;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  appointments: AppointmentResponseDto[];
+  filteredAppointments: AppointmentResponseDto[];
+  loading: boolean;
+  isRefetching: boolean;
+  refetch: () => void;
+  pipelineStats: PipelineStats;
+  statusCounts: StatusCounts;
+  handleNavigateDate: (direction: 'prev' | 'next') => void;
+  handleGoToToday: () => void;
+  dateLabel: string;
+  patientIdFilter: string | null;
+  highlightedId: number | null;
+  router: ReturnType<typeof useRouter>;
+}
+
+export function useAppointmentsPage(): UseAppointmentsPageResult {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  // Parse query params
   const dateParam = searchParams.get('date');
   const statusParam = searchParams.get('status');
-  const highlightedId = searchParams.get('highlight') ? parseInt(searchParams.get('highlight')!) : null;
+  const highlightedId = searchParams.get('highlight')
+    ? parseInt(searchParams.get('highlight')!, 10)
+    : null;
   const patientIdFilter = searchParams.get('patientId');
 
-  // Date state
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
     if (dateParam) {
       const [year, month, day] = dateParam.split('-').map(Number);
@@ -28,17 +54,14 @@ export function useAppointmentsPage() {
     return new Date();
   });
 
-  // Filter state
   const [statusFilter, setStatusFilter] = useState<string>(() => {
     if (statusParam) {
-      // Basic validation or just accept it as is; usually better to validate against known statuses
       return statusParam;
     }
-    return 'ALL';
+    return APPOINTMENT_CONFIG.DEFAULT_STATUS_FILTER;
   });
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // Data fetch
   const {
     data: appointments = [],
     isLoading: loading,
@@ -46,15 +69,14 @@ export function useAppointmentsPage() {
     refetch,
   } = useAppointmentsByDate(selectedDate, isAuthenticated && !!user);
 
-  /* ── Filtering ── */
-  const filteredAppointments = useMemo(() => {
+  const filteredAppointments = useMemo((): AppointmentResponseDto[] => {
     let filtered = appointments;
 
     if (patientIdFilter) {
       filtered = filtered.filter((apt: AppointmentResponseDto) => apt.patientId === patientIdFilter);
     }
 
-    if (statusFilter !== 'ALL') {
+    if (statusFilter !== APPOINTMENT_CONFIG.ALL_STATUSES_FILTER) {
       filtered = filtered.filter((apt: AppointmentResponseDto) => apt.status === statusFilter);
     }
 
@@ -82,17 +104,17 @@ export function useAppointmentsPage() {
     return filtered;
   }, [appointments, statusFilter, searchQuery, patientIdFilter]);
 
-  /* ── Status counts ── */
-  const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = { ALL: appointments.length };
+  const statusCounts = useMemo((): StatusCounts => {
+    const counts: StatusCounts = {
+      [APPOINTMENT_CONFIG.ALL_STATUSES_FILTER]: appointments.length,
+    };
     for (const apt of appointments) {
       counts[apt.status] = (counts[apt.status] || 0) + 1;
     }
     return counts;
   }, [appointments]);
 
-  /* ── Pipeline stats ── */
-  const pipelineStats = useMemo(() => ({
+  const pipelineStats = useMemo((): PipelineStats => ({
     awaitingDoctor: statusCounts[AppointmentStatus.PENDING_DOCTOR_CONFIRMATION] || 0,
     pendingCheckIns: (statusCounts[AppointmentStatus.SCHEDULED] || 0) + (statusCounts[AppointmentStatus.CONFIRMED] || 0),
     checkedIn: (statusCounts[AppointmentStatus.CHECKED_IN] || 0) + (statusCounts[AppointmentStatus.READY_FOR_CONSULTATION] || 0),
@@ -100,16 +122,16 @@ export function useAppointmentsPage() {
     completed: statusCounts[AppointmentStatus.COMPLETED] || 0,
   }), [statusCounts]);
 
-  /* ── Handlers ── */
-  const navigateDate = (direction: 'prev' | 'next') => {
-    setSelectedDate((prev) =>
+  const handleNavigateDate = useCallback((direction: 'prev' | 'next'): void => {
+    setSelectedDate((prev: Date): Date =>
       direction === 'prev' ? subDays(prev, 1) : addDays(prev, 1)
     );
-  };
+  }, []);
 
-  const goToToday = () => setSelectedDate(new Date());
+  const handleGoToToday = useCallback((): void => {
+    setSelectedDate(new Date());
+  }, []);
 
-  /* ── Date label ── */
   const dateLabel = isToday(selectedDate)
     ? 'Today'
     : isTomorrow(selectedDate)
@@ -135,8 +157,8 @@ export function useAppointmentsPage() {
     refetch,
     pipelineStats,
     statusCounts,
-    navigateDate,
-    goToToday,
+    handleNavigateDate,
+    handleGoToToday,
     dateLabel,
     patientIdFilter,
     highlightedId,

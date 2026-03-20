@@ -12,10 +12,20 @@ export const APPOINTMENT_CONFIG = {
   // UI display limits
   MAX_APPOINTMENTS_ON_DASHBOARD: 10,
   MAX_APPOINTMENTS_PER_PAGE: 50,
-  
+
   // Cache and timing
   CACHE_STALE_TIME_MS: 1000 * 30, // 30 seconds - moderate freshness for clinical workflows
   CACHE_GARBAGE_COLLECTION_MS: 1000 * 60 * 5, // 5 minutes
+
+  // Query-specific timing
+  BY_DATE_STALE_TIME_MS: 1000 * 60 * 2, // 2 minutes - appointments don't change frequently
+  BY_DATE_GC_TIME_MS: 1000 * 60 * 10, // 10 minutes
+  TODAY_STALE_TIME_MS: 1000 * 30, // 30 seconds - more frequent updates for today's schedule
+  UPCOMING_STALE_TIME_MS: 1000 * 60 * 2, // 2 minutes
+
+  // Status filters
+  ALL_STATUSES_FILTER: 'ALL',
+  DEFAULT_STATUS_FILTER: 'ALL',
 } as const;
 
 /**
@@ -121,3 +131,24 @@ export const SUCCESS_MESSAGES = {
       `Patient ${firstName} ${lastName} registered successfully`,
   },
 } as const;
+
+/**
+ * Status filter type for appointments page
+ */
+export type StatusFilter = string;
+
+/**
+ * Pipeline stats interface
+ */
+export interface PipelineStats {
+  awaitingDoctor: number;
+  pendingCheckIns: number;
+  checkedIn: number;
+  inConsultation: number;
+  completed: number;
+}
+
+/**
+ * Status counts type
+ */
+export type StatusCounts = Record<string, number>;
