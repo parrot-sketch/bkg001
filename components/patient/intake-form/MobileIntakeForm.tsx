@@ -284,12 +284,14 @@ export function MobileIntakeForm({
                                         name="phone"
                                         control={control}
                                         render={({ field }) => (
-                                            <PhoneInput
-                                                {...field}
-                                                international
-                                                defaultCountry="KE"
-                                                className="phone-input-custom"
-                                            />
+                                            <div className="phone-input-wrapper">
+                                                <PhoneInput
+                                                    {...field}
+                                                    international
+                                                    defaultCountry="KE"
+                                                    className="phone-input-custom"
+                                                />
+                                            </div>
                                         )}
                                     />
                                     {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
@@ -300,12 +302,14 @@ export function MobileIntakeForm({
                                         name="whatsappPhone"
                                         control={control}
                                         render={({ field }) => (
-                                            <PhoneInput
-                                                {...field}
-                                                international
-                                                defaultCountry="KE"
-                                                className="phone-input-custom"
-                                            />
+                                            <div className="phone-input-wrapper">
+                                                <PhoneInput
+                                                    {...field}
+                                                    international
+                                                    defaultCountry="KE"
+                                                    className="phone-input-custom"
+                                                />
+                                            </div>
                                         )}
                                     />
                                 </div>
@@ -366,12 +370,14 @@ export function MobileIntakeForm({
                                         name="emergencyContactNumber"
                                         control={control}
                                         render={({ field }) => (
-                                            <PhoneInput
-                                                {...field}
-                                                international
-                                                defaultCountry="KE"
-                                                className="phone-input-custom"
-                                            />
+                                            <div className="phone-input-wrapper">
+                                                <PhoneInput
+                                                    {...field}
+                                                    international
+                                                    defaultCountry="KE"
+                                                    className="phone-input-custom"
+                                                />
+                                            </div>
                                         )}
                                     />
                                 </div>
