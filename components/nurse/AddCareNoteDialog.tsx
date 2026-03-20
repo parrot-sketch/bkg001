@@ -7,7 +7,7 @@
  * Supports pre-op, post-op, and general care notes.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { nurseApi } from '@/lib/api/nurse';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -47,6 +47,13 @@ export function AddCareNoteDialog({
   const [note, setNote] = useState('');
   const [noteType, setNoteType] = useState<'PRE_OP' | 'POST_OP' | 'GENERAL'>(defaultNoteType);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setNote('');
+      setNoteType(defaultNoteType);
+    }
+  }, [open, defaultNoteType]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

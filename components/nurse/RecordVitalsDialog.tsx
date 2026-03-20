@@ -7,7 +7,7 @@
  * Allows nurses to record comprehensive vital signs data.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { nurseApi } from '@/lib/api/nurse';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,6 +34,24 @@ interface RecordVitalsDialogProps {
   nurseId: string;
 }
 
+const createInitialFormData = (
+  patientId: string,
+  appointmentId: number | undefined,
+  nurseId: string
+): Partial<RecordVitalsDto> => ({
+  patientId,
+  appointmentId,
+  bodyTemperature: undefined,
+  systolic: undefined,
+  diastolic: undefined,
+  heartRate: undefined,
+  respiratoryRate: undefined,
+  oxygenSaturation: undefined,
+  weight: undefined,
+  height: undefined,
+  recordedBy: nurseId,
+});
+
 export function RecordVitalsDialog({
   open,
   onClose,
@@ -42,19 +60,15 @@ export function RecordVitalsDialog({
   appointment,
   nurseId,
 }: RecordVitalsDialogProps) {
-  const [formData, setFormData] = useState<Partial<RecordVitalsDto>>({
-    patientId: patient.id,
-    appointmentId: appointment?.id,
-    bodyTemperature: undefined,
-    systolic: undefined,
-    diastolic: undefined,
-    heartRate: undefined,
-    respiratoryRate: undefined,
-    oxygenSaturation: undefined,
-    weight: undefined,
-    height: undefined,
-    recordedBy: nurseId,
-  });
+  const [formData, setFormData] = useState<Partial<RecordVitalsDto>>(() =>
+    createInitialFormData(patient.id, appointment?.id, nurseId)
+  );
+
+  useEffect(() => {
+    if (open) {
+      setFormData(createInitialFormData(patient.id, appointment?.id, nurseId));
+    }
+  }, [open, patient.id, appointment?.id, nurseId]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -84,20 +98,7 @@ export function RecordVitalsDialog({
       if (response.success) {
         toast.success('Vital signs recorded successfully');
         onSuccess();
-        // Reset form
-        setFormData({
-          patientId: patient.id,
-          appointmentId: appointment?.id,
-          bodyTemperature: undefined,
-          systolic: undefined,
-          diastolic: undefined,
-          heartRate: undefined,
-          respiratoryRate: undefined,
-          oxygenSaturation: undefined,
-          weight: undefined,
-          height: undefined,
-          recordedBy: nurseId,
-        });
+        setFormData(createInitialFormData(patient.id, appointment?.id, nurseId));
       } else {
         toast.error(response.error || 'Failed to record vital signs');
       }
