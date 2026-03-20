@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Save, Users, Package, CheckCircle, Loader2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ArrowLeft, Save, Users, Package, CheckCircle, Loader2, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface TeamMember {
@@ -19,12 +20,19 @@ interface TeamMember {
     userId?: string;
 }
 
+interface UserOption {
+    id: string;
+    name: string;
+    role: string;
+    email: string;
+}
+
 const TEAM_ROLES = [
-    { key: 'SURGEON', label: 'Lead Surgeon', placeholder: 'Dr. Name' },
-    { key: 'ANAESTHESIOLOGIST', label: 'Anaesthesiologist', placeholder: 'Dr. Name' },
-    { key: 'ASSISTANT', label: 'Surgical Assistant(s)', placeholder: 'Names' },
-    { key: 'SCRUB_NURSE', label: 'Scrub Nurse', placeholder: 'Nurse Name' },
-    { key: 'CIRCULATING_NURSE', label: 'Circulating Nurse', placeholder: 'Nurse Name' },
+    { key: 'SURGEON', label: 'Lead Surgeon', roleFilter: 'DOCTOR', placeholder: 'Select Surgeon' },
+    { key: 'ANAESTHESIOLOGIST', label: 'Anaesthesiologist', roleFilter: 'DOCTOR', placeholder: 'Select Anaesthesiologist' },
+    { key: 'ASSISTANT', label: 'Surgical Assistant(s)', roleFilter: 'DOCTOR', placeholder: 'Select Assistant' },
+    { key: 'SCRUB_NURSE', label: 'Scrub Nurse', roleFilter: 'NURSE', placeholder: 'Select Scrub Nurse' },
+    { key: 'CIRCULATING_NURSE', label: 'Circulating Nurse', roleFilter: 'NURSE', placeholder: 'Select Circulating Nurse' },
 ];
 
 export default function TheaterPrepPage() {
@@ -38,6 +46,30 @@ export default function TheaterPrepPage() {
     const [saving, setSaving] = useState(false);
     const [caseData, setCaseData] = useState<any>(null);
     const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+    const [users, setUsers] = useState<UserOption[]>([]);
+    const [plannedItems, setPlannedItems] = useState<any[]>([]);
+
+    // Fetch all users for team member selection
+    useEffect(() => {
+        const fetchUsers = async () => {
+            try {
+                const res = await fetch('/api/users');
+                const data = await res.json();
+                if (data.success && data.data) {
+                    const userList: UserOption[] = data.data.map((u: any) => ({
+                        id: u.id,
+                        name: u.name,
+                        role: u.role,
+                        email: u.email,
+                    }));
+                    setUsers(userList);
+                }
+            } catch (error) {
+                console.error('Error fetching users:', error);
+            }
+        };
+        fetchUsers();
+    }, []);
 
     useEffect(() => {
         if (!caseId || fetched) return;
@@ -48,10 +80,24 @@ export default function TheaterPrepPage() {
                 const data = await res.json();
                 if (data.success) {
                     setCaseData(data.data.case);
-                    // Initialize team members from existing data
+                    
+                    // Set planned items from case plan
+                    setPlannedItems(data.data.plannedItems || []);
+                    
+                    // Initialize team members from existing data or pre-populate lead surgeon
                     const existingMembers = data.data.teamMembers || [];
+                    const surgeonName = data.data.case?.surgeon?.name || '';
+                    
                     const members = TEAM_ROLES.map(role => {
                         const existing = existingMembers.find((m: any) => m.role === role.key);
+                        // Pre-populate lead surgeon from case
+                        if (role.key === 'SURGEON' && !existing && surgeonName) {
+                            return {
+                                role: role.key,
+                                name: surgeonName,
+                                userId: existing?.user_id || '',
+                            };
+                        }
                         return {
                             role: role.key,
                             name: existing?.name || '',
@@ -72,9 +118,14 @@ export default function TheaterPrepPage() {
         fetchCase();
     }, [caseId, fetched]);
 
-    const handleTeamMemberChange = (role: string, name: string) => {
+    const handleTeamMemberChange = (role: string, userId: string) => {
+        const selectedUser = users.find(u => u.id === userId);
         setTeamMembers(prev => 
-            prev.map(m => m.role === role ? { ...m, name } : m)
+            prev.map(m => m.role === role ? { 
+                ...m, 
+                userId: userId,
+                name: selectedUser?.name || m.name
+            } : m)
         );
     };
 
@@ -196,41 +247,54 @@ export default function TheaterPrepPage() {
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    {TEAM_ROLES.map(role => (
+                    {TEAM_ROLES.map(role => {
+                        const currentMember = teamMembers.find(m => m.role === role.key);
+                        const filteredUsers = users.filter(u => u.role === role.roleFilter);
+                        return (
                         <div key={role.key} className="grid grid-cols-3 items-center gap-4">
                             <Label className="text-slate-600">{role.label}</Label>
-                            <Input
-                                value={teamMembers.find(m => m.role === role.key)?.name || ''}
-                                onChange={(e) => handleTeamMemberChange(role.key, e.target.value)}
-                                placeholder={role.placeholder}
+                            <Select
+                                value={currentMember?.userId || ''}
+                                onValueChange={(value) => handleTeamMemberChange(role.key, value)}
                                 disabled={!isEditable}
-                                className="col-span-2"
-                            />
+                            >
+                                <SelectTrigger className="col-span-2">
+                                    <SelectValue placeholder={role.placeholder} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {filteredUsers.map(u => (
+                                        <SelectItem key={u.id} value={u.id}>
+                                            {u.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
-                    ))}
+                        );
+                    })}
                 </CardContent>
             </Card>
 
-            {/* Planned Items */}
+            {/* Planned Items - from Doctor's case plan */}
             <Card>
                 <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
                         <Package className="h-5 w-5" />
-                        Planned Items
+                        Planned Items (from Surgical Plan)
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    {caseData.plannedItems?.length > 0 ? (
+                    {plannedItems.length > 0 ? (
                         <div className="space-y-2">
-                            {caseData.plannedItems.map((item: any, idx: number) => (
+                            {plannedItems.map((item: any, idx: number) => (
                                 <div key={idx} className="flex justify-between p-3 bg-slate-50 rounded">
-                                    <span>{item.inventory_item?.name || item.service?.service_name}</span>
-                                    <span className="text-slate-500">Qty: {item.planned_quantity}</span>
+                                    <span>{item.inventory_item?.name || item.service?.service_name || 'Unknown Item'}</span>
+                                    <span className="text-slate-500">Qty: {item.planned_quantity || 1}</span>
                                 </div>
                             ))}
                         </div>
                     ) : (
-                        <p className="text-slate-400">No planned items. Add items from inventory.</p>
+                        <p className="text-slate-400">No planned items in case plan.</p>
                     )}
                 </CardContent>
             </Card>

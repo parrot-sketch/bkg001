@@ -74,17 +74,21 @@ export default function NursePatientsPage() {
       } as PatientResponseDto;
     });
 
-  // Filter patients based on search query
-  const filteredPatients = patients.filter((patient) => {
-    if (!searchQuery.trim()) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      patient.firstName?.toLowerCase().includes(query) ||
-      patient.lastName?.toLowerCase().includes(query) ||
-      patient.email?.toLowerCase().includes(query) ||
-      patient.phone?.toLowerCase().includes(query)
+  // Filter patients based on search query and deduplicate by patient ID
+  const filteredPatients = patients
+    .filter((patient) => {
+      if (!searchQuery.trim()) return true;
+      const query = searchQuery.toLowerCase();
+      return (
+        patient.firstName?.toLowerCase().includes(query) ||
+        patient.lastName?.toLowerCase().includes(query) ||
+        patient.email?.toLowerCase().includes(query) ||
+        patient.phone?.toLowerCase().includes(query)
+      );
+    })
+    .filter((patient, index, self) => 
+      index === self.findIndex((p) => p.id === patient.id)
     );
-  });
 
   const handleRecordVitals = (patient: PatientResponseDto) => {
     setSelectedPatient(patient);
