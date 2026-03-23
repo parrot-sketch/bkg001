@@ -42,9 +42,7 @@
     "type-check": "tsc --noEmit --skipLibCheck",
     "type-check:full": "bash scripts/type-check.sh"
   },
-  "prisma": {
-    "seed": "node prisma/seed.ts"
-  },
+
   "dependencies": {
     "@faker-js/faker": "^9.3.0",
     "@hookform/resolvers": "^3.9.1",
