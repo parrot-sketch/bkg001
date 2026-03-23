@@ -38,6 +38,7 @@ interface ProcedureTabViewProps {
   
   // Save state
   canSave: boolean;
+  readOnly?: boolean;
 }
 
 export function ProcedureTabView({
@@ -53,6 +54,7 @@ export function ProcedureTabView({
   onSave,
   onRetry,
   canSave,
+  readOnly = false,
 }: ProcedureTabViewProps) {
   if (error) {
     return <ErrorState error={error} onRetry={onRetry} />;
@@ -78,6 +80,7 @@ export function ProcedureTabView({
             services={services}
             loading={servicesLoading}
             placeholder="Search or select a procedure..."
+            disabled={readOnly || isSaving}
           />
           <p className="text-xs text-muted-foreground">
             Procedure name for print summary and documentation
@@ -94,11 +97,12 @@ export function ProcedureTabView({
             content={procedurePlan}
             onChange={onProcedurePlanChange}
             minHeight="300px"
+            readOnly={readOnly}
           />
         </div>
       </div>
 
-      {canSave && (
+      {canSave && !readOnly && (
         <SaveBar onSave={onSave} saving={isSaving} label="Save Procedure Plan" />
       )}
     </div>

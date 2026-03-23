@@ -11,9 +11,10 @@ import { RiskFactorsTabView } from './RiskFactorsTab.view';
 
 interface RiskFactorsTabContainerProps {
   caseId: string;
+  readOnly?: boolean;
 }
 
-export function RiskFactorsTabContainer({ caseId }: RiskFactorsTabContainerProps) {
+export function RiskFactorsTabContainer({ caseId, readOnly = false }: RiskFactorsTabContainerProps) {
   const hook = useRiskFactorsTab(caseId);
 
   return (
@@ -31,6 +32,7 @@ export function RiskFactorsTabContainer({ caseId }: RiskFactorsTabContainerProps
       canSave={hook.canSave}
       showTemplateDialog={hook.showTemplateDialog}
       onTemplateDialogChange={hook.setShowTemplateDialog}
+      readOnly={readOnly}
     />
   );
 }

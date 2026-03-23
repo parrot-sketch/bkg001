@@ -40,6 +40,7 @@ interface AnesthesiaTabViewProps {
   
   // Save state
   canSave: boolean;
+  readOnly?: boolean;
 }
 
 export function AnesthesiaTabView({
@@ -55,6 +56,7 @@ export function AnesthesiaTabView({
   onSave,
   onRetry,
   canSave,
+  readOnly = false,
 }: AnesthesiaTabViewProps) {
   if (error) {
     return <ErrorState error={error} onRetry={onRetry} />;
@@ -80,6 +82,7 @@ export function AnesthesiaTabView({
               onValueChange={(value) =>
                 onAnesthesiaPlanChange(value ? (value as AnesthesiaType) : null)
               }
+              disabled={readOnly || isSaving}
             >
               <SelectTrigger className="bg-background">
                 <SelectValue placeholder="Select anesthesia type…" />
@@ -110,6 +113,7 @@ export function AnesthesiaTabView({
               value={estimatedDurationMinutes}
               onChange={(e) => onEstimatedDurationMinutesChange(e.target.value)}
               className="bg-background"
+              disabled={readOnly || isSaving}
             />
             <p className="text-xs text-muted-foreground">15–600 min. Used for theater scheduling.</p>
           </div>
@@ -122,11 +126,12 @@ export function AnesthesiaTabView({
             content={specialInstructions}
             onChange={onSpecialInstructionsChange}
             minHeight="150px"
+            readOnly={readOnly}
           />
         </div>
       </div>
 
-      {canSave && (
+      {canSave && !readOnly && (
         <SaveBar onSave={onSave} saving={isSaving} label="Save Anesthesia Plan" />
       )}
     </div>

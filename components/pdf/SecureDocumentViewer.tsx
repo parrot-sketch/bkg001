@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { FileImage, FileText, Maximize, Minimize } from 'lucide-react';
 import { PdfViewer } from '@/components/pdf/PdfViewer';
@@ -53,17 +53,22 @@ export function SecureDocumentViewer({
                 onDragStart={(e) => e.preventDefault()} // Block dragging
             >
                 <DialogHeader className="p-4 border-b bg-white shrink-0 flex flex-row items-center justify-between">
-                    <DialogTitle className="flex items-center gap-2 text-lg">
-                        {isPdf ? (
-                            <FileText className="h-5 w-5 text-indigo-600" />
-                        ) : (
-                            <FileImage className="h-5 w-5 text-indigo-600" />
-                        )}
-                        {title}
-                        <Badge variant="secondary" className="ml-2 bg-rose-50 text-rose-700 border border-rose-200 font-normal">
-                            Strict Confidential
-                        </Badge>
-                    </DialogTitle>
+                    <div className="flex flex-col gap-1">
+                        <DialogTitle className="flex items-center gap-2 text-lg">
+                            {isPdf ? (
+                                <FileText className="h-5 w-5 text-indigo-600" />
+                            ) : (
+                                <FileImage className="h-5 w-5 text-indigo-600" />
+                            )}
+                            {title}
+                            <Badge variant="secondary" className="ml-2 bg-rose-50 text-rose-700 border border-rose-200 font-normal">
+                                Strict Confidential
+                            </Badge>
+                        </DialogTitle>
+                        <DialogDescription className="sr-only">
+                            Viewing document: {title}. This is a secure, read-only view.
+                        </DialogDescription>
+                    </div>
                     <div className="flex items-center gap-2 pr-6">
                         <Button 
                             variant="ghost" 

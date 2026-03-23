@@ -40,6 +40,7 @@ interface UseProcedureTabResult {
   
   // Actions
   canSave: boolean;
+  canEdit: boolean;
   onSave: () => Promise<void>;
   onReset: () => void;
 }
@@ -49,7 +50,7 @@ interface UseProcedureTabResult {
  */
 export function useProcedureTab(caseId: string): UseProcedureTabResult {
   const queryClient = useQueryClient();
-  const { data, isLoading, error, refetch } = useSurgicalCasePlanPage(caseId);
+  const { data, isLoading, error, refetch, canEdit } = useSurgicalCasePlanPage(caseId);
   const { services, loading: servicesLoading } = useServices();
   
   // Local editable state
@@ -133,7 +134,8 @@ export function useProcedureTab(caseId: string): UseProcedureTabResult {
     localProcedurePlan,
     setProcedureName: setLocalProcedureName,
     setProcedurePlan: setLocalProcedurePlan,
-    canSave: isDirty && !saveMutation.isPending,
+    canSave: isDirty && !saveMutation.isPending && canEdit,
+    canEdit: !!canEdit,
     onSave,
     onReset,
   };

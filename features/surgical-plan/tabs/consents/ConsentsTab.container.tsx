@@ -112,9 +112,10 @@ interface ConsentFormItem {
 
 interface ConsentsTabContainerProps {
     caseId: string;
+    readOnly?: boolean;
 }
 
-export function ConsentsTabContainer({ caseId }: ConsentsTabContainerProps) {
+export function ConsentsTabContainer({ caseId, readOnly = false }: ConsentsTabContainerProps) {
     const [consents, setConsents] = useState<ConsentFormItem[]>([]);
     const [loading, setLoading] = useState(true);
     
@@ -273,10 +274,12 @@ export function ConsentsTabContainer({ caseId }: ConsentsTabContainerProps) {
                         Upload and manage signed patient consent documents for this surgical case
                     </p>
                 </div>
-                <Button size="sm" onClick={() => setShowUploadDialog(true)} className="gap-1.5">
-                    <Upload className="h-4 w-4" />
-                    Upload Signed Consent
-                </Button>
+                {!readOnly && (
+                    <Button size="sm" onClick={() => setShowUploadDialog(true)} className="gap-1.5">
+                        <Upload className="h-4 w-4" />
+                        Upload Signed Consent
+                    </Button>
+                )}
             </div>
 
             {/* Consent List */}
@@ -292,10 +295,12 @@ export function ConsentsTabContainer({ caseId }: ConsentsTabContainerProps) {
                         <p className="text-sm text-slate-500 mb-4">
                             Upload scanned signed forms or PDFs.
                         </p>
-                        <Button size="sm" onClick={() => setShowUploadDialog(true)} className="gap-1.5 border border-slate-300" variant="outline">
-                            <Upload className="h-4 w-4" />
-                            Upload First Document
-                        </Button>
+                        {!readOnly && (
+                            <Button size="sm" onClick={() => setShowUploadDialog(true)} className="gap-1.5 border border-slate-300" variant="outline">
+                                <Upload className="h-4 w-4" />
+                                Upload First Document
+                            </Button>
+                        )}
                     </CardContent>
                 </Card>
             ) : (
@@ -373,15 +378,17 @@ export function ConsentsTabContainer({ caseId }: ConsentsTabContainerProps) {
                                                                 <span>Download Original</span>
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
-                                                            <DropdownMenuItem
-                                                                onClick={() => {
-                                                                    setUpdatingConsent(consent);
-                                                                    setShowUpdateDialog(true);
-                                                                }}
-                                                            >
-                                                                <FileEdit className="mr-2 h-4 w-4" />
-                                                                <span>Update Document</span>
-                                                            </DropdownMenuItem>
+                                                            {!readOnly && (
+                                                                <DropdownMenuItem
+                                                                    onClick={() => {
+                                                                        setUpdatingConsent(consent);
+                                                                        setShowUpdateDialog(true);
+                                                                    }}
+                                                                >
+                                                                    <FileEdit className="mr-2 h-4 w-4" />
+                                                                    <span>Update Document</span>
+                                                                </DropdownMenuItem>
+                                                            )}
                                                             <DropdownMenuItem disabled className="text-slate-400">
                                                                 <History className="mr-2 h-4 w-4" />
                                                                 <span>Version History</span>

@@ -143,17 +143,17 @@ export function PdfViewer({
 
     const handleLoadError = (err: Error) => {
         console.error('PDF load error:', err);
-        const errorMessage = err.message || '';
+        const errorMessage = err.message || JSON.stringify(err);
         if (
             errorMessage.includes('worker') ||
             errorMessage.includes('Failed to fetch') ||
             errorMessage.includes('Setting up fake worker')
         ) {
             setError(
-                'PDF viewer failed to initialize. Please refresh the page or contact support.'
+                `PDF viewer failed to initialize (Worker error). File: ${rawUrl.substring(0, 50)}...`
             );
         } else {
-            setError(errorMessage || 'Failed to load PDF');
+            setError(errorMessage || 'Unknown PDF loading error');
         }
         setLoading(false);
         onLoadError?.(err);

@@ -81,7 +81,11 @@ export function RichTextEditor({
           levels: [2, 3],
         },
       }),
-      Underline,
+      Underline.configure({
+        HTMLAttributes: {
+          style: 'text-decoration: underline',
+        },
+      }),
       Highlight.configure({
         multicolor: false,
       }),
