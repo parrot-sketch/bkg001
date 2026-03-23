@@ -105,6 +105,7 @@ jobs:
     timeout-minutes: 10
     needs: unit
     env:
+      SKIP_MIGRATION: "true"
       DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
       OPENAI_API_KEY: "sk-dummy-key-for-ci"
       JWT_SECRET: "dummy-jwt-secret"
