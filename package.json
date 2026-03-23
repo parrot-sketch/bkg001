@@ -42,7 +42,6 @@
     "type-check": "tsc --noEmit --skipLibCheck",
     "type-check:full": "bash scripts/type-check.sh"
   },
-
   "dependencies": {
     "@faker-js/faker": "^9.3.0",
     "@hookform/resolvers": "^3.9.1",
@@ -110,6 +109,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
+    "@prisma/config": "^6.19.2",
     "@tailwindcss/typography": "^0.5.19",
     "@types/bcrypt": "^6.0.0",
     "@types/jsonwebtoken": "^9.0.10",
@@ -121,6 +121,7 @@
     "@types/uuid": "^10.0.0",
     "@vitest/coverage-v8": "^4.0.17",
     "cloudinary": "^1.41.0",
+    "dotenv": "^17.3.1",
     "postcss": "^8",
     "prisma": "^6.19.2",
     "sharp": "^0.34.5",
