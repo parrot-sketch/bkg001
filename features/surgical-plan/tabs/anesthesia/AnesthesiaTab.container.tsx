@@ -11,9 +11,10 @@ import { AnesthesiaTabView } from './AnesthesiaTab.view';
 
 interface AnesthesiaTabContainerProps {
   caseId: string;
+  readOnly?: boolean;
 }
 
-export function AnesthesiaTabContainer({ caseId }: AnesthesiaTabContainerProps) {
+export function AnesthesiaTabContainer({ caseId, readOnly = false }: AnesthesiaTabContainerProps) {
   const hook = useAnesthesiaTab(caseId);
 
   return (
@@ -30,6 +31,7 @@ export function AnesthesiaTabContainer({ caseId }: AnesthesiaTabContainerProps) 
       onSave={hook.onSave}
       onRetry={() => hook.onReset()}
       canSave={hook.canSave}
+      readOnly={readOnly}
     />
   );
 }

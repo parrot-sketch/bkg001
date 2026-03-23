@@ -30,7 +30,7 @@ export function SurgicalPlanShell({
   userRole = Role.DOCTOR, // Default for Phase 1
 }: SurgicalPlanShellProps) {
   const router = useRouter();
-  const { isLoading, error, data, refetch } = useSurgicalCasePlanPage(caseId);
+  const { isLoading, error, data, refetch, canEdit } = useSurgicalCasePlanPage(caseId);
   const [activeTab, setActiveTab] = useState('overview');
 
   if (isLoading) {
@@ -131,7 +131,7 @@ export function SurgicalPlanShell({
                 value={tab.key}
                 className="m-0 p-5 sm:p-6 lg:p-8"
               >
-                <TabComponent caseId={caseId} />
+                <TabComponent caseId={caseId} readOnly={!canEdit} />
               </TabsContent>
             );
           })}

@@ -79,7 +79,7 @@ export interface TabDefinition {
   key: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
-  component: React.ComponentType<{ caseId: string }>;
+  component: React.ComponentType<{ caseId: string; readOnly?: boolean }>;
   permissionCheck?: (role: Role) => boolean;
   badgeCount?: (data: SurgicalCasePlanViewModel) => number;
   order: number;

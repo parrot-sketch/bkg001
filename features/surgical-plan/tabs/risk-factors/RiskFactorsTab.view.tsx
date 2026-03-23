@@ -48,6 +48,7 @@ interface RiskFactorsTabViewProps {
   // Dialog state
   showTemplateDialog: boolean;
   onTemplateDialogChange: (show: boolean) => void;
+  readOnly?: boolean;
 }
 
 export function RiskFactorsTabView({
@@ -64,6 +65,7 @@ export function RiskFactorsTabView({
   canSave,
   showTemplateDialog,
   onTemplateDialogChange,
+  readOnly = false,
 }: RiskFactorsTabViewProps) {
   if (error) {
     return <ErrorState error={error} onRetry={onRetry} />;
@@ -88,32 +90,36 @@ export function RiskFactorsTabView({
             content={riskFactors}
             onChange={onRiskFactorsChange}
             minHeight="150px"
+            readOnly={readOnly}
           />
         </div>
 
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <Label className="text-sm font-medium">Pre-operative Notes</Label>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs gap-1.5"
-              onClick={() => onTemplateDialogChange(true)}
-            >
-              <Plus className="h-3 w-3" />
-              Insert Template
-            </Button>
+            {!readOnly && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs gap-1.5"
+                onClick={() => onTemplateDialogChange(true)}
+              >
+                <Plus className="h-3 w-3" />
+                Insert Template
+              </Button>
+            )}
           </div>
           <RichTextEditor
             placeholder="Instructions for patient, specific clearance…"
             content={preOpNotes}
             onChange={onPreOpNotesChange}
             minHeight="250px"
+            readOnly={readOnly}
           />
         </div>
       </div>
 
-      {canSave && (
+      {canSave && !readOnly && (
         <SaveBar onSave={onSave} saving={isSaving} label="Save Risk Factors" />
       )}
 

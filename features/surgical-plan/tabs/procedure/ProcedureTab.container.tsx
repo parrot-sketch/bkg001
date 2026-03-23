@@ -11,9 +11,10 @@ import { ProcedureTabView } from './ProcedureTab.view';
 
 interface ProcedureTabContainerProps {
   caseId: string;
+  readOnly?: boolean;
 }
 
-export function ProcedureTabContainer({ caseId }: ProcedureTabContainerProps) {
+export function ProcedureTabContainer({ caseId, readOnly = false }: ProcedureTabContainerProps) {
   const hook = useProcedureTab(caseId);
 
   return (
@@ -28,6 +29,7 @@ export function ProcedureTabContainer({ caseId }: ProcedureTabContainerProps) {
       onSave={hook.onSave}
       onRetry={() => hook.onReset()}
       canSave={hook.canSave}
+      readOnly={readOnly}
       services={hook.services}
       servicesLoading={hook.servicesLoading}
     />

@@ -16,6 +16,7 @@ interface ProcedureSelectProps {
   services: Service[];
   loading?: boolean;
   placeholder?: string;
+  disabled?: boolean;
 }
 
 export function ProcedureSelect({
@@ -24,6 +25,7 @@ export function ProcedureSelect({
   services,
   loading = false,
   placeholder = 'Select a procedure...',
+  disabled = false,
 }: ProcedureSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -88,8 +90,8 @@ export function ProcedureSelect({
       {/* Trigger Button */}
       <button
         type="button"
-        onClick={() => !loading && setIsOpen(!isOpen)}
-        disabled={loading}
+        onClick={() => !loading && !disabled && setIsOpen(!isOpen)}
+        disabled={loading || disabled}
         className={cn(
           'w-full h-11 px-4 py-2 rounded-lg border bg-background text-left flex items-center justify-between transition-all duration-200',
           'hover:border-primary/50 hover:shadow-sm',

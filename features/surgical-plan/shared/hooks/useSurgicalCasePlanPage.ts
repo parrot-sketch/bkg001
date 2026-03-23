@@ -76,11 +76,13 @@ export function useSurgicalCasePlanPage(caseId: string): UseSurgicalCasePlanPage
     ? mapCasePlanDetailDtoToViewModel(casePlanData, timelineData ?? null)
     : null;
 
-  // Derived flags (role-based checks will be added in Phase 2)
-  const canEdit: boolean = true; // TODO: Add role check in Phase 2
-  const canMarkReady: boolean = true; // TODO: Add role check in Phase 2
+  // Derived flags
+  const canEdit: boolean = Boolean(
+    data?.case?.status && !OPERATIVE_STATUSES.has(data.case.status)
+  );
+  const canMarkReady: boolean = canEdit;
   const showTimeline: boolean = Boolean(
-    timelineData && casePlanData && OPERATIVE_STATUSES.has(casePlanData.status)
+    timelineData && data?.case?.status && OPERATIVE_STATUSES.has(data.case.status)
   );
 
   return {
