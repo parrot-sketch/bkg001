@@ -449,7 +449,49 @@ export class CompleteConsultationUseCase {
       console.error('Failed to send completion notification:', error);
     }
 
-    // Step 10: Record audit event
+    // Step 10: Transition PatientQueue status to COMPLETED
+    try {
+      await db.patientQueue.updateMany({
+        where: {
+          appointment_id: dto.appointmentId,
+          status: { in: ['WAITING', 'IN_CONSULTATION'] },
+        },
+        data: {
+          status: 'COMPLETED',
+          completed_at: new Date(),
+        },
+      });
+    } catch (queueError) {
+      // Non-blocking but log for visibility
+      console.error('[CompleteConsultation] Failed to update PatientQueue status:', queueError);
+    }
+
+    // Step 10.5: Ensure DoctorPatientAssignment exists for persistence in "My Patients"
+    try {
+      await db.doctorPatientAssignment.upsert({
+        where: {
+          doctor_id_patient_id: {
+            doctor_id: dto.doctorId,
+            patient_id: appointment.getPatientId(),
+          },
+        },
+        update: {
+          status: 'ACTIVE',
+          updated_at: new Date(),
+        },
+        create: {
+          doctor_id: dto.doctorId,
+          patient_id: appointment.getPatientId(),
+          status: 'ACTIVE',
+          assigned_at: new Date(),
+        },
+      });
+    } catch (assignmentError) {
+      // Non-blocking but log for visibility
+      console.error('[CompleteConsultation] Failed to ensure DoctorPatientAssignment:', assignmentError);
+    }
+
+    // Step 11: Record audit event
     await this.auditService.recordEvent({
       userId: dto.doctorId,
       recordId: updatedAppointment.getId().toString(),
@@ -458,7 +500,7 @@ export class CompleteConsultationUseCase {
       details: `Consultation completed for appointment ${dto.appointmentId} by doctor ${dto.doctorId}${paymentId ? ` (payment created: ${paymentId})` : ''}${followUpAppointment ? ` (follow-up scheduled: ${followUpAppointment.id})` : ''}${surgicalCaseId ? ` (surgical case created: ${surgicalCaseId})` : ''}`,
     });
 
-    // Step 11: Map domain entity to response DTO
+    // Step 12: Map domain entity to response DTO
     return ApplicationAppointmentMapper.toResponseDto(updatedAppointment);
   }
 }

@@ -4,7 +4,7 @@
  * React Query hooks for frontdesk theater scheduling operations.
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
     frontdeskApi,
@@ -15,26 +15,25 @@ import {
     ConfirmBookingRequest,
     ConfirmBookingResponse,
 } from '@/lib/api/frontdesk';
+import { queryKeys } from '@/lib/constants/queryKeys';
+
+export interface TheaterSchedulingQueueOptions {
+    page?: number;
+    limit?: number;
+    enabled?: boolean;
+}
 
 /**
- * Query keys for theater scheduling
- */
-export const theaterSchedulingKeys = {
-    all: ['frontdesk', 'theater-scheduling'] as const,
-    queue: () => [...theaterSchedulingKeys.all, 'queue'] as const,
-    theaters: (date?: string) => [...theaterSchedulingKeys.all, 'theaters', date] as const,
-    case: (caseId: string) => [...theaterSchedulingKeys.all, 'case', caseId] as const,
-};
-
-/**
- * Hook for fetching theater scheduling queue
+ * Hook for fetching theater scheduling queue with pagination
  * Returns cases in READY_FOR_THEATER_BOOKING status
  */
-export function useTheaterSchedulingQueue(enabled = true) {
+export function useTheaterSchedulingQueue(options: TheaterSchedulingQueueOptions = {}) {
+    const { page = 1, limit = 20, enabled = true } = options;
+    
     return useQuery<TheaterSchedulingResponse, Error>({
-        queryKey: theaterSchedulingKeys.queue(),
+        queryKey: queryKeys.frontdesk.theaterQueue(),
         queryFn: async () => {
-            const response = await frontdeskApi.getTheaterSchedulingQueue();
+            const response = await frontdeskApi.getTheaterSchedulingQueue(page, limit);
             if (!response.success) {
                 throw new Error(response.error || 'Failed to load theater scheduling queue');
             }
@@ -43,8 +42,10 @@ export function useTheaterSchedulingQueue(enabled = true) {
             }
             return response.data;
         },
-        staleTime: 1000 * 30, // 30 seconds
+        placeholderData: keepPreviousData,
+        staleTime: 1000 * 60, // 60 seconds - Tier 3 polling
         refetchInterval: 1000 * 60, // Refetch every minute
+        refetchOnWindowFocus: true,
         enabled,
     });
 }
@@ -54,7 +55,7 @@ export function useTheaterSchedulingQueue(enabled = true) {
  */
 export function useTheaters(date?: string, enabled = true) {
     return useQuery<TheatersResponse, Error>({
-        queryKey: theaterSchedulingKeys.theaters(date),
+        queryKey: queryKeys.frontdesk.theaters(date),
         queryFn: async () => {
             const response = await frontdeskApi.getTheaters(date);
             if (!response.success) {
@@ -65,7 +66,8 @@ export function useTheaters(date?: string, enabled = true) {
             }
             return response.data;
         },
-        staleTime: 1000 * 15, // 15 seconds
+        staleTime: 1000 * 60, // 60 seconds
+        refetchOnWindowFocus: true,
         enabled,
     });
 }
@@ -87,11 +89,11 @@ export function useBookTheater(caseId: string) {
             }
             return response.data;
         },
-        onSuccess: (data) => {
-            // Invalidate related queries
-            queryClient.invalidateQueries({ queryKey: theaterSchedulingKeys.queue() });
-            queryClient.invalidateQueries({ queryKey: theaterSchedulingKeys.theaters() });
-            queryClient.invalidateQueries({ queryKey: theaterSchedulingKeys.case(caseId) });
+        onSuccess: () => {
+            // Invalidate related queries using standardized keys
+            queryClient.invalidateQueries({ queryKey: queryKeys.frontdesk.theaterQueue() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.frontdesk.theaters() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.shared.surgicalCase(caseId) });
             
             toast.success('Theater slot locked. Please confirm to complete booking.');
         },
@@ -118,9 +120,11 @@ export function useConfirmBooking(caseId: string) {
             }
             return response.data;
         },
-        onSuccess: (data) => {
-            // Invalidate all related queries
-            queryClient.invalidateQueries({ queryKey: theaterSchedulingKeys.all });
+        onSuccess: () => {
+            // Invalidate all related queries using standardized keys
+            queryClient.invalidateQueries({ queryKey: queryKeys.frontdesk.theaterQueue() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.frontdesk.theaters() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.shared.surgicalCase(caseId) });
             
             toast.success('Theater booking confirmed! Case is now scheduled.');
         },

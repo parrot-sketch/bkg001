@@ -44,10 +44,54 @@ const DOCTOR_KEYS = {
   detail: (id: string) => ['doctors', 'detail', id] as const,
 } as const;
 
+const DOCTOR_DASHBOARD_KEYS = {
+  all: ['doctor'] as const,
+  dashboard: () => [...DOCTOR_DASHBOARD_KEYS.all, 'dashboard'] as const,
+  profile: (id: string) => [...DOCTOR_DASHBOARD_KEYS.all, 'profile', id] as const,
+  appointments: (date?: string) => [...DOCTOR_DASHBOARD_KEYS.all, 'appointments', date] as const,
+  cases: () => [...DOCTOR_DASHBOARD_KEYS.all, 'cases'] as const,
+  queue: () => [...DOCTOR_DASHBOARD_KEYS.all, 'queue'] as const,
+  availability: () => [...DOCTOR_DASHBOARD_KEYS.all, 'availability'] as const,
+} as const;
+
+const NOTIFICATION_KEYS = {
+  all: ['notifications'] as const,
+  unread: () => [...NOTIFICATION_KEYS.all, 'unread'] as const,
+} as const;
+
 const FRONTDESK_KEYS = {
   all: ['frontdesk'] as const,
-  dashboard: () => ['frontdesk', 'dashboard'] as const,
+  dashboard: (userId?: string) => ['frontdesk', 'dashboard', userId ?? 'default'] as const,
+  todaysSchedule: (date?: string) => ['frontdesk', 'schedule', 'today', date ?? 'current'] as const,
+  queue: () => ['frontdesk', 'queue'] as const,
+  checkedInAwaitingAssignment: () => ['frontdesk', 'checked-in-awaiting-assignment'] as const,
+  liveQueueBoard: () => ['frontdesk', 'live-queue-board'] as const,
   stats: () => ['frontdesk', 'stats'] as const,
+  theaterQueue: () => ['frontdesk', 'theater-queue'] as const,
+  theaters: (date?: string) => ['frontdesk', 'theaters', date ?? 'all'] as const,
+  pendingPayments: (filters?: { status?: string }) => 
+    ['frontdesk', 'payments', 'pending', filters ?? {}] as const,
+  intakeSession: (sessionId: string) => ['frontdesk', 'intake', sessionId] as const,
+  intakePendingCount: () => ['frontdesk', 'intake', 'pending', 'count'] as const,
+  patients: (filters?: { page?: number; limit?: number; search?: string }) =>
+    ['frontdesk', 'patients', filters ?? {}] as const,
+  patientStats: () => ['frontdesk', 'patient-stats'] as const,
+} as const;
+
+const SHARED_KEYS = {
+  all: ['shared'] as const,
+  patient: (id: string) => ['shared', 'patient', id] as const,
+  patients: (filters?: { page?: number; limit?: number; search?: string }) => 
+    ['shared', 'patients', filters ?? {}] as const,
+  appointment: (id: string) => ['shared', 'appointment', id] as const,
+  appointments: (filters?: { date?: string; status?: string }) => 
+    ['shared', 'appointments', filters ?? {}] as const,
+  surgicalCase: (id: string) => ['shared', 'surgical-case', id] as const,
+  surgicalCases: (filters?: { status?: string; surgeonId?: string }) => 
+    ['shared', 'surgical-cases', filters ?? {}] as const,
+  theaterBooking: (id: string) => ['shared', 'theater-booking', id] as const,
+  notifications: (userId: string) => ['shared', 'notifications', userId] as const,
+  doctors: () => ['shared', 'doctors'] as const,
 } as const;
 
 export const queryKeys = {
@@ -55,7 +99,10 @@ export const queryKeys = {
   consultations: CONSULTATION_KEYS,
   patients: PATIENT_KEYS,
   doctors: DOCTOR_KEYS,
+  doctor: DOCTOR_DASHBOARD_KEYS,
+  notifications: NOTIFICATION_KEYS,
   frontdesk: FRONTDESK_KEYS,
+  shared: SHARED_KEYS,
 } as const;
 
 export type QueryKeyFactory = typeof queryKeys;

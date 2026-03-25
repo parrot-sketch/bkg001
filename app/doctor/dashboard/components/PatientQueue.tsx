@@ -4,25 +4,22 @@ import { Users, Clock, Play, Activity, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { useDoctorQueue } from '@/hooks/doctor/useDoctorQueue';
+import { useDoctorQueue } from '@/hooks/use-doctor-dashboard';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 
 interface PatientQueueProps {
-  doctorId: string | undefined;
-  isAuthenticated: boolean;
+  isLoading: boolean;
 }
 
-export function PatientQueue({ doctorId, isAuthenticated }: PatientQueueProps) {
-  const { data: queue, isLoading } = useDoctorQueue(doctorId, isAuthenticated && !!doctorId);
+export function PatientQueue({ isLoading }: PatientQueueProps) {
+  const queue = useDoctorQueue();
   const router = useRouter();
 
   const handleStartConsultation = (queueEntry: { appointmentId: number | null; patientId: string; id: number }) => {
     if (queueEntry.appointmentId) {
       router.push(`/doctor/consultations/${queueEntry.appointmentId}/session`);
     } else {
-      // For walk-ins, we need to create a consultation or handle differently
       router.push(`/doctor/consultations/new?patientId=${queueEntry.patientId}`);
     }
   };
@@ -45,8 +42,6 @@ export function PatientQueue({ doctorId, isAuthenticated }: PatientQueueProps) {
     );
   }
 
-  const queueData = queue || [];
-
   return (
     <section 
       id="queue"
@@ -56,21 +51,21 @@ export function PatientQueue({ doctorId, isAuthenticated }: PatientQueueProps) {
         <div className="flex items-center gap-2.5">
           <Users className="h-4 w-4 text-amber-600" />
           <h2 className="text-sm font-semibold text-slate-800">Patient Queue</h2>
-          {queueData.length > 0 && (
+          {queue.length > 0 && (
             <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-xs">
-              {queueData.length}
+              {queue.length}
             </Badge>
           )}
         </div>
-        {queueData.length > 0 && (
+        {queue.length > 0 && (
           <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-1 rounded-md">
-            Next: {queueData[0]?.patient?.firstName}
+            Next: {queue[0]?.patientName?.split(' ')[0]}
           </span>
         )}
       </div>
 
       <div className="p-0">
-        {queueData.length === 0 ? (
+        {queue.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center bg-slate-50/30">
             <div className="h-12 w-12 bg-slate-100 rounded-full flex items-center justify-center mb-3">
               <Users className="h-6 w-6 text-slate-300" />
@@ -82,8 +77,8 @@ export function PatientQueue({ doctorId, isAuthenticated }: PatientQueueProps) {
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
-            {queueData.map((patient, index) => {
-              const patientName = `${patient.patient.firstName} ${patient.patient.lastName}`;
+            {queue.map((patient, index) => {
+              const patientName = patient.patientName;
               
               return (
                 <div
@@ -104,7 +99,7 @@ export function PatientQueue({ doctorId, isAuthenticated }: PatientQueueProps) {
                     {/* Avatar */}
                     <Avatar className="h-10 w-10 border border-slate-200">
                       <AvatarFallback className="bg-emerald-100 text-emerald-700 text-sm font-bold">
-                        {patient.patient.firstName[0]}{patient.patient.lastName[0]}
+                        {patient.patientName.split(' ').map(n => n[0]).join('')}
                       </AvatarFallback>
                     </Avatar>
 

@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 
+// This endpoint must never be statically cached — it serves live queue data.
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
+
   try {
     const queueEntries = await db.patientQueue.findMany({
       where: {

@@ -65,7 +65,7 @@ export default function TheaterBookingPage() {
     const [lockedBookingId, setLockedBookingId] = useState<string | null>(null);
 
     // Fetch case details
-    const { data: queueData, isLoading: loadingQueue } = useTheaterSchedulingQueue(isAuthenticated && !!user);
+    const { data: queueData, isLoading: loadingQueue } = useTheaterSchedulingQueue({ enabled: isAuthenticated && !!user });
     const caseData = useMemo(() => {
         return queueData?.cases.find(c => c.id === caseId);
     }, [queueData, caseId]);

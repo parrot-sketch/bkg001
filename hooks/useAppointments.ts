@@ -16,6 +16,7 @@ import { frontdeskApi } from '@/lib/api/frontdesk';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/patient/useAuth';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import { queryKeys } from '@/lib/constants/queryKeys';
 
 // Query key factory for consistent cache management
 export const appointmentKeys = {
@@ -111,8 +112,9 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
             toast.success('Appointment confirmed successfully');
             // Invalidate all related queries
             queryClient.invalidateQueries({ queryKey: appointmentKeys.all });
-            queryClient.invalidateQueries({ queryKey: ['notifications'] });
-            queryClient.invalidateQueries({ queryKey: ['doctors', 'availability'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.doctors.availability() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.doctor.dashboard() });
         },
     });
 
@@ -140,8 +142,9 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
         onSuccess: () => {
             toast.success('Appointment rescheduled successfully');
             queryClient.invalidateQueries({ queryKey: appointmentKeys.all });
-            queryClient.invalidateQueries({ queryKey: ['doctors', 'availability'] });
-            queryClient.invalidateQueries({ queryKey: ['notifications'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.doctors.availability() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.doctor.dashboard() });
         },
         onError: (err) => {
             toast.error('Failed to reschedule appointment');
@@ -184,8 +187,9 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
         onSuccess: () => {
             toast.success('Appointment cancelled');
             queryClient.invalidateQueries({ queryKey: appointmentKeys.all });
-            queryClient.invalidateQueries({ queryKey: ['doctors', 'availability'] });
-            queryClient.invalidateQueries({ queryKey: ['notifications'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.doctors.availability() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.doctor.dashboard() });
         },
     });
 
@@ -201,6 +205,7 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
         onSuccess: () => {
             toast.success('Appointment marked as no-show');
             queryClient.invalidateQueries({ queryKey: appointmentKeys.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.doctor.dashboard() });
         },
         onError: (err) => {
             toast.error('Failed to mark as no-show');
@@ -220,6 +225,7 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
         onSuccess: () => {
             toast.success('Appointment marked as completed');
             queryClient.invalidateQueries({ queryKey: appointmentKeys.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.doctor.dashboard() });
         },
         onError: (err) => {
             toast.error('Failed to complete appointment');
@@ -239,6 +245,7 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
         onSuccess: () => {
             toast.success('Appointment reinstated');
             queryClient.invalidateQueries({ queryKey: appointmentKeys.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.doctor.dashboard() });
         },
         onError: (err) => {
             toast.error('Failed to reinstate appointment');

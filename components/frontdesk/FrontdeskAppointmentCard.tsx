@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils';
 import { AppointmentStatus, canCheckIn } from '@/domain/enums/AppointmentStatus';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { frontdeskApi } from '@/lib/api/frontdesk';
-import { useCheckIn } from '@/hooks/frontdesk/useTodaysSchedule';
+import { useCheckIn } from '@/hooks/frontdesk/use-frontdesk-dashboard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';

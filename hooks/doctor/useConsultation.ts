@@ -7,6 +7,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
+import { queryKeys } from '@/lib/constants/queryKeys';
 
 /**
  * Hook to start a consultation
@@ -30,6 +31,7 @@ export function useStartConsultation() {
             queryClient.invalidateQueries({ queryKey: ['doctor'] });
             queryClient.invalidateQueries({ queryKey: ['appointments'] });
             queryClient.invalidateQueries({ queryKey: ['frontdesk', 'schedule'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.doctor.dashboard() });
 
             // CRITICAL: Invalidate the specific consultation cache so the session page sees the new state
             queryClient.invalidateQueries({ queryKey: ['consultation', variables] });
@@ -75,6 +77,7 @@ export function useEndConsultation() {
             queryClient.invalidateQueries({ queryKey: ['doctor'] });
             queryClient.invalidateQueries({ queryKey: ['appointments'] });
             queryClient.invalidateQueries({ queryKey: ['frontdesk', 'schedule'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.doctor.dashboard() });
 
             toast.success('Consultation completed');
         },
@@ -122,6 +125,7 @@ export function useConfirmAppointment() {
             queryClient.invalidateQueries({ queryKey: ['doctor'] });
             queryClient.invalidateQueries({ queryKey: ['appointments'] });
             queryClient.invalidateQueries({ queryKey: ['frontdesk'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.doctor.dashboard() });
 
             const actionText = variables.action === 'confirm' ? 'confirmed' : 'declined';
             toast.success(`Appointment ${actionText}`);
@@ -168,6 +172,7 @@ export function useRescheduleAppointment() {
             queryClient.invalidateQueries({ queryKey: ['doctor'] });
             queryClient.invalidateQueries({ queryKey: ['appointments'] });
             queryClient.invalidateQueries({ queryKey: ['frontdesk'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.doctor.dashboard() });
             toast.success('Appointment rescheduled successfully');
         },
         onError: (error: Error) => {

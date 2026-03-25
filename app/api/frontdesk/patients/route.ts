@@ -67,7 +67,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                 skip,
                 take: limit,
                 orderBy: { created_at: 'desc' },
-                // Select optimization: only fetch needed fields + efficient last visit calc
                 select: {
                     id: true,
                     file_number: true,
@@ -77,30 +76,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                     phone: true,
                     date_of_birth: true,
                     gender: true,
-                    address: true,
                     img: true,
                     colorCode: true,
                     created_at: true,
-                    updated_at: true,
-                    // Relation mappings for Mapper (can be null/undefined which Mapper handles)
-                    whatsapp_phone: true,
-                    occupation: true,
-                    marital_status: true,
-                    emergency_contact_name: true,
-                    emergency_contact_number: true,
-                    relation: true,
-                    privacy_consent: true,
-                    service_consent: true,
-                    medical_consent: true,
-                    blood_group: true,
-                    allergies: true,
-                    medical_conditions: true,
-                    medical_history: true,
-                    insurance_provider: true,
-                    insurance_number: true,
-
-                    // Efficient Last Visit calculation
-                    // "Last Visit" = Last COMPLETED appointment
                     appointments: {
                         where: { status: 'COMPLETED' },
                         orderBy: { appointment_date: 'desc' },
@@ -111,40 +89,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             }),
         ]);
 
-        // 6. Map to DTOs
-        const patientDtos = prismaPatients.map((p) => {
-            // Create Domain Entity first to ensure consistent business logic (age, name formatting)
-            const entity = PatientMapper.fromPrisma(p as any);
-            // Note: 'as any' used because we selected specific fields, but Mapper expects full Prisma model.
-            // However, we selected ALL fields required by Mapper.toPrismaCreateInput -> Entity.
-            // Wait, Mapper.fromPrisma expects full PrismaPatient. 
-            // We selected all fields used in Mapper.fromPrisma (checked in previous step).
-
-            const dto = {
-                id: entity.getId(),
-                fileNumber: entity.getFileNumber(),
-                firstName: entity.getFirstName(),
-                lastName: entity.getLastName(),
-                fullName: entity.getFullName(),
-                dateOfBirth: entity.getDateOfBirth(),
-                age: entity.getAge(),
-                gender: entity.getGender(),
-                email: entity.getEmail().getValue(),
-                phone: entity.getPhone().getValue(),
-                address: entity.getAddress(),
-                profileImage: entity.getImg(),
-                colorCode: entity.getColorCode(),
-                createdAt: entity.getCreatedAt(),
-                // Add lastVisit to DTO (might need to extend DTO interface or just return as extra field)
-                // For UI consistency, we attach it here.
-                lastVisit: p.appointments[0]?.appointment_date || null,
-
-                // Include other fields for detailed view if needed, but table mostly needs above.
-                // We stick to what PatientTable needs.
-            };
-
-            return dto;
-        });
+        // 6. Map to DTOs - optimized for list view only
+        const patientDtos = prismaPatients.map((p) => ({
+            id: p.id,
+            fileNumber: p.file_number,
+            firstName: p.first_name,
+            lastName: p.last_name,
+            dateOfBirth: p.date_of_birth,
+            gender: p.gender,
+            email: p.email,
+            phone: p.phone,
+            profileImage: p.img,
+            colorCode: p.colorCode,
+            createdAt: p.created_at,
+            lastVisit: p.appointments[0]?.appointment_date || null,
+        }));
 
         const totalPages = Math.ceil(totalRecords / limit);
 

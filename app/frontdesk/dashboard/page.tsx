@@ -24,7 +24,7 @@ import { PipelineCard } from '@/components/frontdesk/PipelineCard';
 import { QuickActionBtn } from '@/components/frontdesk/QuickActionBtn';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useFrontdeskDashboard } from '@/hooks/frontdesk/useFrontdeskDashboard';
+import { useFrontdeskDashboard, useDashboardStats } from '@/hooks/frontdesk/use-frontdesk-dashboard';
 import { BookingChannel } from '@/domain/enums/BookingChannel';
 import { useBookAppointmentStore } from '@/hooks/frontdesk/useBookAppointmentStore';
 import { AppointmentSource } from '@/domain/enums/AppointmentSource';

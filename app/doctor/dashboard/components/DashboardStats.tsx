@@ -1,31 +1,30 @@
 'use client';
 
 import { Users, CheckCircle, Activity, HeartPulse, Loader2 } from 'lucide-react';
-import { useDoctorDashboardStats } from '@/hooks/doctor/useDoctorDashboardStats';
+import { useDoctorStats } from '@/hooks/use-doctor-dashboard';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
 interface DashboardStatsProps {
-  doctorId: string | undefined;
-  isAuthenticated: boolean;
+  isLoading: boolean;
 }
 
-export function DashboardStats({ doctorId, isAuthenticated }: DashboardStatsProps) {
-  const { data: stats, isLoading } = useDoctorDashboardStats(doctorId, isAuthenticated && !!doctorId);
+export function DashboardStats({ isLoading }: DashboardStatsProps) {
+  const stats = useDoctorStats();
   const router = useRouter();
 
   const statCards = [
     {
       label: 'Patients in Queue',
-      value: stats?.queueLength ?? 0,
+      value: stats.queueLength,
       icon: Users,
       color: 'amber',
       href: '#queue',
-      pulse: (stats?.queueLength ?? 0) > 0,
+      pulse: stats.queueLength > 0,
     },
     {
       label: 'Completed Today',
-      value: stats?.completedConsultationsToday ?? 0,
+      value: stats.completedConsultationsToday,
       icon: CheckCircle,
       color: 'emerald',
       href: '/doctor/consultations',
@@ -33,19 +32,19 @@ export function DashboardStats({ doctorId, isAuthenticated }: DashboardStatsProp
     },
     {
       label: 'Active Surgical Cases',
-      value: stats?.activeSurgicalCases ?? 0,
+      value: stats.activeSurgicalCases,
       icon: Activity,
       color: 'blue',
       href: '/doctor/surgical-cases',
-      pulse: (stats?.activeSurgicalCases ?? 0) > 0,
+      pulse: stats.activeSurgicalCases > 0,
     },
     {
       label: 'Recovery Cases',
-      value: stats?.recoveryCases ?? 0,
+      value: stats.recoveryCases,
       icon: HeartPulse,
       color: 'purple',
       href: '/doctor/surgical-cases?status=RECOVERY',
-      pulse: (stats?.recoveryCases ?? 0) > 0,
+      pulse: stats.recoveryCases > 0,
     },
   ];
 

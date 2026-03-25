@@ -22,6 +22,7 @@ import { StartConsultationDto } from '@/application/dtos/StartConsultationDto';
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
+import { revalidateDoctorDashboard } from '@/actions/doctor/get-dashboard-data';
 
 // Initialize dependencies (singleton pattern)
 const appointmentRepository = new PrismaAppointmentRepository(db);
@@ -132,7 +133,14 @@ export async function POST(
     // 7. Execute start consultation use case
     const response = await startConsultationUseCase.execute(dto);
 
-    // 8. Return success response
+    // 8. Invalidate doctor's dashboard cache so queue status updates immediately
+    try {
+      await revalidateDoctorDashboard(doctorId);
+    } catch (_) {
+      // Non-critical – polling will catch up
+    }
+
+    // 9. Return success response
     return NextResponse.json(
       {
         success: true,

@@ -26,10 +26,10 @@ export class TheaterSchedulingUseCase {
     ) {}
 
     /**
-     * Get scheduling queue
+     * Get scheduling queue with pagination
      */
-    async getSchedulingQueue(): Promise<TheaterSchedulingQueueItem[]> {
-        return this.theaterRepository.findCasesForScheduling();
+    async getSchedulingQueue(options?: { page?: number; limit?: number }): Promise<{ cases: TheaterSchedulingQueueItem[]; total: number }> {
+        return this.theaterRepository.findCasesForScheduling(options);
     }
 
     /**

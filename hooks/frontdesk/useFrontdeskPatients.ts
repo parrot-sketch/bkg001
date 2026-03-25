@@ -2,10 +2,12 @@
  * useFrontdeskPatients Hook
  * 
  * React Query hook for fetching patients with pagination for Frontdesk.
+ * Uses standardized query keys for cache consistency.
  */
 
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { frontdeskApi } from '@/lib/api/frontdesk';
+import { queryKeys } from '@/lib/constants/queryKeys';
 
 interface UseFrontdeskPatientsProps {
     page: number;
@@ -21,16 +23,17 @@ export function useFrontdeskPatients({
     enabled = true,
 }: UseFrontdeskPatientsProps) {
     return useQuery({
-        queryKey: ['frontdesk', 'patients', page, limit, search],
+        queryKey: queryKeys.frontdesk.patients({ page, limit, search }),
         queryFn: async () => {
             const response = await frontdeskApi.getPatients({ page, limit, q: search });
             if (!response.success) {
                 throw new Error(response.error || 'Failed to load patients');
             }
-            return response; // Return full response which includes meta (totalRecords, etc.)
+            return response;
         },
-        placeholderData: keepPreviousData, // Keep previous data while fetching next page for smooth UX
-        staleTime: 1000 * 60, // 1 minute
+        placeholderData: keepPreviousData,
+        staleTime: 1000 * 60,
+        gcTime: 5 * 60 * 1000,
         enabled,
     });
 }

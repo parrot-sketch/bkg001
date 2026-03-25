@@ -71,11 +71,11 @@ export default function PendingIntakesPage() {
     }
   };
 
-  // Auto-refresh every 10 seconds
+  // Auto-refresh every 30 seconds (Tier 2 - aligns with dashboard)
   useEffect(() => {
     const interval = setInterval(() => {
       fetchPendingIntakes();
-    }, 10000);
+    }, 30000);
 
     return () => clearInterval(interval);
   }, []);
