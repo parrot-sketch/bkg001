@@ -59,6 +59,20 @@ const NOTIFICATION_KEYS = {
   unread: () => [...NOTIFICATION_KEYS.all, 'unread'] as const,
 } as const;
 
+const NURSE_KEYS = {
+  all: ['nurse'] as const,
+  dashboard: (userId: string) => [...NURSE_KEYS.all, 'dashboard', userId] as const,
+  clinicQueue: (date: string) => [...NURSE_KEYS.all, 'clinic-queue', date] as const,
+  wardPrep: (filters?: { page?: number; limit?: number; status?: string; readiness?: string }) =>
+    [...NURSE_KEYS.all, 'ward-prep', filters ?? {}] as const,
+  wardPrepDetail: (caseId: string) => [...NURSE_KEYS.all, 'ward-prep', 'detail', caseId] as const,
+  theatreSupport: (date: string) => [...NURSE_KEYS.all, 'theatre-support', date] as const,
+  intraOpRecord: (caseId: string) => [...NURSE_KEYS.all, 'intra-op-record', caseId] as const,
+  recovery: () => [...NURSE_KEYS.all, 'recovery'] as const,
+  postOpRecord: (caseId: string) => [...NURSE_KEYS.all, 'post-op-record', caseId] as const,
+  notifications: (userId: string) => [...NURSE_KEYS.all, 'notifications', userId] as const,
+} as const;
+
 const FRONTDESK_KEYS = {
   all: ['frontdesk'] as const,
   dashboard: (userId?: string) => ['frontdesk', 'dashboard', userId ?? 'default'] as const,
@@ -101,6 +115,7 @@ export const queryKeys = {
   doctors: DOCTOR_KEYS,
   doctor: DOCTOR_DASHBOARD_KEYS,
   notifications: NOTIFICATION_KEYS,
+  nurse: NURSE_KEYS,
   frontdesk: FRONTDESK_KEYS,
   shared: SHARED_KEYS,
 } as const;

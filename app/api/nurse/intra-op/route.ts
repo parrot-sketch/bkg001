@@ -23,16 +23,27 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
         }
 
-        // Show both SCHEDULED (booked, waiting for patient) and IN_THEATER (in progress)
+        // CORRECTED: Only show IN_THEATER (actively in surgery), not SCHEDULED (booked but not yet in theater)
+        // Filter by theater booking date = today to show only today's surgeries
+        const today = new Date();
+        const startOfDay = new Date(today);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(today);
+        endOfDay.setHours(23, 59, 59, 999);
+
         const statusWhere = {
-            status: {
-                in: [SurgicalCaseStatus.SCHEDULED, SurgicalCaseStatus.IN_THEATER],
+            status: SurgicalCaseStatus.IN_THEATER,
+            theater_booking: {
+                start_time: {
+                    gte: startOfDay,
+                    lte: endOfDay,
+                },
             },
         };
 
         const surgicalCases = await db.surgicalCase.findMany({
             where: statusWhere,
-            orderBy: [{ updated_at: 'desc' }], // Most recently updated (active) first
+            orderBy: [{ theater_booking: { start_time: 'asc' } }], // Ordered by scheduled surgery time
             include: {
                 patient: {
                     select: {

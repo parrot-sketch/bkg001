@@ -170,10 +170,11 @@ export const nurseApi = {
   },
 
   /**
-   * Get today's checked-in patients
+   * Get today's checked-in patients (waiting room)
+   * Uses CHECKED_IN and READY_FOR_CONSULTATION - not SCHEDULED
    */
   async getTodayCheckedInPatients(): Promise<ApiResponse<AppointmentResponseDto[]>> {
-    return apiClient.get<AppointmentResponseDto[]>('/appointments/today?status=SCHEDULED');
+    return apiClient.get<AppointmentResponseDto[]>('/appointments/today?status=CHECKED_IN,READY_FOR_CONSULTATION');
   },
 
   /**

@@ -8,17 +8,17 @@ import { queryKeys } from '@/lib/constants/queryKeys';
 /**
  * Hook for managing user notifications.
  */
-export function useNotifications() {
+export function useNotifications(userId?: string) {
     const queryClient = useQueryClient();
 
-    // Fetch notifications
+    // Fetch notifications - use queryKeys.notifications if userId provided
     const {
         data: notifications = [],
         isLoading,
         error,
         refetch
     } = useQuery({
-        queryKey: ['notifications'],
+        queryKey: userId ? queryKeys.notifications.unread() : queryKeys.notifications.unread(),
         queryFn: async () => {
             const response = await notificationsApi.getNotifications();
             if (!response.success) {
@@ -26,7 +26,7 @@ export function useNotifications() {
             }
             return response.data;
         },
-        // Refresh every 30 seconds
+        // Refresh every 30 seconds (TIER 3 - MEDIUM)
         refetchInterval: 30000,
     });
 
@@ -38,9 +38,10 @@ export function useNotifications() {
                 toast.error(response.error || 'Failed to mark notification as read');
                 return;
             }
-            // Invalidate and refetch to update UI
-            queryClient.invalidateQueries({ queryKey: ['notifications'] });
+            // Invalidate and refetch to update UI - cross-module
+            queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unread() });
             queryClient.invalidateQueries({ queryKey: queryKeys.doctor.dashboard() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.nurse.notifications(userId || 'default') });
         },
         onError: (error) => {
             console.error('Error marking notification as read:', error);
@@ -56,9 +57,10 @@ export function useNotifications() {
                 toast.error(response.error || 'Failed to mark all notifications as read');
                 return;
             }
-            // Invalidate and refetch to update UI
-            queryClient.invalidateQueries({ queryKey: ['notifications'] });
+            // Invalidate and refetch to update UI - cross-module
+            queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unread() });
             queryClient.invalidateQueries({ queryKey: queryKeys.doctor.dashboard() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.nurse.notifications(userId || 'default') });
         },
         onError: (error) => {
             console.error('Error marking all notifications as read:', error);
