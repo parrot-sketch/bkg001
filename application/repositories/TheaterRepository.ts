@@ -5,70 +5,81 @@ export class TheaterRepository {
     constructor(private prisma: PrismaClient) {}
 
     /**
-     * Get surgical cases ready for theater booking
+     * Get surgical cases ready for theater booking with pagination
      */
-    async findCasesForScheduling(): Promise<TheaterSchedulingQueueItem[]> {
-        const cases = await this.prisma.surgicalCase.findMany({
-            where: {
-                status: SurgicalCaseStatus.READY_FOR_THEATER_BOOKING,
-            },
-            select: {
-                id: true,
-                status: true,
-                urgency: true,
-                procedure_name: true,
-                created_at: true,
-                patient: {
-                    select: {
-                        id: true,
-                        first_name: true,
-                        last_name: true,
-                        file_number: true,
-                        date_of_birth: true,
-                        gender: true,
-                    },
-                },
-                primary_surgeon: {
-                    select: {
-                        id: true,
-                        name: true,
-                        specialization: true,
-                    },
-                },
-                case_plan: {
-                    select: {
-                        id: true,
-                        procedure_plan: true,
-                    },
-                },
-                theater_booking: {
-                    select: {
-                        id: true,
-                        theater_id: true,
-                        start_time: true,
-                        end_time: true,
-                        status: true,
-                    },
-                },
-                clinical_forms: {
-                    where: {
-                        template_key: 'nurse_preop_ward_checklist',
-                        status: 'FINAL',
-                    },
-                    select: {
-                        id: true,
-                        signed_at: true,
-                    },
-                    take: 1,
-                },
-            },
-            orderBy: [
-                { urgency: 'asc' },
-                { created_at: 'asc' },
-            ],
-        });
+    async findCasesForScheduling(options?: { page?: number; limit?: number }): Promise<{ cases: TheaterSchedulingQueueItem[]; total: number }> {
+        const page = options?.page ?? 1;
+        const limit = options?.limit ?? 20;
+        const skip = (page - 1) * limit;
 
-        return cases.map((c) => {
+        const [cases, total] = await Promise.all([
+            this.prisma.surgicalCase.findMany({
+                where: {
+                    status: SurgicalCaseStatus.READY_FOR_THEATER_BOOKING,
+                },
+                select: {
+                    id: true,
+                    status: true,
+                    urgency: true,
+                    procedure_name: true,
+                    created_at: true,
+                    patient: {
+                        select: {
+                            id: true,
+                            first_name: true,
+                            last_name: true,
+                            file_number: true,
+                            date_of_birth: true,
+                            gender: true,
+                        },
+                    },
+                    primary_surgeon: {
+                        select: {
+                            id: true,
+                            name: true,
+                            specialization: true,
+                        },
+                    },
+                    case_plan: {
+                        select: {
+                            id: true,
+                            procedure_plan: true,
+                        },
+                    },
+                    theater_booking: {
+                        select: {
+                            id: true,
+                            theater_id: true,
+                            start_time: true,
+                            end_time: true,
+                            status: true,
+                        },
+                    },
+                    clinical_forms: {
+                        where: {
+                            template_key: 'nurse_preop_ward_checklist',
+                            status: 'FINAL',
+                        },
+                        select: {
+                            id: true,
+                            signed_at: true,
+                        },
+                        take: 1,
+                    },
+                },
+                orderBy: [
+                    { urgency: 'asc' },
+                    { created_at: 'asc' },
+                ],
+                skip,
+                take: limit,
+            }),
+            this.prisma.surgicalCase.count({
+                where: { status: SurgicalCaseStatus.READY_FOR_THEATER_BOOKING },
+            }),
+        ]);
+
+        const items = cases.map((c) => {
             const preOpChecklist = c.clinical_forms[0];
             const existingBooking = c.theater_booking && c.theater_booking.status !== 'CANCELLED'
                 ? c.theater_booking
@@ -110,6 +121,8 @@ export class TheaterRepository {
                 scheduledAt: existingBooking?.start_time || null,
             };
         });
+
+        return { cases: items, total };
     }
 
     /**

@@ -16,12 +16,16 @@ import {
   UserMinus,
   RefreshCw
 } from 'lucide-react';
-import { useCheckedInAwaitingAssignment, useLiveQueueBoard, CheckedInPatient, QueueEntry, DoctorWithQueue } from '@/hooks/frontdesk/useQueueManagement';
+import { useCheckedInAwaitingAssignment, useLiveQueueBoard } from '@/hooks/frontdesk/use-frontdesk-dashboard';
+import type { FrontdeskCheckedInPatient } from '@/hooks/frontdesk/use-frontdesk-dashboard';
 import { assignPatientToQueue, removeFromQueue, reassignQueue } from '@/app/actions/appointment';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { patientApi } from '@/lib/api/patient';
 import { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';
+
+// Re-export type for use in handlers
+type CheckedInPatient = FrontdeskCheckedInPatient;
 
 export function QueueManagementPanels() {
   const { data: checkedInAwaiting, isLoading: loadingCheckedIn, refetch: refetchCheckedIn } = useCheckedInAwaitingAssignment();

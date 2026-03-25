@@ -7,8 +7,8 @@ import {
     Calendar, CheckCircle, Clock, Search, MoreVertical,
     User, Filter, ArrowRight, Loader2, Stethoscope, CalendarClock
 } from 'lucide-react';
-import { useTodaysSchedule } from '@/hooks/frontdesk/useTodaysSchedule';
-import { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import { useTodaysSchedule } from '@/hooks/frontdesk/use-frontdesk-dashboard';
+import { FrontdeskAppointment } from '@/actions/frontdesk/get-dashboard-data';
 import { format, isAfter, startOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { FrontdeskAppointmentCard } from './FrontdeskAppointmentCard';
@@ -42,20 +42,19 @@ export function TodaysSchedule() {
 
     // Combine lists for searching if needed, or keep sections.
     // Let's filter the sections based on search query
-    const filterAppointments = (list: AppointmentResponseDto[] = []) => {
+    const filterAppointments = (list: FrontdeskAppointment[] = []) => {
         if (!searchQuery) return list;
         const lowerQuery = searchQuery.toLowerCase();
         return list.filter(apt =>
-            apt.patient?.firstName.toLowerCase().includes(lowerQuery) ||
-            apt.patient?.lastName.toLowerCase().includes(lowerQuery) ||
-            apt.doctor?.name.toLowerCase().includes(lowerQuery)
+            apt.patientName.toLowerCase().includes(lowerQuery) ||
+            apt.doctorName.toLowerCase().includes(lowerQuery)
         );
     };
 
-    const scheduled = filterAppointments(schedule?.scheduled);
-    const checkedIn = filterAppointments(schedule?.checkedIn);
-    const inConsultation = filterAppointments(schedule?.inConsultation);
-    const completed = filterAppointments(schedule?.completed);
+    const scheduled = filterAppointments(schedule?.scheduled ?? []);
+    const checkedIn = filterAppointments(schedule?.checkedIn ?? []);
+    const inConsultation = filterAppointments(schedule?.inConsultation ?? []);
+    const completed = filterAppointments(schedule?.completed ?? []);
 
     return (
         <>
@@ -102,7 +101,7 @@ export function TodaysSchedule() {
                             {scheduled.map(apt => (
                                 <FrontdeskAppointmentCard
                                     key={apt.id}
-                                    appointment={apt}
+                                    appointment={apt as any}
                                 />
                             ))}
                         </Section>
@@ -118,7 +117,7 @@ export function TodaysSchedule() {
                             {checkedIn.map(apt => (
                                 <FrontdeskAppointmentCard
                                     key={apt.id}
-                                    appointment={apt}
+                                    appointment={apt as any}
                                 />
                             ))}
                         </Section>
@@ -134,7 +133,7 @@ export function TodaysSchedule() {
                             {inConsultation.map(apt => (
                                 <FrontdeskAppointmentCard
                                     key={apt.id}
-                                    appointment={apt}
+                                    appointment={apt as any}
                                 />
                             ))}
                         </Section>
@@ -150,7 +149,7 @@ export function TodaysSchedule() {
                                 {completed.map(apt => (
                                     <FrontdeskAppointmentCard
                                         key={apt.id}
-                                        appointment={apt}
+                                        appointment={apt as any}
                                     />
                                 ))}
                             </Section>

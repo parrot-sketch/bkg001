@@ -1,25 +1,10 @@
 'use client';
 
-/**
- * Surgeon Dashboard - Redesigned
- * 
- * Three-zone layout:
- * - Zone 1: Today's workload (metric cards)
- * - Zone 2: Patient queue (live queue for consultations)
- * - Zone 3: Case pipeline (surgical cases by stage)
- * 
- * REFACTORED: Complete redesign to cover all doctor workflows
- * - Removed: Pending confirmations section, Today's Patient Flow, Upcoming Schedule
- * - Removed: Floating "Start consultation" card (replaced by PatientQueue)
- * - Added: Stats cards, PatientQueue component, CasePipeline tabs
- */
-
 import { useAuth } from '@/hooks/patient/useAuth';
-import { useState, useEffect } from 'react';
 import { Activity, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { doctorApi } from '@/lib/api/doctor';
+import { useDoctorDashboard, useDoctorProfile } from '@/hooks/use-doctor-dashboard';
 
 // New components
 import { DashboardStats } from './components/DashboardStats';
@@ -27,53 +12,15 @@ import { PatientQueue } from './components/PatientQueue';
 import { CasePipeline } from './components/CasePipeline';
 
 export default function DoctorDashboardPage() {
-  const { user, isAuthenticated, isLoading } = useAuth();
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [checkingOnboarding, setCheckingOnboarding] = useState(true);
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { data: dashboardData, isLoading: dashboardLoading } = useDoctorDashboard({
+    enabled: isAuthenticated && !!user,
+  });
+  const doctor = useDoctorProfile();
 
-  // Get doctor ID - need to fetch doctor profile first
-  const [doctorId, setDoctorId] = useState<string | undefined>(undefined);
+  const showOnboarding = !doctor && !dashboardLoading;
 
-  useEffect(() => {
-    async function fetchDoctorId() {
-      if (!user?.id) return;
-      try {
-        const response = await doctorApi.getDoctorByUserId(user.id);
-        if (response.success && response.data) {
-          setDoctorId(response.data.id);
-        }
-      } catch (error) {
-        console.error('Error fetching doctor ID:', error);
-      }
-    }
-    if (isAuthenticated && user) {
-      fetchDoctorId();
-    }
-  }, [isAuthenticated, user]);
-
-  // Check onboarding status
-  useEffect(() => {
-    async function checkSetup() {
-      if (!user) return;
-      try {
-        const availResponse = await doctorApi.getMyAvailability();
-        const hasWorkingDays = availResponse.success &&
-          availResponse.data?.workingDays?.some((d: any) => d.isAvailable);
-        if (!hasWorkingDays) {
-          setShowOnboarding(true);
-        }
-      } catch (e) {
-        console.error("Failed to check onboarding status", e);
-      } finally {
-        setCheckingOnboarding(false);
-      }
-    }
-    if (isAuthenticated) {
-      checkSetup();
-    }
-  }, [isAuthenticated, user]);
-
-  if (isLoading) {
+  if (authLoading) {
     return (
       <div className="flex items-center justify-center h-[80vh]">
         <div className="text-center">
@@ -111,7 +58,7 @@ export default function DoctorDashboardPage() {
   return (
     <div className="animate-in fade-in duration-500 pb-10">
       {/* Onboarding Widget */}
-      {showOnboarding && !checkingOnboarding && (
+      {showOnboarding && (
         <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
           <div className="flex items-center justify-between">
             <div>
@@ -129,17 +76,14 @@ export default function DoctorDashboardPage() {
 
       {/* Zone 1: Today's Workload - Stats Cards */}
       <section className="mb-6">
-        <DashboardStats doctorId={doctorId} isAuthenticated={isAuthenticated} />
+        <DashboardStats isLoading={dashboardLoading} />
       </section>
 
       {/* Main Content: Queue + Pipeline */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         {/* Zone 2: Patient Queue (~40% width on XL) */}
         <div className="xl:col-span-5">
-          <PatientQueue 
-            doctorId={doctorId} 
-            isAuthenticated={isAuthenticated} 
-          />
+          <PatientQueue isLoading={dashboardLoading} />
         </div>
 
         {/* Zone 3: Case Pipeline (~60% width on XL) */}
@@ -151,7 +95,7 @@ export default function DoctorDashboardPage() {
                 Surgical Case Pipeline
               </h2>
             </div>
-            <CasePipeline />
+            <CasePipeline isLoading={dashboardLoading} />
           </section>
         </div>
       </div>

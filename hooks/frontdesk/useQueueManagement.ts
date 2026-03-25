@@ -1,12 +1,15 @@
 /**
  * Frontdesk Queue Management Hooks
  * 
- * Hooks for fetching:
- * - Patients checked in but not yet assigned to a queue
- * - Live queue board (all active queue entries grouped by doctor)
+ * These hooks are DEPRECATED in favor of useFrontdeskDashboard.
+ * The dashboard hook already fetches all queue data with proper caching.
+ * 
+ * These hooks now serve as fallback for components that need direct access
+ * without going through the dashboard.
  */
 
 import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/constants/queryKeys';
 
 export interface CheckedInPatient {
   id: number;
@@ -69,28 +72,30 @@ async function fetchLiveQueueBoard(): Promise<DoctorWithQueue[]> {
 
 /**
  * Hook for fetching patients checked in but awaiting queue assignment
+ * @deprecated Use useFrontdeskDashboard() from use-frontdesk-dashboard.ts instead
+ * This hook now relies on dashboard data for polling - no independent polling
  */
 export function useCheckedInAwaitingAssignment() {
   return useQuery<CheckedInPatient[]>({
-    queryKey: ['frontdesk', 'checked-in-awaiting-assignment'],
+    queryKey: queryKeys.frontdesk.checkedInAwaitingAssignment(),
     queryFn: fetchCheckedInAwaitingAssignment,
-    staleTime: 1000 * 15,
-    gcTime: 1000 * 60 * 2,
-    refetchInterval: 30000,
+    staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,
   });
 }
 
 /**
  * Hook for fetching the live queue board
+ * @deprecated Use useFrontdeskDashboard() from use-frontdesk-dashboard.ts instead
+ * This hook now relies on dashboard data for polling - no independent polling
  */
 export function useLiveQueueBoard() {
   return useQuery<DoctorWithQueue[]>({
-    queryKey: ['frontdesk', 'live-queue-board'],
+    queryKey: queryKeys.frontdesk.liveQueueBoard(),
     queryFn: fetchLiveQueueBoard,
-    staleTime: 1000 * 15,
-    gcTime: 1000 * 60 * 2,
-    refetchInterval: 30000,
+    staleTime: 30_000,
+    gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,
   });
 }

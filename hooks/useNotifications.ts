@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { notificationsApi, NotificationResponseDto } from '@/lib/api/notifications';
 import { toast } from 'sonner';
+import { queryKeys } from '@/lib/constants/queryKeys';
 
 /**
  * Hook for managing user notifications.
@@ -39,6 +40,7 @@ export function useNotifications() {
             }
             // Invalidate and refetch to update UI
             queryClient.invalidateQueries({ queryKey: ['notifications'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.doctor.dashboard() });
         },
         onError: (error) => {
             console.error('Error marking notification as read:', error);
@@ -56,6 +58,7 @@ export function useNotifications() {
             }
             // Invalidate and refetch to update UI
             queryClient.invalidateQueries({ queryKey: ['notifications'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.doctor.dashboard() });
         },
         onError: (error) => {
             console.error('Error marking all notifications as read:', error);

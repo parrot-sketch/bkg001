@@ -4,6 +4,7 @@ import { VitalSignsFormData } from "@/components/dialogs/add-vital-signs";
 import db from "@/lib/db";
 import { AppointmentSchema, VitalSignsSchema } from "@/lib/schema";
 import { getCurrentUser, getCurrentUserFull } from "@/lib/auth/server-auth";
+import { revalidateDoctorDashboard } from '@/actions/doctor/get-dashboard-data';
 import { AppointmentStatus } from "@prisma/client";
 import { getScheduleAppointmentUseCase } from "@/lib/use-cases";
 import { DomainException } from "@/domain/exceptions/DomainException";
@@ -465,6 +466,9 @@ export async function assignPatientToQueue(data: {
       appointmentTime: (appointmentId && queueEntry.appointment?.time) ? queueEntry.appointment.time : 'Walk-in',
     });
 
+    // Invalidate doctor dashboard cache so queue updates instantly
+    await revalidateDoctorDashboard(doctorId);
+
     return { success: true, msg: "Patient added to queue", queueEntry };
   } catch (error) {
     console.error('[assignPatientToQueue]', error);
@@ -531,6 +535,9 @@ export async function removeFromQueue(queueId: number, reason?: string) {
       doctorName: queueEntry.doctor.name,
       reason,
     });
+
+    // Invalidate doctor dashboard cache so queue updates instantly
+    await revalidateDoctorDashboard(queueEntry.doctor.id);
 
     return { success: true, msg: "Patient removed from queue", queueEntry: updated };
   } catch (error) {
@@ -625,6 +632,12 @@ export async function reassignQueue(queueId: number, newDoctorId: string) {
       oldDoctorName: oldDoctor.name,
       newDoctorName: newDoctor.name,
     });
+
+    // Invalidate dashboard caches for BOTH old and new doctor
+    await Promise.all([
+      revalidateDoctorDashboard(oldDoctor.id),
+      revalidateDoctorDashboard(newDoctorId)
+    ]);
 
     return { success: true, msg: "Patient reassigned successfully", queueEntry: updated };
   } catch (error) {

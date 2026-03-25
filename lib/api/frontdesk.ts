@@ -41,6 +41,10 @@ export interface TheaterSchedulingCase {
 export interface TheaterSchedulingResponse {
     cases: TheaterSchedulingCase[];
     count: number;
+    total?: number;
+    page?: number;
+    limit?: number;
+    totalPages?: number;
 }
 
 export interface Theater {
@@ -99,10 +103,15 @@ export interface ConfirmBookingResponse {
 
 export const frontdeskApi = {
     /**
-     * Get surgical cases ready for theater booking
+     * Get surgical cases ready for theater booking with pagination
      */
-    async getTheaterSchedulingQueue(): Promise<{ success: boolean; data?: TheaterSchedulingResponse; error?: string }> {
-        return apiClient.get<TheaterSchedulingResponse>('/frontdesk/theater-scheduling');
+    async getTheaterSchedulingQueue(page?: number, limit?: number): Promise<{ success: boolean; data?: TheaterSchedulingResponse; error?: string }> {
+        const params = new URLSearchParams();
+        if (page) params.set('page', page.toString());
+        if (limit) params.set('limit', limit.toString());
+        const queryString = params.toString();
+        const url = queryString ? `/frontdesk/theater-scheduling?${queryString}` : '/frontdesk/theater-scheduling';
+        return apiClient.get<TheaterSchedulingResponse>(url);
     },
 
     /**

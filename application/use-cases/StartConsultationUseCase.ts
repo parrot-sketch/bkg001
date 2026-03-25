@@ -229,7 +229,49 @@ export class StartConsultationUseCase {
       }
     }
 
-    // Step 7: Record audit event
+    // Step 7: Transition PatientQueue status to IN_CONSULTATION
+    try {
+      await db.patientQueue.updateMany({
+        where: {
+          appointment_id: dto.appointmentId,
+          status: 'WAITING',
+        },
+        data: {
+          status: 'IN_CONSULTATION',
+          called_at: new Date(),
+        },
+      });
+    } catch (queueError) {
+      // Non-blocking but log for visibility
+      console.error('[StartConsultation] Failed to update PatientQueue status:', queueError);
+    }
+
+    // Step 7.5: Ensure DoctorPatientAssignment exists for real-time visibility in "My Patients"
+    try {
+      await db.doctorPatientAssignment.upsert({
+        where: {
+          doctor_id_patient_id: {
+            doctor_id: dto.doctorId,
+            patient_id: appointment.getPatientId(),
+          },
+        },
+        update: {
+          status: 'ACTIVE',
+          updated_at: new Date(),
+        },
+        create: {
+          doctor_id: dto.doctorId,
+          patient_id: appointment.getPatientId(),
+          status: 'ACTIVE',
+          assigned_at: new Date(),
+        },
+      });
+    } catch (assignmentError) {
+      // Non-blocking but log for visibility
+      console.error('[StartConsultation] Failed to ensure DoctorPatientAssignment:', assignmentError);
+    }
+
+    // Step 8: Record audit event
     await this.auditService.recordEvent({
       userId: dto.doctorId,
       recordId: updatedAppointment.getId().toString(),
@@ -238,7 +280,7 @@ export class StartConsultationUseCase {
       details: `Consultation started for appointment ${dto.appointmentId} by doctor ${dto.doctorId}`,
     });
 
-    // Step 8: Map domain entity to response DTO
+    // Step 9: Map domain entity to response DTO
     return ApplicationAppointmentMapper.toResponseDto(updatedAppointment);
   }
 }

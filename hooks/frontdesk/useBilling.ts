@@ -9,6 +9,7 @@ import { apiClient } from '@/lib/api/client';
 import { toast } from 'sonner';
 import { PaymentMethod } from '@/domain/enums/PaymentMethod';
 import type { PaymentWithRelations } from '@/domain/interfaces/repositories/IPaymentRepository';
+import { queryKeys } from '@/lib/constants/queryKeys';
 
 interface BillingResponse {
   payments: PaymentWithRelations[];
@@ -25,7 +26,7 @@ interface BillingResponse {
  */
 export function usePendingPayments(enabled = true) {
   return useQuery({
-    queryKey: ['payments', 'pending'],
+    queryKey: queryKeys.frontdesk.pendingPayments(),
     queryFn: async () => {
       const response = await apiClient.get<BillingResponse>('/payments/pending');
       if (!response.success) {
@@ -33,7 +34,7 @@ export function usePendingPayments(enabled = true) {
       }
       return response.data;
     },
-    staleTime: 1000 * 30, // 30 seconds
+    staleTime: 1000 * 60, // 60 seconds - billing is not real-time
     refetchOnWindowFocus: true,
     enabled,
   });
@@ -66,10 +67,9 @@ export function useRecordPayment() {
 
       return response.data;
     },
-    onSuccess: (data, variables) => {
-      // Invalidate pending payments query
-      queryClient.invalidateQueries({ queryKey: ['payments', 'pending'] });
-      queryClient.invalidateQueries({ queryKey: ['frontdesk'] });
+    onSuccess: (data) => {
+      // Invalidate pending payments query - using exact key
+      queryClient.invalidateQueries({ queryKey: queryKeys.frontdesk.pendingPayments() });
       
       toast.success(data?.message || 'Payment recorded');
     },

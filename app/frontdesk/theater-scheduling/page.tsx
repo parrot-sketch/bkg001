@@ -21,7 +21,10 @@
 
 import { useState, useMemo } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
-import { useTheaterSchedulingQueue } from '@/hooks/frontdesk/useTheaterScheduling';
+import { useTheaterSchedulingQueue, useTheaters } from '@/hooks/frontdesk/useTheaterScheduling';
+import { queryKeys } from '@/lib/constants/queryKeys';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -55,7 +58,8 @@ import { BookTheaterSlotDialog } from '@/components/frontdesk/theater/BookTheate
 
 export default function TheaterSchedulingPage() {
     const { user, isAuthenticated, isLoading: authLoading } = useAuth();
-    const { data, isLoading, error } = useTheaterSchedulingQueue(isAuthenticated && !!user);
+    const { data, isLoading, error } = useTheaterSchedulingQueue({ enabled: isAuthenticated && !!user });
+    const queryClient = useQueryClient();
 
     const [selectedCase, setSelectedCase] = useState<any | null>(null);
     const [isBookingDialogOpen, setIsBookingDialogOpen] = useState(false);
@@ -491,7 +495,18 @@ export default function TheaterSchedulingPage() {
                 open={isBookingDialogOpen}
                 onOpenChange={setIsBookingDialogOpen}
                 surgicalCase={selectedCase}
-                onSuccess={() => window.location.reload()}
+                onSuccess={() => {
+                  // Invalidate theater queue cache to refresh the list
+                  queryClient.invalidateQueries({ queryKey: queryKeys.frontdesk.theaterQueue() });
+                  // Invalidate theaters cache
+                  queryClient.invalidateQueries({ queryKey: queryKeys.frontdesk.theaters() });
+                  // Invalidate shared surgical case cache
+                  if (selectedCase?.id) {
+                    queryClient.invalidateQueries({ queryKey: queryKeys.shared.surgicalCase(selectedCase.id) });
+                  }
+                  toast.success('Theater slot booked successfully!');
+                  setIsBookingDialogOpen(false);
+                }}
             />
         </div>
     );

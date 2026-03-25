@@ -7,6 +7,7 @@
  * - Requires authentication (FRONTDESK or ADMIN)
  * - Returns cases with patient, surgeon, procedure details
  * - Includes pre-op checklist completion status
+ * - Supports pagination with page and limit query params
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -16,6 +17,14 @@ import { TheaterSchedulingFactory } from '@/application/services/TheaterScheduli
 
 export async function GET(request: NextRequest) {
     try {
+        const { searchParams } = new URL(request.url);
+        const page = parseInt(searchParams.get('page') || '1', 10);
+        const limit = parseInt(searchParams.get('limit') || '20', 10);
+
+        // Validate pagination params
+        const safePage = Math.max(1, page);
+        const safeLimit = Math.min(100, Math.max(1, limit));
+
         // 1. Authenticate
         const authResult = await JwtMiddleware.authenticate(request);
         if (!authResult.success || !authResult.user) {
@@ -38,15 +47,19 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // 3. Fetch cases using use case
+        // 3. Fetch cases using use case with pagination
         const useCase = TheaterSchedulingFactory.getInstance();
-        const cases = await useCase.getSchedulingQueue();
+        const result = await useCase.getSchedulingQueue({ page: safePage, limit: safeLimit });
 
         return NextResponse.json({
             success: true,
             data: {
-                cases: cases,
-                count: cases.length,
+                cases: result.cases,
+                count: result.cases.length,
+                total: result.total,
+                page: safePage,
+                limit: safeLimit,
+                totalPages: Math.ceil(result.total / safeLimit),
             },
         });
     } catch (error) {

@@ -9,42 +9,54 @@ import {
   ArrowRight, 
   Loader2,
   Clock,
-  Building2,
   FileText,
-  ClipboardCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useDoctorSurgicalCasesPipeline } from '@/hooks/doctor/useDoctorSurgicalCasesPipeline';
+import { useDoctorCases } from '@/hooks/use-doctor-dashboard';
 import { useRouter } from 'next/navigation';
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
-import type { SurgicalCaseListItemDto } from '@/lib/api/surgical-cases';
 
 type TabValue = 'planning' | 'scheduled' | 'theater' | 'recovery';
 
-export function CasePipeline() {
-  const { data, isLoading } = useDoctorSurgicalCasesPipeline();
+interface CasePipelineProps {
+  isLoading: boolean;
+}
+
+export function CasePipeline({ isLoading }: CasePipelineProps) {
+  const cases = useDoctorCases();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabValue>('planning');
 
-  const pipeline = data?.pipeline;
-  const counts = data?.counts;
+  const pipeline = {
+    planning: cases.filter(c => ['PLANNING', 'READY_FOR_SCHEDULING'].includes(c.status)),
+    scheduled: cases.filter(c => ['SCHEDULED', 'IN_PREP', 'READY_FOR_THEATER_BOOKING'].includes(c.status)),
+    inTheater: cases.filter(c => c.status === 'IN_THEATER'),
+    recovery: cases.filter(c => c.status === 'RECOVERY' || (c.status === 'COMPLETED' && new Date(c.createdAt) >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))),
+  };
 
-  const handleCaseAction = (surgicalCase: SurgicalCaseListItemDto, tab: TabValue) => {
+  const counts = {
+    planning: pipeline.planning.length,
+    scheduled: pipeline.scheduled.length,
+    inTheater: pipeline.inTheater.length,
+    recovery: pipeline.recovery.length,
+  };
+
+  const handleCaseAction = (caseId: string, tab: TabValue) => {
     switch (tab) {
       case 'planning':
-        router.push(`/doctor/surgical-cases/${surgicalCase.id}/plan`);
+        router.push(`/doctor/surgical-cases/${caseId}/plan`);
         break;
       case 'scheduled':
-        router.push(`/doctor/surgical-cases/${surgicalCase.id}`);
+        router.push(`/doctor/surgical-cases/${caseId}`);
         break;
       case 'theater':
-        router.push(`/doctor/surgical-cases/${surgicalCase.id}/intra-op`);
+        router.push(`/doctor/surgical-cases/${caseId}/intra-op`);
         break;
       case 'recovery':
-        router.push(`/doctor/surgical-cases/${surgicalCase.id}`);
+        router.push(`/doctor/surgical-cases/${caseId}`);
         break;
     }
   };
@@ -69,7 +81,7 @@ export function CasePipeline() {
     );
   };
 
-  const renderCaseRow = (surgicalCase: SurgicalCaseListItemDto, tab: TabValue) => {
+  const renderCaseRow = (surgicalCase: any, tab: TabValue) => {
     const patientName = surgicalCase.patient 
       ? `${surgicalCase.patient.firstName} ${surgicalCase.patient.lastName}`
       : 'Unknown Patient';
@@ -131,7 +143,7 @@ export function CasePipeline() {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => handleCaseAction(surgicalCase, tab)}
+            onClick={() => handleCaseAction(surgicalCase.id, tab)}
             className="text-xs h-8"
           >
             {tab === 'planning' && 'Continue Planning'}
@@ -182,6 +194,13 @@ export function CasePipeline() {
     );
   };
 
+  const pipelineCases = {
+    planning: pipeline.planning,
+    scheduled: pipeline.scheduled,
+    theater: pipeline.inTheater,
+    recovery: pipeline.recovery,
+  };
+
   return (
     <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)} className="w-full">
       <TabsList className="w-full justify-start bg-slate-50 border-b rounded-none h-auto p-0">
@@ -191,7 +210,7 @@ export function CasePipeline() {
         >
           <FileText className="h-3.5 w-3.5" />
           Planning
-          {counts?.planning !== undefined && counts.planning > 0 && (
+          {counts.planning > 0 && (
             <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">
               {counts.planning}
             </Badge>
@@ -203,7 +222,7 @@ export function CasePipeline() {
         >
           <Calendar className="h-3.5 w-3.5" />
           Scheduled
-          {counts?.scheduled !== undefined && counts.scheduled > 0 && (
+          {counts.scheduled > 0 && (
             <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">
               {counts.scheduled}
             </Badge>
@@ -215,7 +234,7 @@ export function CasePipeline() {
         >
           <Activity className="h-3.5 w-3.5" />
           In Theater
-          {counts?.inTheater !== undefined && counts.inTheater > 0 && (
+          {counts.inTheater > 0 && (
             <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">
               {counts.inTheater}
             </Badge>
@@ -227,7 +246,7 @@ export function CasePipeline() {
         >
           <HeartPulse className="h-3.5 w-3.5" />
           Recovery
-          {counts?.recovery !== undefined && counts.recovery > 0 && (
+          {counts.recovery > 0 && (
             <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">
               {counts.recovery}
             </Badge>
@@ -245,23 +264,23 @@ export function CasePipeline() {
         ) : (
           <>
             <TabsContent value="planning" className="m-0">
-              {pipeline?.planning.length ? (
-                pipeline.planning.map((surgicalCase) => renderCaseRow(surgicalCase, 'planning'))
+              {pipelineCases.planning.length ? (
+                pipelineCases.planning.map((surgicalCase) => renderCaseRow(surgicalCase, 'planning'))
               ) : renderEmptyState('planning')}
             </TabsContent>
             <TabsContent value="scheduled" className="m-0">
-              {pipeline?.scheduled.length ? (
-                pipeline.scheduled.map((surgicalCase) => renderCaseRow(surgicalCase, 'scheduled'))
+              {pipelineCases.scheduled.length ? (
+                pipelineCases.scheduled.map((surgicalCase) => renderCaseRow(surgicalCase, 'scheduled'))
               ) : renderEmptyState('scheduled')}
             </TabsContent>
             <TabsContent value="theater" className="m-0">
-              {pipeline?.inTheater.length ? (
-                pipeline.inTheater.map((surgicalCase) => renderCaseRow(surgicalCase, 'theater'))
+              {pipelineCases.theater.length ? (
+                pipelineCases.theater.map((surgicalCase) => renderCaseRow(surgicalCase, 'theater'))
               ) : renderEmptyState('theater')}
             </TabsContent>
             <TabsContent value="recovery" className="m-0">
-              {pipeline?.recovery.length ? (
-                pipeline.recovery.map((surgicalCase) => renderCaseRow(surgicalCase, 'recovery'))
+              {pipelineCases.recovery.length ? (
+                pipelineCases.recovery.map((surgicalCase) => renderCaseRow(surgicalCase, 'recovery'))
               ) : renderEmptyState('recovery')}
             </TabsContent>
           </>
