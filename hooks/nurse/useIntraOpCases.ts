@@ -1,14 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { nurseApi, IntraOpCasesResponse } from '@/lib/api/nurse';
-
-export const intraOpCaseKeys = {
-    all: ['nurse', 'intra-op'] as const,
-    lists: () => [...intraOpCaseKeys.all, 'list'] as const,
-};
+import { queryKeys } from '@/lib/constants/queryKeys';
 
 export function useIntraOpCases() {
     return useQuery<IntraOpCasesResponse, Error>({
-        queryKey: intraOpCaseKeys.lists(),
+        queryKey: queryKeys.nurse.theatreSupport('today'),
         queryFn: async () => {
             const response = await nurseApi.getIntraOpSurgicalCases();
             if (!response.success) {
@@ -26,7 +22,10 @@ export function useIntraOpCases() {
                 }))
             };
         },
-        staleTime: 1000 * 30, // 30 seconds
-        refetchInterval: 1000 * 60, // Refetch every minute
+        staleTime: 1000 * 30, // 30 seconds - local cache freshness
+        gcTime: 1000 * 60 * 5, // 5 minutes
+        refetchInterval: 1000 * 10, // TIER 1 (CRITICAL) - 10 seconds for live surgery
+        refetchOnWindowFocus: true, // Refetch on focus for clinical safety
+        refetchOnReconnect: true,
     });
 }

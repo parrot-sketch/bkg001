@@ -7,35 +7,25 @@
  * - Automatic caching and background refetching
  * - Optimistic updates for status changes
  * - Real-time readiness tracking
+ * - Pagination support
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { nurseApi, PreOpSurgicalCase, UpdatePreOpCaseDto } from '@/lib/api/nurse';
-
-/**
- * Query keys for pre-op cases
- */
-export const preOpCaseKeys = {
-  all: ['nurse', 'pre-op'] as const,
-  lists: () => [...preOpCaseKeys.all, 'list'] as const,
-  list: (filters?: { status?: string; readiness?: 'ready' | 'pending' }) =>
-    [...preOpCaseKeys.lists(), filters] as const,
-  details: () => [...preOpCaseKeys.all, 'detail'] as const,
-  detail: (id: string) => [...preOpCaseKeys.details(), id] as const,
-};
+import { queryKeys } from '@/lib/constants/queryKeys';
 
 /**
  * Hook for fetching pre-op surgical cases list
  *
- * @param filters - Optional filters for status and readiness
+ * @param filters - Optional filters for status, readiness, and pagination
  * @param enabled - Whether the query should run
  */
 export function usePreOpCases(
-  filters?: { status?: string; readiness?: 'ready' | 'pending' },
+  filters?: { status?: string; readiness?: 'ready' | 'pending'; page?: number; limit?: number },
   enabled = true
 ) {
   return useQuery({
-    queryKey: preOpCaseKeys.list(filters),
+    queryKey: queryKeys.nurse.wardPrep(filters),
     queryFn: async () => {
       const response = await nurseApi.getPreOpSurgicalCases(filters);
       if (!response.success) {
@@ -43,8 +33,9 @@ export function usePreOpCases(
       }
       return response.data;
     },
-    staleTime: 1000 * 30, // 30 seconds - moderate freshness for clinical workflows
+    staleTime: 1000 * 30, // 30 seconds - Tier 2 (HIGH urgency)
     gcTime: 1000 * 60 * 5, // 5 minutes
+    refetchInterval: 1000 * 30, // Poll every 30 seconds
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     refetchOnWindowFocus: true, // Refetch on focus for clinical safety
@@ -61,7 +52,7 @@ export function usePreOpCases(
  */
 export function usePreOpCaseDetails(caseId: string | undefined, enabled = true) {
   return useQuery({
-    queryKey: preOpCaseKeys.detail(caseId!),
+    queryKey: queryKeys.nurse.wardPrepDetail(caseId!),
     queryFn: async () => {
       const response = await nurseApi.getPreOpCaseDetails(caseId!);
       if (!response.success) {
@@ -94,16 +85,16 @@ export function useUpdatePreOpCase() {
     },
     onMutate: async ({ caseId, updates }) => {
       // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: preOpCaseKeys.detail(caseId) });
+      await queryClient.cancelQueries({ queryKey: queryKeys.nurse.wardPrepDetail(caseId) });
 
       // Snapshot previous value
       const previousCase = queryClient.getQueryData<PreOpSurgicalCase>(
-        preOpCaseKeys.detail(caseId)
+        queryKeys.nurse.wardPrepDetail(caseId)
       );
 
       // Optimistically update the cache
       if (previousCase && updates.readinessStatus) {
-        queryClient.setQueryData<PreOpSurgicalCase>(preOpCaseKeys.detail(caseId), {
+        queryClient.setQueryData<PreOpSurgicalCase>(queryKeys.nurse.wardPrepDetail(caseId), {
           ...previousCase,
           casePlan: previousCase.casePlan
             ? {
@@ -119,13 +110,15 @@ export function useUpdatePreOpCase() {
     onError: (_err, { caseId }, context) => {
       // Rollback on error
       if (context?.previousCase) {
-        queryClient.setQueryData(preOpCaseKeys.detail(caseId), context.previousCase);
+        queryClient.setQueryData(queryKeys.nurse.wardPrepDetail(caseId), context.previousCase);
       }
     },
     onSuccess: (_data, { caseId }) => {
-      // Invalidate and refetch related queries
-      queryClient.invalidateQueries({ queryKey: preOpCaseKeys.detail(caseId) });
-      queryClient.invalidateQueries({ queryKey: preOpCaseKeys.lists() });
+      // Invalidate and refetch related queries - including cross-module
+      queryClient.invalidateQueries({ queryKey: queryKeys.nurse.wardPrepDetail(caseId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.nurse.wardPrep() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.frontdesk.theaterQueue() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.doctor.cases() });
     },
   });
 }
@@ -147,9 +140,11 @@ export function useMarkCaseReady() {
       return response.data;
     },
     onSuccess: (_data, caseId) => {
-      // Invalidate all pre-op queries to refresh lists
-      queryClient.invalidateQueries({ queryKey: preOpCaseKeys.all });
-      // Show success message (would typically use toast)
+      // Invalidate all pre-op queries to refresh lists - including cross-module
+      queryClient.invalidateQueries({ queryKey: queryKeys.nurse.wardPrep() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.nurse.dashboard('current') });
+      queryClient.invalidateQueries({ queryKey: queryKeys.frontdesk.theaterQueue() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.shared.surgicalCase(caseId) });
       console.log(`Case ${caseId} marked as ready for scheduling`);
     },
   });

@@ -10,22 +10,24 @@
  * Caching Strategy:
  * - Dashboard data: 30 seconds staleTime (moderate freshness for clinical workflows)
  * - Automatic background refetch on window focus for clinical safety
+ * - Polling at 30s intervals for Tier 2 (HIGH urgency)
  */
 
 import { useQuery } from '@tanstack/react-query';
 import { nurseApi } from '@/lib/api/nurse';
+import { queryKeys } from '@/lib/constants/queryKeys';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 
 /**
  * Hook for fetching today's checked-in patients
  * 
- * Used by: Nurse dashboard
+ * Used by: Nurse dashboard, patients page
  * 
  * @param enabled - Whether the query should run (default: true)
  */
 export function useTodayCheckedInPatients(enabled = true) {
   return useQuery<AppointmentResponseDto[], Error>({
-    queryKey: ['nurse', 'patients', 'checked-in', 'today'],
+    queryKey: queryKeys.nurse.clinicQueue('today'),
     queryFn: async () => {
       const response = await nurseApi.getTodayCheckedInPatients();
       if (!response.success) {
@@ -33,8 +35,9 @@ export function useTodayCheckedInPatients(enabled = true) {
       }
       return response.data || [];
     },
-    staleTime: 1000 * 30, // 30 seconds - moderate freshness for clinical workflows
+    staleTime: 1000 * 30, // 30 seconds - Tier 2 (HIGH urgency)
     gcTime: 1000 * 60 * 5, // 5 minutes
+    refetchInterval: 1000 * 30, // Poll every 30 seconds
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     refetchOnWindowFocus: true, // Refetch on focus for clinical safety
@@ -52,7 +55,7 @@ export function useTodayCheckedInPatients(enabled = true) {
  */
 export function usePreOpPatients(enabled = true) {
   return useQuery<AppointmentResponseDto[], Error>({
-    queryKey: ['nurse', 'patients', 'pre-op'],
+    queryKey: queryKeys.nurse.wardPrep(),
     queryFn: async () => {
       const response = await nurseApi.getPreOpPatients();
       if (!response.success) {
@@ -60,8 +63,9 @@ export function usePreOpPatients(enabled = true) {
       }
       return response.data || [];
     },
-    staleTime: 1000 * 30, // 30 seconds
+    staleTime: 1000 * 30, // 30 seconds - Tier 2 (HIGH urgency)
     gcTime: 1000 * 60 * 5, // 5 minutes
+    refetchInterval: 1000 * 30, // Poll every 30 seconds
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     refetchOnWindowFocus: true,
@@ -79,7 +83,7 @@ export function usePreOpPatients(enabled = true) {
  */
 export function usePostOpPatients(enabled = true) {
   return useQuery<AppointmentResponseDto[], Error>({
-    queryKey: ['nurse', 'patients', 'post-op'],
+    queryKey: queryKeys.nurse.recovery(),
     queryFn: async () => {
       const response = await nurseApi.getPostOpPatients();
       if (!response.success) {
@@ -87,8 +91,9 @@ export function usePostOpPatients(enabled = true) {
       }
       return response.data || [];
     },
-    staleTime: 1000 * 30, // 30 seconds
+    staleTime: 1000 * 30, // 30 seconds - Tier 2 (HIGH urgency)
     gcTime: 1000 * 60 * 5, // 5 minutes
+    refetchInterval: 1000 * 30, // Poll every 30 seconds
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     refetchOnWindowFocus: true,

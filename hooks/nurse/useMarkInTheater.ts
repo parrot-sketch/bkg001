@@ -7,8 +7,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { intraOpCaseKeys } from './useIntraOpCases';
-import { preOpCaseKeys } from './usePreOpCases';
+import { queryKeys } from '@/lib/constants/queryKeys';
 
 export function useMarkInTheater() {
     const queryClient = useQueryClient();
@@ -29,10 +28,13 @@ export function useMarkInTheater() {
             return data;
         },
         onSuccess: (_data, caseId) => {
-            // Invalidate all related queries to refresh data
-            queryClient.invalidateQueries({ queryKey: preOpCaseKeys.all });
-            queryClient.invalidateQueries({ queryKey: intraOpCaseKeys.all });
-            queryClient.invalidateQueries({ queryKey: ['nurse', 'dashboard'] });
+            // Invalidate all related queries to refresh data - cross-module
+            queryClient.invalidateQueries({ queryKey: queryKeys.nurse.wardPrep() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.nurse.theatreSupport('today') });
+            queryClient.invalidateQueries({ queryKey: queryKeys.nurse.recovery() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.nurse.dashboard('current') });
+            queryClient.invalidateQueries({ queryKey: queryKeys.frontdesk.theaterQueue() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.doctor.cases() });
             
             toast.success('Patient marked as in theater');
         },

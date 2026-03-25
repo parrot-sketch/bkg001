@@ -45,7 +45,22 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const todayEnd = new Date(today);
     todayEnd.setHours(23, 59, 59, 999);
 
-    // 3. Fetch today's appointments with retry logic for connection resilience
+    // 3. Parse status filter if provided
+    const { searchParams } = new URL(request.url);
+    const statusParam = searchParams.get('status');
+    
+    // Build status filter - support single status or comma-separated list
+    let statusFilter: any = {};
+    if (statusParam) {
+      const statuses = statusParam.split(',').map(s => s.trim().toUpperCase());
+      if (statuses.length === 1) {
+        statusFilter = statuses[0];
+      } else if (statuses.length > 1) {
+        statusFilter = { in: statuses };
+      }
+    }
+
+    // 4. Fetch today's appointments with retry logic for connection resilience
     // REFACTORED: Added take limit as safety measure (even though bounded by today's date)
     // Large clinics may have 200+ appointments in a single day
     // REFACTORED: Use select instead of include for better performance
@@ -58,6 +73,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             gte: todayStart,
             lte: todayEnd,
           },
+          ...(statusParam && { status: statusFilter }),
         },
         select: {
           id: true,
