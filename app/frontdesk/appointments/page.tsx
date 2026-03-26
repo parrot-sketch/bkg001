@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect } from 'react';
 import Link from 'next/link';
-import { User, Loader2 } from 'lucide-react';
+import { User, Loader2, XCircle, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useAppointmentsPage } from '@/hooks/frontdesk/appointments/useAppointmentsPage';
@@ -35,6 +35,7 @@ function FrontdeskAppointmentsContent(): React.ReactElement {
     setSearchQuery,
     filteredAppointments,
     loading,
+    error,
     isRefetching,
     pipelineStats,
     statusCounts,
@@ -43,11 +44,15 @@ function FrontdeskAppointmentsContent(): React.ReactElement {
     dateLabel,
     patientIdFilter,
     highlightedId,
+    refetch,
   } = useAppointmentsPage();
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      triggerAppointmentExpiry().catch(console.error);
+      // Fire and forget - don't block UI or show errors for background expiry check
+      triggerAppointmentExpiry().catch(() => {
+        // Silently fail - expiry check is a background operation
+      });
     }
   }, [isAuthenticated, user]);
 
@@ -74,6 +79,39 @@ function FrontdeskAppointmentsContent(): React.ReactElement {
               Return to Login
             </Button>
           </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state UI
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] p-8">
+        <div className="text-center p-8 bg-white rounded-2xl shadow-lg border border-red-100 max-w-md">
+          <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+            <XCircle className="h-6 w-6 text-red-500" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-900 mb-2">Unable to Load Appointments</h2>
+          <p className="text-sm text-slate-500 mb-6">
+            {error.message || 'A network error occurred. Please check your connection and try again.'}
+          </p>
+          <div className="flex items-center justify-center gap-3">
+            <Button
+              variant="outline"
+              onClick={() => window.location.reload()}
+              className="rounded-xl"
+            >
+              Refresh Page
+            </Button>
+            <Button
+              onClick={() => refetch()}
+              className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </div>
         </div>
       </div>
     );
