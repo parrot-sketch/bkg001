@@ -88,19 +88,22 @@ export class ConfirmPatientIntakeUseCase {
       const patientId = uuidv4();
       const patientEntity = submission.toPatientEntity(fileNumber, patientId);
 
-      // 6. Save to repository
+      // 6. Ensure no duplicate patient exists
+      await this.ensureNoDuplicatePatient(patientEntity);
+
+      // 7. Save to repository
       await this.patientRepository.save(patientEntity);
 
-      // 7. Mark intake session as CONFIRMED
+      // 8. Mark intake session as CONFIRMED
       await this.intakeSessionRepository.updateStatus(input.sessionId, 'CONFIRMED');
 
-      // 8. Mark intake submission with patient ID
+      // 9. Mark intake submission with patient ID
       await this.intakeSubmissionRepository.updateWithPatientId(
         submission.getSubmissionId(),
         patientId,
       );
 
-      // 9. Return Patient DTO
+      // 10. Return Patient DTO
       const patientDto = PatientMapper.toResponseDto(patientEntity);
 
       return {
@@ -117,6 +120,22 @@ export class ConfirmPatientIntakeUseCase {
       }
 
       throw new Error(`Failed to confirm patient intake: ${(error as Error).message}`);
+    }
+  }
+
+  private async ensureNoDuplicatePatient(patient: Patient): Promise<void> {
+    const existingPatient = await this.patientRepository.findByEmail(
+      patient.getEmail(),
+    );
+
+    if (existingPatient) {
+      throw new DomainException(
+        `A patient with email ${patient.getEmail().getValue()} already exists (File: ${existingPatient.getFileNumber()}). Please check if this is a duplicate intake.`,
+        {
+          existingPatientId: existingPatient.getId(),
+          existingFileNumber: existingPatient.getFileNumber(),
+        },
+      );
     }
   }
 
