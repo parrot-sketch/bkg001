@@ -26,6 +26,18 @@ export interface FrontdeskAppointment {
   time: string;
   type: string;
   status: string;
+  patient?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    fileNumber: string | undefined;
+    img?: string | null;
+  };
+  doctor?: {
+    id: string;
+    name: string;
+    specialization?: string;
+  };
 }
 
 export interface FrontdeskCheckedInPatient {
@@ -91,10 +103,17 @@ function calculateWaitTime(addedAt: Date): string {
 }
 
 async function fetchDashboardDataInternal(): Promise<FrontdeskDashboardData> {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
+  // Use local date (not UTC) to match the clinic's timezone
+  // The clinic operates in local time, so "today" means local date
+  const now = new Date();
+  const localYear = now.getFullYear();
+  const localMonth = now.getMonth();
+  const localDate = now.getDate();
+  
+  // Start of local day
+  const today = new Date(localYear, localMonth, localDate, 0, 0, 0, 0);
+  // End of local day  
+  const tomorrow = new Date(localYear, localMonth, localDate + 1, 0, 0, 0, 0);
 
   const [
     statsByStatus,
@@ -206,6 +225,18 @@ async function fetchDashboardDataInternal(): Promise<FrontdeskDashboardData> {
     time: a.time || '',
     type: a.type,
     status: a.status,
+    patient: {
+      id: a.patient.id,
+      firstName: a.patient.first_name,
+      lastName: a.patient.last_name,
+      fileNumber: a.patient.file_number || undefined,
+      img: undefined,
+    },
+    doctor: {
+      id: a.doctor.id,
+      name: a.doctor.name,
+      specialization: undefined,
+    },
   }));
 
   const scheduled = mappedAppointments.filter(

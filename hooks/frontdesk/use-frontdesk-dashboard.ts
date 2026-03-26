@@ -188,6 +188,8 @@ export function useCheckIn() {
       queryClient.invalidateQueries({ queryKey: queryKeys.frontdesk.dashboard() });
       queryClient.invalidateQueries({ queryKey: queryKeys.appointments.list() });
       queryClient.invalidateQueries({ queryKey: queryKeys.doctor.appointments() });
+      const today = new Date().toISOString().split('T')[0];
+      queryClient.invalidateQueries({ queryKey: queryKeys.appointments.byDate(today) });
       
       toast.success('Patient checked in successfully');
     },

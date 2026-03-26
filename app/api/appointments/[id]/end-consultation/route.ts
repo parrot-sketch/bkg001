@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import db from '@/lib/db';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { authenticateRequest } from '@/lib/auth/jwt-helper';
@@ -100,8 +101,27 @@ export async function POST(
             },
         });
 
-        // TODO: Send notification to frontdesk that consultation completed
-        // await notificationService.notifyFrontdeskConsultationCompleted(appointmentId);
+        // Clean up patient queue entry if exists
+        const queueEntry = await prisma.patientQueue.findFirst({
+            where: { appointment_id: appointmentId },
+        });
+        if (queueEntry) {
+            await prisma.patientQueue.update({
+                where: { id: queueEntry.id },
+                data: {
+                    status: 'COMPLETED',
+                    completed_at: consultationEndedAt,
+                },
+            });
+        }
+
+        // Revalidate frontdesk dashboard cache
+        try {
+            // @ts-expect-error - Next.js revalidateTag accepts single tag
+            revalidateTag('frontdesk-dashboard');
+        } catch (e) {
+            console.log('Could not revalidate tag in this context');
+        }
 
         return NextResponse.json({
             success: true,
