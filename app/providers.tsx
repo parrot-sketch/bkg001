@@ -12,30 +12,31 @@ import { useState } from 'react';
 import { AuthProvider } from "@/contexts/AuthContext";
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  // Create QueryClient with sensible defaults for clinical workstation
-  // CRITICAL FIX: Disabled refetchOnWindowFocus to prevent "Connection closed" errors
-  // The API client now handles cache-busting, so we don't need aggressive refetching
+  // Create QueryClient with network resilience configuration
   const [queryClient] = useState(
     () =>
       new QueryClient({
         defaultOptions: {
           queries: {
-            // Always fresh for clinical data
-            staleTime: 0,
+            // Minimum stale time to prevent over-fetching
+            staleTime: 1000 * 30, // 30 seconds
             // Retry network errors with exponential backoff
             retry: 3,
             retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-            // CRITICAL: Disable refetch on window focus to prevent "Connection closed" errors
-            // The API client handles cache-busting, so fresh data is fetched when needed
+            // Disable refetch on window focus to prevent issues during poor network
             refetchOnWindowFocus: false,
-            // Don't refetch on reconnect for consultation sessions (might interrupt)
+            // Disable refetch on reconnect for better resilience
             refetchOnReconnect: false,
+            // Abort query if network is offline
+            networkMode: 'offlineFirst',
           },
           mutations: {
-            // Retry failed mutations
+            // Retry failed mutations once
             retry: 1,
             // Retry delay for mutations
             retryDelay: 1000,
+            // Use offlineFirst for mutations too
+            networkMode: 'offlineFirst',
           },
         },
       })

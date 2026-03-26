@@ -20,6 +20,7 @@ interface UseAppointmentsPageResult {
   appointments: AppointmentResponseDto[];
   filteredAppointments: AppointmentResponseDto[];
   loading: boolean;
+  error: Error | null;
   isRefetching: boolean;
   refetch: () => void;
   pipelineStats: PipelineStats;
@@ -65,9 +66,13 @@ export function useAppointmentsPage(): UseAppointmentsPageResult {
   const {
     data: appointments = [],
     isLoading: loading,
+    isError: isAppointmentsError,
+    error: appointmentsError,
     isRefetching,
     refetch,
   } = useAppointmentsByDate(selectedDate, isAuthenticated && !!user);
+
+  const error = isAppointmentsError ? appointmentsError : null;
 
   const filteredAppointments = useMemo((): AppointmentResponseDto[] => {
     let filtered = appointments;
@@ -153,6 +158,7 @@ export function useAppointmentsPage(): UseAppointmentsPageResult {
     appointments,
     filteredAppointments,
     loading,
+    error,
     isRefetching,
     refetch,
     pipelineStats,
