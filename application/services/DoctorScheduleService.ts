@@ -220,7 +220,13 @@ export class DoctorScheduleService {
      */
     async updateAvailability(doctorId: string, slots: WorkingDay[], templateName: string = "Standard") {
         return this.prisma.$transaction(async (tx) => {
-            // 1. Find or Create Template
+            // 1. Deactivate all existing templates for this doctor
+            await tx.availabilityTemplate.updateMany({
+                where: { doctor_id: doctorId, is_active: true },
+                data: { is_active: false },
+            });
+
+            // 2. Find or Create Template
             let template = await tx.availabilityTemplate.findFirst({
                 where: { doctor_id: doctorId, name: templateName }
             });
@@ -233,14 +239,20 @@ export class DoctorScheduleService {
                         is_active: true
                     }
                 });
+            } else {
+                // Reactivate the existing template
+                template = await tx.availabilityTemplate.update({
+                    where: { id: template.id },
+                    data: { is_active: true }
+                });
             }
 
-            // 2. Clear existing slots for this template
+            // 3. Clear existing slots for this template
             await tx.availabilitySlot.deleteMany({
                 where: { template_id: template.id }
             });
 
-            // 3. Create new slots
+            // 4. Create new slots
             if (slots.length > 0) {
                 return tx.availabilitySlot.createMany({
                     data: slots.map(s => ({
