@@ -35,6 +35,7 @@ import { ClinicalNotesTab } from './components/ClinicalNotesTab';
 
 // DTOs & Enums
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
+import type { VisitResponseDto } from '@/application/dtos/VisitResponseDto';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 
@@ -50,7 +51,7 @@ export default function DoctorPatientProfilePage() {
   const consultationAppointmentId = searchParams.get('appointmentId');
 
   const [patient, setPatient] = useState<PatientResponseDto | null>(null);
-  const [appointments, setAppointments] = useState<AppointmentResponseDto[]>([]);
+  const [visits, setVisits] = useState<VisitResponseDto[]>([]);
   const [casePlans, setCasePlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingCasePlans, setLoadingCasePlans] = useState(false);
@@ -88,10 +89,10 @@ export default function DoctorPatientProfilePage() {
         return;
       }
 
-      // Load patient's appointments
-      const appointmentsResponse = await doctorApi.getPatientAppointments(patientId);
-      if (appointmentsResponse.success && appointmentsResponse.data) {
-        setAppointments(appointmentsResponse.data);
+      // Load patient's full visit history (appointment + consultation + vitals + diagnosis + billing)
+      const visitsResponse = await doctorApi.getPatientVisits(patientId);
+      if (visitsResponse.success && visitsResponse.data) {
+        setVisits(visitsResponse.data);
       }
 
       // Load case plans
@@ -130,21 +131,24 @@ export default function DoctorPatientProfilePage() {
     router.push(`/doctor/consultations/${appointmentId}/session`);
   };
 
-  const getNextAppointment = (): AppointmentResponseDto | null => {
+  const getNextAppointment = (): VisitResponseDto | null => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    return appointments
-      .filter((apt) => {
-        const aptDate = new Date(apt.appointmentDate);
-        aptDate.setHours(0, 0, 0, 0);
+    return visits
+      .filter((v) => {
+        const vDate = new Date(v.date);
+        vDate.setHours(0, 0, 0, 0);
         return (
-          aptDate >= today &&
-          (apt.status === AppointmentStatus.SCHEDULED || apt.status === AppointmentStatus.PENDING)
+          vDate >= today &&
+          (v.status === AppointmentStatus.SCHEDULED ||
+            v.status === AppointmentStatus.CONFIRMED ||
+            v.status === AppointmentStatus.CHECKED_IN ||
+            v.status === AppointmentStatus.READY_FOR_CONSULTATION)
         );
       })
       .sort((a, b) => 
-        new Date(a.appointmentDate).getTime() - new Date(b.appointmentDate).getTime()
+        new Date(a.date).getTime() - new Date(b.date).getTime()
       )[0] || null;
   };
 
@@ -152,18 +156,18 @@ export default function DoctorPatientProfilePage() {
     return fromConsultation && consultationAppointmentId === appointmentId.toString();
   };
 
-  const getUpcomingAppointments = (): AppointmentResponseDto[] => {
+  const getUpcomingAppointments = (): VisitResponseDto[] => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    return appointments
-      .filter((apt) => {
-        const aptDate = new Date(apt.appointmentDate);
-        aptDate.setHours(0, 0, 0, 0);
-        return aptDate >= today;
+    return visits
+      .filter((v) => {
+        const vDate = new Date(v.date);
+        vDate.setHours(0, 0, 0, 0);
+        return vDate >= today;
       })
       .sort((a, b) => 
-        new Date(a.appointmentDate).getTime() - new Date(b.appointmentDate).getTime()
+        new Date(a.date).getTime() - new Date(b.date).getTime()
       );
   };
 
@@ -209,6 +213,7 @@ export default function DoctorPatientProfilePage() {
   return (
     <div className="space-y-6">
       <PatientProfileHeader
+        patientName={patient ? `${patient.firstName} ${patient.lastName}` : undefined}
         fromConsultation={fromConsultation}
         consultationAppointmentId={consultationAppointmentId}
         onBackToPatients={() => router.push('/doctor/patients')}
@@ -226,7 +231,7 @@ export default function DoctorPatientProfilePage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Next Appointment</p>
                   <p className="font-semibold">
-                    {format(new Date(nextAppointment.appointmentDate), 'EEEE, MMMM dd, yyyy')} at {nextAppointment.time}
+                    {format(new Date(nextAppointment.date), 'EEEE, MMMM dd, yyyy')} at {nextAppointment.time}
                   </p>
                   <p className="text-sm text-muted-foreground">{nextAppointment.type}</p>
                 </div>
@@ -240,21 +245,24 @@ export default function DoctorPatientProfilePage() {
                     <Play className="h-4 w-4 mr-2" />
                     Continue Consultation
                   </Button>
-                ) : nextAppointment.status === AppointmentStatus.SCHEDULED ? (
+                ) : (nextAppointment.status === AppointmentStatus.SCHEDULED || nextAppointment.status === AppointmentStatus.CONFIRMED) ? (
                   <Button
-                    onClick={() => handleStartConsultation(nextAppointment)}
+                    onClick={() => handleStartConsultation({
+                      id: nextAppointment.id,
+                      patientId: patientId,
+                      doctorId: nextAppointment.doctor?.id || '',
+                      appointmentDate: new Date(nextAppointment.date),
+                      time: nextAppointment.time,
+                      status: nextAppointment.status as any,
+                      type: nextAppointment.type,
+                      note: nextAppointment.note || undefined,
+                    } as AppointmentResponseDto)}
                     className="bg-primary hover:bg-primary/90"
                   >
                     <Play className="h-4 w-4 mr-2" />
                     Start Consultation
                   </Button>
                 ) : null}
-                <Link href={`/doctor/cases/${nextAppointment.id}`}>
-                  <Button variant="outline">
-                    <Eye className="h-4 w-4 mr-2" />
-                    View Case
-                  </Button>
-                </Link>
               </div>
             </div>
           </CardContent>
@@ -265,7 +273,7 @@ export default function DoctorPatientProfilePage() {
         {/* Left Column - Patient Info */}
         <PatientInfoSidebar
           patient={patient}
-          appointmentCount={appointments.length}
+          appointmentCount={visits.length}
           upcomingCount={upcomingAppointmentsCount}
         />
 
@@ -273,7 +281,7 @@ export default function DoctorPatientProfilePage() {
         <div className="lg:col-span-2 space-y-6">
           <Tabs defaultValue="appointments" className="w-full">
             <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="appointments">Appointments</TabsTrigger>
+              <TabsTrigger value="appointments">Visits</TabsTrigger>
               <TabsTrigger value="medical">Medical History</TabsTrigger>
               <TabsTrigger value="cases">Cases & Procedures</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
@@ -281,7 +289,7 @@ export default function DoctorPatientProfilePage() {
 
             <TabsContent value="appointments" className="space-y-4">
               <AppointmentsTab
-                appointments={appointments}
+                visits={visits}
                 hasActiveConsultation={hasActiveConsultation}
                 onStartConsultation={handleStartConsultation}
                 onContinueConsultation={(id) => router.push(`/doctor/consultations/${id}/session`)}
@@ -301,7 +309,7 @@ export default function DoctorPatientProfilePage() {
             </TabsContent>
 
             <TabsContent value="notes" className="space-y-4">
-              <ClinicalNotesTab />
+              <ClinicalNotesTab patientId={patientId} />
             </TabsContent>
           </Tabs>
         </div>

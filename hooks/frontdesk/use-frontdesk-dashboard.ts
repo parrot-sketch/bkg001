@@ -14,6 +14,7 @@
  */
 
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { getFrontdeskDashboardData, revalidateFrontdeskDashboard, type FrontdeskDashboardData, type FrontdeskCheckedInPatient, type FrontdeskQueueEntry } from '@/actions/frontdesk/get-dashboard-data';
 import { queryKeys } from '@/lib/constants/queryKeys';
@@ -112,8 +113,19 @@ const REFETCH_INTERVAL_MS = 30_000; // 30 seconds - Tier 2 polling
 export function useFrontdeskDashboard(): UseFrontdeskDashboardReturn {
   const { user, isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
+  const prevEnabledRef = useRef(false);
 
   const isEnabled = isAuthenticated && !!user;
+
+  // Invalidate server-side cache when auth transitions to authenticated
+  // This ensures fresh data is fetched after login, not stale cached data
+  useEffect(() => {
+    if (isEnabled && !prevEnabledRef.current) {
+      revalidateFrontdeskDashboard();
+      queryClient.invalidateQueries({ queryKey: queryKeys.frontdesk.dashboard() });
+    }
+    prevEnabledRef.current = isEnabled;
+  }, [isEnabled, queryClient]);
 
   const {
     data,
@@ -185,12 +197,15 @@ export function useCheckIn() {
       return response.data;
     },
     onSuccess: () => {
+      // Fire-and-forget: don't await server action — it blocks invalidation if slow
+      revalidateFrontdeskDashboard();
+
       queryClient.invalidateQueries({ queryKey: queryKeys.frontdesk.dashboard() });
       queryClient.invalidateQueries({ queryKey: queryKeys.appointments.list() });
       queryClient.invalidateQueries({ queryKey: queryKeys.doctor.appointments() });
       const today = new Date().toISOString().split('T')[0];
       queryClient.invalidateQueries({ queryKey: queryKeys.appointments.byDate(today) });
-      
+
       toast.success('Patient checked in successfully');
     },
     onError: (error: Error) => {

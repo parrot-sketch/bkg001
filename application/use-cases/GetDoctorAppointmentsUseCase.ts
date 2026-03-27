@@ -42,7 +42,7 @@ export class GetDoctorAppointmentsUseCase {
             doctor_id: doctorId
         };
 
-        if (status) {
+        if (!includeAll && status) {
             if (status.includes(',')) {
                 where.status = { in: status.split(',').map(s => s.trim()) as any };
             } else {

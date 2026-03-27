@@ -60,15 +60,16 @@ export const doctorApi = {
    * @param statusFilter - Optional: filter by consultation request status (comma-separated)
    *                      Default: SCHEDULED,CONFIRMED (only approved consultations)
    */
-  async getAppointments(
+   async getAppointments(
     doctorId: string,
     statusFilter?: string,
     includeAll?: boolean
   ): Promise<ApiResponse<AppointmentResponseDto[]>> {
-    const statusParam = statusFilter || 'SCHEDULED,CONFIRMED';
-    const includeAllParam = includeAll ? '&includeAll=true' : '';
+    const includeAllParam = includeAll ? 'includeAll=true' : '';
+    const statusParam = !includeAll ? `status=${statusFilter || 'SCHEDULED,CONFIRMED'}` : '';
+    const params = [statusParam, includeAllParam].filter(Boolean).join('&');
     return apiClient.get<AppointmentResponseDto[]>(
-      `/appointments/doctor/${doctorId}?status=${statusParam}${includeAllParam}`
+      `/appointments/doctor/${doctorId}?${params}`
     );
   },
 
@@ -130,8 +131,15 @@ export const doctorApi = {
   /**
    * Get patient's appointments (for viewing patient history)
    */
-  async getPatientAppointments(patientId: string): Promise<ApiResponse<AppointmentResponseDto[]>> {
+   async getPatientAppointments(patientId: string): Promise<ApiResponse<AppointmentResponseDto[]>> {
     return apiClient.get<AppointmentResponseDto[]>(`/patients/${patientId}/appointments`);
+  },
+
+  /**
+   * Get patient's complete visit history (appointment + consultation + vitals + diagnosis + billing)
+   */
+  async getPatientVisits(patientId: string): Promise<ApiResponse<import('@/application/dtos/VisitResponseDto').VisitResponseDto[]>> {
+    return apiClient.get(`/patients/${patientId}/visits`);
   },
 
   /**

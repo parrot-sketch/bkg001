@@ -117,8 +117,7 @@ export async function POST(
 
         // Revalidate frontdesk dashboard cache
         try {
-            // @ts-expect-error - Next.js revalidateTag accepts single tag
-            revalidateTag('frontdesk-dashboard');
+            revalidateTag('frontdesk-dashboard', 'max');
         } catch (e) {
             console.log('Could not revalidate tag in this context');
         }

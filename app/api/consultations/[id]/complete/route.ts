@@ -29,6 +29,7 @@ import { DomainException } from '@/domain/exceptions/DomainException';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import { revalidateDoctorDashboard } from '@/actions/doctor/get-dashboard-data';
+import { revalidateFrontdeskDashboard } from '@/actions/frontdesk/get-dashboard-data';
 
 // Initialize dependencies (singleton pattern)
 const appointmentRepository = new PrismaAppointmentRepository(db);
@@ -188,6 +189,13 @@ export async function POST(
       await revalidateDoctorDashboard(doctorId);
     } catch (_) {
       // Non-critical – polling will catch up within 30s
+    }
+
+    // 10b. Invalidate frontdesk dashboard so "In Waiting" → "Completed" updates
+    try {
+      await revalidateFrontdeskDashboard();
+    } catch (_) {
+      // Non-critical
     }
 
     // 11. Return success response
