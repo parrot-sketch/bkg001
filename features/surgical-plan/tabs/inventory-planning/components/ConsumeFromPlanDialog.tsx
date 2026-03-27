@@ -70,17 +70,17 @@ export function ConsumeFromPlanDialog({
             </div>
           </div>
           {quantity > remainingQuantity && (
-            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
+            <div className="rounded-lg border border-stone-200 p-3 text-sm text-stone-600">
               <p>
-                Warning: Requested quantity ({quantity}) exceeds remaining planned quantity (
+                Requested quantity ({quantity}) exceeds remaining planned quantity (
                 {remainingQuantity}). This will be recorded as over-consumption.
               </p>
             </div>
           )}
           {quantity > item.stockAvailable && (
-            <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-800">
+            <div className="rounded-lg border border-stone-300 p-3 text-sm text-stone-700 font-medium">
               <p>
-                Error: Requested quantity ({quantity}) exceeds available stock ({item.stockAvailable}
+                Requested quantity ({quantity}) exceeds available stock ({item.stockAvailable}
                 ). This operation will fail.
               </p>
             </div>
