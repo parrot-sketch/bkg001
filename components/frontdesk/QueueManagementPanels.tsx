@@ -16,7 +16,7 @@ import {
   UserMinus,
   RefreshCw
 } from 'lucide-react';
-import { useCheckedInAwaitingAssignment, useLiveQueueBoard } from '@/hooks/frontdesk/use-frontdesk-dashboard';
+import { useCheckedInAwaitingAssignment, useLiveQueueBoard, invalidateFrontdeskCache } from '@/hooks/frontdesk/use-frontdesk-dashboard';
 import type { FrontdeskCheckedInPatient } from '@/hooks/frontdesk/use-frontdesk-dashboard';
 import { assignPatientToQueue, removeFromQueue, reassignQueue } from '@/app/actions/appointment';
 import { cn } from '@/lib/utils';
@@ -49,6 +49,7 @@ export function QueueManagementPanels() {
       if (result.success) {
         setShowDoctorSelect(null);
         setSelectedDoctor('');
+        await invalidateFrontdeskCache();
         refetchCheckedIn();
         refetchQueue();
       } else {
@@ -69,6 +70,7 @@ export function QueueManagementPanels() {
       const result = await removeFromQueue(queueId, 'Removed by frontdesk');
       
       if (result.success) {
+        await invalidateFrontdeskCache();
         refetchCheckedIn();
         refetchQueue();
       } else {
@@ -87,6 +89,7 @@ export function QueueManagementPanels() {
       const result = await reassignQueue(queueId, newDoctorId);
       
       if (result.success) {
+        await invalidateFrontdeskCache();
         refetchQueue();
       } else {
         console.error('Failed to reassign patient:', result.msg);

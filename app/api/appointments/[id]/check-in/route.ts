@@ -12,6 +12,7 @@ import { getCheckInPatientUseCase } from '@/lib/use-cases';
 import { authenticateRequest } from '@/lib/auth/jwt-helper';
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { CheckInPatientDto } from '@/application/dtos/CheckInPatientDto';
+import { revalidateTag } from 'next/cache';
 
 /**
  * POST /api/appointments/:id/check-in
@@ -75,7 +76,10 @@ export async function POST(
         const checkInUseCase = getCheckInPatientUseCase();
         const result = await checkInUseCase.execute(dto);
 
-        // 6. Return success response
+        // 6. Invalidate frontdesk dashboard cache so real-time updates work
+        revalidateTag('frontdesk-dashboard', 'max');
+
+        // 7. Return success response
         return NextResponse.json(
             {
                 success: true,

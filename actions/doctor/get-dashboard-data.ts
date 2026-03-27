@@ -316,5 +316,5 @@ export async function getDoctorDashboardData(): Promise<DoctorDashboardData> {
 }
 
 export async function revalidateDoctorDashboard(doctorId: string) {
-  revalidateTag(`doctor-dashboard-${doctorId}`, 'doctor-dashboard');
+  revalidateTag(`doctor-dashboard-${doctorId}`, 'max');
 }

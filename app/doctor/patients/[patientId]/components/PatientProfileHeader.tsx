@@ -5,12 +5,14 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 
 interface PatientProfileHeaderProps {
+  patientName?: string;
   fromConsultation: boolean;
   consultationAppointmentId: string | null;
   onBackToPatients: () => void;
 }
 
 export function PatientProfileHeader({
+  patientName,
   fromConsultation,
   consultationAppointmentId,
   onBackToPatients,
@@ -41,8 +43,8 @@ export function PatientProfileHeader({
           </Button>
         </div>
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Patient Profile</h1>
-          <p className="text-muted-foreground mt-1">View and manage patient information</p>
+          <h1 className="text-3xl font-bold text-foreground">{patientName || 'Patient Profile'}</h1>
+          <p className="text-muted-foreground mt-1">Medical records and visit history</p>
         </div>
       </div>
     </div>

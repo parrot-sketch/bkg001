@@ -24,6 +24,7 @@ model User {
   created_appointments       Appointment[]            @relation("AppointmentCreator")
   audit_logs                 AuditLog[]
   care_notes                 CareNote[]               @relation("CareNoteNurse")
+  clinical_notes             ClinicalNote[]           @relation("ClinicalNoteDoctor")
   clinical_audit_events      ClinicalAuditEvent[]
   forms_created              ClinicalFormResponse[]   @relation("FormCreatedBy")
   forms_signed               ClinicalFormResponse[]   @relation("FormSignedBy")
@@ -114,6 +115,7 @@ model Patient {
   updated_at               DateTime                  @updatedAt
   appointments             Appointment[]
   care_notes               CareNote[]
+  clinical_notes           ClinicalNote[]
   case_plans               CasePlan[]
   clinical_form_responses  ClinicalFormResponse[]
   clinical_tasks           ClinicalTask[]
@@ -361,6 +363,7 @@ model Appointment {
   parent_consultation           Consultation?              @relation("ConsultationFollowUp", fields: [parent_consultation_id], references: [id])
   patient                       Patient                    @relation(fields: [patient_id], references: [id], onDelete: Cascade)
   care_notes                    CareNote[]
+  clinical_notes                ClinicalNote[]
   case_plan                     CasePlan?
   clinical_tasks                ClinicalTask[]
   consultation                  Consultation?              @relation("AppointmentConsultation")
@@ -496,6 +499,29 @@ model CareNote {
   @@index([appointment_id])
   @@index([note_type])
   @@index([recorded_at])
+}
+
+model ClinicalNote {
+  id            Int                  @id @default(autoincrement())
+  patient_id    String
+  doctor_user_id String
+  appointment_id Int?
+  note_type     ClinicalNoteType     @default(GENERAL)
+  title         String?
+  content       String
+  is_pinned     Boolean              @default(false)
+  created_at    DateTime             @default(now())
+  updated_at    DateTime             @updatedAt
+
+  appointment   Appointment?         @relation(fields: [appointment_id], references: [id])
+  doctor_user   User                 @relation("ClinicalNoteDoctor", fields: [doctor_user_id], references: [id], onDelete: Cascade)
+  patient       Patient              @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+
+  @@index([patient_id])
+  @@index([doctor_user_id])
+  @@index([appointment_id])
+  @@index([note_type])
+  @@index([created_at])
 }
 
 model VitalSign {
@@ -1917,6 +1943,15 @@ enum CareNoteType {
   PRE_OP
   POST_OP
   GENERAL
+}
+
+enum ClinicalNoteType {
+  GENERAL
+  ASSESSMENT
+  PROGRESS
+  PROCEDURE
+  FOLLOW_UP
+  REFERRAL
 }
 
 enum NotificationType {

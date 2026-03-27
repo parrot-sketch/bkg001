@@ -1,32 +1,29 @@
 'use client';
 
 /**
- * Frontdesk Appointment Card — Premium Row Component with Inline Check‑In
+ * Frontdesk Appointment Card
  *
- * Clicking "Check In" expands a smooth inline panel directly below the
- * appointment row — no modal required. The expansion slides down with a
- * CSS transition and collapses automatically after a successful check-in.
- *
- * Features:
- *   - Color-coded left bar by status
- *   - Patient avatar, name, doctor, file number in a single row
- *   - Inline check-in expansion (no modal)
- *   - Overdue/stale consultation detection with resolve actions
- *   - Context menu for details, resolve, cancel
+ * Presentational card for displaying appointment rows with inline actions.
+ * Composes: InlineCheckInPanel, StaleConsultationDialog, and business logic helpers.
  */
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { AppointmentStatus, canCheckIn } from '@/domain/enums/AppointmentStatus';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
-import { frontdeskApi } from '@/lib/api/frontdesk';
 import { useCheckIn } from '@/hooks/frontdesk/use-frontdesk-dashboard';
+import { InlineCheckInPanel } from './InlineCheckInPanel';
+import { StaleConsultationDialog, useStaleConsultationDialog } from './StaleConsultationDialog';
+import {
+  STATUS_CONFIG,
+  isAppointmentOverdue,
+  getCheckInEligibility,
+  getPatientDisplay,
+  isTerminalStatus,
+} from '@/lib/utils/appointment-card-helpers';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,15 +32,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   Clock,
   CalendarClock,
@@ -51,174 +44,34 @@ import {
   CheckCheck,
   XCircle,
   AlertTriangle,
-  UserCheck,
   Stethoscope,
   MoreVertical,
   ExternalLink,
-  Loader2,
-  ChevronDown,
   ChevronUp,
-  ClipboardEdit,
 } from 'lucide-react';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import { format, isAfter, startOfDay, differenceInMinutes } from 'date-fns';
-import { APPOINTMENT_NO_SHOW_GRACE_MINUTES } from '@/domain/constants/appointment-expiry';
+
+// ─── Props ────────────────────────────────────────────────────
 
 interface FrontdeskAppointmentCardProps {
   appointment: AppointmentResponseDto;
-  /** @deprecated — check-in is now handled inline. Kept for backward compatibility. */
-  onCheckIn?: (appointment: AppointmentResponseDto) => void;
   isHighlighted?: boolean;
 }
 
-/* ── Helpers ── */
-
-function isAppointmentOverdue(appointment: AppointmentResponseDto): boolean {
-  if (
-    appointment.status === AppointmentStatus.COMPLETED ||
-    appointment.status === AppointmentStatus.CANCELLED ||
-    appointment.status === AppointmentStatus.NO_SHOW
-  ) {
-    return false;
-  }
-  const now = new Date();
-  const appointmentDate = new Date(appointment.appointmentDate);
-  const [hours, minutes] = appointment.time.split(':').map(Number);
-  appointmentDate.setHours(hours, minutes, 0, 0);
-  // Use the configured grace period (default 30 minutes)
-  const gracePeriodMs = APPOINTMENT_NO_SHOW_GRACE_MINUTES * 60 * 1000;
-  const overdueThreshold = new Date(appointmentDate.getTime() + gracePeriodMs);
-  return now > overdueThreshold;
-}
-
-function canCheckInAppointment(appointment: AppointmentResponseDto): {
-  canCheckIn: boolean;
-  reason?: string;
-  daysUntil?: number;
-  isPastGracePeriod?: boolean;
-} {
-  // Cannot check in if already no-show
-  if (appointment.status === AppointmentStatus.NO_SHOW) {
-    return {
-      canCheckIn: false,
-      reason: 'Patient was marked as no-show',
-    };
-  }
-  
-  if (!canCheckIn(appointment.status as AppointmentStatus)) {
-    return {
-      canCheckIn: false,
-      reason:
-        appointment.status === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION
-          ? 'Awaiting doctor confirmation'
-          : 'Appointment not confirmed',
-    };
-  }
-  const now = new Date();
-  const appointmentDate = new Date(appointment.appointmentDate);
-  const appointmentDateOnly = startOfDay(appointmentDate);
-  const todayOnly = startOfDay(now);
-  if (isAfter(appointmentDateOnly, todayOnly)) {
-    const daysUntil = Math.ceil(
-      (appointmentDateOnly.getTime() - todayOnly.getTime()) / (1000 * 60 * 60 * 24),
-    );
-    return {
-      canCheckIn: false,
-      reason: `Scheduled for ${format(appointmentDate, 'MMM d, yyyy')} (${daysUntil} day${daysUntil !== 1 ? 's' : ''} away)`,
-      daysUntil,
-    };
-  }
-  
-  // Check if past grace period (for same-day appointments)
-  const [hours, minutes] = appointment.time.split(':').map(Number);
-  const appointmentDateTime = new Date(appointmentDate);
-  appointmentDateTime.setHours(hours, minutes, 0, 0);
-  const graceCutoff = new Date(appointmentDateTime.getTime() + APPOINTMENT_NO_SHOW_GRACE_MINUTES * 60 * 1000);
-  
-  if (now > graceCutoff) {
-    return {
-      canCheckIn: false,
-      reason: 'Appointment time has passed',
-      isPastGracePeriod: true,
-    };
-  }
-  
-  return { canCheckIn: true, isPastGracePeriod: false };
-}
-
-/* ── Status Config ── */
-
-interface StatusConfig {
-  bar: string;
-  text: string;
-  bg: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-}
-
-const STATUS_CONFIG: Record<AppointmentStatus, StatusConfig> = {
-  [AppointmentStatus.PENDING]: {
-    bar: 'bg-amber-400', text: 'text-amber-700', bg: 'bg-amber-50', label: 'Pending', icon: Clock,
-  },
-  [AppointmentStatus.PENDING_DOCTOR_CONFIRMATION]: {
-    bar: 'bg-indigo-400', text: 'text-indigo-700', bg: 'bg-indigo-50', label: 'Awaiting MD', icon: CalendarClock,
-  },
-  [AppointmentStatus.SCHEDULED]: {
-    bar: 'bg-emerald-500', text: 'text-emerald-700', bg: 'bg-emerald-50', label: 'Scheduled', icon: CheckCircle,
-  },
-  [AppointmentStatus.CONFIRMED]: {
-    bar: 'bg-emerald-600', text: 'text-emerald-800', bg: 'bg-emerald-100', label: 'Confirmed', icon: CheckCircle,
-  },
-  [AppointmentStatus.COMPLETED]: {
-    bar: 'bg-blue-500', text: 'text-blue-700', bg: 'bg-blue-50', label: 'Completed', icon: CheckCheck,
-  },
-  [AppointmentStatus.CANCELLED]: {
-    bar: 'bg-slate-300', text: 'text-slate-500', bg: 'bg-slate-50', label: 'Cancelled', icon: XCircle,
-  },
-  [AppointmentStatus.NO_SHOW]: {
-    bar: 'bg-rose-500', text: 'text-rose-700', bg: 'bg-rose-50', label: 'No Show', icon: AlertTriangle,
-  },
-  [AppointmentStatus.CHECKED_IN]: {
-    bar: 'bg-sky-500', text: 'text-sky-700', bg: 'bg-sky-50', label: 'Checked In', icon: UserCheck,
-  },
-  [AppointmentStatus.READY_FOR_CONSULTATION]: {
-    bar: 'bg-teal-500', text: 'text-teal-700', bg: 'bg-teal-50', label: 'Ready', icon: Stethoscope,
-  },
-  [AppointmentStatus.IN_CONSULTATION]: {
-    bar: 'bg-violet-500', text: 'text-violet-700', bg: 'bg-violet-50', label: 'In Consultation', icon: Stethoscope,
-  },
-};
-
-/* ── Main Component ── */
+// ─── Component ────────────────────────────────────────────────
 
 export function FrontdeskAppointmentCard({
   appointment,
   isHighlighted,
 }: FrontdeskAppointmentCardProps) {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const cardRef = useRef<HTMLDivElement>(null);
-  const notesRef = useRef<HTMLTextAreaElement>(null);
-
-  // Resolve stale consultation
-  const [showResolveDialog, setShowResolveDialog] = useState(false);
-  const [resolveAction, setResolveAction] = useState<'complete' | 'cancel' | null>(null);
-  const [isResolving, setIsResolving] = useState(false);
-
-  // Highlight animation
   const [activeHighlight, setActiveHighlight] = useState(!!isHighlighted);
-
-  // ── Inline check-in state ──
   const [checkInOpen, setCheckInOpen] = useState(false);
-  const [notes, setNotes] = useState('');
-  const [checkInSuccess, setCheckInSuccess] = useState(false);
-  const { mutate: checkIn, isPending: isCheckingIn } = useCheckIn();
+  const staleDialog = useStaleConsultationDialog();
+  const checkInMutation = useCheckIn();
+  const isCheckingIn = checkInMutation.isPending;
 
+  // Highlight animation on mount/navigation
   useEffect(() => {
     if (isHighlighted) {
       setActiveHighlight(true);
@@ -228,78 +81,14 @@ export function FrontdeskAppointmentCard({
     }
   }, [isHighlighted, appointment.id]);
 
-  // Focus the textarea when the panel opens
-  useEffect(() => {
-    if (checkInOpen) {
-      setTimeout(() => notesRef.current?.focus(), 150);
-    }
-  }, [checkInOpen]);
-
+  // Derived state
   const isOverdue = isAppointmentOverdue(appointment);
   const isStaleConsultation = appointment.status === AppointmentStatus.IN_CONSULTATION && isOverdue;
-  const checkInStatus = canCheckInAppointment(appointment);
-
-  const config =
-    STATUS_CONFIG[appointment.status as AppointmentStatus] ||
-    STATUS_CONFIG[AppointmentStatus.PENDING];
+  const checkInStatus = getCheckInEligibility(appointment);
+  const config = STATUS_CONFIG[appointment.status as AppointmentStatus] ?? STATUS_CONFIG[AppointmentStatus.PENDING];
   const StatusIcon = config.icon;
-
-  const patientName = appointment.patient
-    ? `${appointment.patient.firstName} ${appointment.patient.lastName}`
-    : appointment.patientId || 'Unknown Patient';
-  const patientInitials = appointment.patient
-    ? `${appointment.patient.firstName?.[0] || ''}${appointment.patient.lastName?.[0] || ''}`.toUpperCase()
-    : '??';
-
-  const isTerminal =
-    appointment.status === AppointmentStatus.COMPLETED ||
-    appointment.status === AppointmentStatus.CANCELLED ||
-    appointment.status === AppointmentStatus.NO_SHOW;
-
-  /* ── Inline check-in handler ── */
-  const handleConfirmCheckIn = () => {
-    checkIn(
-      { appointmentId: appointment.id, notes: notes.trim() || undefined },
-      {
-        onSuccess: () => {
-          setCheckInSuccess(true);
-          setNotes('');
-          // Collapse panel after a brief success moment
-          setTimeout(() => {
-            setCheckInOpen(false);
-            setCheckInSuccess(false);
-          }, 1200);
-        },
-      },
-    );
-  };
-
-  /* ── Stale resolve handler ── */
-  const handleResolve = async (action: 'complete' | 'cancel') => {
-    setIsResolving(true);
-    try {
-      const response = await frontdeskApi.resolveStaleAppointment(appointment.id, action);
-      if (response.success) {
-        toast.success(
-          action === 'complete' ? 'Consultation marked as completed' : 'Appointment cancelled',
-        );
-        queryClient.invalidateQueries({ queryKey: ['appointments'] });
-      } else {
-        toast.error(response.error || 'Failed to resolve appointment');
-      }
-    } catch {
-      toast.error('An error occurred while resolving the appointment');
-    } finally {
-      setIsResolving(false);
-      setShowResolveDialog(false);
-      setResolveAction(null);
-    }
-  };
-
-  const openResolveDialog = (action: 'complete' | 'cancel') => {
-    setResolveAction(action);
-    setShowResolveDialog(true);
-  };
+  const { name: patientName, initials: patientInitials } = getPatientDisplay(appointment);
+  const isTerminal = isTerminalStatus(appointment.status);
 
   return (
     <>
@@ -318,9 +107,8 @@ export function FrontdeskAppointmentCard({
                   : 'border-slate-200/60 hover:shadow-sm hover:border-slate-300',
         )}
       >
-        {/* ── Main Row ── */}
+        {/* Main Row */}
         <div className="flex items-stretch min-h-[68px]">
-          {/* Status bar */}
           <div
             className={cn(
               'w-1 shrink-0 transition-colors duration-300',
@@ -343,25 +131,19 @@ export function FrontdeskAppointmentCard({
             <div className="flex-1 flex items-center gap-3 min-w-0">
               <div className="h-9 w-9 rounded-full bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center border border-slate-200 shrink-0">
                 {appointment.patient?.img ? (
-                  <img
-                    src={appointment.patient.img}
-                    alt={patientName}
-                    className="h-full w-full rounded-full object-cover"
-                  />
+                  <img src={appointment.patient.img} alt={patientName} className="h-full w-full rounded-full object-cover" />
                 ) : (
                   <span className="text-xs font-bold text-white">{patientInitials}</span>
                 )}
               </div>
               <div className="flex flex-col min-w-0">
-                <h4 className="text-sm font-semibold text-slate-900 truncate leading-tight">
-                  {patientName}
-                </h4>
+                <h4 className="text-sm font-semibold text-slate-900 truncate leading-tight">{patientName}</h4>
                 <div className="flex items-center text-xs text-slate-400 gap-1.5 mt-0.5">
                   <Stethoscope className="h-3 w-3 shrink-0" />
                   <span className="truncate">{appointment.doctor?.name || 'Unassigned'}</span>
                   {appointment.patient?.fileNumber && (
                     <>
-                      <span className="text-slate-200">•</span>
+                      <span className="text-slate-200">&bull;</span>
                       <span className="text-[10px] font-mono">{appointment.patient.fileNumber}</span>
                     </>
                   )}
@@ -369,105 +151,28 @@ export function FrontdeskAppointmentCard({
               </div>
             </div>
 
-            {/* Status badge */}
+            {/* Status badge — desktop */}
             <div className="hidden sm:flex">
-              <Badge
-                variant="outline"
-                className={cn(
-                  'text-[10px] font-bold py-0.5 px-2.5 border-0 gap-1',
-                  config.text,
-                  config.bg,
-                )}
-              >
-                <StatusIcon className="h-3 w-3" />
-                {config.label}
-              </Badge>
+              <StatusBadge config={config} StatusIcon={StatusIcon} />
             </div>
 
             {/* Actions */}
             <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-              {/* Mobile badge */}
+              {/* Status badge — mobile */}
               <div className="sm:hidden">
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    'text-[10px] font-bold py-0.5 px-2 border-0 gap-1',
-                    config.text,
-                    config.bg,
-                  )}
-                >
-                  <StatusIcon className="h-3 w-3" />
-                  {config.label}
-                </Badge>
+                <StatusBadge config={config} StatusIcon={StatusIcon} />
               </div>
 
-              {/* ── CTA ── */}
-              {checkInStatus.canCheckIn ? (
-                <Button
-                  onClick={() => setCheckInOpen((v) => !v)}
-                  size="sm"
-                  className={cn(
-                    'h-8 px-3.5 text-xs font-semibold rounded-lg shadow-sm transition-all duration-200',
-                    checkInOpen
-                      ? 'bg-slate-100 text-slate-600 hover:bg-slate-200 shadow-none'
-                      : 'bg-slate-900 hover:bg-slate-800 text-white',
-                  )}
-                >
-                  {checkInOpen ? (
-                    <>
-                      <ChevronUp className="mr-1 h-3.5 w-3.5" />
-                      Close
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
-                      Check In
-                    </>
-                  )}
-                </Button>
-              ) : canCheckIn(appointment.status as AppointmentStatus) && !checkInStatus.canCheckIn ? (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span>
-                        <Button
-                          disabled
-                          size="sm"
-                          className="h-8 px-3.5 bg-slate-300 text-slate-500 text-xs font-semibold rounded-lg cursor-not-allowed"
-                        >
-                          <CalendarClock className="mr-1.5 h-3.5 w-3.5" />
-                          Check In
-                        </Button>
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-xs">
-                      <p className="text-xs font-medium">{checkInStatus.reason}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              ) : appointment.status === AppointmentStatus.CHECKED_IN ||
-                appointment.status === AppointmentStatus.READY_FOR_CONSULTATION ? (
-                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100">
-                  <CheckCircle className="h-3.5 w-3.5" />
-                  <span className="text-[10px] font-bold whitespace-nowrap">
-                    {appointment.status === AppointmentStatus.READY_FOR_CONSULTATION
-                      ? 'Ready for MD'
-                      : 'In Waiting'}
-                  </span>
-                </div>
-              ) : appointment.status === AppointmentStatus.IN_CONSULTATION ? (
-                isStaleConsultation ? (
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-100 text-amber-800 border border-amber-200">
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                    <span className="text-[10px] font-bold whitespace-nowrap">Overdue</span>
-                  </div>
-                ) : (
-                  <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-50 text-violet-700 border border-violet-100">
-                    <Clock className="h-3.5 w-3.5 animate-pulse" />
-                    <span className="text-[10px] font-bold whitespace-nowrap">In Progress</span>
-                  </div>
-                )
-              ) : null}
+              {/* CTA */}
+              <CardCta
+                appointment={appointment}
+                checkInStatus={checkInStatus}
+                isStaleConsultation={isStaleConsultation}
+                checkInOpen={checkInOpen}
+                isCheckingIn={isCheckingIn}
+                onToggleCheckIn={() => setCheckInOpen((v) => !v)}
+                onOpenResolveDialog={staleDialog.openDialog}
+              />
 
               {/* Context menu */}
               <DropdownMenu>
@@ -481,25 +186,22 @@ export function FrontdeskAppointmentCard({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem
-                    onClick={() => router.push(`/frontdesk/appointments/${appointment.id}`)}
-                  >
+                  <DropdownMenuItem onClick={() => router.push(`/frontdesk/appointments/${appointment.id}`)}>
                     <ExternalLink className="h-4 w-4 mr-2" />
                     View Details
                   </DropdownMenuItem>
-
                   {isStaleConsultation && (
                     <>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
-                        onClick={() => openResolveDialog('complete')}
+                        onClick={() => staleDialog.openDialog('complete')}
                         className="text-emerald-600 focus:text-emerald-600"
                       >
                         <CheckCheck className="h-4 w-4 mr-2" />
                         Mark as Completed
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => openResolveDialog('cancel')}
+                        onClick={() => staleDialog.openDialog('cancel')}
                         className="text-red-600 focus:text-red-600"
                       >
                         <XCircle className="h-4 w-4 mr-2" />
@@ -513,123 +215,127 @@ export function FrontdeskAppointmentCard({
           </div>
         </div>
 
-        {/* ── Inline Check-In Panel ── */}
-        <div
-          className={cn(
-            'overflow-hidden transition-all duration-300 ease-in-out',
-            checkInOpen ? 'max-h-72 opacity-100' : 'max-h-0 opacity-0',
-          )}
-        >
-          <div className="border-t border-slate-100 bg-slate-50/60 px-4 py-4">
-            {checkInSuccess ? (
-              /* Success state */
-              <div className="flex items-center justify-center gap-2.5 py-2 text-emerald-600">
-                <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center">
-                  <CheckCircle className="h-4 w-4" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold">Patient Checked In</p>
-                  <p className="text-xs text-emerald-600/70">{patientName} is now in the waiting room</p>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {/* Context hint */}
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <ClipboardEdit className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                  <span>
-                    Checking in <strong className="text-slate-700">{patientName}</strong>
-                    {appointment.doctor?.name && (
-                      <> for <strong className="text-slate-700">{appointment.doctor.name}</strong></>
-                    )}
-                    {' '}at <strong className="text-slate-700">{appointment.time}</strong>
-                  </span>
-                </div>
-
-                {/* Notes */}
-                <Textarea
-                  ref={notesRef}
-                  placeholder="Add arrival notes (e.g. late arrival, mobility issues)… optional"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={2}
-                  className="resize-none text-sm border-slate-200 bg-white focus:border-slate-400 focus:ring-1 focus:ring-slate-200 rounded-lg placeholder:text-slate-300 transition-colors"
-                />
-
-                {/* Buttons */}
-                <div className="flex items-center gap-2 justify-end">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setCheckInOpen(false);
-                      setNotes('');
-                    }}
-                    disabled={isCheckingIn}
-                    className="h-8 text-xs text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleConfirmCheckIn}
-                    disabled={isCheckingIn}
-                    className="h-8 px-4 text-xs font-semibold bg-slate-900 hover:bg-black text-white rounded-lg shadow-sm transition-all"
-                  >
-                    {isCheckingIn ? (
-                      <>
-                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                        Confirming…
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
-                        Confirm Arrival
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        {/* Inline Check-In Panel */}
+        <InlineCheckInPanel
+          appointmentId={appointment.id}
+          patientName={patientName}
+          doctorName={appointment.doctor?.name}
+          time={appointment.time}
+          isOpen={checkInOpen}
+          onToggle={() => setCheckInOpen((v) => !v)}
+          checkInMutation={checkInMutation}
+        />
       </div>
 
-      {/* Stale resolve confirm */}
-      <AlertDialog open={showResolveDialog} onOpenChange={setShowResolveDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {resolveAction === 'complete'
-                ? 'Mark Consultation as Completed?'
-                : 'Cancel Appointment?'}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {resolveAction === 'complete'
-                ? `This will mark ${patientName}'s consultation as completed.`
-                : `This will cancel ${patientName}'s appointment.`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isResolving}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => resolveAction && handleResolve(resolveAction)}
-              disabled={isResolving}
-              className={
-                resolveAction === 'complete'
-                  ? 'bg-emerald-600 hover:bg-emerald-700'
-                  : 'bg-red-600 hover:bg-red-700'
-              }
-            >
-              {isResolving
-                ? 'Processing…'
-                : resolveAction === 'complete'
-                  ? 'Mark Completed'
-                  : 'Cancel Appointment'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Stale Consultation Dialog */}
+      <StaleConsultationDialog
+        open={staleDialog.open}
+        onOpenChange={staleDialog.onOpenChange}
+        action={staleDialog.action}
+        appointmentId={appointment.id}
+        patientName={patientName}
+      />
     </>
   );
+}
+
+// ─── Sub-components ───────────────────────────────────────────
+
+function StatusBadge({ config, StatusIcon }: { config: (typeof STATUS_CONFIG)[AppointmentStatus]; StatusIcon: (typeof config)['icon'] }) {
+  return (
+    <Badge
+      variant="outline"
+      className={cn('text-[10px] font-bold py-0.5 px-2.5 border-0 gap-1', config.text, config.bg)}
+    >
+      <StatusIcon className="h-3 w-3" />
+      {config.label}
+    </Badge>
+  );
+}
+
+interface CardCtaProps {
+  appointment: AppointmentResponseDto;
+  checkInStatus: ReturnType<typeof getCheckInEligibility>;
+  isStaleConsultation: boolean;
+  checkInOpen: boolean;
+  isCheckingIn: boolean;
+  onToggleCheckIn: () => void;
+  onOpenResolveDialog: (action: 'complete' | 'cancel') => void;
+}
+
+function CardCta({ appointment, checkInStatus, isStaleConsultation, checkInOpen, isCheckingIn, onToggleCheckIn }: CardCtaProps) {
+  // Check-in available
+  if (checkInStatus.canCheckIn) {
+    return (
+      <Button
+        onClick={onToggleCheckIn}
+        disabled={isCheckingIn}
+        size="sm"
+        className={cn(
+          'h-8 px-3.5 text-xs font-semibold rounded-lg shadow-sm transition-all duration-200',
+          checkInOpen
+            ? 'bg-slate-100 text-slate-600 hover:bg-slate-200 shadow-none'
+            : 'bg-slate-900 hover:bg-slate-800 text-white',
+        )}
+      >
+        {checkInOpen ? (
+          <><ChevronUp className="mr-1 h-3.5 w-3.5" /> Close</>
+        ) : (
+          <><CheckCircle className="mr-1.5 h-3.5 w-3.5" /> Check In</>
+        )}
+      </Button>
+    );
+  }
+
+  // Check-in available for status but blocked by time/date
+  if (canCheckIn(appointment.status as AppointmentStatus) && !checkInStatus.canCheckIn) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <Button disabled size="sm" className="h-8 px-3.5 bg-slate-300 text-slate-500 text-xs font-semibold rounded-lg cursor-not-allowed">
+                <CalendarClock className="mr-1.5 h-3.5 w-3.5" /> Check In
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-xs">
+            <p className="text-xs font-medium">{checkInStatus.reason}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  // Already checked in / ready
+  if (appointment.status === AppointmentStatus.CHECKED_IN || appointment.status === AppointmentStatus.READY_FOR_CONSULTATION) {
+    return (
+      <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100">
+        <CheckCircle className="h-3.5 w-3.5" />
+        <span className="text-[10px] font-bold whitespace-nowrap">
+          {appointment.status === AppointmentStatus.READY_FOR_CONSULTATION ? 'Ready for MD' : 'In Waiting'}
+        </span>
+      </div>
+    );
+  }
+
+  // In consultation
+  if (appointment.status === AppointmentStatus.IN_CONSULTATION) {
+    if (isStaleConsultation) {
+      return (
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-100 text-amber-800 border border-amber-200">
+          <AlertTriangle className="h-3.5 w-3.5" />
+          <span className="text-[10px] font-bold whitespace-nowrap">Overdue</span>
+        </div>
+      );
+    }
+    return (
+      <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-50 text-violet-700 border border-violet-100">
+        <Clock className="h-3.5 w-3.5 animate-pulse" />
+        <span className="text-[10px] font-bold whitespace-nowrap">In Progress</span>
+      </div>
+    );
+  }
+
+  return null;
 }

@@ -71,9 +71,10 @@ export function CasesProceduresTab({
                       </div>
                     )}
                     {casePlan.procedurePlan && (
-                      <p className="text-sm text-foreground line-clamp-2 mb-2">
-                        {casePlan.procedurePlan}
-                      </p>
+                      <div
+                        className="text-sm text-foreground line-clamp-3 mb-2 prose prose-sm max-w-none prose-p:my-0.5 prose-ul:my-0.5 prose-li:my-0"
+                        dangerouslySetInnerHTML={{ __html: casePlan.procedurePlan }}
+                      />
                     )}
                     {casePlan.doctor && (
                       <p className="text-xs text-muted-foreground">
