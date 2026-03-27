@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useServices } from '@/hooks/useServices';
 import { useAppointmentBilling, useSaveBilling } from '@/hooks/doctor/useBilling';
+import { InventoryPicker } from '@/components/inventory/InventoryPicker';
 import { toast } from 'sonner';
 
 interface ConsultationBillingItem {
@@ -103,6 +104,27 @@ export function BillingTab({ appointmentId, isReadOnly = false }: BillingTabProp
     setIsDirty(false);
   }, [appointmentId, consultationFee, extraItems, discount, consultationService, services, saveBilling]);
 
+  const handlePickInventory = useCallback(async (item: any) => {
+    if (!appointmentId) {
+      toast.error('No active appointment');
+      return;
+    }
+    try {
+      const res = await fetch('/api/inventory/usage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inventoryItemId: item.id, appointmentId, quantityUsed: 1, notes: 'Used during consultation' }),
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error || 'Failed to record usage');
+      setExtraItems(p => [...p, { key: nextKey(), description: item.name, amount: item.unitCost, serviceId: null }]);
+      setIsDirty(true);
+      toast.success(`${item.name} added to bill`);
+    } catch (error: any) {
+      toast.error(error.message || 'Error recording inventory usage');
+    }
+  }, [appointmentId]);
+
   if (billingLoading) {
     return (
       <div className="flex items-center justify-center h-full p-8">
@@ -129,6 +151,14 @@ export function BillingTab({ appointmentId, isReadOnly = false }: BillingTabProp
           />
         </div>
       </div>
+
+      {/* Inventory Picker */}
+      {isEditable && (
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-stone-500">Add from Inventory</label>
+          <InventoryPicker onSelect={handlePickInventory} placeholder="Search Botox, Fillers, Implants..." />
+        </div>
+      )}
 
       {/* Additional Items */}
       <div className="space-y-2">
