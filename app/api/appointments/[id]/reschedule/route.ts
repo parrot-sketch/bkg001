@@ -8,6 +8,7 @@ import { SystemTimeService } from '@/infrastructure/services/SystemTimeService';
 import { ValidateAppointmentAvailabilityUseCase } from '@/application/use-cases/ValidateAppointmentAvailabilityUseCase';
 import { RescheduleAppointmentUseCase } from '@/application/use-cases/RescheduleAppointmentUseCase';
 import db from '@/lib/db';
+import { revalidateFrontdeskDashboard } from '@/actions/frontdesk/get-dashboard-data';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { DomainException } from '@/domain/exceptions/DomainException';
 
@@ -74,6 +75,9 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
             newTime: body.newTime,
             reason: body.reason,
         }, userId);
+
+        // Invalidate frontdesk dashboard cache so status change is visible
+        try { await revalidateFrontdeskDashboard(); } catch (_) { /* non-critical */ }
 
         return NextResponse.json({
             success: true,

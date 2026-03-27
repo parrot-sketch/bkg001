@@ -24,11 +24,12 @@
  */
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { use, Suspense, useState, useCallback } from 'react';
+import { use, Suspense, useState, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { ConsultationProvider, useConsultationContext } from '@/contexts/ConsultationContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { apiClient } from '@/lib/api/client';
 import {
   PanelTop,
   Search,
@@ -248,6 +249,19 @@ function ConsultationSessionContent() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const toggleSidebar = useCallback(() => setSidebarCollapsed(prev => !prev), []);
 
+  // Vitals state — fetched separately to avoid modifying ConsultationContext
+  const [vitals, setVitals] = useState<any>(null);
+  useEffect(() => {
+    if (!patient?.id || !appointment?.id) return;
+    apiClient.get<any[]>(`/patients/${patient.id}/vitals?appointmentId=${appointment.id}`)
+      .then(res => {
+        if (res.success && res.data && res.data.length > 0) {
+          setVitals(res.data[0]);
+        }
+      })
+      .catch(() => {});
+  }, [patient?.id, appointment?.id]);
+
   // Loading state
   if (isLoading && !appointment) {
     return <LoadingState />;
@@ -348,6 +362,7 @@ function ConsultationSessionContent() {
                     photoCount={consultation?.photoCount || 0}
                     notes={state.notes}
                     isReadOnly={isReadOnly}
+                    vitals={vitals}
                   />
                 </div>
               </Suspense>

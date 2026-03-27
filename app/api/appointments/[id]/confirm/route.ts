@@ -22,6 +22,7 @@ import db from '@/lib/db';
 import { ConfirmAppointmentDto } from '@/application/dtos/ConfirmAppointmentDto';
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { JwtMiddleware } from '@/lib/auth/middleware';
+import { revalidateFrontdeskDashboard } from '@/actions/frontdesk/get-dashboard-data';
 
 // Initialize dependencies (singleton pattern)
 const appointmentRepository = new PrismaAppointmentRepository(db);
@@ -117,7 +118,10 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
     // 4. Execute confirm appointment use case
     const response = await confirmAppointmentUseCase.execute(body, userId);
 
-    // 5. Return success response
+    // 5. Invalidate frontdesk dashboard cache so status change is visible
+    try { await revalidateFrontdeskDashboard(); } catch (_) { /* non-critical */ }
+
+    // 6. Return success response
     return NextResponse.json(
       {
         success: true,
