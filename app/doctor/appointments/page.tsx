@@ -180,10 +180,10 @@ export default function DoctorAppointmentsPage() {
 
                 {/* Quick Stats */}
                 <div className="grid grid-cols-4 gap-3">
-                    <StatCard label="Today" value={stats.today} color="stone" />
-                    <StatCard label="Pending" value={stats.pending} color="amber" />
-                    <StatCard label="Completed" value={stats.completed} color="emerald" />
-                    <StatCard label="Upcoming" value={stats.upcoming} color="blue" />
+                    <StatCard label="Today" value={stats.today} />
+                    <StatCard label="Pending" value={stats.pending} />
+                    <StatCard label="Completed" value={stats.completed} />
+                    <StatCard label="Upcoming" value={stats.upcoming} />
                 </div>
 
                 {/* Tabs */}
@@ -203,7 +203,7 @@ export default function DoctorAppointmentsPage() {
                                 : tab === 'pending' ? "Pending Confirmations" 
                                 : "Upcoming"}
                             {tab === 'pending' && stats.pending > 0 && (
-                                <span className="ml-2 px-1.5 py-0.5 text-xs bg-amber-100 text-amber-700 rounded-full">
+                                <span className="ml-2 px-1.5 py-0.5 text-xs bg-stone-100 text-stone-600 rounded-full">
                                     {stats.pending}
                                 </span>
                             )}
@@ -242,18 +242,11 @@ export default function DoctorAppointmentsPage() {
     );
 }
 
-function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
-    const colors: Record<string, string> = {
-        stone: "bg-stone-50 border-stone-200 text-stone-900",
-        amber: "bg-amber-50 border-amber-200 text-amber-800",
-        emerald: "bg-emerald-50 border-emerald-200 text-emerald-800",
-        blue: "bg-blue-50 border-blue-200 text-blue-800",
-    };
-    
+function StatCard({ label, value }: { label: string; value: number }) {
     return (
-        <div className={cn("p-3 rounded-lg border", colors[color])}>
-            <p className="text-xs text-stone-500">{label}</p>
-            <p className="text-2xl font-bold">{value}</p>
+        <div className="p-3 rounded-lg border border-stone-200 bg-white">
+            <p className="text-xs text-stone-400 font-medium">{label}</p>
+            <p className="text-2xl font-bold text-stone-900 tabular-nums">{value}</p>
         </div>
     );
 }
@@ -302,30 +295,30 @@ function AppointmentCard({
             {/* Status Badge */}
             <div>
                 {isPending && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-amber-50 text-amber-700 text-xs rounded-full">
+                    <span className="inline-flex items-center gap-1 px-2 py-1 border border-stone-200 text-stone-600 text-xs rounded-md">
                         <AlertTriangle className="h-3 w-3" />
                         Pending
                     </span>
                 )}
                 {isScheduled && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full">
+                    <span className="inline-flex items-center gap-1 px-2 py-1 border border-stone-200 text-stone-600 text-xs rounded-md">
                         <Clock className="h-3 w-3" />
                         Scheduled
                     </span>
                 )}
                 {isCheckedIn && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-50 text-emerald-700 text-xs rounded-full">
+                    <span className="inline-flex items-center gap-1 px-2 py-1 border border-stone-200 text-stone-700 text-xs rounded-md font-medium">
                         Waiting
                     </span>
                 )}
                 {isInConsultation && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-violet-50 text-violet-700 text-xs rounded-full">
+                    <span className="inline-flex items-center gap-1 px-2 py-1 border border-stone-200 text-stone-700 text-xs rounded-md font-medium">
                         <Play className="h-3 w-3" />
                         In Progress
                     </span>
                 )}
                 {isCompleted && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 bg-stone-100 text-stone-600 text-xs rounded-full">
+                    <span className="inline-flex items-center gap-1 px-2 py-1 border border-stone-200 text-stone-500 text-xs rounded-md">
                         <CheckCircle className="h-3 w-3" />
                         Completed
                     </span>
@@ -338,7 +331,7 @@ function AppointmentCard({
                     <>
                         <Button 
                             size="sm" 
-                            className="text-xs bg-emerald-600 hover:bg-emerald-700"
+                            className="text-xs bg-stone-900 hover:bg-black"
                             onClick={() => onConfirm(appointment.id)}
                         >
                             Confirm
@@ -346,7 +339,7 @@ function AppointmentCard({
                         <Button 
                             size="sm" 
                             variant="outline"
-                            className="text-xs text-red-600 border-red-200 hover:bg-red-50"
+                            className="text-xs text-stone-500 border-stone-200 hover:bg-stone-50"
                             onClick={() => onReject(appointment.id)}
                         >
                             Reject
@@ -356,7 +349,7 @@ function AppointmentCard({
                 {isScheduled && (
                     <Button 
                         size="sm" 
-                        className="text-xs bg-emerald-600 hover:bg-emerald-700"
+                        className="text-xs bg-stone-900 hover:bg-black"
                         onClick={() => onCheckIn(appointment.id)}
                     >
                         Check In
@@ -365,7 +358,7 @@ function AppointmentCard({
                 {isCheckedIn && (
                     <Button 
                         size="sm" 
-                        className="text-xs bg-violet-600 hover:bg-violet-700"
+                        className="text-xs bg-stone-900 hover:bg-black"
                         onClick={() => onStart(appointment.id)}
                     >
                         Start

@@ -21,11 +21,11 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 const BILL_TYPE_CONFIG: Record<string, { label: string; className: string }> = {
-  [BillType.CONSULTATION]: { label: 'Consultation', className: 'bg-blue-50 text-blue-700' },
-  [BillType.SURGERY]: { label: 'Surgery', className: 'bg-purple-50 text-purple-700' },
-  [BillType.LAB_TEST]: { label: 'Lab', className: 'bg-teal-50 text-teal-700' },
-  [BillType.FOLLOW_UP]: { label: 'Follow-up', className: 'bg-sky-50 text-sky-700' },
-  [BillType.OTHER]: { label: 'Other', className: 'bg-slate-50 text-slate-700' },
+  [BillType.CONSULTATION]: { label: 'Consultation', className: 'border-stone-200 text-stone-600' },
+  [BillType.SURGERY]: { label: 'Surgery', className: 'border-stone-200 text-stone-600' },
+  [BillType.LAB_TEST]: { label: 'Lab', className: 'border-stone-200 text-stone-600' },
+  [BillType.FOLLOW_UP]: { label: 'Follow-up', className: 'border-stone-200 text-stone-600' },
+  [BillType.OTHER]: { label: 'Other', className: 'border-stone-200 text-stone-600' },
 };
 
 export default function FrontdeskBillingPage() {
@@ -87,28 +87,28 @@ export default function FrontdeskBillingPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border-slate-200">
+        <Card className="border-stone-200">
           <CardContent className="pt-6">
-            <p className="text-sm text-slate-500">Total Billed</p>
-            <p className="text-2xl font-bold text-slate-900 mt-1">
+            <p className="text-xs text-stone-400 font-medium">Total Billed</p>
+            <p className="text-2xl font-bold text-stone-900 mt-1 tabular-nums">
               KES {(summary?.totalBilled || 0).toLocaleString()}
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200">
+        <Card className="border-stone-200">
           <CardContent className="pt-6">
-            <p className="text-sm text-slate-500">Collected</p>
-            <p className="text-2xl font-bold text-emerald-600 mt-1">
+            <p className="text-xs text-stone-400 font-medium">Collected</p>
+            <p className="text-2xl font-bold text-stone-900 mt-1 tabular-nums">
               KES {(summary?.totalCollected || 0).toLocaleString()}
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200">
+        <Card className="border-stone-200">
           <CardContent className="pt-6">
-            <p className="text-sm text-slate-500">Pending Bills</p>
-            <p className="text-2xl font-bold text-amber-600 mt-1">
+            <p className="text-xs text-stone-400 font-medium">Pending</p>
+            <p className="text-2xl font-bold text-stone-900 mt-1 tabular-nums">
               {summary?.pendingCount || 0}
             </p>
           </CardContent>
@@ -163,7 +163,7 @@ export default function FrontdeskBillingPage() {
                         <p className="font-semibold text-slate-900">
                           {payment.patient?.firstName} {payment.patient?.lastName}
                         </p>
-                        <Badge className={cn("text-xs", billTypeCfg.className)}>
+                        <Badge variant="outline" className={cn("text-xs", billTypeCfg.className)}>
                           {billTypeCfg.label}
                         </Badge>
                       </div>
@@ -178,7 +178,7 @@ export default function FrontdeskBillingPage() {
                         {payment.surgicalCase && (
                           <>
                             <span className="text-slate-400">•</span>
-                            <span className="text-purple-600">
+                            <span className="text-stone-500 font-medium">
                               {payment.surgicalCase.procedureName || 'Surgery'}
                             </span>
                           </>
@@ -194,17 +194,18 @@ export default function FrontdeskBillingPage() {
                           KES {remaining.toLocaleString()}
                         </p>
                         {payment.discount > 0 && (
-                          <p className="text-xs text-emerald-600">
+                          <p className="text-xs text-stone-400">
                             -{payment.discount.toLocaleString()} discount
                           </p>
                         )}
                       </div>
 
                       <Badge
+                        variant="outline"
                         className={cn(
                           "text-xs font-medium px-2.5 py-1",
-                          payment.status === PaymentStatus.PART && "bg-amber-50 text-amber-700",
-                          payment.status === PaymentStatus.UNPAID && "bg-red-50 text-red-700"
+                          payment.status === PaymentStatus.PART && "border-stone-300 text-stone-600",
+                          payment.status === PaymentStatus.UNPAID && "border-stone-300 text-stone-600"
                         )}
                       >
                         {getPaymentStatusLabel(payment.status)}
