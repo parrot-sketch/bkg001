@@ -227,6 +227,7 @@ function ConsultationSessionContent() {
     isQueueRefetching,
     saveDraft,
     startConsultation,
+    closeStartDialog,
     openCompleteDialog,
     closeCompleteDialog,
     completeConsultation,
@@ -412,7 +413,7 @@ function ConsultationSessionContent() {
         <Suspense fallback={null}>
           <StartConsultationDialog
             open={showStartDialog}
-            onClose={() => {}}
+            onClose={closeStartDialog}
             onSuccess={startConsultation}
             appointment={appointment}
             doctorId={doctorId || ''}

@@ -265,6 +265,7 @@ interface ConsultationContextValue {
   // Actions
   loadAppointment: (appointmentId: number) => Promise<void>;
   startConsultation: () => Promise<void>;
+  closeStartDialog: () => void;
   saveDraft: () => Promise<void>;
   updateNotes: (field: keyof StructuredNotes, value: string) => void;
   setOutcome: (outcome: ConsultationOutcomeType) => void;
@@ -497,6 +498,10 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
       dispatch({ type: 'SET_LOADING', payload: false });
     }
   }, [user, state.appointment, state.doctorId, queryClient]);
+
+  const closeStartDialog = useCallback(() => {
+    dispatch({ type: 'SHOW_START_DIALOG', payload: false });
+  }, []);
 
   const saveDraft = useCallback(async () => {
     if (!state.appointment || !state.doctorId || !state.consultation || !canSave) return;
@@ -735,6 +740,7 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
     isQueueRefetching,
     loadAppointment,
     startConsultation,
+    closeStartDialog,
     saveDraft,
     updateNotes,
     setOutcome,
@@ -755,6 +761,7 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
     isQueueRefetching,
     loadAppointment,
     startConsultation,
+    closeStartDialog,
     saveDraft,
     updateNotes,
     setOutcome,

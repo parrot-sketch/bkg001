@@ -2,20 +2,13 @@
 
 /**
  * Start Consultation Dialog
- * 
- * Streamlined modal for starting a consultation.
- * Patient is already checked in - doctor can start immediately.
- * 
- * Simplified workflow:
- * - Patient checked in by frontdesk → CHECKED_IN
- * - Doctor clicks "Start" → Opens this dialog
- * - Doctor adds optional notes → Clicks "Begin"
- * - System transitions to IN_CONSULTATION → Routes to consultation interface
- * 
- * No readiness checks here - those belong to the surgery/procedure workflow.
+ *
+ * Clean, modern modal for starting a consultation.
+ * Patient is already checked in — doctor begins or navigates away.
  */
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { doctorApi } from '@/lib/api/doctor';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -24,12 +17,11 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { User, Calendar, Clock, Stethoscope } from 'lucide-react';
+import { Clock, Stethoscope, X, ArrowRight, Loader2 } from 'lucide-react';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import type { StartConsultationDto } from '@/application/dtos/StartConsultationDto';
 import { useAuth } from '@/hooks/patient/useAuth';
@@ -51,6 +43,7 @@ export function StartConsultationDialog({
   appointment,
   doctorId,
 }: StartConsultationDialogProps) {
+  const router = useRouter();
   const { user } = useAuth();
   const [doctorNotes, setDoctorNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -59,10 +52,12 @@ export function StartConsultationDialog({
     ? `${appointment.patient.firstName} ${appointment.patient.lastName}`
     : 'Patient';
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+  const initials = appointment.patient
+    ? `${appointment.patient.firstName?.[0] || ''}${appointment.patient.lastName?.[0] || ''}`.toUpperCase()
+    : '??';
 
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
     try {
       const dto: StartConsultationDto = {
         appointmentId: appointment.id,
@@ -88,96 +83,114 @@ export function StartConsultationDialog({
     }
   };
 
+  const handleCancel = () => {
+    if (isSubmitting) return;
+    setDoctorNotes('');
+    router.push('/doctor/appointments');
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[450px] gap-0 p-0 overflow-hidden">
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen && !isSubmitting) handleCancel(); }}>
+      <DialogContent className="sm:max-w-[440px] p-0 gap-0 rounded-2xl overflow-hidden shadow-2xl border-0">
         {/* Header */}
-        <div className="bg-gradient-to-br from-emerald-600 to-emerald-700 p-6 text-white">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold flex items-center gap-2 text-white">
-              <Stethoscope className="h-5 w-5" />
-              Begin Consultation
+        <div className="relative bg-white px-6 pt-6 pb-4">
+          <button
+            onClick={handleCancel}
+            disabled={isSubmitting}
+            className="absolute right-4 top-4 h-7 w-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+          >
+            <X className="h-3.5 w-3.5 text-slate-500" />
+          </button>
+
+          <DialogHeader className="space-y-2.5 text-left">
+            <div className="h-10 w-10 rounded-xl bg-emerald-50 flex items-center justify-center">
+              <Stethoscope className="h-5 w-5 text-emerald-600" />
+            </div>
+            <DialogTitle className="text-lg font-semibold text-slate-900">
+              Start Consultation
             </DialogTitle>
-            <DialogDescription className="text-emerald-100">
-              Patient is checked in and ready to be seen.
+            <DialogDescription className="text-sm text-slate-500">
+              Begin your session with this patient.
             </DialogDescription>
           </DialogHeader>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="p-6 space-y-5">
-            {/* Patient Summary Card */}
-            <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
-              <Avatar className="h-12 w-12 border-2 border-white shadow-sm">
-                <AvatarImage src={appointment.patient?.img ?? undefined} />
-                <AvatarFallback className="bg-emerald-100 text-emerald-700 font-bold">
-                  {patientName.substring(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-slate-900 truncate">{patientName}</h3>
-                <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                  <span className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    {format(new Date(appointment.appointmentDate), 'MMM d, yyyy')}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {appointment.time}
-                  </span>
-                </div>
+        <div className="px-6 pb-6 space-y-4">
+          {/* Patient card */}
+          <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+            <Avatar className="h-10 w-10 border border-white shadow-sm">
+              <AvatarImage src={appointment.patient?.img ?? undefined} />
+              <AvatarFallback className="bg-emerald-100 text-emerald-700 text-xs font-bold">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-slate-900 truncate">{patientName}</p>
+              <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+                <Clock className="h-3 w-3" />
+                <span>{format(new Date(appointment.appointmentDate), 'MMM d')} at {appointment.time}</span>
+                <span className="text-slate-200">·</span>
+                <span className="text-slate-500 font-medium">{appointment.type}</span>
               </div>
-              <div className="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-md">
-                {appointment.type}
-              </div>
-            </div>
-
-            {/* Assistant Brief (if available) */}
-            {appointment.reviewNotes && (
-              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-                <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-1">
-                  Assistant Brief
-                </p>
-                <p className="text-sm text-blue-900">{appointment.reviewNotes}</p>
-              </div>
-            )}
-
-            {/* Optional Notes */}
-            <div className="space-y-2">
-              <Label htmlFor="doctorNotes" className="text-slate-700 font-medium">
-                Quick Notes <span className="text-slate-400 font-normal">(Optional)</span>
-              </Label>
-              <Textarea
-                id="doctorNotes"
-                placeholder="Any observations before starting..."
-                value={doctorNotes}
-                onChange={(e) => setDoctorNotes(e.target.value)}
-                disabled={isSubmitting}
-                rows={3}
-                className="resize-none border-slate-200 focus:border-emerald-500 focus:ring-emerald-500"
-              />
             </div>
           </div>
 
-          <DialogFooter className="p-6 pt-0 gap-3">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={onClose} 
+          {/* Assistant brief */}
+          {appointment.reviewNotes && (
+            <div className="bg-blue-50 rounded-xl px-3 py-2.5 border border-blue-100">
+              <p className="text-[10px] font-semibold text-blue-500 uppercase tracking-wider mb-1">
+                Assistant Notes
+              </p>
+              <p className="text-xs text-blue-800 leading-relaxed">{appointment.reviewNotes}</p>
+            </div>
+          )}
+
+          {/* Quick notes */}
+          <div className="space-y-1.5">
+            <Label htmlFor="doctorNotes" className="text-xs font-medium text-slate-600">
+              Notes <span className="text-slate-400 font-normal">(optional)</span>
+            </Label>
+            <Textarea
+              id="doctorNotes"
+              placeholder="Any pre-session observations..."
+              value={doctorNotes}
+              onChange={(e) => setDoctorNotes(e.target.value)}
               disabled={isSubmitting}
-              className="flex-1 sm:flex-none"
+              rows={2}
+              className="resize-none text-sm border-slate-200 rounded-xl focus:border-emerald-400 focus:ring-1 focus:ring-emerald-200 placeholder:text-slate-300"
+            />
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-2.5 pt-1">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleCancel}
+              disabled={isSubmitting}
+              className="flex-1 h-10 text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl"
             >
-              Cancel
+              Go Back
             </Button>
             <Button
-              type="submit"
+              onClick={handleSubmit}
               disabled={isSubmitting}
-              className="flex-1 sm:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+              className="flex-1 h-10 text-sm font-semibold bg-slate-900 hover:bg-black text-white rounded-xl shadow-sm"
             >
-              {isSubmitting ? 'Starting...' : 'Begin Consultation'}
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Starting...
+                </>
+              ) : (
+                <>
+                  Begin Consultation
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </>
+              )}
             </Button>
-          </DialogFooter>
-        </form>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -242,22 +242,19 @@ export default function TheaterTechDayboard() {
           <div className="space-y-2">
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
               {[
-                { label: 'Total', value: summary.totalCases, color: 'bg-white border-slate-200' },
-                { label: 'Scheduled', value: summary.scheduled, color: 'bg-blue-50/60 border-blue-200' },
-                { label: 'In Prep', value: summary.inPrep, color: 'bg-amber-50/60 border-amber-200' },
-                { label: 'In Theater', value: summary.inTheater, color: 'bg-violet-50/60 border-violet-200' },
-                { label: 'Recovery', value: summary.inRecovery, color: 'bg-emerald-50/60 border-emerald-200' },
-                { label: 'Done', value: summary.completed, color: 'bg-slate-50 border-slate-200' },
+                { label: 'Total', value: summary.totalCases },
+                { label: 'Scheduled', value: summary.scheduled },
+                { label: 'In Prep', value: summary.inPrep },
+                { label: 'In Theater', value: summary.inTheater },
+                { label: 'Recovery', value: summary.inRecovery },
+                { label: 'Done', value: summary.completed },
               ].map((stat) => (
                 <div
                   key={stat.label}
-                  className={cn(
-                    'rounded-lg border px-3 py-2 text-center transition-colors',
-                    stat.color
-                  )}
+                  className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-center"
                 >
-                  <p className="text-lg font-bold text-slate-800 leading-tight">{stat.value}</p>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                  <p className="text-lg font-bold text-stone-900 leading-tight tabular-nums">{stat.value}</p>
+                  <p className="text-[10px] uppercase tracking-wider text-stone-400 font-medium">
                     {stat.label}
                   </p>
                 </div>
@@ -268,25 +265,25 @@ export default function TheaterTechDayboard() {
             {(summary.avgOrTimeMinutes !== null || summary.delayedStartCount > 0) && (
               <div className="flex items-center gap-3 flex-wrap">
                 {summary.avgOrTimeMinutes !== null && (
-                  <div className="flex items-center gap-1.5 rounded-md border border-cyan-200 bg-cyan-50/60 px-2.5 py-1.5">
-                    <Timer className="h-3.5 w-3.5 text-cyan-600" />
-                    <span className="text-xs font-semibold text-cyan-800">
+                  <div className="flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-1.5">
+                    <Timer className="h-3.5 w-3.5 text-stone-400" />
+                    <span className="text-xs font-medium text-stone-600">
                       Avg OR: {summary.avgOrTimeMinutes} min
                     </span>
                   </div>
                 )}
                 {summary.delayedStartCount > 0 && (
-                  <div className="flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50/60 px-2.5 py-1.5">
-                    <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
-                    <span className="text-xs font-semibold text-amber-800">
+                  <div className="flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5 text-stone-400" />
+                    <span className="text-xs font-medium text-stone-600">
                       {summary.delayedStartCount} delayed start{summary.delayedStartCount !== 1 ? 's' : ''} (&gt;10 min)
                     </span>
                   </div>
                 )}
                 {Object.keys(summary.utilizationByTheater).length > 0 && (
-                  <div className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50/60 px-2.5 py-1.5">
-                    <Activity className="h-3.5 w-3.5 text-slate-600" />
-                    <span className="text-xs text-slate-700">
+                  <div className="flex items-center gap-1.5 rounded-md border border-stone-200 bg-white px-2.5 py-1.5">
+                    <Activity className="h-3.5 w-3.5 text-stone-400" />
+                    <span className="text-xs text-stone-600">
                       Utilization:{' '}
                       {Object.entries(summary.utilizationByTheater)
                         .map(([, mins]) => `${mins}min`)
