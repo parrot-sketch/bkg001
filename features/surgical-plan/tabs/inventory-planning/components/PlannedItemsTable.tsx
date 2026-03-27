@@ -31,18 +31,19 @@ const STATUS_BADGES = {
     icon: AlertTriangle,
     variant: 'outline' as const,
     label: 'Partial',
-    className: 'border-amber-500 text-amber-700',
+    className: 'border-stone-300 text-stone-600',
   },
   full: {
     icon: CheckCircle2,
-    variant: 'default' as const,
+    variant: 'outline' as const,
     label: 'Complete',
-    className: 'bg-green-600',
+    className: 'border-stone-300 text-stone-600',
   },
   over: {
     icon: XCircle,
-    variant: 'destructive' as const,
+    variant: 'outline' as const,
     label: 'Over-consumed',
+    className: 'border-stone-300 text-stone-600',
   },
 };
 

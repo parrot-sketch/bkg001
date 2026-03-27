@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 interface PlanningReadinessItem {
     key: string;
@@ -33,18 +34,17 @@ export function CompletePlanButton({ caseId }: CompletePlanButtonProps) {
             const data = await res.json();
 
             if (res.status === 422 && data.missingItems) {
-                // Readiness validation failed
                 setMissingItems(data.missingItems);
                 setShowMissingModal(true);
             } else if (!res.ok) {
-                throw new Error(data.error || 'Failed to complete plan');
+                toast.error(data.error || 'Failed to complete plan');
             } else {
-                // Success
-                router.push('/doctor/surgical-cases'); // Redirect back to cases list or show success toast
+                toast.success('Surgical plan completed');
+                router.push('/doctor/surgical-cases');
             }
         } catch (error) {
             console.error('Error completing plan:', error);
-            alert('An unexpected error occurred. Please try again.');
+            toast.error('An unexpected error occurred');
         } finally {
             setIsLoading(false);
         }
@@ -55,38 +55,38 @@ export function CompletePlanButton({ caseId }: CompletePlanButtonProps) {
             <Button 
                 onClick={handleComplete} 
                 disabled={isLoading}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
+                className="bg-stone-900 hover:bg-black text-white"
             >
                 {isLoading ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                     <CheckCircle2 className="mr-2 h-4 w-4" />
                 )}
-                Complete
+                Complete Plan
             </Button>
 
             <Dialog open={showMissingModal} onOpenChange={setShowMissingModal}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
-                        <DialogTitle className="text-rose-600 flex items-center gap-2">
-                            <XCircle className="h-5 w-5" />
-                            Incomplete Surgical Plan
+                        <DialogTitle className="flex items-center gap-2 text-stone-900">
+                            <XCircle className="h-5 w-5 text-stone-400" />
+                            Incomplete Plan
                         </DialogTitle>
                         <DialogDescription>
-                            Please complete the following required items before sending this case to the front desk for theater scheduling.
+                            Complete these required items before sending to theater scheduling.
                         </DialogDescription>
                     </DialogHeader>
                     
                     <div className="py-4">
-                        <ul className="space-y-3">
+                        <ul className="space-y-2.5">
                             {missingItems.filter(item => item.required).map((item, index) => (
-                                <li key={item.key || `item-${index}`} className="flex items-start gap-3 text-sm">
+                                <li key={item.key || `item-${index}`} className="flex items-start gap-2.5 text-sm">
                                     {item.done ? (
-                                        <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
+                                        <CheckCircle2 className="h-4 w-4 text-stone-400 shrink-0 mt-0.5" />
                                     ) : (
-                                        <XCircle className="h-5 w-5 text-slate-300 shrink-0" />
+                                        <XCircle className="h-4 w-4 text-stone-300 shrink-0 mt-0.5" />
                                     )}
-                                    <span className={item.done ? "text-slate-600 line-through" : "text-slate-900 font-medium"}>
+                                    <span className={item.done ? "text-stone-400 line-through" : "text-stone-700"}>
                                         {item.label}
                                     </span>
                                 </li>
