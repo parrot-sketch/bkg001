@@ -13,10 +13,18 @@ import { normalizeProcedurePlan } from './procedureParsers';
  */
 export function buildUpdateProcedurePayload(
   procedureName: string | null | undefined,
-  procedurePlan: string | null | undefined
+  procedurePlan: string | null | undefined,
+  equipmentNotes: string | null | undefined,
+  patientPositioning: string | null | undefined,
+  surgeonNarrative: string | null | undefined,
+  postOpInstructions: string | null | undefined
 ): UpdateProcedureRequest {
   return {
     procedureName: procedureName?.trim() || undefined,
     procedurePlan: normalizeProcedurePlan(procedurePlan) || undefined,
+    equipmentNotes: equipmentNotes?.trim() || undefined,
+    patientPositioning: patientPositioning?.trim() || undefined,
+    surgeonNarrative: normalizeProcedurePlan(surgeonNarrative) || undefined,
+    postOpInstructions: normalizeProcedurePlan(postOpInstructions) || undefined,
   };
 }

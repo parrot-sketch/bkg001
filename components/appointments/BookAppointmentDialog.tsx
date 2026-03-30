@@ -34,7 +34,7 @@ export function BookAppointmentDialog() {
   return (
     <Dialog open={isOpen} onOpenChange={closeBookingDialog}>
       <DialogContent 
-        className="max-w-4xl w-[95vw] max-h-[90vh] p-0 border-none bg-white rounded-2xl shadow-2xl"
+        className="max-w-2xl w-[95vw] max-h-[85vh] p-0 border-none bg-white rounded-2xl shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200"
       >
         <DialogTitle className="sr-only">Book Appointment</DialogTitle>
         <AppointmentBookingWizard

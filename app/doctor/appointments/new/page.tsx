@@ -12,12 +12,18 @@ function DoctorBookingWrapper() {
     const { user } = useAuth();
     const [doctorId, setDoctorId] = useState<string | undefined>(undefined);
 
+    const safeParseId = (val: string | null) => {
+        if (!val || val === 'undefined' || val === 'null') return undefined;
+        const num = parseInt(val, 10);
+        return isNaN(num) || num <= 0 ? undefined : num;
+    };
+
     // Pre-fill from URL (consultation follow-up flow passes these)
     const patientId = searchParams.get('patientId') || undefined;
     const type = searchParams.get('type') || undefined;
     const source = searchParams.get('source') || undefined;
-    const parentAppointmentId = searchParams.get('parentAppointmentId') || undefined;
-    const parentConsultationId = searchParams.get('parentConsultationId') || undefined;
+    const parentAppointmentId = safeParseId(searchParams.get('parentAppointmentId'));
+    const parentConsultationId = safeParseId(searchParams.get('parentConsultationId'));
 
     const isFollowUp = source === 'DOCTOR_FOLLOW_UP' || type === 'Follow-up';
 
@@ -43,8 +49,8 @@ function DoctorBookingWrapper() {
                 userRole="doctor"
                 lockDoctor
                 source={source}
-                parentAppointmentId={parentAppointmentId ? Number(parentAppointmentId) : undefined}
-                parentConsultationId={parentConsultationId ? Number(parentConsultationId) : undefined}
+                parentAppointmentId={parentAppointmentId}
+                parentConsultationId={parentConsultationId}
                 onSuccess={() => {
                     // After follow-up: go to consultation room / queue
                     if (isFollowUp) {

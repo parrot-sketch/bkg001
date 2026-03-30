@@ -581,7 +581,7 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
 
     const completedAppointmentId = state.appointment.id;
 
-    // Clear any pending auto-save to prevent race conditions during transition
+    // Clear any pending auto-save before final submission
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = null;
@@ -590,34 +590,37 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
     dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.TRANSITIONING });
     dispatch({ type: 'SHOW_COMPLETE_DIALOG', payload: false });
 
-    // Clear local backup on successful completion
-    localStorage.removeItem(`consultation-draft-${completedAppointmentId}`);
+    try {
+      // The API completion call is now handled directly by the CompleteConsultationDialog
+      // because it captures the doctor's custom edited summary.
+      // This context function now exclusively handles post-completion cleanup and routing.
+      
+      // Clear local backup on successful completion
+      localStorage.removeItem(`consultation-draft-${completedAppointmentId}`);
 
-    // Full state reset — prevent stale patient data from leaking into next session
-    dispatch({ type: 'RESET' });
+      // Full state reset — prevent stale patient data from leaking into next session
+      dispatch({ type: 'RESET' });
 
-    // Aggressively invalidate all related caches
-    queryClient.invalidateQueries({ queryKey: ['consultation', completedAppointmentId] });
-    queryClient.invalidateQueries({ queryKey: ['consultation'] });
-    queryClient.invalidateQueries({ queryKey: ['doctor'] });
-    queryClient.invalidateQueries({ queryKey: ['appointments'] });
-    queryClient.invalidateQueries({ queryKey: ['billing'] });
-    queryClient.invalidateQueries({ queryKey: ['appointment-billing'] });
+      // Aggressively invalidate all related caches
+      queryClient.invalidateQueries({ queryKey: ['consultation', completedAppointmentId] });
+      queryClient.invalidateQueries({ queryKey: ['consultation'] });
+      queryClient.invalidateQueries({ queryKey: ['doctor'] });
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['billing'] });
+      queryClient.invalidateQueries({ queryKey: ['appointment-billing'] });
 
-    // Navigate: explicit redirect > next in queue > consultation list (with queue)
-    if (redirectPath) {
-      router.push(redirectPath);
-    } else if (waitingQueue.length > 0) {
-      const nextPatient = waitingQueue[0];
-      toast.info(`Loading next patient: ${nextPatient.patient?.firstName || 'Patient'}…`);
-      router.push(`/doctor/consultations/${nextPatient.id}/session`);
-    } else {
-      // No more patients - go to consultation list which shows the queue
-      // Doctor can wait there for new patients to check in
-      toast.info('No more patients in queue. Waiting for new check-ins...');
-      router.push('/doctor/consultations');
+      toast.success('Consultation completed successfully');
+
+      // Navigate: explicit redirect > Hub (default)
+      const finalRedirect = redirectPath || '/doctor/consultations';
+      router.push(finalRedirect);
+
+    } catch (error: any) {
+      console.error('Failed to complete consultation:', error);
+      toast.error(error.message || 'Failed to finalize session');
+      dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.ACTIVE });
     }
-  }, [state.appointment, waitingQueue, queryClient, router]);
+  }, [state.appointment, state.doctorId, state.notes, state.outcomeType, state.patientDecision, user, queryClient, router]);
 
   const switchToPatient = useCallback((appointmentId: number) => {
     // Clear any pending auto-save before switching

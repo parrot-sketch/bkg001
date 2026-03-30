@@ -69,7 +69,6 @@ export function StartConsultationDialog({
       const response = await doctorApi.startConsultation(dto);
 
       if (response.success) {
-        toast.success('Consultation started');
         setDoctorNotes('');
         onSuccess(appointment.id);
       } else {

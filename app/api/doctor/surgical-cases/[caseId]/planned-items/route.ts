@@ -150,7 +150,7 @@ export async function POST(
 
     const inventoryItems = await db.inventoryItem.findMany({
       where: { id: { in: inventoryItemIds } },
-      select: { id: true, name: true, is_active: true, unit_cost: true },
+      select: { id: true, name: true, is_active: true, unit_cost: true, is_billable: true },
     });
 
     const services = serviceIds.length > 0
@@ -253,20 +253,29 @@ export async function POST(
       }, 0);
 
       return {
-        plannedItems: plannedItems.map((pi) => ({
-          id: pi.id,
-          inventoryItemId: pi.inventory_item_id,
-          plannedQuantity: pi.planned_quantity,
-          plannedUnitPrice: pi.planned_unit_price,
-          notes: pi.notes,
-        })),
-        plannedServices: plannedServices.map((ps) => ({
-          id: ps.id,
-          serviceId: ps.service_id,
-          plannedQuantity: ps.planned_quantity,
-          plannedUnitPrice: ps.planned_unit_price,
-          notes: ps.notes,
-        })),
+        plannedItems: plannedItems.map((pi) => {
+          const inventoryItem = inventoryItems.find((i) => i.id === pi.inventory_item_id)!;
+          return {
+            id: pi.id,
+            inventoryItemId: pi.inventory_item_id,
+            itemName: inventoryItem.name,
+            plannedQuantity: pi.planned_quantity,
+            plannedUnitPrice: pi.planned_unit_price,
+            notes: pi.notes,
+            isBillable: inventoryItem.is_active && (inventoryItem as any).is_billable !== false, // Use a safe check
+          };
+        }),
+        plannedServices: plannedServices.map((ps) => {
+          const serviceRecord = services.find((s) => s.id === ps.service_id)!;
+          return {
+            id: ps.id,
+            serviceId: ps.service_id,
+            serviceName: serviceRecord.service_name,
+            plannedQuantity: ps.planned_quantity,
+            plannedUnitPrice: ps.planned_unit_price,
+            notes: ps.notes,
+          };
+        }),
         costEstimate: {
           billableTotal: costEstimate.billableTotal,
           nonBillableTotal: costEstimate.nonBillableTotal,

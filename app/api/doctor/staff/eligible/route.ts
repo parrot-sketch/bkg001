@@ -1,14 +1,21 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role, SurgicalRole, Status } from '@prisma/client';
-import { ALLOWED_ROLES_MAP } from '@/lib/domain/policies/team-eligibility'; // Ensure this path is correct
+import { TEAM_ROLE_ELIGIBILITY } from '@/lib/domain/policies/team-eligibility';
 import { z } from 'zod';
 
 const querySchema = z.object({
     caseId: z.string().min(1),
-    surgicalRole: z.nativeEnum(SurgicalRole),
+    surgicalRole: z.enum([
+        'PRIMARY_SURGEON',
+        'CO_SURGEON',
+        'ANAESTHESIOLOGIST',
+        'SCRUB_NURSE',
+        'CIRCULATING_NURSE',
+        'THEATER_TECH',
+        'OBSERVER'
+    ]),
     q: z.string().optional(),
     page: z.coerce.number().min(1).default(1),
     pageSize: z.coerce.number().min(1).max(50).default(20),
@@ -49,7 +56,7 @@ export async function GET(req: NextRequest) {
     // but could add: if (user.role === 'DOCTOR') { checkPermissions... }
 
     // 4. Get Allowed User Roles from Policy
-    const allowedUserRoles = ALLOWED_ROLES_MAP[surgicalRole];
+    const allowedUserRoles = TEAM_ROLE_ELIGIBILITY[surgicalRole as string];
 
     if (!allowedUserRoles || allowedUserRoles.length === 0) {
         return NextResponse.json({

@@ -137,26 +137,8 @@ export async function POST(
       );
     }
 
-    // 6. Validate required fields
-    if (!body || !body.outcome || !body.outcome.trim()) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Required field: outcome',
-        },
-        { status: 400 }
-      );
-    }
-
-    if (!body.outcomeType) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Required field: outcomeType',
-        },
-        { status: 400 }
-      );
-    }
+    // 6. Validate required fields (only basic documentation check)
+    // We now allow deferred outcomes handled by the Consultations Hub
 
     // 7. Convert followUpDate to Date object if provided
     let followUpDate: Date | undefined;

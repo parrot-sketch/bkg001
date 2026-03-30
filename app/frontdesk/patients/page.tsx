@@ -39,6 +39,8 @@ import Link from 'next/link';
 import { useBookAppointmentStore } from '@/hooks/frontdesk/useBookAppointmentStore';
 import { BookingChannel } from '@/domain/enums/BookingChannel';
 import { AppointmentSource } from '@/domain/enums/AppointmentSource';
+import { PatientTableActions } from '@/components/frontdesk/PatientTableActions';
+import { PatientStatusIndicator, getPatientStatus } from '@/components/frontdesk/PatientStatusIndicator';
 
 /* ═══════════════════ Stat Card (Simple) ═══════════════════ */
 
@@ -333,7 +335,13 @@ function FrontdeskPatientsContent() {
                     <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[200px]">
                       Contact
                     </th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[140px] hidden lg:table-cell">
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[100px] hidden lg:table-cell">
+                      Visits
+                    </th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[120px] hidden lg:table-cell">
+                      Status
+                    </th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[140px] hidden xl:table-cell">
                       Last Visit
                     </th>
                     <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[120px] hidden xl:table-cell">
@@ -411,8 +419,29 @@ function FrontdeskPatientsContent() {
                           </div>
                         </td>
 
-                        {/* Last Visit */}
+                        {/* Visits */}
                         <td className="px-5 py-3.5 hidden lg:table-cell">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-sm font-semibold text-slate-700">
+                              {patient.totalAppointments || 0}
+                            </span>
+                            <span className="text-xs text-slate-400">visits</span>
+                          </div>
+                        </td>
+
+                        {/* Status */}
+                        <td className="px-5 py-3.5 hidden lg:table-cell">
+                          <PatientStatusIndicator
+                            status={getPatientStatus({
+                              lastVisit: patient.lastVisit,
+                              currentQueueStatus: patient.currentQueueStatus,
+                              outstandingBalance: patient.outstandingBalance || 0,
+                            })}
+                          />
+                        </td>
+
+                        {/* Last Visit */}
+                        <td className="px-5 py-3.5 hidden xl:table-cell">
                           {lastVisit ? (
                             <div className="flex items-center gap-1.5 text-xs text-slate-500">
                               <Clock className="h-3 w-3 text-slate-300" />
@@ -436,33 +465,15 @@ function FrontdeskPatientsContent() {
 
                         {/* Actions */}
                         <td className="px-5 py-3.5">
-                          <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-                            <Link href={`/frontdesk/patient/${patient.id}`}>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 px-2.5 text-xs rounded-lg text-slate-500 hover:text-cyan-700 hover:bg-cyan-50"
-                              >
-                                <Eye className="h-3.5 w-3.5 mr-1" />
-                                View
-                              </Button>
-                            </Link>
-                            <Button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openBookingDialog({
-                                    initialPatientId: patient.id,
-                                    source: AppointmentSource.FRONTDESK_SCHEDULED,
-                                    bookingChannel: BookingChannel.DASHBOARD,
-                                  });
-                                }}
-                                size="sm"
-                                className="h-8 px-2.5 text-xs rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white shadow-sm shadow-cyan-200/30"
-                              >
-                                <Calendar className="h-3.5 w-3.5 mr-1" />
-                                {isSelectionMode ? 'Select & Book' : 'Book'}
-                              </Button>
-                          </div>
+                          <PatientTableActions
+                            patient={{
+                              id: patient.id,
+                              firstName: patient.firstName,
+                              lastName: patient.lastName,
+                              phone: patient.phone,
+                              email: patient.email,
+                            }}
+                          />
                         </td>
                       </HighlightRow>
                     );
@@ -476,6 +487,11 @@ function FrontdeskPatientsContent() {
               {patients.map((patient: any) => {
                 const patientName = `${patient.firstName} ${patient.lastName}`;
                 const lastVisit = patient.lastVisit;
+                const patientStatus = getPatientStatus({
+                  lastVisit: patient.lastVisit,
+                  currentQueueStatus: patient.currentQueueStatus,
+                  outstandingBalance: patient.outstandingBalance || 0,
+                });
 
                 return (
                   <Link
@@ -526,12 +542,17 @@ function FrontdeskPatientsContent() {
                                 <span>{format(new Date(lastVisit), 'MMM d')}</span>
                               </div>
                             )}
+                            <div className="flex items-center gap-1 text-xs text-slate-400">
+                              <span className="font-semibold text-slate-600">{patient.totalAppointments || 0}</span>
+                              <span>visits</span>
+                            </div>
+                            <PatientStatusIndicator status={patientStatus} className="text-[10px]" />
                           </div>
 
-                          <div className="mt-3 flex gap-2" onClick={(e) => e.stopPropagation()}>
+                          <div className="mt-3 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
                             <Button
                               size="sm"
-                              className="flex-1 h-8 text-xs rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white"
+                              className="flex-1 h-8 text-xs rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white mr-2"
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
@@ -545,18 +566,15 @@ function FrontdeskPatientsContent() {
                               <Calendar className="h-3 w-3 mr-1" />
                               {isSelectionMode ? 'Select & Book' : 'Book Appointment'}
                             </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8 text-xs rounded-lg text-slate-500"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                router.push(`/frontdesk/patient/${patient.id}`);
+                            <PatientTableActions
+                              patient={{
+                                id: patient.id,
+                                firstName: patient.firstName,
+                                lastName: patient.lastName,
+                                phone: patient.phone,
+                                email: patient.email,
                               }}
-                            >
-                              <ArrowRight className="h-3 w-3" />
-                            </Button>
+                            />
                           </div>
                         </div>
                       </div>

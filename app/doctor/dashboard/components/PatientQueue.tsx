@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useDoctorQueue } from '@/hooks/use-doctor-dashboard';
+import { useStartConsultation } from '@/hooks/doctor/useConsultation';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
@@ -15,10 +16,15 @@ interface PatientQueueProps {
 export function PatientQueue({ isLoading }: PatientQueueProps) {
   const queue = useDoctorQueue();
   const router = useRouter();
+  const { mutate: startConsultation, isPending: isStarting } = useStartConsultation();
 
   const handleStartConsultation = (queueEntry: { appointmentId: number | null; patientId: string; id: number }) => {
     if (queueEntry.appointmentId) {
-      router.push(`/doctor/consultations/${queueEntry.appointmentId}/session`);
+      startConsultation(queueEntry.appointmentId, {
+        onSuccess: () => {
+          router.push(`/doctor/consultations/session/${queueEntry.appointmentId}`);
+        }
+      });
     } else {
       router.push(`/doctor/consultations/new?patientId=${queueEntry.patientId}`);
     }
@@ -143,10 +149,17 @@ export function PatientQueue({ isLoading }: PatientQueueProps) {
                     <Button
                       size="sm"
                       onClick={() => handleStartConsultation(patient)}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium"
+                      disabled={isStarting}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium min-w-[70px]"
                     >
-                      <Play className="h-3 w-3 mr-1.5" />
-                      Start
+                      {isStarting ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <>
+                          <Play className="h-3 w-3 mr-1.5" />
+                          Start
+                        </>
+                      )}
                     </Button>
                   </div>
                 </div>

@@ -10,8 +10,8 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 // Lazy-load the availability editor — only pay for the JS when needed
-const ScheduleSettingsPanel = dynamic(
-    () => import('@/components/doctor/schedule/ScheduleSettingsPanelV2').then(m => ({ default: m.ScheduleSettingsPanelV2 })),
+const AvailabilitySettingsPanel = dynamic(
+    () => import('@/components/doctor/schedule/AvailabilitySettings').then(m => ({ default: m.AvailabilitySettings })),
     {
         ssr: false,
         loading: () => (
@@ -111,7 +111,7 @@ export function ScheduleTabs({ initialSchedule, currentUser }: ScheduleTabsProps
             {activeView === 'calendar' && (
                 <ScheduleCalendarView
                     appointments={scheduleData?.appointments || []}
-                    surgicalCases={scheduleData?.surgicalCases || []}
+                    calendarEvents={scheduleData?.calendarEvents || []}
                     workingDays={scheduleData?.workingDays || []}
                     blocks={scheduleData?.blocks || []}
                     overrides={scheduleData?.overrides || []}
@@ -121,7 +121,7 @@ export function ScheduleTabs({ initialSchedule, currentUser }: ScheduleTabsProps
 
             {/* Availability editor */}
             {activeView === 'availability' && (
-                <ScheduleSettingsPanel
+                <AvailabilitySettingsPanel
                     initialWorkingDays={scheduleData?.workingDays || []}
                     initialSlotConfig={scheduleData?.slotConfig || null}
                     userId={currentUser.id}

@@ -3,6 +3,9 @@
  * 
  * Declarative tab definitions for surgical plan page.
  * Each tab is registered with metadata, permissions, and component.
+ * 
+ * Phase 2C: Used Items, Billing Summary, Usage Variance, and Timeline tabs extracted and registered.
+ * Phase 2D: Team tab extracted and registered.
  */
 
 import {
@@ -15,6 +18,7 @@ import {
   Receipt,
   TrendingUp,
   Clock,
+  Users,
 } from 'lucide-react';
 import { Role } from '@/domain/enums/Role';
 import type { TabDefinition, SurgicalCasePlanViewModel } from './types';
@@ -28,54 +32,48 @@ import { BillingSummaryTabContainer } from '../tabs/billing-summary/BillingSumma
 import { UsageVarianceTabContainer } from '../tabs/usage-variance/UsageVarianceTab.container';
 import { TimelineTabContainer } from '../tabs/timeline/TimelineTab.container';
 import { ConsentsTabContainer } from '../tabs/consents/ConsentsTab.container';
+import { TeamTabContainer } from '../tabs/team/TeamTab.container';
 import { canEditSurgicalPlan } from './permissions';
+
+import { BillingEstimateTabContainer } from '../tabs/billing-estimate/BillingEstimateTab.container';
 
 /**
  * Tab registry configuration
  * 
  * Phase 2C: Used Items, Billing Summary, Usage Variance, and Timeline tabs extracted and registered.
- * Remaining tabs (Consents, Photos, Team) will be extracted in Phase 2D+.
+ * Phase 2D: Team tab extracted and registered.
  */
 export const TAB_REGISTRY: TabDefinition[] = [
   {
     key: 'overview',
-    label: 'Overview',
+    label: 'Plan',
     icon: FileText,
     component: OverviewTabContainer,
     order: 0,
   },
   {
     key: 'procedure',
-    label: 'Procedure',
+    label: 'Procedure & Supplies',
     icon: Stethoscope,
     component: ProcedureTabContainer,
     permissionCheck: (role) => canEditSurgicalPlan(role) || role === Role.NURSE,
     order: 1,
   },
   {
-    key: 'risk-factors',
-    label: 'Risk Factors',
-    icon: ShieldAlert,
-    component: RiskFactorsTabContainer,
+    key: 'team',
+    label: 'Team & Safety',
+    icon: Users,
+    component: TeamTabContainer,
     permissionCheck: (role) => canEditSurgicalPlan(role) || role === Role.NURSE,
     order: 2,
   },
   {
-    key: 'anesthesia',
-    label: 'Anesthesia',
-    icon: Syringe,
-    component: AnesthesiaTabContainer,
-    permissionCheck: (role) => canEditSurgicalPlan(role) || role === Role.NURSE,
+    key: 'consents',
+    label: 'Consents & Billing',
+    icon: FileText,
+    component: ConsentsTabContainer,
+    permissionCheck: (role) => role === Role.DOCTOR || role === Role.ADMIN,
     order: 3,
-  },
-  {
-    key: 'inventory-planning',
-    label: 'Planned Items',
-    icon: Package,
-    component: InventoryPlanningTabContainer,
-    permissionCheck: (role) =>
-      role === Role.ADMIN || role === Role.NURSE,
-    order: 5,
   },
   {
     key: 'used-items',
@@ -84,7 +82,7 @@ export const TAB_REGISTRY: TabDefinition[] = [
     component: UsedItemsTabContainer,
     permissionCheck: (role) =>
       role === Role.DOCTOR || role === Role.ADMIN || role === Role.NURSE,
-    order: 6,
+    order: 8,
   },
   {
     key: 'billing-summary',
@@ -93,7 +91,7 @@ export const TAB_REGISTRY: TabDefinition[] = [
     component: BillingSummaryTabContainer,
     permissionCheck: (role) =>
       role === Role.DOCTOR || role === Role.ADMIN || role === Role.NURSE,
-    order: 7,
+    order: 9,
   },
   {
     key: 'usage-variance',
@@ -102,7 +100,7 @@ export const TAB_REGISTRY: TabDefinition[] = [
     component: UsageVarianceTabContainer,
     permissionCheck: (role) =>
       role === Role.DOCTOR || role === Role.ADMIN || role === Role.NURSE,
-    order: 8,
+    order: 10,
   },
   {
     key: 'timeline',
@@ -113,19 +111,8 @@ export const TAB_REGISTRY: TabDefinition[] = [
       role === Role.ADMIN ||
       role === Role.NURSE ||
       role === Role.THEATER_TECHNICIAN,
-    order: 9,
+    order: 11,
   },
-  {
-    key: 'consents',
-    label: 'Consents',
-    icon: FileText,
-    component: ConsentsTabContainer,
-    permissionCheck: (role) => role === Role.DOCTOR || role === Role.ADMIN,
-    order: 4, // Between anesthesia and inventory-planning
-  },
-  // Remaining tabs will be registered in Phase 2E+
-  // - photos (PhotosTab)
-  // - team (TeamTab)
 ];
 
 /**

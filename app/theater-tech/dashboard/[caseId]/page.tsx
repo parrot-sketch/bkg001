@@ -1,317 +1,223 @@
-'use client';
-
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/patient/useAuth';
+import db from '@/lib/db';
+import { notFound, redirect } from 'next/navigation';
+import { getCurrentUser } from '@/lib/auth/server-auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Save, Users, Package, CheckCircle, Loader2, Plus, X } from 'lucide-react';
-import { toast } from 'sonner';
+import { ArrowLeft, Users, Package, CheckCircle, Save } from 'lucide-react';
+import Link from 'next/link';
+import { CaseItemsSelector } from './CaseItemsSelector';
 
-interface TeamMember {
-    id?: string;
-    role: string;
-    name: string;
-    userId?: string;
-}
+export default async function TheaterPrepPage({ params }: { params: Promise<{ caseId: string }> }) {
+    const { caseId } = await params;
+    
+    // Auth
+    const user = await getCurrentUser();
+    if (!user || (user.role !== 'THEATER_TECHNICIAN' && user.role !== 'ADMIN')) {
+        redirect('/login');
+    }
 
-interface UserOption {
-    id: string;
-    name: string;
-    role: string;
-    email: string;
-}
-
-const TEAM_ROLES = [
-    { key: 'SURGEON', label: 'Lead Surgeon', roleFilter: 'DOCTOR', placeholder: 'Select Surgeon' },
-    { key: 'ANAESTHESIOLOGIST', label: 'Anaesthesiologist', roleFilter: 'DOCTOR', placeholder: 'Select Anaesthesiologist' },
-    { key: 'ASSISTANT', label: 'Surgical Assistant(s)', roleFilter: 'DOCTOR', placeholder: 'Select Assistant' },
-    { key: 'SCRUB_NURSE', label: 'Scrub Nurse', roleFilter: 'NURSE', placeholder: 'Select Scrub Nurse' },
-    { key: 'CIRCULATING_NURSE', label: 'Circulating Nurse', roleFilter: 'NURSE', placeholder: 'Select Circulating Nurse' },
-];
-
-export default function TheaterPrepPage() {
-    const params = useParams();
-    const router = useRouter();
-    const { user, isAuthenticated } = useAuth();
-    const caseId = params.caseId as string;
-
-    const [loading, setLoading] = useState(true);
-    const [fetched, setFetched] = useState(false);
-    const [saving, setSaving] = useState(false);
-    const [caseData, setCaseData] = useState<any>(null);
-    const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-    const [users, setUsers] = useState<UserOption[]>([]);
-    const [plannedItems, setPlannedItems] = useState<any[]>([]);
-
-    // Fetch all users for team member selection
-    useEffect(() => {
-        const fetchUsers = async () => {
-            try {
-                const res = await fetch('/api/users');
-                const data = await res.json();
-                if (data.success && data.data) {
-                    const userList: UserOption[] = data.data.map((u: any) => ({
-                        id: u.id,
-                        name: u.name,
-                        role: u.role,
-                        email: u.email,
-                    }));
-                    setUsers(userList);
-                }
-            } catch (error) {
-                console.error('Error fetching users:', error);
-            }
-        };
-        fetchUsers();
-    }, []);
-
-    useEffect(() => {
-        if (!caseId || fetched) return;
-
-        const fetchCase = async () => {
-            try {
-                const res = await fetch(`/api/theater-tech/surgical-cases/${caseId}/theater-prep`);
-                const data = await res.json();
-                if (data.success) {
-                    setCaseData(data.data.case);
-                    
-                    // Set planned items from case plan
-                    setPlannedItems(data.data.plannedItems || []);
-                    
-                    // Initialize team members from existing data or pre-populate lead surgeon
-                    const existingMembers = data.data.teamMembers || [];
-                    const surgeonName = data.data.case?.surgeon?.name || '';
-                    
-                    const members = TEAM_ROLES.map(role => {
-                        const existing = existingMembers.find((m: any) => m.role === role.key);
-                        // Pre-populate lead surgeon from case
-                        if (role.key === 'SURGEON' && !existing && surgeonName) {
-                            return {
-                                role: role.key,
-                                name: surgeonName,
-                                userId: existing?.user_id || '',
-                            };
+    // Fetch case and relations
+    const caseData = await db.surgicalCase.findUnique({
+        where: { id: caseId },
+        include: {
+            patient: { select: { first_name: true, last_name: true, file_number: true } },
+            primary_surgeon: { select: { name: true } },
+            team_members: true,
+            case_items: {
+                include: { inventory_item: { select: { name: true, category: true } } },
+                orderBy: { created_at: 'asc' }
+            },
+            case_plan: {
+                include: {
+                    planned_items: {
+                        include: {
+                            inventory_item: { select: { name: true, category: true } },
+                            service: { select: { service_name: true } }
                         }
-                        return {
-                            role: role.key,
-                            name: existing?.name || '',
-                            userId: existing?.user_id || '',
-                        };
-                    });
-                    setTeamMembers(members);
+                    }
                 }
-            } catch (error) {
-                console.error('Error fetching case:', error);
-                toast.error('Failed to load case');
-            } finally {
-                setLoading(false);
-                setFetched(true);
             }
-        };
-
-        fetchCase();
-    }, [caseId, fetched]);
-
-    const handleTeamMemberChange = (role: string, userId: string) => {
-        const selectedUser = users.find(u => u.id === userId);
-        setTeamMembers(prev => 
-            prev.map(m => m.role === role ? { 
-                ...m, 
-                userId: userId,
-                name: selectedUser?.name || m.name
-            } : m)
-        );
-    };
-
-    const handleSave = async () => {
-        setSaving(true);
-        try {
-            const res = await fetch(`/api/theater-tech/surgical-cases/${caseId}/theater-prep`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ teamMembers }),
-            });
-            const data = await res.json();
-            
-            if (data.success) {
-                toast.success('Team members saved');
-            } else {
-                toast.error(data.error || 'Failed to save');
-            }
-        } catch (error) {
-            console.error('Error saving:', error);
-            toast.error('Failed to save');
-        } finally {
-            setSaving(false);
         }
-    };
+    });
 
-    const handleComplete = async () => {
-        setSaving(true);
-        try {
-            const res = await fetch(`/api/theater-tech/surgical-cases/${caseId}/theater-prep`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ teamMembers, action: 'complete' }),
-            });
-            const data = await res.json();
-            
-            if (data.success) {
-                toast.success('Case submitted for theater booking');
-                router.push('/theater-tech/dashboard');
-            } else {
-                toast.error(data.error || 'Failed to complete');
-            }
-        } catch (error) {
-            console.error('Error completing:', error);
-            toast.error('Failed to complete');
-        } finally {
-            setSaving(false);
-        }
-    };
+    if (!caseData) notFound();
 
-    if (loading) {
-        return (
-            <div className="p-6 space-y-6">
-                <Skeleton className="h-8 w-64" />
-                <Skeleton className="h-64" />
-                <Skeleton className="h-48" />
-            </div>
-        );
-    }
-
-    if (!caseData) {
-        return (
-            <div className="p-6">
-                <p>Case not found</p>
-            </div>
-        );
-    }
+    // Fetch catalog
+    const catalog = await db.inventoryItem.findMany({
+        where: { is_active: true },
+        select: { id: true, name: true, sku: true, category: true },
+        orderBy: { name: 'asc' }
+    });
 
     const isEditable = caseData.status === 'READY_FOR_SCHEDULING' || caseData.status === 'READY_FOR_THEATER_PREP';
+    
+    // Convert Dates to string for Client Component bridging
+    const parsedSelectedItems = caseData.case_items.map(i => ({
+        id: i.id,
+        inventory_item_id: i.inventory_item_id,
+        quantity: i.quantity,
+        notes: i.notes,
+        inventory_item: i.inventory_item
+    }));
 
     return (
-        <div className="p-6 space-y-6">
-            <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" onClick={() => router.back()}>
-                    <ArrowLeft className="h-5 w-5" />
-                </Button>
-                <div>
-                    <h1 className="text-2xl font-bold">Theater Preparation</h1>
-                    <p className="text-slate-500">Add team members and verify planned items</p>
+        <div className="p-6 space-y-6 max-w-5xl mx-auto">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <Button variant="ghost" size="icon" asChild>
+                        <Link href="/theater-tech/dashboard">
+                            <ArrowLeft className="h-5 w-5" />
+                        </Link>
+                    </Button>
+                    <div>
+                        <h1 className="text-2xl font-semibold tracking-tight">Theater Preparation</h1>
+                        <p className="text-sm text-slate-500">Pick required items and review team assignments</p>
+                    </div>
                 </div>
+                
+                {caseData.status === 'READY_FOR_THEATER_PREP' && (
+                    <Badge variant="secondary" className="px-3 py-1 text-sm bg-blue-100 text-blue-800 hover:bg-blue-100">
+                        In Preparation
+                    </Badge>
+                )}
             </div>
 
             {/* Patient Info */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-lg">Case Information</CardTitle>
+            <Card className="shadow-sm">
+                <CardHeader className="pb-3 border-b bg-slate-50/50">
+                    <CardTitle className="text-base">Case Information</CardTitle>
                 </CardHeader>
-                <CardContent>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <Label className="text-slate-500">Patient</Label>
-                            <p className="font-medium">{caseData.patient?.first_name} {caseData.patient?.last_name}</p>
+                <CardContent className="pt-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                        <div className="space-y-1">
+                            <Label className="text-xs text-slate-500 uppercase tracking-wider">Patient</Label>
+                            <p className="font-medium text-sm">{caseData.patient?.first_name} {caseData.patient?.last_name}</p>
                             {caseData.patient?.file_number && (
-                                <p className="text-sm text-slate-400">File #: {caseData.patient.file_number}</p>
+                                <p className="text-xs text-slate-400">File: {caseData.patient.file_number}</p>
                             )}
                         </div>
-                        <div>
-                            <Label className="text-slate-500">Procedure</Label>
-                            <p className="font-medium">{caseData.procedureName || 'Not specified'}</p>
+                        <div className="space-y-1">
+                            <Label className="text-xs text-slate-500 uppercase tracking-wider">Procedure</Label>
+                            <p className="font-medium text-sm">{caseData.procedure_name || 'Not specified'}</p>
                         </div>
-                        <div>
-                            <Label className="text-slate-500">Surgeon</Label>
-                            <p className="font-medium">{caseData.surgeon?.name || 'Not assigned'}</p>
+                        <div className="space-y-1">
+                            <Label className="text-xs text-slate-500 uppercase tracking-wider">Primary Surgeon</Label>
+                            <p className="font-medium text-sm">{caseData.primary_surgeon?.name || 'Not assigned'}</p>
                         </div>
-                        <div>
-                            <Label className="text-slate-500">Status</Label>
-                            <Badge variant="outline">{caseData.status}</Badge>
+                        <div className="space-y-1">
+                            <Label className="text-xs text-slate-500 uppercase tracking-wider">Status</Label>
+                            <div><Badge variant="outline">{caseData.status}</Badge></div>
                         </div>
                     </div>
                 </CardContent>
             </Card>
 
-            {/* Team Members */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                        <Users className="h-5 w-5" />
-                        Surgical Team
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {TEAM_ROLES.map(role => {
-                        const currentMember = teamMembers.find(m => m.role === role.key);
-                        const filteredUsers = users.filter(u => u.role === role.roleFilter);
-                        return (
-                        <div key={role.key} className="grid grid-cols-3 items-center gap-4">
-                            <Label className="text-slate-600">{role.label}</Label>
-                            <Select
-                                value={currentMember?.userId || ''}
-                                onValueChange={(value) => handleTeamMemberChange(role.key, value)}
-                                disabled={!isEditable}
-                            >
-                                <SelectTrigger className="col-span-2">
-                                    <SelectValue placeholder={role.placeholder} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {filteredUsers.map(u => (
-                                        <SelectItem key={u.id} value={u.id}>
-                                            {u.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        );
-                    })}
-                </CardContent>
-            </Card>
-
-            {/* Planned Items - from Doctor's case plan */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                        <Package className="h-5 w-5" />
-                        Planned Items (from Surgical Plan)
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {plannedItems.length > 0 ? (
-                        <div className="space-y-2">
-                            {plannedItems.map((item: any, idx: number) => (
-                                <div key={idx} className="flex justify-between p-3 bg-slate-50 rounded">
-                                    <span>{item.inventory_item?.name || item.service?.service_name || 'Unknown Item'}</span>
-                                    <span className="text-slate-500">Qty: {item.planned_quantity || 1}</span>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-6">
+                    {/* Team Members (READ ONLY) */}
+                    <Card className="shadow-sm">
+                        <CardHeader className="pb-3 border-b bg-slate-50/50">
+                            <CardTitle className="text-base flex items-center gap-2">
+                                <Users className="h-4 w-4" />
+                                Assigned Surgical Team
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-4 px-0">
+                            {caseData.team_members.length === 0 ? (
+                                <div className="text-center py-4 text-sm text-slate-500">
+                                    No team members assigned by the surgeon yet.
                                 </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <p className="text-slate-400">No planned items in case plan.</p>
-                    )}
-                </CardContent>
-            </Card>
+                            ) : (
+                                <div className="divide-y">
+                                    {caseData.team_members.map(member => (
+                                        <div key={member.id} className="px-6 py-3 flex justify-between items-center group hover:bg-slate-50">
+                                            <div>
+                                                <p className="font-medium text-sm">{member.name}</p>
+                                                {member.is_external && member.external_credentials && (
+                                                    <p className="text-xs text-slate-500">{member.external_credentials}</p>
+                                                )}
+                                            </div>
+                                            <div className="flex flex-col items-end gap-1">
+                                                <Badge variant="secondary" className="text-[10px] uppercase">
+                                                    {member.role.replace(/_/g, ' ')}
+                                                </Badge>
+                                                {member.is_external && <Badge variant="outline" className="text-[9px]">EXTERNAL</Badge>}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
 
-            {/* Actions */}
-            {isEditable && (
-                <div className="flex gap-3 justify-end">
-                    <Button variant="outline" onClick={handleSave} disabled={saving}>
-                        {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                        Save Draft
-                    </Button>
-                    <Button onClick={handleComplete} disabled={saving}>
-                        {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
-                        Submit for Booking
-                    </Button>
+                    {/* Pre-planned Items */}
+                    <Card className="shadow-sm">
+                        <CardHeader className="pb-3 border-b bg-slate-50/50">
+                            <CardTitle className="text-base flex items-center gap-2">
+                                <Package className="h-4 w-4" />
+                                Doctor's Planned Items
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-4">
+                            {!caseData.case_plan?.planned_items || caseData.case_plan.planned_items.length === 0 ? (
+                                <p className="text-sm text-slate-500 italic text-center py-2">No advance items planned by surgeon.</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {caseData.case_plan.planned_items.map((item, idx) => (
+                                        <div key={idx} className="flex justify-between items-center p-2 rounded-md bg-slate-50 border border-slate-100">
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-medium">
+                                                    {item.inventory_item?.name || item.service?.service_name || 'Unknown Item'}
+                                                </span>
+                                                {item.inventory_item?.category && (
+                                                    <span className="text-[10px] text-slate-500 uppercase">{item.inventory_item.category}</span>
+                                                )}
+                                            </div>
+                                            <span className="text-sm font-semibold bg-white px-2 py-0.5 border rounded-sm">
+                                                Qty: {item.planned_quantity || 1}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
                 </div>
-            )}
+
+                <div className="space-y-6">
+                    {/* Tech selected items */}
+                    <CaseItemsSelector 
+                        caseId={caseId} 
+                        catalog={catalog} 
+                        selectedItems={parsedSelectedItems} 
+                        isEditable={isEditable}
+                    />
+
+                    {/* Temporary submission block until Full Theater process is built */}
+                    {isEditable && (
+                        <Card className="border-primary/20 bg-primary/5">
+                            <CardContent className="p-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+                                <p className="text-sm text-slate-700">Finished selecting items for theater prep?</p>
+                                <form action={async () => {
+                                    'use server';
+                                    await db.surgicalCase.update({
+                                        where: { id: caseId },
+                                        data: { status: 'READY_FOR_THEATER_BOOKING' }
+                                    });
+                                    redirect('/theater-tech/dashboard');
+                                }}>
+                                    <Button type="submit" className="w-full sm:w-auto">
+                                        <CheckCircle className="h-4 w-4 mr-2" />
+                                        Complete Prep
+                                    </Button>
+                                </form>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
+            </div>
         </div>
     );
 }

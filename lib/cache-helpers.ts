@@ -140,3 +140,12 @@ export function invalidateDischarge(
   queryClient.invalidateQueries({ queryKey: queryKeys.frontdesk.dashboard() });
   queryClient.invalidateQueries({ queryKey: queryKeys.doctor.dashboard() });
 }
+
+export function invalidateSurgicalPlanBilling(
+  queryClient: QueryClient,
+  caseId: string
+): void {
+  // Invalidates both the plan data and the specific plan cache
+  queryClient.invalidateQueries({ queryKey: queryKeys.surgicalPlan.plan(caseId) });
+  queryClient.invalidateQueries({ queryKey: queryKeys.shared.surgicalCase(caseId) });
+}

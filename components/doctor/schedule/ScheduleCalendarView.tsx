@@ -34,7 +34,7 @@ const DnDCalendar = withDragAndDrop<CalendarEvent>(Calendar);
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface CalendarEvent {
-    id: number;
+    id: number | string;
     title: string;
     start: Date;
     end: Date;
@@ -48,7 +48,7 @@ interface CalendarEvent {
 
 interface ScheduleCalendarViewProps {
     appointments: any[];
-    surgicalCases?: any[];
+    calendarEvents?: any[];
     workingDays?: any[];
     blocks?: any[];
     overrides?: any[];
@@ -59,10 +59,12 @@ interface ScheduleCalendarViewProps {
 const STATUS_CONFIG: Record<string, { bg: string; border: string; dot: string; label: string }> = {
     PENDING_DOCTOR_CONFIRMATION: { bg: '#fef3c7', border: '#f59e0b', dot: '#f59e0b', label: 'Needs Review' },
     PENDING:        { bg: '#fffbeb', border: '#d97706', dot: '#d97706', label: 'Pending' },
+    TENTATIVE:      { bg: '#fef3c7', border: '#f59e0b', dot: '#f59e0b', label: 'Tentative' },
     SCHEDULED:      { bg: '#eff6ff', border: '#3b82f6', dot: '#3b82f6', label: 'Confirmed' },
     CONFIRMED:      { bg: '#f0fdf4', border: '#16a34a', dot: '#16a34a', label: 'Confirmed' },
     CHECKED_IN:     { bg: '#ecfeff', border: '#0891b2', dot: '#0891b2', label: 'Checked In' },
     IN_CONSULTATION:{ bg: '#faf5ff', border: '#7c3aed', dot: '#7c3aed', label: 'In Consult' },
+    IN_PROGRESS:    { bg: '#e0e7ff', border: '#6366f1', dot: '#6366f1', label: 'In Progress' },
     COMPLETED:      { bg: '#f9fafb', border: '#6b7280', dot: '#6b7280', label: 'Completed' },
     CANCELLED:      { bg: '#fff1f2', border: '#e11d48', dot: '#e11d48', label: 'Cancelled' },
     NO_SHOW:        { bg: '#f9fafb', border: '#9ca3af', dot: '#9ca3af', label: 'No Show' },
@@ -114,66 +116,54 @@ function CustomToolbar({
         return format(date, 'MMMM yyyy');
     };
 
-    const viewButtons: { key: View; icon: any; label: string }[] = [
-        { key: Views.DAY,    icon: Maximize2, label: 'Day' },
-        { key: Views.WEEK,   icon: Layers,    label: 'Week' },
-        { key: Views.MONTH,  icon: LayoutGrid, label: 'Month' },
-        { key: Views.AGENDA, icon: List,      label: 'List' },
+    const viewButtons: { key: View; label: string }[] = [
+        { key: Views.DAY,    label: 'Day' },
+        { key: Views.WEEK,   label: 'Week' },
+        { key: Views.MONTH,  label: 'Month' },
+        { key: Views.AGENDA, label: 'List' },
     ];
 
     return (
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4">
-            {/* Left: nav */}
-            <div className="flex items-center gap-2">
-                <Button
-                    variant="outline" size="sm"
-                    onClick={() => onNavigate(new Date())}
-                    className={cn(
-                        'h-8 px-3 text-xs font-medium',
-                        isToday(date) && 'bg-primary/5 border-primary/30 text-primary'
-                    )}
-                >
-                    <Clock className="h-3 w-3 mr-1.5" />
-                    Today
-                </Button>
-                <div className="flex items-center border rounded-md overflow-hidden">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-none" onClick={goBack}>
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-6">
+            <div className="flex items-center gap-4">
+                <h2 className="text-2xl font-semibold text-foreground tracking-tight">
+                    {getLabel()}
+                </h2>
+                {eventCount > 0 && (
+                    <Badge variant="secondary" className="hidden sm:flex text-xs font-normal">
+                        {eventCount} appointments
+                    </Badge>
+                )}
+            </div>
+
+            <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+                <div className="flex items-center bg-muted/50 rounded-lg p-1 shrink-0">
+                    <Button variant="ghost" size="sm" onClick={() => onNavigate(new Date())} className="h-7 text-xs px-3">
+                        Today
+                    </Button>
+                    <div className="w-px h-4 bg-border mx-1" />
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={goBack}>
                         <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-none border-l" onClick={goForward}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={goForward}>
                         <ChevronRight className="h-4 w-4" />
                     </Button>
                 </div>
-                <h2 className="text-base font-semibold text-foreground ml-1 whitespace-nowrap">
-                    {getLabel()}
-                </h2>
-            </div>
 
-            {/* Right: count + view switcher */}
-            <div className="flex items-center gap-3">
-                {eventCount > 0 && (
-                    <Badge variant="secondary" className="text-xs font-normal gap-1">
-                        <CalendarIcon className="h-3 w-3" />
-                        {eventCount} appointment{eventCount !== 1 ? 's' : ''}
-                    </Badge>
-                )}
-                <div className="flex items-center border rounded-md overflow-hidden">
-                    {viewButtons.map(({ key, icon: Icon, label }) => (
-                        <Button
+                <div className="flex items-center bg-muted/50 rounded-lg p-1 shrink-0">
+                    {viewButtons.map(({ key, label }) => (
+                        <button
                             key={key}
-                            variant={view === key ? 'default' : 'ghost'}
-                            size="sm"
                             onClick={() => onView(key)}
                             className={cn(
-                                'h-8 px-3 text-xs font-medium rounded-none border-r last:border-r-0',
+                                'px-3 py-1 text-xs font-medium rounded-md transition-all',
                                 view === key
-                                    ? 'bg-primary text-primary-foreground shadow-sm'
+                                    ? 'bg-background shadow-sm text-foreground'
                                     : 'text-muted-foreground hover:text-foreground'
                             )}
                         >
-                            <Icon className="h-3 w-3 mr-1.5" />
-                            <span className="hidden sm:inline">{label}</span>
-                        </Button>
+                            {label}
+                        </button>
                     ))}
                 </div>
             </div>
@@ -184,6 +174,7 @@ function CustomToolbar({
 // ── Rich Event Card ────────────────────────────────────────────────────────
 function AppointmentEvent({ event }: { event: CalendarEvent }) {
     const cfg = STATUS_CONFIG[event.status] ?? STATUS_CONFIG.SCHEDULED;
+    const isSurgery = event.type === 'Surgery';
     const TypeIcon = TYPE_ICONS[event.type] ?? Stethoscope;
     const durationMins = Math.round((event.end.getTime() - event.start.getTime()) / 60000);
     const isShort = durationMins < 30;
@@ -191,13 +182,13 @@ function AppointmentEvent({ event }: { event: CalendarEvent }) {
 
     if (isShort) {
         return (
-            <div className="flex items-center gap-1 overflow-hidden h-full px-0.5">
+            <div className="flex items-center gap-1.5 overflow-hidden h-full px-1">
                 <span
                     className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                     style={{ backgroundColor: cfg.dot }}
                 />
                 <span className={cn(
-                    'text-[0.6rem] font-semibold leading-none truncate',
+                    'text-[0.65rem] font-semibold leading-none truncate',
                     isCancelled && 'line-through opacity-60'
                 )}>
                     {event.title}
@@ -207,38 +198,36 @@ function AppointmentEvent({ event }: { event: CalendarEvent }) {
     }
 
     return (
-        <div className="flex flex-col gap-0.5 overflow-hidden h-full px-0.5 py-0.5">
-            {/* Patient name row */}
-            <div className="flex items-center gap-1">
-                <User className="h-2.5 w-2.5 flex-shrink-0 opacity-80" />
+        <div className="flex flex-col h-full px-1 py-1 gap-1">
+            {/* Title Row */}
+            <div className="flex items-center gap-1.5">
+                <span
+                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: isSurgery ? '#3b82f6' : cfg.dot }}
+                />
                 <span className={cn(
-                    'text-[0.65rem] font-bold leading-tight truncate',
+                    'text-xs font-semibold leading-tight truncate text-slate-800',
                     isCancelled && 'line-through opacity-50'
                 )}>
                     {event.title}
                 </span>
             </div>
-            {/* Type + time */}
-            <div className="flex items-center gap-1 text-[0.55rem] opacity-85">
-                <TypeIcon className="h-2 w-2 flex-shrink-0" />
+
+            {/* Meta Row */}
+            <div className="flex items-center gap-1 text-[0.65rem] text-slate-500">
+                <TypeIcon className="h-2.5 w-2.5 flex-shrink-0" />
                 <span className="truncate">{event.type}</span>
-                <span className="opacity-60">·</span>
-                <span className="whitespace-nowrap">{format(event.start, 'h:mm a')}</span>
+                <span className="opacity-60 text-[10px]">·</span>
+                <span className="whitespace-nowrap font-medium">{format(event.start, 'h:mm a')}</span>
             </div>
-            {/* Status + duration — only when tall enough */}
-            {durationMins >= 45 && (
-                <div className="flex items-center justify-between mt-auto">
+
+            {/* Status Tag (if tall enough) */}
+            {durationMins >= 45 && !isCancelled && (
+                <div className="mt-auto pt-1">
                     <span
-                        className="text-[0.52rem] font-medium px-1 py-0.5 rounded-full leading-none"
-                        style={{
-                            backgroundColor: 'rgba(255,255,255,0.25)',
-                            color: 'inherit',
-                        }}
+                        className="text-[0.6rem] font-medium px-1.5 py-0.5 rounded-md inline-block bg-white/60 text-slate-700 shadow-sm border border-slate-100 backdrop-blur-sm"
                     >
                         {cfg.label}
-                    </span>
-                    <span className="text-[0.52rem] opacity-70">
-                        {durationMins}min
                     </span>
                 </div>
             )}
@@ -246,33 +235,12 @@ function AppointmentEvent({ event }: { event: CalendarEvent }) {
     );
 }
 
-// ── Status Legend ──────────────────────────────────────────────────────────
-function StatusLegend() {
-    const shown = ['SCHEDULED', 'CONFIRMED', 'CHECKED_IN', 'IN_CONSULTATION', 'COMPLETED', 'CANCELLED'];
-    return (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 py-2.5 px-1 border-b border-t mb-3">
-            {shown.map(key => {
-                const cfg = STATUS_CONFIG[key];
-                return (
-                    <div key={key} className="flex items-center gap-1.5">
-                        <span
-                            className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: cfg.dot }}
-                        />
-                        <span className="text-[0.67rem] text-muted-foreground font-medium">
-                            {cfg.label}
-                        </span>
-                    </div>
-                );
-            })}
-        </div>
-    );
-}
+
 
 // ── Main Component ─────────────────────────────────────────────────────────
 export function ScheduleCalendarView({
     appointments: initialAppointments,
-    surgicalCases = [],
+    calendarEvents = [],
     workingDays = [],
     blocks = [],
     overrides = [],
@@ -317,31 +285,35 @@ export function ScheduleCalendarView({
             })
             .filter(Boolean) as CalendarEvent[];
 
-        const surgicalEvents = surgicalCases
-            .map(sc => {
-                if (!sc.theater_booking) return null;
-                const start = new Date(sc.theater_booking.start_time);
-                const end = new Date(sc.theater_booking.end_time);
+        const surgicalEvents = calendarEvents
+            .map(ce => {
+                if (!ce.start_time || !ce.end_time) return null;
+                const start = new Date(ce.start_time);
+                const end = new Date(ce.end_time);
                 if (isNaN(start.getTime())) return null;
 
+                const sc = ce.surgical_case;
+                const roleFormatted = ce.role?.replace(/_/g, ' ') || 'Surgery';
+                const fileNum = sc?.patient?.file_number ? `(${sc.patient.file_number})` : '';
+
                 return {
-                    id: sc.id,
-                    title: sc.patient
-                        ? `[Surg] ${sc.patient.first_name} ${sc.patient.last_name}`
-                        : `Surgery: ${sc.procedure_name || 'Generic'}`,
+                    id: `ce-${ce.id}`,
+                    title: sc?.patient
+                        ? `[${roleFormatted}] ${sc.patient.first_name || ''} ${sc.patient.last_name || ''} ${fileNum}`.trim()
+                        : `[${roleFormatted}] ${sc?.procedure_name || 'Generic Surgery'}`,
                     start,
                     end,
-                    status: sc.theater_booking.status,
+                    status: ce.status,
                     type: 'Surgery',
-                    version: sc.theater_booking.version || 0,
-                    resource: sc,
-                    resourceType: 'SURGERY',
+                    version: 0,
+                    resource: ce,
+                    resourceType: 'CALENDAR_EVENT',
                 };
             })
             .filter(Boolean) as CalendarEvent[];
 
         return [...appointmentEvents, ...surgicalEvents];
-    }, [initialAppointments, surgicalCases]);
+    }, [initialAppointments, calendarEvents]);
 
     // Pending review count — appointments the doctor needs to confirm
     const pendingCount = useMemo(
@@ -367,22 +339,22 @@ export function ScheduleCalendarView({
         }
     }, []);
 
-    // Event style — light pastel bg with strong left-border accent
+    // Event style — glassmorphic, modern feeling
     const eventStyleGetter = useCallback((event: CalendarEvent) => {
         const cfg = STATUS_CONFIG[event.status] ?? STATUS_CONFIG.SCHEDULED;
+        const isSurgery = event.type === 'Surgery';
+        const bg = isSurgery ? '#eff6ff' : cfg.bg; // Keep surgery distinct blue
+
         return {
             style: {
-                backgroundColor: cfg.bg,
-                color: '#1a1a1a',
-                borderLeft: `3px solid ${cfg.border}`,
-                borderTop: 'none',
-                borderRight: 'none',
-                borderBottom: 'none',
-                borderRadius: '4px',
-                padding: '1px 4px',
-                opacity: event.isOptimistic ? 0.5 : 1,
-                boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
-                fontSize: '0.7rem',
+                backgroundColor: bg,
+                color: '#0f172a',
+                border: '1px solid rgba(0,0,0,0.08)',
+                borderLeft: `3px solid ${isSurgery ? '#3b82f6' : cfg.border}`,
+                borderRadius: '6px',
+                padding: '1px',
+                opacity: event.isOptimistic ? 0.6 : 1,
+                boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
                 overflow: 'hidden',
                 minHeight: '28px',
             },
@@ -478,8 +450,6 @@ export function ScheduleCalendarView({
                         onView={setView}
                         eventCount={events.length}
                     />
-
-                    <StatusLegend />
 
                     <div ref={calendarRef} className="min-h-[500px]">
                         <DnDCalendar

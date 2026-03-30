@@ -134,9 +134,9 @@ export class CompleteConsultationUseCase {
       const consultation = await this.consultationRepository.findByAppointmentId(dto.appointmentId);
       if (consultation && !consultation.isCompleted()) {
         try {
-          const notes = ConsultationNotes.createRaw(dto.outcome);
+          const notes = ConsultationNotes.createRaw(dto.outcome || 'Documentation complete.');
           const completedConsultation = consultation.complete({
-            outcomeType: dto.outcomeType as ConsultationOutcomeType,
+            outcomeType: dto.outcomeType as ConsultationOutcomeType | undefined,
             notes,
             patientDecision: dto.patientDecision as PatientDecision | undefined,
             completedAt,

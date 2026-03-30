@@ -24,8 +24,6 @@ import {
   ExternalLink,
   Loader2,
 } from 'lucide-react';
-import { ConsultationOutcomeType } from '@/domain/enums/ConsultationOutcomeType';
-import { PatientDecision } from '@/domain/enums/PatientDecision';
 import { useAppointmentBilling } from '@/hooks/doctor/useBilling';
 import { useConsultationContext } from '@/contexts/ConsultationContext';
 import type { ConsultationResponseDto } from '@/application/dtos/ConsultationResponseDto';
@@ -33,7 +31,6 @@ import type { AppointmentResponseDto } from '@/application/dtos/AppointmentRespo
 import type { CompleteConsultationDto } from '@/application/dtos/CompleteConsultationDto';
 
 // Sub-components
-import { OutcomeSelector } from './complete/OutcomeSelector';
 import { DocumentationChecklist } from './complete/DocumentationChecklist';
 import { SummaryEditor } from './complete/SummaryEditor';
 import { BillingSummary } from './complete/BillingSummary';
@@ -88,8 +85,7 @@ export function CompleteConsultationDialog({
   appointment,
   doctorId,
 }: CompleteConsultationDialogProps) {
-  const { state, setOutcome, setPatientDecision } = useConsultationContext();
-  const [localOutcome, setLocalOutcome] = useState<ConsultationOutcomeType | ''>(state.outcomeType || '');
+  const { state, setPatientDecision } = useConsultationContext();
 
   // Summary logic
   const autoSummary = useMemo(() => generateSummary(state.notes), [state.notes]);
@@ -98,7 +94,6 @@ export function CompleteConsultationDialog({
   const effectiveSummary = summaryEdited ? summary : autoSummary;
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [actionChoice, setActionChoice] = useState<'complete' | 'plan' | null>(null);
 
   // Billing data (read-only)
   const { data: existingBilling } = useAppointmentBilling(appointment.id, open);
@@ -108,13 +103,9 @@ export function CompleteConsultationDialog({
   const billingStatus = existingBilling?.payment?.status;
 
   // Validation
-  const isProcedure = localOutcome === ConsultationOutcomeType.PROCEDURE_RECOMMENDED;
-  const isFollowUp = localOutcome === ConsultationOutcomeType.FOLLOW_UP_CONSULTATION_NEEDED;
-  const missingOutcome = !localOutcome;
   const missingSummary = !effectiveSummary.trim();
 
   const validationErrors: string[] = [];
-  if (missingOutcome) validationErrors.push('Please select a consultation outcome');
   if (missingSummary) validationErrors.push('No notes documented — at least one section is required');
 
   const isValid = validationErrors.length === 0;
@@ -124,15 +115,9 @@ export function CompleteConsultationDialog({
   const hasExam = !!state.notes.examination && stripHtml(state.notes.examination).length > 0;
   const hasPlan = !!state.notes.plan && stripHtml(state.notes.plan).length > 0;
 
-  const handleSubmit = async (choice: 'complete' | 'plan') => {
-    if (!isValid || !localOutcome) return;
+  const handleSubmit = async () => {
+    if (!isValid) return;
 
-    setOutcome(localOutcome);
-    if (localOutcome === ConsultationOutcomeType.PROCEDURE_RECOMMENDED) {
-      setPatientDecision(PatientDecision.YES);
-    }
-
-    setActionChoice(choice);
     setIsSubmitting(true);
 
     try {
@@ -140,34 +125,14 @@ export function CompleteConsultationDialog({
         appointmentId: appointment.id,
         doctorId,
         outcome: effectiveSummary.trim(),
-        outcomeType: localOutcome,
-        patientDecision: localOutcome === ConsultationOutcomeType.PROCEDURE_RECOMMENDED ? PatientDecision.YES : undefined,
+        // OutcomeType is now optional
       };
 
       const response = await doctorApi.completeConsultation(dto);
 
       if (response.success) {
-        if (isProcedure) {
-          toast.success('Consultation completed. Patient added to surgery waiting list.');
-          if (choice === 'plan') {
-            onSuccess(`/doctor/operative/plan/${appointment.id}/new`);
-          } else {
-            onSuccess();
-          }
-        } else if (isFollowUp) {
-          toast.success('Consultation completed. Redirecting to schedule follow-up…');
-          const params = new URLSearchParams({
-            patientId: appointment.patientId,
-            type: 'Follow-up',
-            source: 'DOCTOR_FOLLOW_UP',
-            parentAppointmentId: String(appointment.id),
-            parentConsultationId: String(consultation.id),
-          });
-          onSuccess(`/doctor/appointments/new?${params.toString()}`);
-        } else {
-          toast.success('Consultation completed successfully');
-          onSuccess();
-        }
+        toast.success('Consultation documentation finalized');
+        onSuccess(); // Context handles redirect to /doctor/consultations
       } else {
         toast.error(response.error || 'Failed to complete consultation');
       }
@@ -176,20 +141,19 @@ export function CompleteConsultationDialog({
       console.error('Error completing consultation:', error);
     } finally {
       setIsSubmitting(false);
-      setActionChoice(null);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[580px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-            Review & Complete
+            Finalize Documentation
           </DialogTitle>
           <DialogDescription>
-            Review your documentation before finalizing. This action cannot be undone.
+            Confirm your notes are complete. You can select follow-up actions in the Consultations Hub.
           </DialogDescription>
         </DialogHeader>
 
@@ -207,13 +171,6 @@ export function CompleteConsultationDialog({
               </ul>
             </div>
           )}
-
-          <OutcomeSelector 
-            value={localOutcome} 
-            onValueChange={setLocalOutcome} 
-            isProcedure={isProcedure} 
-            isFollowUp={isFollowUp} 
-          />
 
           <DocumentationChecklist 
             hasChief={hasChief} 
@@ -240,62 +197,30 @@ export function CompleteConsultationDialog({
             status={billingStatus}
           />
 
-          <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-            <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-            <p className="text-xs text-amber-800">
-              <strong>Medico-legal notice:</strong> Once completed, this consultation record is
-              locked and cannot be edited. Ensure all information is accurate.
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              <strong>Notice:</strong> Once finalized, this clinical record will be locked. 
+              Surgical planning, follow-up scheduling, and billing finalization are available in the hub.
             </p>
           </div>
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-2">
+        <DialogFooter className="gap-2">
           <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
-            Cancel
+            Continue Editing
           </Button>
-
-          {isProcedure ? (
-            <>
-              <Button
-                onClick={() => handleSubmit('complete')}
-                disabled={!isValid || isSubmitting}
-                variant="outline"
-                className="gap-1.5"
-              >
-                {isSubmitting && actionChoice === 'complete' ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <CheckCircle2 className="h-4 w-4" />
-                )}
-                Finish & Exit
-              </Button>
-              <Button
-                onClick={() => handleSubmit('plan')}
-                disabled={!isValid || isSubmitting}
-                className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5"
-              >
-                {isSubmitting && actionChoice === 'plan' ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <ExternalLink className="h-4 w-4" />
-                )}
-                Complete & Plan Surgery
-              </Button>
-            </>
-          ) : (
-            <Button
-              onClick={() => handleSubmit('complete')}
-              disabled={!isValid || isSubmitting}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 min-w-[140px]"
-            >
-              {isSubmitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <CheckCircle2 className="h-4 w-4" />
-              )}
-              {isFollowUp ? 'Complete & Schedule' : 'Complete Consultation'}
-            </Button>
-          )}
+          <Button
+            onClick={handleSubmit}
+            disabled={!isValid || isSubmitting}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 min-w-[140px]"
+          >
+            {isSubmitting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4" />
+            )}
+            Finish & Exit
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

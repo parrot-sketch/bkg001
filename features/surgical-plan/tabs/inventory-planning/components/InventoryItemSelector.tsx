@@ -29,6 +29,13 @@ const CATEGORY_OPTIONS = [
   { value: 'ALL', label: 'All Categories' },
   { value: InventoryCategory.IMPLANT, label: 'Implants' },
   { value: InventoryCategory.INSTRUMENT, label: 'Instruments' },
+  { value: InventoryCategory.SUTURE, label: 'Sutures' },
+  { value: InventoryCategory.DISPOSABLE, label: 'Disposables' },
+  { value: InventoryCategory.DRESSING, label: 'Dressings' },
+  { value: InventoryCategory.ANESTHETIC, label: 'Anesthetics' },
+  { value: InventoryCategory.MEDICATION, label: 'Medications' },
+  { value: InventoryCategory.SPECIMEN_CONTAINER, label: 'Specimen Containers' },
+  { value: InventoryCategory.OTHER, label: 'Other/Supplies' },
 ];
 
 export function InventoryItemSelector({
@@ -66,13 +73,14 @@ export function InventoryItemSelector({
           </SelectContent>
         </Select>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           onClick={onLoadItems}
           disabled={isLoading}
-          className="h-9"
+          className="h-9 px-2 text-muted-foreground hover:text-primary"
+          title="Refresh inventory list"
         >
-          Load Items
+          <Search className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
         </Button>
       </div>
 

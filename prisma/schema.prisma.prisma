@@ -1,0 +1,57 @@
+model DoctorPatientAssignment {
+  id                       String                        @id @default(uuid())
+  doctor_id                String
+  patient_id               String
+  status                   DoctorPatientAssignmentStatus @default(ACTIVE)
+  assigned_at              DateTime                      @default(now())
+  discharged_at            DateTime?
+  transferred_at           DateTime?
+  transferred_to_doctor_id String?
+  transfer_reason          String?
+  care_notes               String?
+  discharge_summary        String?
+  created_at               DateTime                      @default(now())
+  updated_at               DateTime                      @updatedAt
+  doctor                   Doctor                        @relation("DoctorAssignments", fields: [doctor_id], references: [id], onDelete: Cascade)
+  patient                  Patient                       @relation("PatientAssignments", fields: [patient_id], references: [id], onDelete: Cascade)
+  transferred_to           Doctor?                       @relation("TransferredAssignments", fields: [transferred_to_doctor_id], references: [id])
+
+  @@unique([doctor_id, patient_id])
+  @@index([doctor_id])
+  @@index([patient_id])
+  @@index([status])
+  @@index([assigned_at])
+  @@index([doctor_id, status])
+  @@index([patient_id, status])
+  @@index([transferred_to_doctor_id])
+}
+
+model CalendarEvent {
+  id                String   @id @default(uuid())
+  doctorId          String
+  surgicalCaseId    String?
+  title             String
+  startTime         DateTime
+  endTime           DateTime
+  location          String?
+  status            String   @default("SCHEDULED")
+  eventType         String   @default("APPOINTMENT")
+  role              String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  doctor            Doctor        @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  surgicalCase      SurgicalCase? @relation(fields: [surgicalCaseId], references: [id], onDelete: SetNull)
+
+  @@unique([doctorId, surgicalCaseId])
+  @@index([doctorId])
+  @@index([surgicalCaseId])
+  @@index([startTime])
+  @@index([endTime])
+  @@index([status])
+}
+
+enum ConsentDocumentType {
+  SIGNED_PDF
+  GENERATED_PDF
+}

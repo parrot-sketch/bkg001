@@ -87,8 +87,31 @@ export async function getDoctorSchedule(userId: string, start: Date, end: Date) 
     const doctorId = doctor ? doctor.id : userId;
 
     try {
-        const rawData = await scheduleService.getDoctorSchedule(doctorId, start, end);
-        
+        const [rawData, calendarEvents] = await Promise.all([
+            scheduleService.getDoctorSchedule(doctorId, start, end),
+            db.calendarEvent.findMany({
+                where: {
+                    doctor_id: doctorId,
+                    status: { not: 'CANCELLED' },
+                    OR: [
+                        { start_time: { gte: start, lte: end } },
+                        { start_time: null }, // Tentative / unscheduled — always show
+                    ],
+                },
+                include: {
+                    surgical_case: {
+                        select: {
+                            id: true,
+                            procedure_name: true,
+                            status: true,
+                            patient: { select: { first_name: true, last_name: true, file_number: true } },
+                        },
+                    },
+                },
+                orderBy: { start_time: 'asc' },
+            }),
+        ]);
+
         // Map to DTOs for UI compatibility if needed
         const workingDays: WorkingDay[] = rawData.workingDays.map((slot: any) => ({
             dayOfWeek: slot.day_of_week as WorkingDay['dayOfWeek'],
@@ -107,6 +130,7 @@ export async function getDoctorSchedule(userId: string, start: Date, end: Date) 
             blocks: rawData.blocks,
             appointments: rawData.appointments,
             surgicalCases: rawData.surgicalCases,
+            calendarEvents,
             slotConfig: slotConfigDto,
         };
     } catch (error) {

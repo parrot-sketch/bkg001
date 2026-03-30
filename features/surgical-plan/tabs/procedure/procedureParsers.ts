@@ -15,6 +15,10 @@ import { ValidationError } from '@/application/errors/ValidationError';
 export const UpdateProcedureRequestSchema = z.object({
   procedureName: z.string().min(1, 'Procedure name is required').optional(),
   procedurePlan: z.string().optional(),
+  equipmentNotes: z.string().optional(),
+  patientPositioning: z.string().optional(),
+  surgeonNarrative: z.string().optional(),
+  postOpInstructions: z.string().optional(),
 }).strict();
 
 export type UpdateProcedureRequest = z.infer<typeof UpdateProcedureRequestSchema>;

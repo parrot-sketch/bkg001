@@ -1,8 +1,8 @@
 /**
  * Overview Tab Container
  * 
- * Placeholder overview tab to validate registry wiring.
- * Displays basic case metadata.
+ * Container component for overview tab.
+ * Loads data and passes to view component.
  */
 
 'use client';
@@ -14,9 +14,10 @@ import { OverviewTabView } from './OverviewTab.view';
 
 interface OverviewTabContainerProps {
   caseId: string;
+  readOnly?: boolean;
 }
 
-export function OverviewTabContainer({ caseId }: OverviewTabContainerProps) {
+export function OverviewTabContainer({ caseId, readOnly = false }: OverviewTabContainerProps) {
   const { isLoading, error, data, refetch } = useSurgicalCasePlanPage(caseId);
 
   if (isLoading) {
@@ -27,5 +28,5 @@ export function OverviewTabContainer({ caseId }: OverviewTabContainerProps) {
     return <ErrorState error={error || 'Case not found'} onRetry={refetch} />;
   }
 
-  return <OverviewTabView data={data} />;
+  return <OverviewTabView data={data} readOnly={readOnly} />;
 }

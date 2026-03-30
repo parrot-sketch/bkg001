@@ -1,3 +1,5 @@
+'use client';
+
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +9,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { useStartConsultation } from '@/hooks/doctor/useConsultation';
 import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
 interface WaitingQueueProps {
@@ -16,6 +19,7 @@ interface WaitingQueueProps {
 
 export function WaitingQueue({ appointments, onStartConsultation: externalStartHandler }: WaitingQueueProps) {
     const { mutate: startConsultation, isPending } = useStartConsultation();
+    const router = useRouter();
 
     // Sort by arrival time (checkedInAt) - oldest first
     const sortedAppointments = [...appointments].sort((a, b) => {
@@ -30,7 +34,11 @@ export function WaitingQueue({ appointments, onStartConsultation: externalStartH
         if (externalStartHandler) {
             externalStartHandler(apt);
         } else {
-            startConsultation(apt.id);
+            startConsultation(apt.id, {
+                onSuccess: () => {
+                    router.push(`/doctor/consultations/session/${apt.id}`);
+                }
+            });
         }
     };
 

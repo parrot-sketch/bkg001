@@ -17,6 +17,10 @@ import { buildUpdateProcedurePayload } from './procedureMappers';
 interface ProcedureViewModel {
   procedureName: string;
   procedurePlan: string;
+  equipmentNotes: string;
+  patientPositioning: string;
+  surgeonNarrative: string;
+  postOpInstructions: string;
 }
 
 interface UseProcedureTabResult {
@@ -35,8 +39,16 @@ interface UseProcedureTabResult {
   // Editing state
   localProcedureName: string;
   localProcedurePlan: string;
+  localEquipmentNotes: string;
+  localPatientPositioning: string;
+  localSurgeonNarrative: string;
+  localPostOpInstructions: string;
   setProcedureName: (value: string) => void;
   setProcedurePlan: (value: string) => void;
+  setEquipmentNotes: (value: string) => void;
+  setPatientPositioning: (value: string) => void;
+  setSurgeonNarrative: (value: string) => void;
+  setPostOpInstructions: (value: string) => void;
   
   // Actions
   canSave: boolean;
@@ -56,6 +68,10 @@ export function useProcedureTab(caseId: string): UseProcedureTabResult {
   // Local editable state
   const [localProcedureName, setLocalProcedureName] = useState('');
   const [localProcedurePlan, setLocalProcedurePlan] = useState('');
+  const [localEquipmentNotes, setLocalEquipmentNotes] = useState('');
+  const [localPatientPositioning, setLocalPatientPositioning] = useState('');
+  const [localSurgeonNarrative, setLocalSurgeonNarrative] = useState('');
+  const [localPostOpInstructions, setLocalPostOpInstructions] = useState('');
   
   // Track if we've initialized to prevent resetting state on every data refetch
   const hasInitialized = useRef(false);
@@ -64,28 +80,49 @@ export function useProcedureTab(caseId: string): UseProcedureTabResult {
   useEffect(() => {
     if (data && !hasInitialized.current) {
       setLocalProcedureName(data.case?.procedureName || '');
-      setLocalProcedurePlan(data.casePlan?.procedurePlan || '');
+      const cp: any = data.casePlan || {};
+      setLocalProcedurePlan(cp.procedurePlan || '');
+      setLocalEquipmentNotes(cp.equipmentNotes || '');
+      setLocalPatientPositioning(cp.patientPositioning || '');
+      setLocalSurgeonNarrative(cp.surgeonNarrative || '');
+      setLocalPostOpInstructions(cp.postOpInstructions || '');
       hasInitialized.current = true;
     }
-  }, [data?.case?.procedureName, data?.casePlan?.procedurePlan]);
+  }, [data]);
   
   // Build view model
   const viewModel: ProcedureViewModel | null = data
     ? {
         procedureName: localProcedureName,
         procedurePlan: localProcedurePlan,
+        equipmentNotes: localEquipmentNotes,
+        patientPositioning: localPatientPositioning,
+        surgeonNarrative: localSurgeonNarrative,
+        postOpInstructions: localPostOpInstructions,
       }
     : null;
   
   // Check if dirty
+  const cp: any = data?.casePlan || {};
   const isDirty =
     localProcedureName !== (data?.case?.procedureName || '') ||
-    localProcedurePlan !== (data?.casePlan?.procedurePlan || '');
+    localProcedurePlan !== (cp.procedurePlan || '') ||
+    localEquipmentNotes !== (cp.equipmentNotes || '') ||
+    localPatientPositioning !== (cp.patientPositioning || '') ||
+    localSurgeonNarrative !== (cp.surgeonNarrative || '') ||
+    localPostOpInstructions !== (cp.postOpInstructions || '');
   
   // Save mutation
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const payload = buildUpdateProcedurePayload(localProcedureName, localProcedurePlan);
+      const payload = buildUpdateProcedurePayload(
+        localProcedureName, 
+        localProcedurePlan,
+        localEquipmentNotes,
+        localPatientPositioning,
+        localSurgeonNarrative,
+        localPostOpInstructions
+      );
       const validated = parseUpdateProcedureRequest(payload);
       const response = await surgicalPlanApi.patchProcedurePlan(caseId, validated);
       
@@ -112,16 +149,23 @@ export function useProcedureTab(caseId: string): UseProcedureTabResult {
   const onReset = useCallback(() => {
     if (data) {
       setLocalProcedureName(data.case?.procedureName || '');
-      setLocalProcedurePlan(data.casePlan?.procedurePlan || '');
+      const cp: any = data.casePlan || {};
+      setLocalProcedurePlan(cp.procedurePlan || '');
+      setLocalEquipmentNotes(cp.equipmentNotes || '');
+      setLocalPatientPositioning(cp.patientPositioning || '');
+      setLocalSurgeonNarrative(cp.surgeonNarrative || '');
+      setLocalPostOpInstructions(cp.postOpInstructions || '');
     }
   }, [data]);
 
-  // Map all services for the dropdown - include all categories
-  const procedureServices = services.map(s => ({
-    id: String(s.id),
-    name: s.service_name,
-    category: s.category || ''
-  }));
+  // Map only services with 'Procedure' category for the dropdown
+  const procedureServices = services
+    .filter(s => s.category === 'Procedure')
+    .map(s => ({
+      id: String(s.id),
+      name: s.service_name,
+      category: s.category || ''
+    }));
   
   return {
     viewModel,
@@ -132,8 +176,16 @@ export function useProcedureTab(caseId: string): UseProcedureTabResult {
     error: error as Error | null,
     localProcedureName,
     localProcedurePlan,
+    localEquipmentNotes,
+    localPatientPositioning,
+    localSurgeonNarrative,
+    localPostOpInstructions,
     setProcedureName: setLocalProcedureName,
     setProcedurePlan: setLocalProcedurePlan,
+    setEquipmentNotes: setLocalEquipmentNotes,
+    setPatientPositioning: setLocalPatientPositioning,
+    setSurgeonNarrative: setLocalSurgeonNarrative,
+    setPostOpInstructions: setLocalPostOpInstructions,
     canSave: isDirty && !saveMutation.isPending && canEdit,
     canEdit: !!canEdit,
     onSave,

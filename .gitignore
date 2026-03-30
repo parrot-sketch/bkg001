@@ -49,3 +49,13 @@ next-env.d.ts
 
 # local file storage
 /storage/
+
+# Clinical Audit & Data Artifacts
+*.xlsx
+*.csv
+*.pdf
+*.jpeg
+*.jpg
+*_TRACE.md
+*_SUMMARY.md
+/brain/

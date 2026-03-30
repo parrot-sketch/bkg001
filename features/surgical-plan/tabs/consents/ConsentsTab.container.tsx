@@ -51,9 +51,11 @@ import {
     CheckCircle,
     Loader2,
     X,
+    Receipt,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { BillingEstimateTabContainer } from '../billing-estimate/BillingEstimateTab.container';
 import { ConsentType, ConsentStatus } from '@prisma/client';
 
 // ─── Config ───────────────────────────────────────────────────
@@ -322,6 +324,18 @@ export function ConsentsTabContainer({ caseId, readOnly = false }: ConsentsTabCo
                 onSubmit={handleUpdate}
                 loading={uploadLoading}
             />
+
+            {/* Billing Estimate (Consolidated) */}
+            <div className="pt-10 border-t mt-10">
+                <div className="flex items-center gap-2 mb-6">
+                    <Receipt className="h-5 w-5 text-stone-900" />
+                    <div>
+                        <h3 className="text-sm font-semibold text-stone-900">Billing Estimate</h3>
+                        <p className="text-xs text-stone-400 mt-0.5">Estimated surgeon, anesthesia, and theater fees</p>
+                    </div>
+                </div>
+                <BillingEstimateTabContainer caseId={caseId} readOnly={readOnly} />
+            </div>
         </div>
     );
 }

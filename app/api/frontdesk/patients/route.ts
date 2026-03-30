@@ -79,31 +79,61 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                     img: true,
                     colorCode: true,
                     created_at: true,
+                    // Last visit
                     appointments: {
                         where: { status: 'COMPLETED' },
                         orderBy: { appointment_date: 'desc' },
                         take: 1,
                         select: { appointment_date: true },
                     },
+                    // Aggregated counts
+                    _count: {
+                        select: { 
+                            appointments: true,
+                        },
+                    },
+                    // Current queue status
+                    patient_queue: {
+                        where: { 
+                            status: { in: ['WAITING', 'IN_CONSULTATION'] },
+                        },
+                        take: 1,
+                        select: { status: true },
+                        orderBy: { added_at: 'desc' },
+                    },
+                    // Outstanding payments
+                    payments: {
+                        where: { status: 'UNPAID' },
+                        select: { total_amount: true },
+                    },
                 },
             }),
         ]);
 
-        // 6. Map to DTOs - optimized for list view only
-        const patientDtos = prismaPatients.map((p) => ({
-            id: p.id,
-            fileNumber: p.file_number,
-            firstName: p.first_name,
-            lastName: p.last_name,
-            dateOfBirth: p.date_of_birth,
-            gender: p.gender,
-            email: p.email,
-            phone: p.phone,
-            profileImage: p.img,
-            colorCode: p.colorCode,
-            createdAt: p.created_at,
-            lastVisit: p.appointments[0]?.appointment_date || null,
-        }));
+        // 6. Map to DTOs - enhanced with aggregated data
+        const patientDtos = prismaPatients.map((p: any) => {
+            // Calculate outstanding balance
+            const outstandingBalance = p.payments?.reduce((sum: number, payment: any) => sum + payment.total_amount, 0) || 0;
+            
+            return {
+                id: p.id,
+                fileNumber: p.file_number,
+                firstName: p.first_name,
+                lastName: p.last_name,
+                dateOfBirth: p.date_of_birth,
+                gender: p.gender,
+                email: p.email,
+                phone: p.phone,
+                profileImage: p.img,
+                colorCode: p.colorCode,
+                createdAt: p.created_at,
+                lastVisit: p.appointments?.[0]?.appointment_date || null,
+                // Enhanced data for UX improvements
+                totalAppointments: p._count?.appointments || 0,
+                currentQueueStatus: p.patient_queue?.[0]?.status || null,
+                outstandingBalance,
+            };
+        });
 
         const totalPages = Math.ceil(totalRecords / limit);
 

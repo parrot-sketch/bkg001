@@ -235,7 +235,7 @@ export class Consultation {
    * - Duration must be calculated
    */
   complete(params: {
-    outcomeType: ConsultationOutcomeType;
+    outcomeType?: ConsultationOutcomeType;
     notes: ConsultationNotes;
     patientDecision?: PatientDecision;
     followUpDate?: Date;
@@ -259,19 +259,8 @@ export class Consultation {
       });
     }
 
-    // Validate patient decision if procedure recommended
-    if (
-      params.outcomeType === ConsultationOutcomeType.PROCEDURE_RECOMMENDED &&
-      !params.patientDecision
-    ) {
-      throw new DomainException(
-        'Patient decision is required when outcome is PROCEDURE_RECOMMENDED',
-        {
-          outcomeType: params.outcomeType,
-          consultationId: this.id,
-        }
-      );
-    }
+    // Note: Patient decision is optional - doctor can complete consultation
+    // and decide whether to create surgical case later via "Complete & Plan Surgery" button
 
     const completedAt = params.completedAt ?? new Date();
     const duration = ConsultationDuration.calculate(this.startedAt, completedAt);

@@ -108,6 +108,17 @@ const SHARED_KEYS = {
   doctors: () => ['shared', 'doctors'] as const,
 } as const;
 
+const SURGICAL_PLAN_KEYS = {
+  all: ['surgical-case-plan'] as const,
+  plan: (caseId: string) => ['surgical-case-plan', caseId] as const,
+  timeline: (caseId: string) => ['surgical-case-timeline', caseId] as const,
+} as const;
+
+const CALENDAR_KEYS = {
+  all: ['calendar'] as const,
+  events: (doctorId: string) => ['calendar', doctorId, 'events'] as const,
+} as const;
+
 export const queryKeys = {
   appointments: APPOINTMENT_KEYS,
   consultations: CONSULTATION_KEYS,
@@ -118,6 +129,8 @@ export const queryKeys = {
   nurse: NURSE_KEYS,
   frontdesk: FRONTDESK_KEYS,
   shared: SHARED_KEYS,
+  surgicalPlan: SURGICAL_PLAN_KEYS,
+  calendar: CALENDAR_KEYS,
 } as const;
 
 export type QueryKeyFactory = typeof queryKeys;

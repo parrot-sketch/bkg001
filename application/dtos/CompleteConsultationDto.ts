@@ -24,10 +24,12 @@ export interface CompleteConsultationDto {
   readonly outcome: string;
 
   /**
-   * Type of consultation outcome (required)
-   * Determines which workflow path to follow
+   * Type of consultation outcome (optional)
+   * Determines which workflow path to follow. If omitted,
+   * the consultation is marked as documentation complete,
+   * and the outcome can be decided in the Consultations Hub.
    */
-  readonly outcomeType: ConsultationOutcomeType;
+  readonly outcomeType?: ConsultationOutcomeType;
 
   /**
    * Patient decision (required if outcomeType is PROCEDURE_RECOMMENDED)

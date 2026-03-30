@@ -163,6 +163,10 @@ function mapCasePlanResponse(sc: any) {
                 id: cp.id,
                 appointmentId: cp.appointment_id,
                 procedurePlan: cp.procedure_plan,
+                equipmentNotes: cp.equipment_notes,
+                patientPositioning: cp.patient_positioning,
+                surgeonNarrative: cp.surgeon_narrative,
+                postOpInstructions: cp.post_op_instructions,
                 riskFactors: cp.risk_factors,
                 preOpNotes: cp.pre_op_notes,
                 implantDetails: cp.implant_details,
@@ -216,6 +220,28 @@ function mapCasePlanResponse(sc: any) {
                         })),
                     }
                     : null,
+            }
+            : null,
+
+        // Billing Estimate
+        billingEstimate: sc.billing_estimate
+            ? {
+                id: sc.billing_estimate.id,
+                surgeonFee: Number(sc.billing_estimate.surgeon_fee),
+                anaesthesiologistFee: Number(sc.billing_estimate.anaesthesiologist_fee),
+                theatreFee: Number(sc.billing_estimate.theatre_fee),
+                subtotal: Number(sc.billing_estimate.subtotal),
+                status: sc.billing_estimate.status,
+                lineItems: (sc.billing_estimate.line_items ?? []).map((li: any) => ({
+                    id: li.id,
+                    description: li.description,
+                    category: li.category,
+                    quantity: Number(li.quantity),
+                    unitPrice: Number(li.unit_price),
+                    totalPrice: Number(li.total_price),
+                    addedByRole: li.added_by_role,
+                    notes: li.notes,
+                })),
             }
             : null,
 
@@ -337,6 +363,13 @@ export async function GET(
                         }
                     }
                 },
+                billing_estimate: {
+                    include: {
+                        line_items: {
+                            orderBy: { created_at: 'asc' }
+                        }
+                    }
+                },
             },
         });
 
@@ -428,6 +461,10 @@ export async function PATCH(
         // Build update payload — only include fields that were sent
         const updateData: Record<string, any> = {};
         if (body.procedurePlan !== undefined) updateData.procedure_plan = body.procedurePlan;
+        if (body.equipmentNotes !== undefined) updateData.equipment_notes = body.equipmentNotes;
+        if (body.patientPositioning !== undefined) updateData.patient_positioning = body.patientPositioning;
+        if (body.surgeonNarrative !== undefined) updateData.surgeon_narrative = body.surgeonNarrative;
+        if (body.postOpInstructions !== undefined) updateData.post_op_instructions = body.postOpInstructions;
         if (body.riskFactors !== undefined) updateData.risk_factors = body.riskFactors;
         if (body.preOpNotes !== undefined) updateData.pre_op_notes = body.preOpNotes;
         if (body.implantDetails !== undefined) updateData.implant_details = body.implantDetails;
@@ -546,6 +583,13 @@ export async function PATCH(
                             },
                         },
                     },
+                },
+                billing_estimate: {
+                    include: {
+                        line_items: {
+                            orderBy: { created_at: 'asc' }
+                        }
+                    }
                 },
             },
         });

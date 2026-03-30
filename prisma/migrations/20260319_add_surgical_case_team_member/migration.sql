@@ -308,11 +308,19 @@ EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
 
--- CreateEnum
-CREATE TYPE "DoctorPatientAssignmentStatus" AS ENUM ('ACTIVE', 'DISCHARGED', 'TRANSFERRED', 'INACTIVE');
+-- CreateEnum (idempotent - duplicate guard)
+DO $$ BEGIN
+    CREATE TYPE "DoctorPatientAssignmentStatus" AS ENUM ('ACTIVE', 'DISCHARGED', 'TRANSFERRED', 'INACTIVE');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
--- CreateEnum
-CREATE TYPE "StockMovementType" AS ENUM ('STOCK_IN', 'STOCK_OUT', 'ADJUSTMENT', 'OPENING_BALANCE');
+-- CreateEnum (idempotent - duplicate guard)
+DO $$ BEGIN
+    CREATE TYPE "StockMovementType" AS ENUM ('STOCK_IN', 'STOCK_OUT', 'ADJUSTMENT', 'OPENING_BALANCE');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- CreateTable
 CREATE TABLE "User" (

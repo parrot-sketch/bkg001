@@ -179,9 +179,37 @@ export function useInventoryPlanningTab(
   );
   
   // Map to view models
-  const { plannedItems, costEstimate } = plannedItemsData
+  const { plannedItems: savedPlannedItems, costEstimate } = plannedItemsData
     ? mapPlannedItemsDtoToVm(plannedItemsData, varianceData ?? null, inventoryItemsMap)
     : { plannedItems: [], costEstimate: null };
+    
+  // Merge "draft" (newly added) items from editing state into the view
+  const draftItems: PlannedItemViewModel[] = [];
+  for (const [itemId, editing] of editingItems.entries()) {
+    // Only add if not already in saved list
+    if (!savedPlannedItems.some(p => p.inventoryItemId === itemId) && editing.quantity > 0) {
+      const inventoryItem = inventoryItemsData.find(i => i.id === itemId);
+      if (inventoryItem) {
+        draftItems.push({
+          id: -(itemId), // Use negative ID for draft items to avoid conflicts
+          inventoryItemId: itemId,
+          itemName: inventoryItem.name,
+          plannedQuantity: editing.quantity,
+          plannedUnitPrice: inventoryItem.unitCost,
+          plannedTotalCost: editing.quantity * inventoryItem.unitCost,
+          notes: editing.notes,
+          isBillable: inventoryItem.isBillable,
+          usedQuantity: 0,
+          remainingQuantity: editing.quantity,
+          consumptionStatus: 'none',
+          stockAvailable: inventoryItem.quantityOnHand,
+          isLowStock: inventoryItem.isLowStock,
+        });
+      }
+    }
+  }
+
+  const plannedItems = [...savedPlannedItems, ...draftItems];
   
   const variance: UsageVarianceViewModel | null = varianceData
     ? mapUsageVarianceDtoToVm(varianceData, inventoryItemsMap)

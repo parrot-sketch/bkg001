@@ -166,7 +166,7 @@ export function mapInventoryItemsDtoToSelectorVm(
     unitCost: item.unitCost,
     quantityOnHand: item.quantityOnHand,
     reorderPoint: item.reorderPoint,
-    manufacturer: item.manufacturer,
+    manufacturer: item.manufacturer ?? null,
     isActive: item.isActive,
     isBillable: item.isBillable,
     isLowStock: item.quantityOnHand <= item.reorderPoint,
