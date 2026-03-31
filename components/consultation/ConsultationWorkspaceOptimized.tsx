@@ -66,8 +66,8 @@ interface TabConfig {
 }
 
 const TABS: TabConfig[] = [
-    { id: 'concerns', label: 'Patient Concerns', noteField: 'chiefComplaint' },
-    { id: 'examination', label: 'Examination', noteField: 'examination' },
+    { id: 'concerns', label: 'Concerns', noteField: 'chiefComplaint' },
+    { id: 'examination', label: 'Exam', noteField: 'examination' },
     { id: 'plan', label: 'Plan', noteField: 'plan' },
     { id: 'billing', label: 'Billing', noteField: null },
 ];
@@ -158,9 +158,9 @@ export function ConsultationWorkspaceOptimized() {
 
     return (
         <div className="flex flex-col h-full bg-white">
-            {/* Tab Navigation - Simple horizontal tabs */}
-            <div className="border-b bg-white px-4 shrink-0">
-                <div className="flex gap-1">
+            {/* Tab Navigation */}
+            <div className="border-b border-slate-200 bg-white px-3 shrink-0">
+                <div className="flex gap-0">
                     {TABS.map((tab, index) => {
                         const isActive = index === currentTabIndex;
                         const isComplete = tab.noteField ? completedFields.has(tab.noteField) : false;
@@ -170,18 +170,18 @@ export function ConsultationWorkspaceOptimized() {
                                 key={tab.id}
                                 onClick={() => handleTabChange(tab.id)}
                                 className={cn(
-                                    "relative px-4 py-3 text-sm font-medium transition-colors",
+                                    "relative px-3 py-2.5 text-xs font-medium transition-colors",
                                     isActive
                                         ? "text-slate-900"
-                                        : "text-slate-500 hover:text-slate-700"
+                                        : "text-slate-400 hover:text-slate-600"
                                 )}
                             >
-                                <span>{tab.label}</span>
+                                {tab.label}
                                 {isComplete && !isActive && (
-                                    <span className="ml-1 text-emerald-500">✓</span>
+                                    <span className="ml-1 text-emerald-500 text-[10px]">●</span>
                                 )}
                                 {isActive && (
-                                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-900" />
+                                    <div className="absolute bottom-0 left-1 right-1 h-0.5 bg-slate-900 rounded-full" />
                                 )}
                             </button>
                         );
@@ -193,7 +193,7 @@ export function ConsultationWorkspaceOptimized() {
             <div className="flex-1 overflow-y-auto">
                 <Tabs value={activeTab} className="h-full">
                     <TabsContent value="concerns" className="m-0 h-full border-none">
-                        <div className="p-6 max-w-3xl mx-auto">
+                        <div className="p-4 max-w-3xl mx-auto">
                             <PatientGoalsTab
                                 initialValue={state.notes.chiefComplaint || ''}
                                 onChange={handleNoteChange('chiefComplaint')}
@@ -203,7 +203,7 @@ export function ConsultationWorkspaceOptimized() {
                     </TabsContent>
 
                     <TabsContent value="examination" className="m-0 h-full border-none">
-                        <div className="p-6 max-w-3xl mx-auto">
+                        <div className="p-4 max-w-3xl mx-auto">
                             <ExaminationTab
                                 initialValue={state.notes.examination || ''}
                                 onChange={handleNoteChange('examination')}
@@ -213,7 +213,7 @@ export function ConsultationWorkspaceOptimized() {
                     </TabsContent>
 
                     <TabsContent value="plan" className="m-0 h-full border-none">
-                        <div className="p-6 max-w-3xl mx-auto">
+                        <div className="p-4 max-w-3xl mx-auto">
                             <TreatmentPlanTab
                                 consultation={state.consultation}
                                 hasCasePlan={state.consultation?.hasCasePlan || false}
@@ -225,7 +225,7 @@ export function ConsultationWorkspaceOptimized() {
                     </TabsContent>
 
                     <TabsContent value="billing" className="m-0 h-full border-none">
-                        <div className="p-6 max-w-3xl mx-auto">
+                        <div className="p-4 max-w-3xl mx-auto">
                             <BillingTab
                                 appointmentId={state.appointment?.id}
                                 isReadOnly={false}
@@ -236,50 +236,52 @@ export function ConsultationWorkspaceOptimized() {
             </div>
 
             {/* Footer Navigation */}
-            <div className="border-t bg-slate-50 px-6 py-3 flex items-center justify-between">
+            <div className="border-t border-slate-200 bg-white px-4 py-2 flex items-center justify-between">
                 <Button
                     variant="ghost"
+                    size="sm"
                     onClick={handlePrevious}
                     disabled={isFirstTab}
-                    className="gap-2"
+                    className="gap-1 text-xs text-slate-500"
                 >
-                    <ChevronLeft className="h-4 w-4" />
-                    Previous
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                    Prev
                 </Button>
 
-                <div className="flex items-center gap-2">
-                    <span className="text-sm text-slate-500">
-                        {currentTabIndex + 1} of {TABS.length}
-                    </span>
-                </div>
+                <span className="text-[11px] text-slate-400 font-medium">
+                    {currentTabIndex + 1} / {TABS.length}
+                </span>
 
                 {isLastTab ? (
                     <div className="flex items-center gap-2">
                         <Button
                             variant="outline"
+                            size="sm"
                             onClick={handleSave}
                             disabled={!canSave || state.isSaving}
-                            className="gap-2"
+                            className="gap-1 text-xs"
                         >
-                            {state.isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                            Save Draft
+                            {state.isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                            Save
                         </Button>
                         <Button
+                            size="sm"
                             onClick={openCompleteDialog}
                             disabled={!canComplete}
-                            className="gap-2"
+                            className="gap-1 text-xs bg-emerald-600 hover:bg-emerald-700"
                         >
-                            <CheckCircle className="h-4 w-4" />
+                            <CheckCircle className="h-3 w-3" />
                             Complete
                         </Button>
                     </div>
                 ) : (
                     <Button
+                        size="sm"
                         onClick={handleNext}
-                        className="gap-2"
+                        className="gap-1 text-xs"
                     >
                         Next
-                        <ChevronRight className="h-4 w-4" />
+                        <ChevronRight className="h-3.5 w-3.5" />
                     </Button>
                 )}
             </div>

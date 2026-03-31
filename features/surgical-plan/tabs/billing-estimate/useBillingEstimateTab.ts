@@ -9,33 +9,12 @@ import { toast } from 'sonner';
 import { useSurgicalCasePlanPage } from '../../shared/hooks/useSurgicalCasePlanPage';
 import { saveBillingEstimate } from '@/actions/doctor/surgical-plan';
 import { BillingEstimateStatus } from '@prisma/client';
-
-export interface BillingLineItem {
-  id: string;
-  description: string;
-  category: string;
-  quantity: number;
-  unitPrice: number;
-  totalPrice: number;
-  addedByRole: string;
-  notes: string | null;
-}
-
-export interface BillingEstimateViewModel {
-  id: string;
-  surgeonFee: number;
-  anaesthesiologistFee: number;
-  theatreFee: number;
-  subtotal: number;
-  status: BillingEstimateStatus;
-  lineItems: BillingLineItem[];
-}
+import type { BillingEstimateViewModel, BillingLineItem } from '../../core/types';
 
 export function useBillingEstimateTab(caseId: string) {
   const { data, isLoading, error, canEdit } = useSurgicalCasePlanPage(caseId);
   
-  // Need to add this type locally until type generation catches up
-  const billingEstimate = (data as any)?.billingEstimate as BillingEstimateViewModel | undefined;
+  const billingEstimate = data?.billingEstimate ?? null;
 
   const [surgeonFee, setSurgeonFee] = useState<number>(0);
   const [anaesthesiologistFee, setAnaesthesiologistFee] = useState<number>(0);

@@ -348,7 +348,7 @@ function FileDropzone({
     disabled,
 }: {
     file: File | null;
-    onFileSelect: (file: File) => void;
+    onFileSelect: (file: File | null) => void;
     disabled?: boolean;
 }) {
     const inputRef = useRef<HTMLInputElement>(null);
@@ -377,7 +377,7 @@ function FileDropzone({
                 <div className="flex items-center justify-center gap-2">
                     <CheckCircle className="h-4 w-4 text-stone-400" />
                     <span className="text-sm text-stone-700 truncate max-w-[200px]">{file.name}</span>
-                    <button onClick={(e) => { e.stopPropagation(); onFileSelect(null as any); }} className="text-stone-300 hover:text-stone-500">
+                    <button onClick={(e) => { e.stopPropagation(); onFileSelect(null); }} className="text-stone-300 hover:text-stone-500">
                         <X className="h-3.5 w-3.5" />
                     </button>
                 </div>
@@ -402,7 +402,7 @@ function UploadDialog({
     consentType: ConsentType | '';
     onTypeChange: (type: ConsentType | '') => void;
     file: File | null;
-    onFileSelect: (file: File) => void;
+    onFileSelect: (file: File | null) => void;
     onSubmit: () => void;
     loading: boolean;
 }) {
@@ -451,7 +451,7 @@ function UpdateDialog({
     onOpenChange: (open: boolean) => void;
     consentTitle: string;
     file: File | null;
-    onFileSelect: (file: File) => void;
+    onFileSelect: (file: File | null) => void;
     onSubmit: () => void;
     loading: boolean;
 }) {

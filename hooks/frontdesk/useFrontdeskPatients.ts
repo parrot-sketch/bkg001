@@ -1,39 +1,52 @@
-/**
- * useFrontdeskPatients Hook
- * 
- * React Query hook for fetching patients with pagination for Frontdesk.
- * Uses standardized query keys for cache consistency.
- */
-
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
-import { frontdeskApi } from '@/lib/api/frontdesk';
+import { apiClient } from '@/lib/api/client';
 import { queryKeys } from '@/lib/constants/queryKeys';
+import type { PatientRegistryDto, PatientListMeta } from '@/application/dtos/PatientRegistryDto';
 
 interface UseFrontdeskPatientsProps {
-    page: number;
-    limit: number;
-    search?: string;
-    enabled?: boolean;
+  page: number;
+  limit: number;
+  search?: string;
+  enabled?: boolean;
 }
 
 export function useFrontdeskPatients({
-    page,
-    limit,
-    search,
-    enabled = true,
+  page,
+  limit,
+  search,
+  enabled = true,
 }: UseFrontdeskPatientsProps) {
-    return useQuery({
-        queryKey: queryKeys.frontdesk.patients({ page, limit, search }),
-        queryFn: async () => {
-            const response = await frontdeskApi.getPatients({ page, limit, q: search });
-            if (!response.success) {
-                throw new Error(response.error || 'Failed to load patients');
-            }
-            return response;
-        },
-        placeholderData: keepPreviousData,
-        staleTime: 1000 * 60,
-        gcTime: 5 * 60 * 1000,
-        enabled,
-    });
+  return useQuery({
+    queryKey: queryKeys.frontdesk.patients({ page, limit, search }),
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+      });
+      if (search) params.set('q', search);
+
+      const result = await apiClient.get(`/frontdesk/patients?${params.toString()}`);
+
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      // The API returns { success: true, data: [...patients], meta: {...} }
+      // apiClient wraps it as ApiSuccess, so result = { success: true, data: [...patients], meta: {...} }
+      // We need both the patients array AND the meta — return them explicitly.
+      const raw = result as unknown as {
+        data: PatientRegistryDto[];
+        meta: PatientListMeta;
+      };
+
+      return {
+        data: raw.data,
+        meta: raw.meta,
+      };
+    },
+    placeholderData: keepPreviousData,
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    enabled,
+  });
 }

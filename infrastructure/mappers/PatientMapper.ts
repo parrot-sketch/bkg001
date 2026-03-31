@@ -184,10 +184,10 @@ export class PatientMapper {
           return undefined;
         }
       })() : undefined,
-      address: prismaPatient.address ?? undefined,
-      occupation: prismaPatient.occupation ?? undefined,
-      maritalStatus: prismaPatient.marital_status ?? undefined,
-      emergencyContactName: prismaPatient.emergency_contact_name ?? undefined,
+      address: prismaPatient.address?.trim() || undefined,
+      occupation: prismaPatient.occupation?.trim() || undefined,
+      maritalStatus: prismaPatient.marital_status?.trim() || undefined,
+      emergencyContactName: prismaPatient.emergency_contact_name?.trim() || undefined,
       emergencyContactNumber: (() => {
         try {
           return PhoneNumber.create(sanitizedEmergencyPhone);

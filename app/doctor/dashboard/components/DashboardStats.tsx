@@ -1,7 +1,7 @@
 'use client';
 
-import { Users, CheckCircle, Activity, HeartPulse, Loader2 } from 'lucide-react';
-import { useDoctorStats } from '@/hooks/use-doctor-dashboard';
+import { Users, CheckCircle, Activity, HeartPulse, Loader2, AlertTriangle } from 'lucide-react';
+import { useDoctorDashboard, useDoctorStats } from '@/hooks/use-doctor-dashboard';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
@@ -10,8 +10,29 @@ interface DashboardStatsProps {
 }
 
 export function DashboardStats({ isLoading }: DashboardStatsProps) {
+  const { error, refetch } = useDoctorDashboard();
   const stats = useDoctorStats();
   const router = useRouter();
+
+  if (error) {
+    return (
+      <div className="grid grid-cols-1 gap-3">
+        <div className="flex items-center gap-3 p-4 rounded-xl border border-red-100 bg-red-50/50">
+          <AlertTriangle className="h-5 w-5 text-red-400 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-red-700">Failed to load stats</p>
+            <p className="text-xs text-red-400">{error instanceof Error ? error.message : 'An error occurred'}</p>
+          </div>
+          <button
+            onClick={() => refetch()}
+            className="text-xs font-medium text-red-600 hover:text-red-800 underline shrink-0"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const statCards = [
     {

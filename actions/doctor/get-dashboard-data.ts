@@ -1,7 +1,5 @@
 'use server';
 
-import { unstable_cache } from 'next/cache';
-import { revalidateTag } from 'next/cache';
 import db from '@/lib/db';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 
@@ -290,31 +288,19 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
 }
 
 /**
- * Per-doctor cached dashboard data.
- *
- * We wrap `fetchDashboardDataInternal` so the cache key includes the
- * doctor's ID, preventing different doctors from sharing a single cache
- * entry (the previous bug).  The tag `doctor-dashboard-{doctorId}` lets us
- * surgically invalidate just this doctor's cache when their queue changes.
+ * Fetches doctor dashboard data directly from DB on every call.
+ * No server-side caching — React Query handles client-side caching.
+ * Cache invalidation is handled by React Query's invalidateQueries.
  */
 export async function getDoctorDashboardData(): Promise<DoctorDashboardData> {
-  // Resolve the doctor first (outside the cache) so we have their ID.
   const doctor = await getAuthenticatedDoctor();
-  const doctorId = doctor.id;
-
-  // Build a per-doctor cached fetcher on the fly.
-  const cachedFetch = unstable_cache(
-    () => fetchDashboardDataInternal(doctor),
-    [`doctor-dashboard-${doctorId}`],
-    {
-      revalidate: 30,
-      tags: [`doctor-dashboard-${doctorId}`],
-    }
-  );
-
-  return cachedFetch();
+  return fetchDashboardDataInternal(doctor);
 }
 
-export async function revalidateDoctorDashboard(doctorId: string) {
-  revalidateTag(`doctor-dashboard-${doctorId}`, 'max');
+/**
+ * No-op: server-side cache removed. React Query handles invalidation.
+ * Kept for backward compatibility with existing callers.
+ */
+export async function revalidateDoctorDashboard(_doctorId: string): Promise<void> {
+  // Intentionally empty — React Query invalidation happens client-side
 }

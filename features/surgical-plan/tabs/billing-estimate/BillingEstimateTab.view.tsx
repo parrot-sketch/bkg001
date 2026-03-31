@@ -9,7 +9,7 @@ import { SaveBar } from '../../shared/components/SaveBar';
 import { LoadingState } from '../../shared/components/LoadingState';
 import { ErrorState } from '../../shared/components/ErrorState';
 import { Calculator, AlertCircle, ShoppingCart } from 'lucide-react';
-import type { BillingLineItem } from './useBillingEstimateTab';
+import type { BillingLineItem } from '../../core/types';
 
 interface BillingEstimateTabViewProps {
   surgeonFee: number;

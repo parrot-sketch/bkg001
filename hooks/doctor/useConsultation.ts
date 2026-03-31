@@ -17,7 +17,8 @@ export function useStartConsultation() {
 
     return useMutation({
         mutationFn: async (appointmentId: number) => {
-            const response = await apiClient.post<any>(`/appointments/${appointmentId}/start-consultation`, {});
+            // Use the same endpoint as StartConsultationDialog for consistency
+            const response = await apiClient.post(`/consultations/${appointmentId}/start`, {});
 
             if (!response.success) {
                 throw new Error(response.error || 'Failed to start consultation');
@@ -27,7 +28,6 @@ export function useStartConsultation() {
         },
         onSuccess: (_data, variables) => {
             // Invalidate all relevant queries
-            // REFACTORED: Broad invalidation to ensure it catches ['doctor', doctorId, 'appointments', ...]
             queryClient.invalidateQueries({ queryKey: ['doctor'] });
             queryClient.invalidateQueries({ queryKey: ['appointments'] });
             queryClient.invalidateQueries({ queryKey: ['frontdesk', 'schedule'] });
@@ -36,7 +36,7 @@ export function useStartConsultation() {
             // CRITICAL: Invalidate the specific consultation cache so the session page sees the new state
             queryClient.invalidateQueries({ queryKey: ['consultation', variables] });
 
-            toast.success('Consultation started');
+            // No toast — navigation to consultation room is the visual feedback
         },
         onError: (error: Error) => {
             toast.error(error.message || 'Failed to start consultation');

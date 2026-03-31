@@ -33,10 +33,10 @@ import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { debounce } from 'lodash';
-import { format } from 'date-fns';
 
 import { doctorApi } from '@/lib/api/doctor';
 import { consultationApi } from '@/lib/api/consultation';
+import { apiClient } from '@/lib/api/client';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { useDoctorTodayAppointments } from '@/hooks/doctor/useDoctorDashboard';
 import { useConsultation } from '@/hooks/consultation/useConsultation';
@@ -399,9 +399,7 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
 
               if (draftTime > serverTime) {
                 dispatch({ type: 'SET_NOTES', payload: draft.structured });
-                toast.info('Restored unsaved changes from local backup', {
-                  description: `Last saved locally at ${format(draftTime, 'HH:mm:ss')}`
-                });
+                // No toast — auto-save indicator in header shows "Restored" status
               } else {
                 localStorage.removeItem(`consultation-draft-${appointmentId}`);
               }
@@ -685,17 +683,11 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
 
     const sendHeartbeat = async () => {
       try {
-        const response = await fetch(
-          `/api/consultations/${state.consultation!.id}/heartbeat`,
-          { method: 'POST' }
+        await apiClient.post(
+          `/consultations/${state.consultation!.id}/heartbeat`,
+          {}
         );
-
-        if (!response.ok) {
-          console.warn('[Heartbeat] Non-200 response:', response.status);
-          // Not fatal - next heartbeat will try again
-        }
       } catch (error) {
-        console.warn('[Heartbeat] Failed to send:', error);
         // Network errors are expected occasionally - don't interrupt consultation
       }
     };

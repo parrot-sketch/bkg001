@@ -1,72 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { authenticateRequest } from '@/lib/auth/jwt-helper';
-import { PrismaIntakeSubmissionRepository } from '@/infrastructure/repositories/IntakeSubmissionRepository';
-import { IntakeSubmissionMapper } from '@/infrastructure/mappers/IntakeSubmissionMapper';
+import { requireAuth } from '@/lib/auth/require-auth';
+import { container } from '@/lib/container';
+import { IntakeError } from '@/domain/errors/IntakeErrors';
 
-// Module-level singleton — shared across requests
-const submissionRepository = new PrismaIntakeSubmissionRepository(db);
-
-/**
- * GET /api/frontdesk/intake/pending
- *
- * Frontdesk views pending intake submissions
- *
- * Query Parameters:
- * - limit: number (default: 20, max: 100)
- * - offset: number (default: 0)
- * - status: string (optional - PENDING, CONFIRMED, REJECTED)
- *
- * Response:
- * {
- *   intakes: [
- *     {
- *       sessionId: "...",
- *       submittedAt: "2026-01-25T10:30:00Z",
- *       patientData: {
- *         firstName: "John",
- *         lastName: "Doe",
- *         email: "john@example.com",
- *         phone: "254712345678",
- *         dateOfBirth: "1990-01-15T00:00:00Z",
- *         gender: "MALE",
- *         address: "Nairobi, Kenya"
- *       },
- *       completenessScore: 95,
- *       missingFields: []
- *     }
- *   ],
- *   total: 5,
- *   limit: 20,
- *   offset: 0
- * }
- *
- * Errors:
- * - 401: Not authenticated
- * - 403: Not frontdesk role
- * - 500: Server error
- */
 export async function GET(request: NextRequest) {
   try {
-    // Verify authentication — frontdesk staff only
-    const authResult = await authenticateRequest(request);
-    if (!authResult.success) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 },
-      );
-    }
-    // Parse query parameters
+    await requireAuth(request, ['FRONTDESK', 'ADMIN']);
+
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10), 100);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
-    const status = searchParams.get('status') || undefined;
 
-    // Get pending submissions (using provided limit/offset)
-    const submissions = await submissionRepository.findPending(limit, offset);
-    const total = await submissionRepository.countPending();
+    const submissions = await container.submissionRepo.findPending(limit, offset);
+    const total = await container.submissionRepo.countPending();
 
-    // Map to DTOs
     const intakes = submissions.map((submission) => {
       const primitive = submission.toPrimitive();
       return {
@@ -87,18 +34,15 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    return NextResponse.json({
-      intakes,
-      total,
-      limit,
-      offset,
-    });
+    return NextResponse.json({ intakes, total, limit, offset });
   } catch (error) {
+    if (error instanceof IntakeError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: error.statusCode },
+      );
+    }
     console.error('[GetPendingIntakes]', error);
-
-    return NextResponse.json(
-      { error: 'Failed to fetch pending intakes' },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

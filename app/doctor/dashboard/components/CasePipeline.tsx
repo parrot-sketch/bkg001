@@ -10,11 +10,12 @@ import {
   Loader2,
   Clock,
   FileText,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useDoctorCases } from '@/hooks/use-doctor-dashboard';
+import { useDoctorDashboard, useDoctorCases } from '@/hooks/use-doctor-dashboard';
 import { useRouter } from 'next/navigation';
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -26,9 +27,27 @@ interface CasePipelineProps {
 }
 
 export function CasePipeline({ isLoading }: CasePipelineProps) {
+  const { error, refetch } = useDoctorDashboard();
   const cases = useDoctorCases();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabValue>('planning');
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 text-center">
+        <div className="h-10 w-10 bg-red-50 rounded-full flex items-center justify-center mb-3">
+          <AlertTriangle className="h-5 w-5 text-red-400" />
+        </div>
+        <p className="text-sm font-medium text-red-700">Failed to load surgical cases</p>
+        <p className="text-xs text-red-400 mt-1 mb-3">
+          {error instanceof Error ? error.message : 'An error occurred'}
+        </p>
+        <Button size="sm" variant="outline" onClick={() => refetch()} className="rounded-lg text-xs">
+          Retry
+        </Button>
+      </div>
+    );
+  }
 
   const pipeline = {
     planning: cases.filter(c => ['PLANNING', 'READY_FOR_SCHEDULING'].includes(c.status)),

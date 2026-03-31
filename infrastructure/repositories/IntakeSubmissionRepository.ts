@@ -1,39 +1,23 @@
 import { PrismaClient } from '@prisma/client';
 import { IntakeSubmission } from '@/domain/entities/IntakeSubmission';
 import { IntakeSubmissionMapper } from '@/infrastructure/mappers/IntakeSubmissionMapper';
+import { CorruptedDataError } from '@/domain/errors/IntakeErrors';
 
-/**
- * Repository Interface: IntakeSubmissionRepository
- *
- * Defines contract for persisting IntakeSubmissions
- */
 export interface IIntakeSubmissionRepository {
   create(submission: IntakeSubmission): Promise<IntakeSubmission>;
   findBySessionId(sessionId: string): Promise<IntakeSubmission | null>;
   findPending(limit: number, offset: number): Promise<IntakeSubmission[]>;
   countPending(): Promise<number>;
-  updateStatus(submissionId: string, status: string): Promise<IntakeSubmission>;
-  updateWithPatientId(
-    submissionId: string,
-    patientId: string,
-  ): Promise<IntakeSubmission>;
+  updateStatus(submissionId: string, status: string): Promise<void>;
+  updateWithPatientId(submissionId: string, patientId: string): Promise<void>;
 }
 
-/**
- * Implementation: PrismaIntakeSubmissionRepository
- *
- * Uses Prisma ORM for database access
- */
 export class PrismaIntakeSubmissionRepository implements IIntakeSubmissionRepository {
-  constructor(private readonly prisma: PrismaClient) { }
+  constructor(private readonly prisma: PrismaClient) {}
 
   async create(submission: IntakeSubmission): Promise<IntakeSubmission> {
-    const persistenceData = IntakeSubmissionMapper.toPersistence(submission);
-
-    await this.prisma.intakeSubmission.create({
-      data: persistenceData,
-    });
-
+    const data = IntakeSubmissionMapper.toPersistence(submission);
+    await this.prisma.intakeSubmission.create({ data });
     return submission;
   }
 
@@ -41,12 +25,7 @@ export class PrismaIntakeSubmissionRepository implements IIntakeSubmissionReposi
     const record = await this.prisma.intakeSubmission.findUnique({
       where: { session_id: sessionId },
     });
-
-    if (!record) {
-      return null;
-    }
-
-    return IntakeSubmissionMapper.toDomain(record);
+    return record ? IntakeSubmissionMapper.toDomain(record) : null;
   }
 
   async findPending(limit: number, offset: number): Promise<IntakeSubmission[]> {
@@ -57,38 +36,22 @@ export class PrismaIntakeSubmissionRepository implements IIntakeSubmissionReposi
       skip: offset,
     });
 
-    const entries: IntakeSubmission[] = [];
-    for (const record of records) {
-      try {
-        entries.push(IntakeSubmissionMapper.toDomain(record));
-      } catch (error) {
-        console.error(`[Repository] Skipping invalid intake record ${record.submission_id}:`, error);
-      }
-    }
-
-    return entries;
+    return records.map((record) => IntakeSubmissionMapper.toDomain(record));
   }
 
   async countPending(): Promise<number> {
-    return this.prisma.intakeSubmission.count({
-      where: { status: 'PENDING' },
-    });
+    return this.prisma.intakeSubmission.count({ where: { status: 'PENDING' } });
   }
 
-  async updateStatus(submissionId: string, status: string): Promise<IntakeSubmission> {
-    const record = await this.prisma.intakeSubmission.update({
+  async updateStatus(submissionId: string, status: string): Promise<void> {
+    await this.prisma.intakeSubmission.update({
       where: { submission_id: submissionId },
       data: { status },
     });
-
-    return IntakeSubmissionMapper.toDomain(record);
   }
 
-  async updateWithPatientId(
-    submissionId: string,
-    patientId: string,
-  ): Promise<IntakeSubmission> {
-    const record = await this.prisma.intakeSubmission.update({
+  async updateWithPatientId(submissionId: string, patientId: string): Promise<void> {
+    await this.prisma.intakeSubmission.update({
       where: { submission_id: submissionId },
       data: {
         status: 'CONFIRMED',
@@ -96,7 +59,5 @@ export class PrismaIntakeSubmissionRepository implements IIntakeSubmissionReposi
         confirmed_at: new Date(),
       },
     });
-
-    return IntakeSubmissionMapper.toDomain(record);
   }
 }

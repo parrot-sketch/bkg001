@@ -177,6 +177,39 @@ export interface CasePlanDetailDto {
     } | null;
 
     readinessChecklist: ReadinessChecklistItem[];
+
+    // Billing estimate
+    billingEstimate?: {
+        id: string;
+        surgeonFee: number;
+        anaesthesiologistFee: number;
+        theatreFee: number;
+        subtotal: number;
+        status: string;
+        lineItems: Array<{
+            id: string;
+            description: string;
+            category: string;
+            quantity: number;
+            unitPrice: number;
+            totalPrice: number;
+            addedByRole: string;
+            notes: string | null;
+        }>;
+    } | null;
+
+    // Team members (derived from casePlan.procedureRecord.staff)
+    teamMembers?: Array<{
+        id: number;
+        role: string;
+        userId: string;
+        user: {
+            id: string;
+            firstName: string;
+            lastName: string;
+            role: string;
+        } | null;
+    }>;
 }
 
 // ── API client methods ───────────────────────────────────────────────────

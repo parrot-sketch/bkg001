@@ -1,19 +1,13 @@
 import { IntakeSession } from '@/domain/entities/IntakeSession';
-import { IntakeSession as PrismaIntakeSession } from '@prisma/client';
+import type { IntakeSession as PrismaIntakeSession } from '@prisma/client';
 import type { IntakeSessionStatus } from '@/domain/entities/IntakeSession';
 
 /**
- * Mapper: IntakeSessionMapper
+ * Mapper: IntakeSession ↔ Prisma
  *
- * Maps between:
- * - Domain: IntakeSession entity
- * - Persistence: Prisma IntakeSession model
- * - API: PatientIntakeSessionDto
+ * Pure data transformation only — no business logic.
  */
 export class IntakeSessionMapper {
-  /**
-   * Convert Prisma record to domain entity
-   */
   static toDomain(raw: PrismaIntakeSession): IntakeSession {
     return IntakeSession.restore({
       sessionId: raw.session_id,
@@ -24,32 +18,14 @@ export class IntakeSessionMapper {
     });
   }
 
-  /**
-   * Convert domain entity to Prisma persistence format
-   */
   static toPersistence(session: IntakeSession) {
-    const primitive = session.toPrimitive();
+    const p = session.toPrimitive();
     return {
-      session_id: primitive.sessionId,
-      status: primitive.status,
-      created_at: new Date(primitive.createdAt),
-      expires_at: new Date(primitive.expiresAt),
-    };
-  }
-
-  /**
-   * Convert domain entity to API DTO
-   */
-  static toDto(session: IntakeSession, qrCodeUrl: string) {
-    const primitive = session.toPrimitive();
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    
-    return {
-      sessionId: primitive.sessionId,
-      qrCodeUrl,
-      intakeFormUrl: `${baseUrl.replace(/\/$/, '')}/intake/${primitive.sessionId}`,
-      expiresAt: primitive.expiresAt,
-      minutesRemaining: primitive.minutesRemaining,
+      session_id: p.sessionId,
+      status: p.status,
+      created_at: new Date(p.createdAt),
+      expires_at: new Date(p.expiresAt),
+      created_by_user_id: p.createdByUserId ?? null,
     };
   }
 }

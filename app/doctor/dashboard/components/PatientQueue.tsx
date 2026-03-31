@@ -1,10 +1,10 @@
 'use client';
 
-import { Users, Clock, Play, Activity, Loader2 } from 'lucide-react';
+import { Users, Clock, Play, Activity, Loader2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { useDoctorQueue } from '@/hooks/use-doctor-dashboard';
+import { useDoctorDashboard, useDoctorQueue } from '@/hooks/use-doctor-dashboard';
 import { useStartConsultation } from '@/hooks/doctor/useConsultation';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -13,7 +13,8 @@ interface PatientQueueProps {
   isLoading: boolean;
 }
 
-export function PatientQueue({ isLoading }: PatientQueueProps) {
+export function PatientQueue({ isLoading: parentLoading }: PatientQueueProps) {
+  const { error, refetch } = useDoctorDashboard();
   const queue = useDoctorQueue();
   const router = useRouter();
   const { mutate: startConsultation, isPending: isStarting } = useStartConsultation();
@@ -30,7 +31,7 @@ export function PatientQueue({ isLoading }: PatientQueueProps) {
     }
   };
 
-  if (isLoading) {
+  if (parentLoading) {
     return (
       <section className="bg-white border border-slate-200/60 rounded-xl shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -43,6 +44,32 @@ export function PatientQueue({ isLoading }: PatientQueueProps) {
           {[1, 2, 3].map((i) => (
             <div key={i} className="h-16 bg-slate-50 animate-pulse rounded-lg" />
           ))}
+        </div>
+      </section>
+    );
+  }
+
+  // Error state — distinguishable from empty queue
+  if (error) {
+    return (
+      <section className="bg-white border border-slate-200/60 rounded-xl shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div className="flex items-center gap-2.5">
+            <Users className="h-4 w-4 text-amber-600" />
+            <h2 className="text-sm font-semibold text-slate-800">Patient Queue</h2>
+          </div>
+        </div>
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="h-12 w-12 bg-red-50 rounded-full flex items-center justify-center mb-3">
+            <AlertTriangle className="h-6 w-6 text-red-400" />
+          </div>
+          <p className="text-sm font-medium text-red-700">Failed to load queue</p>
+          <p className="text-xs text-red-400 mt-1 mb-3">
+            {error instanceof Error ? error.message : 'An error occurred'}
+          </p>
+          <Button size="sm" variant="outline" onClick={() => refetch()} className="rounded-lg text-xs">
+            Retry
+          </Button>
         </div>
       </section>
     );

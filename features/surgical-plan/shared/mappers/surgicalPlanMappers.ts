@@ -1,6 +1,6 @@
 /**
  * Surgical Plan Mappers
- * 
+ *
  * DTO → ViewModel transformations for surgical plan feature.
  * Keeps domain data separate from UI concerns.
  */
@@ -9,33 +9,38 @@ import type { CasePlanDetailDto } from '@/lib/api/case-plan';
 import type { TimelineResultDto } from '@/application/dtos/TheaterTechDtos';
 import type { SurgicalCasePlanViewModel } from '../../core/types';
 
-/**
- * Calculate age from date of birth
- */
 function calculateAge(dob: string | null): string | null {
   if (!dob) return null;
   const birth = new Date(dob);
   const today = new Date();
   let age = today.getFullYear() - birth.getFullYear();
   const m = today.getMonth() - birth.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
-    age--;
-  }
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
   return `${age}y`;
 }
 
 /**
  * Map CasePlanDetailDto to SurgicalCasePlanViewModel
- * 
- * Creates a stable view model for the shell and tabs.
- * No UI strings mixed into domain data.
  */
 export function mapCasePlanDetailDtoToViewModel(
   dto: CasePlanDetailDto,
-  timeline: TimelineResultDto | null = null
+  timeline: TimelineResultDto | null = null,
 ): SurgicalCasePlanViewModel {
   const patient = dto.patient;
-  const casePlan = dto.casePlan;
+  const cp = dto.casePlan;
+
+  // Derive team members from procedure record staff
+  const teamMembers = cp?.procedureRecord?.staff?.map(s => ({
+    id: s.id,
+    role: s.role,
+    userId: s.userId,
+    user: s.user ? {
+      id: s.user.id,
+      firstName: s.user.firstName,
+      lastName: s.user.lastName,
+      role: s.user.role,
+    } : null,
+  })) ?? [];
 
   return {
     caseId: dto.id,
@@ -59,28 +64,26 @@ export function mapCasePlanDetailDtoToViewModel(
       diagnosis: dto.diagnosis,
       createdAt: dto.createdAt,
     },
-    casePlan: casePlan
+    casePlan: cp
       ? {
-          id: casePlan.id,
-          procedurePlan: casePlan.procedurePlan,
-          riskFactors: casePlan.riskFactors,
-          preOpNotes: casePlan.preOpNotes,
-          anesthesiaPlan: casePlan.anesthesiaPlan,
-          specialInstructions: casePlan.specialInstructions,
-          estimatedDurationMinutes: casePlan.estimatedDurationMinutes,
-          readinessStatus: casePlan.readinessStatus,
-          readyForSurgery: casePlan.readyForSurgery,
-          consentsCount: casePlan.consents.length,
-          imagesCount: casePlan.images.length,
-          staffCount: casePlan.procedureRecord?.staff.length ?? 0,
+          id: cp.id,
+          procedurePlan: cp.procedurePlan,
+          riskFactors: cp.riskFactors,
+          preOpNotes: cp.preOpNotes,
+          anesthesiaPlan: cp.anesthesiaPlan,
+          specialInstructions: cp.specialInstructions,
+          estimatedDurationMinutes: cp.estimatedDurationMinutes,
+          readinessStatus: cp.readinessStatus,
+          readyForSurgery: cp.readyForSurgery,
+          consentsCount: cp.consents.length,
+          imagesCount: cp.images.length,
+          staffCount: cp.procedureRecord?.staff.length ?? 0,
         }
       : null,
     primarySurgeon: dto.primarySurgeon
-      ? {
-          id: dto.primarySurgeon.id,
-          name: dto.primarySurgeon.name,
-        }
+      ? { id: dto.primarySurgeon.id, name: dto.primarySurgeon.name }
       : null,
+    consultation: dto.consultation ?? null,
     theaterBooking: dto.theaterBooking
       ? {
           id: dto.theaterBooking.id,
@@ -88,6 +91,27 @@ export function mapCasePlanDetailDtoToViewModel(
           endTime: dto.theaterBooking.endTime,
           status: dto.theaterBooking.status,
           theaterName: dto.theaterBooking.theaterName,
+        }
+      : null,
+    teamMembers,
+    billingEstimate: dto.billingEstimate
+      ? {
+          id: dto.billingEstimate.id,
+          surgeonFee: dto.billingEstimate.surgeonFee,
+          anaesthesiologistFee: dto.billingEstimate.anaesthesiologistFee,
+          theatreFee: dto.billingEstimate.theatreFee,
+          subtotal: dto.billingEstimate.subtotal,
+          status: dto.billingEstimate.status,
+          lineItems: dto.billingEstimate.lineItems.map(li => ({
+            id: li.id,
+            description: li.description,
+            category: li.category,
+            quantity: li.quantity,
+            unitPrice: li.unitPrice,
+            totalPrice: li.totalPrice,
+            addedByRole: li.addedByRole,
+            notes: li.notes,
+          })),
         }
       : null,
     readinessChecklist: dto.readinessChecklist,

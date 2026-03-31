@@ -1,64 +1,50 @@
 import { Patient } from '../../entities/Patient';
 import { Email } from '../../value-objects/Email';
 
-/**
- * Repository Interface: IPatientRepository
- * 
- * Defines the contract for patient data persistence operations.
- * This interface represents the "port" in Ports and Adapters architecture.
- * 
- * Implementations of this interface will be provided by the infrastructure layer
- * (e.g., PrismaPatientRepository using Prisma ORM).
- * 
- * Domain Layer Rule: This interface only depends on domain types.
- * No framework, infrastructure, or external dependencies allowed.
- */
+export interface PatientFilters {
+  search?: string;
+  page: number;
+  limit: number;
+}
+
+export interface PatientRegistryRecord {
+  id: string;
+  fileNumber: string;
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
+  gender: string;
+  email: string;
+  phone: string;
+  profileImage?: string;
+  colorCode?: string;
+  createdAt: string;
+  totalVisits: number;
+  lastVisitAt: string | null;
+  queueStatus: 'WAITING' | 'IN_CONSULTATION' | null;
+  outstandingBalance: number;
+}
+
+export interface PatientListResult {
+  records: PatientRegistryRecord[];
+  totalRecords: number;
+  totalPages: number;
+  currentPage: number;
+}
+
+export interface PatientStats {
+  totalRecords: number;
+  newToday: number;
+  newThisMonth: number;
+}
+
 export interface IPatientRepository {
-  /**
-   * Finds a patient by their unique identifier
-   * 
-   * @param id - The patient's unique identifier
-   * @returns Promise resolving to the Patient entity if found, null otherwise
-   */
   findById(id: string): Promise<Patient | null>;
-
-  /**
-   * Finds a patient by their email address
-   * 
-   * @param email - The patient's email address (as Email value object)
-   * @returns Promise resolving to the Patient entity if found, null otherwise
-   */
   findByEmail(email: Email): Promise<Patient | null>;
-
-  /**
-   * Saves a new patient to the data store
-   * 
-   * This method should handle both creation of new patients.
-   * If a patient with the same ID already exists, the behavior
-   * is implementation-specific (may throw error or update).
-   * 
-   * @param patient - The Patient entity to save
-   * @returns Promise that resolves when the save operation completes
-   * @throws Error if the save operation fails
-   */
   save(patient: Patient): Promise<void>;
-
-  /**
-   * Updates an existing patient in the data store
-   * 
-   * The patient must already exist in the data store.
-   * 
-   * @param patient - The Patient entity with updated information
-   * @returns Promise that resolves when the update operation completes
-   * @throws Error if the patient does not exist or the update fails
-   */
   update(patient: Patient): Promise<void>;
-
-  /**
-   * Generates the next sequential file number for a new patient.
-   * Scans existing file numbers to continue the sequence `NS{000}`.
-   * 
-   * @returns Promise resolving to the generated sequential file number string
-   */
   generateNextFileNumber(): Promise<string>;
+
+  findWithFilters(filters: PatientFilters): Promise<PatientListResult>;
+  getStats(): Promise<PatientStats>;
 }

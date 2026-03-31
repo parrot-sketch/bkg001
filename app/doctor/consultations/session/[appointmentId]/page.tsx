@@ -23,24 +23,15 @@
  * Route: /doctor/consultations/[appointmentId]/session
  */
 
-import { motion, AnimatePresence } from 'framer-motion';
 import { use, Suspense, useState, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { ConsultationProvider, useConsultationContext } from '@/contexts/ConsultationContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { apiClient } from '@/lib/api/client';
-import {
-  PanelTop,
-  Search,
-  Users,
-  Clock,
-  ChevronRight,
-  ChevronLeft,
-  PanelRight,
-  Menu,
-  Loader2,
-} from 'lucide-react';
+import { useAuth } from '@/hooks/patient/useAuth';
+import Link from 'next/link';
+import { Users, Loader2, Lock } from 'lucide-react';
 import { Role } from '@/domain/enums/Role';
 import { cn } from '@/lib/utils';
 
@@ -246,18 +237,51 @@ function ConsultationSessionContent() {
     autoSaveStatus,
   } = state;
 
-  // Sidebar collapse state
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const toggleSidebar = useCallback(() => setSidebarCollapsed(prev => !prev), []);
-
   // Vitals state — fetched separately to avoid modifying ConsultationContext
-  const [vitals, setVitals] = useState<any>(null);
+  // Maps snake_case API response to camelCase expected by PatientInfoSidebar
+  interface VitalsData {
+    bodyTemperature: number | null;
+    systolic: number | null;
+    diastolic: number | null;
+    heartRate: string | null;
+    respiratoryRate: number | null;
+    oxygenSaturation: number | null;
+    weight: number | null;
+    height: number | null;
+    recordedAt: string;
+    recordedBy: string | null;
+  }
+  const [vitals, setVitals] = useState<VitalsData | null>(null);
   useEffect(() => {
     if (!patient?.id || !appointment?.id) return;
-    apiClient.get<any[]>(`/patients/${patient.id}/vitals?appointmentId=${appointment.id}`)
+    interface RawVitals {
+      body_temperature?: number | null;
+      systolic?: number | null;
+      diastolic?: number | null;
+      heart_rate?: string | null;
+      respiratory_rate?: number | null;
+      oxygen_saturation?: number | null;
+      weight?: number | null;
+      height?: number | null;
+      recorded_at?: string;
+      recorded_by?: string | null;
+    }
+    apiClient.get<RawVitals[]>(`/patients/${patient.id}/vitals?appointmentId=${appointment.id}`)
       .then(res => {
         if (res.success && res.data && res.data.length > 0) {
-          setVitals(res.data[0]);
+          const raw = res.data[0];
+          setVitals({
+            bodyTemperature: raw.body_temperature ?? null,
+            systolic: raw.systolic ?? null,
+            diastolic: raw.diastolic ?? null,
+            heartRate: raw.heart_rate ?? null,
+            respiratoryRate: raw.respiratory_rate ?? null,
+            oxygenSaturation: raw.oxygen_saturation ?? null,
+            weight: raw.weight ?? null,
+            height: raw.height ?? null,
+            recordedAt: raw.recorded_at ?? '',
+            recordedBy: raw.recorded_by ?? null,
+          });
         }
       })
       .catch(() => {});
@@ -339,73 +363,31 @@ function ConsultationSessionContent() {
         />
       </Suspense>
 
-      {/* Main Layout */}
+      {/* Main Layout — 3 columns */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left: Patient Sidebar */}
-        <AnimatePresence mode="wait">
-          {!sidebarCollapsed && (
-            <motion.div
-              initial={{ x: -280, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -280, opacity: 0 }}
-              className={cn(
-                'bg-white border-r border-slate-200 flex flex-col shrink-0',
-                'w-[280px] h-full overflow-hidden',
-                'hidden lg:flex',
-              )}
-            >
-              <Suspense fallback={<SidebarSkeleton />}>
-                <div className="flex-1 overflow-y-auto">
-                  <PatientInfoSidebar
-                    patient={patient}
-                    appointment={appointment}
-                    consultationHistory={[]}
-                    photoCount={consultation?.photoCount || 0}
-                    notes={state.notes}
-                    isReadOnly={isReadOnly}
-                    vitals={vitals}
-                  />
-                </div>
-              </Suspense>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Sidebar toggle */}
-        <div className="hidden lg:flex items-center">
-          <button
-            onClick={toggleSidebar}
-            className={cn(
-              'flex items-center justify-center h-16 w-4 border border-l-0 border-slate-200 bg-slate-50 text-slate-400 hover:text-slate-600',
-            )}
-            title={sidebarCollapsed ? 'Show patient info' : 'Hide patient info'}
-          >
-            {sidebarCollapsed ? (
-              <ChevronRight className="h-3 w-3" />
-            ) : (
-              <ChevronLeft className="h-3 w-3" />
-            )}
-          </button>
-        </div>
-
-        {/* Center: Workspace */}
-        <div className="flex-1 flex flex-col h-full overflow-hidden">
-          <Suspense fallback={<WorkspaceSkeleton />}>
-            <ConsultationWorkspaceOptimized />
-          </Suspense>
-        </div>
-
-        {/* Right: Queue Panel */}
-        <Suspense fallback={null}>
-          <ConsultationQueuePanel
-            currentAppointmentId={appointment.id}
-            appointments={waitingQueue}
-            onSwitchPatient={switchToPatient}
-            onRefresh={refetchQueue}
-            isRefreshing={isQueueRefetching}
-            defaultCollapsed={true}
+        {/* Left: Patient Info (280px) */}
+        <div className="w-[280px] bg-white border-r border-slate-200 shrink-0 hidden lg:flex flex-col overflow-hidden">
+          <PatientInfoSidebar
+            patient={patient}
+            appointment={appointment}
+            vitals={vitals}
           />
-        </Suspense>
+        </div>
+
+        {/* Center: Workspace (flex) */}
+        <div className="flex-1 flex flex-col h-full overflow-hidden border-r border-slate-200">
+          <ConsultationWorkspaceOptimized />
+        </div>
+
+        {/* Right: Queue (260px) */}
+        <ConsultationQueuePanel
+          currentAppointmentId={appointment.id}
+          appointments={waitingQueue}
+          onSwitchPatient={switchToPatient}
+          onRefresh={refetchQueue}
+          isRefreshing={isQueueRefetching}
+          defaultCollapsed={true}
+        />
       </div>
 
       {/* Dialogs */}
@@ -448,6 +430,28 @@ interface PageProps {
 export default function ConsultationSessionPageOptimized({ params }: PageProps) {
   const resolvedParams = use(params);
   const appointmentId = parseInt(resolvedParams.appointmentId, 10);
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+
+  if (authLoading) {
+    return <LoadingState />;
+  }
+
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-50">
+        <div className="text-center p-8 bg-white rounded-2xl shadow-xl border border-slate-100 max-w-md">
+          <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Lock className="h-8 w-8 text-slate-400" />
+          </div>
+          <h2 className="text-xl font-bold text-slate-900 mb-2">Authentication Required</h2>
+          <p className="text-sm text-slate-500 mb-6">Please log in to access the consultation room.</p>
+          <Link href="/login">
+            <Button className="w-full bg-slate-900 hover:bg-slate-800 rounded-xl">Return to Login</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (isNaN(appointmentId)) {
     return (

@@ -1,158 +1,49 @@
-/**
- * API Route: GET /api/frontdesk/patients
- * 
- * Optimized endpoint for fetching/searching patients for Frontdesk.
- * Supports server-side pagination and search.
- * 
- * Query Params:
- * - page: number (default 1)
- * - limit: number (default 10)
- * - q: string (search query)
- */
-
 import { NextRequest, NextResponse } from 'next/server';
-import { JwtMiddleware } from '@/lib/auth/middleware';
-import db from '@/lib/db';
-import { Role } from '@/domain/enums/Role';
-import { PatientMapper } from '@/infrastructure/mappers/PatientMapper';
-import { Prisma } from '@prisma/client';
+import { requireAuth } from '@/lib/auth/require-auth';
+import { container } from '@/lib/container';
+import { IntakeError } from '@/domain/errors/IntakeErrors';
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
-    try {
-        // 1. Authenticate request
-        const authResult = await JwtMiddleware.authenticate(request);
-        if (!authResult.success || !authResult.user) {
-            return NextResponse.json(
-                { success: false, error: 'Authentication required' },
-                { status: 401 }
-            );
-        }
+export async function GET(request: NextRequest) {
+  try {
+    const auth = await requireAuth(request, ['FRONTDESK', 'ADMIN']);
 
-        const { role } = authResult.user;
+    const { searchParams } = new URL(request.url);
+    const page = Math.max(1, Number(searchParams.get('page')) || 1);
+    const limit = Math.min(Math.max(1, Number(searchParams.get('limit')) || 12), 100);
+    const search = searchParams.get('q')?.trim() || undefined;
 
-        // 2. Check permissions (FRONTDESK or ADMIN)
-        if (role !== Role.FRONTDESK && role !== Role.ADMIN) {
-            return NextResponse.json(
-                { success: false, error: 'Access denied' },
-                { status: 403 }
-            );
-        }
+    const ipAddress =
+      request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+      request.headers.get('x-real-ip') ||
+      undefined;
+    const userAgent = request.headers.get('user-agent') || undefined;
 
-        // 3. Parse query params
-        const searchParams = request.nextUrl.searchParams;
-        const page = Math.max(1, Number(searchParams.get('page')) || 1);
-        const limit = Math.max(1, Number(searchParams.get('limit')) || 10);
-        const search = searchParams.get('q')?.trim() || '';
+    const result = await container.listPatients.execute(
+      { page, limit, search },
+      { userId: auth.userId, ipAddress, userAgent },
+    );
 
-        const skip = (page - 1) * limit;
-
-        // 4. Build Filter
-        const whereClause: Prisma.PatientWhereInput = search
-            ? {
-                OR: [
-                    { first_name: { contains: search, mode: 'insensitive' } },
-                    { last_name: { contains: search, mode: 'insensitive' } },
-                    { file_number: { contains: search, mode: 'insensitive' } },
-                    { phone: { contains: search, mode: 'insensitive' } },
-                    { email: { contains: search, mode: 'insensitive' } },
-                ],
-            }
-            : {};
-
-        // 5. Execute DB Queries (Parallel Count + Data)
-        const [totalRecords, prismaPatients] = await Promise.all([
-            db.patient.count({ where: whereClause }),
-            db.patient.findMany({
-                where: whereClause,
-                skip,
-                take: limit,
-                orderBy: { created_at: 'desc' },
-                select: {
-                    id: true,
-                    file_number: true,
-                    first_name: true,
-                    last_name: true,
-                    email: true,
-                    phone: true,
-                    date_of_birth: true,
-                    gender: true,
-                    img: true,
-                    colorCode: true,
-                    created_at: true,
-                    // Last visit
-                    appointments: {
-                        where: { status: 'COMPLETED' },
-                        orderBy: { appointment_date: 'desc' },
-                        take: 1,
-                        select: { appointment_date: true },
-                    },
-                    // Aggregated counts
-                    _count: {
-                        select: { 
-                            appointments: true,
-                        },
-                    },
-                    // Current queue status
-                    patient_queue: {
-                        where: { 
-                            status: { in: ['WAITING', 'IN_CONSULTATION'] },
-                        },
-                        take: 1,
-                        select: { status: true },
-                        orderBy: { added_at: 'desc' },
-                    },
-                    // Outstanding payments
-                    payments: {
-                        where: { status: 'UNPAID' },
-                        select: { total_amount: true },
-                    },
-                },
-            }),
-        ]);
-
-        // 6. Map to DTOs - enhanced with aggregated data
-        const patientDtos = prismaPatients.map((p: any) => {
-            // Calculate outstanding balance
-            const outstandingBalance = p.payments?.reduce((sum: number, payment: any) => sum + payment.total_amount, 0) || 0;
-            
-            return {
-                id: p.id,
-                fileNumber: p.file_number,
-                firstName: p.first_name,
-                lastName: p.last_name,
-                dateOfBirth: p.date_of_birth,
-                gender: p.gender,
-                email: p.email,
-                phone: p.phone,
-                profileImage: p.img,
-                colorCode: p.colorCode,
-                createdAt: p.created_at,
-                lastVisit: p.appointments?.[0]?.appointment_date || null,
-                // Enhanced data for UX improvements
-                totalAppointments: p._count?.appointments || 0,
-                currentQueueStatus: p.patient_queue?.[0]?.status || null,
-                outstandingBalance,
-            };
-        });
-
-        const totalPages = Math.ceil(totalRecords / limit);
-
-        return NextResponse.json({
-            success: true,
-            data: patientDtos,
-            meta: {
-                totalRecords,
-                totalPages,
-                currentPage: page,
-                limit,
-            },
-        });
-
-    } catch (error) {
-        console.error('[API] /api/frontdesk/patients GET - Error:', error);
-        return NextResponse.json(
-            { success: false, error: 'Failed to fetch patients' },
-            { status: 500 }
-        );
+    return NextResponse.json({
+      success: true,
+      data: result.records,
+      meta: {
+        totalRecords: result.totalRecords,
+        totalPages: result.totalPages,
+        currentPage: result.currentPage,
+        limit,
+      },
+    });
+  } catch (error) {
+    if (error instanceof IntakeError) {
+      return NextResponse.json(
+        { success: false, error: error.message, code: error.code },
+        { status: error.statusCode },
+      );
     }
+    console.error('[ListPatients]', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch patients' },
+      { status: 500 },
+    );
+  }
 }

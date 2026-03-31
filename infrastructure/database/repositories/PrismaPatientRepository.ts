@@ -1,4 +1,4 @@
-import { IPatientRepository } from '../../../domain/interfaces/repositories/IPatientRepository';
+import { IPatientRepository, PatientFilters, PatientListResult, PatientRegistryRecord, PatientStats } from '../../../domain/interfaces/repositories/IPatientRepository';
 import { Patient } from '../../../domain/entities/Patient';
 import { Email } from '../../../domain/value-objects/Email';
 import { PatientMapper } from '../../mappers/PatientMapper';
@@ -44,7 +44,7 @@ export class PrismaPatientRepository implements IPatientRepository, IPatientFile
       // Query extracts numeric part from file_number (e.g., "NS001" -> 1) and finds maximum
       const result = await this.prisma.$queryRaw<Array<{ file_number: string }>>`
         SELECT file_number 
-        FROM patient 
+        FROM "Patient" 
         WHERE file_number ~ '^NS[0-9]+$'
         ORDER BY 
           CAST(SUBSTRING(file_number FROM 'NS([0-9]+)') AS INTEGER) DESC
@@ -183,5 +183,74 @@ export class PrismaPatientRepository implements IPatientRepository, IPatientFile
       // Wrap Prisma errors in a more generic error
       throw new Error(`Failed to update patient: ${patient.getId()}. ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  async findWithFilters(filters: PatientFilters): Promise<PatientListResult> {
+    const where = filters.search?.trim()
+      ? {
+          OR: [
+            { first_name: { contains: filters.search.trim(), mode: 'insensitive' as const } },
+            { last_name: { contains: filters.search.trim(), mode: 'insensitive' as const } },
+            { file_number: { contains: filters.search.trim(), mode: 'insensitive' as const } },
+            { phone: { contains: filters.search.trim(), mode: 'insensitive' as const } },
+            { email: { contains: filters.search.trim(), mode: 'insensitive' as const } },
+          ],
+        }
+      : {};
+
+    const skip = (filters.page - 1) * filters.limit;
+
+    const [totalRecords, rows] = await Promise.all([
+      this.prisma.patient.count({ where }),
+      this.prisma.patient.findMany({
+        where,
+        skip,
+        take: filters.limit,
+        orderBy: { created_at: 'desc' },
+        select: {
+          id: true, file_number: true, first_name: true, last_name: true,
+          email: true, phone: true, date_of_birth: true, gender: true,
+          img: true, colorCode: true, created_at: true,
+          appointments: { where: { status: 'COMPLETED' }, orderBy: { appointment_date: 'desc' }, take: 1, select: { appointment_date: true } },
+          _count: { select: { appointments: true } },
+          patient_queue: { where: { status: { in: ['WAITING', 'IN_CONSULTATION'] } }, take: 1, select: { status: true }, orderBy: { added_at: 'desc' } },
+          payments: { where: { status: 'UNPAID' }, select: { total_amount: true } },
+        },
+      }),
+    ]);
+
+    const records: PatientRegistryRecord[] = rows.map((p) => ({
+      id: p.id,
+      fileNumber: p.file_number,
+      firstName: p.first_name,
+      lastName: p.last_name,
+      dateOfBirth: p.date_of_birth.toISOString(),
+      gender: p.gender,
+      email: p.email,
+      phone: p.phone,
+      profileImage: p.img ?? undefined,
+      colorCode: p.colorCode ?? undefined,
+      createdAt: p.created_at.toISOString(),
+      totalVisits: p._count.appointments,
+      lastVisitAt: p.appointments[0]?.appointment_date?.toISOString() ?? null,
+      queueStatus: (p.patient_queue[0]?.status as 'WAITING' | 'IN_CONSULTATION') ?? null,
+      outstandingBalance: p.payments.reduce((sum, pay) => sum + pay.total_amount, 0),
+    }));
+
+    return { records, totalRecords, totalPages: Math.ceil(totalRecords / filters.limit), currentPage: filters.page };
+  }
+
+  async getStats(): Promise<PatientStats> {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [totalRecords, newToday, newThisMonth] = await Promise.all([
+      this.prisma.patient.count(),
+      this.prisma.patient.count({ where: { created_at: { gte: startOfToday } } }),
+      this.prisma.patient.count({ where: { created_at: { gte: startOfMonth } } }),
+    ]);
+
+    return { totalRecords, newToday, newThisMonth };
   }
 }

@@ -219,7 +219,6 @@ export default function FrontdeskPatientIntakePage() {
           open={showRegistrationDialog}
           onClose={() => setShowRegistrationDialog(false)}
           onSuccess={handleRegistrationSuccess}
-          frontdeskUserId={user.id}
         />
       )}
     </div>

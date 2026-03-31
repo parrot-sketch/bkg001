@@ -1,79 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { PrismaIntakeSubmissionRepository } from '@/infrastructure/repositories/IntakeSubmissionRepository';
-import { IntakeSubmissionMapper } from '@/infrastructure/mappers/IntakeSubmissionMapper';
+import { requireAuth } from '@/lib/auth/require-auth';
+import { container } from '@/lib/container';
+import { IntakeError } from '@/domain/errors/IntakeErrors';
 
-/**
- * GET /api/frontdesk/intake/[sessionId]
- *
- * Get detailed intake submission by session ID
- *
- * Response:
- * {
- *   submissionId: "...",
- *   sessionId: "...",
- *   personalInfo: {...},
- *   contactInfo: {...},
- *   emergencyContact: {...},
- *   medicalInfo: {...},
- *   insuranceInfo: {...},
- *   consent: {...},
- *   submittedAt: "...",
- *   status: "PENDING",
- *   completenessScore: 95,
- *   isComplete: true,
- *   incompleteFields?: ["allergies", "occupation"]
- * }
- */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ sessionId: string }> },
 ) {
   try {
-    const { sessionId } = await params;
+    await requireAuth(request, ['FRONTDESK', 'ADMIN']);
 
-    const repository = new PrismaIntakeSubmissionRepository(db);
-    const submission = await repository.findBySessionId(sessionId);
+    const { sessionId } = await params;
+    const submission = await container.submissionRepo.findBySessionId(sessionId);
 
     if (!submission) {
       return NextResponse.json(
-        { error: 'Intake submission not found' },
+        { error: 'Intake submission not found', code: 'SESSION_NOT_FOUND' },
         { status: 404 },
       );
     }
 
-    const dto = IntakeSubmissionMapper.toDto(submission);
-    
-    // Add incomplete fields list
     const primitive = submission.toPrimitive();
-    const incompleteFields: string[] = [];
-    
-    // Check all required fields
-    if (!primitive.personalInfo.firstName) incompleteFields.push('First Name');
-    if (!primitive.personalInfo.lastName) incompleteFields.push('Last Name');
-    if (!primitive.personalInfo.dateOfBirth) incompleteFields.push('Date of Birth');
-    if (!primitive.personalInfo.gender) incompleteFields.push('Gender');
-    if (!primitive.contactInfo.email) incompleteFields.push('Email');
-    if (!primitive.contactInfo.phone) incompleteFields.push('Phone');
-    if (!primitive.contactInfo.address) incompleteFields.push('Address');
-    if (!primitive.emergencyContact.name) incompleteFields.push('Emergency Contact Name');
-    if (!primitive.emergencyContact.phoneNumber) incompleteFields.push('Emergency Contact Phone');
-    if (!primitive.emergencyContact.relationship) incompleteFields.push('Emergency Contact Relation');
-    if (!primitive.consent.privacyConsent) incompleteFields.push('Privacy Consent');
-    if (!primitive.consent.serviceConsent) incompleteFields.push('Service Consent');
-    if (!primitive.consent.medicalConsent) incompleteFields.push('Medical Consent');
 
     return NextResponse.json({
-      ...dto,
-      incompleteFields: incompleteFields.length > 0 ? incompleteFields : undefined,
+      submissionId: primitive.submissionId,
+      sessionId: primitive.sessionId,
+      personalInfo: primitive.personalInfo,
+      contactInfo: primitive.contactInfo,
+      emergencyContact: primitive.emergencyContact,
+      medicalInfo: primitive.medicalInfo,
+      insuranceInfo: primitive.insuranceInfo,
+      consent: primitive.consent,
+      submittedAt: primitive.submittedAt,
+      status: primitive.status,
+      completenessScore: primitive.completenessScore,
+      isComplete: primitive.isComplete,
     });
   } catch (error) {
+    if (error instanceof IntakeError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: error.statusCode },
+      );
+    }
     console.error('[GetIntakeSubmission]', error);
-
-    return NextResponse.json(
-      { error: 'Failed to fetch intake submission' },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
-

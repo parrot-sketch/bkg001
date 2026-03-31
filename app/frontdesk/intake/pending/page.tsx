@@ -57,10 +57,10 @@ export default function PendingIntakesPage() {
       const result = await apiClient.get<PendingIntakesResponse>('/frontdesk/intake/pending?limit=20&offset=0');
 
       if (!result.success) {
-        throw new Error((result as any).error || 'Failed to fetch pending intakes');
+        throw new Error(result.error || 'Failed to fetch pending intakes');
       }
 
-      const data = (result as any).data as PendingIntakesResponse;
+      const data = result.data;
       setIntakes(data.intakes);
       setTotal(data.total);
       setLastFetched(new Date());

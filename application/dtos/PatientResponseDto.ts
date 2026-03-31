@@ -1,15 +1,6 @@
-/**
- * DTO: PatientResponseDto
- * 
- * Data Transfer Object for patient response data.
- * This DTO represents the output data from patient-related use cases.
- * 
- * Contains only the data needed by the calling layer (interface/UI),
- * not the full domain entity.
- */
 export interface PatientResponseDto {
   readonly id: string;
-  readonly fileNumber: string; // System-generated: NS001, NS002, etc.
+  readonly fileNumber: string;
   readonly firstName: string;
   readonly lastName: string;
   readonly fullName: string;
@@ -19,12 +10,12 @@ export interface PatientResponseDto {
   readonly email: string;
   readonly phone: string;
   readonly whatsappPhone?: string;
-  readonly address: string;
+  readonly address?: string;
   readonly occupation?: string;
-  readonly maritalStatus: string;
-  readonly emergencyContactName: string;
-  readonly emergencyContactNumber: string;
-  readonly relation: string;
+  readonly maritalStatus?: string;
+  readonly emergencyContactName?: string;
+  readonly emergencyContactNumber?: string;
+  readonly relation?: string;
   readonly hasPrivacyConsent: boolean;
   readonly hasServiceConsent: boolean;
   readonly hasMedicalConsent: boolean;

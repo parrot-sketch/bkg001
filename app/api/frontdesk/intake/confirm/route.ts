@@ -1,116 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { authenticateRequest } from '@/lib/auth/jwt-helper';
-import { ConfirmPatientIntakeUseCase } from '@/application/use-cases/ConfirmPatientIntakeUseCase';
-import { PrismaIntakeSessionRepository } from '@/infrastructure/repositories/IntakeSessionRepository';
-import { PrismaIntakeSubmissionRepository } from '@/infrastructure/repositories/IntakeSubmissionRepository';
-import { PrismaPatientRepository } from '@/infrastructure/repositories/PatientRepository';
+import { requireAuth } from '@/lib/auth/require-auth';
+import { container } from '@/lib/container';
+import { IntakeError } from '@/domain/errors/IntakeErrors';
 
-// Initialize repositories at module level (singleton — shared across requests)
-const sessionRepository = new PrismaIntakeSessionRepository(db);
-const submissionRepository = new PrismaIntakeSubmissionRepository(db);
-const patientRepository = new PrismaPatientRepository(db);
-
-const confirmIntakeUseCase = new ConfirmPatientIntakeUseCase(
-  submissionRepository,
-  sessionRepository,
-  patientRepository,
-);
-
-/**
- * POST /api/frontdesk/intake/confirm
- *
- * Frontdesk confirms intake & creates patient record
- *
- * Request Body:
- * {
- *   sessionId: "abc123xyz",
- *   corrections: { ... } (optional, for future enhancement)
- * }
- *
- * Response:
- * {
- *   patientId: "patient-123",
- *   fileNumber: "NS001",
- *   firstName: "John",
- *   lastName: "Doe",
- *   email: "john@example.com",
- *   phone: "254712345678"
- * }
- *
- * Errors:
- * - 400: Validation error or incomplete data
- * - 401: Not authenticated
- * - 403: Not frontdesk role
- * - 404: Session or submission not found
- * - 409: Already confirmed or rejected
- * - 500: Server error
- */
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication — frontdesk staff only
-    const authResult = await authenticateRequest(request);
-    if (!authResult.success) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 },
-      );
-    }
+    await requireAuth(request, ['FRONTDESK', 'ADMIN']);
 
     const body = await request.json();
-    const { sessionId, corrections } = body;
+    const { sessionId } = body;
 
     if (!sessionId) {
       return NextResponse.json(
-        { error: 'Session ID is required' },
+        { error: 'Session ID is required', code: 'VALIDATION_ERROR' },
         { status: 400 },
       );
     }
 
-    // Execute use case
-    const result = await confirmIntakeUseCase.execute({
-      sessionId,
-      corrections,
-    });
+    const result = await container.confirmIntake.execute(sessionId);
 
-    return NextResponse.json(result, { status: 200 });
+    return NextResponse.json(result);
   } catch (error) {
-    console.error('[ConfirmPatientIntake]', error);
-
-    if (error instanceof Error) {
-      // Domain exceptions - client errors
-      if (error.message.includes('not found')) {
-        return NextResponse.json(
-          { error: error.message },
-          { status: 404 },
-        );
-      }
-
-      if (
-        error.message.includes('already been') ||
-        error.message.includes('rejected')
-      ) {
-        return NextResponse.json(
-          { error: error.message },
-          { status: 409 },
-        );
-      }
-
-      // Validation errors
-      if (
-        error.message.includes('incomplete') ||
-        error.message.includes('Missing')
-      ) {
-        return NextResponse.json(
-          { error: error.message },
-          { status: 400 },
-        );
-      }
+    if (error instanceof IntakeError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: error.statusCode },
+      );
     }
-
-    return NextResponse.json(
-      { error: 'Failed to confirm patient intake' },
-      { status: 500 },
-    );
+    console.error('[ConfirmPatientIntake]', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

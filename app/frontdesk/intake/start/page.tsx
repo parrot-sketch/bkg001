@@ -98,8 +98,8 @@ export default function StartIntakePage() {
       setIsLoading(true);
       setError(null);
       const result = await apiClient.post<IntakeSession>('/frontdesk/intake/start');
-      if (!result.success) throw new Error((result as any).error || 'Failed to start intake session');
-      const data = (result as any).data as IntakeSession;
+      if (!result.success) throw new Error(result.error || 'Failed to start intake session');
+      const data = result.data;
       setSession(data);
       setMinutesLeft(data.minutesRemaining);
       setStationState('active');
@@ -135,10 +135,12 @@ export default function StartIntakePage() {
 
     const poll = async () => {
       try {
-        const res = await fetch(`/api/frontdesk/intake/${session.sessionId}/status`);
-        if (!res.ok) return; // silent — retry next tick
+        const result = await apiClient.get<SessionStatus>(
+          `/frontdesk/intake/${session.sessionId}/status`
+        );
+        if (!result.success) return; // silent — retry next tick
 
-        const data: SessionStatus = await res.json();
+        const data = result.data;
 
         if (data.status === 'SUBMITTED' || data.status === 'CONFIRMED') {
           stopPoll();

@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Users, User, Search, X, Plus, Loader2, Link2Off, ShieldAlert, Syringe } from 'lucide-react';
-import type { SurgicalCasePlanViewModel } from '../../core/types';
+import type { SurgicalCasePlanViewModel, TeamMember } from '../../core/types';
 import { toast } from 'sonner';
 import { assignTeamMember, removeTeamMember } from '@/actions/doctor/surgical-plan';
 import {
@@ -50,17 +50,6 @@ const TEAM_ROLES = [
 
 type TeamRoleValue = (typeof TEAM_ROLES)[number]['value'];
 
-type TeamMember = {
-  id: string;
-  name: string;
-  role: string;
-  is_external: boolean;
-  external_name: string | null;
-  external_credentials: string | null;
-  assigned_by_doctor?: { name: string } | null;
-  user_id: string | null;
-};
-
 export function TeamTabView({ data, readOnly = false }: TeamTabViewProps) {
   const caseId = data.caseId;
   const [isPending, startTransition] = useTransition();
@@ -74,7 +63,7 @@ export function TeamTabView({ data, readOnly = false }: TeamTabViewProps) {
   const [searchResults, setSearchResults] = useState<Array<{ id: string; name: string }>>([]);
 
   // Team members arrive from the shell's data (revalidatePath refreshes them)
-  const teamMembers: TeamMember[] = (data as any).teamMembers ?? [];
+  const teamMembers: TeamMember[] = data.teamMembers ?? [];
 
   const getRoleLabel = (role: string) =>
     TEAM_ROLES.find((r) => r.value === role)?.label ?? role.replace(/_/g, ' ');
@@ -205,38 +194,25 @@ export function TeamTabView({ data, readOnly = false }: TeamTabViewProps) {
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                      {member.is_external ? (
-                        <Link2Off className="h-4 w-4 text-muted-foreground" />
-                      ) : (
-                        <User className="h-4 w-4 text-primary" />
-                      )}
+                      <User className="h-4 w-4 text-primary" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">
-                        {member.is_external ? (member.external_name ?? member.name) : member.name}
+                        {member.user
+                          ? `${member.user.firstName} ${member.user.lastName}`
+                          : `Staff ${member.userId}`}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {getRoleLabel(member.role)}
-                        {member.external_credentials && (
-                          <span className="text-stone-400"> · {member.external_credentials}</span>
-                        )}
                       </p>
-                      {member.assigned_by_doctor && (
-                        <p className="text-[10px] text-stone-400 mt-0.5">
-                          Assigned by {member.assigned_by_doctor.name}
-                        </p>
-                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    {member.is_external && (
-                      <Badge variant="secondary" className="text-[10px]">External</Badge>
-                    )}
                     {!readOnly && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleRemove(member.id, member.name)}
+                        onClick={() => handleRemove(String(member.id), member.user ? `${member.user.firstName} ${member.user.lastName}` : 'Staff')}
                         disabled={isPending}
                         className="h-7 w-7 p-0"
                       >

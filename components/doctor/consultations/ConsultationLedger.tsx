@@ -1,186 +1,177 @@
 'use client';
 
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-  ClipboardCheck, 
-  Calendar, 
-  Scissors, 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  ClipboardCheck,
+  Scissors,
+  Calendar,
   Eye,
+  MoreVertical,
   Clock,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
-import { 
-  ConsultationOutcomeType, 
-} from '@/domain/enums/ConsultationOutcomeType';
+import { toast } from 'sonner';
 
-interface ConsultationLedgerProps {
-  consultations: any[];
+interface ConsultationItem {
+  id: number;
+  outcome_type?: string | null;
+  outcomeType?: string | null;
+  completed_at?: string | Date | null;
+  completedAt?: string | Date | null;
+  duration_minutes?: number | null;
+  durationMinutes?: number | null;
+  has_surgical_case?: boolean | null;
+  hasCasePlan?: boolean | null;
+  case_plan_id?: number | null;
+  casePlanId?: number | null;
+  appointment?: {
+    id?: number;
+    type?: string;
+    patient?: {
+      id?: string;
+      first_name?: string;
+      firstName?: string;
+      last_name?: string;
+      lastName?: string;
+      file_number?: string;
+      fileNumber?: string;
+    };
+  };
 }
 
-function OutcomeBadge({ outcomeType }: { outcomeType: string | null }) {
-  if (!outcomeType) {
-    return (
-      <Badge variant="outline" className="text-[10px] font-semibold bg-amber-50 text-amber-700 border-amber-200">
-        Pending
-      </Badge>
-    );
-  }
-  switch (outcomeType) {
-    case ConsultationOutcomeType.PROCEDURE_RECOMMENDED:
-      return <Badge variant="outline" className="text-[10px] font-semibold bg-orange-50 text-orange-700 border-orange-200">Surgery</Badge>;
-    case ConsultationOutcomeType.FOLLOW_UP_CONSULTATION_NEEDED:
-      return <Badge variant="outline" className="text-[10px] font-semibold bg-purple-50 text-purple-700 border-purple-200">Follow-up</Badge>;
-
-    case ConsultationOutcomeType.CONSULTATION_ONLY:
-      return <Badge variant="outline" className="text-[10px] font-semibold bg-slate-50 text-slate-600 border-slate-200">Consultation Only</Badge>;
-    default:
-      return <Badge variant="outline" className="text-[10px] font-semibold bg-slate-50 text-slate-500 border-slate-200">{outcomeType}</Badge>;
-  }
+interface Props {
+  consultations: ConsultationItem[];
 }
 
-export function ConsultationLedger({ consultations }: ConsultationLedgerProps) {
+export function ConsultationLedger({ consultations }: Props) {
   if (consultations.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 border border-border rounded-xl bg-card text-center">
-        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
-          <ClipboardCheck className="h-6 w-6 text-muted-foreground" />
-        </div>
-        <p className="text-sm font-semibold text-foreground mb-1">No completed consultations</p>
-        <p className="text-xs text-muted-foreground max-w-xs">
-          Sessions you finalize today will appear here with options to plan surgery or schedule follow-ups.
-        </p>
+      <div className="flex flex-col items-center justify-center py-16 border border-slate-200 rounded-xl text-center">
+        <ClipboardCheck className="h-6 w-6 text-slate-300 mb-2" />
+        <p className="text-sm font-medium text-slate-700">No completed consultations</p>
+        <p className="text-xs text-slate-400 mt-1">Finalized sessions appear here</p>
       </div>
     );
   }
 
   return (
-    <div className="border border-border rounded-xl overflow-hidden bg-card shadow-sm">
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-muted/40 hover:bg-muted/40">
-            <TableHead className="text-xs font-semibold text-muted-foreground uppercase tracking-wide py-3">Patient</TableHead>
-            <TableHead className="text-xs font-semibold text-muted-foreground uppercase tracking-wide py-3">Type</TableHead>
-            <TableHead className="text-xs font-semibold text-muted-foreground uppercase tracking-wide py-3">Completed</TableHead>
-            <TableHead className="text-xs font-semibold text-muted-foreground uppercase tracking-wide py-3">Outcome</TableHead>
-            <TableHead className="text-xs font-semibold text-muted-foreground uppercase tracking-wide py-3 text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {consultations.map((item) => {
-            const appointment = item.appointment;
-            const patient = appointment?.patient;
-            const firstName = patient?.first_name ?? patient?.firstName ?? '';
-            const lastName = patient?.last_name ?? patient?.lastName ?? '';
-            const patientName = patient ? `${firstName} ${lastName}`.trim() : 'Unknown Patient';
-            const fileNumber = patient?.file_number ?? patient?.fileNumber;
+    <div className="space-y-1">
+      {consultations.map((item) => (
+        <ConsultationRow key={item.id} item={item} />
+      ))}
+    </div>
+  );
+}
 
-            const completedAt = item.completed_at ?? item.completedAt;
-            const completedAgo = completedAt
-              ? formatDistanceToNow(new Date(completedAt), { addSuffix: true })
-              : '—';
-            const completedFormatted = completedAt
-              ? format(new Date(completedAt), 'HH:mm')
-              : '—';
+function ConsultationRow({ item }: { item: ConsultationItem }) {
+  const [loading, setLoading] = useState(false);
 
-            const outcomeType = item.outcome_type ?? item.outcomeType;
+  const patient = item.appointment?.patient;
+  const firstName = patient?.first_name ?? patient?.firstName ?? '';
+  const lastName = patient?.last_name ?? patient?.lastName ?? '';
+  const patientName = patient ? `${firstName} ${lastName}`.trim() : 'Unknown';
+  const fileNumber = patient?.file_number ?? patient?.fileNumber;
 
-            return (
-              <TableRow key={item.id} className="group hover:bg-muted/30 transition-colors border-border">
+  const completedAt = item.completed_at ?? item.completedAt;
+  const completedTime = completedAt ? format(new Date(completedAt), 'HH:mm') : '—';
+  const completedAgo = completedAt
+    ? formatDistanceToNow(new Date(completedAt), { addSuffix: true })
+    : '';
 
-                {/* Patient */}
-                <TableCell className="py-3.5">
-                  <div>
-                    <p className="text-sm font-semibold text-foreground leading-none mb-0.5 group-hover:text-primary transition-colors">
-                      {patientName}
-                    </p>
-                    {fileNumber && (
-                      <p className="text-xs text-muted-foreground">#{fileNumber}</p>
-                    )}
-                  </div>
-                </TableCell>
+  const duration = item.duration_minutes ?? item.durationMinutes;
+  const appointmentType = item.appointment?.type ?? 'Consultation';
+  const hasSurgicalCase = item.has_surgical_case ?? item.hasCasePlan ?? false;
 
-                {/* Type */}
-                <TableCell className="py-3.5">
-                  <span className="text-sm text-muted-foreground">
-                    {appointment?.type ?? 'Consultation'}
-                  </span>
-                </TableCell>
+  const handlePlanSurgery = async () => {
+    setLoading(true);
+    try {
+      const { initiateSurgicalCase } = await import('@/actions/doctor/consultation-hub');
+      const res = await initiateSurgicalCase({ consultationId: item.id }) as { success: boolean; surgicalCaseId?: string; error?: string };
+      if (res.success && res.surgicalCaseId) {
+        window.location.href = `/doctor/surgical-cases/${res.surgicalCaseId}/plan`;
+      } else {
+        toast.error(res.error || 'Failed to create surgical case');
+      }
+    } catch (e) {
+      toast.error('Failed to create surgical case');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-                {/* Completed */}
-                <TableCell className="py-3.5">
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <Clock className="h-3.5 w-3.5 shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium text-foreground leading-none">{completedFormatted}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{completedAgo}</p>
-                    </div>
-                  </div>
-                </TableCell>
+  return (
+    <div className="group flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors">
+      {/* Left: Patient info */}
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500 shrink-0">
+          {firstName[0]}{lastName[0]}
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-slate-900 truncate">{patientName}</p>
+          <div className="flex items-center gap-2 text-[11px] text-slate-400">
+            {fileNumber && <span className="font-mono">{fileNumber}</span>}
+            <span>{appointmentType}</span>
+          </div>
+        </div>
+      </div>
 
-                {/* Outcome */}
-                <TableCell className="py-3.5">
-                  <OutcomeBadge outcomeType={outcomeType} />
-                </TableCell>
+      {/* Right: Time + Actions */}
+      <div className="flex items-center gap-3 shrink-0">
+        <div className="text-right hidden sm:block">
+          <p className="text-xs font-medium text-slate-700">{completedTime}</p>
+          <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+            {duration != null && <span>{duration}min</span>}
+            {completedAgo && <span>{completedAgo}</span>}
+          </div>
+        </div>
 
-                {/* Actions */}
-                <TableCell className="py-3.5 text-right">
-                  <div className="flex items-center justify-end gap-1.5">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 px-2.5 text-[11px] font-semibold gap-1.5 border-slate-200 text-slate-600 hover:bg-orange-50 hover:text-orange-700 hover:border-orange-200 transition-colors"
-                      onClick={async () => {
-                        const { initiateSurgicalCase } = await import('@/actions/doctor/consultation-hub');
-                        const res = await initiateSurgicalCase({ consultationId: item.id }) as { success: boolean; surgicalCaseId?: string };
-                        if (res.success && res.surgicalCaseId) {
-                          window.location.href = `/doctor/surgical-cases/${res.surgicalCaseId}/plan`;
-                        }
-                      }}
-                    >
-                      <Scissors className="h-3 w-3" />
-                      Plan Surgery
-                    </Button>
+        {/* Contextual action menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 p-0 text-slate-400 hover:text-slate-700"
+              disabled={loading}
+            >
+              <MoreVertical className="h-3.5 w-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            {/* Plan Surgery — contextual label */}
+            <DropdownMenuItem onClick={handlePlanSurgery} className="cursor-pointer">
+              <Scissors className="h-3.5 w-3.5 mr-2 text-orange-500" />
+              {hasSurgicalCase ? 'Continue Planning' : 'Plan Surgery'}
+            </DropdownMenuItem>
 
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 px-2.5 text-[11px] font-semibold gap-1.5 border-slate-200 text-slate-600 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200 transition-colors"
-                      asChild
-                    >
-                      <Link href={`/doctor/appointments/new?patientId=${patient?.id}&type=Follow-up&source=DOCTOR_FOLLOW_UP&parentConsultationId=${item.id}&parentAppointmentId=${appointment?.id}`}>
-                        <Calendar className="h-3 w-3" />
-                        Follow-up
-                      </Link>
-                    </Button>
+            {/* Schedule Follow-up */}
+            <DropdownMenuItem asChild className="cursor-pointer">
+              <Link
+                href={`/doctor/appointments/new?patientId=${patient?.id}&type=Follow-up&source=DOCTOR_FOLLOW_UP&parentConsultationId=${item.id}&parentAppointmentId=${item.appointment?.id}`}
+              >
+                <Calendar className="h-3.5 w-3.5 mr-2 text-purple-500" />
+                Schedule Follow-up
+              </Link>
+            </DropdownMenuItem>
 
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-8 px-2.5 text-[11px] font-semibold gap-1.5 text-muted-foreground hover:text-foreground hover:bg-muted"
-                      asChild
-                    >
-                      <Link href={`/doctor/consultations/${item.id}`}>
-                        <Eye className="h-3 w-3" />
-                        View
-                      </Link>
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+            {/* View Record */}
+            <DropdownMenuItem asChild className="cursor-pointer">
+              <Link href={`/doctor/consultations/${item.id}`}>
+                <Eye className="h-3.5 w-3.5 mr-2 text-slate-400" />
+                View Record
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   );
 }

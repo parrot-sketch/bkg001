@@ -5,8 +5,10 @@ import { PatientOverviewPanel } from "@/components/patient/PatientOverviewPanel"
 import { FrontdeskPatientSidebar } from "@/components/patient/FrontdeskPatientSidebar";
 import { PatientAppointmentsPanel } from "@/components/patient/PatientAppointmentsPanel";
 import { PatientBillingPanel } from "@/components/patient/PatientBillingPanel";
-import { Card, CardContent } from "@/components/ui/card";
 import { getPatientFullDataById } from "@/utils/services/patient";
+import { getCurrentUser } from "@/lib/auth/server-auth";
+import { container } from "@/lib/container";
+import { PatientDetailActions } from "@/components/frontdesk/PatientDetailActions";
 import Link from "next/link";
 import { ArrowLeft, Loader2 } from "lucide-react";
 
@@ -42,9 +44,24 @@ function PatientLoadingSkeleton() {
 const FrontdeskPatientProfile = async (props: ParamsProps) => {
   const searchParams = await props.searchParams;
   const params = await props.params;
-
   const id = params.patientId;
   const cat = (searchParams?.cat as string) || "overview";
+
+  // Server-side auth check
+  const user = await getCurrentUser();
+
+  // HIPAA audit: log who viewed this patient's full record
+  if (user) {
+    try {
+      await container.auditLogger.logPatientAccess(
+        { userId: user.userId },
+        id,
+        'VIEW',
+      );
+    } catch {
+      // Audit failure must never block the page
+    }
+  }
 
   let data;
   let success = false;
@@ -89,6 +106,33 @@ const FrontdeskPatientProfile = async (props: ParamsProps) => {
 
   const fullName = `${data.first_name} ${data.last_name}`;
 
+  // Build PatientDetailDto for the edit dialog
+  const patientDetail = {
+    id: data.id,
+    fileNumber: data.file_number,
+    firstName: data.first_name,
+    lastName: data.last_name,
+    email: data.email,
+    phone: data.phone,
+    dateOfBirth: data.date_of_birth.toISOString(),
+    gender: data.gender,
+    address: data.address ?? undefined,
+    maritalStatus: data.marital_status ?? undefined,
+    bloodGroup: data.blood_group ?? undefined,
+    allergies: data.allergies ?? undefined,
+    medicalConditions: data.medical_conditions ?? undefined,
+    medicalHistory: data.medical_history ?? undefined,
+    emergencyContactName: data.emergency_contact_name ?? undefined,
+    emergencyContactNumber: data.emergency_contact_number ?? undefined,
+    relation: data.relation ?? undefined,
+    profileImage: data.img ?? undefined,
+    colorCode: data.colorCode ?? undefined,
+    createdAt: data.created_at.toISOString(),
+    updatedAt: data.updated_at.toISOString(),
+    totalAppointments: data.totalAppointments,
+    lastVisitAt: data.lastVisit?.toISOString() ?? null,
+  };
+
   return (
     <div className="space-y-6">
       {/* Top bar */}
@@ -99,13 +143,16 @@ const FrontdeskPatientProfile = async (props: ParamsProps) => {
             Complete patient information and medical history
           </p>
         </div>
-        <Link
-          href="/frontdesk/patients"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft size={14} />
-          Back to Patients
-        </Link>
+        <div className="flex items-center gap-3">
+          <PatientDetailActions patient={patientDetail} />
+          <Link
+            href="/frontdesk/patients"
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft size={14} />
+            Back to Patients
+          </Link>
+        </div>
       </div>
 
       {/* Hero Banner */}
@@ -150,8 +197,6 @@ const FrontdeskPatientProfile = async (props: ParamsProps) => {
                 }}
               />
             )}
-
-
 
             {cat === "appointments" && (
               <Suspense

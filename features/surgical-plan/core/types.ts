@@ -1,6 +1,6 @@
 /**
  * Core Types for Surgical Plan Feature
- * 
+ *
  * Shared type definitions used across the surgical plan feature module.
  */
 
@@ -57,6 +57,10 @@ export interface SurgicalCasePlanViewModel {
     id: string;
     name: string;
   } | null;
+  consultation: {
+    id: number;
+    appointmentId: number;
+  } | null;
   theaterBooking: {
     id: string;
     startTime: string;
@@ -64,12 +68,47 @@ export interface SurgicalCasePlanViewModel {
     status: string;
     theaterName: string | null;
   } | null;
+  teamMembers: TeamMember[];
+  billingEstimate: BillingEstimateViewModel | null;
   readinessChecklist: Array<{
     key: string;
     label: string;
     done: boolean;
   }>;
   timeline: TimelineResultDto | null;
+}
+
+export interface TeamMember {
+  id: number;
+  role: string;
+  userId: string;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    role: string;
+  } | null;
+}
+
+export interface BillingEstimateViewModel {
+  id: string;
+  surgeonFee: number;
+  anaesthesiologistFee: number;
+  theatreFee: number;
+  subtotal: number;
+  status: string;
+  lineItems: BillingLineItem[];
+}
+
+export interface BillingLineItem {
+  id: string;
+  description: string;
+  category: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  addedByRole: string;
+  notes: string | null;
 }
 
 /**
@@ -86,7 +125,7 @@ export interface TabDefinition {
 }
 
 /**
- * Update clinical plan request (minimal subset for Phase 1)
+ * Update clinical plan request
  */
 export interface UpdateClinicalPlanRequest {
   procedureName?: string;

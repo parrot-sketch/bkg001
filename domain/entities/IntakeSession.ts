@@ -1,4 +1,7 @@
-import { DomainException } from '@/domain/exceptions/DomainException';
+import {
+  InvalidSessionStateError,
+  SessionExpiredError,
+} from '@/domain/errors/IntakeErrors';
 
 export type IntakeSessionStatus = 'ACTIVE' | 'SUBMITTED' | 'CONFIRMED' | 'EXPIRED';
 
@@ -8,69 +11,37 @@ export type IntakeSessionStatus = 'ACTIVE' | 'SUBMITTED' | 'CONFIRMED' | 'EXPIRE
  * Represents a patient intake session initiated by frontdesk.
  * Tracks the lifecycle: ACTIVE → SUBMITTED → CONFIRMED or EXPIRED
  *
- * Business Rules:
- * - Session is ACTIVE when created
- * - Session expires after specified minutes (default 60)
- * - Once SUBMITTED, cannot accept new submissions
- * - Once CONFIRMED, session is closed
- * - Expired sessions cannot be reactivated
+ * Immutable: all state transitions return NEW instances.
  */
 export class IntakeSession {
-  private readonly sessionId: string;
-  private readonly status: IntakeSessionStatus;
-  private readonly createdAt: Date;
-  private readonly expiresAt: Date;
-  private readonly createdByUserId?: string;
-
   private constructor(
-    sessionId: string,
-    status: IntakeSessionStatus,
-    createdAt: Date,
-    expiresAt: Date,
-    createdByUserId?: string,
-  ) {
-    this.sessionId = sessionId;
-    this.status = status;
-    this.createdAt = createdAt;
-    this.expiresAt = expiresAt;
-    this.createdByUserId = createdByUserId;
-  }
+    private readonly sessionId: string,
+    private readonly status: IntakeSessionStatus,
+    private readonly createdAt: Date,
+    private readonly expiresAt: Date,
+    private readonly createdByUserId: string | undefined,
+  ) {}
 
-  /**
-   * Factory method: Create a new intake session
-   *
-   * @param params Configuration for new session
-   * @param params.sessionId Unique session identifier (UUID)
-   * @param params.createdByUserId ID of frontdesk user who initiated
-   * @param params.expirationMinutes How long session remains active (default: 60)
-   * @returns New IntakeSession instance
-   *
-   * @example
-   * const session = IntakeSession.create({
-   *   sessionId: uuidv4(),
-   *   createdByUserId: 'user-123',
-   *   expirationMinutes: 60,
-   * });
-   */
   static create(params: {
     sessionId: string;
     createdByUserId?: string;
     expirationMinutes?: number;
   }): IntakeSession {
-    // Validate sessionId
     if (!params.sessionId || params.sessionId.trim().length === 0) {
-      throw new DomainException('Session ID is required');
+      throw new InvalidSessionStateError('', 'EMPTY', 'valid sessionId');
     }
 
-    // Calculate expiration time
-    const expiresAt = new Date();
-    const expirationMinutes = params.expirationMinutes ?? 60;
-    
-    if (expirationMinutes <= 0) {
-      throw new DomainException('Expiration time must be greater than 0');
+    const expMin = params.expirationMinutes ?? 60;
+    if (expMin < 15 || expMin > 1440) {
+      throw new InvalidSessionStateError(
+        params.sessionId,
+        `${expMin}min`,
+        '15-1440 minutes',
+      );
     }
-    
-    expiresAt.setMinutes(expiresAt.getMinutes() + expirationMinutes);
+
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + expMin);
 
     return new IntakeSession(
       params.sessionId,
@@ -81,10 +52,6 @@ export class IntakeSession {
     );
   }
 
-  /**
-   * Restore IntakeSession from persistent storage
-   * Used by repositories when loading from database
-   */
   static restore(data: {
     sessionId: string;
     status: IntakeSessionStatus;
@@ -101,120 +68,58 @@ export class IntakeSession {
     );
   }
 
-  /**
-   * Check if session has expired
-   *
-   * @returns true if current time is past expiresAt
-   */
+  // ── Pure state transitions (return new instance) ──
+
+  markAsSubmitted(): IntakeSession {
+    this.assertStatus('ACTIVE');
+    this.assertNotExpired();
+    return this.withStatus('SUBMITTED');
+  }
+
+  markAsConfirmed(): IntakeSession {
+    this.assertStatus('SUBMITTED');
+    return this.withStatus('CONFIRMED');
+  }
+
+  markAsExpired(): IntakeSession {
+    if (this.status === 'CONFIRMED') {
+      throw new InvalidSessionStateError(this.sessionId, 'CONFIRMED', 'not CONFIRMED');
+    }
+    return this.withStatus('EXPIRED');
+  }
+
+  // ── Business logic ──
+
   isExpired(): boolean {
     return new Date() > this.expiresAt;
   }
 
-  /**
-   * Check if session is active and not expired
-   */
   isActive(): boolean {
     return this.status === 'ACTIVE' && !this.isExpired();
   }
 
-  /**
-   * Check if session is still accepting submissions
-   *
-   * @returns true if session is ACTIVE and not expired
-   */
   canAcceptSubmission(): boolean {
     return this.isActive();
   }
 
-  /**
-   * Mark session as submitted
-   * Called when patient submits intake form
-   *
-   * @throws DomainException if session is not ACTIVE
-   */
-  markAsSubmitted(): void {
-    if (this.status !== 'ACTIVE') {
-      throw new DomainException(
-        `Cannot submit to session with status ${this.status}`,
-      );
-    }
-
-    if (this.isExpired()) {
-      throw new DomainException('Session has expired');
-    }
-
-    // Note: We can't actually change status in an immutable entity
-    // This method demonstrates the intent; implementation uses repository
-  }
-
-  /**
-   * Mark session as confirmed
-   * Called when frontdesk confirms intake and creates patient record
-   *
-   * @throws DomainException if session is not SUBMITTED
-   */
-  markAsConfirmed(): void {
-    if (this.status !== 'SUBMITTED') {
-      throw new DomainException(
-        `Cannot confirm session with status ${this.status}`,
-      );
-    }
-  }
-
-  /**
-   * Mark session as expired
-   * Called by cleanup job or when expiration is detected
-   */
-  markAsExpired(): void {
-    if (this.status === 'CONFIRMED') {
-      throw new DomainException('Cannot expire a confirmed session');
-    }
-  }
-
-  /**
-   * Get time remaining until session expires
-   *
-   * @returns Milliseconds remaining, or 0 if expired
-   */
   getTimeRemaining(): number {
-    const remaining = this.expiresAt.getTime() - new Date().getTime();
-    return remaining > 0 ? remaining : 0;
+    return Math.max(0, this.expiresAt.getTime() - Date.now());
   }
 
-  /**
-   * Get time remaining in minutes
-   */
   getMinutesRemaining(): number {
     return Math.ceil(this.getTimeRemaining() / 60000);
   }
 
-  // ============================================================================
-  // Getters (all properties are immutable)
-  // ============================================================================
+  // ── Getters ──
 
-  getSessionId(): string {
-    return this.sessionId;
-  }
+  getSessionId(): string { return this.sessionId; }
+  getStatus(): IntakeSessionStatus { return this.status; }
+  getCreatedAt(): Date { return new Date(this.createdAt); }
+  getExpiresAt(): Date { return new Date(this.expiresAt); }
+  getCreatedByUserId(): string | undefined { return this.createdByUserId; }
 
-  getStatus(): IntakeSessionStatus {
-    return this.status;
-  }
+  // ── Serialization ──
 
-  getCreatedAt(): Date {
-    return new Date(this.createdAt); // Return copy to prevent mutation
-  }
-
-  getExpiresAt(): Date {
-    return new Date(this.expiresAt);
-  }
-
-  getCreatedByUserId(): string | undefined {
-    return this.createdByUserId;
-  }
-
-  /**
-   * Serialize to plain object for DTO/API responses
-   */
   toPrimitive() {
     return {
       sessionId: this.sessionId,
@@ -225,5 +130,29 @@ export class IntakeSession {
       isExpired: this.isExpired(),
       minutesRemaining: this.getMinutesRemaining(),
     };
+  }
+
+  // ── Private helpers ──
+
+  private assertStatus(expected: IntakeSessionStatus): void {
+    if (this.status !== expected) {
+      throw new InvalidSessionStateError(this.sessionId, this.status, expected);
+    }
+  }
+
+  private assertNotExpired(): void {
+    if (this.isExpired()) {
+      throw new SessionExpiredError(this.sessionId);
+    }
+  }
+
+  private withStatus(newStatus: IntakeSessionStatus): IntakeSession {
+    return new IntakeSession(
+      this.sessionId,
+      newStatus,
+      this.createdAt,
+      this.expiresAt,
+      this.createdByUserId,
+    );
   }
 }

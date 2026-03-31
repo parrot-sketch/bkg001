@@ -4,26 +4,61 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Loader2, UserPlus, Stethoscope, Send, Plus } from 'lucide-react';
+import { Loader2, UserPlus, Stethoscope, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { patientApi } from '@/lib/api/patient';
 import { assignPatientToQueue } from '@/app/actions/appointment';
 import { PatientCombobox } from '@/components/frontdesk/PatientCombobox';
 import { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';
+import { ProfileImage } from '@/components/profile-image';
 
 interface QuickAssignmentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  initialPatientId?: string;
+  initialPatientName?: string;
 }
 
-export function QuickAssignmentDialog({ open, onOpenChange, onSuccess }: QuickAssignmentDialogProps) {
+export function QuickAssignmentDialog({
+  open,
+  onOpenChange,
+  onSuccess,
+  initialPatientId,
+  initialPatientName,
+}: QuickAssignmentDialogProps) {
   const [selectedPatient, setSelectedPatient] = useState<PatientResponseDto | null>(null);
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>('');
   const [doctors, setDoctors] = useState<DoctorResponseDto[]>([]);
   const [loadingDoctors, setLoadingDoctors] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Pre-select patient when initialPatientId is provided
+  useEffect(() => {
+    if (open && initialPatientId) {
+      setSelectedPatient({
+        id: initialPatientId,
+        firstName: initialPatientName?.split(' ')[0] || '',
+        lastName: initialPatientName?.split(' ').slice(1).join(' ') || '',
+        fileNumber: '',
+        fullName: initialPatientName || '',
+        dateOfBirth: new Date(),
+        age: 0,
+        gender: '',
+        email: '',
+        phone: '',
+        address: '',
+        maritalStatus: '',
+        emergencyContactName: '',
+        emergencyContactNumber: '',
+        relation: '',
+        hasPrivacyConsent: true,
+        hasServiceConsent: true,
+        hasMedicalConsent: true,
+      } as PatientResponseDto);
+    }
+  }, [open, initialPatientId, initialPatientName]);
 
   useEffect(() => {
     async function fetchDoctors() {
@@ -59,7 +94,6 @@ export function QuickAssignmentDialog({ open, onOpenChange, onSuccess }: QuickAs
 
       if (result.success) {
         toast.success(`${selectedPatient.firstName} ${selectedPatient.lastName} added to queue`);
-        // Reset form
         setSelectedPatient(null);
         setSelectedDoctorId('');
         onOpenChange(false);
@@ -81,6 +115,8 @@ export function QuickAssignmentDialog({ open, onOpenChange, onSuccess }: QuickAs
     onOpenChange(false);
   };
 
+  const hasPreselectedPatient = !!initialPatientId;
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-sm animate-in fade-in-0 zoom-in-95 duration-200">
@@ -92,21 +128,39 @@ export function QuickAssignmentDialog({ open, onOpenChange, onSuccess }: QuickAs
             Add to Queue
           </DialogTitle>
           <DialogDescription className="text-xs text-slate-500">
-            Assign patient directly to a doctor's queue
+            {hasPreselectedPatient
+              ? `Assign ${initialPatientName} to a doctor's queue`
+              : 'Assign patient directly to a doctor\'s queue'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 py-2">
-          {/* Patient Selection */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-slate-600">Patient</Label>
-            <PatientCombobox
-              value={selectedPatient?.id || ''}
-              onSelect={(patientId, patient) => {
-                setSelectedPatient(patient || null);
-              }}
-            />
-          </div>
+          {/* Patient Selection — only show if no pre-selected patient */}
+          {!hasPreselectedPatient && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-slate-600">Patient</Label>
+              <PatientCombobox
+                value={selectedPatient?.id || ''}
+                onSelect={(patientId, patient) => {
+                  setSelectedPatient(patient || null);
+                }}
+              />
+            </div>
+          )}
+
+          {/* Pre-selected Patient Preview */}
+          {hasPreselectedPatient && selectedPatient && (
+            <div className="p-2.5 rounded-lg bg-cyan-50/80 border border-cyan-100">
+              <p className="text-sm font-medium text-cyan-900">
+                {selectedPatient.firstName} {selectedPatient.lastName}
+              </p>
+              {selectedPatient.fileNumber && (
+                <p className="text-xs text-cyan-600 mt-0.5">
+                  {selectedPatient.fileNumber}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Doctor Selection */}
           <div className="space-y-1.5">
@@ -134,8 +188,8 @@ export function QuickAssignmentDialog({ open, onOpenChange, onSuccess }: QuickAs
             </select>
           </div>
 
-          {/* Selected Patient Preview */}
-          {selectedPatient && (
+          {/* Selected Patient Preview — for non-preselected flow */}
+          {!hasPreselectedPatient && selectedPatient && (
             <div className="p-2.5 rounded-lg bg-cyan-50/80 border border-cyan-100">
               <p className="text-sm font-medium text-cyan-900">
                 {selectedPatient.firstName} {selectedPatient.lastName}
@@ -149,9 +203,9 @@ export function QuickAssignmentDialog({ open, onOpenChange, onSuccess }: QuickAs
 
         {/* Actions */}
         <div className="flex justify-end gap-2 pt-2">
-          <Button 
-            variant="outline" 
-            onClick={handleClose} 
+          <Button
+            variant="outline"
+            onClick={handleClose}
             disabled={isSubmitting}
             className="h-8 px-3 text-xs rounded-lg"
           >

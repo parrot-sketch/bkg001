@@ -2,141 +2,93 @@ import { Patient } from '@/domain/entities/Patient';
 import { IIntakeSessionRepository } from '@/infrastructure/repositories/IntakeSessionRepository';
 import { IIntakeSubmissionRepository } from '@/infrastructure/repositories/IntakeSubmissionRepository';
 import { IPatientRepository } from '@/domain/interfaces/repositories/IPatientRepository';
-import { IntakeSubmissionMapper } from '@/infrastructure/mappers/IntakeSubmissionMapper';
-import { PatientMapper } from '@/application/mappers/PatientMapper';
-import { DomainException } from '@/domain/exceptions/DomainException';
+import { Gender } from '@/domain/enums/Gender';
+import {
+  SessionNotFoundError,
+  IncompleteSubmissionError,
+  InvalidSessionStateError,
+} from '@/domain/errors/IntakeErrors';
 import { v4 as uuidv4 } from 'uuid';
 
-/**
- * Use Case: Confirm Patient Intake (Create Patient Record)
- *
- * Triggered by: Frontdesk clicks [Confirm] button on pending intake
- * Input: Session ID + (optional) corrections
- * Output: Created Patient record
- *
- * Business Flow:
- * 1. Validate frontdesk permission (in route handler)
- * 2. Fetch intake submission from database
- * 3. Apply corrections if provided
- * 4. Validate complete data
- * 5. Generate unique file number
- * 6. Create Patient entity
- * 7. Save to repository
- * 8. Mark intake session as CONFIRMED
- * 9. Return Patient DTO
- *
- * Security:
- * - Frontdesk-only operation
- * - Audit logging (who confirmed, when)
- * - Idempotent (calling twice is safe)
- */
+export interface ConfirmIntakeOutput {
+  patientId: string;
+  fileNumber: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+}
+
 export class ConfirmPatientIntakeUseCase {
   constructor(
-    private readonly intakeSubmissionRepository: IIntakeSubmissionRepository,
-    private readonly intakeSessionRepository: IIntakeSessionRepository,
-    private readonly patientRepository: IPatientRepository,
+    private readonly submissionRepo: IIntakeSubmissionRepository,
+    private readonly sessionRepo: IIntakeSessionRepository,
+    private readonly patientRepo: IPatientRepository,
   ) {}
 
-  async execute(input: {
-    sessionId: string;
-    corrections?: Record<string, any>;
-  }): Promise<{
-    patientId: string;
-    fileNumber: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-  }> {
-    try {
-      // 1. Fetch intake submission from database
-      const submission = await this.intakeSubmissionRepository.findBySessionId(
-        input.sessionId,
-      );
+  async execute(sessionId: string): Promise<ConfirmIntakeOutput> {
+    // 1. Fetch submission
+    const submission = await this.submissionRepo.findBySessionId(sessionId);
+    if (!submission) throw new SessionNotFoundError(sessionId);
 
-      if (!submission) {
-        throw new DomainException('Intake submission not found');
-      }
-
-      if (submission.getStatus() === 'CONFIRMED') {
-        throw new DomainException('Intake has already been confirmed');
-      }
-
-      if (submission.getStatus() === 'REJECTED') {
-        throw new DomainException('Intake has been rejected');
-      }
-
-      // 2. Apply corrections if provided (future enhancement)
-      if (input.corrections && Object.keys(input.corrections).length > 0) {
-        // This would involve validating corrections and potentially
-        // recreating the submission with corrected data
-        // For MVP, we skip this feature
-      }
-
-      // 3. Validate complete data
-      if (!submission.isComplete()) {
-        const missing = submission.getIncompleteness();
-        throw new DomainException(
-          `Cannot confirm incomplete intake. Missing fields: ${missing.join(', ')}`,
-        );
-      }
-
-      // 4. Generate unique file number
-      const fileNumber = await this.patientRepository.generateNextFileNumber();
-
-      // 5. Convert intake submission to Patient entity
-      const patientId = uuidv4();
-      const patientEntity = submission.toPatientEntity(fileNumber, patientId);
-
-      // 6. Ensure no duplicate patient exists
-      await this.ensureNoDuplicatePatient(patientEntity);
-
-      // 7. Save to repository
-      await this.patientRepository.save(patientEntity);
-
-      // 8. Mark intake session as CONFIRMED
-      await this.intakeSessionRepository.updateStatus(input.sessionId, 'CONFIRMED');
-
-      // 9. Mark intake submission with patient ID
-      await this.intakeSubmissionRepository.updateWithPatientId(
-        submission.getSubmissionId(),
-        patientId,
-      );
-
-      // 10. Return Patient DTO
-      const patientDto = PatientMapper.toResponseDto(patientEntity);
-
-      return {
-        patientId: patientDto.id,
-        fileNumber: patientDto.fileNumber,
-        firstName: patientDto.firstName,
-        lastName: patientDto.lastName,
-        email: patientDto.email,
-        phone: patientDto.phone,
-      };
-    } catch (error) {
-      if (error instanceof DomainException) {
-        throw error;
-      }
-
-      throw new Error(`Failed to confirm patient intake: ${(error as Error).message}`);
+    if (submission.getStatus() === 'CONFIRMED') {
+      throw new InvalidSessionStateError(sessionId, 'CONFIRMED', 'PENDING');
     }
-  }
 
-  private async ensureNoDuplicatePatient(patient: Patient): Promise<void> {
-    const existingPatient = await this.patientRepository.findByEmail(
-      patient.getEmail(),
-    );
-
-    if (existingPatient) {
-      throw new DomainException(
-        `A patient with email ${patient.getEmail().getValue()} already exists (File: ${existingPatient.getFileNumber()}). Please check if this is a duplicate intake.`,
-        {
-          existingPatientId: existingPatient.getId(),
-          existingFileNumber: existingPatient.getFileNumber(),
-        },
-      );
+    if (submission.getStatus() === 'REJECTED') {
+      throw new InvalidSessionStateError(sessionId, 'REJECTED', 'PENDING');
     }
-  }
 
+    // 2. Validate completeness
+    if (!submission.isComplete()) {
+      throw new IncompleteSubmissionError(submission.getIncompleteness());
+    }
+
+    // 3. Generate file number and patient ID
+    const fileNumber = await this.patientRepo.generateNextFileNumber();
+    const patientId = uuidv4();
+
+    // 4. Convert submission → Patient entity
+    const primitive = submission.toPrimitive();
+    const patientEntity = Patient.create({
+      id: patientId,
+      fileNumber,
+      firstName: primitive.personalInfo.firstName,
+      lastName: primitive.personalInfo.lastName,
+      dateOfBirth: new Date(primitive.personalInfo.dateOfBirth),
+      gender: primitive.personalInfo.gender as Gender,
+      email: primitive.contactInfo.email,
+      phone: primitive.contactInfo.phone,
+      address: primitive.contactInfo.address,
+      maritalStatus: primitive.contactInfo.maritalStatus || '',
+      occupation: primitive.contactInfo.occupation,
+      whatsappPhone: primitive.contactInfo.whatsappPhone,
+      emergencyContactName: primitive.emergencyContact.name || undefined,
+      emergencyContactNumber: primitive.emergencyContact.phoneNumber || undefined,
+      relation: primitive.emergencyContact.relationship || undefined,
+      bloodGroup: primitive.medicalInfo.bloodGroup,
+      allergies: primitive.medicalInfo.allergies,
+      medicalConditions: primitive.medicalInfo.medicalConditions,
+      medicalHistory: primitive.medicalInfo.medicalHistory,
+      insuranceProvider: primitive.insuranceInfo.provider,
+      insuranceNumber: primitive.insuranceInfo.number,
+      privacyConsent: primitive.consent.privacyConsent,
+      serviceConsent: primitive.consent.serviceConsent,
+      medicalConsent: primitive.consent.medicalConsent,
+    });
+
+    // 5. Persist
+    await this.patientRepo.save(patientEntity);
+    await this.sessionRepo.updateStatus(sessionId, 'CONFIRMED');
+    await this.submissionRepo.updateWithPatientId(submission.getSubmissionId(), patientId);
+
+    return {
+      patientId,
+      fileNumber,
+      firstName: primitive.personalInfo.firstName,
+      lastName: primitive.personalInfo.lastName,
+      email: primitive.contactInfo.email,
+      phone: primitive.contactInfo.phone,
+    };
+  }
 }

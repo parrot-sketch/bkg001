@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
     CalendarDays,
@@ -7,15 +8,15 @@ import {
     CreditCard,
     CalendarPlus,
     ArrowRight,
-    User,
+    UserPlus,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { BookingChannel } from "@/domain/enums/BookingChannel";
 import { useBookAppointmentStore } from "@/hooks/frontdesk/useBookAppointmentStore";
 import { AppointmentSource } from "@/domain/enums/AppointmentSource";
+import { QuickAssignmentDialog } from "@/components/frontdesk/QuickAssignmentDialog";
 
 interface FrontdeskPatientSidebarProps {
     patientId: string;
@@ -41,14 +42,6 @@ const QUICK_ACTIONS = [
     },
 ];
 
-// External action (opens in new context)
-const EXTERNAL_ACTION = {
-    label: "Schedule Appointment",
-    description: "Book a new appointment",
-    icon: CalendarPlus,
-    iconClass: "text-emerald-600 bg-emerald-50",
-};
-
 export function FrontdeskPatientSidebar({
     patientId,
     patientName,
@@ -59,11 +52,10 @@ export function FrontdeskPatientSidebar({
     const searchParams = useSearchParams();
     const { openBookingDialog } = useBookAppointmentStore();
     const currentTab = searchParams.get("cat") || "overview";
+    const [queueDialogOpen, setQueueDialogOpen] = useState(false);
 
     const handleTabClick = (tabKey: string) => {
-        // Use replace to avoid adding to history stack for smoother UX
         router.push(`/frontdesk/patient/${patientId}?cat=${tabKey}`, { scroll: false });
-        // Scroll to top of content area smoothly
         setTimeout(() => {
             const contentArea = document.querySelector('[data-content-area]');
             if (contentArea) {
@@ -117,7 +109,41 @@ export function FrontdeskPatientSidebar({
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0 space-y-2">
-                    {/* Inline Tab Actions */}
+                    {/* Add to Queue */}
+                    <button
+                        onClick={() => setQueueDialogOpen(true)}
+                        className="w-full flex items-center gap-3 p-3 rounded-lg border border-cyan-200 bg-cyan-50/50 hover:bg-cyan-50 transition-all group text-left"
+                    >
+                        <div className="p-2 rounded-md flex-shrink-0 text-cyan-600 bg-cyan-100">
+                            <UserPlus size={14} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-cyan-900 leading-tight">Add to Queue</p>
+                            <p className="text-xs text-cyan-600 mt-0.5">Assign to a doctor</p>
+                        </div>
+                        <ArrowRight size={14} className="text-cyan-400 group-hover:text-cyan-600 transition-colors flex-shrink-0" />
+                    </button>
+
+                    {/* Schedule Appointment */}
+                    <button
+                        onClick={() => openBookingDialog({
+                            initialPatientId: patientId,
+                            source: AppointmentSource.FRONTDESK_SCHEDULED,
+                            bookingChannel: BookingChannel.DASHBOARD,
+                        })}
+                        className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary/30 hover:bg-muted/40 transition-all group text-left"
+                    >
+                        <div className="p-2 rounded-md flex-shrink-0 text-emerald-600 bg-emerald-50">
+                            <CalendarPlus size={14} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground leading-tight">Schedule Appointment</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">Book a new appointment</p>
+                        </div>
+                        <ArrowRight size={14} className="text-muted-foreground/50 group-hover:text-primary transition-colors flex-shrink-0" />
+                    </button>
+
+                    {/* Tab Actions */}
                     {QUICK_ACTIONS.map((action) => {
                         const Icon = action.icon;
                         const isActive = currentTab === action.tabKey;
@@ -155,30 +181,16 @@ export function FrontdeskPatientSidebar({
                             </button>
                         );
                     })}
-
-                    {/* External Action (Schedule Appointment) */}
-                    <button
-                        onClick={() => openBookingDialog({ 
-                            initialPatientId: patientId, 
-                            source: AppointmentSource.FRONTDESK_SCHEDULED,
-                            bookingChannel: BookingChannel.DASHBOARD 
-                        })}
-                        className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary/30 hover:bg-muted/40 transition-all group text-left"
-                    >
-                        <div className={`p-2 rounded-md flex-shrink-0 ${EXTERNAL_ACTION.iconClass}`}>
-                            <EXTERNAL_ACTION.icon size={14} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground leading-tight">{EXTERNAL_ACTION.label}</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">{EXTERNAL_ACTION.description}</p>
-                        </div>
-                        <ArrowRight
-                            size={14}
-                            className="text-muted-foreground/50 group-hover:text-primary transition-colors flex-shrink-0"
-                        />
-                    </button>
                 </CardContent>
             </Card>
+
+            {/* Queue Assignment Dialog — pre-selected patient */}
+            <QuickAssignmentDialog
+                open={queueDialogOpen}
+                onOpenChange={setQueueDialogOpen}
+                initialPatientId={patientId}
+                initialPatientName={patientName}
+            />
         </div>
     );
 }

@@ -6,56 +6,27 @@ import { DomainException } from '../../domain/exceptions/DomainException';
 import { Email } from '../../domain/value-objects/Email';
 import { PhoneNumber } from '../../domain/value-objects/PhoneNumber';
 
-/**
- * Mapper: PatientMapper
- * 
- * Maps between Patient DTOs and Patient domain entities.
- * This mapper handles translation between the application layer (DTOs)
- * and the domain layer (entities).
- * 
- * Responsibilities:
- * - Convert DTOs to domain entities
- * - Convert domain entities to DTOs
- * - Handle validation and type conversion
- * - NO business logic - only data transformation
- */
 export class PatientMapper {
-  /**
-   * Maps a CreatePatientDto to a Patient domain entity
-   * 
-   * @param dto - CreatePatientDto with patient creation data
-   * @param fileNumber - System-generated file number (e.g., "NS001")
-   * @returns Patient domain entity
-   * @throws DomainException if validation fails
-   */
   static fromCreateDto(dto: CreatePatientDto, fileNumber: string): Patient {
-    // Validate gender
     if (!Object.values(Gender).includes(dto.gender as Gender)) {
-      throw new DomainException(`Invalid gender: ${dto.gender}`, {
-        providedValue: dto.gender,
-        validValues: Object.values(Gender),
-      });
+      throw new DomainException(`Invalid gender: ${dto.gender}`);
     }
 
-    // Convert dateOfBirth to Date if it's a string (happens when deserializing JSON)
-    // JSON.parse() returns date strings, not Date objects
     const dateOfBirth = dto.dateOfBirth instanceof Date
       ? dto.dateOfBirth
       : new Date(dto.dateOfBirth);
 
-    // Validate the date conversion succeeded
     if (isNaN(dateOfBirth.getTime())) {
-      throw new DomainException(`Invalid date of birth: ${dto.dateOfBirth}`, {
-        providedValue: dto.dateOfBirth,
-      });
+      throw new DomainException(`Invalid date of birth: ${dto.dateOfBirth}`);
     }
 
-    // Create value objects for email and phone numbers
+    if (!dto.id) {
+      throw new DomainException('Patient ID is required');
+    }
+
     const email = Email.create(dto.email);
     const phone = PhoneNumber.create(dto.phone);
-    const emergencyContactNumber = PhoneNumber.create(dto.emergencyContactNumber);
 
-    // Use Patient.create factory method which handles all validation
     return Patient.create({
       id: dto.id,
       fileNumber: fileNumber,
@@ -65,31 +36,27 @@ export class PatientMapper {
       gender: dto.gender as Gender,
       email: email,
       phone: phone,
-      whatsappPhone: dto.whatsappPhone,
-      address: dto.address,
-      occupation: dto.occupation,
-      maritalStatus: dto.maritalStatus,
-      emergencyContactName: dto.emergencyContactName,
-      emergencyContactNumber: emergencyContactNumber,
-      relation: dto.relation,
-      privacyConsent: dto.privacyConsent,
-      serviceConsent: dto.serviceConsent,
-      medicalConsent: dto.medicalConsent,
-      bloodGroup: dto.bloodGroup,
-      allergies: dto.allergies,
-      medicalConditions: dto.medicalConditions,
-      medicalHistory: dto.medicalHistory,
-      insuranceProvider: dto.insuranceProvider,
-      insuranceNumber: dto.insuranceNumber,
+      whatsappPhone: dto.whatsappPhone || undefined,
+      address: dto.address || undefined,
+      occupation: dto.occupation || undefined,
+      maritalStatus: dto.maritalStatus || undefined,
+      emergencyContactName: dto.emergencyContactName || undefined,
+      emergencyContactNumber: dto.emergencyContactNumber
+        ? PhoneNumber.create(dto.emergencyContactNumber)
+        : undefined,
+      relation: dto.relation || undefined,
+      privacyConsent: dto.privacyConsent ?? true,
+      serviceConsent: dto.serviceConsent ?? true,
+      medicalConsent: dto.medicalConsent ?? true,
+      bloodGroup: dto.bloodGroup || undefined,
+      allergies: dto.allergies || undefined,
+      medicalConditions: dto.medicalConditions || undefined,
+      medicalHistory: dto.medicalHistory || undefined,
+      insuranceProvider: dto.insuranceProvider || undefined,
+      insuranceNumber: dto.insuranceNumber || undefined,
     });
   }
 
-  /**
-   * Maps a Patient domain entity to a PatientResponseDto
-   * 
-   * @param patient - Patient domain entity
-   * @returns PatientResponseDto with patient data
-   */
   static toResponseDto(patient: Patient): PatientResponseDto {
     return {
       id: patient.getId(),

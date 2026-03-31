@@ -14,6 +14,7 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { useFrontdeskPatients } from '@/hooks/frontdesk/useFrontdeskPatients';
 import { usePatientStats } from '@/hooks/frontdesk/usePatientStats';
 import { ProfileImage } from '@/components/profile-image';
@@ -22,7 +23,6 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Search,
-  Eye,
   Calendar,
   Phone,
   Mail,
@@ -30,7 +30,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
-  ArrowRight,
+  UserPlus,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { calculateAge } from '@/lib/utils';
@@ -41,6 +41,8 @@ import { BookingChannel } from '@/domain/enums/BookingChannel';
 import { AppointmentSource } from '@/domain/enums/AppointmentSource';
 import { PatientTableActions } from '@/components/frontdesk/PatientTableActions';
 import { PatientStatusIndicator, getPatientStatus } from '@/components/frontdesk/PatientStatusIndicator';
+import { PatientRegistrationDialog } from '@/components/frontdesk/PatientRegistrationDialog';
+import type { PatientRegistryDto } from '@/application/dtos/PatientRegistryDto';
 
 /* ═══════════════════ Stat Card (Simple) ═══════════════════ */
 
@@ -85,7 +87,7 @@ function TableSkeleton() {
   );
 }
 
-function EmptyState({ hasSearch, onClear }: { hasSearch: boolean; onClear: () => void }) {
+function EmptyState({ hasSearch, onClear, onRegister }: { hasSearch: boolean; onClear: () => void; onRegister: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-6">
       <div className="h-16 w-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-5">
@@ -109,11 +111,13 @@ function EmptyState({ hasSearch, onClear }: { hasSearch: boolean; onClear: () =>
           Clear Search
         </Button>
       ) : (
-        <Link href="/frontdesk/patient-intake">
-          <Button size="sm" className="bg-slate-900 hover:bg-slate-800 text-white">
-            Register First Patient
-          </Button>
-        </Link>
+        <Button
+          size="sm"
+          className="bg-slate-900 hover:bg-slate-800 text-white"
+          onClick={onRegister}
+        >
+          Register First Patient
+        </Button>
       )}
     </div>
   );
@@ -125,7 +129,9 @@ function FrontdeskPatientsContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const { openBookingDialog } = useBookAppointmentStore();
+  const [registrationOpen, setRegistrationOpen] = useState(false);
 
   // URL-driven state
   const page = Number(searchParams.get('page')) || 1;
@@ -154,7 +160,7 @@ function FrontdeskPatientsContent() {
   // Local state for immediate input feedback
   const [searchInput, setSearchInput] = useState(urlSearch);
 
-  // Debounce: sync search input → URL after 400ms
+  // Debounce: sync search input -> URL after 400ms
   useEffect(() => {
     if (searchInput === urlSearch) return;
 
@@ -183,8 +189,8 @@ function FrontdeskPatientsContent() {
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
-  // Data fetching
-  const { data: apiResponse, isLoading, isRefetching } = useFrontdeskPatients({
+  // Data fetching — hooks return properly typed data directly
+  const { data: listResult, isLoading, isRefetching } = useFrontdeskPatients({
     page,
     limit,
     search: urlSearch,
@@ -192,10 +198,8 @@ function FrontdeskPatientsContent() {
 
   const { data: stats, isLoading: isStatsLoading } = usePatientStats();
 
-  const patients = apiResponse?.success ? apiResponse.data : [];
-  const meta = apiResponse?.success && apiResponse.meta
-    ? apiResponse.meta
-    : { totalRecords: 0, totalPages: 1, currentPage: 1, limit: 12 };
+  const patients: PatientRegistryDto[] = listResult?.data ?? [];
+  const meta = listResult?.meta ?? { totalRecords: 0, totalPages: 1, currentPage: 1, limit: 12 };
 
   // Pagination helpers
   const startRecord = patients.length > 0 ? (page - 1) * limit + 1 : 0;
@@ -203,7 +207,7 @@ function FrontdeskPatientsContent() {
 
   return (
     <div className="space-y-5 animate-in fade-in duration-500">
-      {/* ═══ Selection Mode Banner ═══ */}
+      {/* Selection Mode Banner */}
       {isSelectionMode && (
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 py-4 rounded-2xl bg-cyan-600 shadow-lg shadow-cyan-200/50 text-white border border-cyan-500 overflow-hidden relative group">
           <div className="flex items-center gap-4 relative z-10">
@@ -227,12 +231,11 @@ function FrontdeskPatientsContent() {
           >
             Cancel Selection
           </Button>
-          
-          {/* Background Decorative Element */}
           <div className="absolute top-0 right-0 -mr-8 -mt-8 h-32 w-32 rounded-full bg-white/10 blur-2xl group-hover:bg-white/20 transition-all duration-700" />
         </div>
       )}
-      {/* ═══ Page Header ═══ */}
+
+      {/* Page Header */}
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Patient Registry</h1>
@@ -240,41 +243,26 @@ function FrontdeskPatientsContent() {
             Search, view, and manage all registered patients
           </p>
         </div>
-        <Link href="/frontdesk/patient-intake">
-          <Button className="bg-slate-900 hover:bg-slate-800 text-white h-10 px-5 w-full sm:w-auto">
-            Register Patient
-          </Button>
-        </Link>
+        <Button
+          className="bg-slate-900 hover:bg-slate-800 text-white h-10 px-5 w-full sm:w-auto"
+          onClick={() => setRegistrationOpen(true)}
+        >
+          <UserPlus className="h-4 w-4 mr-2" />
+          Register Patient
+        </Button>
       </header>
 
-      {/* ═══ Stats Row ═══ */}
+      {/* Stats Row */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard
-          title="Total Patients"
-          value={stats?.totalRecords ?? 0}
-          loading={isStatsLoading}
-        />
-        <StatCard
-          title="New Today"
-          value={stats?.newToday ?? 0}
-          loading={isStatsLoading}
-        />
-        <StatCard
-          title="This Month"
-          value={stats?.newThisMonth ?? 0}
-          loading={isStatsLoading}
-        />
-        <StatCard
-          title="Showing"
-          value={patients.length}
-          loading={isLoading}
-        />
+        <StatCard title="Total Patients" value={stats?.totalRecords ?? 0} loading={isStatsLoading} />
+        <StatCard title="New Today" value={stats?.newToday ?? 0} loading={isStatsLoading} />
+        <StatCard title="This Month" value={stats?.newThisMonth ?? 0} loading={isStatsLoading} />
+        <StatCard title="Showing" value={patients.length} loading={isLoading} />
       </section>
 
-      {/* ═══ Controls Bar ═══ */}
+      {/* Controls Bar */}
       <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-4">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          {/* Search */}
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
             <Input
@@ -288,12 +276,11 @@ function FrontdeskPatientsContent() {
                 onClick={() => setSearchInput('')}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 text-lg leading-none"
               >
-                ×
+                x
               </button>
             )}
           </div>
 
-          {/* Refetch indicator */}
           {isRefetching && (
             <div className="flex items-center gap-1.5 text-xs text-slate-400 shrink-0">
               <Loader2 className="h-3 w-3 animate-spin" />
@@ -301,61 +288,40 @@ function FrontdeskPatientsContent() {
             </div>
           )}
 
-          {/* Record count */}
           {!isLoading && meta.totalRecords > 0 && (
             <p className="text-xs text-slate-400 shrink-0 hidden sm:block">
-              {startRecord}–{endRecord} of {meta.totalRecords.toLocaleString()}
+              {startRecord}-{endRecord} of {meta.totalRecords.toLocaleString()}
             </p>
           )}
         </div>
       </div>
 
-      {/* ═══ Patient Table ═══ */}
+      {/* Patient Table */}
       <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
         {isLoading ? (
           <TableSkeleton />
         ) : patients.length === 0 ? (
-          <EmptyState
-            hasSearch={!!urlSearch}
-            onClear={() => setSearchInput('')}
-          />
+          <EmptyState hasSearch={!!urlSearch} onClear={() => setSearchInput('')} onRegister={() => setRegistrationOpen(true)} />
         ) : (
           <>
-            {/* Desktop Table (≥768px) */}
+            {/* Desktop Table */}
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-slate-100">
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[280px]">
-                      Patient
-                    </th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[120px]">
-                      File No.
-                    </th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[200px]">
-                      Contact
-                    </th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[100px] hidden lg:table-cell">
-                      Visits
-                    </th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[120px] hidden lg:table-cell">
-                      Status
-                    </th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[140px] hidden xl:table-cell">
-                      Last Visit
-                    </th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[120px] hidden xl:table-cell">
-                      Registered
-                    </th>
-                    <th className="px-5 py-3 text-right text-xs font-semibold text-slate-400 w-[140px]">
-                      Actions
-                    </th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[280px]">Patient</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[120px]">File No.</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[200px]">Contact</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[100px] hidden lg:table-cell">Visits</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[120px] hidden lg:table-cell">Status</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[140px] hidden xl:table-cell">Last Visit</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[120px] hidden xl:table-cell">Registered</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold text-slate-400 w-[140px]">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {patients.map((patient: any) => {
+                  {patients.map((patient) => {
                     const patientName = `${patient.firstName} ${patient.lastName}`;
-                    const lastVisit = patient.lastVisit;
                     const isHighlighted = activeHighlight === patient.id;
 
                     return (
@@ -364,7 +330,6 @@ function FrontdeskPatientsContent() {
                         highlighted={isHighlighted}
                         onClick={() => router.push(`/frontdesk/patient/${patient.id}`)}
                       >
-                        {/* Patient */}
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-3">
                             <ProfileImage
@@ -382,7 +347,7 @@ function FrontdeskPatientsContent() {
                                 <span className="text-xs text-slate-400 capitalize">
                                   {patient.gender?.toLowerCase()}
                                 </span>
-                                <span className="text-slate-200">·</span>
+                                <span className="text-slate-200">.</span>
                                 <span className="text-xs text-slate-400">
                                   {patient.dateOfBirth ? `${calculateAge(patient.dateOfBirth)} yrs` : 'N/A'}
                                 </span>
@@ -391,14 +356,12 @@ function FrontdeskPatientsContent() {
                           </div>
                         </td>
 
-                        {/* File Number */}
                         <td className="px-5 py-3.5">
                           <span className="inline-flex items-center font-mono text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">
-                            {patient.fileNumber || '—'}
+                            {patient.fileNumber || '--'}
                           </span>
                         </td>
 
-                        {/* Contact */}
                         <td className="px-5 py-3.5">
                           <div className="space-y-1">
                             {patient.phone && (
@@ -419,51 +382,46 @@ function FrontdeskPatientsContent() {
                           </div>
                         </td>
 
-                        {/* Visits */}
                         <td className="px-5 py-3.5 hidden lg:table-cell">
                           <div className="flex items-center gap-1.5">
                             <span className="text-sm font-semibold text-slate-700">
-                              {patient.totalAppointments || 0}
+                              {patient.totalVisits}
                             </span>
                             <span className="text-xs text-slate-400">visits</span>
                           </div>
                         </td>
 
-                        {/* Status */}
                         <td className="px-5 py-3.5 hidden lg:table-cell">
                           <PatientStatusIndicator
                             status={getPatientStatus({
-                              lastVisit: patient.lastVisit,
-                              currentQueueStatus: patient.currentQueueStatus,
-                              outstandingBalance: patient.outstandingBalance || 0,
+                              lastVisit: patient.lastVisitAt,
+                              currentQueueStatus: patient.queueStatus,
+                              outstandingBalance: patient.outstandingBalance,
                             })}
                           />
                         </td>
 
-                        {/* Last Visit */}
                         <td className="px-5 py-3.5 hidden xl:table-cell">
-                          {lastVisit ? (
+                          {patient.lastVisitAt ? (
                             <div className="flex items-center gap-1.5 text-xs text-slate-500">
                               <Clock className="h-3 w-3 text-slate-300" />
-                              {format(new Date(lastVisit), 'MMM d, yyyy')}
+                              {format(new Date(patient.lastVisitAt), 'MMM d, yyyy')}
                             </div>
                           ) : (
                             <span className="text-xs text-slate-300 italic">No visits</span>
                           )}
                         </td>
 
-                        {/* Registered */}
                         <td className="px-5 py-3.5 hidden xl:table-cell">
                           {patient.createdAt ? (
                             <span className="text-xs text-slate-400">
                               {format(new Date(patient.createdAt), 'MMM d, yyyy')}
                             </span>
                           ) : (
-                            <span className="text-xs text-slate-300">—</span>
+                            <span className="text-xs text-slate-300">--</span>
                           )}
                         </td>
 
-                        {/* Actions */}
                         <td className="px-5 py-3.5">
                           <PatientTableActions
                             patient={{
@@ -482,15 +440,14 @@ function FrontdeskPatientsContent() {
               </table>
             </div>
 
-            {/* Mobile Cards (<768px) */}
+            {/* Mobile Cards */}
             <div className="md:hidden divide-y divide-slate-100">
-              {patients.map((patient: any) => {
+              {patients.map((patient) => {
                 const patientName = `${patient.firstName} ${patient.lastName}`;
-                const lastVisit = patient.lastVisit;
                 const patientStatus = getPatientStatus({
-                  lastVisit: patient.lastVisit,
-                  currentQueueStatus: patient.currentQueueStatus,
-                  outstandingBalance: patient.outstandingBalance || 0,
+                  lastVisit: patient.lastVisitAt,
+                  currentQueueStatus: patient.queueStatus,
+                  outstandingBalance: patient.outstandingBalance,
                 });
 
                 return (
@@ -516,7 +473,7 @@ function FrontdeskPatientsContent() {
                                 <span className="text-xs text-slate-400 capitalize">
                                   {patient.gender?.toLowerCase()}
                                 </span>
-                                <span className="text-slate-200">·</span>
+                                <span className="text-slate-200">.</span>
                                 <span className="text-xs text-slate-400">
                                   {patient.dateOfBirth ? `${calculateAge(patient.dateOfBirth)} yrs` : 'N/A'}
                                 </span>
@@ -536,14 +493,14 @@ function FrontdeskPatientsContent() {
                                 <span>{patient.phone}</span>
                               </div>
                             )}
-                            {lastVisit && (
+                            {patient.lastVisitAt && (
                               <div className="flex items-center gap-1 text-xs text-slate-400">
                                 <Clock className="h-3 w-3" />
-                                <span>{format(new Date(lastVisit), 'MMM d')}</span>
+                                <span>{format(new Date(patient.lastVisitAt), 'MMM d')}</span>
                               </div>
                             )}
                             <div className="flex items-center gap-1 text-xs text-slate-400">
-                              <span className="font-semibold text-slate-600">{patient.totalAppointments || 0}</span>
+                              <span className="font-semibold text-slate-600">{patient.totalVisits}</span>
                               <span>visits</span>
                             </div>
                             <PatientStatusIndicator status={patientStatus} className="text-[10px]" />
@@ -553,15 +510,15 @@ function FrontdeskPatientsContent() {
                             <Button
                               size="sm"
                               className="flex-1 h-8 text-xs rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white mr-2"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  openBookingDialog({
-                                    initialPatientId: patient.id,
-                                    source: AppointmentSource.FRONTDESK_SCHEDULED,
-                                    bookingChannel: BookingChannel.DASHBOARD,
-                                  });
-                                }}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                openBookingDialog({
+                                  initialPatientId: patient.id,
+                                  source: AppointmentSource.FRONTDESK_SCHEDULED,
+                                  bookingChannel: BookingChannel.DASHBOARD,
+                                });
+                              }}
                             >
                               <Calendar className="h-3 w-3 mr-1" />
                               {isSelectionMode ? 'Select & Book' : 'Book Appointment'}
@@ -587,11 +544,11 @@ function FrontdeskPatientsContent() {
         )}
       </div>
 
-      {/* ═══ Pagination ═══ */}
+      {/* Pagination */}
       {!isLoading && meta.totalPages > 1 && (
         <div className="flex items-center justify-between px-1">
           <p className="text-xs text-slate-400">
-            Showing <span className="font-semibold text-slate-600">{startRecord}–{endRecord}</span> of{' '}
+            Showing <span className="font-semibold text-slate-600">{startRecord}-{endRecord}</span> of{' '}
             <span className="font-semibold text-slate-600">{meta.totalRecords.toLocaleString()}</span> patients
           </p>
 
@@ -606,11 +563,10 @@ function FrontdeskPatientsContent() {
               <ChevronLeft className="h-4 w-4" />
             </Button>
 
-            {/* Page numbers */}
             {generatePageNumbers(page, meta.totalPages).map((p, idx) =>
               p === '...' ? (
                 <span key={`dots-${idx}`} className="px-1 text-xs text-slate-300">
-                  …
+                  ...
                 </span>
               ) : (
                 <button
@@ -640,6 +596,17 @@ function FrontdeskPatientsContent() {
           </div>
         </div>
       )}
+
+      {/* Registration Dialog — opens in-place, no navigation */}
+      <PatientRegistrationDialog
+        open={registrationOpen}
+        onClose={() => setRegistrationOpen(false)}
+        onSuccess={() => {
+          setRegistrationOpen(false);
+          queryClient.invalidateQueries({ queryKey: ['frontdesk', 'patients'] });
+          queryClient.invalidateQueries({ queryKey: ['frontdesk', 'patient-stats'] });
+        }}
+      />
     </div>
   );
 }

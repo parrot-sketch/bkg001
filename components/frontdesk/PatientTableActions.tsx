@@ -83,7 +83,7 @@ export function PatientTableActions({ patient, onActionComplete }: PatientTableA
   const handleEmailPatient = () => {
     setMenuOpen(false);
     if (patient.email) {
-      window.location.href = `mailto:${patient.email}`;
+      window.open(`mailto:${patient.email}`, '_blank');
     }
   };
 
@@ -158,6 +158,8 @@ export function PatientTableActions({ patient, onActionComplete }: PatientTableA
         open={quickAssignmentOpen}
         onOpenChange={setQuickAssignmentOpen}
         onSuccess={handleQuickAssignmentSuccess}
+        initialPatientId={patient.id}
+        initialPatientName={patientName}
       />
     </div>
   );

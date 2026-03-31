@@ -1,39 +1,16 @@
 'use client';
 
-/**
- * Consultation Session Header
- * 
- * Premium clinical workstation header:
- * - Patient identity with avatar
- * - Live consultation timer
- * - Status badge (Active / Completed / Not Started)
- * - Auto-save indicator
- * - Quick actions (Save, Complete)
- */
-
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import {
-  Clock,
-  Save,
-  CheckCircle2,
-  ArrowLeft,
-  Loader2,
-} from 'lucide-react';
+import { Clock, ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { ConsultationState } from '@/domain/enums/ConsultationState';
 import type { ConsultationResponseDto } from '@/application/dtos/ConsultationResponseDto';
 import { Role } from '@/domain/enums/Role';
 import { cn } from '@/lib/utils';
 import { useConsultationTimer } from '@/hooks/consultation/useConsultationTimer';
-import { StatusBadge } from './ui/StatusBadge';
-import { AutoSaveIndicator } from './ui/AutoSaveIndicator';
-import { PatientAvatar } from './header/PatientAvatar';
-import { TimerDisplay } from './header/TimerDisplay';
-import { HeaderActions } from './header/HeaderActions';
 
-interface ConsultationSessionHeaderProps {
+interface Props {
   patientName: string;
   consultation: ConsultationResponseDto | null;
   appointmentStatus?: string;
@@ -57,13 +34,13 @@ export function ConsultationSessionHeader({
   isSaving = false,
   slotStartTime,
   slotDurationMinutes,
-}: ConsultationSessionHeaderProps) {
+}: Props) {
   const router = useRouter();
-  
-  const appointmentDone = appointmentStatus === 'COMPLETED' || appointmentStatus === 'CANCELLED';
-  const isActive = !appointmentDone && consultation?.state === ConsultationState.IN_PROGRESS;
-  const isCompleted = appointmentDone || consultation?.state === ConsultationState.COMPLETED;
-  const canCompleteConsultation = userRole === Role.DOCTOR;
+
+  const done = appointmentStatus === 'COMPLETED' || appointmentStatus === 'CANCELLED';
+  const active = !done && consultation?.state === ConsultationState.IN_PROGRESS;
+  const completed = done || consultation?.state === ConsultationState.COMPLETED;
+  const canComplete = userRole === Role.DOCTOR;
 
   const { elapsed, timeInfo, remainingDisplay } = useConsultationTimer({
     startedAt: consultation?.startedAt,
@@ -71,67 +48,94 @@ export function ConsultationSessionHeader({
     slotDurationMinutes,
   });
 
-  const initials = patientName
-    .split(' ')
-    .map(n => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+  const initials = patientName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
   return (
-    <header className="border-b border-slate-200 bg-white/70 backdrop-blur-xl sticky top-0 z-40 transition-all duration-300">
-      <div className="flex items-center justify-between px-4 lg:px-6 h-16 w-full">
-        {/* Left: Back + Patient Identity */}
-        <div className="flex items-center gap-4 min-w-0">
-          <motion.div whileHover={{ x: -2 }} whileTap={{ scale: 0.95 }}>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 shrink-0 text-slate-400 hover:text-slate-900 hover:bg-slate-100"
-              onClick={() => router.push('/doctor/consultations')}
-              title="Back to Consultation Room"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </motion.div>
+    <header className="h-12 border-b border-slate-200 bg-white flex items-center justify-between px-4 shrink-0">
+      {/* Left */}
+      <div className="flex items-center gap-3 min-w-0">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-slate-400 hover:text-slate-900"
+          onClick={() => router.push('/doctor/consultations')}
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+        </Button>
 
-          {/* Patient identity container */}
-          <div className="flex items-center gap-3 min-w-0 group cursor-default">
-            <PatientAvatar initials={initials} isActive={isActive} isCompleted={isCompleted} />
-            
-            <div className="min-w-0">
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-[15px] font-bold text-slate-900 tracking-tight transition-colors">
-                  {patientName}
-                </h1>
-                <StatusBadge isActive={isActive} isCompleted={isCompleted} />
-              </div>
-              
-              <div className="flex items-center gap-3 mt-0.5">
-                <TimerDisplay 
-                  elapsed={elapsed} 
-                  timeInfo={timeInfo} 
-                  remainingDisplay={remainingDisplay} 
-                />
-                <AutoSaveIndicator status={autoSaveStatus} isSaving={isSaving} />
-              </div>
-            </div>
-          </div>
+        <div className={cn(
+          'h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0',
+          active ? 'bg-emerald-100 text-emerald-700' :
+          completed ? 'bg-slate-100 text-slate-500' :
+          'bg-amber-100 text-amber-700',
+        )}>
+          {initials}
         </div>
 
-        {/* Right: Actions */}
-        <div className="flex items-center gap-3 shrink-0">
-          <HeaderActions 
-            isActive={isActive} 
-            isCompleted={isCompleted}
-            isSaving={isSaving}
-            canComplete={canCompleteConsultation}
-            onSave={onSaveDraft}
-            onComplete={onComplete}
-          />
+        <span className="text-sm font-semibold text-slate-900 truncate">{patientName}</span>
+
+        <span className={cn(
+          'text-[10px] font-medium px-1.5 py-0.5 rounded',
+          active ? 'bg-emerald-50 text-emerald-700' :
+          completed ? 'bg-slate-100 text-slate-500' :
+          'bg-amber-50 text-amber-700',
+        )}>
+          {active ? 'Active' : completed ? 'Done' : 'Pending'}
+        </span>
+      </div>
+
+      {/* Center — Timer */}
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 text-xs text-slate-500">
+          <Clock className="h-3 w-3" />
+          <span className="font-mono font-medium tabular-nums">{elapsed}</span>
         </div>
+        {remainingDisplay && active && (
+          <span className="text-[10px] text-slate-400">
+            {remainingDisplay} left
+          </span>
+        )}
+        <AutoSaveBadge status={autoSaveStatus} />
+      </div>
+
+      {/* Right — Actions */}
+      <div className="flex items-center gap-2">
+        {active && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onSaveDraft}
+            disabled={isSaving}
+            className="h-7 px-2.5 text-xs text-slate-600 hover:text-slate-900"
+          >
+            {isSaving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+            Save
+          </Button>
+        )}
+        {active && canComplete && (
+          <Button
+            size="sm"
+            onClick={onComplete}
+            className="h-7 px-3 text-xs bg-emerald-600 hover:bg-emerald-700"
+          >
+            Complete
+          </Button>
+        )}
       </div>
     </header>
   );
 }
 
+function AutoSaveBadge({ status }: { status: 'idle' | 'saving' | 'saved' | 'error' }) {
+  if (status === 'idle') return null;
+  return (
+    <span className={cn(
+      'text-[10px] px-1.5 py-0.5 rounded font-medium',
+      status === 'saving' && 'text-blue-600 bg-blue-50',
+      status === 'saved' && 'text-emerald-600 bg-emerald-50',
+      status === 'error' && 'text-red-600 bg-red-50',
+    )}>
+      {status === 'saving' ? 'Saving…' : status === 'saved' ? 'Saved' : 'Error'}
+    </span>
+  );
+}

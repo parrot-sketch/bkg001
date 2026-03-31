@@ -1,474 +1,373 @@
 'use client';
 
-/**
- * Patient Registration Dialog
- * 
- * Modal dialog for registering a new patient.
- * Comprehensive form with all patient information fields.
- */
-
-import { useState } from 'react';
-import { frontdeskApi } from '@/lib/api/frontdesk';
+import { useState, useCallback } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { PatientIntakeFormSchema } from '@/lib/schema';
+import { apiClient } from '@/lib/api/client';
+import PhoneInput from 'react-phone-number-input';
+import 'react-phone-number-input/style.css';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Loader2, Check, AlertCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
-import type { CreatePatientDto } from '@/application/dtos/CreatePatientDto';
-import { Gender } from '@/domain/enums/Gender';
+
+type FormData = {
+  firstName: string; lastName: string; dateOfBirth: string; gender: string;
+  email: string; phone: string; whatsappPhone?: string; address?: string;
+  maritalStatus?: string; occupation?: string;
+  emergencyContactName?: string; emergencyContactNumber?: string; emergencyContactRelation?: string;
+  bloodGroup?: string; allergies?: string; medicalConditions?: string;
+  privacyConsent: boolean; serviceConsent: boolean; medicalConsent: boolean;
+};
+
+const STEPS = [
+  { id: 1, title: 'Personal Info', description: 'Tell us about the patient' },
+  { id: 2, title: 'Contact', description: 'How can we reach them?' },
+  { id: 3, title: 'Emergency', description: 'Emergency contact details' },
+  { id: 4, title: 'Medical', description: 'Medical overview' },
+];
+
+const inputClass = "w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all text-sm";
+const labelClass = "block text-sm font-medium text-slate-700 mb-2";
 
 interface PatientRegistrationDialogProps {
   open: boolean;
   onClose: () => void;
   onSuccess: (patient: PatientResponseDto) => void;
-  frontdeskUserId: string;
-  existingPatient?: PatientResponseDto | null;
 }
 
 export function PatientRegistrationDialog({
   open,
   onClose,
   onSuccess,
-  frontdeskUserId,
-  existingPatient,
 }: PatientRegistrationDialogProps) {
-  const [formData, setFormData] = useState<Partial<CreatePatientDto>>({
-    id: existingPatient?.id || '',
-    firstName: existingPatient?.firstName || '',
-    lastName: existingPatient?.lastName || '',
-    dateOfBirth: existingPatient?.dateOfBirth
-      ? new Date(existingPatient.dateOfBirth).toISOString().split('T')[0]
-      : '',
-    gender: existingPatient?.gender || Gender.MALE,
-    email: existingPatient?.email || '',
-    phone: existingPatient?.phone || '',
-    address: existingPatient?.address || '',
-    maritalStatus: existingPatient?.maritalStatus || '',
-    emergencyContactName: existingPatient?.emergencyContactName || '',
-    emergencyContactNumber: existingPatient?.emergencyContactNumber || '',
-    relation: existingPatient?.relation || '',
-    privacyConsent: existingPatient?.hasPrivacyConsent ?? false,
-    serviceConsent: existingPatient?.hasServiceConsent ?? false,
-    medicalConsent: existingPatient?.hasMedicalConsent ?? false,
-    bloodGroup: existingPatient?.bloodGroup || '',
-    allergies: existingPatient?.allergies || '',
-    medicalConditions: existingPatient?.medicalConditions || '',
-    medicalHistory: existingPatient?.medicalHistory || '',
-    insuranceProvider: existingPatient?.insuranceProvider || '',
-    insuranceNumber: existingPatient?.insuranceNumber || '',
+  const [step, setStep] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const form = useForm<FormData>({
+    resolver: zodResolver(PatientIntakeFormSchema) as any,
+    mode: 'onBlur',
+    defaultValues: {
+      firstName: '', lastName: '', dateOfBirth: '', gender: 'FEMALE',
+      email: '', phone: '', whatsappPhone: '', address: '',
+      maritalStatus: '', occupation: '',
+      emergencyContactName: '', emergencyContactNumber: '', emergencyContactRelation: '',
+      bloodGroup: '', allergies: '', medicalConditions: '',
+      privacyConsent: true, serviceConsent: true, medicalConsent: true,
+    },
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const { register, control, formState: { errors }, trigger, getValues, reset } = form;
 
-    // Validation
-    if (
-      !formData.id ||
-      !formData.firstName ||
-      !formData.lastName ||
-      !formData.dateOfBirth ||
-      !formData.email ||
-      !formData.phone ||
-      !formData.address ||
-      !formData.maritalStatus ||
-      !formData.emergencyContactName ||
-      !formData.emergencyContactNumber ||
-      !formData.relation
-    ) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
+  const goNext = useCallback(async () => {
+    let fields: (keyof FormData)[] = [];
+    if (step === 1) fields = ['firstName', 'lastName', 'dateOfBirth', 'gender'];
+    else if (step === 2) fields = ['phone', 'email'];
 
-    if (!formData.privacyConsent || !formData.serviceConsent || !formData.medicalConsent) {
-      toast.error('All consent fields must be accepted');
-      return;
-    }
+    const valid = fields.length === 0 || await trigger(fields);
+    if (valid) setStep((s) => Math.min(s + 1, STEPS.length));
+  }, [step, trigger]);
 
-    setIsSubmitting(true);
+  const goPrev = useCallback(() => setStep((s) => Math.max(s - 1, 1)), []);
 
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    setSubmitError(null);
     try {
-      const dto: CreatePatientDto = {
-        id: formData.id!,
-        firstName: formData.firstName!,
-        lastName: formData.lastName!,
-        dateOfBirth: new Date(formData.dateOfBirth!),
-        gender: formData.gender!,
-        email: formData.email!,
-        phone: formData.phone!,
-        address: formData.address!,
-        maritalStatus: formData.maritalStatus!,
-        emergencyContactName: formData.emergencyContactName!,
-        emergencyContactNumber: formData.emergencyContactNumber!,
-        relation: formData.relation!,
-        privacyConsent: formData.privacyConsent!,
-        serviceConsent: formData.serviceConsent!,
-        medicalConsent: formData.medicalConsent!,
-        bloodGroup: formData.bloodGroup,
-        allergies: formData.allergies,
-        medicalConditions: formData.medicalConditions,
-        medicalHistory: formData.medicalHistory,
-        insuranceProvider: formData.insuranceProvider,
-        insuranceNumber: formData.insuranceNumber,
-      };
+      const raw = getValues();
+      const clean = Object.fromEntries(
+        Object.entries(raw).map(([k, v]) => [k, v === '' ? undefined : v]).filter(([, v]) => v !== undefined)
+      );
 
-      const response = await frontdeskApi.createPatient(dto);
+      const result = await apiClient.post<PatientResponseDto>('/patients', clean);
 
-      if (response.success && response.data) {
-        toast.success('Patient registered successfully');
-        onSuccess(response.data);
-        // Reset form
-        setFormData({
-          id: '',
-          firstName: '',
-          lastName: '',
-          dateOfBirth: '',
-          gender: Gender.MALE,
-          email: '',
-          phone: '',
-          address: '',
-          maritalStatus: '',
-          emergencyContactName: '',
-          emergencyContactNumber: '',
-          relation: '',
-          privacyConsent: false,
-          serviceConsent: false,
-          medicalConsent: false,
-          bloodGroup: '',
-          allergies: '',
-          medicalConditions: '',
-          medicalHistory: '',
-          insuranceProvider: '',
-          insuranceNumber: '',
-        });
-      } else if (!response.success) {
-        toast.error(response.error || 'Failed to register patient');
-      } else {
-        toast.error('Failed to register patient');
+      if (!result.success) {
+        throw new Error(result.error);
       }
-    } catch (error) {
-      toast.error('An error occurred while registering patient');
-      console.error('Error registering patient:', error);
+
+      toast.success('Patient registered successfully');
+      onSuccess(result.data);
+      reset();
+      setStep(1);
+      setSubmitted(false);
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : 'Registration failed');
     } finally {
-      setIsSubmitting(false);
+      setSubmitting(false);
     }
   };
 
+  const handleClose = () => {
+    if (!submitting) {
+      onClose();
+      setStep(1);
+      setSubmitted(false);
+      setSubmitError(null);
+    }
+  };
+
+  const stepProgress = (step / STEPS.length) * 100;
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{existingPatient ? 'Update Patient' : 'Register New Patient'}</DialogTitle>
-          <DialogDescription>
-            {existingPatient
-              ? 'Update patient information'
-              : 'Fill in the details to register a new patient'}
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-4 py-4">
-            {/* Personal Information */}
-            <div className="space-y-4 border-b pb-4">
-              <h3 className="text-sm font-semibold">Personal Information</h3>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="id">Patient ID *</Label>
-                  <Input
-                    id="id"
-                    value={formData.id}
-                    onChange={(e) => setFormData({ ...formData, id: e.target.value })}
-                    required
-                    disabled={isSubmitting || !!existingPatient}
-                    placeholder="Enter unique patient ID"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="gender">Gender *</Label>
-                  <select
-                    id="gender"
-                    value={formData.gender}
-                    onChange={(e) => setFormData({ ...formData, gender: e.target.value as Gender })}
-                    required
-                    disabled={isSubmitting}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  >
-                    <option value={Gender.MALE}>Male</option>
-                    <option value={Gender.FEMALE}>Female</option>
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name *</Label>
-                  <Input
-                    id="firstName"
-                    value={formData.firstName}
-                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    required
-                    disabled={isSubmitting}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name *</Label>
-                  <Input
-                    id="lastName"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    required
-                    disabled={isSubmitting}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="dateOfBirth">Date of Birth *</Label>
-                  <Input
-                    id="dateOfBirth"
-                    type="date"
-                    value={typeof formData.dateOfBirth === 'string' ? formData.dateOfBirth : formData.dateOfBirth ? new Date(formData.dateOfBirth).toISOString().split('T')[0] : ''}
-                    onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                    required
-                    disabled={isSubmitting}
-                    max={new Date().toISOString().split('T')[0]}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="maritalStatus">Marital Status *</Label>
-                  <Input
-                    id="maritalStatus"
-                    value={formData.maritalStatus}
-                    onChange={(e) => setFormData({ ...formData, maritalStatus: e.target.value })}
-                    required
-                    disabled={isSubmitting}
-                    placeholder="e.g., Single, Married"
-                  />
-                </div>
-              </div>
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[540px] max-h-[90vh] overflow-y-auto p-0 gap-0">
+        {submitted ? (
+          /* Success Screen */
+          <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+            <div className="h-20 w-20 rounded-full bg-emerald-100 flex items-center justify-center mb-6">
+              <Check className="h-10 w-10 text-emerald-600" />
             </div>
-
-            {/* Contact Information */}
-            <div className="space-y-4 border-b pb-4">
-              <h3 className="text-sm font-semibold">Contact Information</h3>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    required
-                    disabled={isSubmitting}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone *</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    required
-                    disabled={isSubmitting}
-                  />
-                </div>
-
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="address">Address *</Label>
-                  <Input
-                    id="address"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    required
-                    disabled={isSubmitting}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Emergency Contact */}
-            <div className="space-y-4 border-b pb-4">
-              <h3 className="text-sm font-semibold">Emergency Contact</h3>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="emergencyContactName">Contact Name *</Label>
-                  <Input
-                    id="emergencyContactName"
-                    value={formData.emergencyContactName}
-                    onChange={(e) => setFormData({ ...formData, emergencyContactName: e.target.value })}
-                    required
-                    disabled={isSubmitting}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="emergencyContactNumber">Contact Number *</Label>
-                  <Input
-                    id="emergencyContactNumber"
-                    type="tel"
-                    value={formData.emergencyContactNumber}
-                    onChange={(e) => setFormData({ ...formData, emergencyContactNumber: e.target.value })}
-                    required
-                    disabled={isSubmitting}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="relation">Relation *</Label>
-                  <Input
-                    id="relation"
-                    value={formData.relation}
-                    onChange={(e) => setFormData({ ...formData, relation: e.target.value })}
-                    required
-                    disabled={isSubmitting}
-                    placeholder="e.g., Spouse, Parent, Sibling"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Medical Information */}
-            <div className="space-y-4 border-b pb-4">
-              <h3 className="text-sm font-semibold">Medical Information (Optional)</h3>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="bloodGroup">Blood Group</Label>
-                  <Input
-                    id="bloodGroup"
-                    value={formData.bloodGroup}
-                    onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })}
-                    disabled={isSubmitting}
-                    placeholder="e.g., O+, A-, B+"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="allergies">Allergies</Label>
-                  <Input
-                    id="allergies"
-                    value={formData.allergies}
-                    onChange={(e) => setFormData({ ...formData, allergies: e.target.value })}
-                    disabled={isSubmitting}
-                    placeholder="e.g., Penicillin, Latex"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="medicalConditions">Medical Conditions</Label>
-                  <Input
-                    id="medicalConditions"
-                    value={formData.medicalConditions}
-                    onChange={(e) => setFormData({ ...formData, medicalConditions: e.target.value })}
-                    disabled={isSubmitting}
-                    placeholder="e.g., Diabetes, Hypertension"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="insuranceProvider">Insurance Provider</Label>
-                  <Input
-                    id="insuranceProvider"
-                    value={formData.insuranceProvider}
-                    onChange={(e) => setFormData({ ...formData, insuranceProvider: e.target.value })}
-                    disabled={isSubmitting}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="insuranceNumber">Insurance Number</Label>
-                  <Input
-                    id="insuranceNumber"
-                    value={formData.insuranceNumber}
-                    onChange={(e) => setFormData({ ...formData, insuranceNumber: e.target.value })}
-                    disabled={isSubmitting}
-                  />
-                </div>
-
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="medicalHistory">Medical History</Label>
-                  <Textarea
-                    id="medicalHistory"
-                    value={formData.medicalHistory}
-                    onChange={(e) => setFormData({ ...formData, medicalHistory: e.target.value })}
-                    disabled={isSubmitting}
-                    rows={4}
-                    placeholder="Previous medical history, surgeries, etc."
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Consents */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold">Consents *</h3>
-              <div className="space-y-3">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="privacyConsent"
-                    checked={formData.privacyConsent}
-                    onChange={(e) => setFormData({ ...formData, privacyConsent: e.target.checked })}
-                    disabled={isSubmitting}
-                    className="h-4 w-4 rounded border-gray-300"
-                    required
-                  />
-                  <Label htmlFor="privacyConsent" className="text-sm font-normal">
-                    Privacy Consent *
-                  </Label>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="serviceConsent"
-                    checked={formData.serviceConsent}
-                    onChange={(e) => setFormData({ ...formData, serviceConsent: e.target.checked })}
-                    disabled={isSubmitting}
-                    className="h-4 w-4 rounded border-gray-300"
-                    required
-                  />
-                  <Label htmlFor="serviceConsent" className="text-sm font-normal">
-                    Service Consent *
-                  </Label>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="medicalConsent"
-                    checked={formData.medicalConsent}
-                    onChange={(e) => setFormData({ ...formData, medicalConsent: e.target.checked })}
-                    disabled={isSubmitting}
-                    className="h-4 w-4 rounded border-gray-300"
-                    required
-                  />
-                  <Label htmlFor="medicalConsent" className="text-sm font-normal">
-                    Medical Consent *
-                  </Label>
-                </div>
-              </div>
-            </div>
+            <h1 className="text-xl font-bold text-slate-900 mb-2">Patient Registered</h1>
+            <p className="text-slate-500 text-sm">
+              {getValues('firstName')} {getValues('lastName')} has been added to the registry.
+            </p>
           </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Registering...' : existingPatient ? 'Update Patient' : 'Register Patient'}
-            </Button>
-          </DialogFooter>
-        </form>
+        ) : (
+          <>
+            {/* Header */}
+            <div className="px-6 pt-6 pb-4 border-b border-slate-100">
+              <DialogHeader className="mb-4">
+                <DialogTitle className="text-lg">Register New Patient</DialogTitle>
+              </DialogHeader>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">{STEPS[step - 1].title}</p>
+                  <p className="text-xs text-slate-500">{STEPS[step - 1].description}</p>
+                </div>
+                <p className="text-xs text-slate-400">Step {step} of {STEPS.length}</p>
+              </div>
+              <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-rose-600 transition-all duration-300"
+                  style={{ width: `${stepProgress}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Form Content */}
+            <div className="px-6 py-6">
+              <div className="space-y-4">
+                {/* Step 1: Personal */}
+                {step === 1 && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className={labelClass}>First Name *</label>
+                      <input {...register('firstName')} placeholder="First name" className={inputClass} autoFocus />
+                      {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName.message}</p>}
+                    </div>
+                    <div>
+                      <label className={labelClass}>Last Name *</label>
+                      <input {...register('lastName')} placeholder="Last name" className={inputClass} />
+                      {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName.message}</p>}
+                    </div>
+                    <div>
+                      <label className={labelClass}>Date of Birth *</label>
+                      <input {...register('dateOfBirth')} type="date" className={inputClass} />
+                      {errors.dateOfBirth && <p className="text-red-500 text-xs mt-1">{errors.dateOfBirth.message}</p>}
+                    </div>
+                    <div>
+                      <label className={labelClass}>Gender *</label>
+                      <select {...register('gender')} className={inputClass}>
+                        <option value="FEMALE">Female</option>
+                        <option value="MALE">Male</option>
+                        <option value="OTHER">Other</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 2: Contact */}
+                {step === 2 && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className={labelClass}>Phone Number *</label>
+                      <Controller
+                        name="phone"
+                        control={control}
+                        render={({ field }) => (
+                          <PhoneInput {...field} international defaultCountry="KE" className="phone-input-custom" />
+                        )}
+                      />
+                      {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
+                    </div>
+                    <div>
+                      <label className={labelClass}>WhatsApp Number</label>
+                      <Controller
+                        name="whatsappPhone"
+                        control={control}
+                        render={({ field }) => (
+                          <PhoneInput {...field} international defaultCountry="KE" className="phone-input-custom" />
+                        )}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Email *</label>
+                      <input {...register('email')} type="email" placeholder="email@example.com" className={inputClass} />
+                      {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
+                    </div>
+                    <div>
+                      <label className={labelClass}>Address</label>
+                      <input {...register('address')} placeholder="e.g. Westlands, Nairobi" className={inputClass} />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Marital Status</label>
+                      <select {...register('maritalStatus')} className={inputClass}>
+                        <option value="">Prefer not to say</option>
+                        <option value="SINGLE">Single</option>
+                        <option value="MARRIED">Married</option>
+                        <option value="DIVORCED">Divorced</option>
+                        <option value="WIDOWED">Widowed</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelClass}>Occupation</label>
+                      <input {...register('occupation')} placeholder="Occupation" className={inputClass} />
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: Emergency */}
+                {step === 3 && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className={labelClass}>Contact Name</label>
+                      <input {...register('emergencyContactName')} placeholder="Full name" className={inputClass} />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Contact Phone</label>
+                      <Controller
+                        name="emergencyContactNumber"
+                        control={control}
+                        render={({ field }) => (
+                          <PhoneInput {...field} international defaultCountry="KE" className="phone-input-custom" />
+                        )}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Relationship</label>
+                      <select {...register('emergencyContactRelation')} className={inputClass}>
+                        <option value="">Select relationship</option>
+                        <option value="SPOUSE">Spouse / Partner</option>
+                        <option value="PARENT">Parent</option>
+                        <option value="SIBLING">Sibling</option>
+                        <option value="CHILD">Child</option>
+                        <option value="FRIEND">Friend</option>
+                        <option value="OTHER">Other</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 4: Medical */}
+                {step === 4 && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className={labelClass}>Blood Group</label>
+                      <select {...register('bloodGroup')} className={inputClass}>
+                        <option value="">Not sure</option>
+                        {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => (
+                          <option key={bg} value={bg}>{bg}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelClass}>Known Allergies</label>
+                      <textarea
+                        {...register('allergies')}
+                        rows={3}
+                        placeholder="e.g. Penicillin, latex... or leave blank"
+                        className={cn(inputClass, "resize-none")}
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Medical Conditions</label>
+                      <textarea
+                        {...register('medicalConditions')}
+                        rows={3}
+                        placeholder="e.g. Diabetes, hypertension... or leave blank"
+                        className={cn(inputClass, "resize-none")}
+                      />
+                    </div>
+
+                    {submitError && (
+                      <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex items-start gap-2">
+                        <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                        <p className="text-xs font-medium text-red-600">{submitError}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Bottom Navigation */}
+            <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
+              {step > 1 ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={goPrev}
+                  disabled={submitting}
+                  className="rounded-xl"
+                >
+                  Back
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleClose}
+                  disabled={submitting}
+                  className="rounded-xl"
+                >
+                  Cancel
+                </Button>
+              )}
+
+              {step < STEPS.length ? (
+                <Button
+                  type="button"
+                  onClick={goNext}
+                  disabled={submitting}
+                  className="flex-1 rounded-xl bg-slate-900 hover:bg-slate-800"
+                >
+                  Continue
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                  className={cn(
+                    "flex-1 rounded-xl",
+                    submitting
+                      ? "bg-slate-100 text-slate-400"
+                      : "bg-emerald-600 hover:bg-emerald-700"
+                  )}
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Registering...
+                    </>
+                  ) : (
+                    'Register Patient'
+                  )}
+                </Button>
+              )}
+            </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

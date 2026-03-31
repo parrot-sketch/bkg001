@@ -1,7 +1,6 @@
 import { Email } from '@/domain/value-objects/Email';
 import { PhoneNumber } from '@/domain/value-objects/PhoneNumber';
 import { DomainException } from '@/domain/exceptions/DomainException';
-import { Patient } from '@/domain/entities/Patient';
 import { Gender } from '@/domain/enums/Gender';
 
 export type MaritalStatus = 'SINGLE' | 'MARRIED' | 'DIVORCED' | 'WIDOWED' | '';
@@ -9,10 +8,8 @@ export type Relationship = 'SPOUSE' | 'PARENT' | 'CHILD' | 'SIBLING' | 'FRIEND' 
 export type BloodGroup = 'O+' | 'O-' | 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | '';
 export type SubmissionStatus = 'PENDING' | 'CONFIRMED' | 'REJECTED';
 
-/**
- * Value Object: PersonalInfo
- * Encapsulates personal information section
- */
+// ── Value Objects ──
+
 class PersonalInfo {
   constructor(
     readonly firstName: string,
@@ -20,7 +17,6 @@ class PersonalInfo {
     readonly dateOfBirth: Date,
     readonly gender: Gender,
   ) {
-    // Validate
     if (!firstName || firstName.trim().length < 2) {
       throw new DomainException('First name must be at least 2 characters');
     }
@@ -35,19 +31,12 @@ class PersonalInfo {
   getAge(): number {
     const today = new Date();
     let age = today.getFullYear() - this.dateOfBirth.getFullYear();
-    const monthDiff = today.getMonth() - this.dateOfBirth.getMonth();
-    if (
-      monthDiff < 0 ||
-      (monthDiff === 0 && today.getDate() < this.dateOfBirth.getDate())
-    ) {
-      age--;
-    }
+    const m = today.getMonth() - this.dateOfBirth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < this.dateOfBirth.getDate())) age--;
     return age;
   }
 
-  isMinor(): boolean {
-    return this.getAge() < 18;
-  }
+  isMinor(): boolean { return this.getAge() < 18; }
 
   toPrimitive() {
     return {
@@ -60,10 +49,6 @@ class PersonalInfo {
   }
 }
 
-/**
- * Value Object: ContactInfo
- * Encapsulates contact information section
- */
 class ContactInfo {
   constructor(
     readonly email: Email,
@@ -90,10 +75,6 @@ class ContactInfo {
   }
 }
 
-/**
- * Value Object: EmergencyContact
- * Encapsulates emergency contact information
- */
 class EmergencyContact {
   constructor(
     readonly name?: string,
@@ -101,7 +82,7 @@ class EmergencyContact {
     readonly relationship?: Relationship,
   ) {
     if (name && name.trim().length > 0 && name.trim().length < 2) {
-      throw new DomainException('Emergency contact name must be at least 2 characters if provided');
+      throw new DomainException('Emergency contact name must be at least 2 characters');
     }
   }
 
@@ -114,10 +95,6 @@ class EmergencyContact {
   }
 }
 
-/**
- * Value Object: MedicalInfo
- * Encapsulates medical information section
- */
 class MedicalInfo {
   constructor(
     readonly bloodGroup?: BloodGroup,
@@ -125,9 +102,8 @@ class MedicalInfo {
     readonly medicalConditions?: string,
     readonly medicalHistory?: string,
   ) {
-    // Optional validation - these are all optional fields
     if (allergies && allergies.trim().length > 500) {
-      throw new DomainException('Allergies description must be at most 500 characters');
+      throw new DomainException('Allergies must be at most 500 characters');
     }
     if (medicalConditions && medicalConditions.trim().length > 500) {
       throw new DomainException('Medical conditions must be at most 500 characters');
@@ -137,21 +113,10 @@ class MedicalInfo {
     }
   }
 
-  hasBloodGroup(): boolean {
-    return !!this.bloodGroup;
-  }
-
-  hasAllergies(): boolean {
-    return !!this.allergies && this.allergies.trim().length > 0;
-  }
-
-  hasConditions(): boolean {
-    return !!this.medicalConditions && this.medicalConditions.trim().length > 0;
-  }
-
-  hasHistory(): boolean {
-    return !!this.medicalHistory && this.medicalHistory.trim().length > 0;
-  }
+  hasBloodGroup(): boolean { return !!this.bloodGroup; }
+  hasAllergies(): boolean { return !!this.allergies && this.allergies.trim().length > 0; }
+  hasConditions(): boolean { return !!this.medicalConditions && this.medicalConditions.trim().length > 0; }
+  hasHistory(): boolean { return !!this.medicalHistory && this.medicalHistory.trim().length > 0; }
 
   toPrimitive() {
     return {
@@ -163,15 +128,8 @@ class MedicalInfo {
   }
 }
 
-/**
- * Value Object: InsuranceInfo
- * Encapsulates insurance information
- */
 class InsuranceInfo {
-  constructor(
-    readonly provider?: string,
-    readonly number?: string,
-  ) {
+  constructor(readonly provider?: string, readonly number?: string) {
     if (provider && provider.trim().length > 100) {
       throw new DomainException('Insurance provider must be at most 100 characters');
     }
@@ -180,22 +138,13 @@ class InsuranceInfo {
     }
   }
 
-  hasInsurance(): boolean {
-    return !!this.provider && !!this.number;
-  }
+  hasInsurance(): boolean { return !!this.provider && !!this.number; }
 
   toPrimitive() {
-    return {
-      provider: this.provider,
-      number: this.number,
-    };
+    return { provider: this.provider, number: this.number };
   }
 }
 
-/**
- * Value Object: ConsentInfo
- * Encapsulates consent flags - REQUIRED for all submissions
- */
 class ConsentInfo {
   constructor(
     readonly privacyConsent: boolean,
@@ -203,12 +152,8 @@ class ConsentInfo {
     readonly medicalConsent: boolean,
   ) {
     if (!privacyConsent || !serviceConsent || !medicalConsent) {
-      throw new DomainException('All consents are required to submit intake form');
+      throw new DomainException('All consents are required');
     }
-  }
-
-  hasAllConsents(): boolean {
-    return this.privacyConsent && this.serviceConsent && this.medicalConsent;
   }
 
   toPrimitive() {
@@ -220,152 +165,72 @@ class ConsentInfo {
   }
 }
 
-/**
- * Aggregate Root: IntakeSubmission
- *
- * Represents a patient's filled intake form.
- * Contains all personal, medical, contact, and consent information.
- *
- * Business Rules:
- * - All consent flags must be true
- * - Required fields: personal info, contact info, emergency contact, all consents
- * - Optional fields: medical info, insurance info
- * - Can be converted to Patient entity when confirmed by frontdesk
- */
+// ── Aggregate Root ──
+
 export class IntakeSubmission {
-  private readonly submissionId: string;
-  private readonly sessionId: string;
-  private readonly personalInfo: PersonalInfo;
-  private readonly contactInfo: ContactInfo;
-  private readonly emergencyContact: EmergencyContact;
-  private readonly medicalInfo: MedicalInfo;
-  private readonly insuranceInfo: InsuranceInfo;
-  private readonly consent: ConsentInfo;
-  private readonly submittedAt: Date;
-  private readonly ipAddress?: string;
-  private readonly userAgent?: string;
-  private readonly status: SubmissionStatus;
-
   private constructor(
-    submissionId: string,
-    sessionId: string,
-    personalInfo: PersonalInfo,
-    contactInfo: ContactInfo,
-    emergencyContact: EmergencyContact,
-    medicalInfo: MedicalInfo,
-    insuranceInfo: InsuranceInfo,
-    consent: ConsentInfo,
-    submittedAt: Date,
-    ipAddress?: string,
-    userAgent?: string,
-    status: SubmissionStatus = 'PENDING',
-  ) {
-    this.submissionId = submissionId;
-    this.sessionId = sessionId;
-    this.personalInfo = personalInfo;
-    this.contactInfo = contactInfo;
-    this.emergencyContact = emergencyContact;
-    this.medicalInfo = medicalInfo;
-    this.insuranceInfo = insuranceInfo;
-    this.consent = consent;
-    this.submittedAt = submittedAt;
-    this.ipAddress = ipAddress;
-    this.userAgent = userAgent;
-    this.status = status;
-  }
+    private readonly submissionId: string,
+    private readonly sessionId: string,
+    private readonly personalInfo: PersonalInfo,
+    private readonly contactInfo: ContactInfo,
+    private readonly emergencyContact: EmergencyContact,
+    private readonly medicalInfo: MedicalInfo,
+    private readonly insuranceInfo: InsuranceInfo,
+    private readonly consent: ConsentInfo,
+    private readonly submittedAt: Date,
+    private readonly ipAddress: string | undefined,
+    private readonly userAgent: string | undefined,
+    private readonly status: SubmissionStatus,
+  ) {}
 
-  /**
-   * Factory method: Create new intake submission
-   *
-   * @param params All form data from patient
-   * @returns New IntakeSubmission instance
-   * @throws DomainException if any validation fails
-   */
   static create(params: {
     submissionId: string;
     sessionId: string;
-    // Personal
     firstName: string;
     lastName: string;
     dateOfBirth: Date;
     gender: 'MALE' | 'FEMALE' | 'OTHER';
-    // Contact
     email: string;
     phone: string;
     address?: string;
     maritalStatus?: MaritalStatus;
     occupation?: string;
     whatsappPhone?: string;
-    // Emergency Contact
     emergencyContactName?: string;
     emergencyContactNumber?: string;
     emergencyContactRelation?: Relationship;
-    // Medical (optional)
     bloodGroup?: BloodGroup;
     allergies?: string;
     medicalConditions?: string;
     medicalHistory?: string;
-    // Insurance (optional)
     insuranceProvider?: string;
     insuranceNumber?: string;
-    // Consent (required)
     privacyConsent: boolean;
     serviceConsent: boolean;
     medicalConsent: boolean;
-    // Audit
     ipAddress?: string;
     userAgent?: string;
   }): IntakeSubmission {
-    // Create value objects (which perform validation)
-    const personalInfo = new PersonalInfo(
-      params.firstName,
-      params.lastName,
-      params.dateOfBirth,
-      params.gender as Gender,
-    );
-
-    const contactInfo = new ContactInfo(
-      Email.create(params.email),
-      PhoneNumber.create(params.phone),
-      params.address,
-      params.maritalStatus,
-      params.occupation,
-      params.whatsappPhone ? PhoneNumber.create(params.whatsappPhone) : undefined,
-    );
-
-    const emergencyContact = new EmergencyContact(
-      params.emergencyContactName,
-      params.emergencyContactNumber ? PhoneNumber.create(params.emergencyContactNumber) : undefined,
-      params.emergencyContactRelation,
-    );
-
-    const medicalInfo = new MedicalInfo(
-      params.bloodGroup,
-      params.allergies,
-      params.medicalConditions,
-      params.medicalHistory,
-    );
-
-    const insuranceInfo = new InsuranceInfo(
-      params.insuranceProvider,
-      params.insuranceNumber,
-    );
-
-    const consent = new ConsentInfo(
-      params.privacyConsent,
-      params.serviceConsent,
-      params.medicalConsent,
-    );
-
     return new IntakeSubmission(
       params.submissionId,
       params.sessionId,
-      personalInfo,
-      contactInfo,
-      emergencyContact,
-      medicalInfo,
-      insuranceInfo,
-      consent,
+      new PersonalInfo(params.firstName, params.lastName, params.dateOfBirth, params.gender as Gender),
+      new ContactInfo(
+        Email.create(params.email),
+        PhoneNumber.create(params.phone),
+        params.address,
+        params.maritalStatus,
+        params.occupation,
+        params.whatsappPhone ? PhoneNumber.create(params.whatsappPhone) : undefined,
+      ),
+      new EmergencyContact(
+        params.emergencyContactName,
+        params.emergencyContactNumber ? PhoneNumber.create(params.emergencyContactNumber) : undefined,
+        params.emergencyContactRelation,
+      ),
+      new MedicalInfo(params.bloodGroup, params.allergies, params.medicalConditions, params.medicalHistory),
+      new InsuranceInfo(params.insuranceProvider, params.insuranceNumber),
+      new ConsentInfo(params.privacyConsent, params.serviceConsent, params.medicalConsent),
       new Date(),
       params.ipAddress,
       params.userAgent,
@@ -373,9 +238,6 @@ export class IntakeSubmission {
     );
   }
 
-  /**
-   * Restore IntakeSubmission from persistent storage
-   */
   static restore(data: {
     submissionId: string;
     sessionId: string;
@@ -406,57 +268,43 @@ export class IntakeSubmission {
     );
   }
 
-  /**
-   * Convert intake submission to Patient entity
-   * Called when frontdesk confirms intake
-   *
-   * @param fileNumber The unique file number to assign
-   * @returns Patient entity ready to be saved
-   */
-  toPatientEntity(fileNumber: string, id: string): Patient {
-    return Patient.create({
-      id,
-      fileNumber,
-      firstName: this.personalInfo.firstName,
-      lastName: this.personalInfo.lastName,
-      dateOfBirth: this.personalInfo.dateOfBirth,
-      gender: this.personalInfo.gender as Gender,
-      email: this.contactInfo.email.getValue(),
-      phone: this.contactInfo.phone.getValue(),
-      address: this.contactInfo.address,
-      maritalStatus: this.contactInfo.maritalStatus || '',
-      occupation: this.contactInfo.occupation,
-      whatsappPhone: this.contactInfo.whatsappPhone?.getValue(),
-      emergencyContactName: this.emergencyContact.name || undefined,
-      emergencyContactNumber: this.emergencyContact.phoneNumber?.getValue() || undefined,
-      relation: this.emergencyContact.relationship || undefined,
-      bloodGroup: this.medicalInfo.bloodGroup,
-      allergies: this.medicalInfo.allergies,
-      medicalConditions: this.medicalInfo.medicalConditions,
-      medicalHistory: this.medicalInfo.medicalHistory,
-      insuranceProvider: this.insuranceInfo.provider,
-      insuranceNumber: this.insuranceInfo.number,
-      privacyConsent: this.consent.privacyConsent,
-      serviceConsent: this.consent.serviceConsent,
-      medicalConsent: this.consent.medicalConsent,
-    });
+  // ── State transitions ──
+
+  markAsConfirmed(): IntakeSubmission {
+    if (this.status !== 'PENDING') {
+      throw new DomainException(`Cannot confirm submission with status ${this.status}`);
+    }
+    return new IntakeSubmission(
+      this.submissionId, this.sessionId,
+      this.personalInfo, this.contactInfo, this.emergencyContact,
+      this.medicalInfo, this.insuranceInfo, this.consent,
+      this.submittedAt, this.ipAddress, this.userAgent,
+      'CONFIRMED',
+    );
   }
 
-  /**
-   * Check if submission is complete and ready to be confirmed
-   * Returns a list of missing fields if incomplete
-   */
+  markAsRejected(): IntakeSubmission {
+    if (this.status !== 'PENDING') {
+      throw new DomainException(`Cannot reject submission with status ${this.status}`);
+    }
+    return new IntakeSubmission(
+      this.submissionId, this.sessionId,
+      this.personalInfo, this.contactInfo, this.emergencyContact,
+      this.medicalInfo, this.insuranceInfo, this.consent,
+      this.submittedAt, this.ipAddress, this.userAgent,
+      'REJECTED',
+    );
+  }
+
+  // ── Business logic ──
+
   getIncompleteness(): string[] {
     const missing: string[] = [];
-
     if (!this.personalInfo.firstName) missing.push('firstName');
     if (!this.personalInfo.lastName) missing.push('lastName');
     if (!this.personalInfo.dateOfBirth) missing.push('dateOfBirth');
     if (!this.contactInfo.email) missing.push('email');
     if (!this.contactInfo.phone) missing.push('phone');
-
-    // Emergency contact is now optional - no checks here
-
     return missing;
   }
 
@@ -464,77 +312,33 @@ export class IntakeSubmission {
     return this.getIncompleteness().length === 0;
   }
 
-  /**
-   * Calculate completeness score (0-100)
-   * Based on how many optional fields are filled
-   */
   getCompletenessScore(): number {
-    let score = 70; // Required fields are 70 points
-
+    let score = 70;
     if (this.medicalInfo.hasBloodGroup()) score += 5;
     if (this.medicalInfo.hasAllergies()) score += 5;
     if (this.medicalInfo.hasConditions()) score += 5;
     if (this.medicalInfo.hasHistory()) score += 5;
     if (this.insuranceInfo.hasInsurance()) score += 5;
-
     return Math.min(score, 100);
   }
 
-  // ============================================================================
-  // Getters
-  // ============================================================================
+  // ── Getters ──
 
-  getSubmissionId(): string {
-    return this.submissionId;
-  }
+  getSubmissionId(): string { return this.submissionId; }
+  getSessionId(): string { return this.sessionId; }
+  getPersonalInfo(): PersonalInfo { return this.personalInfo; }
+  getContactInfo(): ContactInfo { return this.contactInfo; }
+  getEmergencyContact(): EmergencyContact { return this.emergencyContact; }
+  getMedicalInfo(): MedicalInfo { return this.medicalInfo; }
+  getInsuranceInfo(): InsuranceInfo { return this.insuranceInfo; }
+  getConsent(): ConsentInfo { return this.consent; }
+  getSubmittedAt(): Date { return new Date(this.submittedAt); }
+  getIpAddress(): string | undefined { return this.ipAddress; }
+  getUserAgent(): string | undefined { return this.userAgent; }
+  getStatus(): SubmissionStatus { return this.status; }
 
-  getSessionId(): string {
-    return this.sessionId;
-  }
+  // ── Serialization ──
 
-  getPersonalInfo(): PersonalInfo {
-    return this.personalInfo;
-  }
-
-  getContactInfo(): ContactInfo {
-    return this.contactInfo;
-  }
-
-  getEmergencyContact(): EmergencyContact {
-    return this.emergencyContact;
-  }
-
-  getMedicalInfo(): MedicalInfo {
-    return this.medicalInfo;
-  }
-
-  getInsuranceInfo(): InsuranceInfo {
-    return this.insuranceInfo;
-  }
-
-  getConsent(): ConsentInfo {
-    return this.consent;
-  }
-
-  getSubmittedAt(): Date {
-    return new Date(this.submittedAt);
-  }
-
-  getIpAddress(): string | undefined {
-    return this.ipAddress;
-  }
-
-  getUserAgent(): string | undefined {
-    return this.userAgent;
-  }
-
-  getStatus(): SubmissionStatus {
-    return this.status;
-  }
-
-  /**
-   * Serialize to plain object for DTO/API responses
-   */
   toPrimitive() {
     return {
       submissionId: this.submissionId,

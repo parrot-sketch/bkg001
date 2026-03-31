@@ -87,10 +87,10 @@ export default function ReviewIntakePage() {
         const result = await apiClient.get<IntakeSubmissionDTO>(`/frontdesk/intake/${sessionId}`);
 
         if (!result.success) {
-          throw new Error((result as any).error || 'Intake submission not found');
+          throw new Error(result.error || 'Intake submission not found');
         }
 
-        setSubmission((result as any).data as IntakeSubmissionDTO);
+        setSubmission(result.data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
@@ -113,10 +113,10 @@ export default function ReviewIntakePage() {
       const result = await apiClient.post<{ patientId: string; fileNumber: string; firstName: string; lastName: string }>(`/frontdesk/intake/confirm`, { sessionId });
 
       if (!result.success) {
-        throw new Error((result as any).error || 'Failed to confirm intake');
+        throw new Error(result.error || 'Failed to confirm intake');
       }
 
-      const confirmed = (result as any).data;
+      const confirmed = result.data;
       setSuccessMessage(
         `Patient ${confirmed.firstName} ${confirmed.lastName} confirmed. File #${confirmed.fileNumber}`,
       );

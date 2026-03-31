@@ -1,66 +1,32 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { Patient } from '@/domain/entities/Patient';
-import { IPatientRepository } from '@/domain/interfaces/repositories/IPatientRepository';
+import {
+  IPatientRepository,
+  PatientFilters,
+  PatientListResult,
+  PatientRegistryRecord,
+  PatientStats,
+} from '@/domain/interfaces/repositories/IPatientRepository';
 import { Email } from '@/domain/value-objects/Email';
 import { PatientMapper } from '@/infrastructure/mappers/PatientMapper';
 
-/**
- * Repository: PatientRepository
- *
- * Implements IPatientRepository interface using Prisma ORM.
- *
- * Responsibilities:
- * - Map between domain entities and persistence layer
- * - Handle all CRUD operations for Patient
- * - Provide query methods for finding patients
- *
- * Dependency: PatientMapper (converts between domain and persistence)
- */
 export class PrismaPatientRepository implements IPatientRepository {
   constructor(private readonly db: PrismaClient) {}
 
-  /**
-   * Find a patient by ID
-   */
   async findById(id: string): Promise<Patient | null> {
-    const raw = await this.db.patient.findUnique({
-      where: { id },
-    });
-
-    if (!raw) {
-      return null;
-    }
-
-    return PatientMapper.fromPrisma(raw);
+    const raw = await this.db.patient.findUnique({ where: { id } });
+    return raw ? PatientMapper.fromPrisma(raw) : null;
   }
 
-  /**
-   * Find a patient by email
-   */
   async findByEmail(email: Email): Promise<Patient | null> {
-    const raw = await this.db.patient.findUnique({
-      where: { email: email.getValue() },
-    });
-
-    if (!raw) {
-      return null;
-    }
-
-    return PatientMapper.fromPrisma(raw);
+    const raw = await this.db.patient.findUnique({ where: { email: email.getValue() } });
+    return raw ? PatientMapper.fromPrisma(raw) : null;
   }
 
-  /**
-   * Save a new patient
-   */
   async save(patient: Patient): Promise<void> {
-    await this.db.patient.create({
-      data: PatientMapper.toPrismaCreateInput(patient),
-    });
+    await this.db.patient.create({ data: PatientMapper.toPrismaCreateInput(patient) });
   }
 
-  /**
-   * Update an existing patient
-   */
   async update(patient: Patient): Promise<void> {
     await this.db.patient.update({
       where: { id: patient.getId() },
@@ -68,79 +34,120 @@ export class PrismaPatientRepository implements IPatientRepository {
     });
   }
 
-  /**
-   * Find a patient by file number
-   */
-  async findByFileNumber(fileNumber: string): Promise<Patient | null> {
-    const raw = await this.db.patient.findUnique({
-      where: { file_number: fileNumber },
-    });
+  async findWithFilters(filters: PatientFilters): Promise<PatientListResult> {
+    const whereClause = this.buildWhereClause(filters.search);
+    const skip = (filters.page - 1) * filters.limit;
 
-    if (!raw) {
-      return null;
-    }
+    const [totalRecords, rows] = await Promise.all([
+      this.db.patient.count({ where: whereClause }),
+      this.db.patient.findMany({
+        where: whereClause,
+        skip,
+        take: filters.limit,
+        orderBy: { created_at: 'desc' },
+        select: {
+          id: true,
+          file_number: true,
+          first_name: true,
+          last_name: true,
+          email: true,
+          phone: true,
+          date_of_birth: true,
+          gender: true,
+          img: true,
+          colorCode: true,
+          created_at: true,
+          appointments: {
+            where: { status: 'COMPLETED' },
+            orderBy: { appointment_date: 'desc' },
+            take: 1,
+            select: { appointment_date: true },
+          },
+          _count: { select: { appointments: true } },
+          patient_queue: {
+            where: { status: { in: ['WAITING', 'IN_CONSULTATION'] } },
+            take: 1,
+            select: { status: true },
+            orderBy: { added_at: 'desc' },
+          },
+          payments: {
+            where: { status: 'UNPAID' },
+            select: { total_amount: true },
+          },
+        },
+      }),
+    ]);
 
-    return PatientMapper.fromPrisma(raw);
+    const records: PatientRegistryRecord[] = rows.map((p) => ({
+      id: p.id,
+      fileNumber: p.file_number,
+      firstName: p.first_name,
+      lastName: p.last_name,
+      dateOfBirth: p.date_of_birth.toISOString(),
+      gender: p.gender,
+      email: p.email,
+      phone: p.phone,
+      profileImage: p.img ?? undefined,
+      colorCode: p.colorCode ?? undefined,
+      createdAt: p.created_at.toISOString(),
+      totalVisits: p._count.appointments,
+      lastVisitAt: p.appointments[0]?.appointment_date?.toISOString() ?? null,
+      queueStatus: (p.patient_queue[0]?.status as 'WAITING' | 'IN_CONSULTATION') ?? null,
+      outstandingBalance: p.payments.reduce((sum, pay) => sum + pay.total_amount, 0),
+    }));
+
+    return {
+      records,
+      totalRecords,
+      totalPages: Math.ceil(totalRecords / filters.limit),
+      currentPage: filters.page,
+    };
   }
 
-  /**
-   * Delete a patient
-   */
-  async delete(id: string): Promise<void> {
-    await this.db.patient.delete({
-      where: { id },
-    });
+  async getStats(): Promise<PatientStats> {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [totalRecords, newToday, newThisMonth] = await Promise.all([
+      this.db.patient.count(),
+      this.db.patient.count({ where: { created_at: { gte: startOfToday } } }),
+      this.db.patient.count({ where: { created_at: { gte: startOfMonth } } }),
+    ]);
+
+    return { totalRecords, newToday, newThisMonth };
   }
 
-  /**
-   * Check if patient exists
-   */
-  async exists(id: string): Promise<boolean> {
-    const count = await this.db.patient.count({
-      where: { id },
-    });
-    return count > 0;
-  }
-
-  /**
-   * Generates the next sequential file number for a new patient.
-   * Scans existing file numbers to continue the sequence `NS{000}`.
-   */
   async generateNextFileNumber(): Promise<string> {
-    // Strategy: Fetch all valid NSxxx file numbers and find the highest integer
-    // This avoids issues where NS9 is sorted after NS10 in plain alphabetical sorting,
-    // and ignores the timestamp-corrupted numbers (NS188641413).
     const patients = await this.db.patient.findMany({
       select: { file_number: true },
-      where: {
-        file_number: { startsWith: 'NS' }
-      }
+      where: { file_number: { startsWith: 'NS' } },
     });
 
     let maxNumber = 0;
-
     for (const p of patients) {
       if (!p.file_number) continue;
-      
       const numStr = p.file_number.substring(2);
-      // Only consider it a pure sequence if it's a reasonably sized number
-      // Timestamp corrupted ones are >= 10 digits. We'll set a safe cap of 6 digits (up to 999,999 patients)
       if (/^\d{1,6}$/.test(numStr)) {
         const num = parseInt(numStr, 10);
-        if (num > maxNumber) {
-          maxNumber = num;
-        }
+        if (num > maxNumber) maxNumber = num;
       }
     }
 
-    const nextNumber = maxNumber + 1;
-    return `NS${String(nextNumber).padStart(3, '0')}`;
+    return `NS${String(maxNumber + 1).padStart(3, '0')}`;
+  }
+
+  private buildWhereClause(search?: string): Prisma.PatientWhereInput {
+    if (!search?.trim()) return {};
+    const s = search.trim();
+    return {
+      OR: [
+        { first_name: { contains: s, mode: 'insensitive' } },
+        { last_name: { contains: s, mode: 'insensitive' } },
+        { file_number: { contains: s, mode: 'insensitive' } },
+        { phone: { contains: s, mode: 'insensitive' } },
+        { email: { contains: s, mode: 'insensitive' } },
+      ],
+    };
   }
 }
-
-/**
- * Interface: IPatientRepository
- * 
- * This is re-exported here for convenience when importing from infrastructure layer
- */
-export type { IPatientRepository } from '@/domain/interfaces/repositories/IPatientRepository';
