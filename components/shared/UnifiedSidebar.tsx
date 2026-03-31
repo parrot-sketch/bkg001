@@ -15,7 +15,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { LogOut, X, ChevronRight, LayoutDashboard, Calendar, Users, Package, CreditCard, FileText, Shield, Activity, User, ClipboardCheck, Bell, HeartPulse } from 'lucide-react';
+import { LogOut, X, ChevronRight, ChevronLeft, LayoutDashboard, Calendar, Users, Package, CreditCard, FileText, Shield, Activity, User, ClipboardCheck, Bell, HeartPulse } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
@@ -43,6 +43,7 @@ interface UnifiedSidebarProps {
     onLogout: () => void;
     dashboardHref: string;
     variant?: 'default' | 'admin' | 'nurse' | 'doctor';
+    onCollapse?: (collapsed: boolean) => void;
 }
 
 const roleConfig = {
@@ -127,9 +128,11 @@ export function UnifiedSidebar({
     userInfo,
     onLogout,
     dashboardHref,
+    onCollapse,
 }: UnifiedSidebarProps) {
     const pathname = usePathname();
     const [mounted, setMounted] = useState(false);
+    const [collapsed, setCollapsed] = useState(false);
 
     useEffect(() => {
         setMounted(true);
@@ -141,6 +144,11 @@ export function UnifiedSidebar({
             onClose();
         }
     }, [pathname]);
+
+    const handleCollapse = (newState: boolean) => {
+        setCollapsed(newState);
+        onCollapse?.(newState);
+    };
 
     const roleInfo = userInfo ? roleConfig[userInfo.role] : null;
 
@@ -177,7 +185,8 @@ export function UnifiedSidebar({
             {/* Sidebar */}
             <aside
                 className={cn(
-                    'fixed left-0 top-0 z-50 h-screen w-[280px] bg-slate-950/95 backdrop-blur-xl border-r border-slate-800/30 transition-all duration-300 ease-out',
+                    'fixed left-0 top-0 z-50 h-screen bg-slate-950/95 backdrop-blur-xl border-r border-slate-800/30 transition-all duration-300 ease-out',
+                    collapsed ? 'w-16' : 'w-[280px]',
                     isOpen ? 'translate-x-0' : '-translate-x-full',
                     'lg:translate-x-0'
                 )}
@@ -190,13 +199,19 @@ export function UnifiedSidebar({
 
                 <div className="relative flex h-full flex-col">
                     {/* Logo Section */}
-                    <div className="flex h-20 items-center justify-between px-6 border-b border-slate-800/30">
+                    <div className={cn(
+                        'flex items-center justify-between border-b border-slate-800/30 transition-all duration-300',
+                        collapsed ? 'h-16 px-3' : 'h-20 px-6'
+                    )}>
                         <Link
                             href={dashboardHref}
-                            className="flex items-center gap-3 group"
+                            className={cn(
+                                'flex items-center group transition-all duration-300',
+                                collapsed ? 'gap-0' : 'gap-3'
+                            )}
                             onClick={onClose}
                         >
-                            <div className="h-11 w-11 rounded-xl bg-white flex items-center justify-center shadow-lg shadow-black/10 group-hover:scale-105 transition-transform duration-200">
+                            <div className="h-11 w-11 rounded-xl bg-white flex items-center justify-center shadow-lg shadow-black/10 group-hover:scale-105 transition-transform duration-200 flex-shrink-0">
                                 <Image
                                     src="https://res.cloudinary.com/dcngzaxlv/image/upload/v1768807323/logo_tw2voz.png"
                                     alt="Logo"
@@ -206,29 +221,46 @@ export function UnifiedSidebar({
                                     priority
                                 />
                             </div>
-                            <div className="flex flex-col">
-                                <span className="text-base font-bold text-white tracking-tight">
-                                    Nairobi Sculpt
-                                </span>
-                                <span className="text-[10px] text-slate-500 font-medium tracking-wider uppercase">
-                                    Healthcare
-                                </span>
-                            </div>
+                            {!collapsed && (
+                                <div className="flex flex-col">
+                                    <span className="text-base font-bold text-white tracking-tight">
+                                        Nairobi Sculpt
+                                    </span>
+                                    <span className="text-[10px] text-slate-500 font-medium tracking-wider uppercase">
+                                        Healthcare
+                                    </span>
+                                </div>
+                            )}
                         </Link>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="lg:hidden text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg"
-                            onClick={onClose}
-                            aria-label="Close menu"
-                        >
-                            <X className="h-5 w-5" />
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="hidden lg:flex text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg flex-shrink-0"
+                                onClick={() => handleCollapse(!collapsed)}
+                                aria-label="Toggle sidebar"
+                            >
+                                {collapsed ? (
+                                    <ChevronRight className="h-4 w-4" />
+                                ) : (
+                                    <ChevronLeft className="h-4 w-4" />
+                                )}
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="lg:hidden text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg flex-shrink-0"
+                                onClick={onClose}
+                                aria-label="Close menu"
+                            >
+                                <X className="h-5 w-5" />
+                            </Button>
+                        </div>
                     </div>
 
                     {/* Navigation Section */}
-                    <nav className="flex-1 overflow-y-auto px-3 pt-6">
-                        <div className="space-y-1">
+                    <nav className="flex-1 overflow-y-auto pt-6">
+                        <div className={cn('space-y-1', collapsed ? 'px-2' : 'px-3')}>
                             {navItems.map((item) => {
                                 const Icon = item.icon;
                                 const isActive =
@@ -239,8 +271,11 @@ export function UnifiedSidebar({
                                         key={item.href}
                                         href={item.href}
                                         onClick={onClose}
+                                        title={collapsed ? item.name : undefined}
                                         className={cn(
-                                            'group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 relative overflow-hidden',
+                                            'group flex items-center rounded-xl transition-all duration-200 relative overflow-hidden',
+                                            collapsed ? 'justify-center p-3' : 'gap-3 px-4 py-3',
+                                            'text-sm font-medium',
                                             isActive
                                                 ? 'bg-gradient-to-r from-slate-800/80 to-slate-800/40 text-white shadow-lg shadow-black/10'
                                                 : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
@@ -248,33 +283,41 @@ export function UnifiedSidebar({
                                     >
                                         {/* Active indicator */}
                                         {isActive && (
-                                            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-gradient-to-b from-blue-500 to-violet-500 rounded-r-full" />
+                                            <div className={cn(
+                                                "absolute bg-gradient-to-b from-blue-500 to-violet-500 rounded-r-full",
+                                                collapsed ? 'left-0 top-0 w-1 h-full' : 'left-0 top-1/2 -translate-y-1/2 w-1 h-6'
+                                            )} />
                                         )}
                                         
                                         <div className={cn(
-                                            "p-2 rounded-lg flex-shrink-0 transition-all duration-200",
+                                            "rounded-lg flex-shrink-0 transition-all duration-200",
+                                            collapsed ? 'p-2' : 'p-2',
                                             isActive
                                                 ? "bg-white/10 text-white"
                                                 : "bg-slate-800/50 text-slate-500 group-hover:text-white group-hover:bg-slate-700/50"
                                         )}>
-                                            <Icon className="h-4 w-4" />
+                                            <Icon className={cn('transition-all', collapsed ? 'h-5 w-5' : 'h-4 w-4')} />
                                         </div>
                                         
-                                        <span className="flex-1">{item.name}</span>
-                                        
-                                        {item.badge && (
-                                            <span className={cn(
-                                                "px-2 py-0.5 rounded-full text-xs font-medium",
-                                                isActive
-                                                    ? "bg-white/10 text-white"
-                                                    : "bg-slate-800 text-slate-400"
-                                            )}>
-                                                {item.badge}
-                                            </span>
-                                        )}
-                                        
-                                        {isActive && (
-                                            <ChevronRight className="h-4 w-4 text-slate-400" />
+                                        {!collapsed && (
+                                            <>
+                                                <span className="flex-1">{item.name}</span>
+                                                
+                                                {item.badge && (
+                                                    <span className={cn(
+                                                        "px-2 py-0.5 rounded-full text-xs font-medium",
+                                                        isActive
+                                                            ? "bg-white/10 text-white"
+                                                            : "bg-slate-800 text-slate-400"
+                                                    )}>
+                                                        {item.badge}
+                                                    </span>
+                                                )}
+                                                
+                                                {isActive && (
+                                                    <ChevronRight className="h-4 w-4 text-slate-400" />
+                                                )}
+                                            </>
                                         )}
                                     </Link>
                                 );
@@ -283,34 +326,42 @@ export function UnifiedSidebar({
                     </nav>
 
                     {/* Footer / Logout Section */}
-                    <div className="p-4 border-t border-slate-800/30">
-                        <div className="p-3 rounded-xl bg-slate-900/30 border border-slate-800/30 mb-3">
-                            <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider mb-2">
-                                Quick Actions
-                            </p>
-                            <div className="flex gap-2">
-                                <Link
-                                    href={dashboardHref}
-                                    className="flex-1 flex items-center justify-center gap-2 p-2 rounded-lg bg-slate-800/50 text-slate-400 text-xs font-medium hover:bg-slate-700/50 hover:text-white transition-all"
-                                >
-                                    <LayoutDashboard className="h-3.5 w-3.5" />
-                                    Dashboard
-                                </Link>
+                    <div className={cn('border-t border-slate-800/30 transition-all duration-300', collapsed ? 'p-2' : 'p-4')}>
+                        {!collapsed && (
+                            <div className="p-3 rounded-xl bg-slate-900/30 border border-slate-800/30 mb-3">
+                                <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider mb-2">
+                                    Quick Actions
+                                </p>
+                                <div className="flex gap-2">
+                                    <Link
+                                        href={dashboardHref}
+                                        className="flex-1 flex items-center justify-center gap-2 p-2 rounded-lg bg-slate-800/50 text-slate-400 text-xs font-medium hover:bg-slate-700/50 hover:text-white transition-all"
+                                    >
+                                        <LayoutDashboard className="h-3.5 w-3.5" />
+                                        Dashboard
+                                    </Link>
+                                </div>
                             </div>
-                        </div>
+                        )}
                         
                         <Button
                             variant="ghost"
                             onClick={onLogout}
-                            className="w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-red-500/10 hover:border-red-500/20 border border-transparent rounded-xl py-3 h-auto transition-all duration-200 group"
+                            className={cn(
+                                'group border border-transparent rounded-xl transition-all duration-200',
+                                collapsed ? 'w-full flex justify-center p-3 h-auto' : 'w-full justify-start gap-3 text-slate-400 hover:text-white hover:bg-red-500/10 hover:border-red-500/20 py-3 h-auto text-slate-400 hover:text-white hover:bg-red-500/10'
+                            )}
+                            title={collapsed ? 'Sign Out' : undefined}
                         >
-                            <LogOut className="h-5 w-5 group-hover:text-red-400 transition-colors" />
-                            <span className="font-medium">Sign Out</span>
+                            <LogOut className="h-5 w-5 group-hover:text-red-400 transition-colors flex-shrink-0" />
+                            {!collapsed && <span className="font-medium">Sign Out</span>}
                         </Button>
                         
-                        <p className="text-[10px] text-slate-600 text-center mt-3">
-                            Nairobi Sculpt v1.0
-                        </p>
+                        {!collapsed && (
+                            <p className="text-[10px] text-slate-600 text-center mt-3">
+                                Nairobi Sculpt v1.0
+                            </p>
+                        )}
                     </div>
                 </div>
             </aside>

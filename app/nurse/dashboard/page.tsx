@@ -16,15 +16,9 @@ import { useMarkInTheater } from '@/hooks/nurse/useMarkInTheater';
 
 import { Button } from '@/components/ui/button';
 import {
-  ClipboardCheck,
-  Activity,
-  HeartPulse,
-  Users,
-  Calendar,
   ArrowRight,
   Clock,
-  DoorOpen,
-  CheckCircle2
+  Calendar
 } from 'lucide-react';
 import Link from 'next/link';
 import { NursePageHeader } from '@/components/nurse/NursePageHeader';
@@ -109,7 +103,6 @@ export default function NurseDashboardPage() {
               title="Ward Prep"
               value={preOpSummary?.total || 0}
               subtitle="Pending admission/prep"
-              icon={ClipboardCheck}
               color="amber"
               loading={loadingPreOp}
               pulse={(preOpSummary?.total || 0) > 0}
@@ -121,7 +114,6 @@ export default function NurseDashboardPage() {
               title="In Theater"
               value={intraOpData?.cases.length || 0}
               subtitle="Active surgeries"
-              icon={Activity}
               color="blue"
               loading={loadingIntraOp}
               pulse={(intraOpData?.cases.length || 0) > 0}
@@ -133,7 +125,6 @@ export default function NurseDashboardPage() {
               title="Recovery"
               value={recoveryData?.cases.length || 0}
               subtitle="PACU monitoring"
-              icon={HeartPulse}
               color="emerald"
               loading={loadingRecovery}
             />
@@ -144,7 +135,6 @@ export default function NurseDashboardPage() {
               title="Clinic Queue"
               value={checkedInPatients.length}
               subtitle="Waiting for consultation"
-              icon={Users}
               color="purple"
               loading={loadingCheckedIn}
             />
@@ -159,12 +149,11 @@ export default function NurseDashboardPage() {
 
             {/* Ready for Theater Section - NEW */}
             {readyForTheaterCases.length > 0 && (
-              <section className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/80 rounded-xl shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-amber-200/50 flex items-center justify-between bg-amber-50/50">
+              <section className="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <DoorOpen className="h-4 w-4 text-amber-600" />
-                    <h2 className="text-sm font-semibold text-slate-800">Ready for Theater</h2>
-                    <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300 text-[10px]">
+                    <h2 className="text-sm font-semibold text-slate-900">Ready for Theater</h2>
+                    <Badge variant="outline" className="text-slate-700 border-slate-300 text-[10px]">
                       {readyForTheaterCases.length}
                     </Badge>
                   </div>
@@ -189,8 +178,7 @@ export default function NurseDashboardPage() {
                               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-normal bg-slate-100 text-slate-600">
                                 {c.procedureName}
                               </Badge>
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-emerald-50 text-emerald-700 border-emerald-200">
-                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 text-slate-700 border-slate-200">
                                 Pre-op Complete
                               </Badge>
                             </div>
@@ -198,7 +186,7 @@ export default function NurseDashboardPage() {
                         </div>
                         <Button
                           size="sm"
-                          className="h-8 text-xs bg-amber-600 hover:bg-amber-700"
+                          className="h-8 text-xs"
                           onClick={(e) => {
                             e.stopPropagation();
                             markInTheater.mutate(c.id);
@@ -211,10 +199,7 @@ export default function NurseDashboardPage() {
                               Marking...
                             </>
                           ) : (
-                            <>
-                              <DoorOpen className="h-3 w-3 mr-1" />
-                              Mark in Theater
-                            </>
+                            "Mark in Theater"
                           )}
                         </Button>
                       </div>
@@ -235,12 +220,9 @@ export default function NurseDashboardPage() {
 
             {/* Active Surgeries Section */}
             <section className="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <div className="flex items-center gap-2.5">
-                  <Activity className="h-4 w-4 text-blue-600" />
-                  <h2 className="text-sm font-semibold text-slate-800">Active Theater Cases</h2>
-                </div>
-                <Button variant="ghost" size="sm" asChild className="h-8 text-xs font-medium text-slate-500 hover:text-blue-600">
+              <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-slate-900">Active Theater Cases</h2>
+                <Button variant="ghost" size="sm" asChild className="h-8 text-xs font-medium text-slate-600 hover:text-slate-900">
                   <Link href="/nurse/theatre-support">
                     View Board <ArrowRight className="ml-1 h-3 w-3" />
                   </Link>
@@ -255,9 +237,6 @@ export default function NurseDashboardPage() {
                   </div>
                 ) : intraOpData?.cases.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center bg-white">
-                    <div className="h-12 w-12 bg-slate-50 rounded-full flex items-center justify-center mb-3">
-                      <Activity className="h-6 w-6 text-slate-300" />
-                    </div>
                     <p className="text-sm font-medium text-slate-900">No active surgeries</p>
                     <p className="text-xs text-slate-500 max-w-xs mt-1">Theater is currently clear. Check Ward Prep for upcoming cases.</p>
                   </div>
@@ -267,18 +246,18 @@ export default function NurseDashboardPage() {
                       <Link key={c.id} href={`/nurse/intra-op-cases/${c.id}/record`} className="block hover:bg-slate-50/80 transition-colors group">
                         <div className="p-4 flex items-center justify-between">
                           <div className="flex items-start gap-4">
-                            <div className="h-10 w-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs ring-4 ring-white">
+                            <div className="h-10 w-10 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs ring-4 ring-white">
                               {c.patient?.fullName.split(' ').map(n => n[0]).join('').substring(0, 2)}
                             </div>
                             <div>
-                              <h3 className="text-sm font-medium text-slate-900 group-hover:text-blue-700 transition-colors">
+                              <h3 className="text-sm font-medium text-slate-900 group-hover:text-slate-700 transition-colors">
                                 {c.patient?.fullName}
                               </h3>
                               <div className="flex items-center gap-2 mt-1">
                                 <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 font-normal bg-slate-100 text-slate-600 border-slate-200">
                                   {c.procedureName}
                                 </Badge>
-                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 bg-blue-50 text-blue-700 border-blue-200">
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 text-slate-700 border-slate-200">
                                   IN_THEATER
                                 </Badge>
                                 <span className="text-[10px] text-slate-400 flex items-center gap-1">
@@ -288,7 +267,7 @@ export default function NurseDashboardPage() {
                             </div>
                           </div>
                           <div className="flex flex-col items-end gap-1">
-                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 uppercase text-[10px] tracking-wider font-bold">
+                            <Badge variant="outline" className="text-slate-700 border-slate-200 uppercase text-[10px] tracking-wider font-bold">
                               {c.theaterName || 'OR Main'}
                             </Badge>
                             <span className="text-[10px] text-slate-400 font-medium">Click to manage</span>
@@ -303,12 +282,9 @@ export default function NurseDashboardPage() {
 
             {/* Clinic Queue Section */}
             <section className="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <div className="flex items-center gap-2.5">
-                  <Users className="h-4 w-4 text-purple-600" />
-                  <h2 className="text-sm font-semibold text-slate-800">Clinic Waiting Room</h2>
-                </div>
-                <Button variant="ghost" size="sm" asChild className="h-8 text-xs font-medium text-slate-500 hover:text-purple-600">
+              <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-slate-900">Clinic Waiting Room</h2>
+                <Button variant="ghost" size="sm" asChild className="h-8 text-xs font-medium text-slate-600 hover:text-slate-900">
                   <Link href="/nurse/patients">
                     View All <ArrowRight className="ml-1 h-3 w-3" />
                   </Link>
@@ -328,12 +304,12 @@ export default function NurseDashboardPage() {
                 ) : (
                   checkedInPatients.slice(0, 6).map((apt) => (
                     <Link key={apt.id} href="/nurse/patients" className="group">
-                      <div className="bg-white border border-slate-200 rounded-lg p-3 hover:border-purple-300 hover:shadow-sm transition-all relative overflow-hidden">
+                      <div className="bg-white border border-slate-200 rounded-lg p-3 hover:border-slate-300 hover:shadow-sm transition-all relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-2">
                           <div className="h-2 w-2 rounded-full bg-green-500 ring-2 ring-white" />
                         </div>
                         <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center text-xs font-bold">
+                          <div className="h-9 w-9 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-xs font-bold">
                             P
                           </div>
                           <div>
@@ -357,8 +333,7 @@ export default function NurseDashboardPage() {
 
             {/* Ward Prep Status Summary */}
             <div className="bg-white border border-slate-200/80 rounded-xl shadow-sm p-5">
-              <h3 className="text-sm font-semibold text-slate-800 mb-4 flex items-center gap-2">
-                <ClipboardCheck className="h-4 w-4 text-amber-500" />
+              <h3 className="text-sm font-semibold text-slate-900 mb-4">
                 Ward Efficiency
               </h3>
 
@@ -367,9 +342,9 @@ export default function NurseDashboardPage() {
                   <span className="text-slate-500">Pending Prep</span>
                   <span className="font-medium text-slate-900">{preOpSummary?.total || 0}</span>
                 </div>
-                <div className="w-full bg-slate-100 rounded-full h-1.5">
+                <div className="w-full bg-slate-200 rounded-full h-1.5">
                   <div
-                    className="bg-amber-500 h-1.5 rounded-full"
+                    className="bg-slate-900 h-1.5 rounded-full"
                     style={{ width: `${Math.min(((preOpSummary?.total || 0) / 10) * 100, 100)}%` }}
                   />
                 </div>
@@ -383,18 +358,15 @@ export default function NurseDashboardPage() {
             </div>
 
             {/* Quick Actions Panel */}
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-5 text-white shadow-lg overflow-hidden relative">
-              <div className="absolute -right-6 -bottom-6 h-24 w-24 bg-rose-500/20 rounded-full blur-2xl" />
-              <h3 className="text-xs font-semibold mb-4 text-slate-300 uppercase tracking-wide">
+            <div className="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm overflow-hidden">
+              <h3 className="text-xs font-semibold mb-4 text-slate-600 uppercase tracking-wide">
                 Quick Launch
               </h3>
-              <div className="grid grid-cols-2 gap-3 relative z-10">
-                <Link href="/nurse/patients" className="flex flex-col items-center justify-center p-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/20 transition-all text-slate-300 hover:text-white group">
-                  <Activity className="h-5 w-5 mb-2 text-rose-400 group-hover:scale-110 transition-transform" />
+              <div className="grid grid-cols-2 gap-3">
+                <Link href="/nurse/patients" className="flex flex-col items-center justify-center p-3 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all text-slate-700 hover:text-slate-900">
                   <span className="text-[10px] font-medium">Record Vitals</span>
                 </Link>
-                <Link href="/nurse/ward-prep" className="flex flex-col items-center justify-center p-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/20 transition-all text-slate-300 hover:text-white group">
-                  <ClipboardCheck className="h-5 w-5 mb-2 text-amber-400 group-hover:scale-110 transition-transform" />
+                <Link href="/nurse/ward-prep" className="flex flex-col items-center justify-center p-3 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all text-slate-700 hover:text-slate-900">
                   <span className="text-[10px] font-medium">Admit Patient</span>
                 </Link>
               </div>

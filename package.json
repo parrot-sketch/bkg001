@@ -22,6 +22,7 @@
     "db:apply-missing": "tsx scripts/apply-missing-migrations.ts",
     "db:fix-template-format": "tsx scripts/apply-template-format-migration.ts",
     "import:patients:production": "tsx scripts/import-patients-from-csv.ts",
+    "import:production-data": "tsx scripts/import-production-data.ts",
     "docker:cleanup": "bash scripts/docker-cleanup.sh",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",

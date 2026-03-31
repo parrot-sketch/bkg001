@@ -3,15 +3,20 @@
 /**
  * /frontdesk/intake/start — QR Station (Live)
  *
- * 4-state machine:
+ * Enhanced workflow:
+ *   1. Receptionist generates QR code and link
+ *   2. Receptionist copies link and manually sends to patient via WhatsApp
+ *   3. Patient receives link and fills form at their own pace
+ *   4. When form is submitted → Auto-redirect to /frontdesk/intake/pending
+ *
+ * 3-state machine:
  *   idle      → receptionist hasn't generated a session yet
- *   active    → session generated, QR shown, poll running every 4s
- *   submitted → patient filled the form; show alert + direct link to review
+ *   active    → session generated, QR shown, link available, poll running every 4s
  *   expired   → timer elapsed or session expired before submission
  *
  * The poll hits GET /api/frontdesk/intake/[sessionId]/status every 4 seconds.
- * When status flips to SUBMITTED the UI transforms into a prominent "Form Received"
- * banner so the receptionist can click straight into the review page.
+ * When status flips to SUBMITTED, auto-redirects to pending page so receptionist
+ * can see all submissions in one place.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -29,11 +34,9 @@ import {
   Loader2,
   Users,
   ArrowRight,
-  UserCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { apiClient } from '@/lib/api/client';
-import { formatDistanceToNow } from 'date-fns';
 
 /* ── Types ── */
 interface IntakeSession {
@@ -52,7 +55,7 @@ interface SessionStatus {
   submittedAt?: string;
 }
 
-type StationState = 'idle' | 'active' | 'submitted' | 'expired';
+type StationState = 'idle' | 'active' | 'expired';
 
 const POLL_INTERVAL_MS = 4000;
 
@@ -65,10 +68,6 @@ export default function StartIntakePage() {
   const [session, setSession] = useState<IntakeSession | null>(null);
   const [minutesLeft, setMinutesLeft] = useState(0);
   const [copied, setCopied] = useState(false);
-  const [submissionInfo, setSubmissionInfo] = useState<{
-    patientName: string;
-    submittedAt: string;
-  } | null>(null);
 
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
@@ -86,7 +85,6 @@ export default function StartIntakePage() {
     stopPoll();
     setSession(null);
     setMinutesLeft(0);
-    setSubmissionInfo(null);
     setError(null);
     setStationState('idle');
   }, [stopCountdown, stopPoll]);
@@ -145,11 +143,9 @@ export default function StartIntakePage() {
         if (data.status === 'SUBMITTED' || data.status === 'CONFIRMED') {
           stopPoll();
           stopCountdown();
-          setSubmissionInfo({
-            patientName: data.patientName ?? 'Patient',
-            submittedAt: data.submittedAt ?? new Date().toISOString(),
-          });
-          setStationState('submitted');
+          // Auto-redirect to pending page when form is submitted
+          // This allows frontdesk to manually send form link via WhatsApp and be notified automatically
+          router.push('/frontdesk/intake/pending');
         } else if (data.status === 'EXPIRED') {
           stopPoll();
           stopCountdown();
@@ -165,7 +161,7 @@ export default function StartIntakePage() {
     pollRef.current = setInterval(poll, POLL_INTERVAL_MS);
 
     return stopPoll;
-  }, [stationState, session, stopPoll, stopCountdown]);
+  }, [stationState, session, stopPoll, stopCountdown, router]);
 
   const copyUrl = () => {
     if (session?.intakeFormUrl) {
@@ -235,73 +231,6 @@ export default function StartIntakePage() {
               </Button>
             </div>
           </div>
-        </div>
-      </div>
-    );
-  }
-
-  /* ═══════════════════════════════════════
-     STATE: SUBMITTED — patient filled form
-     ═══════════════════════════════════════ */
-  if (stationState === 'submitted' && session && submissionInfo) {
-    return (
-      <div className="min-h-[calc(100vh-5rem)] flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-md space-y-4">
-          <Link href="/frontdesk/dashboard" className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-700 transition-colors">
-            <ArrowLeft className="h-4 w-4" />
-            Dashboard
-          </Link>
-
-          {/* Success card */}
-          <div className="bg-white rounded-2xl border-2 border-emerald-300 shadow-sm overflow-hidden">
-            {/* Green header bar */}
-            <div className="px-5 py-4 bg-emerald-50 border-b border-emerald-200 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                <UserCheck className="h-5 w-5 text-emerald-600" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-emerald-800">Form Received!</p>
-                <p className="text-xs text-emerald-600">
-                  {submissionInfo.submittedAt
-                    ? `Submitted ${formatDistanceToNow(new Date(submissionInfo.submittedAt), { addSuffix: true })}`
-                    : 'Just now'}
-                </p>
-              </div>
-              <div className="ml-auto">
-                <div className="h-3 w-3 rounded-full bg-emerald-400 animate-pulse" />
-              </div>
-            </div>
-
-            {/* Patient name */}
-            <div className="px-6 py-5 text-center border-b border-slate-100">
-              <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Patient</p>
-              <p className="text-2xl font-bold text-slate-900">{submissionInfo.patientName}</p>
-              <p className="text-sm text-slate-400 mt-1">has completed the intake form</p>
-            </div>
-
-            {/* Actions */}
-            <div className="px-5 py-5 space-y-2.5">
-              <Link href={`/frontdesk/intake/review/${session.sessionId}`} className="block">
-                <Button className="w-full h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm shadow-emerald-200/50 flex items-center justify-center gap-2">
-                  <CheckCircle2 className="h-4 w-4" />
-                  Review &amp; Confirm Patient
-                  <ArrowRight className="h-4 w-4 ml-auto" />
-                </Button>
-              </Link>
-              <Button
-                variant="outline"
-                className="w-full h-10 rounded-xl text-sm border-slate-200 text-slate-600"
-                onClick={resetStation}
-              >
-                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-                Start New Session
-              </Button>
-            </div>
-          </div>
-
-          <p className="text-center text-[10px] text-slate-300 font-mono">
-            Session: {session.sessionId}
-          </p>
         </div>
       </div>
     );

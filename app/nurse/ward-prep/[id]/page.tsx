@@ -68,7 +68,7 @@ function ChecklistItem({
   label: string;
   description: string;
   complete: boolean;
-  icon: React.ElementType;
+  icon?: React.ElementType;
   onAction?: () => void;
   actionLabel?: string;
 }) {
@@ -81,7 +81,7 @@ function ChecklistItem({
         className={`flex items-center justify-center w-10 h-10 rounded-full flex-shrink-0 ${complete ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'
           }`}
       >
-        {complete ? <CheckCircle2 className="w-5 h-5" /> : <Icon className="w-5 h-5" />}
+        {complete ? <CheckCircle2 className="w-5 h-5" /> : Icon ? <Icon className="w-5 h-5" /> : null}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
@@ -356,7 +356,6 @@ export default function PreOpCaseDetailPage() {
                   label="Pre-Op Intake Form"
                   description="Complete pre-operative intake assessment"
                   complete={readiness?.intakeFormComplete || false}
-                  icon={ClipboardList}
                   onAction={() => {
                     initializeForm();
                     setEditingNotes(true);
@@ -367,7 +366,6 @@ export default function PreOpCaseDetailPage() {
                   label="Medical History Review"
                   description="Review and document risk factors"
                   complete={readiness?.medicalHistoryComplete || false}
-                  icon={Activity}
                   onAction={() => {
                     initializeForm();
                     setEditingNotes(true);
@@ -388,7 +386,6 @@ export default function PreOpCaseDetailPage() {
                   label="Consent Form"
                   description="Obtain patient signature on consent form"
                   complete={readiness?.consentSigned || false}
-                  icon={FileSignature}
                   onAction={() => toast.info('Consent management coming soon')}
                   actionLabel="Sign Consent"
                 />
@@ -396,7 +393,6 @@ export default function PreOpCaseDetailPage() {
                   label="Procedure Plan"
                   description="Confirm procedure plan is documented"
                   complete={readiness?.procedurePlanComplete || false}
-                  icon={Calendar}
                 />
                 <ChecklistItem
                   label="Ward Checklist"
@@ -404,7 +400,6 @@ export default function PreOpCaseDetailPage() {
                     ? `Completed by ${caseData.wardChecklist.signedBy || 'Nurse'}`
                     : 'Complete pre-operative ward checklist'}
                   complete={caseData.wardChecklist?.isComplete || false}
-                  icon={ClipboardList}
                   onAction={() => router.push(`/nurse/ward-prep/${caseId}/checklist`)}
                   actionLabel={caseData.wardChecklist?.isComplete ? 'View' : caseData.wardChecklist?.isStarted ? 'Continue' : 'Start'}
                 />

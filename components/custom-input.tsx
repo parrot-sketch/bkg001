@@ -23,7 +23,7 @@ import { Switch } from "./ui/switch";
 
 interface InputProps {
   type: "input" | "select" | "checkbox" | "switch" | "radio" | "textarea";
-  control: Control<any>;
+  control: Control<any> | any;
   name: string;
   label?: string;
   placeholder?: string;

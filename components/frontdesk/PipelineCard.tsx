@@ -3,6 +3,7 @@
  * 
  * Displays a single metric in the pipeline bar with icon and count.
  * Uses unified professional slate theme for understated sophistication.
+ * Fully responsive across all breakpoints.
  */
 
 import React from 'react';
@@ -46,16 +47,16 @@ export function PipelineCard({
 
   return (
     <div
-      className={`${styles.bg} border ${styles.border} rounded-lg shadow-sm p-4 flex items-center gap-3`}
+      className={`${styles.bg} border ${styles.border} rounded-lg sm:rounded-lg shadow-sm p-2.5 sm:p-4 flex items-center gap-2 sm:gap-3 transition-all hover:shadow-md`}
     >
-      <div className={`p-2.5 rounded-lg ${styles.iconBg}`}>
-        <Icon className={`h-4 w-4 ${styles.icon}`} />
+      <div className={`p-1.5 sm:p-2.5 rounded-lg ${styles.iconBg} shrink-0`}>
+        <Icon className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${styles.icon}`} />
       </div>
-      <div>
-        <p className={`text-xs font-medium ${styles.label} uppercase tracking-wide`}>
+      <div className="min-w-0 flex-1">
+        <p className={`text-[10px] sm:text-xs font-medium ${styles.label} uppercase tracking-wide truncate`}>
           {label}
         </p>
-        <p className={`text-xl font-semibold ${styles.value}`}>
+        <p className={`text-lg sm:text-xl font-semibold ${styles.value} leading-tight`}>
           {isLoading ? '...' : value}
         </p>
       </div>

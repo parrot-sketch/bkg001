@@ -106,7 +106,6 @@ export default function PreOpCasesPage() {
               title="Total Cases"
               value={data.summary.total}
               subtitle="Active in Ward Prep"
-              icon={Activity}
               color="slate"
               loading={isLoading}
             />
@@ -114,7 +113,6 @@ export default function PreOpCasesPage() {
               title="Ready for Scheduling"
               value={data.summary.ready}
               subtitle="All checks passed"
-              icon={CheckCircle2}
               color="emerald"
               loading={isLoading}
               pulse={data.summary.ready > 0}
@@ -123,7 +121,6 @@ export default function PreOpCasesPage() {
               title="Action Required"
               value={data.summary.pending}
               subtitle="Missing Items"
-              icon={Clock}
               color="amber"
               loading={isLoading}
             />
@@ -131,7 +128,6 @@ export default function PreOpCasesPage() {
               title="Checklists Completed"
               value={completedChecklistsCount}
               subtitle="Ward checklists done"
-              icon={FileText}
               color="emerald"
               loading={isLoading}
             />
@@ -139,7 +135,6 @@ export default function PreOpCasesPage() {
               title="Planning Phase"
               value={data.summary.byStatus.planning}
               subtitle="Initial Workup"
-              icon={ClipboardList}
               color="blue"
               loading={isLoading}
             />

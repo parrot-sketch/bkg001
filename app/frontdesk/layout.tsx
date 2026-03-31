@@ -59,13 +59,15 @@ export default function FrontdeskLayout({ children }: FrontdeskLayoutProps) {
     <div className="flex h-screen overflow-hidden bg-stone-50">
       <FrontdeskSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <div className="flex-1 lg:ml-[280px] flex flex-col min-w-0 h-full overflow-hidden">
-        <FrontdeskHeader />
+      {/* Main content area with responsive margin */}
+      <div className="flex-1 md:ml-[280px] flex flex-col min-w-0 h-full overflow-hidden transition-all duration-300">
+        <FrontdeskHeader onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
         
         <BookAppointmentDialog />
 
+        {/* Main scrollable content */}
         <main className="flex-1 relative overflow-hidden focus:outline-none bg-gradient-to-b from-stone-50/80 via-white to-stone-50/40 overflow-y-auto overscroll-contain scroll-smooth">
-          <div className="w-full min-h-full mx-auto max-w-[1600px] px-4 py-5 sm:px-5 sm:py-6 lg:px-8 lg:py-7 xl:px-10 xl:py-8">
+          <div className="w-full min-h-full mx-auto px-3 py-4 sm:px-4 sm:py-5 md:px-5 md:py-6 lg:px-6 lg:py-7 xl:max-w-[1400px] xl:px-8 xl:py-8 2xl:max-w-[1600px]">
             {children}
           </div>
         </main>

@@ -6,7 +6,9 @@ import {
     ChevronRight, 
     Search, 
     HelpCircle,
-    User
+    User,
+    Menu,
+    X
 } from 'lucide-react';
 import { 
     DropdownMenu, 
@@ -22,7 +24,11 @@ import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 
-export function FrontdeskHeader() {
+interface FrontdeskHeaderProps {
+    onMenuClick?: () => void;
+}
+
+export function FrontdeskHeader({ onMenuClick }: FrontdeskHeaderProps) {
     const pathname = usePathname();
     const { user, logout } = useAuth();
     const [mounted, setMounted] = useState(false);
@@ -43,36 +49,48 @@ export function FrontdeskHeader() {
     if (!mounted) return <div className="h-16 border-b bg-white/50 backdrop-blur-md" />;
 
     return (
-        <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b bg-white/80 backdrop-blur-md px-6 shadow-sm">
-            <div className="flex items-center space-x-2 overflow-hidden">
-                <div className="flex items-center text-sm font-medium text-slate-500">
+        <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b bg-white/80 backdrop-blur-md px-3 sm:px-4 md:px-6 shadow-sm">
+            {/* Left side: Menu button and breadcrumbs */}
+            <div className="flex items-center space-x-2 overflow-hidden min-w-0">
+                {/* Mobile menu button */}
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="md:hidden h-9 w-9 p-0"
+                    onClick={onMenuClick}
+                >
+                    <Menu className="h-5 w-5" />
+                </Button>
+
+                <div className="flex items-center text-xs sm:text-sm font-medium text-slate-500">
                     <span className="hidden sm:inline">Frontdesk</span>
-                    {breadcrumbs.length > 0 && <ChevronRight className="mx-1 h-4 w-4" />}
+                    {breadcrumbs.length > 0 && <ChevronRight className="mx-1 h-3 w-3 sm:h-4 sm:w-4" />}
                 </div>
-                {breadcrumbs.map((crumb) => (
-                    <div key={crumb.href} className="flex items-center min-w-0">
+                {breadcrumbs.slice(0, 2).map((crumb) => (
+                    <div key={crumb.href} className="flex items-center min-w-0 hidden sm:flex">
                         <span className={cn(
-                            "text-sm font-semibold truncate",
+                            "text-xs sm:text-sm font-semibold truncate",
                             crumb.isLast ? "text-stone-900" : "text-stone-500"
                         )}>
                             {crumb.label}
                         </span>
-                        {!crumb.isLast && <ChevronRight className="mx-1 h-4 w-4 text-stone-400" />}
+                        {!crumb.isLast && <ChevronRight className="mx-1 h-3 w-3 sm:h-4 sm:w-4 text-stone-400" />}
                     </div>
                 ))}
             </div>
 
-            <div className="flex items-center space-x-3">
-                <div className="hidden md:flex items-center relative group">
+            {/* Right side: Search, notifications, avatar */}
+            <div className="flex items-center space-x-2 sm:space-x-3">
+                <div className="hidden lg:flex items-center relative group">
                     <Search className="absolute left-3 h-4 w-4 text-stone-400 group-focus-within:text-stone-600 transition-colors" />
                     <input 
                         type="text" 
                         placeholder="Search patients..." 
-                        className="pl-9 pr-4 py-1.5 h-9 w-64 bg-stone-50 border-stone-200 border rounded-full text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-stone-200 transition-all"
+                        className="pl-9 pr-4 py-1.5 h-9 w-48 lg:w-64 bg-stone-50 border-stone-200 border rounded-full text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-stone-200 transition-all"
                     />
                 </div>
 
-                <div className="h-6 w-px bg-stone-200 mx-2" />
+                <div className="hidden md:block h-6 w-px bg-stone-200" />
 
                 <NotificationBell />
 

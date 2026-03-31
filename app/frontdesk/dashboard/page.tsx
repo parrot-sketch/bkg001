@@ -118,17 +118,17 @@ export default function FrontdeskDashboardPage(): React.ReactElement {
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 sm:space-y-5">
       {/* Quick Assignment Banner */}
-      <section className="bg-slate-800 rounded-xl p-4 text-white shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-bold">Quick Patient Assignment</h2>
-            <p className="text-slate-300 text-sm">Add a patient directly to a doctor&apos;s queue</p>
+      <section className="bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-4 text-white shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div className="min-w-0">
+            <h2 className="text-base sm:text-lg font-bold">Quick Patient Assignment</h2>
+            <p className="text-slate-300 text-xs sm:text-sm leading-tight">Add a patient directly to a doctor&apos;s queue</p>
           </div>
           <Button
             onClick={(): void => setQuickAssignmentOpen(true)}
-            className="bg-white text-slate-800 hover:bg-slate-100 font-medium"
+            className="bg-white text-slate-800 hover:bg-slate-100 font-medium text-sm w-full sm:w-auto shrink-0"
           >
             <Plus className="h-4 w-4 mr-2" />
             Add Patient to Queue
@@ -136,8 +136,8 @@ export default function FrontdeskDashboardPage(): React.ReactElement {
         </div>
       </section>
 
-      {/* Pipeline Cards */}
-      <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {/* Pipeline Cards - Responsive grid */}
+      <section className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
         {pipelineData.map((item) => (
           <PipelineCard
             key={item.label}
@@ -150,27 +150,27 @@ export default function FrontdeskDashboardPage(): React.ReactElement {
         ))}
       </section>
 
-      {/* Main Content */}
-      <section className="grid grid-cols-1 xl:grid-cols-12 gap-5">
-        {/* Primary: Today's Schedule */}
-        <div className="xl:col-span-8">
+      {/* Main Content - Responsive layout */}
+      <section className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
+        {/* Primary: Today's Schedule - takes more space on larger screens */}
+        <div className="md:col-span-2 lg:col-span-3">
           <TodaysSchedule />
         </div>
 
-        {/* Sidebar */}
-        <div className="xl:col-span-4 space-y-4">
+        {/* Sidebar - stacks on mobile, fixed width on tablet+ */}
+        <div className="space-y-3 sm:space-y-4 md:col-span-1">
           {/* Queue Management Panels */}
           <QueueManagementPanels />
           
-          {/* Quick Actions */}
-          <Card className="border-slate-200/60 shadow-sm rounded-xl overflow-hidden">
-            <CardHeader className="py-3 px-4 bg-slate-50/50 border-b border-slate-100">
-              <CardTitle className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                <Activity className="h-4 w-4" />
+          {/* Quick Actions Card */}
+          <Card className="border-slate-200/60 shadow-sm rounded-lg sm:rounded-xl overflow-hidden hidden sm:block">
+            <CardHeader className="py-2.5 sm:py-3 px-3 sm:px-4 bg-slate-50/50 border-b border-slate-100">
+              <CardTitle className="text-xs sm:text-sm font-semibold text-slate-700 flex items-center gap-2">
+                <Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 Quick Actions
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-3 space-y-1">
+            <CardContent className="p-2 sm:p-3 space-y-1">
               <div onClick={handleOpenBooking}>
                 <QuickActionBtn href="#" icon={Plus} label="New Appointment" />
               </div>
@@ -181,17 +181,17 @@ export default function FrontdeskDashboardPage(): React.ReactElement {
             </CardContent>
           </Card>
 
-          {/* Pending Intakes Alert */}
+          {/* Pending Intakes Alert - Hidden on small screens unless there are items */}
           {stats.pendingIntakeCount > 0 && (
             <Link href="/frontdesk/intake/pending">
-              <Card className="border-slate-200 bg-slate-50 shadow-sm rounded-xl cursor-pointer hover:shadow-md transition-shadow">
-                <CardContent className="p-4 flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-slate-200">
-                    <ClipboardList className="h-4 w-4 text-slate-700" />
+              <Card className="border-slate-200 bg-slate-50 shadow-sm rounded-lg sm:rounded-xl cursor-pointer hover:shadow-md transition-shadow hidden sm:block">
+                <CardContent className="p-3 sm:p-4 flex items-center gap-2 sm:gap-3">
+                  <div className="p-1.5 sm:p-2 rounded-lg bg-slate-200 shrink-0">
+                    <ClipboardList className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-slate-700" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-800">Pending Intakes</p>
-                    <p className="text-xs text-slate-600">
+                    <p className="text-xs sm:text-sm font-semibold text-slate-800">Pending Intakes</p>
+                    <p className="text-[10px] sm:text-xs text-slate-600 truncate">
                       {stats.pendingIntakeCount} intake{stats.pendingIntakeCount !== 1 ? 's' : ''} awaiting review
                     </p>
                   </div>
@@ -200,6 +200,43 @@ export default function FrontdeskDashboardPage(): React.ReactElement {
               </Card>
             </Link>
           )}
+        </div>
+      </section>
+
+      {/* Mobile Quick Actions - Show on small screens */}
+      <section className="sm:hidden space-y-2">
+        <div className="text-sm font-semibold text-slate-700 px-2 flex items-center gap-2">
+          <Activity className="h-4 w-4" />
+          Quick Actions
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Button 
+            onClick={handleOpenBooking}
+            variant="outline" 
+            size="sm" 
+            className="text-xs h-9 rounded-lg"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            New Appointment
+          </Button>
+          <Link href="/frontdesk/intake/start">
+            <Button variant="outline" size="sm" className="text-xs h-9 rounded-lg w-full">
+              <QrCode className="h-3.5 w-3.5 mr-1" />
+              Walk-in
+            </Button>
+          </Link>
+          <Link href="/frontdesk/theater-scheduling">
+            <Button variant="outline" size="sm" className="text-xs h-9 rounded-lg w-full">
+              <Building2 className="h-3.5 w-3.5 mr-1" />
+              Theater
+            </Button>
+          </Link>
+          <Link href="/frontdesk/patients">
+            <Button variant="outline" size="sm" className="text-xs h-9 rounded-lg w-full">
+              <Users className="h-3.5 w-3.5 mr-1" />
+              Patients
+            </Button>
+          </Link>
         </div>
       </section>
 

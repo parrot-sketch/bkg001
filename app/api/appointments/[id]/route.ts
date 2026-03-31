@@ -59,22 +59,7 @@ export async function GET(
     const appointment = await withRetry(async () => {
       return db.appointment.findUnique({
         where: { id: appointmentId },
-        select: {
-          id: true,
-          patient_id: true,
-          doctor_id: true,
-          appointment_date: true,
-          time: true,
-          status: true,
-          type: true,
-          note: true,
-          reason: true,
-          consultation_request_status: true,
-          reviewed_by: true,
-          reviewed_at: true,
-          review_notes: true,
-          created_at: true,
-          updated_at: true,
+        include: {
           patient: {
             select: {
               id: true,
@@ -85,17 +70,23 @@ export async function GET(
               img: true,
               gender: true,
               date_of_birth: true,
-              allergies: true,
               file_number: true,
             },
           },
           doctor: {
             select: {
               id: true,
-              name: true,
-              specialization: true,
-              img: true,
+              user: {
+                select: {
+                  first_name: true,
+                  last_name: true,
+                },
+              },
             },
+          },
+          care_notes: {
+            take: 10,
+            orderBy: { created_at: 'desc' },
           },
         },
       });
@@ -148,21 +139,15 @@ export async function GET(
     // FRONTDESK and ADMIN can view any appointment (no additional check needed)
 
     // 5. Map to DTO format
-    const consultationFields = extractConsultationRequestFields(appointment);
     const responseDto: AppointmentResponseDto = {
       id: appointment.id,
       patientId: appointment.patient_id,
       doctorId: appointment.doctor_id,
+      status: appointment.status,
       appointmentDate: appointment.appointment_date,
       time: appointment.time,
-      status: appointment.status,
       type: appointment.type,
       note: appointment.note ?? undefined,
-      reason: appointment.reason ?? undefined,
-      consultationRequestStatus: consultationFields.consultationRequestStatus ?? undefined,
-      reviewedBy: consultationFields.reviewedBy ?? undefined,
-      reviewedAt: consultationFields.reviewedAt ?? undefined,
-      reviewNotes: consultationFields.reviewNotes ?? undefined,
       createdAt: appointment.created_at,
       updatedAt: appointment.updated_at,
       patient: appointment.patient ? {
@@ -171,17 +156,14 @@ export async function GET(
         lastName: appointment.patient.last_name,
         email: appointment.patient.email,
         phone: appointment.patient.phone,
-        img: appointment.patient.img,
         fileNumber: appointment.patient.file_number,
         gender: appointment.patient.gender,
         dateOfBirth: appointment.patient.date_of_birth,
-        allergies: appointment.patient.allergies ?? undefined,
+        img: appointment.patient.img,
       } : undefined,
       doctor: appointment.doctor ? {
         id: appointment.doctor.id,
-        name: appointment.doctor.name,
-        specialization: appointment.doctor.specialization,
-        // img: appointment.doctor.img // DTO might mostly use id/name/spec
+        name: `${appointment.doctor.user.first_name} ${appointment.doctor.user.last_name}`,
       } : undefined,
     };
 

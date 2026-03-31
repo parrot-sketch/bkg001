@@ -93,7 +93,7 @@ export const GenerateFinalBills = ({ id, total_bill }: DataProps) => {
 
               <CustomInput
                 type="input"
-                control={form.control}
+                control={form.control as any}
                 name="discount"
                 placeholder="eg.: 5"
                 label="Discount (%)"
@@ -101,7 +101,7 @@ export const GenerateFinalBills = ({ id, total_bill }: DataProps) => {
 
               <CustomInput
                 type="input"
-                control={form.control}
+                control={form.control as any}
                 name="bill_date"
                 label="Bill Date"
                 placeholder=""
