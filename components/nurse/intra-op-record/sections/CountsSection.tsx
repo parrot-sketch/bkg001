@@ -1,16 +1,15 @@
 'use client';
 
-import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { UserSelect } from '@/components/ui/UserSelect';
-import { ListCheck, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { TextField } from '../fields';
 
 interface CountsSectionProps {
     data: any;
     onChange: (data: any) => void;
-    disabled?: boolean;
+    disabled: boolean;
 }
 
 export function CountsSection({ data, onChange, disabled }: CountsSectionProps) {
@@ -20,98 +19,62 @@ export function CountsSection({ data, onChange, disabled }: CountsSectionProps) 
         onChange({ ...data, counts: { ...d, [field]: value } });
 
     const updateItem = (index: number, field: string, value: number) => {
-        const newItems = [...items];
-        newItems[index] = { ...newItems[index], [field]: value };
-        set('items', newItems);
+        const next = [...items];
+        next[index] = { ...next[index], [field]: value };
+        set('items', next);
     };
-
-    const itemTypes = ['Abdominal Swabs', 'Raytec Swabs', 'Throat Packs', 'Other'];
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center gap-2 text-slate-700 border-b pb-2">
-                <ListCheck className="h-4 w-4" />
-                <span className="font-semibold">Swab & Instrument Counts</span>
-            </div>
-
-            <div className="border rounded-lg overflow-hidden">
-                <table className="w-full text-sm">
-                    <thead className="bg-slate-100">
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+                <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider">
                         <tr>
-                            <th className="px-4 py-3 text-left font-medium text-slate-600">Item Type</th>
-                            <th className="px-4 py-3 text-center font-medium text-slate-600 w-24">Preliminary</th>
-                            <th className="px-4 py-3 text-center font-medium text-slate-600 w-24">Closure</th>
-                            <th className="px-4 py-3 text-center font-medium text-slate-600 w-24">Final</th>
+                            <th className="px-4 py-3 font-semibold">Item</th>
+                            <th className="px-4 py-3 font-semibold text-center">Preliminary</th>
+                            <th className="px-4 py-3 font-semibold text-center">Wound Closure</th>
+                            <th className="px-4 py-3 font-semibold text-center">Final Count</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y">
-                        {itemTypes.map((type, idx) => (
-                            <tr key={type}>
-                                <td className="px-4 py-2 font-medium text-slate-700">{type}</td>
-                                {['prelim', 'closure', 'final'].map((phase) => (
-                                    <td key={phase} className="px-2 py-2">
-                                        <Input
-                                            type="number"
-                                            value={items[idx]?.[phase] || ''}
-                                            onChange={(e) => updateItem(idx, phase, parseInt(e.target.value) || 0)}
-                                            disabled={disabled}
-                                            className="h-8 text-center"
-                                            placeholder="0"
-                                        />
-                                    </td>
-                                ))}
+                    <tbody className="divide-y divide-slate-100">
+                        {(items as any[]).map((item: any, idx: number) => (
+                            <tr key={item.name} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="px-4 py-3 font-medium text-slate-700">{item.name}</td>
+                                <td className="px-4 py-3">
+                                    <Input type="number" value={item.preliminary} onChange={(e) => updateItem(idx, 'preliminary', parseInt(e.target.value) || 0)} disabled={disabled} className="h-8 w-20 mx-auto text-center" />
+                                </td>
+                                <td className="px-4 py-3">
+                                    <Input type="number" value={item.woundClosure} onChange={(e) => updateItem(idx, 'woundClosure', parseInt(e.target.value) || 0)} disabled={disabled} className="h-8 w-20 mx-auto text-center" />
+                                </td>
+                                <td className="px-4 py-3">
+                                    <Input type="number" value={item.final} onChange={(e) => updateItem(idx, 'final', parseInt(e.target.value) || 0)} disabled={disabled} className="h-8 w-20 mx-auto text-center font-semibold text-blue-600" />
+                                </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-slate-50 rounded-lg">
-                <div className="space-y-3">
-                    <Label className="text-sm font-medium">Count Correct?</Label>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="flex items-center gap-4">
+                    <Label className="text-sm font-semibold">Count Correct?</Label>
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
-                            <Checkbox
-                                checked={d.countCorrect === true}
-                                onCheckedChange={(v) => set('countCorrect', v === true)}
-                                id="countCorrectYes"
-                                disabled={disabled}
-                            />
-                            <Label htmlFor="countCorrectYes" className="text-sm font-normal cursor-pointer flex items-center gap-1">
-                                <CheckCircle2 className="h-4 w-4 text-emerald-500" /> Yes
-                            </Label>
+                            <Checkbox checked={d.countCorrect === true} onCheckedChange={() => set('countCorrect', true)} disabled={disabled} />
+                            <Label className="text-sm">Yes</Label>
                         </div>
                         <div className="flex items-center gap-2">
-                            <Checkbox
-                                checked={d.countCorrect === false}
-                                onCheckedChange={(v) => set('countCorrect', v === true ? false : undefined)}
-                                id="countCorrectNo"
-                                disabled={disabled}
-                            />
-                            <Label htmlFor="countCorrectNo" className="text-sm font-normal cursor-pointer flex items-center gap-1">
-                                <AlertTriangle className="h-4 w-4 text-amber-500" /> No
-                            </Label>
+                            <Checkbox checked={d.countCorrect === false} onCheckedChange={() => set('countCorrect', false)} disabled={disabled} />
+                            <Label className="text-sm">No</Label>
                         </div>
                     </div>
                 </div>
-
-                {!d.countCorrect && (
-                    <div className="space-y-2">
-                        <Label className="text-sm font-medium text-amber-700">Action Taken</Label>
-                        <Input
-                            value={d.actionIfIncorrect || ''}
-                            onChange={(e) => set('actionIfIncorrect', e.target.value)}
-                            placeholder="Describe corrective action..."
-                            disabled={disabled}
-                            className="border-amber-300"
-                        />
-                    </div>
-                )}
+                {!d.countCorrect && <TextField label="Action taken" value={d.actionIfIncorrect} onChange={(v) => set('actionIfIncorrect', v)} disabled={disabled} placeholder="Describe corrective action..." />}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                    <Label className="text-xs uppercase tracking-wider text-slate-500">Scrub Nurse Signature</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                    <Label className="text-sm">Scrub Nurse Signature</Label>
                     <UserSelect
                         value={d.scrubNurseSignature || ''}
                         onChange={(v) => set('scrubNurseSignature', v)}
@@ -120,9 +83,8 @@ export function CountsSection({ data, onChange, disabled }: CountsSectionProps) 
                         disabled={disabled}
                     />
                 </div>
-
-                <div className="space-y-2">
-                    <Label className="text-xs uppercase tracking-wider text-slate-500">Circulating Nurse Signature</Label>
+                <div className="space-y-1.5">
+                    <Label className="text-sm">Circulating Nurse Signature</Label>
                     <UserSelect
                         value={d.circulatingNurseSignature || ''}
                         onChange={(v) => set('circulatingNurseSignature', v)}
