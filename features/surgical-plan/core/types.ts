@@ -79,15 +79,14 @@ export interface SurgicalCasePlanViewModel {
 }
 
 export interface TeamMember {
-  id: number;
+  id: string;
   role: string;
-  userId: string;
-  user: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    role: string;
-  } | null;
+  name: string;
+  userId?: string;
+  isExternal?: boolean;
+  externalName?: string;
+  externalCredentials?: string;
+  assignedAt?: string;
 }
 
 export interface BillingEstimateViewModel {

@@ -198,9 +198,7 @@ export function TeamTabView({ data, readOnly = false }: TeamTabViewProps) {
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">
-                        {member.user
-                          ? `${member.user.firstName} ${member.user.lastName}`
-                          : `Staff ${member.userId}`}
+                        {member.name ?? (member.userId ? `Staff ${member.userId}` : 'Unknown')}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {getRoleLabel(member.role)}
@@ -212,7 +210,7 @@ export function TeamTabView({ data, readOnly = false }: TeamTabViewProps) {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleRemove(String(member.id), member.user ? `${member.user.firstName} ${member.user.lastName}` : 'Staff')}
+                        onClick={() => handleRemove(String(member.id), member.name ?? 'Staff')}
                         disabled={isPending}
                         className="h-7 w-7 p-0"
                       >
