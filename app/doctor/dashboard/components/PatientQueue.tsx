@@ -80,18 +80,18 @@ export function PatientQueue({ isLoading: parentLoading }: PatientQueueProps) {
       id="queue"
       className="bg-white border border-slate-200/60 rounded-xl shadow-sm overflow-hidden"
     >
-      <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+      <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between bg-stone-50/50">
         <div className="flex items-center gap-2.5">
-          <Users className="h-4 w-4 text-amber-600" />
-          <h2 className="text-sm font-semibold text-slate-800">Patient Queue</h2>
+          <Users className="h-4 w-4 text-stone-400" />
+          <h2 className="text-sm font-semibold text-stone-800">Patient Queue</h2>
           {queue.length > 0 && (
-            <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-xs">
+            <Badge variant="outline" className="text-xs border-stone-200 text-stone-500">
               {queue.length}
             </Badge>
           )}
         </div>
         {queue.length > 0 && (
-          <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-1 rounded-md">
+          <span className="text-xs text-stone-400">
             Next: {queue[0]?.patientName?.split(' ')[0]}
           </span>
         )}
@@ -123,15 +123,15 @@ export function PatientQueue({ isLoading: parentLoading }: PatientQueueProps) {
                     <div className={cn(
                       'h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold',
                       index === 0 
-                        ? 'bg-amber-100 text-amber-700' 
-                        : 'bg-slate-100 text-slate-500'
+                        ? 'bg-stone-100 text-stone-600' 
+                        : 'bg-stone-50 text-stone-400'
                     )}>
                       {index + 1}
                     </div>
 
                     {/* Avatar */}
-                    <Avatar className="h-10 w-10 border border-slate-200">
-                      <AvatarFallback className="bg-emerald-100 text-emerald-700 text-sm font-bold">
+                    <Avatar className="h-10 w-10 border border-stone-200">
+                      <AvatarFallback className="bg-stone-100 text-stone-500 text-sm font-bold">
                         {patient.patientName.split(' ').map(n => n[0]).join('')}
                       </AvatarFallback>
                     </Avatar>
@@ -157,37 +157,49 @@ export function PatientQueue({ isLoading: parentLoading }: PatientQueueProps) {
                   <div className="flex items-center gap-2">
                     {/* Walk-in Badge */}
                     {patient.isWalkIn && (
-                      <Badge variant="outline" className="text-xs bg-indigo-50 text-indigo-700 border-indigo-200">
+                      <Badge variant="outline" className="text-xs border-stone-200 text-stone-500">
                         Walk-in
                       </Badge>
                     )}
                     {/* Queue Status Badge */}
                     {patient.status === 'IN_CONSULTATION' ? (
-                      <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                      <Badge variant="outline" className="text-xs border-stone-300 text-stone-600 font-medium">
                         In Progress
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="text-xs bg-slate-50 text-slate-600 border-slate-200">
+                      <Badge variant="outline" className="text-xs border-stone-200 text-stone-500">
                         Waiting
                       </Badge>
                     )}
 
-                    {/* Start Button - Always active regardless of triage status */}
-                    <Button
-                      size="sm"
-                      onClick={() => handleStartConsultation(patient)}
-                      disabled={isStarting}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium min-w-[70px]"
-                    >
-                      {isStarting ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <>
-                          <Play className="h-3 w-3 mr-1.5" />
-                          Start
-                        </>
-                      )}
-                    </Button>
+                    {/* Action Button */}
+                    {patient.status === 'IN_CONSULTATION' ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => router.push(`/doctor/consultations/${patient.appointmentId}/session`)}
+                        className="text-xs font-medium min-w-[70px]"
+                      >
+                        <Activity className="h-3 w-3 mr-1.5" />
+                        Continue
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        onClick={() => handleStartConsultation(patient)}
+                        disabled={isStarting}
+                        className="bg-stone-900 hover:bg-black text-white text-xs font-medium min-w-[70px]"
+                      >
+                        {isStarting ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <>
+                            <Play className="h-3 w-3 mr-1.5" />
+                            Start
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </div>
                 </div>
               );
