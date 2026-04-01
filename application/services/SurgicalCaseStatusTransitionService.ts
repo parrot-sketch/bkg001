@@ -134,8 +134,12 @@ export class SurgicalCaseStatusTransitionService {
             throw new Error(`Surgical case ${caseId} not found`);
         }
 
-        // Only transition if currently IN_THEATER
-        if (surgicalCase.status === SurgicalCaseStatus.IN_THEATER) {
+        // Allow transition from IN_THEATER or IN_PREP (nurse may still be in prep)
+        const canTransition =
+            surgicalCase.status === SurgicalCaseStatus.IN_THEATER ||
+            surgicalCase.status === SurgicalCaseStatus.IN_PREP;
+
+        if (canTransition) {
             const service = getSurgicalCaseService();
             await service.transitionTo(caseId, SurgicalCaseStatus.RECOVERY, userId);
 
@@ -149,6 +153,11 @@ export class SurgicalCaseStatusTransitionService {
                     details: `Case status transitioned to RECOVERY (intra-op record finalized)`,
                 },
             });
+        } else {
+            // Log for debugging instead of silently failing
+            console.warn(
+                `[transitionToRecovery] Case ${caseId} is ${surgicalCase.status}, expected IN_THEATER or IN_PREP. Skipping transition.`
+            );
         }
     }
 
