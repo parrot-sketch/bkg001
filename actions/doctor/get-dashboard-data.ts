@@ -167,7 +167,11 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
     db.patientQueue.findMany({
       where: {
         doctor_id: doctorId,
-        status: { in: ['WAITING', 'IN_CONSULTATION'] },
+        status: 'WAITING',
+        // Exclude entries where the appointment is already in consultation or completed
+        appointment: {
+          status: { notIn: ['IN_CONSULTATION', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] },
+        },
       },
       include: {
         patient: {
