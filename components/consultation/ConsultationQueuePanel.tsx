@@ -114,7 +114,7 @@ export function ConsultationQueuePanel({
         if (onSwitchPatient) {
           onSwitchPatient(apt.id);
         } else {
-          router.push(`/doctor/consultations/session/${apt.id}`);
+          router.push(`/doctor/consultations/${apt.id}/session`);
         }
         toast.success(`Starting consultation with ${apt.patient?.firstName}`);
       } else {

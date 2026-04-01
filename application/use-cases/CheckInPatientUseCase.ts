@@ -167,6 +167,29 @@ export class CheckInPatientUseCase {
         } as any,
       });
 
+      // Step 8: Create PatientQueue entry so patient appears on doctor's queue
+      const existingQueue = await db.patientQueue.findFirst({
+        where: { appointment_id: dto.appointmentId },
+      });
+
+      if (existingQueue) {
+        await db.patientQueue.update({
+          where: { id: existingQueue.id },
+          data: { status: 'WAITING', added_at: now },
+        });
+      } else {
+        await db.patientQueue.create({
+          data: {
+            patient_id: appointment.getPatientId(),
+            doctor_id: appointment.getDoctorId(),
+            appointment_id: dto.appointmentId,
+            status: 'WAITING',
+            added_by: dto.userId,
+            added_at: now,
+          },
+        });
+      }
+
       // Step 8: Record audit event
       const lateMessage = isLate ? ` (${lateByMinutes} minutes late)` : '';
       await this.auditService.recordEvent({

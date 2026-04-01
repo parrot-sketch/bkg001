@@ -23,7 +23,7 @@ export function PatientQueue({ isLoading: parentLoading }: PatientQueueProps) {
     if (queueEntry.appointmentId) {
       startConsultation(queueEntry.appointmentId, {
         onSuccess: () => {
-          router.push(`/doctor/consultations/session/${queueEntry.appointmentId}`);
+          router.push(`/doctor/consultations/${queueEntry.appointmentId}/session`);
         }
       });
     } else {

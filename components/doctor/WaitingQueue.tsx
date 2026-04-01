@@ -36,7 +36,7 @@ export function WaitingQueue({ appointments, onStartConsultation: externalStartH
         } else {
             startConsultation(apt.id, {
                 onSuccess: () => {
-                    router.push(`/doctor/consultations/session/${apt.id}`);
+                    router.push(`/doctor/consultations/${apt.id}/session`);
                 }
             });
         }
