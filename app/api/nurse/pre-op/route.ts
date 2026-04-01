@@ -16,6 +16,7 @@ import { Role } from '@/domain/enums/Role';
 import db from '@/lib/db';
 import { SurgicalCaseStatus } from '@prisma/client';
 import { TEMPLATE_KEY as WARD_CHECKLIST_TEMPLATE_KEY, TEMPLATE_VERSION as WARD_CHECKLIST_TEMPLATE_VERSION } from '@/domain/clinical-forms/NursePreopWardChecklist';
+import { getMissingPlanningItems } from '@/domain/helpers/planningReadiness';
 
 /**
  * GET /api/nurse/pre-op
@@ -120,6 +121,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             pre_op_notes: true,
             risk_factors: true,
             implant_details: true,
+            planned_anesthesia: true,
           },
         },
         consultation: {
@@ -170,33 +172,46 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       wardChecklistForms.map(f => [f.surgical_case_id, f])
     );
 
-    // 9. Calculate readiness information for each case
+    // 9. Batch-fetch consent counts per case plan
+    const casePlanIds = surgicalCases
+      .map(sc => sc.case_plan?.id)
+      .filter((id): id is number => id !== undefined && id !== null);
+
+    const signedConsents = await db.consentForm.findMany({
+      where: {
+        case_plan_id: { in: casePlanIds },
+        status: 'SIGNED',
+      },
+      select: { case_plan_id: true },
+    });
+
+    const consentCountMap = new Map<number, number>();
+    signedConsents.forEach(c => {
+      consentCountMap.set(c.case_plan_id, (consentCountMap.get(c.case_plan_id) || 0) + 1);
+    });
+
+    // 10. Calculate readiness information for each case
     const casesWithReadiness = surgicalCases.map((surgicalCase) => {
       const casePlan = surgicalCase.case_plan;
+      const cpId = casePlan?.id;
+      const signedConsentCount = cpId ? (consentCountMap.get(cpId) || 0) : 0;
 
-      // Calculate readiness checklist
-      // Note: photos and consents are no longer included in case_plan select for performance
-      const readiness = {
-        intakeFormComplete: !!casePlan?.pre_op_notes,
-        medicalHistoryComplete: !!casePlan?.risk_factors,
-        photosUploaded: true, // TEMPORARILY DISABLED - pending regulatory compliance review
-        consentSigned: true, // Assume consent is signed if case is at this stage
-        procedurePlanComplete: !!casePlan?.procedure_plan,
-        implantDetailsComplete: !!casePlan?.implant_details || !requiresImplant(surgicalCase.procedure_name),
-      };
+      // Use the same readiness logic as the detail page and surgical plan
+      const missing = getMissingPlanningItems({
+        procedurePlan: casePlan?.procedure_plan ?? null,
+        riskFactors: casePlan?.risk_factors ?? null,
+        plannedAnesthesia: (casePlan as any)?.planned_anesthesia ?? null,
+        signedConsentCount,
+        preOpPhotoCount: 0, // TEMPORARILY DISABLED - pending regulatory compliance
+      });
 
-      const readinessItems = Object.values(readiness);
-      const completedItems = readinessItems.filter(Boolean).length;
-      const readinessPercentage = Math.round((completedItems / readinessItems.length) * 100);
+      const requiredItems = missing.items.filter(i => i.required);
+      const completedRequired = requiredItems.filter(i => i.done).length;
+      const readinessPercentage = requiredItems.length > 0
+        ? Math.round((completedRequired / requiredItems.length) * 100)
+        : 100;
 
-      const missingItems: string[] = [];
-      if (!readiness.intakeFormComplete) missingItems.push('Pre-op intake');
-      if (!readiness.medicalHistoryComplete) missingItems.push('Medical history / risk factors');
-      // TEMPORARILY DISABLED: Clinical photos - pending regulatory compliance review
-      // if (!readiness.photosUploaded) missingItems.push('Clinical photos');
-      if (!readiness.consentSigned) missingItems.push('Consent form');
-      if (!readiness.procedurePlanComplete) missingItems.push('Procedure plan');
-      if (!readiness.implantDetailsComplete) missingItems.push('Implant details');
+      const missingItems = requiredItems.filter(i => !i.done).map(i => i.label);
 
       return {
         id: surgicalCase.id,
@@ -249,7 +264,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           };
         })(),
         readiness: {
-          ...readiness,
           percentage: readinessPercentage,
           missingItems,
           isReady: readinessPercentage === 100,
