@@ -117,6 +117,16 @@ function mapCasePlanResponse(sc: any) {
                 role: invite.invited_user.role,
             }
         })),
+        teamMembers: (sc.team_members ?? []).map((tm: any) => ({
+            id: tm.id,
+            role: tm.role,
+            name: tm.name,
+            userId: tm.user_id,
+            isExternal: tm.is_external,
+            externalName: tm.external_name,
+            externalCredentials: tm.external_credentials,
+            assignedAt: tm.assigned_at,
+        })),
         diagnosis: sc.diagnosis,
         procedureName: sc.procedure_name,
         side: sc.side,
@@ -362,6 +372,19 @@ export async function GET(
                             }
                         }
                     }
+                },
+                team_members: {
+                    select: {
+                        id: true,
+                        user_id: true,
+                        role: true,
+                        name: true,
+                        is_external: true,
+                        external_name: true,
+                        external_credentials: true,
+                        assigned_at: true,
+                    },
+                    orderBy: { assigned_at: 'asc' },
                 },
                 billing_estimate: {
                     include: {

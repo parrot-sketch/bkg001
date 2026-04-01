@@ -29,17 +29,16 @@ export function mapCasePlanDetailDtoToViewModel(
   const patient = dto.patient;
   const cp = dto.casePlan;
 
-  // Derive team members from procedure record staff
-  const teamMembers = cp?.procedureRecord?.staff?.map(s => ({
-    id: s.id,
-    role: s.role,
-    userId: s.userId,
-    user: s.user ? {
-      id: s.user.id,
-      firstName: s.user.firstName,
-      lastName: s.user.lastName,
-      role: s.user.role,
-    } : null,
+  // Team members from SurgicalCaseTeamMember (planning-phase assignments)
+  const teamMembers = (dto as any).teamMembers?.map((tm: any) => ({
+    id: tm.id,
+    role: tm.role,
+    name: tm.name || tm.externalName || 'Unknown',
+    userId: tm.userId,
+    isExternal: tm.isExternal || false,
+    externalName: tm.externalName,
+    externalCredentials: tm.externalCredentials,
+    assignedAt: tm.assignedAt,
   })) ?? [];
 
   return {
