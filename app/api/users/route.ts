@@ -25,6 +25,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     if (role) {
       where.role = role;
+    } else {
+      where.role = { not: 'PATIENT' };
     }
 
     if (search) {
