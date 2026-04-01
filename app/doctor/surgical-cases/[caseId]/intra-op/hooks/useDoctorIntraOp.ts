@@ -176,11 +176,31 @@ export function useDoctorIntraOp({
         // Check if already finalized based on status
         setIsFinalized(caseInfo.status === 'RECOVERY' || caseInfo.status === 'COMPLETED');
         
-        // Fetch team members from theater tech input
-        fetchTeamMembers(caseId);
-        
-        setLoading(false);
+        // Fetch existing form data (saved draft) and team members
+        Promise.all([
+            fetchExistingForm(caseId),
+            fetchTeamMembers(caseId),
+        ]).then(() => setLoading(false));
     }, [caseId, caseLoading]);
+
+    // Fetch existing form data from GET endpoint
+    const fetchExistingForm = async (caseId: string) => {
+        try {
+            const res = await fetch(`/api/doctor/surgical-cases/${caseId}/forms/intra-op`);
+            const data = await res.json();
+            if (data.success && data.data?.data) {
+                const saved = typeof data.data.data === 'string'
+                    ? JSON.parse(data.data.data)
+                    : data.data.data;
+                setFormData(prev => ({ ...prev, ...saved }));
+                if (data.data.status === 'FINAL') {
+                    setIsFinalized(true);
+                }
+            }
+        } catch {
+            // No existing form — use pre-populated defaults
+        }
+    };
 
     // Fetch team members from theater tech
     const fetchTeamMembers = async (caseId: string) => {

@@ -217,7 +217,7 @@ export async function PUT(
         const updatedForm = await db.clinicalFormResponse.update({
             where: { id: existingForm.id },
             data: {
-                data_json: body as any,
+                data_json: JSON.stringify(body),
                 updated_by_user_id: authResult.user.userId,
             }
         });
