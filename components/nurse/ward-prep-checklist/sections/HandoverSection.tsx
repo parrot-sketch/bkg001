@@ -47,6 +47,7 @@ export function HandoverSection({ data, onChange, disabled, currentUser }: Hando
                     placeholder="Select receiving nurse..."
                     excludeCurrentUser={true}
                     currentUserId={currentUser?.id}
+                    disabled={disabled}
                 />
             </div>
             <div className="space-y-1.5">

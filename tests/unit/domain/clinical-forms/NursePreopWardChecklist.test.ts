@@ -82,7 +82,6 @@ const VALID_FINAL_DATA: NursePreopWardChecklistData = {
         pulse: 72,
         respiratoryRate: 16,
         temperature: 36.5,
-        cvp: '',
         bladderEmptied: true,
         height: 170,
         weight: 65,

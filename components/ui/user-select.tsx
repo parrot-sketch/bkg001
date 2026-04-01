@@ -19,6 +19,7 @@ interface UserSelectProps {
   placeholder?: string;
   excludeCurrentUser?: boolean;
   currentUserId?: string;
+  disabled?: boolean;
 }
 
 export function UserSelect({
@@ -28,6 +29,7 @@ export function UserSelect({
   placeholder = 'Select a user...',
   excludeCurrentUser = false,
   currentUserId,
+  disabled = false,
 }: UserSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -112,8 +114,8 @@ export function UserSelect({
     <div ref={containerRef} className="relative w-full">
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        disabled={loading}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        disabled={disabled || loading}
         className={cn(
           'w-full h-11 px-4 py-2 rounded-lg border bg-background text-left flex items-center justify-between transition-all duration-200',
           'hover:border-primary/50 hover:shadow-sm',

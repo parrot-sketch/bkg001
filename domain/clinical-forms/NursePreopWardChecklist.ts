@@ -246,7 +246,6 @@ export const vitalsSchema = z.object({
     temperature: z.number().min(34.0, 'Temp must be ≥ 34°C').max(42.0, 'Temp must be ≤ 42°C'),
     /** SpO₂ (peripheral oxygen saturation) — optional at finalization */
     spo2: z.number().int().min(50, 'SpO₂ must be ≥ 50%').max(100, 'SpO₂ must be ≤ 100%').optional(),
-    cvp: z.string().optional().default(''),
     bladderEmptied: z.boolean(),
     height: z.number().min(50).max(250).optional(),
     weight: z.number().min(2, 'Weight must be ≥ 2 kg').max(350, 'Weight must be ≤ 350 kg'),

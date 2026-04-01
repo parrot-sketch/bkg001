@@ -419,7 +419,6 @@ export default async function ChecklistPrintPage({
                         <Row label="Respiratory rate"><Val value={vit.respiratoryRate !== undefined ? `${vit.respiratoryRate} /min` : undefined} /></Row>
                         <Row label="Temperature"><Val value={vit.temperature !== undefined ? `${vit.temperature} °C` : undefined} /></Row>
                         <Row label="SpO₂"><Val value={vit.spo2 !== undefined ? `${vit.spo2}%` : undefined} /></Row>
-                        <Row label="CVP"><Val value={vit.cvp} /></Row>
                         <Row label="Bladder emptied"><Bool value={vit.bladderEmptied as boolean} /></Row>
                         <Row label="Height"><Val value={vit.height !== undefined ? `${vit.height} cm` : undefined} /></Row>
                         <Row label="Weight"><Val value={vit.weight !== undefined ? `${vit.weight} kg` : undefined} /></Row>

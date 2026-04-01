@@ -92,7 +92,7 @@ export function DateField({ label, value, onChange, disabled }: DateFieldProps) 
                 value={value || ''}
                 onChange={(e) => onChange(e.target.value)}
                 disabled={disabled}
-                className="h-9 max-w-[180px"
+                className="h-9 max-w-[180px]"
             />
         </div>
     );

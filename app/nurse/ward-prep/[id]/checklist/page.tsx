@@ -530,7 +530,7 @@ function BloodResultsSection({ data, onChange, disabled }: SectionProps) {
                         <Input
                             placeholder="Specify Hb/PCV value..."
                             value={d.hbPcvNotes || ''}
-                            onChange={(e) => set('hbPcv', e.target.value)}
+                            onChange={(e) => set('hbPcvNotes', e.target.value)}
                             disabled={disabled}
                             className="h-8 mt-1"
                         />
@@ -571,7 +571,7 @@ function BloodResultsSection({ data, onChange, disabled }: SectionProps) {
                         <Input
                             placeholder="Specify UECs value..."
                             value={d.uecsNotes || ''}
-                            onChange={(e) => set('uecs', e.target.value)}
+                            onChange={(e) => set('uecsNotes', e.target.value)}
                             disabled={disabled}
                             className="h-8 mt-1"
                         />
@@ -722,7 +722,6 @@ function VitalsSection({ data, onChange, disabled }: SectionProps) {
                 <NumberField label="Respiratory Rate" value={d.respiratoryRate} onChange={(v) => set('respiratoryRate', v)} min={6} max={120} unit="/min" disabled={disabled} warning={warningMap.get('respiratoryRate')} />
                 <NumberField label="Temperature" value={d.temperature} onChange={(v) => set('temperature', v)} min={34} max={42} step={0.1} unit="°C" disabled={disabled} warning={warningMap.get('temperature')} />
                 <NumberField label="SpO₂" value={d.spo2} onChange={(v) => set('spo2', v)} min={50} max={100} unit="%" disabled={disabled} warning={warningMap.get('spo2')} />
-                <TextField label="CVP (if applicable)" value={d.cvp} onChange={(v) => set('cvp', v)} disabled={disabled} />
             </div>
             <Separator />
             <BooleanField label="Bladder emptied" value={d.bladderEmptied} onChange={(v) => set('bladderEmptied', v)} disabled={disabled} />
