@@ -32,7 +32,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         endOfDay.setHours(23, 59, 59, 999);
 
         const statusWhere = {
-            status: SurgicalCaseStatus.IN_THEATER,
+            status: {
+                in: [
+                    SurgicalCaseStatus.SCHEDULED,
+                    SurgicalCaseStatus.IN_PREP,
+                    SurgicalCaseStatus.IN_THEATER,
+                ],
+            },
             theater_booking: {
                 start_time: {
                     gte: startOfDay,

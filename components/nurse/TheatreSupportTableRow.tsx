@@ -10,7 +10,8 @@ import {
     MoreHorizontal,
     Stethoscope,
     ChevronRight,
-    MapPin
+    MapPin,
+    Loader2,
 } from 'lucide-react';
 import {
     DropdownMenu,
@@ -21,100 +22,99 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { formatDistanceToNow } from 'date-fns';
 import type { IntraOpSurgicalCase } from '@/lib/api/nurse';
+import { useMarkInTheater } from '@/hooks/nurse/useMarkInTheater';
+import { toast } from 'sonner';
 
 interface TheatreSupportTableRowProps {
     surgicalCase: IntraOpSurgicalCase;
 }
 
+const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+    SCHEDULED: { label: 'Scheduled', color: 'bg-stone-100 text-stone-600' },
+    IN_PREP: { label: 'In Prep', color: 'bg-stone-100 text-stone-600' },
+    IN_THEATER: { label: 'In Theater', color: 'bg-stone-100 text-stone-700 font-semibold' },
+};
+
 export function TheatreSupportTableRow({ surgicalCase }: TheatreSupportTableRowProps) {
     const router = useRouter();
+    const { mutate: markInTheater, isPending } = useMarkInTheater();
 
-    const urgencyConfig: Record<string, { label: string; className: string }> = {
-        ELECTIVE: { label: 'Elective', className: 'bg-slate-100 text-slate-700' },
-        URGENT: { label: 'Urgent', className: 'bg-amber-100 text-amber-700' },
-        EMERGENCY: { label: 'Emergency', className: 'bg-rose-100 text-rose-700' },
+    const status = STATUS_CONFIG[surgicalCase.status] ?? STATUS_CONFIG.SCHEDULED;
+    const isInTheater = surgicalCase.status === 'IN_THEATER';
+    const canMarkInTheater = surgicalCase.status === 'SCHEDULED' || surgicalCase.status === 'IN_PREP';
+
+    const handleMarkInTheater = () => {
+        markInTheater(surgicalCase.id, {
+            onSuccess: () => toast.success('Patient marked in theater'),
+            onError: () => toast.error('Failed to mark in theater'),
+        });
     };
 
-    const urgency = urgencyConfig[surgicalCase.urgency] || { label: surgicalCase.urgency, className: 'bg-slate-100' };
-
     return (
-        <TableRow
-            className="hover:bg-blue-50/30 cursor-pointer group transition-colors"
-            onClick={() => router.push(`/nurse/intra-op-cases/${surgicalCase.id}/record`)}
-        >
-            <TableCell className="font-medium">
+        <TableRow className="hover:bg-stone-50/50 cursor-pointer group transition-colors">
+            <TableCell className="font-medium" onClick={() => isInTheater && router.push(`/nurse/intra-op-cases/${surgicalCase.id}/record`)}>
                 <div className="flex flex-col">
                     <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-slate-900">{surgicalCase.patient?.fullName || 'Unknown'}</span>
+                        <span className="text-sm font-semibold text-stone-900">{surgicalCase.patient?.fullName || 'Unknown'}</span>
                         {surgicalCase.patient?.fileNumber && (
-                            <span className="text-[10px] text-slate-400">#{surgicalCase.patient.fileNumber}</span>
+                            <span className="text-[10px] text-stone-400">#{surgicalCase.patient.fileNumber}</span>
                         )}
                     </div>
-                    <span className="text-[11px] text-slate-500 line-clamp-1">{surgicalCase.procedureName || 'Unspecified Procedure'}</span>
+                    <span className="text-[11px] text-stone-500 line-clamp-1">{surgicalCase.procedureName || 'Unspecified Procedure'}</span>
                 </div>
             </TableCell>
 
             <TableCell>
-                <div className="flex flex-col gap-1.5">
-                    <div className="flex items-center gap-1.5">
-                        <Badge variant="default" className="text-[10px] px-1.5 py-0 h-5 font-medium bg-blue-600 hover:bg-blue-700 border-blue-600">
-                            In Theater
-                        </Badge>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${urgency.className}`}>
-                            {urgency.label}
-                        </span>
-                    </div>
-                </div>
+                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 border-stone-200 ${status.color}`}>
+                    {status.label}
+                </Badge>
             </TableCell>
 
-            <TableCell>
+            <TableCell onClick={() => isInTheater && router.push(`/nurse/intra-op-cases/${surgicalCase.id}/record`)}>
                 <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2 text-xs text-slate-700 font-medium">
-                        <MapPin className="h-3.5 w-3.5 text-blue-500" />
+                    <div className="flex items-center gap-2 text-xs text-stone-700 font-medium">
+                        <MapPin className="h-3.5 w-3.5 text-stone-400" />
                         {surgicalCase.theaterName || 'Theater TBD'}
                     </div>
                     {surgicalCase.startTime && (
-                        <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                        <div className="flex items-center gap-2 text-[10px] text-stone-400">
                             <Clock className="h-3 w-3" />
-                            Started {formatDistanceToNow(new Date(surgicalCase.startTime), { addSuffix: true })}
+                            {formatDistanceToNow(new Date(surgicalCase.startTime), { addSuffix: true })}
                         </div>
                     )}
                 </div>
             </TableCell>
 
-            <TableCell>
-                <div className="flex items-center gap-2 text-xs text-slate-600">
-                    <Stethoscope className="h-3.5 w-3.5 text-slate-400" />
+            <TableCell onClick={() => isInTheater && router.push(`/nurse/intra-op-cases/${surgicalCase.id}/record`)}>
+                <div className="flex items-center gap-2 text-xs text-stone-600">
+                    <Stethoscope className="h-3.5 w-3.5 text-stone-400" />
                     {surgicalCase.primarySurgeon?.name || 'Unassigned'}
                 </div>
             </TableCell>
 
             <TableCell className="text-right">
                 <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        asChild
-                    >
-                        <div className="cursor-pointer">
-                            <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-slate-600" />
-                        </div>
-                    </Button>
-
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400">
-                                <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => router.push(`/nurse/intra-op-cases/${surgicalCase.id}/record`)}>
-                                <Activity className="mr-2 h-4 w-4" /> Open Intra-Op Record
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    {canMarkInTheater && (
+                        <Button
+                            size="sm"
+                            onClick={handleMarkInTheater}
+                            disabled={isPending}
+                            className="h-8 text-xs bg-stone-900 hover:bg-black"
+                        >
+                            {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Mark In Theater'}
+                        </Button>
+                    )}
+                    {isInTheater && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push(`/nurse/intra-op-cases/${surgicalCase.id}/record`)}
+                            className="h-8 text-xs"
+                        >
+                            <Activity className="h-3.5 w-3.5 mr-1.5" />
+                            Intra-Op Record
+                        </Button>
+                    )}
                 </div>
             </TableCell>
         </TableRow>
