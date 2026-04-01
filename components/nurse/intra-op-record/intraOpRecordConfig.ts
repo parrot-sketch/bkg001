@@ -39,8 +39,9 @@ export interface SectionProps {
     disabled: boolean;
     suggestedStaffing?: Record<string, string>;
     caseId?: string;
-    patient?: { first_name: string; last_name: string; file_number: string };
+    patient?: { first_name: string; last_name: string; file_number: string; date_of_birth?: string | null; gender?: string | null };
     formResponseId?: string;
+    surgeonName?: string | null;
 }
 
 // ─── Icon Map ─────────────────────────────────────────────────

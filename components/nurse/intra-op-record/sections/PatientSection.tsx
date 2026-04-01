@@ -1,82 +1,55 @@
 'use client';
 
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+/**
+ * Patient Section — Read-only display
+ *
+ * Shows patient identity data from the surgical case.
+ * No editable fields — data is sourced from the patient record.
+ */
+
+import { format } from 'date-fns';
+import { formatDoctorName } from '../intraOpRecordConfig';
 
 interface PatientSectionProps {
     data: any;
     onChange: (data: any) => void;
     disabled: boolean;
-    patientInfo?: { first_name: string; last_name: string; file_number: string };
+    patient?: {
+        first_name: string;
+        last_name: string;
+        file_number: string;
+        date_of_birth?: string | null;
+        gender?: string | null;
+    };
+    surgeonName?: string | null;
 }
 
-export function PatientSection({ data, onChange, disabled, patientInfo }: PatientSectionProps) {
-    const d = data.patient ?? {};
-    const set = (field: string, value: any) =>
-        onChange({ ...data, patient: { ...d, [field]: value } });
+function Field({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="space-y-0.5">
+            <p className="text-[10px] text-stone-400 uppercase tracking-wider">{label}</p>
+            <p className="text-sm font-medium text-stone-800">{value}</p>
+        </div>
+    );
+}
+
+export function PatientSection({ patient, surgeonName }: PatientSectionProps) {
+    if (!patient) {
+        return <p className="text-sm text-stone-400 italic">No patient data available.</p>;
+    }
+
+    const age = patient.date_of_birth
+        ? Math.floor((Date.now() - new Date(patient.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+        : null;
 
     return (
-        <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                    <Label className="text-sm">Patient File No.</Label>
-                    <Input
-                        value={d.patientFileNo || ''}
-                        onChange={(e) => set('patientFileNo', e.target.value)}
-                        placeholder="Enter file number"
-                        disabled={disabled}
-                    />
-                </div>
-                <div className="space-y-1.5">
-                    <Label className="text-sm">Name</Label>
-                    <Input
-                        value={d.patientName || ''}
-                        onChange={(e) => set('patientName', e.target.value)}
-                        placeholder="Patient full name"
-                        disabled={disabled}
-                    />
-                </div>
-                <div className="space-y-1.5">
-                    <Label className="text-sm">Age</Label>
-                    <Input
-                        type="number"
-                        value={d.age || ''}
-                        onChange={(e) => set('age', e.target.value ? Number(e.target.value) : undefined)}
-                        placeholder="Years"
-                        disabled={disabled}
-                    />
-                </div>
-                <div className="space-y-1.5">
-                    <Label className="text-sm">Sex</Label>
-                    <Select value={d.sex || ''} onValueChange={(v) => set('sex', v as 'Male' | 'Female' | 'Other')} disabled={disabled}>
-                        <SelectTrigger className="h-9"><SelectValue placeholder="Select sex" /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="Male">Male</SelectItem>
-                            <SelectItem value="Female">Female</SelectItem>
-                            <SelectItem value="Other">Other</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="space-y-1.5">
-                    <Label className="text-sm">Date</Label>
-                    <Input
-                        type="date"
-                        value={d.date || ''}
-                        onChange={(e) => set('date', e.target.value)}
-                        disabled={disabled}
-                    />
-                </div>
-                <div className="space-y-1.5">
-                    <Label className="text-sm">Doctor</Label>
-                    <Input
-                        value={d.doctor || ''}
-                        onChange={(e) => set('doctor', e.target.value)}
-                        placeholder="Surgeon's name"
-                        disabled={disabled}
-                    />
-                </div>
-            </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            <Field label="File No." value={patient.file_number || '—'} />
+            <Field label="Name" value={`${patient.first_name} ${patient.last_name}`} />
+            <Field label="Age" value={age != null ? `${age} years` : '—'} />
+            <Field label="Sex" value={patient.gender || '—'} />
+            <Field label="Date" value={format(new Date(), 'MMM d, yyyy')} />
+            <Field label="Surgeon" value={formatDoctorName(surgeonName) || '—'} />
         </div>
     );
 }

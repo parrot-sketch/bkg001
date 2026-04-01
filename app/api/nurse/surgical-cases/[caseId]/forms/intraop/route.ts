@@ -64,6 +64,8 @@ async function getSurgicalCaseWithPatient(caseId: string) {
                     first_name: true,
                     last_name: true,
                     file_number: true,
+                    date_of_birth: true,
+                    gender: true,
                     allergies: true,
                 },
             },

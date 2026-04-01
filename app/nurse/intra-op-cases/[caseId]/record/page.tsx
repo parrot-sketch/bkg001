@@ -21,7 +21,6 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Circle, CheckCircle2, Loader2, Save } from 'lucide-react';
 import { OperativeTimelinePanel } from '@/components/nurse/OperativeTimelinePanel';
-import { SurgicalPlanReferencePanel, SectionStatus } from '@/components/nurse/intra-op-record/sections';
 import { SECTION_ICONS, SECTION_RENDERERS } from '@/components/nurse/intra-op-record/intraOpRecordConfig';
 import { IntraOpRecordHeader } from '@/components/nurse/intra-op-record/IntraOpRecordHeader';
 import { FinalizeDialog, MissingItemsDialog } from '@/components/nurse/intra-op-record/IntraOpRecordDialogs';
@@ -146,9 +145,8 @@ export default function NurseIntraOpRecordPage() {
                 onFinalize={handleFinalizeClick}
             />
 
-            {/* Timeline + Plan Reference */}
+            {/* Timeline */}
             <OperativeTimelinePanel caseId={caseId} userRole={user?.role || ''} />
-            <SurgicalPlanReferencePanel casePlan={response.casePlan} />
 
             {/* Sections */}
             <div className="grid grid-cols-1 gap-4">
@@ -183,6 +181,7 @@ export default function NurseIntraOpRecordPage() {
                                     disabled={isDisabled}
                                     caseId={caseId}
                                     patient={response.patient}
+                                    surgeonName={response.surgeonName}
                                     formResponseId={response.form?.id}
                                 />
                             </CardContent>
