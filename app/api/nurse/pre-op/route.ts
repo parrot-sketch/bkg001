@@ -15,6 +15,7 @@ import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import db from '@/lib/db';
 import { SurgicalCaseStatus } from '@prisma/client';
+import { TEMPLATE_KEY as WARD_CHECKLIST_TEMPLATE_KEY, TEMPLATE_VERSION as WARD_CHECKLIST_TEMPLATE_VERSION } from '@/domain/clinical-forms/NursePreopWardChecklist';
 
 /**
  * GET /api/nurse/pre-op
@@ -149,7 +150,27 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       },
     });
 
-    // 8. Calculate readiness information for each case
+    // 8. Batch-fetch ward checklist status from clinicalFormResponse
+    const caseIds = surgicalCases.map(sc => sc.id);
+    const wardChecklistForms = await db.clinicalFormResponse.findMany({
+      where: {
+        template_key: WARD_CHECKLIST_TEMPLATE_KEY,
+        template_version: WARD_CHECKLIST_TEMPLATE_VERSION,
+        surgical_case_id: { in: caseIds },
+      },
+      select: {
+        id: true,
+        status: true,
+        signed_at: true,
+        surgical_case_id: true,
+      },
+    });
+
+    const checklistMap = new Map(
+      wardChecklistForms.map(f => [f.surgical_case_id, f])
+    );
+
+    // 9. Calculate readiness information for each case
     const casesWithReadiness = surgicalCases.map((surgicalCase) => {
       const casePlan = surgicalCase.case_plan;
 
@@ -217,13 +238,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           : null,
         theaterBooking: surgicalCase.theater_booking,
         consultation: surgicalCase.consultation,
-        // Pre-op checklist status would be fetched separately if needed
-        wardChecklist: {
-          status: null,
-          isComplete: false,
-          isStarted: false,
-          formId: null,
-        },
+        // Ward checklist status from clinicalFormResponse
+        wardChecklist: (() => {
+          const form = checklistMap.get(surgicalCase.id);
+          return {
+            status: form?.status ?? null,
+            isComplete: form?.status === 'FINAL',
+            isStarted: !!form,
+            formId: form?.id ?? null,
+          };
+        })(),
         readiness: {
           ...readiness,
           percentage: readinessPercentage,
