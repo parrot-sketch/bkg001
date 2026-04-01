@@ -27,7 +27,7 @@ export function PatientProfileHeader({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => router.push(`/doctor/consultations/${consultationAppointmentId}/session`)}
+              onClick={() => router.push(`/doctor/consultations/session/${consultationAppointmentId}`)}
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Consultation

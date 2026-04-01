@@ -315,13 +315,11 @@ export default function AppointmentDetailPage({ params }: PageProps) {
 
   /* ── Handlers ── */
   const handleStartConsultation = () => {
-    // Navigate to the consultation session page — the session page
-    // owns the "start consultation" workflow (shows dialog, calls API).
-    router.push(`/doctor/consultations/${appointment.id}/session`);
+    router.push(`/doctor/consultations/session/${appointment.id}`);
   };
 
   const handleGoToConsultation = () => {
-    router.push(`/doctor/consultations/${appointment.id}/session`);
+    router.push(`/doctor/consultations/session/${appointment.id}`);
   };
 
   const isBusy = isConfirming || isRescheduling || isCancelling;

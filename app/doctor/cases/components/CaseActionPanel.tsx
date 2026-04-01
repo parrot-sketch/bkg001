@@ -22,7 +22,7 @@ export function CaseActionPanel({ appointmentId }: CaseActionPanelProps) {
                         Plan Surgery
                     </Button>
                 </Link>
-                <Link href={`/doctor/consultations/${appointmentId}/session`}>
+                <Link href={`/doctor/consultations/session/${appointmentId}`}>
                     <Button variant="outline" className="w-full bg-white hover:bg-slate-50 border-indigo-200 text-indigo-700">
                         Resume Consultation
                     </Button>

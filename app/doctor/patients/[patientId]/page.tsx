@@ -128,7 +128,7 @@ export default function DoctorPatientProfilePage() {
     toast.success('Consultation started successfully');
     setStartConsultationOpen(false);
     setSelectedAppointment(null);
-    router.push(`/doctor/consultations/${appointmentId}/session`);
+    router.push(`/doctor/consultations/session/${appointmentId}`);
   };
 
   const getNextAppointment = (): VisitResponseDto | null => {
@@ -239,7 +239,7 @@ export default function DoctorPatientProfilePage() {
               <div className="flex items-center gap-2">
                 {hasActiveConsultation(nextAppointment.id) ? (
                   <Button
-                    onClick={() => router.push(`/doctor/consultations/${nextAppointment.id}/session`)}
+                    onClick={() => router.push(`/doctor/consultations/session/${nextAppointment.id}`)}
                     className="bg-primary hover:bg-primary/90"
                   >
                     <Play className="h-4 w-4 mr-2" />
@@ -292,7 +292,7 @@ export default function DoctorPatientProfilePage() {
                 visits={visits}
                 hasActiveConsultation={hasActiveConsultation}
                 onStartConsultation={handleStartConsultation}
-                onContinueConsultation={(id) => router.push(`/doctor/consultations/${id}/session`)}
+                onContinueConsultation={(id) => router.push(`/doctor/consultations/session/${id}`)}
               />
             </TabsContent>
 

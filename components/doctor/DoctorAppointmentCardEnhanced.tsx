@@ -119,7 +119,7 @@ export function DoctorAppointmentCardEnhanced({
 
   // Navigate directly to consultation workspace
   const handleGoToConsultation = () => {
-    router.push(`/doctor/consultations/${appointment.id}/session`);
+    router.push(`/doctor/consultations/session/${appointment.id}`);
   };
 
   // Status display configuration

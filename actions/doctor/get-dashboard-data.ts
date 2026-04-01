@@ -197,7 +197,52 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
       take: 20,
     }),
   ]);
-  
+
+  // Self-healing: create PatientQueue entries for any checked-in appointments
+  // that are missing from the queue (in case check-in failed to create one)
+  const checkedInAppointments = appointments.filter(
+    a => (a.status === 'CHECKED_IN' || a.status === 'READY_FOR_CONSULTATION') &&
+         !queue.some(q => q.appointment_id === a.id)
+  );
+
+  if (checkedInAppointments.length > 0) {
+    await Promise.all(
+      checkedInAppointments.map(apt =>
+        db.patientQueue.create({
+          data: {
+            patient_id: apt.patient_id,
+            doctor_id: doctorId,
+            appointment_id: apt.id,
+            status: 'WAITING',
+            added_by: userId,
+            added_at: apt.checked_in_at || new Date(),
+          },
+        }).catch(() => {}) // Silently ignore duplicates
+      )
+    );
+
+    // Re-fetch queue after healing
+    const healedQueue = await db.patientQueue.findMany({
+      where: {
+        doctor_id: doctorId,
+        status: 'WAITING',
+        appointment: {
+          status: { notIn: ['IN_CONSULTATION', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] },
+        },
+      },
+      include: {
+        patient: {
+          select: { id: true, first_name: true, last_name: true, file_number: true },
+        },
+        appointment: {
+          select: { id: true, type: true },
+        },
+      },
+      orderBy: { added_at: 'asc' },
+    });
+    queue.splice(0, queue.length, ...healedQueue as any);
+  }
+
   const completedToday = appointments.filter(a => a.status === 'COMPLETED').length;
   const activeCases = surgicalCases.filter(s => s.status !== 'COMPLETED' && s.status !== 'CANCELLED' && s.status !== 'DRAFT').length;
   const recoveryCases = surgicalCases.filter(s => s.status === 'RECOVERY').length;

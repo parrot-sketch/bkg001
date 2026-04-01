@@ -15,6 +15,11 @@ vi.mock('@/lib/db', () => ({
       update: vi.fn(),
       findUnique: vi.fn(),
     },
+    patientQueue: {
+      findFirst: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockResolvedValue({}),
+      update: vi.fn().mockResolvedValue({}),
+    },
   },
 }));
 

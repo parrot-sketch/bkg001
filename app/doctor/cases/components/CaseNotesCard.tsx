@@ -31,7 +31,7 @@ export function CaseNotesCard({ note, appointmentId }: CaseNotesCardProps) {
                 )}
             </CardContent>
             <CardFooter className="border-t bg-slate-50/50 p-4">
-                <Link href={`/doctor/consultations/${appointmentId}/session`} className="w-full">
+                <Link href={`/doctor/consultations/session/${appointmentId}`} className="w-full">
                     <Button variant="outline" className="w-full gap-2">
                         <Play className="h-4 w-4" />
                         View Full Consultation Session

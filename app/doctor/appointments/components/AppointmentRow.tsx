@@ -238,7 +238,7 @@ export function AppointmentRow({
                                 ? "bg-amber-600 hover:bg-amber-700 text-white"
                                 : "bg-violet-600 hover:bg-violet-700 text-white"
                         )}
-                        onClick={() => router.push(`/doctor/consultations/${appointment.id}/session`)}
+                        onClick={() => router.push(`/doctor/consultations/session/${appointment.id}`)}
                     >
                         <Play className="h-3 w-3" />
                         Continue
@@ -269,7 +269,7 @@ export function AppointmentRow({
                         size="sm"
                         variant="ghost"
                         className="h-7 px-2 text-[11px] text-stone-400 hover:text-stone-600"
-                        onClick={() => router.push(`/doctor/consultations/${appointment.id}/session`)}
+                        onClick={() => router.push(`/doctor/consultations/session/${appointment.id}`)}
                     >
                         <FileText className="h-3 w-3" />
                     </Button>

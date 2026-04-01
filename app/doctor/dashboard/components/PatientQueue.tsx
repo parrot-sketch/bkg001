@@ -23,7 +23,7 @@ export function PatientQueue({ isLoading: parentLoading }: PatientQueueProps) {
     if (queueEntry.appointmentId) {
       startConsultation(queueEntry.appointmentId, {
         onSuccess: () => {
-          router.push(`/doctor/consultations/${queueEntry.appointmentId}/session`);
+          router.push(`/doctor/consultations/session/${queueEntry.appointmentId}`);
         }
       });
     } else {
@@ -177,7 +177,7 @@ export function PatientQueue({ isLoading: parentLoading }: PatientQueueProps) {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => router.push(`/doctor/consultations/${patient.appointmentId}/session`)}
+                        onClick={() => router.push(`/doctor/consultations/session/${patient.appointmentId}`)}
                         className="text-xs font-medium min-w-[70px]"
                       >
                         <Activity className="h-3 w-3 mr-1.5" />

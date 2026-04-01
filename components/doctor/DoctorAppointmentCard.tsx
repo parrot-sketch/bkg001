@@ -66,7 +66,7 @@ export function DoctorAppointmentCard({ appointment, onStartConsultation }: Doct
 
     // Navigate directly to consultation workspace
     const handleGoToConsultation = () => {
-        router.push(`/doctor/consultations/${appointment.id}/session`);
+        router.push(`/doctor/consultations/session/${appointment.id}`);
     };
 
     const stripeColor = isInProgress

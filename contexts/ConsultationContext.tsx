@@ -630,14 +630,14 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
     if (state.workflow.isDirty) {
       // Save before switching - with proper error handling
       saveDraft().then(() => {
-        router.push(`/doctor/consultations/${appointmentId}/session`);
+        router.push(`/doctor/consultations/session/${appointmentId}`);
       }).catch((error) => {
         console.error('Failed to save draft before switching:', error);
         // Navigate anyway - draft is not critical for switching
-        router.push(`/doctor/consultations/${appointmentId}/session`);
+        router.push(`/doctor/consultations/session/${appointmentId}`);
       });
     } else {
-      router.push(`/doctor/consultations/${appointmentId}/session`);
+      router.push(`/doctor/consultations/session/${appointmentId}`);
     }
   }, [state.workflow.isDirty, saveDraft, router]);
 

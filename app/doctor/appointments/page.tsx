@@ -142,7 +142,7 @@ export default function DoctorAppointmentsPage() {
     };
 
     const handleStartConsultation = (appointmentId: number) => {
-        router.push(`/doctor/consultations/${appointmentId}/session`);
+        router.push(`/doctor/consultations/session/${appointmentId}`);
     };
 
     const currentList = activeTab === 'today' ? todayAppointments 
