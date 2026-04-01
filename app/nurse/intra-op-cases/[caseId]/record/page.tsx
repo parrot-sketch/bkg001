@@ -469,7 +469,10 @@ function SafetyChecklistSection({
             </div>
             <Separator />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <TextField label="IV Started by" value={d.ivStartedBy} onChange={(v) => set('ivStartedBy', v)} disabled={disabled} />
+                <div className="space-y-1.5">
+                    <Label className="text-sm">IV Started by</Label>
+                    <UserSelect value={d.ivStartedBy || ''} onChange={(v) => set('ivStartedBy', v)} placeholder="Select staff..." disabled={disabled} />
+                </div>
                 <TimeField label="IV Start Time" value={d.ivStartTime} onChange={(v) => set('ivStartTime', v)} disabled={disabled} />
             </div>
             <Separator />
@@ -477,8 +480,22 @@ function SafetyChecklistSection({
                 <BooleanField label="Antibiotic ordered" value={d.antibioticOrdered} onChange={(v) => set('antibioticOrdered', v)} disabled={disabled} />
                 {d.antibioticOrdered && (
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pl-8 animate-in slide-in-from-top-1">
-                        <TextField label="Type" value={d.antibioticType} onChange={(v) => set('antibioticType', v)} disabled={disabled} />
-                        <TextField label="Ordered by" value={d.antibioticOrderedBy} onChange={(v) => set('antibioticOrderedBy', v)} disabled={disabled} />
+                        <Select
+                            value={d.antibioticType || ''}
+                            onValueChange={(v) => set('antibioticType', v)}
+                            disabled={disabled}
+                        >
+                            <SelectTrigger className="h-9"><SelectValue placeholder="Select type..." /></SelectTrigger>
+                            <SelectContent>
+                                {['Cefazolin','Cefuroxime','Metronidazole','Vancomycin','Gentamicin','Clindamycin','Amoxicillin-Clavulanate','Other'].map(a => (
+                                    <SelectItem key={a} value={a}>{a}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <div className="space-y-1.5">
+                            <Label className="text-sm">Ordered by</Label>
+                            <UserSelect value={d.antibioticOrderedBy || ''} onChange={(v) => set('antibioticOrderedBy', v)} placeholder="Select staff..." disabled={disabled} />
+                        </div>
                         <TimeField label="Time" value={d.antibioticTime} onChange={(v) => set('antibioticTime', v)} disabled={disabled} />
                     </div>
                 )}
@@ -654,11 +671,35 @@ function PositioningSection({ data, onChange, disabled }: SectionProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
                 <div className="space-y-2">
                     <BooleanField label="Arms secured" value={d.armsSecured} onChange={(v) => set('armsSecured', v)} disabled={disabled} />
-                    {d.armsSecured && <TextField label="Arms Position" value={d.armsPosition} onChange={(v) => set('armsPosition', v)} disabled={disabled} />}
+                    {d.armsSecured && (
+                        <div className="space-y-1.5">
+                            <Label className="text-sm">Arms Position</Label>
+                            <Select value={d.armsPosition || ''} onValueChange={(v) => set('armsPosition', v)} disabled={disabled}>
+                                <SelectTrigger className="h-9"><SelectValue placeholder="Select..." /></SelectTrigger>
+                                <SelectContent>
+                                    {['Tucked','Armboard Left','Armboard Right','Abducted','Pronated','Other'].map(o => (
+                                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
                 </div>
                 <div className="space-y-2">
                     <BooleanField label="Safety belt applied" value={d.safetyBeltApplied} onChange={(v) => set('safetyBeltApplied', v)} disabled={disabled} />
-                    {d.safetyBeltApplied && <TextField label="Belt Position" value={d.safetyBeltPosition} onChange={(v) => set('safetyBeltPosition', v)} disabled={disabled} />}
+                    {d.safetyBeltApplied && (
+                        <div className="space-y-1.5">
+                            <Label className="text-sm">Belt Position</Label>
+                            <Select value={d.safetyBeltPosition || ''} onValueChange={(v) => set('safetyBeltPosition', v)} disabled={disabled}>
+                                <SelectTrigger className="h-9"><SelectValue placeholder="Select..." /></SelectTrigger>
+                                <SelectContent>
+                                    {['Chest','Over Legs','Over Arms','Pelvis','Other'].map(o => (
+                                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
                 </div>
                 <BooleanField label="Pressure points padding checked" value={d.pressurePointsPaddingChecked} onChange={(v) => set('pressurePointsPaddingChecked', v)} disabled={disabled} />
                 <BooleanField label="Body alignment checked" value={d.bodyAlignmentChecked} onChange={(v) => set('bodyAlignmentChecked', v)} disabled={disabled} />
@@ -713,7 +754,17 @@ function SkinPrepSection({ data, onChange, disabled }: SectionProps) {
                 {d.prepAgent === 'OTHER' && <TextField label="Other Agent" value={d.otherPrepAgent} onChange={(v) => set('otherPrepAgent', v)} disabled={disabled} />}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <TextField label="Prep Area" value={d.prepArea} onChange={(v) => set('prepArea', v)} disabled={disabled} placeholder="e.g., Abdomen, Face" />
+                <div className="space-y-1.5">
+                    <Label className="text-sm">Prep Area</Label>
+                    <Select value={d.prepArea || ''} onValueChange={(v) => set('prepArea', v)} disabled={disabled}>
+                        <SelectTrigger className="h-9"><SelectValue placeholder="Select area..." /></SelectTrigger>
+                        <SelectContent>
+                            {['Abdomen','Right Leg','Left Leg','Face','Chest','Back','Perineum','Right Arm','Left Arm','Scalp','Head','Neck','Both Legs','Both Arms','Other'].map(a => (
+                                <SelectItem key={a} value={a}>{a}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
                 <TextField label="Prepped By" value={d.prepPerformedBy} onChange={(v) => set('prepPerformedBy', v)} disabled={disabled} placeholder="Name of person who prepped" />
             </div>
             {/* Legacy fields for backward compatibility */}
@@ -830,7 +881,17 @@ function SurgicalDetailsSection({ data, onChange, disabled }: SectionProps) {
             </div>
             <Separator />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <TextField label="Wound Pack Type" value={d.woundPackType} onChange={(v) => set('woundPackType', v)} disabled={disabled} />
+                <div className="space-y-1.5">
+                    <Label className="text-sm">Wound Pack Type</Label>
+                    <Select value={d.woundPackType || ''} onValueChange={(v) => set('woundPackType', v)} disabled={disabled}>
+                        <SelectTrigger className="h-9"><SelectValue placeholder="Select..." /></SelectTrigger>
+                        <SelectContent>
+                            {['Ribbon Gauze','Gamgee','Non-adhesive','Petroleum gauze','Alginate','Foam','None','Other'].map(o => (
+                                <SelectItem key={o} value={o}>{o}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
                 <TextField label="Wound Pack Site" value={d.woundPackSite} onChange={(v) => set('woundPackSite', v)} disabled={disabled} />
             </div>
             <Separator />

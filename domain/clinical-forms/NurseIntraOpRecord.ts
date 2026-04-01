@@ -406,8 +406,8 @@ export function checkNurseRecoveryGateCompliance(data: any) {
         missing.push('Surgical counts (instruments, swabs, sharps) are incorrect or unverified');
     }
 
-    if (!data.safety || !data.safety.whoSignOutDone) {
-        missing.push('WHO Sign-Out process incomplete');
+    if (!data.safety || !data.safety.whoChecklistCompleted) {
+        missing.push('WHO Checklist incomplete');
     }
 
     return missing;

@@ -22,6 +22,7 @@ describe('NurseIntraOpRecord Schema', () => {
                     whoSignIndone: true,
                     whoTimeOutDone: true,
                     whoSignOutDone: true,
+                    whoChecklistCompleted: true,
                     patientIdVerified: true,
                 },
                 timings: {
