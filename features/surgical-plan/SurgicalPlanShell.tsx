@@ -231,7 +231,7 @@ export function SurgicalPlanShell({
               <TabsContent
                 key={tab.key}
                 value={tab.key}
-                className="m-0 p-5 sm:p-6 lg:p-8"
+                className="m-0 p-4 sm:p-5"
               >
                 <TabComponent caseId={caseId} readOnly={!canEdit} />
               </TabsContent>

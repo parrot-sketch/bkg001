@@ -52,6 +52,7 @@ export function OverviewTabView({ data, readOnly = false }: OverviewTabViewProps
   const [specialInstructions, setSpecialInstructions] = useState(data.casePlan?.specialInstructions || '');
   const [preOpNotes, setPreOpNotes] = useState(data.casePlan?.preOpNotes || '');
   const [riskFactors, setRiskFactors] = useState(data.casePlan?.riskFactors || '');
+  const [side, setSide] = useState(data.case?.side || '');
   
   // Billing estimate state
   const [surgeonFee, setSurgeonFee] = useState('');
@@ -95,48 +96,109 @@ export function OverviewTabView({ data, readOnly = false }: OverviewTabViewProps
 
   return (
     <div className="space-y-6">
-      {/* ═══ SECTION 1: CASE HEADER ═══ */}
+      {/* ═══ PROCEDURE DETAILS ═══ */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Stethoscope className="h-4 w-4" />
-            Case Overview
-          </CardTitle>
+          <CardTitle className="text-sm">Procedure Details</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant={readinessConfig.variant} className="text-xs">
-              {readinessConfig.label}
-            </Badge>
-            <Badge variant="outline" className={`text-xs ${statusConfig.className}`}>
-              {statusConfig.label}
-            </Badge>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">Procedure Plan</Label>
+            {readOnly ? (
+              <div
+                className="prose prose-sm max-w-none text-sm text-stone-700 border border-stone-200 rounded-lg p-3 min-h-[120px]"
+                dangerouslySetInnerHTML={{ __html: procedurePlan || '<span class="text-stone-400 italic">Not specified</span>' }}
+              />
+            ) : (
+              <Textarea
+                placeholder="Describe the surgical approach, technique, and step-by-step plan..."
+                value={procedurePlan}
+                onChange={(e) => { setProcedurePlan(e.target.value); setHasUnsavedChanges(true); }}
+                className="min-h-[120px]"
+              />
+            )}
           </div>
-          {data.case.procedureName && (
-            <div>
-              <p className="text-xs text-muted-foreground">Procedure</p>
-              <p className="text-sm font-medium">{data.case.procedureName}</p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Anaesthesia Type</Label>
+              <Select
+                value={anesthesiaPlan}
+                onValueChange={(value) => {
+                  setAnesthesiaPlan(value);
+                  setHasUnsavedChanges(true);
+                }}
+                disabled={readOnly}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select anaesthesia type..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="GENERAL">General Anaesthesia</SelectItem>
+                  <SelectItem value="REGIONAL">Regional Anaesthesia</SelectItem>
+                  <SelectItem value="LOCAL">Local Anaesthesia</SelectItem>
+                  <SelectItem value="SPINAL">Spinal Anaesthesia</SelectItem>
+                  <SelectItem value="EPIDURAL">Epidural</SelectItem>
+                  <SelectItem value="SEDATION">Conscious Sedation</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          )}
-          {data.casePlan?.estimatedDurationMinutes && (
-            <div className="flex items-center gap-2 text-sm">
-              <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-              <span>{data.casePlan.estimatedDurationMinutes} minutes</span>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Procedure Laterality</Label>
+              <Select
+                value={side}
+                onValueChange={(value) => {
+                  setSide(value);
+                  setHasUnsavedChanges(true);
+                }}
+                disabled={readOnly}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select side..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="LEFT">Left</SelectItem>
+                  <SelectItem value="RIGHT">Right</SelectItem>
+                  <SelectItem value="BILATERAL">Bilateral</SelectItem>
+                  <SelectItem value="N/A">N/A</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          )}
-          {data.theaterBooking && (
-            <div className="flex items-center gap-2 text-sm">
-              <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-              <span>
-                {format(parseISO(data.theaterBooking.startTime), 'MMM d, yyyy • HH:mm')}
-              </span>
-              {data.theaterBooking.theaterName && (
-                <span className="text-muted-foreground">
-                  — {data.theaterBooking.theaterName}
-                </span>
-              )}
-            </div>
-          )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">Special Requirements / Surgeon Notes</Label>
+            {readOnly ? (
+              <div
+                className="prose prose-sm max-w-none text-sm text-stone-700 border border-stone-200 rounded-lg p-3 min-h-[100px]"
+                dangerouslySetInnerHTML={{ __html: specialInstructions || '<span class="text-stone-400 italic">None</span>' }}
+              />
+            ) : (
+              <Textarea
+                placeholder="Positioning, special equipment, implants, medications..."
+                value={specialInstructions}
+                onChange={(e) => { setSpecialInstructions(e.target.value); setHasUnsavedChanges(true); }}
+                className="min-h-[100px]"
+              />
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">Post-operative Care Instructions</Label>
+            {readOnly ? (
+              <div
+                className="prose prose-sm max-w-none text-sm text-stone-700 border border-stone-200 rounded-lg p-3 min-h-[100px]"
+                dangerouslySetInnerHTML={{ __html: preOpNotes || '<span class="text-stone-400 italic">None</span>' }}
+              />
+            ) : (
+              <Textarea
+                placeholder="Post-op monitoring, medications, activity restrictions..."
+                value={preOpNotes}
+                onChange={(e) => { setPreOpNotes(e.target.value); setHasUnsavedChanges(true); }}
+                className="min-h-[100px]"
+              />
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -237,16 +299,19 @@ export function OverviewTabView({ data, readOnly = false }: OverviewTabViewProps
         <CardContent>
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">Risk Factors</Label>
-            <Textarea
-              placeholder="Allergies, comorbidities, previous surgeries, BMI considerations..."
-              value={riskFactors}
-              onChange={(e) => {
-                setRiskFactors(e.target.value);
-                setHasUnsavedChanges(true);
-              }}
-              readOnly={readOnly}
-              className="min-h-[100px]"
-            />
+            {readOnly ? (
+              <div
+                className="prose prose-sm max-w-none text-sm text-stone-700 border border-stone-200 rounded-lg p-3 min-h-[100px]"
+                dangerouslySetInnerHTML={{ __html: riskFactors || '<span class="text-stone-400 italic">None specified</span>' }}
+              />
+            ) : (
+              <Textarea
+                placeholder="Allergies, comorbidities, previous surgeries, BMI considerations..."
+                value={riskFactors}
+                onChange={(e) => { setRiskFactors(e.target.value); setHasUnsavedChanges(true); }}
+                className="min-h-[100px]"
+              />
+            )}
           </div>
         </CardContent>
       </Card>
