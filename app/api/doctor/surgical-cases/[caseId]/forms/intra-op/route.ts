@@ -283,13 +283,10 @@ export async function POST(
             }
         });
 
-        // Auto-transition case status: Intra-op finalized → RECOVERY
-        try {
-            const statusTransitionService = new SurgicalCaseStatusTransitionService(db);
-            await statusTransitionService.transitionToRecovery(caseId, authResult.user.userId);
-        } catch (error) {
-            console.error('[API] Intra-op finalize: Status transition error:', error);
-        }
+        // Note: Status transition to RECOVERY is handled by the "Move to Recovery"
+        // button in the UI, not auto-triggered on finalize. This prevents a
+        // "Cannot transition from RECOVERY to RECOVERY" error when the button
+        // is clicked after finalize.
 
         return NextResponse.json({
             success: true,
