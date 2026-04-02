@@ -7,7 +7,7 @@
  * Provides navigation for theater technician operations.
  */
 
-import { Activity, LayoutDashboard, User, ClipboardList } from 'lucide-react';
+import { Activity, LayoutDashboard, User, ClipboardList, Package, Boxes, Truck, ShoppingCart, FileText, BarChart3, Settings } from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { useAuth } from '@/hooks/patient/useAuth';
 
@@ -21,6 +21,31 @@ const navItems: NavItem[] = [
     name: 'Dayboard',
     href: '/theater-tech/dayboard',
     icon: Activity,
+  },
+  {
+    name: 'Item Catalog',
+    href: '/theater-tech/inventory/items',
+    icon: Package,
+  },
+  {
+    name: 'Batches & Stock',
+    href: '/theater-tech/inventory/batches',
+    icon: Boxes,
+  },
+  {
+    name: 'Vendors',
+    href: '/theater-tech/inventory/vendors',
+    icon: Truck,
+  },
+  {
+    name: 'Purchase Orders',
+    href: '/theater-tech/inventory/purchase-orders',
+    icon: ShoppingCart,
+  },
+  {
+    name: 'Goods Receipts',
+    href: '/theater-tech/inventory/receipts',
+    icon: FileText,
   },
   {
     name: 'My Profile',

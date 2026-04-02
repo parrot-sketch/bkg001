@@ -1,741 +1,157 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { format } from 'date-fns';
-import {
-    BarChart3,
-    Package,
-    AlertTriangle,
-    Plus,
-    Search,
-    Filter,
-    ClipboardCheck,
-    ArrowRightLeft,
-    RefreshCw,
-    ChevronLeft,
-    ChevronRight,
-    Package2,
-    TrendingUp,
-    TrendingDown,
-    Clock
-} from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Package, AlertTriangle, Layers, ShoppingCart, Search, RefreshCw, BarChart3, ClipboardCheck, Package2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow
-} from '@/components/ui/table';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import type { InventoryItem, InventoryBatch, InventorySummary } from './types';
+import { OverviewTab } from './OverviewTab';
+import { ItemCatalogTable } from './ItemCatalogTable';
+import { BatchesTable } from './BatchesTable';
+import { StockTakeTable } from './StockTakeTable';
+import { ReceiveStockDialog } from './ReceiveStockDialog';
 
-interface InventoryItem {
-    id: number;
-    name: string;
-    sku: string | null;
-    category: string;
-    is_implant: boolean;
-}
+type TabKey = 'overview' | 'items' | 'batches' | 'reconciliation';
+const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
+  { key: 'overview', label: 'Overview', icon: <BarChart3 className="h-3.5 w-3.5" /> },
+  { key: 'items', label: 'Item Catalog', icon: <Layers className="h-3.5 w-3.5" /> },
+  { key: 'batches', label: 'Batches', icon: <Package2 className="h-3.5 w-3.5" /> },
+  { key: 'reconciliation', label: 'Stock Take', icon: <ClipboardCheck className="h-3.5 w-3.5" /> },
+];
 
-interface InventoryBatch {
-    id: string;
-    batch_number: string;
-    serial_number: string | null;
-    expiry_date: Date;
-    quantity_remaining: number;
-    cost_per_unit: number;
-    inventory_item: {
-        name: string;
-        sku: string | null;
-        category: string;
-    };
-}
+export function InventoryDashboard({ summary, initialBatches, inventoryItems }: {
+  summary: InventorySummary[]; initialBatches: InventoryBatch[]; inventoryItems: InventoryItem[];
+}) {
+  const router = useRouter();
+  const [view, setView] = useState<TabKey>('overview');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showExpiringOnly, setShowExpiringOnly] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isReceiveOpen, setIsReceiveOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [form, setForm] = useState({ itemId: '', batch: '', serial: '', expiry: '', qty: '1', cost: '0' });
 
-interface InventorySummary {
-    itemId: number;
-    name: string;
-    sku: string | null;
-    category: string;
-    currentBalance: number;
-    totalStockIn: number;
-    totalStockOut: number;
-    unitCost: number;
-    totalValue: number;
-    lastMovement: Date | null;
-    status: 'OK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
-}
+  const pageSize = 15;
+  const handleFormChange = useCallback((field: string, value: string) => setForm(prev => ({ ...prev, [field]: value })), []);
 
-interface InventoryDashboardProps {
-    summary: InventorySummary[];
-    initialBatches: InventoryBatch[];
-    inventoryItems: InventoryItem[];
-}
+  // ─── KPIs ──────────────────────────────────────
+  const totalValue = useMemo(() => summary.reduce((a, s) => a + s.totalValue, 0), [summary]);
+  const lowStockCount = useMemo(() => summary.filter(s => s.status !== 'OK').length, [summary]);
+  const activeBatches = initialBatches.length;
 
-export function InventoryDashboard({ summary, initialBatches, inventoryItems }: InventoryDashboardProps) {
-    const router = useRouter();
-    const [view, setView] = useState<'summary' | 'batches' | 'reconciliation'>('summary');
-    const [searchTerm, setSearchTerm] = useState('');
-    const [showExpiringOnly, setShowExpiringOnly] = useState(false);
-    const [isReceiveOpen, setIsReceiveOpen] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [pageSize] = useState(15);
+  // ─── Filtering ─────────────────────────────────
+  const filteredSummary = useMemo(() =>
+    summary.filter(s =>
+      s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.category.toLowerCase().includes(searchTerm.toLowerCase())
+    ).sort((a, b) => a.name.localeCompare(b.name)), [summary, searchTerm]);
 
-    // Form State for Receive Stock
-    const [newItemId, setNewItemId] = useState<string>('');
-    const [newBatch, setNewBatch] = useState('');
-    const [newSerial, setNewSerial] = useState('');
-    const [newExpiry, setNewExpiry] = useState('');
-    const [newQty, setNewQty] = useState('1');
-    const [newCost, setNewCost] = useState('0');
+  const paginatedSummary = useMemo(() => filteredSummary.slice((currentPage - 1) * pageSize, currentPage * pageSize), [filteredSummary, currentPage]);
+  const totalPages = Math.ceil(filteredSummary.length / pageSize);
 
-    // Computed Metrics (Derived from true Summary)
-    const totalValue = summary.reduce((acc, s) => acc + (s.unitCost * s.currentBalance), 0);
-    const expiringSoonCount = initialBatches.filter(b => {
-        const daysUntilExpiry = Math.ceil((new Date(b.expiry_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-        return daysUntilExpiry <= 30 && daysUntilExpiry > 0;
-    }).length;
-    const expiredCount = initialBatches.filter(b => new Date(b.expiry_date) < new Date()).length;
+  const filteredBatches = useMemo(() => initialBatches.filter(b => {
+    const matches = b.inventory_item.name.toLowerCase().includes(searchTerm.toLowerCase()) || b.batch_number.toLowerCase().includes(searchTerm.toLowerCase());
+    if (!showExpiringOnly) return matches;
+    const days = Math.ceil((new Date(b.expiry_date).getTime() - Date.now()) / 86400000);
+    return matches && days <= 30;
+  }), [initialBatches, searchTerm, showExpiringOnly]);
 
-    // Category aggregations
-    const categoryAggregations = useMemo(() => {
-        const cats: Record<string, { count: number; value: number; items: number }> = {};
-        summary.forEach(s => {
-            const cat = s.category || 'OTHER';
-            if (!cats[cat]) {
-                cats[cat] = { count: 0, value: 0, items: 0 };
-            }
-            cats[cat].count += s.currentBalance;
-            cats[cat].value += s.totalValue;
-            cats[cat].items += 1;
-        });
-        return Object.entries(cats).map(([name, data]) => ({ name, ...data }));
-    }, [summary]);
+  // ─── Actions ───────────────────────────────────
+  const handleReceiveStock = async () => {
+    if (!form.itemId || !form.batch || !form.expiry || !form.qty) { toast.error('Fill all required fields'); return; }
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/inventory/batches', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          inventory_item_id: parseInt(form.itemId), batch_number: form.batch,
+          serial_number: form.serial || undefined, expiry_date: new Date(form.expiry).toISOString(),
+          quantity: parseInt(form.qty), cost_per_unit: parseFloat(form.cost), notes: 'Received via Admin',
+        }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success('Stock received');
+      setIsReceiveOpen(false);
+      setForm({ itemId: '', batch: '', serial: '', expiry: '', qty: '1', cost: '0' });
+      router.refresh();
+    } catch { toast.error('Receive failed'); }
+    finally { setIsSubmitting(false); }
+  };
 
-    // Filtered Data with pagination
-    const filteredSummary = useMemo(() => {
-        return summary
-            .filter(s => 
-                s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                s.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                s.category.toLowerCase().includes(searchTerm.toLowerCase())
-            )
-            .sort((a, b) => a.name.localeCompare(b.name));
-    }, [summary, searchTerm]);
+  return (
+    <div className="space-y-6">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card><CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-primary/10 rounded-lg"><Package className="h-5 w-5 text-primary" /></div>
+            <div><p className="text-xs text-muted-foreground uppercase tracking-wide">Total Value</p><p className="text-xl font-bold">KES {totalValue.toLocaleString()}</p></div>
+          </div>
+        </CardContent></Card>
+        <Card><CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-sky-100 rounded-lg"><Layers className="h-5 w-5 text-sky-600" /></div>
+            <div><p className="text-xs text-muted-foreground uppercase tracking-wide">Items</p><p className="text-xl font-bold">{summary.length}</p></div>
+          </div>
+        </CardContent></Card>
+        <Card className={cn(lowStockCount > 0 && "border-amber-300 bg-amber-50/50")}><CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-amber-100 rounded-lg"><AlertTriangle className="h-5 w-5 text-amber-600" /></div>
+            <div><p className="text-xs text-muted-foreground uppercase tracking-wide">Low Stock</p><p className="text-xl font-bold text-amber-700">{lowStockCount}</p></div>
+          </div>
+        </CardContent></Card>
+        <Card><CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-emerald-100 rounded-lg"><ShoppingCart className="h-5 w-5 text-emerald-600" /></div>
+            <div><p className="text-xs text-muted-foreground uppercase tracking-wide">Batches</p><p className="text-xl font-bold">{activeBatches}</p></div>
+          </div>
+        </CardContent></Card>
+      </div>
 
-    const paginatedSummary = useMemo(() => {
-        const start = (currentPage - 1) * pageSize;
-        return filteredSummary.slice(start, start + pageSize);
-    }, [filteredSummary, currentPage, pageSize]);
-
-    const totalPages = Math.ceil(filteredSummary.length / pageSize);
-
-    // Reset page when search changes
-    const handleSearchChange = (term: string) => {
-        setSearchTerm(term);
-        setCurrentPage(1);
-    };
-
-    // Filtered Data
-    const filteredBatches = initialBatches.filter(batch => {
-        const matchesSearch =
-            batch.inventory_item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            batch.batch_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (batch.serial_number && batch.serial_number.toLowerCase().includes(searchTerm.toLowerCase()));
-
-        if (showExpiringOnly) {
-            const days = Math.ceil((new Date(batch.expiry_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-            return matchesSearch && days <= 30;
-        }
-        return matchesSearch;
-    });
-
-    const handleReceiveStock = async () => {
-        if (!newItemId || !newBatch || !newExpiry || !newQty) {
-            toast.error('Please fill in all required fields');
-            return;
-        }
-
-        setIsSubmitting(true);
-        try {
-            const res = await fetch('/api/inventory/batches', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    inventory_item_id: parseInt(newItemId),
-                    batch_number: newBatch,
-                    serial_number: newSerial || undefined,
-                    expiry_date: new Date(newExpiry).toISOString(),
-                    quantity: parseInt(newQty),
-                    cost_per_unit: parseFloat(newCost),
-                    notes: 'Received via Admin Dashboard'
-                }),
-            });
-
-            if (!res.ok) throw new Error('Failed to receive stock');
-
-            toast.success('Stock received successfully');
-            setIsReceiveOpen(false);
-            resetForm();
-            router.refresh();
-        } catch (error) {
-            toast.error('Error receiving stock');
-            console.error(error);
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const resetForm = () => {
-        setNewItemId('');
-        setNewBatch('');
-        setNewSerial('');
-        setNewExpiry('');
-        setNewQty('1');
-        setNewCost('0');
-    };
-
-    return (
-        <div className="space-y-6">
-            {/* Dense Metrics Ribbon */}
-            <div className="flex flex-wrap items-center gap-6 p-4 bg-muted/30 rounded-lg border border-border/50">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-primary/10 rounded-md">
-                        <Package className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Value</p>
-                        <p className="text-2xl font-bold">{totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                    </div>
-                </div>
-
-                <div className="h-8 w-px bg-border/50 hidden sm:block" />
-
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-amber-500/10 rounded-md">
-                        <AlertTriangle className="h-4 w-4 text-amber-600" />
-                    </div>
-                    <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Expiring &lt;30d</p>
-                        <p className="text-lg font-semibold leading-none text-amber-600">{expiringSoonCount}</p>
-                    </div>
-                </div>
-
-                <div className="h-8 w-px bg-border/50 hidden sm:block" />
-
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-red-500/10 rounded-md">
-                        <AlertTriangle className="h-4 w-4 text-red-600" />
-                    </div>
-                    <div>
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Expired</p>
-                        <p className="text-lg font-semibold leading-none text-red-600">{expiredCount}</p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Category Aggregation */}
-            {view === 'summary' && categoryAggregations.length > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-                    {categoryAggregations.map((cat) => (
-                        <div 
-                            key={cat.name} 
-                            className="p-3 rounded-lg border bg-white shadow-sm hover:shadow-md transition-shadow cursor-default"
-                            onClick={() => handleSearchChange(cat.name)}
-                            title="Click to filter by category"
-                        >
-                            <div className="flex items-center justify-between mb-1">
-                                <Badge variant="outline" className="text-xs">{cat.name}</Badge>
-                                <Package2 className="h-3 w-3 text-muted-foreground" />
-                            </div>
-                            <div className="text-lg font-bold">{cat.items} items</div>
-                            <div className="text-xs text-muted-foreground">
-                                {cat.count.toLocaleString()} units • KES {(cat.value / 1000).toFixed(1)}k value
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {/* Toolbar */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-between items-center">
-                <div className="flex w-full sm:w-auto items-center gap-2">
-                    <div className="inline-flex items-center p-1 bg-muted rounded-lg border mr-2">
-                        <button
-                            onClick={() => setView('summary')}
-                            className={cn(
-                                "px-3 py-1.5 text-xs font-medium rounded-md transition-all",
-                                view === 'summary' ? "bg-white shadow text-foreground" : "text-muted-foreground hover:text-foreground"
-                            )}
-                        >
-                            Summary
-                        </button>
-                        <button
-                            onClick={() => setView('batches')}
-                            className={cn(
-                                "px-3 py-1.5 text-xs font-medium rounded-md transition-all",
-                                view === 'batches' ? "bg-white shadow text-foreground" : "text-muted-foreground hover:text-foreground"
-                            )}
-                        >
-                            Batches
-                        </button>
-                        <button
-                            onClick={() => setView('reconciliation')}
-                            className={cn(
-                                "px-3 py-1.5 text-xs font-medium rounded-md transition-all mx-1",
-                                view === 'reconciliation' ? "bg-white shadow text-foreground" : "text-muted-foreground hover:text-foreground"
-                            )}
-                        >
-                            Audit / Stock Take
-                        </button>
-                    </div>
-
-                    <div className="relative w-full sm:w-64">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                            placeholder={view === 'summary' ? "Search products..." : "Search batches..."}
-                            className="pl-8"
-                            value={searchTerm}
-                            onChange={(e) => handleSearchChange(e.target.value)}
-                        />
-                    </div>
-                    {view === 'batches' && (
-                        <Button
-                            variant={showExpiringOnly ? "secondary" : "outline"}
-                            onClick={() => setShowExpiringOnly(!showExpiringOnly)}
-                            className={cn("gap-2", showExpiringOnly && "bg-amber-100 text-amber-900 border-amber-200 hover:bg-amber-200")}
-                        >
-                            <Filter className="h-4 w-4" />
-                            Expiring Only
-                        </Button>
-                    )}
-                </div>
-
-                <Dialog open={isReceiveOpen} onOpenChange={setIsReceiveOpen}>
-                    <DialogTrigger asChild>
-                        <Button className="gap-2">
-                            <Plus className="h-4 w-4" />
-                            Receive Stock
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[500px]">
-                        <DialogHeader>
-                            <DialogTitle>Receive New Stock</DialogTitle>
-                            <DialogDescription>
-                                Enter the details of the incoming inventory batch.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="item" className="text-right">Item</Label>
-                                <div className="col-span-3">
-                                    <select
-                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                        value={newItemId}
-                                        onChange={(e) => setNewItemId(e.target.value)}
-                                    >
-                                        <option value="">Select Item...</option>
-                                        {inventoryItems.map(item => (
-                                            <option key={item.id} value={item.id}>
-                                                {item.name} {item.sku ? `(${item.sku})` : ''}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="batch" className="text-right">Batch/Lot</Label>
-                                <Input
-                                    id="batch"
-                                    value={newBatch}
-                                    onChange={(e) => setNewBatch(e.target.value)}
-                                    className="col-span-3"
-                                    placeholder="e.g. LOT-2024-X"
-                                />
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="serial" className="text-right">Serial #</Label>
-                                <Input
-                                    id="serial"
-                                    value={newSerial}
-                                    onChange={(e) => setNewSerial(e.target.value)}
-                                    className="col-span-3"
-                                    placeholder="Optional"
-                                />
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="expiry" className="text-right">Expiry</Label>
-                                <Input
-                                    id="expiry"
-                                    type="date"
-                                    value={newExpiry}
-                                    onChange={(e) => setNewExpiry(e.target.value)}
-                                    className="col-span-3"
-                                />
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="qty" className="text-right">Quantity</Label>
-                                <Input
-                                    id="qty"
-                                    type="number"
-                                    min="1"
-                                    value={newQty}
-                                    onChange={(e) => setNewQty(e.target.value)}
-                                    className="col-span-3"
-                                />
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="cost" className="text-right">Unit Cost</Label>
-                                <Input
-                                    id="cost"
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={newCost}
-                                    onChange={(e) => setNewCost(e.target.value)}
-                                    className="col-span-3"
-                                />
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => setIsReceiveOpen(false)}>Cancel</Button>
-                            <Button onClick={handleReceiveStock} disabled={isSubmitting}>
-                                {isSubmitting ? 'Receiving...' : 'Confirm Receipt'}
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-            </div>
-
-            {/* Data Table */}
-            <div className="rounded-md border bg-white shadow-sm overflow-hidden">
-                {view === 'summary' ? (
-                    <>
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="bg-muted/30">
-                                    <TableHead className="w-[250px]">Product Name</TableHead>
-                                    <TableHead className="w-[120px]">SKU</TableHead>
-                                    <TableHead className="w-[140px]">Category</TableHead>
-                                    <TableHead className="text-right w-[100px]">Balance</TableHead>
-                                    <TableHead className="text-right w-[110px]">Unit Cost</TableHead>
-                                    <TableHead className="text-right w-[120px]">Total Value</TableHead>
-                                    <TableHead className="text-right w-[90px]">In</TableHead>
-                                    <TableHead className="text-right w-[90px]">Out</TableHead>
-                                    <TableHead className="text-center w-[100px]">Status</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {paginatedSummary.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
-                                            No items found.
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    paginatedSummary.map((item) => (
-                                        <TableRow key={item.itemId}>
-                                            <TableCell className="font-medium">
-                                                {item.name}
-                                            </TableCell>
-                                            <TableCell>
-                                                <span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded">
-                                                    {item.sku || '—'}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge variant="outline" className="text-xs">
-                                                    {item.category}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <span className={cn(
-                                                    "font-bold text-lg",
-                                                    item.currentBalance === 0 ? "text-red-500" :
-                                                    item.status === 'LOW_STOCK' ? "text-amber-500" : "text-emerald-600"
-                                                )}>
-                                                    {item.currentBalance}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell className="text-right text-sm">
-                                                {item.unitCost > 0 
-                                                    ? `KES ${item.unitCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                                                    : '—'
-                                                }
-                                            </TableCell>
-                                            <TableCell className="text-right font-semibold">
-                                                KES {item.totalValue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <span className="inline-flex items-center text-emerald-600 font-medium">
-                                                    <TrendingUp className="h-3 w-3 mr-1" />
-                                                    +{item.totalStockIn}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <span className="inline-flex items-center text-red-500 font-medium">
-                                                    <TrendingDown className="h-3 w-3 mr-1" />
-                                                    {item.totalStockOut}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell className="text-center">
-                                                <Badge 
-                                                    className={cn(
-                                                        "text-xs",
-                                                        item.status === 'OK' ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" :
-                                                        item.status === 'LOW_STOCK' ? "bg-amber-100 text-amber-700 hover:bg-amber-200" :
-                                                        "bg-red-100 text-red-700 hover:bg-red-200"
-                                                    )}
-                                                >
-                                                    {item.status === 'OK' ? 'In Stock' : item.status === 'LOW_STOCK' ? 'Low Stock' : 'Out of Stock'}
-                                                </Badge>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                        
-                        {/* Pagination */}
-                        {totalPages > 1 && (
-                            <div className="flex items-center justify-between px-4 py-3 border-t bg-slate-50/50">
-                                <div className="text-sm text-muted-foreground">
-                                    Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, filteredSummary.length)} of {filteredSummary.length} items
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                        disabled={currentPage === 1}
-                                    >
-                                        <ChevronLeft className="h-4 w-4" />
-                                    </Button>
-                                    <span className="text-sm font-medium">
-                                        Page {currentPage} of {totalPages}
-                                    </span>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                        disabled={currentPage === totalPages}
-                                    >
-                                        <ChevronRight className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
-                    </>
-                ) : view === 'batches' ? (
-                    <Table>
-                        <TableHeader>
-                            <TableRow className="bg-muted/30">
-                                <TableHead className="w-[200px]">Product Name</TableHead>
-                                <TableHead className="w-[100px]">SKU</TableHead>
-                                <TableHead className="w-[120px]">Batch No.</TableHead>
-                                <TableHead className="w-[120px]">Category</TableHead>
-                                <TableHead className="w-[150px]">Expiry Date</TableHead>
-                                <TableHead className="text-right w-[80px]">Qty</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {filteredBatches.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                                        No batches found based on current filters.
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                filteredBatches.map((batch) => {
-                                    const expiry = new Date(batch.expiry_date);
-                                    const isExpired = expiry < new Date();
-                                    const daysUntil = Math.ceil((expiry.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                                    const isExpiringSoon = !isExpired && daysUntil <= 30;
-
-                                    return (
-                                        <TableRow key={batch.id}>
-                                            <TableCell className="font-medium">
-                                                {batch.inventory_item.name}
-                                            </TableCell>
-                                            <TableCell>
-                                                <span className="font-mono text-xs bg-slate-100 px-2 py-1 rounded">
-                                                    {batch.inventory_item.sku || '—'}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell>
-                                                <span className="text-sm font-medium">{batch.batch_number}</span>
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge variant="outline" className="text-xs">
-                                                    {batch.inventory_item.category}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell>
-                                                {isExpired ? (
-                                                    <div className="flex items-center gap-1.5 text-red-600">
-                                                        <Clock className="h-3.5 w-3.5" />
-                                                        <span className="text-sm font-medium">Expired</span>
-                                                        <span className="text-xs">({format(expiry, 'MMM d, yyyy')})</span>
-                                                    </div>
-                                                ) : isExpiringSoon ? (
-                                                    <div className="flex items-center gap-1.5 text-amber-600">
-                                                        <AlertTriangle className="h-3.5 w-3.5" />
-                                                        <span className="text-sm font-medium">{daysUntil}d left</span>
-                                                        <span className="text-xs">({format(expiry, 'MMM d, yyyy')})</span>
-                                                    </div>
-                                                ) : (
-                                                    <span className="text-sm text-muted-foreground">
-                                                        {format(expiry, 'MMM d, yyyy')}
-                                                    </span>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <span className={cn(
-                                                    "font-bold text-lg",
-                                                    batch.quantity_remaining === 0 ? "text-red-500" :
-                                                    isExpired ? "text-red-400" :
-                                                    isExpiringSoon ? "text-amber-500" : "text-emerald-600"
-                                                )}>
-                                                    {batch.quantity_remaining}
-                                                </span>
-                                            </TableCell>
-                                        </TableRow>
-                                    );
-                                })
-                            )}
-                        </TableBody>
-                    </Table>
-                ) : (
-                    <StockTakeTable summary={summary} onRefresh={router.refresh} />
-                )}
-            </div>
+      {/* Tabs + Toolbar */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="inline-flex items-center gap-1 p-1 bg-muted rounded-lg border">
+          {TABS.map(tab => (
+            <button key={tab.key} onClick={() => { setView(tab.key); setSearchTerm(''); setCurrentPage(1); }}
+              className={cn("flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all",
+                view === tab.key ? "bg-white shadow text-foreground" : "text-muted-foreground hover:text-foreground")}>
+              {tab.icon} {tab.label}
+            </button>
+          ))}
         </div>
-    );
-}
+        {view !== 'overview' && (
+          <div className="flex items-center gap-2">
+            {view !== 'reconciliation' && (
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input placeholder={view === 'items' ? "Search products..." : "Search batches..."} className="pl-8 w-48"
+                  value={searchTerm} onChange={e => { setSearchTerm(e.target.value); setCurrentPage(1); }} />
+              </div>
+            )}
+            {view === 'batches' && (
+              <Button variant={showExpiringOnly ? "secondary" : "outline"} size="sm" onClick={() => setShowExpiringOnly(!showExpiringOnly)}
+                className={cn(showExpiringOnly && "bg-amber-100 text-amber-900 border-amber-200")}>
+                <AlertTriangle className="h-4 w-4 mr-1" /> Expiring
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={() => router.refresh()}><RefreshCw className="h-4 w-4" /></Button>
+            <ReceiveStockDialog isOpen={isReceiveOpen} onOpenChange={setIsReceiveOpen} onSubmit={handleReceiveStock}
+              isSubmitting={isSubmitting} inventoryItems={inventoryItems} form={form} onChange={handleFormChange} />
+          </div>
+        )}
+      </div>
 
-function StockTakeTable({ summary, onRefresh }: { summary: InventorySummary[], onRefresh: () => void }) {
-    const [counts, setCounts] = useState<Record<number, string>>({});
-    const [submitting, setSubmitting] = useState<number | null>(null);
-
-    const handleAdjustment = async (itemId: number, currentBalance: number) => {
-        const physical = parseInt(counts[itemId]);
-        if (isNaN(physical)) {
-            toast.error('Please enter a valid physical count');
-            return;
-        }
-
-        const difference = physical - currentBalance;
-        if (difference === 0) {
-            toast.error('No difference detected');
-            return;
-        }
-
-        setSubmitting(itemId);
-        try {
-            const res = await fetch('/api/inventory/transaction', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    itemId,
-                    type: 'ADJUSTMENT',
-                    quantity: difference, // Can be negative
-                    notes: `Physical Stock Take. Physical: ${physical}, System: ${currentBalance}. Difference: ${difference}.`
-                }),
-            });
-
-            if (!res.ok) throw new Error('Adjustment failed');
-
-            toast.success('Stock adjusted successfully');
-            setCounts(prev => {
-                const nc = { ...prev };
-                delete nc[itemId];
-                return nc;
-            });
-            onRefresh();
-        } catch (error) {
-            toast.error('Failed to record adjustment');
-            console.error(error);
-        } finally {
-            setSubmitting(null);
-        }
-    };
-
-    return (
-        <Table>
-            <TableHeader>
-                <TableRow className="bg-muted/30">
-                    <TableHead className="w-[300px]">Product / SKU</TableHead>
-                    <TableHead className="text-right">System Balance</TableHead>
-                    <TableHead className="text-center w-[150px]">Physical Count</TableHead>
-                    <TableHead className="text-right">Difference</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-            </TableHeader>
-            <TableBody>
-                {summary.map((item) => {
-                    const physical = counts[item.itemId] !== undefined ? parseInt(counts[item.itemId]) : NaN;
-                    const difference = !isNaN(physical) ? physical - item.currentBalance : 0;
-                    
-                    return (
-                        <TableRow key={item.itemId}>
-                            <TableCell>
-                                <div className="font-medium">{item.name}</div>
-                                <div className="text-xs font-mono text-muted-foreground">{item.sku || 'NO SKU'}</div>
-                            </TableCell>
-                            <TableCell className="text-right font-mono font-bold text-lg">
-                                {item.currentBalance}
-                            </TableCell>
-                            <TableCell className="text-center">
-                                <Input
-                                    type="number"
-                                    placeholder="Count..."
-                                    className="w-24 mx-auto h-9 text-center font-bold"
-                                    value={counts[item.itemId] || ''}
-                                    onChange={(e) => setCounts(prev => ({ ...prev, [item.itemId]: e.target.value }))}
-                                />
-                            </TableCell>
-                            <TableCell className={cn(
-                                "text-right font-bold",
-                                difference > 0 ? "text-emerald-600" : difference < 0 ? "text-red-600" : "text-muted-foreground"
-                            )}>
-                                {!isNaN(physical) ? (difference > 0 ? `+${difference}` : difference) : '--'}
-                            </TableCell>
-                            <TableCell className="text-right">
-                                <Button
-                                    size="sm"
-                                    variant={difference !== 0 && !isNaN(physical) ? "default" : "outline"}
-                                    disabled={difference === 0 || isNaN(physical) || submitting === item.itemId}
-                                    onClick={() => handleAdjustment(item.itemId, item.currentBalance)}
-                                    className="gap-2"
-                                >
-                                    {submitting === item.itemId ? (
-                                        <RefreshCw className="h-3 w-3 animate-spin" />
-                                    ) : (
-                                        <ClipboardCheck className="h-3 w-3" />
-                                    )}
-                                    Reconcile
-                                </Button>
-                            </TableCell>
-                        </TableRow>
-                    );
-                })}
-            </TableBody>
-        </Table>
-    );
+      {/* Tab Content */}
+      {view === 'overview' && <OverviewTab summary={summary} batches={initialBatches} />}
+      {view === 'items' && <ItemCatalogTable items={paginatedSummary} currentPage={currentPage} totalPages={totalPages}
+        filteredCount={filteredSummary.length} pageSize={pageSize} onPageChange={setCurrentPage} />}
+      {view === 'batches' && <BatchesTable batches={filteredBatches} />}
+      {view === 'reconciliation' && <StockTakeTable summary={summary} onRefresh={() => router.refresh()} />}
+    </div>
+  );
 }

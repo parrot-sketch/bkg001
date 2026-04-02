@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import {
@@ -135,9 +135,9 @@ export default function AdminBillingPage() {
         }
     };
 
-    useState(() => {
+    useEffect(() => {
         fetchPayments();
-    });
+    }, []);
 
     const filteredPayments = useMemo(() => {
         let result = [...payments];

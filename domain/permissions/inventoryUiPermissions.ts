@@ -43,7 +43,14 @@ const INVENTORY_NAV_PERMISSIONS: Record<Role, InventoryRouteKey[]> = {
   [Role.PATIENT]: [],
   [Role.CASHIER]: [],
   [Role.LAB_TECHNICIAN]: [],
-  [Role.THEATER_TECHNICIAN]: [],
+  [Role.THEATER_TECHNICIAN]: [
+    'items',
+    'vendors',
+    'purchase-orders',
+    'receipts',
+    'stock-report',
+    'adjustments',
+  ],
 };
 
 /**
@@ -65,7 +72,7 @@ export function getAccessibleInventoryRoutes(role: Role): InventoryRouteKey[] {
  * Check if a role can perform write operations on inventory
  */
 export function canModifyInventory(role: Role): boolean {
-  return role === Role.ADMIN || role === Role.STORES;
+  return role === Role.ADMIN || role === Role.STORES || role === Role.THEATER_TECHNICIAN;
 }
 
 /**

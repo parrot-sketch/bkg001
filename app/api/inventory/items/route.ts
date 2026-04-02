@@ -37,7 +37,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const viewRoles = [Role.ADMIN, Role.DOCTOR, Role.NURSE, Role.FRONTDESK];
+    const viewRoles = [Role.ADMIN, Role.DOCTOR, Role.NURSE, Role.FRONTDESK, Role.THEATER_TECHNICIAN];
     if (!viewRoles.includes(authResult.user.role as Role)) {
       return NextResponse.json(
         { success: false, error: 'Access denied' },
