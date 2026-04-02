@@ -7,11 +7,15 @@ import { queryKeys } from '@/lib/constants/queryKeys';
 
 /**
  * Hook for managing user notifications.
+ *
+ * - Polls every 15 seconds (adaptive: faster when dropdown is open)
+ * - Refetches on window focus
+ * - Marks data fresh for 10 seconds to avoid redundant refetches
  */
 export function useNotifications(userId?: string) {
     const queryClient = useQueryClient();
 
-    // Fetch notifications - use queryKeys.notifications if userId provided
+    // Fetch notifications
     const {
         data: notifications = [],
         isLoading,
@@ -26,8 +30,14 @@ export function useNotifications(userId?: string) {
             }
             return response.data;
         },
-        // Refresh every 30 seconds (TIER 3 - MEDIUM)
-        refetchInterval: 30000,
+        // Refresh every 15 seconds
+        refetchInterval: 15_000,
+        // Consider data fresh for 10 seconds (avoids redundant refetches within that window)
+        staleTime: 10_000,
+        // Refetch when user returns to the tab
+        refetchOnWindowFocus: true,
+        // Keep previous data while refetching for smoother UX
+        placeholderData: (previousData) => previousData,
     });
 
     // Mark single notification as read mutation

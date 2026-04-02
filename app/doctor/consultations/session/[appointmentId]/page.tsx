@@ -20,7 +20,7 @@
  * Mobile (<768px):
  * Full-width workspace only. Sidebar & queue as overlays.
  * 
- * Route: /doctor/consultations/[appointmentId]/session
+ * Route: /doctor/consultations/session/[appointmentId]
  */
 
 import { use, Suspense, useState, useCallback, useEffect } from 'react';

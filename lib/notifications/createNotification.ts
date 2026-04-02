@@ -27,7 +27,7 @@ export async function createNotification(params: CreateNotificationParams): Prom
                 user_id: params.userId,
                 sender_id: params.senderId || null,
                 type: params.type as NotificationType,
-                status: NotificationStatus.PENDING,
+                status: NotificationStatus.SENT,
                 subject: params.subject || null,
                 message: params.message,
                 metadata: params.metadata ? JSON.stringify(params.metadata) : null,

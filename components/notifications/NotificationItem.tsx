@@ -8,16 +8,61 @@
  * - Rich visual hierarchy
  * - Hover effects
  * - Unread indicator
- * - Relative timestamps
+ * - Live-updating relative timestamps (refreshes every 30s)
  */
 
 import { Calendar, UserCheck, XCircle, Clock, AlertCircle, CheckCircle, Info, Bell } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useState, useEffect, useCallback } from 'react';
 
 interface NotificationItemProps {
     notification: any;
     onClick: () => void;
+}
+
+/**
+ * Returns the appropriate refresh interval based on how old the date is.
+ * - Under 1 hour: refresh every 30 seconds
+ * - Under 24 hours: refresh every 5 minutes
+ * - Older: no refresh needed
+ */
+function getRefreshInterval(date: Date): number | null {
+    const ageMs = Date.now() - date.getTime();
+    const oneHour = 60 * 60 * 1000;
+    const oneDay = 24 * oneHour;
+
+    if (ageMs < oneHour) return 30_000;      // 30 seconds
+    if (ageMs < oneDay) return 300_000;       // 5 minutes
+    return null;                               // Don't bother refreshing
+}
+
+/**
+ * Hook that returns a live-updating relative time string.
+ */
+function useRelativeTime(date: Date, isValid: boolean): string {
+    const compute = useCallback(
+        () => (isValid ? formatDistanceToNow(date, { addSuffix: true }) : 'Just now'),
+        [date.getTime(), isValid]
+    );
+
+    const [relativeTime, setRelativeTime] = useState(compute);
+
+    useEffect(() => {
+        if (!isValid) return;
+
+        const interval = getRefreshInterval(date);
+        if (interval === null) {
+            setRelativeTime(compute());
+            return;
+        }
+
+        setRelativeTime(compute());
+        const id = setInterval(() => setRelativeTime(compute()), interval);
+        return () => clearInterval(id);
+    }, [date.getTime(), isValid, compute]);
+
+    return relativeTime;
 }
 
 // Get icon based on notification type or metadata event
@@ -74,11 +119,12 @@ function getNotificationColor(type: string, metadata?: any) {
 }
 
 export function NotificationItem({ notification, onClick }: NotificationItemProps) {
-    const isUnread = notification.status === 'UNREAD';
+    const isUnread = notification.status !== 'READ';
 
     // Safely parse the date
-    const createdAt = notification.createdAt ? new Date(notification.createdAt) : new Date();
+    const createdAt = notification.created_at ? new Date(notification.created_at) : new Date();
     const isValidDate = !isNaN(createdAt.getTime());
+    const relativeTime = useRelativeTime(createdAt, isValidDate);
 
     // Parse metadata if string
     let metadata: any = notification.metadata;
@@ -124,7 +170,7 @@ export function NotificationItem({ notification, onClick }: NotificationItemProp
                 <div className="flex items-center gap-1.5 mt-1.5">
                     <Clock className="h-3 w-3 text-muted-foreground/70" />
                     <span className="text-xs text-muted-foreground/70">
-                        {isValidDate ? formatDistanceToNow(createdAt, { addSuffix: true }) : 'Just now'}
+                        {relativeTime}
                     </span>
                 </div>
             </div>

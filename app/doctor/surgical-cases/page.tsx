@@ -149,8 +149,10 @@ function getCasePrimaryAction(sc: SurgicalCaseListItemDto): CaseAction {
             return { label: 'Fill Operative Record', href: `/doctor/surgical-cases/${sc.id}/intra-op`, disabled: false, variant: 'default', isIntraOp: true };
 
         case 'IN_THEATER':
-        case 'RECOVERY':
             return { label: 'Fill Operative Record', href: `/doctor/surgical-cases/${sc.id}/intra-op`, disabled: false, variant: 'default', isIntraOp: true };
+
+        case 'RECOVERY':
+            return { label: 'View Record', href: `/doctor/surgical-cases/${sc.id}/intra-op`, disabled: false, variant: 'outline' };
 
         case 'COMPLETED':
         case 'CANCELLED':

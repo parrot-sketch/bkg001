@@ -11,7 +11,7 @@
  * - Smooth animations
  */
 
-import { Bell, Loader2, CheckCheck, ChevronRight, Calendar, UserCheck, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { Bell, Loader2, CheckCheck, ChevronRight, Calendar, UserCheck, XCircle, Clock, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
@@ -31,14 +31,18 @@ import { toast } from 'sonner';
 export function NotificationBell() {
     const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useNotifications();
     const [isOpen, setIsOpen] = useState(false);
+    const [showStaleRead, setShowStaleRead] = useState(false);
     const router = useRouter();
     const pathname = usePathname();
 
-    // Group notifications by date
+    // Group notifications by date, separating active from stale read notifications
     const groupedNotifications = useMemo(() => {
         const today: any[] = [];
         const yesterday: any[] = [];
         const earlier: any[] = [];
+        const staleRead: any[] = [];
+
+        const twentyFourHoursAgo = Date.now() - 24 * 60 * 60 * 1000;
 
         notifications.forEach((notification) => {
             const createdAt = notification.created_at ? new Date(notification.created_at) : new Date();
@@ -46,6 +50,13 @@ export function NotificationBell() {
             // Skip if invalid date
             if (isNaN(createdAt.getTime())) {
                 today.push(notification); // Default to today for invalid dates
+                return;
+            }
+
+            // Separate stale read notifications (>24h old and already read)
+            const isStaleRead = notification.status === 'READ' && createdAt.getTime() < twentyFourHoursAgo;
+            if (isStaleRead) {
+                staleRead.push(notification);
                 return;
             }
 
@@ -58,7 +69,7 @@ export function NotificationBell() {
             }
         });
 
-        return { today, yesterday, earlier };
+        return { today, yesterday, earlier, staleRead };
     }, [notifications]);
 
     const handleNotificationClick = (notification: any) => {
@@ -216,6 +227,32 @@ export function NotificationBell() {
                                         </p>
                                     </div>
                                     {groupedNotifications.earlier.map((notification) => (
+                                        <NotificationItem
+                                            key={notification.id}
+                                            notification={notification}
+                                            onClick={() => handleNotificationClick(notification)}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Collapsed older read notifications */}
+                            {groupedNotifications.staleRead.length > 0 && (
+                                <div>
+                                    <button
+                                        onClick={() => setShowStaleRead(!showStaleRead)}
+                                        className="sticky top-0 w-full px-4 py-2 bg-muted/30 backdrop-blur-sm border-b z-10 flex items-center justify-between hover:bg-muted/50 transition-colors"
+                                    >
+                                        <p className="text-xs font-medium text-muted-foreground">
+                                            {groupedNotifications.staleRead.length} older read notification{groupedNotifications.staleRead.length !== 1 ? 's' : ''}
+                                        </p>
+                                        {showStaleRead ? (
+                                            <ChevronUp className="h-3 w-3 text-muted-foreground" />
+                                        ) : (
+                                            <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                                        )}
+                                    </button>
+                                    {showStaleRead && groupedNotifications.staleRead.map((notification) => (
                                         <NotificationItem
                                             key={notification.id}
                                             notification={notification}
