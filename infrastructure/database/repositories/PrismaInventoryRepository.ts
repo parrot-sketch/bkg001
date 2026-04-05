@@ -12,6 +12,7 @@ import {
 } from '../../../domain/interfaces/repositories/IInventoryRepository';
 import { InventoryCategory } from '../../../domain/enums/InventoryCategory';
 import { InsufficientBatchQuantityError } from '../../../application/errors';
+import { calculateBulkBalances, getTransactionSummary } from '../../../lib/inventory/balance-calculator';
 
 export class PrismaInventoryRepository implements IInventoryRepository {
   private prisma: PrismaClient;
@@ -178,6 +179,8 @@ export class PrismaInventoryRepository implements IInventoryRepository {
    * Calculates balances for multiple items in a single batch query.
    * This eliminates N+1 queries by loading all transactions at once.
    * 
+   * Uses the pure calculateBulkBalances function for in-memory computation.
+   * 
    * @param itemIds Array of inventory item IDs
    * @returns Map<itemId, balance> where balance = totalIn - totalOut
    */
@@ -191,24 +194,11 @@ export class PrismaInventoryRepository implements IInventoryRepository {
       where: { inventory_item_id: { in: itemIds } },
     });
 
-    // Calculate balance for each item using in-memory computation
-    const balances = new Map<number, number>();
+    // Map Prisma transactions to domain model
+    const domainTransactions = transactions.map(this.mapToTransaction);
 
-    // Initialize all items with 0 balance
-    itemIds.forEach((itemId) => balances.set(itemId, 0));
-
-    // Aggregate transactions by item
-    transactions.forEach((t) => {
-      const currentBalance = balances.get(t.inventory_item_id) ?? 0;
-
-      if (t.type === 'STOCK_IN' || t.type === 'OPENING_BALANCE' || (t.type === 'ADJUSTMENT' && t.quantity > 0)) {
-        balances.set(t.inventory_item_id, currentBalance + Math.abs(t.quantity));
-      } else if (t.type === 'STOCK_OUT' || (t.type === 'ADJUSTMENT' && t.quantity < 0)) {
-        balances.set(t.inventory_item_id, currentBalance - Math.abs(t.quantity));
-      }
-    });
-
-    return balances;
+    // Use pure balance calculator function
+    return calculateBulkBalances(domainTransactions, itemIds);
   }
 
   /**
@@ -376,17 +366,10 @@ export class PrismaInventoryRepository implements IInventoryRepository {
       }
 
       // Calculate totals from transactions (only for this item)
-      const itemTransactions = transactions.filter((t) => t.inventory_item_id === item.id);
-      let totalIn = 0;
-      let totalOut = 0;
-
-      itemTransactions.forEach((t) => {
-        if (t.type === 'STOCK_IN' || t.type === 'OPENING_BALANCE' || (t.type === 'ADJUSTMENT' && t.quantity > 0)) {
-          totalIn += Math.abs(t.quantity);
-        } else if (t.type === 'STOCK_OUT' || (t.type === 'ADJUSTMENT' && t.quantity < 0)) {
-          totalOut += Math.abs(t.quantity);
-        }
-      });
+      const itemTransactions = transactions
+        .filter((t) => t.inventory_item_id === item.id)
+        .map(this.mapToTransaction);
+      const { totalIn, totalOut } = getTransactionSummary(itemTransactions);
 
       return {
         itemId: item.id,
