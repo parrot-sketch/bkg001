@@ -1,6 +1,24 @@
 import { InventoryCategory } from '../../enums/InventoryCategory';
 
 /**
+ * Pagination metadata
+ */
+export interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+/**
+ * Paginated response for search results
+ */
+export interface PaginatedInventoryItems {
+  items: InventoryItem[];
+  pagination: PaginationMeta;
+}
+
+/**
  * Stock Movement Types
  */
 export enum StockMovementType {
@@ -119,6 +137,14 @@ export interface IInventoryRepository {
 
   /** Find items where current balance is at or below reorder point */
   findLowStockItems(): Promise<InventoryItem[]>;
+
+  /** Search and paginate inventory items with optional filtering */
+  searchAndPaginateItems(options: {
+    search?: string;
+    category?: InventoryCategory;
+    page: number;
+    limit: number;
+  }): Promise<PaginatedInventoryItems>;
 
   /** Create a new inventory item */
   createItem(dto: CreateInventoryItemDto): Promise<InventoryItem>;
