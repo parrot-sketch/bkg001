@@ -86,6 +86,7 @@ export async function resetTestDatabase(): Promise<void> {
   try {
     // Delete in dependency order (reverse of creation)
     await db.auditLog.deleteMany({});
+    await db.inventoryAuditEvent.deleteMany({});
     await db.consentTemplateRelease.deleteMany({});
     await db.consentFormDocument.deleteMany({});
     await db.consentForm.deleteMany({});
@@ -99,6 +100,17 @@ export async function resetTestDatabase(): Promise<void> {
     await db.availabilityTemplate.deleteMany({});
     await db.slotConfiguration.deleteMany({});
 
+    // Cleanup inventory-related tables
+    try {
+      await (db as any).inventoryUsage.deleteMany({});
+      await (db as any).inventoryBatch.deleteMany({});
+      await (db as any).inventoryTransaction.deleteMany({});
+      await (db as any).inventoryItem.deleteMany({});
+      await (db as any).stockAdjustment.deleteMany({});
+    } catch (e) {
+      // Defensive: ignore if some of these tables aren't in the schema
+    }
+
     // Cleanup other tables that might have FKs to User
     try {
       await (db as any).goodsReceipt.deleteMany({});
@@ -110,6 +122,7 @@ export async function resetTestDatabase(): Promise<void> {
     }
 
     await db.doctor.deleteMany({});
+
     await db.patient.deleteMany({});
     await db.user.deleteMany({});
 

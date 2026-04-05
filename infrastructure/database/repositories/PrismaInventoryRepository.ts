@@ -11,6 +11,7 @@ import {
   PaginationMeta
 } from '../../../domain/interfaces/repositories/IInventoryRepository';
 import { InventoryCategory } from '../../../domain/enums/InventoryCategory';
+import { InsufficientBatchQuantityError } from '../../../application/errors';
 
 export class PrismaInventoryRepository implements IInventoryRepository {
   private prisma: PrismaClient;
@@ -446,6 +447,21 @@ export class PrismaInventoryRepository implements IInventoryRepository {
     }));
   }
 
+  /**
+   * Record inventory usage with optional batch specification and FIFO fallback.
+   * 
+   * If batchId is provided:
+   * - Validates that the batch has sufficient quantity_remaining
+   * - Decrements quantity_remaining atomically
+   * - Throws InsufficientBatchQuantityError if insufficient
+   * 
+   * If no batchId (legacy):
+   * - Uses FIFO strategy: fetches batches ordered by expiry_date ASC
+   * - Deducts from batches in order until usage quantity is satisfied
+   * - All deductions happen within a single transaction
+   * 
+   * Emits InventoryAuditEvent after successful recording.
+   */
   async recordUsage(dto: {
     inventoryItemId: number;
     surgicalCaseId?: string;
@@ -453,7 +469,9 @@ export class PrismaInventoryRepository implements IInventoryRepository {
     quantityUsed: number;
     recordedBy: string;
     notes?: string;
+    batchId?: string; // Optional: if provided, use specific batch; otherwise FIFO
   }): Promise<unknown> {
+    // Step 1: Validate item exists and is active
     const item = await this.prisma.inventoryItem.findUnique({
       where: { id: dto.inventoryItemId },
     });
@@ -466,21 +484,152 @@ export class PrismaInventoryRepository implements IInventoryRepository {
       throw new Error('Inventory item is inactive');
     }
 
-    const unitCostNumber = typeof item.unit_cost === 'number' ? item.unit_cost : item.unit_cost.toNumber();
-    
-    const usage = await this.prisma.inventoryUsage.create({
-      data: {
-        inventory_item_id: dto.inventoryItemId,
-        surgical_case_id: dto.surgicalCaseId,
-        appointment_id: dto.appointmentId,
-        quantity_used: dto.quantityUsed,
-        unit_cost_at_time: unitCostNumber,
-        total_cost: dto.quantityUsed * unitCostNumber,
-        recorded_by: dto.recordedBy,
-        notes: dto.notes,
-      },
+    const unitCostNumber = typeof item.unit_cost === 'number' 
+      ? item.unit_cost 
+      : item.unit_cost.toNumber();
+
+    // Step 2: Atomically record usage and decrement batch quantities
+    const usage = await this.prisma.$transaction(async (tx) => {
+      if (dto.batchId) {
+        // Explicit batch specified - validate and decrement specific batch
+        await this.deductFromSpecificBatch(tx, dto.batchId, dto.quantityUsed);
+      } else {
+        // FIFO batch selection - deduct from batches in expiry order
+        await this.deductFromBatchesFIFO(tx, dto.inventoryItemId, dto.quantityUsed);
+      }
+
+      // Create the InventoryUsage record
+      const usageRecord = await tx.inventoryUsage.create({
+        data: {
+          inventory_item_id: dto.inventoryItemId,
+          surgical_case_id: dto.surgicalCaseId,
+          appointment_id: dto.appointmentId,
+          quantity_used: dto.quantityUsed,
+          unit_cost_at_time: unitCostNumber,
+          total_cost: dto.quantityUsed * unitCostNumber,
+          recorded_by: dto.recordedBy,
+          notes: dto.notes,
+        },
+      });
+
+      // Step 3: Emit InventoryAuditEvent for audit trail
+      await tx.inventoryAuditEvent.create({
+        data: {
+          event_type: 'INVENTORY_USAGE_RECORDED',
+          actor_user_id: dto.recordedBy,
+          actor_role: 'NURSE', // Could be parameterized in future
+          entity_type: 'InventoryUsage',
+          entity_id: usageRecord.id.toString(),
+          metadata_json: JSON.stringify({
+            inventoryItemId: dto.inventoryItemId,
+            quantityUsed: dto.quantityUsed,
+            surgicalCaseId: dto.surgicalCaseId,
+            appointmentId: dto.appointmentId,
+            batchId: dto.batchId,
+          }),
+        },
+      });
+
+      return usageRecord;
     });
 
     return usage;
+  }
+
+  /**
+   * Deduct from a specific batch, validating sufficient quantity.
+   * Throws InsufficientBatchQuantityError if quantity_remaining < quantityUsed.
+   * 
+   * @private
+   */
+  private async deductFromSpecificBatch(
+    tx: any, // Prisma transaction client
+    batchId: string,
+    quantityUsed: number
+  ): Promise<void> {
+    const batch = await tx.inventoryBatch.findUnique({
+      where: { id: batchId },
+    });
+
+    if (!batch) {
+      throw new Error(`Batch not found: ${batchId}`);
+    }
+
+    if (batch.quantity_remaining < quantityUsed) {
+      throw new InsufficientBatchQuantityError(
+        batchId,
+        quantityUsed,
+        batch.quantity_remaining
+      );
+    }
+
+    // Decrement quantity_remaining (database constraint ensures non-negative)
+    await tx.inventoryBatch.update({
+      where: { id: batchId },
+      data: {
+        quantity_remaining: { decrement: quantityUsed },
+      },
+    });
+  }
+
+  /**
+   * FIFO batch selection: deduct from batches ordered by expiry_date ASC.
+   * Deducts from multiple batches if necessary until quantityUsed is satisfied.
+   * All deductions happen within the same transaction for atomicity.
+   * 
+   * Throws InsufficientBatchQuantityError if total available < quantityUsed.
+   * 
+   * @private
+   */
+  private async deductFromBatchesFIFO(
+    tx: any, // Prisma transaction client
+    inventoryItemId: number,
+    quantityUsed: number
+  ): Promise<void> {
+    // Fetch batches ordered by expiry_date ASC (FIFO), excluding depleted batches
+    const batches = await tx.inventoryBatch.findMany({
+      where: {
+        inventory_item_id: inventoryItemId,
+        quantity_remaining: { gt: 0 },
+      },
+      orderBy: { expiry_date: 'asc' },
+    });
+
+    if (batches.length === 0) {
+      throw new InsufficientBatchQuantityError(
+        'FIFO_NO_BATCHES',
+        quantityUsed,
+        0,
+        `No available batches for item ${inventoryItemId}`
+      );
+    }
+
+    // Calculate total available quantity
+    const totalAvailable = batches.reduce((sum: number, b: any) => sum + b.quantity_remaining, 0);
+    if (totalAvailable < quantityUsed) {
+      throw new InsufficientBatchQuantityError(
+        'FIFO_INSUFFICIENT_TOTAL',
+        quantityUsed,
+        totalAvailable,
+        `Insufficient total quantity across all batches for item ${inventoryItemId}`
+      );
+    }
+
+    // Deduct from batches in FIFO order
+    let remainingToDeduct = quantityUsed;
+    for (const batch of batches) {
+      if (remainingToDeduct <= 0) break;
+
+      const deductAmount = Math.min(batch.quantity_remaining, remainingToDeduct);
+      
+      await tx.inventoryBatch.update({
+        where: { id: batch.id },
+        data: {
+          quantity_remaining: { decrement: deductAmount },
+        },
+      });
+
+      remainingToDeduct -= deductAmount;
+    }
   }
 }
