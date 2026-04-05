@@ -108,7 +108,7 @@ export class PrismaInventoryRepository implements IInventoryRepository {
 
   /**
    * Search and paginate inventory items with database-level filtering.
-   * Uses Prisma's case-insensitive search and skip/take for pagination.
+   * Uses Prisma's $transaction to fetch data and count in a single round-trip.
    * 
    * @param options Search, category filter, page, and limit
    * @returns Paginated items with metadata
@@ -119,14 +119,16 @@ export class PrismaInventoryRepository implements IInventoryRepository {
     page: number;
     limit: number;
   }): Promise<PaginatedInventoryItems> {
-    // Build where clause
-    const whereClause: any = {
+    // ========================================================================
+    // BUILD WHERE CLAUSE - Extracted to const to avoid duplication
+    // ========================================================================
+    const itemsWhere: any = {
       is_active: true,
     };
 
     // Add search filter if provided and non-empty
     if (options.search && options.search.trim()) {
-      whereClause.OR = [
+      itemsWhere.OR = [
         {
           name: {
             contains: options.search.trim(),
@@ -144,22 +146,29 @@ export class PrismaInventoryRepository implements IInventoryRepository {
 
     // Add category filter if provided
     if (options.category) {
-      whereClause.category = options.category as unknown as PrismaCategory;
+      itemsWhere.category = options.category as unknown as PrismaCategory;
     }
 
-    // Calculate pagination
+    // ========================================================================
+    // CALCULATE PAGINATION PARAMETERS
+    // ========================================================================
     const skip = (options.page - 1) * options.limit;
     const take = options.limit;
 
-    // Execute queries in parallel for efficiency
-    const [items, total] = await Promise.all([
+    // ========================================================================
+    // EXECUTE DATA FETCH AND COUNT IN SINGLE TRANSACTION
+    // ========================================================================
+    // Using prisma.$transaction ensures both queries run in a single round-trip,
+    // eliminating the N+1 pattern that occurs when running them separately.
+    // The same where clause is used for both queries to ensure consistency.
+    const [items, total] = await this.prisma.$transaction([
       this.prisma.inventoryItem.findMany({
-        where: whereClause,
+        where: itemsWhere,
         orderBy: { created_at: 'desc' },
         skip,
         take,
       }),
-      this.prisma.inventoryItem.count({ where: whereClause }),
+      this.prisma.inventoryItem.count({ where: itemsWhere }),
     ]);
 
     const totalPages = Math.ceil(total / options.limit);
