@@ -2,16 +2,9 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-const CATEGORY_PREFIXES: Record<string, string> = {
-  IMPLANT: 'IMP',
-  SUTURE: 'SUT',
-  ANESTHETIC: 'ANS',
-  MEDICATION: 'MED',
-  DISPOSABLE: 'DSP',
-  INSTRUMENT: 'INS',
-  DRESSING: 'DRS',
-  OTHER: 'OTH',
-};
+// Import centralized SKU prefix config instead of duplicating
+// This ensures consistency across the entire codebase
+import { getSkuPrefix } from '../lib/inventory/sku-prefixes';
 
 async function fixInventoryData() {
   console.log('--- Inventory Data Fix & SKU Generation ---');
@@ -50,15 +43,19 @@ async function fixInventoryData() {
   console.log(`Generating SKUs for ${itemsWithoutSku.length} items...`);
 
   for (const item of itemsWithoutSku) {
-    const prefix = CATEGORY_PREFIXES[item.category] || 'GEN';
-    const paddedId = item.id.toString().padStart(5, '0');
-    const newSku = `${prefix}-${paddedId}`;
+    try {
+      const prefix = getSkuPrefix(item.category as any);
+      const paddedId = item.id.toString().padStart(5, '0');
+      const newSku = `${prefix}-${paddedId}`;
 
-    await prisma.inventoryItem.update({
-      where: { id: item.id },
-      data: { sku: newSku },
-    });
-    console.log(`Assigned SKU ${newSku} to item: ${item.name}`);
+      await prisma.inventoryItem.update({
+        where: { id: item.id },
+        data: { sku: newSku },
+      });
+      console.log(`Assigned SKU ${newSku} to item: ${item.name}`);
+    } catch (error) {
+      console.error(`Failed to generate SKU for item ${item.id}: ${error}`);
+    }
   }
 
   console.log('--- Success ---');

@@ -13,26 +13,33 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { getSkuPrefix } from '@/lib/inventory/sku-prefixes';
+import { InventoryCategory } from '@/domain/enums/InventoryCategory';
 
 const UOM_OPTIONS = ['Unit', 'Pack', 'Box', 'Vial', 'Bottle', 'Pair', 'Set', 'Bag', 'Canister', 'Tube', 'Strip'];
 
-const CATEGORY_CODES: Record<string, string> = {
-    MEDICATION: 'MED',
-    CONSUMABLE: 'CON',
-    EQUIPMENT: 'EQP',
-    IMPLANT: 'IMP',
-    OTHER: 'OTH',
-};
-
 function generateSku(name: string, category: string): string {
-    const prefix = CATEGORY_CODES[category] || 'GEN';
-    const namePart = name
-        .toUpperCase()
-        .replace(/[^A-Z0-9]/g, '')
-        .substring(0, 4);
-    const random = Math.random().toString(36).substring(2, 5).toUpperCase();
-    const date = new Date().toISOString().slice(2, 7).replace('-', '');
-    return `${prefix}-${namePart || 'ITEM'}-${date}${random}`;
+    try {
+      // Try to get prefix from centralized config
+      const prefix = getSkuPrefix(category as InventoryCategory);
+      const namePart = name
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, '')
+          .substring(0, 4);
+      const random = Math.random().toString(36).substring(2, 5).toUpperCase();
+      const date = new Date().toISOString().slice(2, 7).replace('-', '');
+      return `${prefix}-${namePart || 'ITEM'}-${date}${random}`;
+    } catch (error) {
+      // Fallback for unknown categories
+      console.error('SKU prefix error:', error);
+      const namePart = name
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, '')
+          .substring(0, 4);
+      const random = Math.random().toString(36).substring(2, 5).toUpperCase();
+      const date = new Date().toISOString().slice(2, 7).replace('-', '');
+      return `GEN-${namePart || 'ITEM'}-${date}${random}`;
+    }
 }
 
 export function CreateItemDialog({ open, onOpenChange, onSuccess }: { open: boolean, onOpenChange: (open: boolean) => void, onSuccess: () => void }) {

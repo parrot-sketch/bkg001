@@ -13,6 +13,7 @@ import {
 import { InventoryCategory } from '../../../domain/enums/InventoryCategory';
 import { InsufficientBatchQuantityError } from '../../../application/errors';
 import { calculateBulkBalances, getTransactionSummary } from '../../../lib/inventory/balance-calculator';
+import { getSkuPrefix } from '../../../lib/inventory/sku-prefixes';
 
 export class PrismaInventoryRepository implements IInventoryRepository {
   private prisma: PrismaClient;
@@ -213,28 +214,21 @@ export class PrismaInventoryRepository implements IInventoryRepository {
   /**
    * Generates a unique SKU for an inventory item.
    * Format: {CATEGORY_PREFIX}-{TIMESTAMP_BASE36}-{RANDOM_SUFFIX}
-   * Example: SURG-LX4K-A3F2
+   * Example: IMP-LX4K-A3F2
    * 
    * This method does NOT depend on the database ID, ensuring uniqueness
    * can be verified before insertion (no race condition).
    * 
+   * The category prefix is retrieved from the centralized config in
+   * lib/inventory/sku-prefixes.ts to ensure consistency across the codebase.
+   * 
    * @param category Inventory item category
    * @returns Generated SKU in format ABCD-EFGH-IJKL
+   * @throws Error if category has no configured SKU prefix
    */
   private generateSku(category: InventoryCategory): string {
-    const CATEGORY_PREFIXES: Record<InventoryCategory, string> = {
-      IMPLANT: 'IMP',
-      SUTURE: 'SUT',
-      ANESTHETIC: 'ANS',
-      MEDICATION: 'MED',
-      DISPOSABLE: 'DSP',
-      INSTRUMENT: 'INS',
-      DRESSING: 'DRS',
-      SPECIMEN_CONTAINER: 'SPC',
-      OTHER: 'OTH',
-    };
-
-    const prefix = CATEGORY_PREFIXES[category] || 'GEN';
+    // Retrieve prefix from centralized config
+    const prefix = getSkuPrefix(category);
 
     // Timestamp in base-36 (more compact than base-10)
     const timestamp = Date.now().toString(36).toUpperCase();
