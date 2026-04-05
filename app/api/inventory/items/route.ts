@@ -22,6 +22,12 @@ import { InventoryCategory } from '@/domain/enums/InventoryCategory';
 import { ValidationError } from '@/application/errors/ValidationError';
 import { CreateItemSchema, ItemQuerySchema, formatValidationError } from '@/lib/validation/inventory';
 import { filterItemFields } from '@/lib/rbac/inventory-field-visibility';
+import {
+  createServerError,
+  createValidationError,
+  createAuthenticationError,
+  createAuthorizationError,
+} from '@/lib/api/error-response';
 import type { CreateItem } from '@/lib/validation/inventory';
 import type { InventoryItem } from '@/domain/interfaces/repositories/IInventoryRepository';
 
@@ -84,18 +90,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // ========================================================================
     const authResult = await JwtMiddleware.authenticate(request);
     if (!authResult.success || !authResult.user) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
+      return createAuthenticationError({ route: 'GET /api/inventory/items' });
     }
 
     const viewRoles = [Role.ADMIN, Role.DOCTOR, Role.NURSE, Role.FRONTDESK, Role.THEATER_TECHNICIAN];
     if (!viewRoles.includes(authResult.user.role as Role)) {
-      return NextResponse.json(
-        { success: false, error: 'Access denied' },
-        { status: 403 }
-      );
+      return createAuthorizationError({ 
+        route: 'GET /api/inventory/items',
+        userId: authResult.user.userId,
+        userRole: authResult.user.role,
+      });
     }
 
     // ========================================================================
@@ -201,19 +205,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
        },
      });
   } catch (error) {
-    console.error('[API] GET /api/inventory/items - Error:', error);
-    
     if (error instanceof ValidationError) {
-      return NextResponse.json(
-        { success: false, error: error.message, details: error.errors },
-        { status: 400 }
+      return createValidationError(
+        error.errors || [],
+        { route: 'GET /api/inventory/items' }
       );
     }
 
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
+    return createServerError(error, { route: 'GET /api/inventory/items' });
   }
 }
 
@@ -252,17 +251,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // ========================================================================
     const authResult = await JwtMiddleware.authenticate(request);
     if (!authResult.success || !authResult.user) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
+      return createAuthenticationError({ route: 'POST /api/inventory/items' });
     }
 
     if (authResult.user.role !== Role.ADMIN) {
-      return NextResponse.json(
-        { success: false, error: 'Access denied: Admin only' },
-        { status: 403 }
-      );
+      return createAuthorizationError({ 
+        route: 'POST /api/inventory/items',
+        userId: authResult.user.userId,
+        userRole: authResult.user.role,
+        requiredRole: Role.ADMIN,
+      });
     }
 
     // ========================================================================
@@ -272,9 +270,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json(
-        { success: false, error: 'Invalid JSON in request body' },
-        { status: 400 }
+      return createValidationError(
+        { field: 'body', message: 'Invalid JSON in request body' },
+        { route: 'POST /api/inventory/items' }
       );
     }
 
@@ -283,9 +281,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // ========================================================================
     const validationResult = CreateItemSchema.safeParse(body);
     if (!validationResult.success) {
-      return NextResponse.json(
-        formatValidationError(validationResult.error),
-        { status: 400 }
+      return createValidationError(
+        validationResult.error.errors.map((err) => ({
+          field: err.path.join('.'),
+          message: err.message,
+        })),
+        { route: 'POST /api/inventory/items' }
       );
     }
 
@@ -315,18 +316,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       message: 'Inventory item created successfully',
     }, { status: 201 });
   } catch (error) {
-    console.error('[API] POST /api/inventory/items - Error:', error);
-    
     if (error instanceof ValidationError) {
-      return NextResponse.json(
-        { success: false, error: error.message, details: error.errors },
-        { status: 400 }
+      return createValidationError(
+        error.errors || [],
+        { route: 'POST /api/inventory/items' }
       );
     }
 
-    return NextResponse.json(
-      { success: false, error: 'Internal server error' },
-      { status: 500 }
-    );
+    return createServerError(error, { route: 'POST /api/inventory/items' });
   }
 }
