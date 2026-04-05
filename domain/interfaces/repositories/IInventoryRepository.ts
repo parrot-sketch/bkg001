@@ -1,24 +1,6 @@
 import { InventoryCategory } from '../../enums/InventoryCategory';
 
 /**
- * Pagination metadata
- */
-export interface PaginationMeta {
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
-
-/**
- * Paginated response for search results
- */
-export interface PaginatedInventoryItems {
-  items: InventoryItem[];
-  pagination: PaginationMeta;
-}
-
-/**
  * Stock Movement Types
  */
 export enum StockMovementType {
@@ -51,6 +33,24 @@ export interface InventoryItem {
   isImplant: boolean;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/**
+ * Pagination metadata
+ */
+export interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+/**
+ * Paginated response for search results
+ */
+export interface PaginatedInventoryItems {
+  items: InventoryItem[];
+  pagination: PaginationMeta;
 }
 
 /**
