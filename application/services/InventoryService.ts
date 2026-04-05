@@ -2,12 +2,57 @@ import {
   IInventoryRepository, 
   StockMovementType, 
   InventorySummary,
-  RecordTransactionDto
+  RecordTransactionDto,
+  PaginatedInventoryItems
 } from '../../domain/interfaces/repositories/IInventoryRepository';
+import { InventoryCategory } from '../../domain/enums/InventoryCategory';
 import { ValidationError } from '../errors/ValidationError';
 
 export class InventoryService {
   constructor(private readonly inventoryRepository: IInventoryRepository) {}
+
+  /**
+   * Search and paginate inventory items with optional filtering
+   */
+  async searchAndPaginateItems(options: {
+    search?: string;
+    category?: InventoryCategory | string;
+    page: number;
+    limit: number;
+  }): Promise<PaginatedInventoryItems> {
+    // Validate pagination parameters
+    if (options.page < 1) {
+      throw new ValidationError('Page must be at least 1', [
+        { field: 'page', message: 'Must be >= 1' }
+      ]);
+    }
+
+    if (options.limit < 1 || options.limit > 100) {
+      throw new ValidationError('Limit must be between 1 and 100', [
+        { field: 'limit', message: 'Must be between 1 and 100' }
+      ]);
+    }
+
+    // Convert string category to enum if needed
+    let category: InventoryCategory | undefined;
+    if (options.category && typeof options.category === 'string' && options.category.trim()) {
+      // Validate it's a valid category
+      const validCategories = Object.values(InventoryCategory);
+      if (!validCategories.includes(options.category as InventoryCategory)) {
+        throw new ValidationError('Invalid category', [
+          { field: 'category', message: `Must be one of: ${validCategories.join(', ')}` }
+        ]);
+      }
+      category = options.category as InventoryCategory;
+    }
+
+    return this.inventoryRepository.searchAndPaginateItems({
+      search: options.search,
+      category,
+      page: options.page,
+      limit: options.limit,
+    });
+  }
 
   /**
    * Get current balance for an inventory item

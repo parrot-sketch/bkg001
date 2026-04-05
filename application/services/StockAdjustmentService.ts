@@ -6,6 +6,7 @@
  */
 
 import { PrismaClient, StockAdjustmentType, StockAdjustmentReason } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 import { NotFoundError } from '@/application/errors/NotFoundError';
 import { ValidationError } from '@/application/errors/ValidationError';
 
@@ -79,13 +80,16 @@ export class StockAdjustmentService {
 
       // Record actual Stock Movement Transaction
       const multiplier = dto.adjustmentType === 'INCREMENT' ? 1 : -1;
+      const unitCostNum = typeof inventoryItem.unit_cost === 'number' 
+        ? inventoryItem.unit_cost 
+        : inventoryItem.unit_cost.toNumber();
       await tx.inventoryTransaction.create({
         data: {
           inventory_item_id: inventoryItemId,
           type: 'ADJUSTMENT',
           quantity: dto.quantityChange * multiplier,
-          unit_price: inventoryItem.unit_cost,
-          total_value: (dto.quantityChange * multiplier) * inventoryItem.unit_cost,
+          unit_price: unitCostNum,
+          total_value: (dto.quantityChange * multiplier) * unitCostNum,
           reference: `ADJ-${adjustment.id.toString().slice(-4)}`,
           notes: `Manual adjustment: ${dto.adjustmentReason}. ${dto.notes || ''}`,
           created_by_user_id: adjustedByUserId,
