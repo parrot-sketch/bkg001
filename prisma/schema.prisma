@@ -24,11 +24,11 @@ model User {
   created_appointments       Appointment[]            @relation("AppointmentCreator")
   audit_logs                 AuditLog[]
   care_notes                 CareNote[]               @relation("CareNoteNurse")
-  clinical_notes             ClinicalNote[]           @relation("ClinicalNoteDoctor")
   clinical_audit_events      ClinicalAuditEvent[]
   forms_created              ClinicalFormResponse[]   @relation("FormCreatedBy")
   forms_signed               ClinicalFormResponse[]   @relation("FormSignedBy")
   forms_updated              ClinicalFormResponse[]   @relation("FormUpdatedBy")
+  clinical_notes             ClinicalNote[]           @relation("ClinicalNoteDoctor")
   witnessed_consents         ConsentForm[]
   consent_form_documents     ConsentFormDocument[]    @relation("ConsentFormDocumentUser")
   verified_consent_sessions  ConsentSigningSession[]  @relation("VerifiedByStaff")
@@ -39,6 +39,7 @@ model User {
   doctor_profile             Doctor?                  @relation("DoctorUser")
   goods_receipts_received    GoodsReceipt[]           @relation("GoodsReceiptReceiver")
   inventory_audit_events     InventoryAuditEvent[]
+  inventory_transactions     InventoryTransaction[]   @relation("InventoryTransactionUser")
   notifications_sent         Notification[]           @relation("NotificationSender")
   notifications_received     Notification[]           @relation("NotificationRecipient")
   nurse_assignments          NurseAssignment[]        @relation("NurseAssignments")
@@ -50,7 +51,6 @@ model User {
   staff_invites_sent         StaffInvite[]            @relation("StaffInviteInviter")
   staff_invites_received     StaffInvite[]            @relation("StaffInviteUser")
   stock_adjustments          StockAdjustment[]        @relation("StockAdjustmentUser")
-  inventory_transactions     InventoryTransaction[]   @relation("InventoryTransactionUser")
   checklist_sign_ins         SurgicalChecklist[]      @relation("ChecklistSignIn")
   checklist_sign_outs        SurgicalChecklist[]      @relation("ChecklistSignOut")
   checklist_time_outs        SurgicalChecklist[]      @relation("ChecklistTimeOut")
@@ -115,9 +115,9 @@ model Patient {
   updated_at               DateTime                  @updatedAt
   appointments             Appointment[]
   care_notes               CareNote[]
-  clinical_notes           ClinicalNote[]
   case_plans               CasePlan[]
   clinical_form_responses  ClinicalFormResponse[]
+  clinical_notes           ClinicalNote[]
   clinical_tasks           ClinicalTask[]
   diagnoses                Diagnosis[]               @relation("PatientDiagnosis")
   doctor_consultations     DoctorConsultation[]
@@ -127,12 +127,12 @@ model Patient {
   assigned_to              User?                     @relation("PatientAssignment", fields: [assigned_to_user_id], references: [id])
   user                     User?                     @relation("PatientUser", fields: [user_id], references: [id])
   patient_images           PatientImage[]
+  patient_queue            PatientQueue[]
   payments                 Payment[]
   ratings                  Rating[]
   surgical_cases           SurgicalCase[]
   surgical_outcomes        SurgicalOutcome[]
   vital_signs              VitalSign[]
-  patient_queue            PatientQueue[]
 
   @@index([email])
   @@index([user_id])
@@ -183,6 +183,7 @@ model Doctor {
   appointments               Appointment[]
   availability_overrides     AvailabilityOverride[]
   availability_templates     AvailabilityTemplate[]
+  calendar_events            CalendarEvent[]
   case_plans                 CasePlan[]
   consultations              Consultation[]
   consultation_messages      ConsultationMessage[]     @relation("ConsultationMessageSender")
@@ -193,15 +194,14 @@ model Doctor {
   doctor_patient_assignments DoctorPatientAssignment[] @relation("DoctorAssignments")
   transferred_assignments    DoctorPatientAssignment[] @relation("TransferredAssignments")
   medical_records            MedicalRecord[]           @relation("MedicalRecordDoctor")
+  patient_queue              PatientQueue[]
   ratings                    Rating[]
   schedule_blocks            ScheduleBlock[]
   slot_configuration         SlotConfiguration?
-  primary_surgical_cases     SurgicalCase[]
-  surgical_outcomes          SurgicalOutcome[]
-  patient_queue              PatientQueue[]
-  assigned_team_members      SurgicalCaseTeamMember[] @relation("AssignedByDoctor")
   billing_estimates_created  SurgicalBillingEstimate[] @relation("CreatedByDoctor")
-  calendar_events            CalendarEvent[]
+  primary_surgical_cases     SurgicalCase[]
+  assigned_team_members      SurgicalCaseTeamMember[]  @relation("AssignedByDoctor")
+  surgical_outcomes          SurgicalOutcome[]
 
   @@index([email])
   @@index([user_id])
@@ -366,8 +366,8 @@ model Appointment {
   parent_consultation           Consultation?              @relation("ConsultationFollowUp", fields: [parent_consultation_id], references: [id])
   patient                       Patient                    @relation(fields: [patient_id], references: [id], onDelete: Cascade)
   care_notes                    CareNote[]
-  clinical_notes                ClinicalNote[]
   case_plan                     CasePlan?
+  clinical_notes                ClinicalNote[]
   clinical_tasks                ClinicalTask[]
   consultation                  Consultation?              @relation("AppointmentConsultation")
   doctor_consultations          DoctorConsultation[]       @relation("DoctorConsultationAppointment")
@@ -375,10 +375,10 @@ model Appointment {
   medical_records               MedicalRecord[]
   nurse_assignments             NurseAssignment[]          @relation("NurseAssignmentAppointment")
   patient_images                PatientImage[]
+  patient_queue                 PatientQueue[]
   payments                      Payment?
   surgical_outcome              SurgicalOutcome?
   vital_signs                   VitalSign[]                @relation("VitalSignAppointment")
-  patient_queue                 PatientQueue[]
 
   @@unique([doctor_id, scheduled_at], map: "unique_doctor_scheduled_slot")
   @@index([patient_id])
@@ -416,9 +416,9 @@ model PatientQueue {
   removed_at     DateTime?
   removed_by     String?
   removal_reason String?
-  patient        Patient      @relation(fields: [patient_id], references: [id], onDelete: Cascade)
-  doctor         Doctor       @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
   appointment    Appointment? @relation(fields: [appointment_id], references: [id])
+  doctor         Doctor       @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
+  patient        Patient      @relation(fields: [patient_id], references: [id], onDelete: Cascade)
 
   @@index([patient_id])
   @@index([doctor_id])
@@ -505,20 +505,19 @@ model CareNote {
 }
 
 model ClinicalNote {
-  id            Int                  @id @default(autoincrement())
-  patient_id    String
+  id             Int              @id @default(autoincrement())
+  patient_id     String
   doctor_user_id String
   appointment_id Int?
-  note_type     ClinicalNoteType     @default(GENERAL)
-  title         String?
-  content       String
-  is_pinned     Boolean              @default(false)
-  created_at    DateTime             @default(now())
-  updated_at    DateTime             @updatedAt
-
-  appointment   Appointment?         @relation(fields: [appointment_id], references: [id])
-  doctor_user   User                 @relation("ClinicalNoteDoctor", fields: [doctor_user_id], references: [id], onDelete: Cascade)
-  patient       Patient              @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+  note_type      ClinicalNoteType @default(GENERAL)
+  title          String?
+  content        String
+  is_pinned      Boolean          @default(false)
+  created_at     DateTime         @default(now())
+  updated_at     DateTime         @updatedAt
+  appointment    Appointment?     @relation(fields: [appointment_id], references: [id])
+  doctor_user    User             @relation("ClinicalNoteDoctor", fields: [doctor_user_id], references: [id], onDelete: Cascade)
+  patient        Patient          @relation(fields: [patient_id], references: [id], onDelete: Cascade)
 
   @@index([patient_id])
   @@index([doctor_user_id])
@@ -692,32 +691,32 @@ model Service {
 }
 
 model InventoryItem {
-  id                        Int                        @id @default(autoincrement())
-  name                      String
-  sku                       String?                    @unique
-  category                  InventoryCategory          @default(OTHER)
-  description               String?
-  unit_of_measure           String                     @default("unit")
-  unit_cost                 Float                      @default(0)
-  reorder_point             Int                        @default(0)
-  low_stock_threshold       Int                        @default(0)
-  supplier                  String?
-  is_active                 Boolean                    @default(true)
-  is_billable               Boolean                    @default(true)
-  created_at                DateTime                   @default(now())
-  updated_at                DateTime                   @updatedAt
-  is_implant                Boolean                    @default(false)
-  manufacturer              String?
-  planned_items             CasePlanPlannedItem[]
-  goods_receipt_items       GoodsReceiptItem[]         @relation("GoodsReceiptInventoryItem")
-  batches                   InventoryBatch[]
-  usage_records             InventoryUsage[]
-  purchase_order_items      PurchaseOrderItem[]        @relation("POItemInventoryItem")
-  stock_adjustments         StockAdjustment[]          @relation("StockAdjustmentInventoryItem")
-  medication_records        SurgicalMedicationRecord[]
-  transactions              InventoryTransaction[]
+  id                          Int                        @id @default(autoincrement())
+  name                        String                     @db.VarChar(255)
+  sku                         String?                    @unique @db.VarChar(255)
+  category                    InventoryCategory          @default(OTHER)
+  description                 String?
+  unit_of_measure             String                     @default("unit") @db.VarChar(255)
+  unit_cost                   Decimal                    @default(0) @db.Decimal(10, 2)
+  reorder_point               Int                        @default(0)
+  low_stock_threshold         Int                        @default(0)
+  supplier                    String?
+  is_active                   Boolean                    @default(true)
+  is_billable                 Boolean                    @default(true)
+  created_at                  DateTime                   @default(now())
+  updated_at                  DateTime                   @updatedAt
+  is_implant                  Boolean                    @default(false)
+  manufacturer                String?
+  planned_items               CasePlanPlannedItem[]
+  goods_receipt_items         GoodsReceiptItem[]         @relation("GoodsReceiptInventoryItem")
+  batches                     InventoryBatch[]
+  transactions                InventoryTransaction[]
+  usage_records               InventoryUsage[]
+  purchase_order_items        PurchaseOrderItem[]        @relation("POItemInventoryItem")
+  stock_adjustments           StockAdjustment[]          @relation("StockAdjustmentInventoryItem")
   surgical_billing_line_items SurgicalBillingLineItem[]
-  surgical_case_items       SurgicalCaseItem[]
+  surgical_case_items         SurgicalCaseItem[]
+  medication_records          SurgicalMedicationRecord[]
 
   @@index([name])
   @@index([sku])
@@ -736,8 +735,8 @@ model InventoryTransaction {
   notes              String?
   created_at         DateTime          @default(now())
   created_by_user_id String?
-  inventory_item     InventoryItem     @relation(fields: [inventory_item_id], references: [id], onDelete: Cascade)
   created_by         User?             @relation("InventoryTransactionUser", fields: [created_by_user_id], references: [id])
+  inventory_item     InventoryItem     @relation(fields: [inventory_item_id], references: [id], onDelete: Cascade)
 
   @@index([inventory_item_id])
   @@index([type])
@@ -1437,7 +1436,7 @@ model Theater {
   is_active         Boolean                   @default(true)
   operational_hours String?
   capabilities      String?
-  hourly_rate       Float                     @default(0) // Hourly rate for theater usage (KES)
+  hourly_rate       Float                     @default(0)
   created_at        DateTime                  @default(now())
   updated_at        DateTime                  @updatedAt
   surgical_records  SurgicalProcedureRecord[]
@@ -1604,22 +1603,22 @@ model SurgicalCase {
   created_at         DateTime                   @default(now())
   updated_at         DateTime                   @updatedAt
   created_by         String?
+  calendar_events    CalendarEvent[]
   case_plan          CasePlan?
   clinical_forms     ClinicalFormResponse[]
   inventory_usage    InventoryUsage[]
   payment            Payment?
   staff_invites      StaffInvite[]
+  billing_estimate   SurgicalBillingEstimate?
   consultation       Consultation?              @relation(fields: [consultation_id], references: [id])
   patient            Patient                    @relation(fields: [patient_id], references: [id], onDelete: Cascade)
   primary_surgeon    Doctor                     @relation(fields: [primary_surgeon_id], references: [id], onDelete: Cascade)
+  case_items         SurgicalCaseItem[]
+  team_members       SurgicalCaseTeamMember[]
   checklist          SurgicalChecklist?
   medication_records SurgicalMedicationRecord[]
   procedure_record   SurgicalProcedureRecord?
   theater_booking    TheaterBooking?
-  team_members       SurgicalCaseTeamMember[]
-  billing_estimate   SurgicalBillingEstimate?
-  case_items         SurgicalCaseItem[]
-  calendar_events    CalendarEvent[]
 
   @@index([patient_id])
   @@index([primary_surgeon_id])
@@ -1672,10 +1671,10 @@ model SurgicalChecklist {
   sign_out_items        String?
   created_at            DateTime     @default(now())
   updated_at            DateTime     @updatedAt
-  surgical_case         SurgicalCase @relation(fields: [surgical_case_id], references: [id], onDelete: Cascade)
   sign_in_by            User?        @relation("ChecklistSignIn", fields: [sign_in_by_user_id], references: [id])
   sign_out_by           User?        @relation("ChecklistSignOut", fields: [sign_out_by_user_id], references: [id])
-  time_out_by            User?        @relation("ChecklistTimeOut", fields: [time_out_by_user_id], references: [id])
+  surgical_case         SurgicalCase @relation(fields: [surgical_case_id], references: [id], onDelete: Cascade)
+  time_out_by           User?        @relation("ChecklistTimeOut", fields: [time_out_by_user_id], references: [id])
 
   @@index([surgical_case_id])
 }
@@ -1683,9 +1682,9 @@ model SurgicalChecklist {
 model SurgicalCaseTeamMember {
   id                    String       @id @default(uuid())
   surgical_case_id      String
-  role                  String       // SURGEON, ANAESTHESIOLOGIST, ASSISTANT, SCRUB_NURSE, CIRCULATING_NURSE
+  role                  String
   name                  String
-  user_id               String?      // Optional link to staff user
+  user_id               String?
   is_external           Boolean      @default(false)
   external_name         String?
   external_credentials  String?
@@ -1693,26 +1692,26 @@ model SurgicalCaseTeamMember {
   assigned_at           DateTime     @default(now())
   created_at            DateTime     @default(now())
   updated_at            DateTime     @updatedAt
+  assigned_by_doctor    Doctor?      @relation("AssignedByDoctor", fields: [assigned_by_doctor_id], references: [id])
   surgical_case         SurgicalCase @relation(fields: [surgical_case_id], references: [id], onDelete: Cascade)
-  assigned_by_doctor    Doctor?      @relation("AssignedByDoctor", fields: [assigned_by_doctor_id], references: [id], onDelete: SetNull)
 
   @@index([surgical_case_id])
   @@index([user_id])
 }
 
 model SurgicalBillingEstimate {
-  id                    String               @id @default(uuid())
-  surgical_case_id      String               @unique
-  surgeon_fee           Decimal              @default(0)
-  anaesthesiologist_fee Decimal              @default(0)
-  theatre_fee           Decimal              @default(0)
-  subtotal              Decimal              @default(0)
-  status                BillingEstimateStatus @default(DRAFT)
+  id                    String                    @id @default(uuid())
+  surgical_case_id      String                    @unique
+  surgeon_fee           Decimal                   @default(0)
+  anaesthesiologist_fee Decimal                   @default(0)
+  theatre_fee           Decimal                   @default(0)
+  subtotal              Decimal                   @default(0)
+  status                BillingEstimateStatus     @default(DRAFT)
   created_by_doctor_id  String
-  created_at            DateTime             @default(now())
-  updated_at            DateTime             @updatedAt
-  surgical_case         SurgicalCase         @relation(fields: [surgical_case_id], references: [id], onDelete: Cascade)
-  created_by_doctor     Doctor               @relation("CreatedByDoctor", fields: [created_by_doctor_id], references: [id], onDelete: Restrict)
+  created_at            DateTime                  @default(now())
+  updated_at            DateTime                  @updatedAt
+  created_by_doctor     Doctor                    @relation("CreatedByDoctor", fields: [created_by_doctor_id], references: [id])
+  surgical_case         SurgicalCase              @relation(fields: [surgical_case_id], references: [id], onDelete: Cascade)
   line_items            SurgicalBillingLineItem[]
 
   @@index([surgical_case_id])
@@ -1720,21 +1719,21 @@ model SurgicalBillingEstimate {
 }
 
 model SurgicalBillingLineItem {
-  id                  String                 @id @default(uuid())
+  id                  String                  @id @default(uuid())
   billing_estimate_id String
   description         String
   category            BillingLineItemCategory @default(OTHER)
-  quantity            Int                    @default(1)
+  quantity            Int                     @default(1)
   unit_price          Decimal
   total_price         Decimal
   inventory_item_id   Int?
-  is_from_inventory   Boolean                @default(false)
+  is_from_inventory   Boolean                 @default(false)
   added_by_role       String
   notes               String?
-  created_at          DateTime               @default(now())
-  updated_at          DateTime               @updatedAt
+  created_at          DateTime                @default(now())
+  updated_at          DateTime                @updatedAt
   billing_estimate    SurgicalBillingEstimate @relation(fields: [billing_estimate_id], references: [id], onDelete: Cascade)
-  inventory_item      InventoryItem?         @relation(fields: [inventory_item_id], references: [id], onDelete: SetNull)
+  inventory_item      InventoryItem?          @relation(fields: [inventory_item_id], references: [id])
 
   @@index([billing_estimate_id])
   @@index([inventory_item_id])
@@ -1742,16 +1741,16 @@ model SurgicalBillingLineItem {
 }
 
 model SurgicalCaseItem {
-  id                String       @id @default(uuid())
+  id                String        @id @default(uuid())
   surgical_case_id  String
   inventory_item_id Int
-  quantity          Int          @default(1)
+  quantity          Int           @default(1)
   added_by_user_id  String?
   notes             String?
-  created_at        DateTime     @default(now())
-  updated_at        DateTime     @updatedAt
-  surgical_case     SurgicalCase @relation(fields: [surgical_case_id], references: [id], onDelete: Cascade)
-  inventory_item    InventoryItem @relation(fields: [inventory_item_id], references: [id], onDelete: Restrict)
+  created_at        DateTime      @default(now())
+  updated_at        DateTime      @updatedAt
+  inventory_item    InventoryItem @relation(fields: [inventory_item_id], references: [id])
+  surgical_case     SurgicalCase  @relation(fields: [surgical_case_id], references: [id], onDelete: Cascade)
 
   @@unique([surgical_case_id, inventory_item_id])
   @@index([surgical_case_id])
