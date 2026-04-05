@@ -19,10 +19,10 @@ import db from '@/lib/db';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import { InventoryCategory } from '@/domain/enums/InventoryCategory';
-import { InventoryListQueryParamsSchema } from '@/lib/schema';
 import { ValidationError } from '@/application/errors/ValidationError';
 import { CreateItemSchema, ItemQuerySchema, formatValidationError } from '@/lib/validation/inventory';
 import type { CreateItem } from '@/lib/validation/inventory';
+import type { InventoryItem } from '@/domain/interfaces/repositories/IInventoryRepository';
 
 // ============================================================================
 // TYPES
@@ -123,8 +123,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // FETCH ITEMS WITH DATABASE-LEVEL FILTERING & PAGINATION
     // ========================================================================
     const paginatedResult = await inventoryService.searchAndPaginateItems({
-      search: search || undefined,
-      category: (category && category !== '') ? category : undefined,
+      search: search && search.trim() ? search : undefined,
+      category,
       page,
       limit,
     });
@@ -135,7 +135,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Calculate quantity_on_hand for each item from InventoryTransaction records.
     // This ensures the balance is always current and audit-trail accurate.
     let enrichedItems: InventoryItemWithBalance[] = await Promise.all(
-      paginatedResult.items.map(async (item) => {
+      paginatedResult.items.map(async (item: InventoryItem) => {
         const quantityOnHand = await inventoryRepository.getItemBalance(item.id);
         return {
           id: item.id,

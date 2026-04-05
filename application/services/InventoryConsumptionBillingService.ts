@@ -471,59 +471,62 @@ export class PrismaInventoryConsumptionBillingService implements InventoryConsum
    * 3. Try to find a generic "Inventory Item" service
    * 4. If not found, create a Service with safe defaults
    */
-   private async resolveInventoryServiceId(
-    tx: Prisma.TransactionClient,
-    inventoryItem: { id: number; name: string; category: string; unit_cost: number | Decimal }
-  ): Promise<number> {
-    // Strategy 1: Find by name pattern
-    let service = await tx.service.findFirst({
-      where: {
-        service_name: { contains: `Inventory: ${inventoryItem.name}`, mode: 'insensitive' },
-        is_active: true,
-      },
-    });
+    private async resolveInventoryServiceId(
+     tx: Prisma.TransactionClient,
+     inventoryItem: { id: number; name: string; category: string; unit_cost: number | Decimal }
+   ): Promise<number> {
+     // Strategy 1: Find by name pattern
+     let service = await tx.service.findFirst({
+       where: {
+         service_name: { contains: `Inventory: ${inventoryItem.name}`, mode: 'insensitive' },
+         is_active: true,
+       },
+     });
 
-    if (service) {
-      return service.id;
-    }
+     if (service) {
+       return service.id;
+     }
 
-    // Strategy 2: Find by category
-    if (inventoryItem.category) {
-      service = await tx.service.findFirst({
-        where: {
-          category: inventoryItem.category,
-          is_active: true,
-        },
-      });
+     // Strategy 2: Find by category
+     if (inventoryItem.category) {
+       service = await tx.service.findFirst({
+         where: {
+           category: inventoryItem.category,
+           is_active: true,
+         },
+       });
 
-      if (service) {
-        return service.id;
-      }
-    }
+       if (service) {
+         return service.id;
+       }
+     }
 
-    // Strategy 3: Find generic "Inventory Item" service
-    service = await tx.service.findFirst({
-      where: {
-        service_name: { contains: 'Inventory Item', mode: 'insensitive' },
-        is_active: true,
-      },
-    });
+     // Strategy 3: Find generic "Inventory Item" service
+     service = await tx.service.findFirst({
+       where: {
+         service_name: { contains: 'Inventory Item', mode: 'insensitive' },
+         is_active: true,
+       },
+     });
 
-    if (service) {
-      return service.id;
-    }
+     if (service) {
+       return service.id;
+     }
 
-    // Strategy 4: Create service with safe defaults
-    const newService = await tx.service.create({
-      data: {
-        service_name: `Inventory: ${inventoryItem.name}`,
-        description: `Billing service for inventory item: ${inventoryItem.name}`,
-        price: inventoryItem.unit_cost,
-        category: inventoryItem.category || 'INVENTORY',
-        is_active: true,
-      },
-    });
+     // Strategy 4: Create service with safe defaults
+     const unitCostNum: number = typeof inventoryItem.unit_cost === 'number' 
+       ? inventoryItem.unit_cost 
+       : (inventoryItem.unit_cost as Decimal).toNumber();
+     const newService = await tx.service.create({
+       data: {
+         service_name: `Inventory: ${inventoryItem.name}`,
+         description: `Billing service for inventory item: ${inventoryItem.name}`,
+         price: unitCostNum,
+         category: inventoryItem.category || 'INVENTORY',
+         is_active: true,
+       },
+     });
 
-    return newService.id;
-  }
+     return newService.id;
+   }
 }

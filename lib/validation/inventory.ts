@@ -63,11 +63,13 @@ export const ItemQuerySchema = z.object({
     .trim()
     .max(100, 'Search term must be at most 100 characters')
     .optional()
-    .or(z.literal('')),
+    .or(z.literal(''))
+    .transform((val) => (val === '' ? undefined : val)),
   
   category: InventoryCategorySchema
     .optional()
-    .or(z.literal('')),
+    .or(z.literal(''))
+    .transform((val) => (val === '' ? undefined : val)),
   
   low_stock_only: z
     .coerce

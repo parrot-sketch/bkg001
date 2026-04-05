@@ -75,7 +75,7 @@ export class MedicationService {
             orderBy: { name: 'asc' },
         });
 
-        // Get available lot numbers and quantity from inventory batches
+        // Get stock quantities from inventory batches
         const medicationsWithStock = await Promise.all(
             medications.map(async (med) => {
                 const batches = await this.db.inventoryBatch.findMany({
@@ -86,13 +86,21 @@ export class MedicationService {
                     select: {
                         batch_number: true,
                         quantity_remaining: true,
-                        expiry_date: true,
                     },
                     take: 10,
                 });
 
+        const unitCostNum = typeof med.unit_cost === 'number' 
+                    ? med.unit_cost 
+                    : med.unit_cost.toNumber();
+
                 return {
-                    ...med,
+                    id: med.id,
+                    name: med.name,
+                    sku: med.sku,
+                    unit_of_measure: med.unit_of_measure,
+                    unit_cost: unitCostNum,
+                    is_billable: med.is_billable,
                     quantity_on_hand: batches.reduce((sum, b) => sum + b.quantity_remaining, 0),
                     available_lot_numbers: batches.map(b => b.batch_number).filter(Boolean),
                 };
@@ -102,7 +110,7 @@ export class MedicationService {
         return medicationsWithStock;
     }
 
-    /**
+     /**
      * List all implants in inventory (active and categorized as IMPLANT)
      */
     async listEligibleImplants(query?: string): Promise<EligibleImplant[]> {
@@ -143,8 +151,18 @@ export class MedicationService {
                     take: 10,
                 });
 
+                const unitCostNum = typeof implant.unit_cost === 'number' 
+                    ? implant.unit_cost 
+                    : implant.unit_cost.toNumber();
+
                 return {
-                    ...implant,
+                    id: implant.id,
+                    name: implant.name,
+                    sku: implant.sku,
+                    category: implant.category,
+                    unit_of_measure: implant.unit_of_measure,
+                    unit_cost: unitCostNum,
+                    is_billable: implant.is_billable,
                     quantity_on_hand: batches.reduce((sum, b) => sum + b.quantity_remaining, 0),
                     available_sizes: [],
                     available_lot_numbers: batches.map(b => b.batch_number).filter(Boolean),
