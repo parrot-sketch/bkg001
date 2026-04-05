@@ -21,6 +21,7 @@ import { Role } from '@/domain/enums/Role';
 import { InventoryCategory } from '@/domain/enums/InventoryCategory';
 import { ValidationError } from '@/application/errors/ValidationError';
 import { CreateItemSchema, ItemQuerySchema, formatValidationError } from '@/lib/validation/inventory';
+import { filterItemFields } from '@/lib/rbac/inventory-field-visibility';
 import type { CreateItem } from '@/lib/validation/inventory';
 import type { InventoryItem } from '@/domain/interfaces/repositories/IInventoryRepository';
 
@@ -129,57 +130,76 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       limit,
     });
 
-    // ========================================================================
-    // ENRICH ITEMS WITH BALANCE CALCULATION
-    // ========================================================================
-    // Calculate quantity_on_hand for each item from InventoryTransaction records.
-    // This ensures the balance is always current and audit-trail accurate.
-    let enrichedItems: InventoryItemWithBalance[] = await Promise.all(
-      paginatedResult.items.map(async (item: InventoryItem) => {
-        const quantityOnHand = await inventoryRepository.getItemBalance(item.id);
-        return {
-          id: item.id,
-          name: item.name,
-          sku: item.sku,
-          category: item.category,
-          description: item.description,
-          unitOfMeasure: item.unitOfMeasure,
-          unitCost: item.unitCost,
-          reorderPoint: item.reorderPoint,
-          lowStockThreshold: item.lowStockThreshold,
-          supplier: item.supplier,
-          manufacturer: item.manufacturer,
-          isActive: item.isActive,
-          isBillable: item.isBillable,
-          isImplant: item.isImplant,
-          quantityOnHand,
-          createdAt: item.createdAt,
-          updatedAt: item.updatedAt,
-        };
-      })
-    );
+     // ========================================================================
+     // ENRICH ITEMS WITH BALANCE CALCULATION
+     // ========================================================================
+     // Calculate quantity_on_hand for each item from InventoryTransaction records.
+     // This ensures the balance is always current and audit-trail accurate.
+     let enrichedItems: InventoryItemWithBalance[] = await Promise.all(
+       paginatedResult.items.map(async (item: InventoryItem) => {
+         const quantityOnHand = await inventoryRepository.getItemBalance(item.id);
+         return {
+           id: item.id,
+           name: item.name,
+           sku: item.sku,
+           category: item.category,
+           description: item.description,
+           unitOfMeasure: item.unitOfMeasure,
+           unitCost: item.unitCost,
+           reorderPoint: item.reorderPoint,
+           lowStockThreshold: item.lowStockThreshold,
+           supplier: item.supplier,
+           manufacturer: item.manufacturer,
+           isActive: item.isActive,
+           isBillable: item.isBillable,
+           isImplant: item.isImplant,
+           quantityOnHand,
+           createdAt: item.createdAt,
+           updatedAt: item.updatedAt,
+         };
+       })
+     );
 
-    // ========================================================================
-    // APPLY LOW STOCK FILTER (if requested)
-    // ========================================================================
-    if (low_stock_only) {
-      enrichedItems = enrichedItems.filter(
-        (item) => item.quantityOnHand <= item.lowStockThreshold
-      );
-    }
+     // ========================================================================
+     // APPLY LOW STOCK FILTER (if requested)
+     // ========================================================================
+     if (low_stock_only) {
+       enrichedItems = enrichedItems.filter(
+         (item) => item.quantityOnHand <= item.lowStockThreshold
+       );
+     }
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        data: enrichedItems,
-        pagination: {
-          total: paginatedResult.pagination.total,
-          page: paginatedResult.pagination.page,
-          limit: paginatedResult.pagination.limit,
-          totalPages: paginatedResult.pagination.totalPages,
-        },
-      },
-    });
+     // ========================================================================
+     // APPLY FIELD-LEVEL RBAC FILTERING
+     // ========================================================================
+     // Filter enriched items to only include fields the user's role can access
+     // Note: quantityOnHand is not part of the InventoryItem interface but is added at enrichment time
+     const filteredItems: Partial<InventoryItemWithBalance>[] = enrichedItems.map((item) => {
+       // Extract quantityOnHand before filtering (it's not a base InventoryItem field)
+       const { quantityOnHand, ...baseFields } = item;
+       
+       // Filter base fields according to RBAC rules
+       const filtered = filterItemFields(baseFields as InventoryItem, authResult.user!.role);
+       
+       // Re-add quantityOnHand to response (it's operational data, not sensitive)
+       return {
+         ...filtered,
+         quantityOnHand,
+       } as Partial<InventoryItemWithBalance>;
+     });
+
+     return NextResponse.json({
+       success: true,
+       data: {
+         data: filteredItems,
+         pagination: {
+           total: paginatedResult.pagination.total,
+           page: paginatedResult.pagination.page,
+           limit: paginatedResult.pagination.limit,
+           totalPages: paginatedResult.pagination.totalPages,
+         },
+       },
+     });
   } catch (error) {
     console.error('[API] GET /api/inventory/items - Error:', error);
     
