@@ -13,6 +13,7 @@
  */
 
 import { PrismaClient, Prisma } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
 import { ValidationError } from '@/application/errors/ValidationError';
 import { NotFoundError } from '@/application/errors/NotFoundError';
 import { GateBlockedError } from '@/application/errors/GateBlockedError';
@@ -297,7 +298,9 @@ export class PrismaInventoryConsumptionBillingService implements InventoryConsum
     // This is a placeholder since `quantity_on_hand` is no longer on the Item model.
 
     // Create InventoryUsage record
-    const unitCostAtTime = inventoryItem.unit_cost;
+    const unitCostAtTime = typeof inventoryItem.unit_cost === 'number' 
+      ? inventoryItem.unit_cost 
+      : inventoryItem.unit_cost.toNumber();
     const totalCost = unitCostAtTime * item.quantityUsed;
 
     const usageRecord = await tx.inventoryUsage.create({
@@ -431,12 +434,15 @@ export class PrismaInventoryConsumptionBillingService implements InventoryConsum
         continue; // Skip missing items
       }
 
-      const totalCost = inventoryItem.unit_cost * item.plannedQuantity;
+      const unitCostNum = typeof inventoryItem.unit_cost === 'number' 
+        ? inventoryItem.unit_cost 
+        : inventoryItem.unit_cost.toNumber();
+      const totalCost = unitCostNum * item.plannedQuantity;
       lines.push({
         inventoryItemId: item.inventoryItemId,
         itemName: inventoryItem.name,
         plannedQuantity: item.plannedQuantity,
-        unitCost: inventoryItem.unit_cost,
+        unitCost: unitCostNum,
         totalCost,
         isBillable: inventoryItem.is_billable,
       });
@@ -465,9 +471,9 @@ export class PrismaInventoryConsumptionBillingService implements InventoryConsum
    * 3. Try to find a generic "Inventory Item" service
    * 4. If not found, create a Service with safe defaults
    */
-  private async resolveInventoryServiceId(
+   private async resolveInventoryServiceId(
     tx: Prisma.TransactionClient,
-    inventoryItem: { id: number; name: string; category: string; unit_cost: number }
+    inventoryItem: { id: number; name: string; category: string; unit_cost: number | Decimal }
   ): Promise<number> {
     // Strategy 1: Find by name pattern
     let service = await tx.service.findFirst({

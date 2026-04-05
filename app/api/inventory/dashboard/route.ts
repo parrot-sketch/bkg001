@@ -166,7 +166,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const totalValue = itemsWithCost.reduce((sum, item) => {
       const qty = item.batches.reduce((s, b) => s + b.quantity_remaining, 0);
-      return sum + (qty * (item.unit_cost || 0));
+      const unitCostNum = typeof item.unit_cost === 'number' 
+        ? item.unit_cost 
+        : (item.unit_cost ? item.unit_cost.toNumber() : 0);
+      return sum + (qty * unitCostNum);
     }, 0);
 
     // Calculate outOfStockItems count

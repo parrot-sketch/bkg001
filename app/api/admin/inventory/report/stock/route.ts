@@ -102,12 +102,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     let totalStockValue = 0;
     if (isAdmin) {
       for (const item of items) {
-        totalStockValue += item.quantity_on_hand * item.unit_cost;
+        const unitCostNum = typeof item.unit_cost === 'number' 
+          ? item.unit_cost 
+          : item.unit_cost.toNumber();
+        totalStockValue += item.quantity_on_hand * unitCostNum;
       }
     }
 
     // Format response (omit unit_cost for STORES)
     const formattedItems = items.map((item) => {
+      const unitCostNum = typeof item.unit_cost === 'number' 
+        ? item.unit_cost 
+        : item.unit_cost.toNumber();
       const base = {
         id: item.id,
         name: item.name,
@@ -123,8 +129,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       if (isAdmin) {
         return {
           ...base,
-          unitCost: item.unit_cost,
-          stockValue: item.quantity_on_hand * item.unit_cost,
+          unitCost: unitCostNum,
+          stockValue: item.quantity_on_hand * unitCostNum,
         };
       }
 

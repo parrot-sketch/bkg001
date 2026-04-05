@@ -14,21 +14,73 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaInventoryRepository } from '@/infrastructure/database/repositories/PrismaInventoryRepository';
+import { InventoryService } from '@/application/services/InventoryService';
 import db from '@/lib/db';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import { InventoryCategory } from '@/domain/enums/InventoryCategory';
+import { InventoryListQueryParamsSchema } from '@/lib/schema';
+import { ValidationError } from '@/application/errors/ValidationError';
+import { CreateItemSchema, ItemQuerySchema, formatValidationError } from '@/lib/validation/inventory';
+import type { CreateItem } from '@/lib/validation/inventory';
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+/**
+ * Enriched InventoryItem response that includes calculated balance
+ */
+interface InventoryItemWithBalance {
+  id: number;
+  name: string;
+  sku: string | null;
+  category: string;
+  description: string | null;
+  unitOfMeasure: string;
+  unitCost: number;
+  reorderPoint: number;
+  lowStockThreshold: number;
+  supplier: string | null;
+  manufacturer: string | null;
+  isActive: boolean;
+  isBillable: boolean;
+  isImplant: boolean;
+  quantityOnHand: number; // Calculated from transactions
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 const inventoryRepository = new PrismaInventoryRepository(db);
+const inventoryService = new InventoryService(inventoryRepository);
 
 /**
  * GET /api/inventory/items
  * 
- * List active inventory items. Optionally filter by category.
- * Query params: ?category=IMPLANT&lowStock=true
+ * List active inventory items with pagination and optional search/category filtering.
+ * Uses database-level filtering for scalability.
+ * 
+ * Query params (validated with ItemQuerySchema):
+ * - page: number (default: 1, min: 1)
+ * - limit: number (default: 20, max: 100)
+ * - search: string (optional, searches name and SKU, max 100 chars)
+ * - category: InventoryCategory (optional)
+ * - low_stock_only: boolean (optional, filters to low stock items)
+ * 
+ * Response includes quantityOnHand calculated from InventoryTransaction records.
+ * 
+ * Response:
+ * - 200: Items retrieved successfully
+ * - 400: Invalid query parameters
+ * - 401: Authentication required
+ * - 403: Access denied
+ * - 500: Internal server error
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
+    // ========================================================================
+    // AUTHENTICATION & AUTHORIZATION
+    // ========================================================================
     const authResult = await JwtMiddleware.authenticate(request);
     if (!authResult.success || !authResult.user) {
       return NextResponse.json(
@@ -45,52 +97,99 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
+    // ========================================================================
+    // PARSE AND VALIDATE QUERY PARAMETERS
+    // ========================================================================
     const { searchParams } = new URL(request.url);
-    const category = searchParams.get('category') as InventoryCategory | null;
-    const lowStock = searchParams.get('lowStock') === 'true';
-    const belowReorderOnly = searchParams.get('belowReorderOnly') === 'true';
-    const search = searchParams.get('search') || '';
-    const page = parseInt(searchParams.get('page') || '1', 10);
-    const pageSize = Math.min(parseInt(searchParams.get('pageSize') || '20', 10), 100);
+    const queryParams = {
+      page: searchParams.get('page'),
+      limit: searchParams.get('limit'),
+      search: searchParams.get('search'),
+      category: searchParams.get('category'),
+      low_stock_only: searchParams.get('low_stock_only'),
+    };
 
-    let items;
-    if (lowStock || belowReorderOnly) {
-      items = await inventoryRepository.findLowStockItems();
-    } else {
-      items = await inventoryRepository.findActiveItems(category || undefined);
-    }
-
-    // Client-side filtering for search
-    if (search.trim()) {
-      const searchLower = search.toLowerCase();
-      items = items.filter(
-        (item) =>
-          item.name.toLowerCase().includes(searchLower) ||
-          item.sku?.toLowerCase().includes(searchLower)
+    const validationResult = ItemQuerySchema.safeParse(queryParams);
+    if (!validationResult.success) {
+      return NextResponse.json(
+        formatValidationError(validationResult.error),
+        { status: 400 }
       );
     }
 
-    // Pagination
-    const totalCount = items.length;
-    const totalPages = Math.ceil(totalCount / pageSize);
-    const startIndex = (page - 1) * pageSize;
-    const endIndex = startIndex + pageSize;
-    const paginatedItems = items.slice(startIndex, endIndex);
+    const { page, limit, search, category, low_stock_only } = validationResult.data;
+
+    // ========================================================================
+    // FETCH ITEMS WITH DATABASE-LEVEL FILTERING & PAGINATION
+    // ========================================================================
+    const paginatedResult = await inventoryService.searchAndPaginateItems({
+      search: search || undefined,
+      category: (category && category !== '') ? category : undefined,
+      page,
+      limit,
+    });
+
+    // ========================================================================
+    // ENRICH ITEMS WITH BALANCE CALCULATION
+    // ========================================================================
+    // Calculate quantity_on_hand for each item from InventoryTransaction records.
+    // This ensures the balance is always current and audit-trail accurate.
+    let enrichedItems: InventoryItemWithBalance[] = await Promise.all(
+      paginatedResult.items.map(async (item) => {
+        const quantityOnHand = await inventoryRepository.getItemBalance(item.id);
+        return {
+          id: item.id,
+          name: item.name,
+          sku: item.sku,
+          category: item.category,
+          description: item.description,
+          unitOfMeasure: item.unitOfMeasure,
+          unitCost: item.unitCost,
+          reorderPoint: item.reorderPoint,
+          lowStockThreshold: item.lowStockThreshold,
+          supplier: item.supplier,
+          manufacturer: item.manufacturer,
+          isActive: item.isActive,
+          isBillable: item.isBillable,
+          isImplant: item.isImplant,
+          quantityOnHand,
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+        };
+      })
+    );
+
+    // ========================================================================
+    // APPLY LOW STOCK FILTER (if requested)
+    // ========================================================================
+    if (low_stock_only) {
+      enrichedItems = enrichedItems.filter(
+        (item) => item.quantityOnHand <= item.lowStockThreshold
+      );
+    }
 
     return NextResponse.json({
       success: true,
       data: {
-        data: paginatedItems,
+        data: enrichedItems,
         pagination: {
-          page,
-          pageSize,
-          totalCount,
-          totalPages,
+          total: paginatedResult.pagination.total,
+          page: paginatedResult.pagination.page,
+          limit: paginatedResult.pagination.limit,
+          totalPages: paginatedResult.pagination.totalPages,
         },
       },
     });
   } catch (error) {
     console.error('[API] GET /api/inventory/items - Error:', error);
+    
+    if (error instanceof ValidationError) {
+      return NextResponse.json(
+        { success: false, error: error.message, details: error.errors },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }
@@ -103,22 +202,34 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
  * 
  * Create a new inventory item. Admin only.
  * 
- * Request Body:
+ * Request Body (validated with CreateItemSchema):
  * {
- *   name: string,
- *   sku?: string,
+ *   name: string (required, 1-255 chars),
+ *   sku?: string (unique, 1-255 chars),
  *   category?: InventoryCategory,
- *   description?: string,
- *   unitOfMeasure?: string,
- *   unitCost: number,
- *   quantityOnHand?: number,
- *   reorderPoint?: number,
+ *   description?: string (max 1000 chars),
+ *   unit_of_measure?: string (default: "unit"),
+ *   unit_cost?: number (default: 0, min: 0),
+ *   reorder_point?: number (default: 0),
+ *   low_stock_threshold?: number (default: 0),
  *   supplier?: string,
- *   isBillable?: boolean,
+ *   manufacturer?: string,
+ *   is_billable?: boolean (default: true),
+ *   is_implant?: boolean (default: false),
  * }
+ * 
+ * Response:
+ * - 201: Item created successfully
+ * - 400: Validation failed or invalid JSON
+ * - 401: Authentication required
+ * - 403: Admin access required
+ * - 500: Internal server error
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    // ========================================================================
+    // AUTHENTICATION & AUTHORIZATION
+    // ========================================================================
     const authResult = await JwtMiddleware.authenticate(request);
     if (!authResult.success || !authResult.user) {
       return NextResponse.json(
@@ -134,6 +245,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
+    // ========================================================================
+    // PARSE REQUEST BODY
+    // ========================================================================
     let body: any;
     try {
       body = await request.json();
@@ -144,25 +258,35 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    if (!body.name) {
+    // ========================================================================
+    // VALIDATE REQUEST BODY
+    // ========================================================================
+    const validationResult = CreateItemSchema.safeParse(body);
+    if (!validationResult.success) {
       return NextResponse.json(
-        { success: false, error: 'name is required' },
+        formatValidationError(validationResult.error),
         { status: 400 }
       );
     }
 
+    const itemData: CreateItem = validationResult.data;
+
+    // ========================================================================
+    // CREATE ITEM
+    // ========================================================================
     const item = await inventoryRepository.createItem({
-      name: body.name,
-      sku: body.sku,
-      category: body.category,
-      description: body.description,
-      unitOfMeasure: body.unitOfMeasure,
-      unitCost: body.unitCost || 0,
-      reorderPoint: body.reorderPoint,
-      supplier: body.supplier,
-      manufacturer: body.manufacturer,
-      isBillable: body.isBillable,
-      isImplant: body.isImplant,
+      name: itemData.name,
+      sku: itemData.sku,
+      category: itemData.category || InventoryCategory.OTHER,
+      description: itemData.description,
+      unitOfMeasure: itemData.unit_of_measure,
+      unitCost: itemData.unit_cost,
+      reorderPoint: itemData.reorder_point,
+      lowStockThreshold: itemData.low_stock_threshold,
+      supplier: itemData.supplier,
+      manufacturer: itemData.manufacturer,
+      isBillable: itemData.is_billable,
+      isImplant: itemData.is_implant,
     });
 
     return NextResponse.json({
@@ -172,6 +296,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }, { status: 201 });
   } catch (error) {
     console.error('[API] POST /api/inventory/items - Error:', error);
+    
+    if (error instanceof ValidationError) {
+      return NextResponse.json(
+        { success: false, error: error.message, details: error.errors },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

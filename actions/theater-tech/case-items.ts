@@ -2,6 +2,7 @@
 
 import { getCurrentUser } from '@/lib/auth/server-auth';
 import db from '@/lib/db';
+import { Decimal } from '@prisma/client/runtime/library';
 import { revalidatePath } from 'next/cache';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -69,7 +70,10 @@ export async function addCaseItem(
 
     // If item is billable, create a SurgicalBillingLineItem on the estimate
     if (item.is_billable) {
-      await _upsertBillingLineItem(caseId, inventoryItemId, item.name, item.unit_cost, quantity, user.userId);
+      const unitCostNum = typeof item.unit_cost === 'number' 
+        ? item.unit_cost 
+        : item.unit_cost.toNumber();
+      await _upsertBillingLineItem(caseId, inventoryItemId, item.name, unitCostNum, quantity, user.userId);
     }
 
     revalidatePath(`/theater-tech/dashboard/${caseId}`);

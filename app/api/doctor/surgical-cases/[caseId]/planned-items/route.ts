@@ -208,12 +208,15 @@ export async function POST(
       const plannedItems = await Promise.all(
         validated.items.map(async (item) => {
           const inventoryItem = inventoryItems.find((i) => i.id === item.inventoryItemId)!;
+          const unitCostNum = typeof inventoryItem.unit_cost === 'number' 
+            ? inventoryItem.unit_cost 
+            : inventoryItem.unit_cost.toNumber();
           return tx.casePlanPlannedItem.create({
             data: {
               case_plan_id: casePlanId,
               inventory_item_id: item.inventoryItemId,
               planned_quantity: item.plannedQuantity,
-              planned_unit_price: inventoryItem.unit_cost,
+              planned_unit_price: unitCostNum,
               notes: item.notes || null,
               planned_by_user_id: userId,
             },
