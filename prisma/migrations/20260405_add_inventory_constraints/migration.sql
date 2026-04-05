@@ -9,6 +9,3 @@ ALTER TABLE "InventoryItem" ADD CONSTRAINT "chk_unit_cost_non_negative" CHECK ("
 
 -- Add check constraint for InventoryBatch quantity_remaining
 ALTER TABLE "InventoryBatch" ADD CONSTRAINT "chk_quantity_remaining_non_negative" CHECK ("quantity_remaining" >= 0);
-
--- Add check constraint for InventoryTransaction quantity
-ALTER TABLE "InventoryTransaction" ADD CONSTRAINT "chk_quantity_positive" CHECK ("quantity" > 0);

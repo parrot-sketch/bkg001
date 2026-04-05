@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { getTestDatabase } from '../setup/test-database';
+import { getTestDatabase } from '../../setup/test-database';
 import { PrismaInventoryRepository } from '@/infrastructure/database/repositories/PrismaInventoryRepository';
 import { InsufficientBatchQuantityError } from '@/application/errors';
 import { InventoryCategory } from '@/domain/enums/InventoryCategory';
@@ -34,7 +34,7 @@ describe('PrismaInventoryRepository.recordUsage() - Batch Decrement', () => {
           unit_cost: 10.0,
           is_active: true,
           is_billable: true,
-          sku: 'TEST-001',
+          sku: `TEST-${Date.now()}-0`,
         },
       });
 
@@ -52,6 +52,7 @@ describe('PrismaInventoryRepository.recordUsage() - Batch Decrement', () => {
         data: {
           email: 'nurse@test.com',
           role: 'NURSE',
+          password_hash: 'hashed_password_nurse',
         },
       });
 
@@ -81,7 +82,7 @@ describe('PrismaInventoryRepository.recordUsage() - Batch Decrement', () => {
           unit_cost: 50.0,
           is_active: true,
           is_billable: true,
-          sku: 'TEST-002',
+          sku: `TEST-${Date.now()}-1`,
         },
       });
 
@@ -99,6 +100,7 @@ describe('PrismaInventoryRepository.recordUsage() - Batch Decrement', () => {
         data: {
           email: 'nurse2@test.com',
           role: 'NURSE',
+          password_hash: 'hashed_password_nurse',
         },
       });
 
@@ -128,7 +130,7 @@ describe('PrismaInventoryRepository.recordUsage() - Batch Decrement', () => {
           unit_cost: 20.0,
           is_active: true,
           is_billable: true,
-          sku: 'TEST-003',
+          sku: `TEST-${Date.now()}-2`,
         },
       });
 
@@ -146,6 +148,7 @@ describe('PrismaInventoryRepository.recordUsage() - Batch Decrement', () => {
         data: {
           email: 'nurse3@test.com',
           role: 'NURSE',
+          password_hash: 'hashed_password_nurse',
         },
       });
 
@@ -182,7 +185,7 @@ describe('PrismaInventoryRepository.recordUsage() - Batch Decrement', () => {
           unit_cost: 15.0,
           is_active: true,
           is_billable: true,
-          sku: 'TEST-004',
+          sku: `TEST-${Date.now()}-3`,
         },
       });
 
@@ -200,6 +203,7 @@ describe('PrismaInventoryRepository.recordUsage() - Batch Decrement', () => {
         data: {
           email: 'nurse4@test.com',
           role: 'NURSE',
+          password_hash: 'hashed_password_nurse',
         },
       });
 
@@ -230,7 +234,7 @@ describe('PrismaInventoryRepository.recordUsage() - Batch Decrement', () => {
           unit_cost: 12.0,
           is_active: true,
           is_billable: true,
-          sku: 'TEST-005',
+          sku: `TEST-${Date.now()}-4`,
         },
       });
 
@@ -248,6 +252,7 @@ describe('PrismaInventoryRepository.recordUsage() - Batch Decrement', () => {
         data: {
           email: 'nurse5@test.com',
           role: 'NURSE',
+          password_hash: 'hashed_password_nurse',
         },
       });
 
@@ -286,7 +291,7 @@ describe('PrismaInventoryRepository.recordUsage() - Batch Decrement', () => {
           unit_cost: 5.0,
           is_active: true,
           is_billable: true,
-          sku: 'TEST-006',
+          sku: `TEST-${Date.now()}-5`,
         },
       });
 
@@ -316,6 +321,7 @@ describe('PrismaInventoryRepository.recordUsage() - Batch Decrement', () => {
         data: {
           email: 'nurse6@test.com',
           role: 'NURSE',
+          password_hash: 'hashed_password_nurse',
         },
       });
 
@@ -349,7 +355,7 @@ describe('PrismaInventoryRepository.recordUsage() - Batch Decrement', () => {
           unit_cost: 8.0,
           is_active: true,
           is_billable: true,
-          sku: 'TEST-007',
+          sku: `TEST-${Date.now()}-6`,
         },
       });
 
@@ -377,6 +383,7 @@ describe('PrismaInventoryRepository.recordUsage() - Batch Decrement', () => {
         data: {
           email: 'nurse7@test.com',
           role: 'NURSE',
+          password_hash: 'hashed_password_nurse',
         },
       });
 
@@ -409,7 +416,7 @@ describe('PrismaInventoryRepository.recordUsage() - Batch Decrement', () => {
           unit_cost: 3.0,
           is_active: true,
           is_billable: true,
-          sku: 'TEST-008',
+          sku: `TEST-${Date.now()}-7`,
         },
       });
 
@@ -437,6 +444,7 @@ describe('PrismaInventoryRepository.recordUsage() - Batch Decrement', () => {
         data: {
           email: 'nurse8@test.com',
           role: 'NURSE',
+          password_hash: 'hashed_password_nurse',
         },
       });
 
@@ -471,7 +479,7 @@ describe('PrismaInventoryRepository.recordUsage() - Batch Decrement', () => {
           unit_cost: 7.0,
           is_active: true,
           is_billable: true,
-          sku: 'TEST-009',
+          sku: `TEST-${Date.now()}-8`,
         },
       });
 
@@ -501,6 +509,7 @@ describe('PrismaInventoryRepository.recordUsage() - Batch Decrement', () => {
         data: {
           email: 'nurse9@test.com',
           role: 'NURSE',
+          password_hash: 'hashed_password_nurse',
         },
       });
 
@@ -531,7 +540,7 @@ describe('PrismaInventoryRepository.recordUsage() - Batch Decrement', () => {
           unit_cost: 6.0,
           is_active: true,
           is_billable: true,
-          sku: 'TEST-010',
+          sku: `TEST-${Date.now()}-9`,
         },
       });
 
@@ -559,6 +568,7 @@ describe('PrismaInventoryRepository.recordUsage() - Batch Decrement', () => {
         data: {
           email: 'nurse10@test.com',
           role: 'NURSE',
+          password_hash: 'hashed_password_nurse',
         },
       });
 
@@ -601,7 +611,7 @@ describe('PrismaInventoryRepository.recordUsage() - Batch Decrement', () => {
           unit_cost: 25.0,
           is_active: true,
           is_billable: true,
-          sku: 'TEST-011',
+          sku: `TEST-${Date.now()}-10`,
         },
       });
 
@@ -615,19 +625,49 @@ describe('PrismaInventoryRepository.recordUsage() - Batch Decrement', () => {
         },
       });
 
-      const user = await db.user.create({
-        data: {
-          email: 'nurse11@test.com',
-          role: 'NURSE',
-        },
-      });
+       const user = await db.user.create({
+         data: {
+           email: 'nurse11@test.com',
+           role: 'NURSE',
+           password_hash: 'hashed_password_nurse',
+         },
+       });
 
-      const surgicalCase = await (db as any).surgicalCase.create({
-        data: {
-          case_number: 'CASE-001',
-          status: 'SCHEDULED',
-        },
-      });
+        // Create patient for surgical case
+        const patient = await db.patient.create({
+          data: {
+            first_name: 'John',
+            last_name: 'Doe',
+            email: 'john@test.com',
+            phone: '1234567890',
+            date_of_birth: new Date('1980-01-01'),
+            gender: 'MALE',
+            file_number: `FILE-${Date.now()}`,
+            address: '123 Main St',
+          },
+        });
+
+        // Create surgeon for surgical case
+        const surgeon = await db.doctor.create({
+          data: {
+            first_name: 'Dr.',
+            last_name: 'Smith',
+            specialization: 'GENERAL_SURGERY',
+            license_number: 'LIC-001',
+            nmc_registration: 'NMC-001',
+            email: 'dr.smith@test.com',
+            user_id: user.id,
+          },
+        });
+
+       const surgicalCase = await (db as any).surgicalCase.create({
+         data: {
+           patient_id: patient.id,
+           primary_surgeon_id: surgeon.id,
+           case_number: 'CASE-001',
+           status: 'SCHEDULED',
+         },
+       });
 
       // Act
       const usage = (await repository.recordUsage({

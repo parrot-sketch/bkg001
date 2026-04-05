@@ -19,8 +19,17 @@ let testClient: PrismaClient | null = null;
 /**
  * Check if a database URL looks like a production/remote database.
  * Blocks connections to Aiven, Supabase, Neon, AWS RDS, and other cloud providers.
+ * 
+ * Allows localhost and 127.0.0.1 for local development.
  */
 function isProductionUrl(url: string): boolean {
+  const lower = url.toLowerCase();
+  
+  // Allow localhost and local IPs
+  if (lower.includes('localhost') || lower.includes('127.0.0.1') || lower.includes('0.0.0.0')) {
+    return false;
+  }
+  
   const productionPatterns = [
     'aivencloud.com',
     'supabase.co',
@@ -35,7 +44,6 @@ function isProductionUrl(url: string): boolean {
     'nairobisculpt',
     'nsac.co.ke',
   ];
-  const lower = url.toLowerCase();
   return productionPatterns.some((pattern) => lower.includes(pattern));
 }
 
