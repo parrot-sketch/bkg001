@@ -461,6 +461,11 @@ export class PrismaInventoryRepository implements IInventoryRepository {
    * - All deductions happen within a single transaction
    * 
    * Emits InventoryAuditEvent after successful recording.
+   * 
+   * DECIMAL TYPE SAFETY:
+   * - InventoryBatch.quantity_remaining is INTEGER (safe for direct < comparison)
+   * - InventoryItem.unit_cost is Decimal(10,2) - converted to number via .toNumber()
+   * - All arithmetic uses converted numbers, no direct Decimal operations
    */
   async recordUsage(dto: {
     inventoryItemId: number;
@@ -555,6 +560,8 @@ export class PrismaInventoryRepository implements IInventoryRepository {
       throw new Error(`Batch not found: ${batchId}`);
     }
 
+    // SAFE: quantity_remaining is INTEGER (not Decimal) in InventoryBatch schema
+    // Direct comparison with number is correct here
     if (batch.quantity_remaining < quantityUsed) {
       throw new InsufficientBatchQuantityError(
         batchId,
@@ -605,6 +612,7 @@ export class PrismaInventoryRepository implements IInventoryRepository {
     }
 
     // Calculate total available quantity
+    // SAFE: quantity_remaining is INTEGER (not Decimal), so reduce() produces accurate number sum
     const totalAvailable = batches.reduce((sum: number, b: any) => sum + b.quantity_remaining, 0);
     if (totalAvailable < quantityUsed) {
       throw new InsufficientBatchQuantityError(
