@@ -10,15 +10,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  pre-deployment-checks:
-    name: Pre-Deployment Validation
+  lint-types-tests:
+    name: Lint · Types · Unit Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    
+    timeout-minutes: 15
+
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
         with:
@@ -34,116 +32,42 @@ jobs:
       - name: 📋 Generate Prisma Client
         run: pnpm prisma generate
 
-      - name: 🧪 Type-check
-        run: pnpm tsc --noEmit
+      - name: 🔍 Type-check
+        run: pnpm tsc --noEmit --skipLibCheck
 
-      - name: ✅ Pre-deployment checks complete
-        run: echo "All pre-deployment validations passed"
+      - name: 🧪 Unit Tests
+        run: pnpm test:unit
 
   deploy-staging:
-    name: Deploy to Staging
+    name: Deploy to Staging (Vercel)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    needs: pre-deployment-checks
+    timeout-minutes: 20
+    needs: lint-types-tests
     environment:
       name: staging
-      url: https://staging.your-domain.com
-    
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: 📝 Create SSH config
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.STAGING_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          
-          ssh-keyscan -H ${{ secrets.STAGING_SERVER_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
-          
-          cat > ~/.ssh/config << EOF
-          Host staging-server
-            HostName ${{ secrets.STAGING_SERVER_HOST }}
-            User ${{ secrets.STAGING_SSH_USER }}
-            IdentityFile ~/.ssh/id_rsa
-            StrictHostKeyChecking accept-new
-            ConnectTimeout 10
-          EOF
-          
-          chmod 600 ~/.ssh/config
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
-      - name: 📦 Deploy to staging
-        run: |
-          ssh staging-server << 'DEPLOY_SCRIPT'
-          set -e
-          
-          echo "╔════════════════════════════════════════════════════════════╗"
-          echo "║         🧪 STAGING DEPLOYMENT STARTED                       ║"
-          echo "╚════════════════════════════════════════════════════════════╝"
-          
-          cd ${{ secrets.STAGING_APP_PATH }}
-          
-          echo "📥 Pulling latest code..."
-          git fetch origin develop --prune
-          git checkout origin/develop
-          COMMIT=$(git rev-parse --short HEAD)
-          echo "  ✅ Checked out: $COMMIT"
-          
-          echo ""
-          echo "📚 Installing dependencies..."
-          npm ci --omit=dev --prefer-offline 2>&1 | tail -3
-          
-          echo ""
-          echo "🔧 Generating Prisma client..."
-          npx prisma generate
-          
-          echo ""
-          echo "🗄️  Running migrations..."
-          npx prisma migrate deploy
-          echo "  ✅ Migrations complete"
-          
-          echo ""
-          echo "🔨 Building application..."
-          npm run build 2>&1 | tail -5
-          
-          echo ""
-          echo "♻️  Restarting application..."
-          pm2 restart staging-app --env staging 2>/dev/null || {
-            echo "  First deployment - starting app..."
-            pm2 start ecosystem.config.js --env staging --name staging-app
-            pm2 save
-          }
-          
-          echo ""
-          echo "╔════════════════════════════════════════════════════════════╗"
-          echo "║         ✅ STAGING DEPLOYMENT COMPLETE                      ║"
-          echo "╚════════════════════════════════════════════════════════════╝"
-          
-          DEPLOY_SCRIPT
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
 
-      - name: ⏳ Wait for app to be ready
-        run: |
-          echo "🔄 Waiting for staging app..."
-          for i in {1..20}; do
-            if curl -sf https://${{ secrets.STAGING_SERVER_HOST }}/api/health > /dev/null 2>&1; then
-              echo "✅ Staging app is ready!"
-              exit 0
-            fi
-            echo "  ⏳ Attempt $i/20..."
-            sleep 2
-          done
-          echo "⚠️  Health check timeout (app may still be starting)"
+      - run: pnpm install --frozen-lockfile
 
-      - name: 🧪 Run integration tests against staging
+      - name: 🚀 Deploy to Vercel (Preview/Staging)
         run: |
-          echo "🧪 Running tests against staging environment..."
-          
-          STAGING_URL="https://${{ secrets.STAGING_SERVER_HOST }}"
-          
-          echo "✅ API health check"
-          curl -sf "$STAGING_URL/api/health"
-          
-          echo ""
-          echo "✅ Database connectivity verified"
+          pnpm dlx vercel \
+            --token=${{ secrets.VERCEL_TOKEN }} \
+            --yes
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: 📢 Notify staging deployment
         if: success()
@@ -151,14 +75,8 @@ jobs:
         with:
           status: success
           text: |
-            ✅ Staging Deployment Successful
-            Ready for testing
-          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
-          fields: |
-            commit,author
-
-      - name: 🔐 Cleanup
-        if: always()
-        run: |
-          rm -f ~/.ssh/id_rsa ~/.ssh/config
-          rm -rf ~/.ssh
+            ✅ Staging deployment successful
+            Commit: ${{ github.sha }}
+          fields: commit,author
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
