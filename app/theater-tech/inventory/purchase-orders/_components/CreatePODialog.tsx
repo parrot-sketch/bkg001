@@ -50,7 +50,7 @@ export function CreatePODialog({ isOpen, onClose, onCreated }: {
     // Fetch items
     setIsLoadingItems(true);
     setItemError('');
-    apiClient.request<{ data: { data: CatalogItem[] } }>('/inventory/items?limit=500').then(r => {
+    apiClient.request<{ data: { data: CatalogItem[] } }>('/inventory/items?limit=100').then(r => {
       if (r.success) {
         setItems(r.data.data.data ?? []);
       } else {
