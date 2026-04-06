@@ -22,7 +22,13 @@ export default defineConfig({
       // appointment-scheduling uses FakeAppointmentRepository (no DB)
       'tests/integration/appointment-scheduling.test.ts',
     ],
-    exclude: ['node_modules/**'],
+    exclude: [
+      'node_modules/**',
+      // These tests require a real DB connection — run in integration job instead
+      '**/TheaterService.test.ts',
+      '**/ConsentFormDocumentService.phase2.test.ts',
+      '**/ConsentTemplateService.phase2.test.ts',
+    ],
     setupFiles: ['./tests/vitest.setup.unit.ts'],
     coverage: {
       provider: 'v8',

@@ -41,7 +41,7 @@ jobs:
         run: pnpm tsc --noEmit
 
       - name: Unit tests
-        run: pnpm vitest run --config vitest.config.unit.ts --exclude '**/TheaterService.test.ts' --exclude '**/ConsentFormDocumentService.phase2.test.ts' --exclude '**/ConsentTemplateService.phase2.test.ts' --exclude '**/timelineParsers.test.ts' --exclude '**/usedItemsParsers.test.ts' --exclude '**/billingSummaryParsers.test.ts' --exclude '**/riskFactorsMappers.test.ts' --exclude '**/MedicationService.test.ts'
+        run: pnpm test:unit
 
   # ──────────────────────────────────────────────────────────
   # TIER 2: Integration Tests  (Docker Postgres, every push/PR)
