@@ -90,8 +90,8 @@ jobs:
       - name: Generate Prisma Client
         run: pnpm prisma generate
 
-      - name: Push schema to test DB
-        run: pnpm prisma db push --skip-generate --accept-data-loss
+      - name: Apply migrations to test DB
+        run: pnpm prisma migrate deploy
 
       - name: Run integration tests
         run: pnpm vitest run --config vitest.config.integration.ts --exclude 'tests/integration/booking-concurrency.test.ts' --exclude 'tests/integration/check-in-flow.test.ts' --exclude 'tests/integration/frontdesk-theater-booking.test.ts' --exclude 'tests/integration/team-assignment.test.ts' --exclude 'tests/integration/auth/**' --exclude 'tests/integration/consents-phase2/**' --exclude 'tests/integration/frontdesk-booking/**' --exclude 'tests/integration/inventory-billing/**' --exclude 'tests/integration/surgical-plan/**' --exclude 'tests/integration/theater-tech/**'
