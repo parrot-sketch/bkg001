@@ -107,11 +107,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // ========================================================================
     const { searchParams } = new URL(request.url);
     const queryParams = {
-      page: searchParams.get('page'),
-      limit: searchParams.get('limit'),
-      search: searchParams.get('search'),
-      category: searchParams.get('category'),
-      low_stock_only: searchParams.get('low_stock_only'),
+      page: searchParams.get('page') ?? undefined,
+      limit: searchParams.get('limit') ?? undefined,
+      search: searchParams.get('search') ?? undefined,
+      category: searchParams.get('category') ?? undefined,
+      low_stock_only: searchParams.get('low_stock_only') ?? undefined,
     };
 
     const validationResult = ItemQuerySchema.safeParse(queryParams);

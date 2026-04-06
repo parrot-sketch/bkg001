@@ -22,14 +22,46 @@ export function CreatePODialog({ isOpen, onClose, onCreated }: {
   const [lines, setLines] = useState<POLine[]>([{ itemName: '', inventoryItemId: null, quantityOrdered: 1, unitPrice: 0 }]);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingVendors, setIsLoadingVendors] = useState(false);
+  const [isLoadingItems, setIsLoadingItems] = useState(false);
+  const [vendorError, setVendorError] = useState('');
+  const [itemError, setItemError] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
+    
+    // Fetch vendors
+    setIsLoadingVendors(true);
+    setVendorError('');
     apiClient.request<{ data: Vendor[] }>('/stores/vendors?pageSize=200').then(r => {
-      if (r.success) setVendors(r.data.data ?? []);
+      if (r.success) {
+        setVendors(r.data.data ?? []);
+      } else {
+        setVendorError('Failed to load vendors. Please try again.');
+        console.error('Vendor load error:', r.error);
+      }
+      setIsLoadingVendors(false);
+    }).catch(err => {
+      setVendorError('Error loading vendors');
+      console.error(err);
+      setIsLoadingVendors(false);
     });
-    apiClient.request<{ data: { data: CatalogItem[] } }>('/inventory/items?pageSize=500').then(r => {
-      if (r.success) setItems(r.data.data.data ?? []);
+
+    // Fetch items
+    setIsLoadingItems(true);
+    setItemError('');
+    apiClient.request<{ data: { data: CatalogItem[] } }>('/inventory/items?limit=500').then(r => {
+      if (r.success) {
+        setItems(r.data.data.data ?? []);
+      } else {
+        setItemError('Failed to load inventory items.');
+        console.error('Item load error:', r.error);
+      }
+      setIsLoadingItems(false);
+    }).catch(err => {
+      setItemError('Error loading inventory items');
+      console.error(err);
+      setIsLoadingItems(false);
     });
   }, [isOpen]);
 
@@ -86,23 +118,45 @@ export function CreatePODialog({ isOpen, onClose, onCreated }: {
         <div className="space-y-4 py-2">
           <div className="space-y-2">
             <Label>Vendor <span className="text-red-500">*</span></Label>
-            <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={vendorId} onChange={e => setVendorId(e.target.value)}>
-              <option value="">Select Vendor...</option>
+            {vendorError && (
+              <div className="p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                {vendorError}
+              </div>
+            )}
+            <select 
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              value={vendorId} 
+              onChange={e => setVendorId(e.target.value)}
+              disabled={isLoadingVendors || vendors.length === 0}
+            >
+              <option value="">
+                {isLoadingVendors ? 'Loading vendors...' : vendors.length === 0 ? 'No vendors available' : 'Select Vendor...'}
+              </option>
               {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
             </select>
           </div>
 
           <div className="space-y-2">
             <Label>Line Items</Label>
+            {itemError && (
+              <div className="p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-700">
+                {itemError}
+              </div>
+            )}
             <div className="space-y-2">
               {lines.map((line, idx) => (
                 <div key={idx} className="flex items-end gap-2 p-2 border rounded-lg bg-muted/30">
                   <div className="flex-1 space-y-1">
                     <Label className="text-xs">Item</Label>
-                    <select className="flex h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
-                      value={line.inventoryItemId ?? ''} onChange={e => updateLine(idx, 'inventoryItemId', e.target.value)}>
-                      <option value="">Select or type below...</option>
+                    <select 
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      value={line.inventoryItemId ?? ''} 
+                      onChange={e => updateLine(idx, 'inventoryItemId', e.target.value)}
+                      disabled={isLoadingItems || items.length === 0}
+                    >
+                      <option value="">
+                        {isLoadingItems ? 'Loading...' : items.length === 0 ? 'No items' : 'Select or type below...'}
+                      </option>
                       {items.map(it => <option key={it.id} value={it.id}>{it.name}{it.sku ? ` (${it.sku})` : ''}</option>)}
                     </select>
                   </div>

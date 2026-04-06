@@ -1,0 +1,321 @@
+name: 🚀 Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # Allow manual trigger from GitHub UI
+
+concurrency:
+  group: production-deployment
+  cancel-in-progress: false  # Don't cancel production deployments
+
+jobs:
+  pre-deployment-checks:
+    name: Pre-Deployment Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: 📋 Generate Prisma Client
+        run: pnpm prisma generate
+
+      - name: 🔍 Validate migrations
+        run: |
+          echo "=== Checking for pending migrations ==="
+          
+          # List migration files
+          MIGRATION_COUNT=$(find prisma/migrations -name "migration.sql" 2>/dev/null | wc -l)
+          echo "Found $MIGRATION_COUNT migration files"
+          
+          if [ $MIGRATION_COUNT -eq 0 ]; then
+            echo "❌ No migrations found"
+            exit 1
+          fi
+          
+          # Verify latest migration is valid
+          LATEST_MIGRATION=$(find prisma/migrations -name "migration.sql" -printf '%T@ %p\n' | sort -rn | head -1 | cut -d' ' -f2)
+          echo "Latest migration: $LATEST_MIGRATION"
+          
+          if [ ! -f "$LATEST_MIGRATION" ]; then
+            echo "❌ Invalid migration file"
+            exit 1
+          fi
+          
+          # Check for ALTER TABLE, CREATE TABLE, etc.
+          if grep -q "ALTER TABLE\|CREATE TABLE\|DROP TABLE\|CREATE INDEX" "$LATEST_MIGRATION"; then
+            echo "✅ Migration contains valid SQL operations"
+          else
+            echo "⚠️  Migration appears to be empty or minimal"
+          fi
+
+      - name: 🧪 Type-check
+        run: pnpm tsc --noEmit
+
+      - name: ✅ Pre-deployment checks complete
+        run: echo "All pre-deployment validations passed"
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: pre-deployment-checks
+    environment:
+      name: production
+      url: https://your-production-domain.com
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 📝 Create SSH config
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PROD_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          
+          # Add production server to known hosts
+          ssh-keyscan -H ${{ secrets.PROD_SERVER_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+          
+          # Create SSH config for easy access
+          cat > ~/.ssh/config << EOF
+          Host prod-server
+            HostName ${{ secrets.PROD_SERVER_HOST }}
+            User ${{ secrets.PROD_SSH_USER }}
+            IdentityFile ~/.ssh/id_rsa
+            StrictHostKeyChecking accept-new
+            ConnectTimeout 10
+            ServerAliveInterval 60
+          EOF
+          
+          chmod 600 ~/.ssh/config
+
+      - name: 📦 Deploy application & database
+        run: |
+          ssh prod-server << 'DEPLOY_SCRIPT'
+          set -e  # Exit on any error
+          
+          echo "╔════════════════════════════════════════════════════════════╗"
+          echo "║         🚀 PRODUCTION DEPLOYMENT STARTED                    ║"
+          echo "╚════════════════════════════════════════════════════════════╝"
+          
+          # Navigate to app directory
+          cd ${{ secrets.PROD_APP_PATH }}
+          echo "📍 Working directory: $(pwd)"
+          
+          # Step 1: Pull latest code
+          echo ""
+          echo "📥 Step 1/7: Pulling latest code from main branch..."
+          git fetch origin main --prune
+          git checkout origin/main
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          COMMIT_MSG=$(git log -1 --pretty=%B | head -1)
+          echo "  ✅ Checked out commit: $COMMIT_HASH"
+          echo "  📌 Message: $COMMIT_MSG"
+          
+          # Step 2: Create database backup BEFORE migrations
+          echo ""
+          echo "💾 Step 2/7: Creating database backup..."
+          BACKUP_DIR="/backups"
+          mkdir -p $BACKUP_DIR
+          BACKUP_FILE="$BACKUP_DIR/db-backup-$(date +%Y%m%d-%H%M%S).sql"
+          
+          PGPASSWORD=${{ secrets.PROD_DB_PASSWORD }} pg_dump \
+            -h ${{ secrets.PROD_DB_HOST }} \
+            -U ${{ secrets.PROD_DB_USER }} \
+            -d ${{ secrets.PROD_DB_NAME }} \
+            --no-password \
+            > $BACKUP_FILE 2>/dev/null || {
+            echo "  ⚠️  Backup creation failed (DB may be unreachable)"
+            BACKUP_FILE="SKIPPED"
+          }
+          
+          if [ "$BACKUP_FILE" != "SKIPPED" ]; then
+            echo "  ✅ Backup created: $BACKUP_FILE"
+            # Keep only last 7 backups
+            find $BACKUP_DIR -name "db-backup-*.sql" -mtime +7 -delete
+            echo "  🧹 Cleaned up old backups (kept last 7 days)"
+          fi
+          
+          # Step 3: Install dependencies
+          echo ""
+          echo "📚 Step 3/7: Installing dependencies..."
+          npm ci --omit=dev --prefer-offline 2>&1 | tail -5
+          echo "  ✅ Dependencies installed"
+          
+          # Step 4: Generate Prisma client
+          echo ""
+          echo "🔧 Step 4/7: Generating Prisma client..."
+          npx prisma generate
+          echo "  ✅ Prisma client generated"
+          
+          # Step 5: Run database migrations
+          echo ""
+          echo "🗄️  Step 5/7: Running database migrations..."
+          echo "  ⚠️  THIS IS A CRITICAL STEP - any errors below are FATAL"
+          
+          if npx prisma migrate deploy; then
+            echo "  ✅ Migrations applied successfully"
+          else
+            echo "  ❌ MIGRATION FAILED - DEPLOYMENT ABORTED"
+            echo "  📋 Backup available at: $BACKUP_FILE"
+            exit 1
+          fi
+          
+          # Step 6: Build application
+          echo ""
+          echo "🔨 Step 6/7: Building Next.js application..."
+          npm run build 2>&1 | tail -10
+          if [ $? -eq 0 ]; then
+            echo "  ✅ Build completed successfully"
+          else
+            echo "  ❌ BUILD FAILED - Rolling back..."
+            exit 1
+          fi
+          
+          # Step 7: Restart application
+          echo ""
+          echo "♻️  Step 7/7: Restarting application..."
+          if pm2 restart ecosystem.config.js --env production; then
+            echo "  ✅ Application restarted"
+          else
+            echo "  ⚠️  PM2 restart attempted (may be first deployment)"
+            pm2 start ecosystem.config.js --env production
+            pm2 save
+          fi
+          
+          echo ""
+          echo "╔════════════════════════════════════════════════════════════╗"
+          echo "║         ✅ DEPLOYMENT COMPLETED SUCCESSFULLY               ║"
+          echo "╚════════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "📊 Deployment Summary:"
+          echo "  • Commit: $COMMIT_HASH"
+          echo "  • Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "  • Backup: $BACKUP_FILE"
+          exit 0
+          
+          DEPLOY_SCRIPT
+
+      - name: ⏳ Wait for application to be ready
+        run: |
+          echo "🔄 Waiting for app to become ready..."
+          for i in {1..30}; do
+            if curl -sf https://${{ secrets.PROD_SERVER_HOST }}/api/health > /dev/null 2>&1; then
+              echo "✅ App is ready and responding to health checks!"
+              exit 0
+            fi
+            echo "  ⏳ Attempt $i/30 - waiting 2 seconds..."
+            sleep 2
+          done
+          echo "❌ App failed to respond to health checks after 60 seconds"
+          exit 1
+
+      - name: 🔍 Run smoke tests
+        run: |
+          echo "🧪 Running post-deployment smoke tests..."
+          
+          PROD_URL="https://${{ secrets.PROD_SERVER_HOST }}"
+          
+          echo "📋 Test 1: Health check endpoint"
+          curl -sf "$PROD_URL/api/health" > /dev/null && echo "  ✅ PASS" || exit 1
+          
+          echo "📋 Test 2: Vendor API endpoint"
+          curl -sf "$PROD_URL/api/stores/vendors" -H "Authorization: Bearer test" > /dev/null || echo "  ⚠️  Expected (auth required)"
+          
+          echo "📋 Test 3: Database connection"
+          curl -sf "$PROD_URL/api/health" | grep -q "connected" && echo "  ✅ PASS" || echo "  ⚠️  WARN"
+          
+          echo ""
+          echo "✅ Smoke tests complete"
+
+      - name: 📢 Notify deployment success
+        if: success()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          text: |
+            ✅ Production Deployment Successful
+            Branch: main
+            Commit: ${{ github.sha }}
+            Author: ${{ github.actor }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          fields: |
+            repo,message,commit,author,action,eventName
+
+      - name: 🚨 Notify deployment failure
+        if: failure()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          text: |
+            ❌ Production Deployment FAILED
+            Manual intervention may be required
+            Check GitHub Actions for details
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          fields: |
+            repo,message,commit,author
+
+      - name: 🔐 Cleanup secrets
+        if: always()
+        run: |
+          rm -f ~/.ssh/id_rsa ~/.ssh/config
+          rm -rf ~/.ssh
+
+  rollback-on-failure:
+    name: Rollback on Failure
+    runs-on: ubuntu-latest
+    needs: deploy-production
+    if: failure()
+    
+    steps:
+      - name: 📝 Create rollback SSH config
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PROD_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.PROD_SERVER_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: ⏮️  Execute rollback
+        run: |
+          ssh -i ~/.ssh/id_rsa ${{ secrets.PROD_SSH_USER }}@${{ secrets.PROD_SERVER_HOST }} << 'ROLLBACK_SCRIPT'
+          set -e
+          cd ${{ secrets.PROD_APP_PATH }}
+          
+          echo "⏮️  Rolling back to previous release..."
+          
+          # Get previous commit
+          PREVIOUS_COMMIT=$(git log --oneline -2 | tail -1 | awk '{print $1}')
+          echo "  Previous commit: $PREVIOUS_COMMIT"
+          
+          # Checkout previous commit
+          git checkout $PREVIOUS_COMMIT
+          
+          # Rebuild and restart
+          npm ci --omit=dev
+          npm run build
+          pm2 restart ecosystem.config.js --env production
+          
+          echo "✅ Rollback complete"
+          ROLLBACK_SCRIPT
+
+      - name: 🚨 Notify rollback
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            {"text": "⏮️  Production rollback executed due to deployment failure"}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}

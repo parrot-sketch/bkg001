@@ -15,8 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getSkuPrefix } from '@/lib/inventory/sku-prefixes';
 import { InventoryCategory } from '@/domain/enums/InventoryCategory';
-
-const UOM_OPTIONS = ['Unit', 'Pack', 'Box', 'Vial', 'Bottle', 'Pair', 'Set', 'Bag', 'Canister', 'Tube', 'Strip'];
+import { UnitOfMeasureInput } from './UnitOfMeasureInput';
 
 function generateSku(name: string, category: string): string {
     try {
@@ -48,7 +47,7 @@ export function CreateItemDialog({ open, onOpenChange, onSuccess }: { open: bool
     // Form State
     const [name, setName] = useState('');
     const [sku, setSku] = useState('');
-    const [category, setCategory] = useState('MEDICATION');
+    const [category, setCategory] = useState(InventoryCategory.MEDICATION);
     const [uom, setUom] = useState('Unit');
     const [reorderPoint, setReorderPoint] = useState('10');
     const [isImplant, setIsImplant] = useState(false);
@@ -78,10 +77,10 @@ export function CreateItemDialog({ open, onOpenChange, onSuccess }: { open: bool
                     name,
                     sku: sku || undefined,
                     category,
-                    unitOfMeasure: uom,
-                    unitCost: 0,
-                    reorderPoint: parseInt(reorderPoint) || 0,
-                    isImplant: isImplant,
+                    unit_of_measure: uom,
+                    unit_cost: 0,
+                    reorder_point: parseInt(reorderPoint) || 0,
+                    is_implant: isImplant,
                     manufacturer: manufacturer || undefined,
                 })
             });
@@ -105,7 +104,7 @@ export function CreateItemDialog({ open, onOpenChange, onSuccess }: { open: bool
     const resetForm = () => {
         setName('');
         setSku('');
-        setCategory('MEDICATION');
+        setCategory(InventoryCategory.MEDICATION);
         setUom('Unit');
         setReorderPoint('10');
         setIsImplant(false);
@@ -159,28 +158,30 @@ export function CreateItemDialog({ open, onOpenChange, onSuccess }: { open: bool
                             <select
                                 id="category"
                                 value={category}
-                                onChange={(e) => setCategory(e.target.value)}
+                                onChange={(e) => setCategory(e.target.value as InventoryCategory)}
                                 className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                                <option value="MEDICATION">Medication</option>
-                                <option value="CONSUMABLE">Consumable</option>
-                                <option value="EQUIPMENT">Equipment</option>
-                                <option value="IMPLANT">Implant</option>
-                                <option value="OTHER">Other</option>
+                                <option value={InventoryCategory.IMPLANT}>Implant</option>
+                                <option value={InventoryCategory.SUTURE}>Suture</option>
+                                <option value={InventoryCategory.ANESTHETIC}>Anesthetic</option>
+                                <option value={InventoryCategory.MEDICATION}>Medication</option>
+                                <option value={InventoryCategory.DISPOSABLE}>Disposable</option>
+                                <option value={InventoryCategory.INSTRUMENT}>Instrument</option>
+                                <option value={InventoryCategory.DRESSING}>Dressing</option>
+                                <option value={InventoryCategory.SPECIMEN_CONTAINER}>Specimen Container</option>
+                                <option value={InventoryCategory.OTHER}>Other</option>
                             </select>
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="uom" className="text-right">Unit of Measure</Label>
-                            <select
-                                id="uom"
-                                value={uom}
-                                onChange={(e) => setUom(e.target.value)}
-                                className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                {UOM_OPTIONS.map((option) => (
-                                    <option key={option} value={option}>{option}</option>
-                                ))}
-                            </select>
+                            <div className="col-span-4">
+                                <UnitOfMeasureInput
+                                    id="uom"
+                                    value={uom}
+                                    onChange={setUom}
+                                    label="Unit of Measure"
+                                    showLabel={true}
+                                />
+                            </div>
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="reorder" className="text-right">Reorder Point</Label>

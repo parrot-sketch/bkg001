@@ -96,13 +96,13 @@ export const inventoryPlanningApi = {
     category?: InventoryCategory;
     search?: string;
     page?: number;
-    pageSize?: number;
+    limit?: number;
   }): Promise<ApiResponse<InventoryItemsResponse>> {
     const queryParams = new URLSearchParams();
     if (params.category) queryParams.set('category', params.category);
     if (params.search) queryParams.set('search', params.search);
     if (params.page) queryParams.set('page', params.page.toString());
-    if (params.pageSize) queryParams.set('pageSize', params.pageSize.toString());
+    if (params.limit) queryParams.set('limit', params.limit.toString());
 
     const query = queryParams.toString();
     return apiClient.get<InventoryItemsResponse>(

@@ -66,7 +66,7 @@ function ItemsContent() {
       if (categoryFilter && categoryFilter !== 'all') params.set('category', categoryFilter);
       if (belowReorderOnly) params.set('belowReorderOnly', 'true');
       params.set('page', page.toString());
-      params.set('pageSize', '20');
+      params.set('limit', '20');
 
       const response = await apiClient.request<ItemsResponse>(`/inventory/items?${params}`);
       if (response.success) {

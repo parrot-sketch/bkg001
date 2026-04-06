@@ -58,7 +58,7 @@ interface PurchaseOrderItem {
   quantity_ordered: number;
   quantity_received: number;
   unit_price: number;
-  total_price: number;
+  line_total: number;
 }
 
 interface Vendor {
@@ -74,7 +74,6 @@ interface PurchaseOrder {
   vendor: Vendor;
   items: PurchaseOrderItem[];
   created_at: string;
-  submitted_at: string | null;
   approved_at: string | null;
 }
 

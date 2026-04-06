@@ -5,6 +5,13 @@
 import { z } from 'zod';
 import { ValidationError } from '@/application/errors/ValidationError';
 
+/**
+ * Kenya Revenue Authority PIN validation
+ * Format: A[0-9]{9}[A-Z]
+ * Example: A012345678B
+ */
+const KRA_PIN_REGEX = /^A\d{9}[A-Z]$/;
+
 export const CreateVendorSchema = z.object({
   name: z.string().min(1, 'Vendor name is required').max(255),
   contactPerson: z.string().max(255).optional(),
@@ -12,6 +19,12 @@ export const CreateVendorSchema = z.object({
   phone: z.string().max(50).optional(),
   address: z.string().max(500).optional(),
   taxId: z.string().max(100).optional(),
+  kraPinRef: z
+    .string()
+    .regex(KRA_PIN_REGEX, 'Invalid KRA PIN format. Expected format: A012345678X')
+    .max(20)
+    .optional(),
+  etimsRegistered: z.boolean().optional().default(false),
   paymentTerms: z.string().max(255).optional(),
   notes: z.string().optional(),
 });
@@ -23,6 +36,12 @@ export const UpdateVendorSchema = z.object({
   phone: z.string().max(50).optional(),
   address: z.string().max(500).optional(),
   taxId: z.string().max(100).optional(),
+  kraPinRef: z
+    .string()
+    .regex(KRA_PIN_REGEX, 'Invalid KRA PIN format. Expected format: A012345678X')
+    .max(20)
+    .optional(),
+  etimsRegistered: z.boolean().optional(),
   paymentTerms: z.string().max(255).optional(),
   notes: z.string().optional(),
   isActive: z.boolean().optional(),

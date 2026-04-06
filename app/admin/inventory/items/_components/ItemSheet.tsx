@@ -13,6 +13,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { InventoryCategory } from '@/domain/enums/InventoryCategory';
+import { UnitOfMeasureInput } from './UnitOfMeasureInput';
 
 export interface InventoryItemFormData {
     id?: number;
@@ -39,7 +41,7 @@ export function ItemSheet({ open, onOpenChange, onSuccess, initialData }: ItemSh
     const [formData, setFormData] = useState<InventoryItemFormData>({
         name: '',
         sku: '',
-        category: 'MEDICATION',
+        category: InventoryCategory.MEDICATION,
         uom: 'Unit',
         reorderPoint: '10',
         isImplant: false,
@@ -75,10 +77,10 @@ export function ItemSheet({ open, onOpenChange, onSuccess, initialData }: ItemSh
                     name: formData.name,
                     sku: formData.sku || undefined,
                     category: formData.category,
-                    unitOfMeasure: formData.uom,
-                    unitCost: 0,
-                    reorderPoint: parseInt(formData.reorderPoint) || 0,
-                    isImplant: formData.isImplant,
+                    unit_of_measure: formData.uom,
+                    unit_cost: 0,
+                    reorder_point: parseInt(formData.reorderPoint) || 0,
+                    is_implant: formData.isImplant,
                     manufacturer: formData.manufacturer || undefined,
                 })
             });
@@ -103,7 +105,7 @@ export function ItemSheet({ open, onOpenChange, onSuccess, initialData }: ItemSh
         setFormData({
             name: '',
             sku: '',
-            category: 'MEDICATION',
+            category: InventoryCategory.MEDICATION,
             uom: 'Unit',
             reorderPoint: '10',
             isImplant: false,
@@ -165,24 +167,27 @@ export function ItemSheet({ open, onOpenChange, onSuccess, initialData }: ItemSh
                                     onChange={(e) => handleChange('category', e.target.value)}
                                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                    <option value="MEDICATION">Medication</option>
-                                    <option value="CONSUMABLE">Consumable</option>
-                                    <option value="EQUIPMENT">Equipment</option>
-                                    <option value="IMPLANT">Implant</option>
-                                    <option value="SUTURE">Suture</option>
-                                    <option value="OTHER">Other</option>
+                                    <option value={InventoryCategory.IMPLANT}>Implant</option>
+                                    <option value={InventoryCategory.SUTURE}>Suture</option>
+                                    <option value={InventoryCategory.ANESTHETIC}>Anesthetic</option>
+                                    <option value={InventoryCategory.MEDICATION}>Medication</option>
+                                    <option value={InventoryCategory.DISPOSABLE}>Disposable</option>
+                                    <option value={InventoryCategory.INSTRUMENT}>Instrument</option>
+                                    <option value={InventoryCategory.DRESSING}>Dressing</option>
+                                    <option value={InventoryCategory.SPECIMEN_CONTAINER}>Specimen Container</option>
+                                    <option value={InventoryCategory.OTHER}>Other</option>
                                 </select>
                             </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="uom">Unit of Measure</Label>
-                                <Input
+                            <div>
+                                <UnitOfMeasureInput
                                     id="uom"
                                     value={formData.uom}
-                                    onChange={(e) => handleChange('uom', e.target.value)}
-                                    placeholder="e.g. Box, Pcs"
+                                    onChange={(value) => handleChange('uom', value)}
+                                    label="Unit of Measure"
+                                    showLabel={true}
                                 />
                             </div>
                             <div className="space-y-2">

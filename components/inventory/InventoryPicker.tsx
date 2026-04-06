@@ -49,7 +49,7 @@ export function InventoryPicker({ onSelect, className, placeholder = "Search inv
     const fetchItems = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/inventory/items?pageSize=100');
+            const res = await fetch('/api/inventory/items?limit=100');
             const result = await res.json();
             if (result.success) {
                 setItems(result.data.data);

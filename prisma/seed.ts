@@ -1651,9 +1651,9 @@ async function main() {
         vendor_id: vendor1.id,
         po_number: `PO-${new Date().getFullYear()}-001`,
         status: 'APPROVED',
+        subtotal: 15000,
         total_amount: 15000,
-        created_by_user_id: storesUser.id,
-        submitted_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+        ordered_by_user_id: storesUser.id,
         approved_by_user_id: adminUser.id,
         approved_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
         notes: 'Monthly restocking order',
@@ -1664,21 +1664,21 @@ async function main() {
               item_name: inventoryItems[0].name,
               quantity_ordered: 30,
               unit_price: 250,
-              total_price: 7500,
+              line_total: 7500,
             },
             {
               inventory_item_id: inventoryItems[2].id, // Gloves
               item_name: inventoryItems[2].name,
               quantity_ordered: 100,
               unit_price: 15,
-              total_price: 1500,
+              line_total: 1500,
             },
             {
               inventory_item_id: inventoryItems[3].id, // Masks
               item_name: inventoryItems[3].name,
               quantity_ordered: 200,
               unit_price: 10,
-              total_price: 2000,
+              line_total: 2000,
             },
           ]
         }

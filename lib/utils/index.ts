@@ -5,6 +5,49 @@
  * These are pure functions with no dependencies on frameworks or infrastructure.
  */
 
+/**
+ * Converts Prisma Decimal fields to numbers for serialization to client components.
+ * Recursively processes objects and arrays, converting any Decimal objects to numbers.
+ * 
+ * @param obj - Object that may contain Decimal fields (from Prisma)
+ * @returns Serializable object with all Decimals converted to numbers
+ */
+export function serializeDecimal<T>(obj: T): T {
+  if (obj === null || obj === undefined) return obj;
+
+  // Handle Decimal objects (Prisma's Decimal type)
+  if (typeof obj === 'object' && 'toNumber' in obj) {
+    return (obj as any).toNumber() as T;
+  }
+
+  // Handle arrays
+  if (Array.isArray(obj)) {
+    return obj.map(item => serializeDecimal(item)) as T;
+  }
+
+  // Handle plain objects
+  if (typeof obj === 'object' && obj.constructor === Object) {
+    const result: any = {};
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        result[key] = serializeDecimal((obj as any)[key]);
+      }
+    }
+    return result as T;
+  }
+
+  // Return primitives as-is
+  return obj;
+}
+
+/**
+ * Converts a Prisma InventoryItem to a serializable form for client components.
+ * Specifically handles the Decimal unit_cost field.
+ */
+export function serializeInventoryItem(item: any): any {
+  return serializeDecimal(item);
+}
+
 export function formatNumber(amount: number): string {
   return amount?.toLocaleString("en-US", {
     maximumFractionDigits: 0,

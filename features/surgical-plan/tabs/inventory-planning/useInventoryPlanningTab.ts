@@ -143,7 +143,7 @@ export function useInventoryPlanningTab(
         categories.map((category) =>
           inventoryPlanningApi.getInventoryItems({
             category,
-            pageSize: 100,
+            limit: 100,
             search: searchQuery || undefined,
           })
         )

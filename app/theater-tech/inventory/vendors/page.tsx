@@ -84,7 +84,7 @@ function VendorsContent() {
         method: 'POST',
         body: JSON.stringify({
           name: formName,
-          contact_person: formContact || undefined,
+          contactPerson: formContact || undefined,
           email: formEmail || undefined,
           phone: formPhone || undefined,
           address: formAddress || undefined,

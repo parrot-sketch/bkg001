@@ -43,20 +43,9 @@ export const InventoryCategorySchema = z.enum([
  * - low_stock_only: optional boolean (coerced from string)
  */
 export const ItemQuerySchema = z.object({
-  page: z
-    .coerce
-    .number()
-    .int('Page must be an integer')
-    .min(1, 'Page must be at least 1')
-    .default(1),
+  page: z.coerce.number().int('Page must be an integer').min(1, 'Page must be at least 1').catch(1).default(1),
   
-  limit: z
-    .coerce
-    .number()
-    .int('Limit must be an integer')
-    .min(1, 'Limit must be at least 1')
-    .max(100, 'Limit cannot exceed 100 items per request')
-    .default(20),
+  limit: z.coerce.number().int('Limit must be an integer').min(1, 'Limit must be at least 1').max(100, 'Limit cannot exceed 100 items per request').catch(20).default(20),
   
   search: z
     .string()

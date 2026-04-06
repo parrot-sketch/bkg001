@@ -15,6 +15,8 @@ export interface CreateVendorDto {
   phone?: string;
   address?: string;
   taxId?: string;
+  kraPinRef?: string;
+  etimsRegistered?: boolean;
   paymentTerms?: string;
   notes?: string;
 }
@@ -26,6 +28,8 @@ export interface UpdateVendorDto {
   phone?: string;
   address?: string;
   taxId?: string;
+  kraPinRef?: string;
+  etimsRegistered?: boolean;
   paymentTerms?: string;
   notes?: string;
   isActive?: boolean;
@@ -49,6 +53,8 @@ export class VendorService {
         phone: dto.phone || null,
         address: dto.address || null,
         tax_id: dto.taxId || null,
+        kra_pin: dto.kraPinRef || null,
+        etims_registered: dto.etimsRegistered ?? false,
         payment_terms: dto.paymentTerms || null,
         notes: dto.notes || null,
         is_active: true,
@@ -59,6 +65,13 @@ export class VendorService {
   async getVendors(includeInactive = false) {
     return this.db.vendor.findMany({
       where: includeInactive ? undefined : { is_active: true },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async findActiveVendors() {
+    return this.db.vendor.findMany({
+      where: { is_active: true },
       orderBy: { name: 'asc' },
     });
   }
@@ -93,6 +106,8 @@ export class VendorService {
         phone: dto.phone,
         address: dto.address,
         tax_id: dto.taxId,
+        kra_pin: dto.kraPinRef,
+        etims_registered: dto.etimsRegistered,
         payment_terms: dto.paymentTerms,
         notes: dto.notes,
         is_active: dto.isActive,

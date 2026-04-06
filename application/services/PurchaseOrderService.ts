@@ -64,8 +64,9 @@ export class PurchaseOrderService {
         vendor_id: dto.vendorId,
         po_number: tempPoNumber,
         status: PurchaseOrderStatus.DRAFT,
+        subtotal: totalAmount,
         total_amount: totalAmount,
-        created_by_user_id: createdByUserId,
+        ordered_by_user_id: createdByUserId,
         notes: dto.notes || null,
         items: {
           create: dto.items.map((item) => ({
@@ -73,7 +74,7 @@ export class PurchaseOrderService {
             item_name: item.itemName,
             quantity_ordered: item.quantityOrdered,
             unit_price: item.unitPrice,
-            total_price: item.quantityOrdered * item.unitPrice,
+            line_total: item.quantityOrdered * item.unitPrice,
             notes: item.notes || null,
           })),
         },
@@ -156,7 +157,6 @@ export class PurchaseOrderService {
       where: { id },
       data: {
         status: PurchaseOrderStatus.SUBMITTED,
-        submitted_at: new Date(),
         notes: dto.notes || po.notes,
       },
       include: {

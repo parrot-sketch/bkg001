@@ -120,7 +120,7 @@ function InventoryItemsContent() {
       if (categoryFilter) params.set('category', categoryFilter);
       if (belowReorderOnly) params.set('belowReorderOnly', 'true');
       params.set('page', page.toString());
-      params.set('pageSize', pageSize.toString());
+      params.set('limit', pageSize.toString());
 
       const response = await apiClient.request<ItemsResponse>(`/inventory/items?${params.toString()}`);
 
