@@ -69,14 +69,3 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      - name: 📢 Notify staging deployment
-        if: success()
-        uses: 8398a7/action-slack@v3
-        with:
-          status: success
-          text: |
-            ✅ Staging deployment successful
-            Commit: ${{ github.sha }}
-          fields: commit,author
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
