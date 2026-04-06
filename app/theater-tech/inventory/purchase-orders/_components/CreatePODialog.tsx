@@ -50,9 +50,9 @@ export function CreatePODialog({ isOpen, onClose, onCreated }: {
     // Fetch items
     setIsLoadingItems(true);
     setItemError('');
-    apiClient.request<{ data: { data: CatalogItem[] } }>('/inventory/items?limit=100').then(r => {
+    apiClient.request<{ data: CatalogItem[] }>('/inventory/items?limit=100').then(r => {
       if (r.success) {
-        setItems(r.data.data.data ?? []);
+        setItems(r.data.data ?? []);
       } else {
         setItemError('Failed to load inventory items.');
         console.error('Item load error:', r.error);
@@ -73,7 +73,7 @@ export function CreatePODialog({ isOpen, onClose, onCreated }: {
       if (i !== idx) return line;
       if (field === 'inventoryItemId') {
         const item = items.find(it => it.id === parseInt(value));
-        return { ...line, inventoryItemId: item ? item.id : null, itemName: item ? item.name : line.itemName, unitPrice: item ? item.unit_cost : line.unitPrice };
+        return { ...line, inventoryItemId: item ? item.id : null, itemName: item ? item.name : line.itemName, unitPrice: item ? (item.unit_cost ?? 0) : line.unitPrice };
       }
       return { ...line, [field]: value };
     }));
@@ -167,7 +167,7 @@ export function CreatePODialog({ isOpen, onClose, onCreated }: {
                   </div>
                   <div className="w-24 space-y-1">
                     <Label className="text-xs">Unit Price</Label>
-                    <Input type="number" min="0" step="0.01" className="h-9 text-sm" value={line.unitPrice}
+                    <Input type="number" min="0" step="0.01" className="h-9 text-sm" value={line.unitPrice ?? 0}
                       onChange={e => updateLine(idx, 'unitPrice', parseFloat(e.target.value) || 0)} />
                   </div>
                   {lines.length > 1 && (

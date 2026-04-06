@@ -190,4 +190,34 @@ export class PurchaseOrderService {
       },
     });
   }
+
+  async rejectPurchaseOrder(id: string, rejectedByUserId: string, reason: string) {
+    const po = await this.getPurchaseOrderById(id);
+
+    if (po.status !== PurchaseOrderStatus.SUBMITTED) {
+      throw new GateBlockedError(
+        `Cannot reject purchase order in status ${po.status}`,
+        'INVALID_STATUS',
+        [`PO ${id} is in status ${po.status}, requires SUBMITTED`]
+      );
+    }
+
+    if (!reason || reason.trim().length < 10) {
+      throw new ValidationError('Rejection reason must be at least 10 characters', [
+        { field: 'reason', message: 'Rejection reason must be at least 10 characters' }
+      ]);
+    }
+
+    return this.db.purchaseOrder.update({
+      where: { id },
+      data: {
+        status: PurchaseOrderStatus.CANCELLED,
+        notes: po.notes ? `${po.notes}\n\nRejection Reason: ${reason}` : `Rejection Reason: ${reason}`,
+      },
+      include: {
+        vendor: true,
+        items: true,
+      },
+    });
+  }
 }
