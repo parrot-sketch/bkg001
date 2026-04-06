@@ -105,7 +105,7 @@ function PurchaseOrdersContent() {
           </div>
         </CardHeader>
         <CardContent>
-          <POList purchaseOrders={purchaseOrders} onSubmit={handleSubmit} loading={loading} />
+          <POList purchaseOrders={purchaseOrders} onSubmit={handleSubmit} onRefresh={loadPOs} loading={loading} />
           {totalPages > 1 && (
             <div className="flex items-center justify-between mt-4 pt-4 border-t">
               <p className="text-sm text-muted-foreground">Page {page} of {totalPages}</p>

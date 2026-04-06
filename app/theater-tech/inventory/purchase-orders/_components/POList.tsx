@@ -1,10 +1,14 @@
 'use client';
 
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { apiClient } from '@/lib/api/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Send, Eye, ShoppingCart } from 'lucide-react';
+import { Send, Eye, ShoppingCart, PackageCheck, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ReceivePOModal } from '@/components/theater-tech/inventory/ReceivePOModal';
 
 import type { PurchaseOrder } from './types';
 
@@ -14,9 +18,36 @@ const STATUS_STYLES: Record<string, string> = {
   CLOSED: 'bg-purple-100 text-purple-800', CANCELLED: 'bg-red-100 text-red-800',
 };
 
-export function POList({ purchaseOrders, onSubmit, loading }: {
-  purchaseOrders: PurchaseOrder[]; onSubmit: (id: string) => void; loading: boolean;
+export function POList({ purchaseOrders, onSubmit, onRefresh, loading }: {
+  purchaseOrders: PurchaseOrder[]; onSubmit: (id: string) => void; onRefresh?: () => void; loading: boolean;
 }) {
+  const [fetchingPoId, setFetchingPoId] = useState<string | null>(null);
+  const [selectedPoForReceive, setSelectedPoForReceive] = useState<PurchaseOrder | null>(null);
+
+  const handleReceiveClick = async (po: PurchaseOrder) => {
+    if (fetchingPoId) return;
+    setFetchingPoId(po.id);
+    try {
+      const response = await apiClient.request<any>(`/stores/purchase-orders/${po.id}`);
+      if (!response.success) throw new Error(response.error || 'Failed to fetch details');
+      
+      const detailedPo = response.data?.data || response.data;
+      if (!detailedPo || !detailedPo.items) throw new Error('Invalid PO details returned');
+
+      const processedItems = detailedPo.items.map((item: any) => ({
+        ...item,
+        quantity_outstanding: item.quantity_ordered - (item.quantity_received || 0)
+      }));
+
+      setSelectedPoForReceive({ ...po, items: processedItems });
+    } catch (err) {
+      toast.error('Failed to load purchase order details');
+    } finally {
+      setFetchingPoId(null);
+    }
+  };
+
+  const getOutstandingCount = (items: any[]) => items.reduce((sum, item) => sum + (item.quantity_outstanding ?? (item.quantity_ordered - (item.quantity_received || 0))), 0);
   if (loading) return <div className="py-12 text-center text-sm text-muted-foreground">Loading...</div>;
   if (purchaseOrders.length === 0) return (
     <div className="text-center py-12">
@@ -50,11 +81,49 @@ export function POList({ purchaseOrders, onSubmit, loading }: {
                     <Send className="h-3 w-3" /> Submit
                   </Button>
                 )}
+                {po.status === 'APPROVED' && (
+                  <Button size="sm" onClick={() => handleReceiveClick(po)} disabled={fetchingPoId === po.id} className="gap-1 bg-emerald-600 hover:bg-emerald-700">
+                    {fetchingPoId === po.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <PackageCheck className="h-3 w-3" />}
+                    Receive items
+                  </Button>
+                )}
+                {po.status === 'PARTIALLY_RECEIVED' && (
+                  <Button variant="secondary" size="sm" onClick={() => handleReceiveClick(po)} disabled={fetchingPoId === po.id} className="gap-1">
+                    {fetchingPoId === po.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <PackageCheck className="h-3 w-3" />}
+                    Receive items &middot; {getOutstandingCount(po.items)} remaining
+                  </Button>
+                )}
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
+      
+      {selectedPoForReceive && (
+        <ReceivePOModal 
+          po={{
+            id: selectedPoForReceive.id,
+            po_number: selectedPoForReceive.po_number,
+            vendor_name: selectedPoForReceive.vendor.name,
+            line_items: selectedPoForReceive.items.map(item => ({
+              id: String(item.id),
+              inventory_item_id: String((item as any).inventory_item_id || item.id), // fallback mapping
+              item_name: item.item_name,
+              item_sku: (item as any).inventory_item?.sku || '',
+              unit: (item as any).inventory_item?.unit_of_measure || 'UNIT',
+              quantity_ordered: item.quantity_ordered,
+              quantity_received_to_date: item.quantity_received || 0,
+              quantity_outstanding: item.quantity_outstanding,
+              unit_price: (item as any).unit_price || 0,
+            }))
+          }}
+          onClose={() => setSelectedPoForReceive(null)}
+          onSuccess={() => {
+            setSelectedPoForReceive(null);
+            onRefresh?.();
+          }}
+        />
+      )}
     </div>
   );
 }
