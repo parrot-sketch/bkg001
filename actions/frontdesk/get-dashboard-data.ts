@@ -186,6 +186,10 @@ async function fetchDashboardDataInternal(): Promise<FrontdeskDashboardData> {
     db.patientQueue.findMany({
       where: {
         status: { in: ['WAITING', 'IN_CONSULTATION'] },
+        added_at: {
+          gte: today,
+          lt: tomorrow,
+        },
       },
       include: {
         patient: {

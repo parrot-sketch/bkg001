@@ -8,10 +8,19 @@ export async function GET(
   try {
     const { id: doctorId } = await params;
 
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
     const queueEntries = await db.patientQueue.findMany({
       where: {
         doctor_id: doctorId,
         status: { in: ['WAITING', 'IN_CONSULTATION'] },
+        added_at: {
+          gte: today,
+          lt: tomorrow,
+        },
       },
       include: {
         patient: {

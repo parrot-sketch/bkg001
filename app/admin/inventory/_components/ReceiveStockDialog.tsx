@@ -4,7 +4,10 @@ import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { InventoryItem } from './types';
 
 interface ReceiveStockDialogProps {
@@ -20,9 +23,6 @@ interface ReceiveStockDialogProps {
 export function ReceiveStockDialog({ isOpen, onOpenChange, onSubmit, isSubmitting, inventoryItems, form, onChange }: ReceiveStockDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogTrigger asChild>
-        <Button className="gap-2"><Plus className="h-4 w-4" /> Receive Stock</Button>
-      </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Receive New Stock</DialogTitle>
@@ -32,11 +32,18 @@ export function ReceiveStockDialog({ isOpen, onOpenChange, onSubmit, isSubmittin
           <div className="grid grid-cols-4 items-center gap-4">
             <Label className="text-right">Item</Label>
             <div className="col-span-3">
-              <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={form.itemId} onChange={e => onChange('itemId', e.target.value)}>
-                <option value="">Select Item...</option>
-                {inventoryItems.map(item => <option key={item.id} value={item.id}>{item.name} {item.sku ? `(${item.sku})` : ''}</option>)}
-              </select>
+              <Select value={form.itemId || ''} onValueChange={val => onChange('itemId', val)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select item…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {inventoryItems.map(item => (
+                    <SelectItem key={item.id} value={String(item.id)}>
+                      {item.name}{item.sku ? ` (${item.sku})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
@@ -62,7 +69,7 @@ export function ReceiveStockDialog({ isOpen, onOpenChange, onSubmit, isSubmittin
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={onSubmit} disabled={isSubmitting}>{isSubmitting ? 'Receiving...' : 'Confirm Receipt'}</Button>
+          <Button onClick={onSubmit} disabled={isSubmitting}>{isSubmitting ? 'Receiving…' : 'Confirm Receipt'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

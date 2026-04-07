@@ -63,6 +63,19 @@ import type { ConsultationResponseDto } from '@/application/dtos/ConsultationRes
 // TYPES
 // ============================================================================
 
+export interface VitalsData {
+  bodyTemperature: number | null;
+  systolic: number | null;
+  diastolic: number | null;
+  heartRate: string | null;
+  respiratoryRate: number | null;
+  oxygenSaturation: number | null;
+  weight: number | null;
+  height: number | null;
+  recordedAt: string;
+  recordedBy: string | null;
+}
+
 export interface StructuredNotes {
   chiefComplaint?: string;
   examination?: string;
@@ -76,6 +89,7 @@ interface ConsultationProviderState {
   // Data (null when not loaded)
   appointment: AppointmentResponseDto | null;
   patient: PatientResponseDto | null;
+  vitals: VitalsData | null;
   consultation: ConsultationResponseDto | null;
   doctorId: string | null;
 
@@ -96,7 +110,7 @@ type ConsultationAction =
   | { type: 'SET_WORKFLOW_STATE'; payload: ConsultationWorkflowState }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_SAVING'; payload: boolean }
-  | { type: 'SET_DATA'; payload: { appointment: AppointmentResponseDto; patient: PatientResponseDto; doctorId: string } }
+  | { type: 'SET_DATA'; payload: { appointment: AppointmentResponseDto; patient: PatientResponseDto; vitals: VitalsData | null; doctorId: string } }
   | { type: 'SET_CONSULTATION'; payload: ConsultationResponseDto | null }
   | { type: 'SET_NOTES'; payload: StructuredNotes }
   | { type: 'UPDATE_NOTE_FIELD'; payload: { field: keyof StructuredNotes; value: string } }
@@ -133,6 +147,7 @@ function consultationReducer(state: ConsultationProviderState, action: Consultat
         ...state,
         appointment: action.payload.appointment,
         patient: action.payload.patient,
+        vitals: action.payload.vitals,
         doctorId: action.payload.doctorId,
         workflow: {
           ...state.workflow,
@@ -232,6 +247,7 @@ function createInitialState(appointmentId?: number): ConsultationProviderState {
     workflow: createInitialContext(appointmentId),
     appointment: null,
     patient: null,
+    vitals: null,
     consultation: null,
     doctorId: null,
     notes: {},
@@ -336,38 +352,61 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
     dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.LOADING });
 
     try {
-      // Load appointment
-      const appointmentResponse = await doctorApi.getAppointment(appointmentId);
-      if (!appointmentResponse.success || !appointmentResponse.data) {
+      // Tier 1: Fetch core entities in parallel to shatter the rendering waterfall
+      const [appointmentResponse, doctorResponse, consultationResponse] = await Promise.all([
+        doctorApi.getAppointment(appointmentId),
+        doctorApi.getDoctorByUserId(user.id),
+        consultationApi.getConsultation(appointmentId).catch(() => ({ success: false, data: null }))
+      ]);
+
+      if (!appointmentResponse || !appointmentResponse.success || !appointmentResponse.data) {
         throw new Error('Appointment not found');
       }
 
       const apt = appointmentResponse.data;
+      const doctorId = doctorResponse.success && doctorResponse.data
+        ? doctorResponse.data.id
+        : user.id;
 
-      // Load patient
-      const patientResponse = await doctorApi.getPatient(apt.patientId);
+      // Tier 2: Fetch patient-specific vitals and profile dynamically downstream
+      const [patientResponse, vitalsResponse] = await Promise.all([
+        doctorApi.getPatient(apt.patientId),
+        apiClient.get<any[]>(`/patients/${apt.patientId}/vitals?appointmentId=${appointmentId}`).catch(() => ({ success: false, data: null }))
+      ]);
+
       if (!patientResponse.success || !patientResponse.data) {
         throw new Error('Patient not found');
       }
 
-      // Get doctor ID
-      const doctorResponse = await doctorApi.getDoctorByUserId(user.id);
-      const doctorId = doctorResponse.success && doctorResponse.data
-        ? doctorResponse.data.id
-        : user.id;
+      let vitalsData: VitalsData | null = null;
+      if (vitalsResponse && vitalsResponse.success && vitalsResponse.data && vitalsResponse.data.length > 0) {
+        const raw = vitalsResponse.data[0];
+        vitalsData = {
+          bodyTemperature: raw.body_temperature ?? null,
+          systolic: raw.systolic ?? null,
+          diastolic: raw.diastolic ?? null,
+          heartRate: raw.heart_rate ?? null,
+          respiratoryRate: raw.respiratory_rate ?? null,
+          oxygenSaturation: raw.oxygen_saturation ?? null,
+          weight: raw.weight ?? null,
+          height: raw.height ?? null,
+          recordedAt: raw.recorded_at ?? '',
+          recordedBy: raw.recorded_by ?? null,
+        };
+      }
 
       dispatch({
         type: 'SET_DATA',
         payload: {
           appointment: apt,
           patient: patientResponse.data,
+          vitals: vitalsData,
           doctorId,
         }
       });
 
-      // Load consultation if exists
-      const consultationResponse = await consultationApi.getConsultation(appointmentId);
-      if (consultationResponse.success && consultationResponse.data) {
+      // Hydrate consultation if it was present in Tier 1
+      if (consultationResponse && consultationResponse.success && consultationResponse.data) {
         dispatch({ type: 'SET_CONSULTATION', payload: consultationResponse.data });
 
         // Restore notes from consultation

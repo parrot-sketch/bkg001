@@ -6,8 +6,10 @@ import { apiClient } from '@/lib/api/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Send, Eye, ShoppingCart, PackageCheck, Loader2 } from 'lucide-react';
+import { Send, ShoppingCart, PackageCheck, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils/currency';
+import { formatDate } from '@/lib/utils/dates';
 import { ReceivePOModal } from '@/components/theater-tech/inventory/ReceivePOModal';
 
 import type { PurchaseOrder } from './types';
@@ -72,9 +74,9 @@ export function POList({ purchaseOrders, onSubmit, onRefresh, loading }: {
               <TableCell className="font-medium font-mono">{po.po_number}</TableCell>
               <TableCell>{po.vendor.name}</TableCell>
               <TableCell><Badge className={cn("text-xs", STATUS_STYLES[po.status])}>{po.status.replace('_', ' ')}</Badge></TableCell>
-              <TableCell className="text-right font-semibold">KES {po.total_amount.toLocaleString()}</TableCell>
+              <TableCell className="text-right font-semibold">{formatCurrency(po.total_amount)}</TableCell>
               <TableCell className="text-sm text-muted-foreground">{po.items.length} item(s)</TableCell>
-              <TableCell className="text-sm text-muted-foreground">{new Date(po.created_at).toLocaleDateString()}</TableCell>
+              <TableCell className="text-sm text-muted-foreground">{formatDate(po.created_at)}</TableCell>
               <TableCell className="text-right">
                 {po.status === 'DRAFT' && (
                   <Button variant="outline" size="sm" onClick={() => onSubmit(po.id)} className="gap-1">

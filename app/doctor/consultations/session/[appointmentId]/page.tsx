@@ -228,6 +228,7 @@ function ConsultationSessionContent() {
   const {
     appointment,
     patient,
+    vitals,
     consultation,
     doctorId,
     isLoading,
@@ -236,56 +237,6 @@ function ConsultationSessionContent() {
     showCompleteDialog,
     autoSaveStatus,
   } = state;
-
-  // Vitals state — fetched separately to avoid modifying ConsultationContext
-  // Maps snake_case API response to camelCase expected by PatientInfoSidebar
-  interface VitalsData {
-    bodyTemperature: number | null;
-    systolic: number | null;
-    diastolic: number | null;
-    heartRate: string | null;
-    respiratoryRate: number | null;
-    oxygenSaturation: number | null;
-    weight: number | null;
-    height: number | null;
-    recordedAt: string;
-    recordedBy: string | null;
-  }
-  const [vitals, setVitals] = useState<VitalsData | null>(null);
-  useEffect(() => {
-    if (!patient?.id || !appointment?.id) return;
-    interface RawVitals {
-      body_temperature?: number | null;
-      systolic?: number | null;
-      diastolic?: number | null;
-      heart_rate?: string | null;
-      respiratory_rate?: number | null;
-      oxygen_saturation?: number | null;
-      weight?: number | null;
-      height?: number | null;
-      recorded_at?: string;
-      recorded_by?: string | null;
-    }
-    apiClient.get<RawVitals[]>(`/patients/${patient.id}/vitals?appointmentId=${appointment.id}`)
-      .then(res => {
-        if (res.success && res.data && res.data.length > 0) {
-          const raw = res.data[0];
-          setVitals({
-            bodyTemperature: raw.body_temperature ?? null,
-            systolic: raw.systolic ?? null,
-            diastolic: raw.diastolic ?? null,
-            heartRate: raw.heart_rate ?? null,
-            respiratoryRate: raw.respiratory_rate ?? null,
-            oxygenSaturation: raw.oxygen_saturation ?? null,
-            weight: raw.weight ?? null,
-            height: raw.height ?? null,
-            recordedAt: raw.recorded_at ?? '',
-            recordedBy: raw.recorded_by ?? null,
-          });
-        }
-      })
-      .catch(() => {});
-  }, [patient?.id, appointment?.id]);
 
   // Loading state
   if (isLoading && !appointment) {

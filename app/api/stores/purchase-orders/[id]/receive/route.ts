@@ -24,7 +24,7 @@ const ReceiveGoodsSchema = z.object({
         quantityReceived: z.number().int().positive(),
         unitCost: z.number().nonnegative(),
         batchNumber: z.string().optional(),
-        expiryDate: z.string().datetime().optional(),
+        expiryDate: z.string().optional(), // Accepts YYYY-MM-DD from date inputs
         notes: z.string().optional(),
       })
     )
@@ -52,6 +52,8 @@ export async function POST(
       dto = ReceiveGoodsSchema.parse(body);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error('[receive] Zod validation failed:', JSON.stringify(error.issues, null, 2));
+        console.error('[receive] Request body was:', JSON.stringify(body, null, 2));
         throw ValidationError.fromZodError(error, 'Invalid goods receipt request');
       }
       throw error;

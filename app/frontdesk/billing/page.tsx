@@ -1,32 +1,21 @@
 'use client';
 
 /**
- * Frontdesk Billing Page
- * Clean, modern UI with simple elements
+ * Frontdesk Billing Dashboard
+ * Calm, professional frontend aligned with the main dashboard UI.
  */
 
 import { useState } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { usePendingPayments, useRecordPayment } from '@/hooks/frontdesk/useBilling';
 import { PaymentDialog } from './components/PaymentDialog';
+import { ChargeSheetGallery } from './components/ChargeSheetGallery';
 import type { PaymentWithRelations } from '@/domain/interfaces/repositories/IPaymentRepository';
 import { PaymentMethod } from '@/domain/enums/PaymentMethod';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { PaymentStatus, getPaymentStatusLabel } from '@/domain/enums/PaymentStatus';
-import { BillType } from '@/domain/enums/BillType';
-import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
-
-const BILL_TYPE_CONFIG: Record<string, { label: string; className: string }> = {
-  [BillType.CONSULTATION]: { label: 'Consultation', className: 'border-stone-200 text-stone-600' },
-  [BillType.SURGERY]: { label: 'Surgery', className: 'border-stone-200 text-stone-600' },
-  [BillType.LAB_TEST]: { label: 'Lab', className: 'border-stone-200 text-stone-600' },
-  [BillType.FOLLOW_UP]: { label: 'Follow-up', className: 'border-stone-200 text-stone-600' },
-  [BillType.OTHER]: { label: 'Other', className: 'border-stone-200 text-stone-600' },
-};
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Search, Loader2 } from 'lucide-react';
 
 export default function FrontdeskBillingPage() {
   const { user, isAuthenticated } = useAuth();
@@ -48,12 +37,17 @@ export default function FrontdeskBillingPage() {
   const pendingPayments = billingData?.payments || [];
   const summary = billingData?.summary;
 
+  // Filter based on search query
   const filteredPayments = searchQuery
     ? pendingPayments.filter((p) =>
         p.patient?.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.patient?.lastName?.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : pendingPayments;
+
+  // Separate into Lifecycle groups
+  const actionableChargeSheets = filteredPayments.filter(p => !!p.finalizedAt);
+  const draftChargeSheets = filteredPayments.filter(p => !p.finalizedAt);
 
   const handleOpenPaymentDialog = (payment: PaymentWithRelations) => {
     setSelectedPayment(payment);
@@ -74,156 +68,113 @@ export default function FrontdeskBillingPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Billing & Payments</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Manage patient bills and collect payments
-          </p>
+    <div className="space-y-4 sm:space-y-5 max-w-7xl mx-auto">
+      {/* Header aligned with dashboard style */}
+      <section className="bg-slate-800 rounded-lg sm:rounded-xl p-4 text-white shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="min-w-0">
+          <h2 className="text-base sm:text-lg font-bold">Billing & Collections</h2>
+          <p className="text-slate-300 text-xs sm:text-sm leading-tight">Manage patient clinical charge sheets and payments.</p>
         </div>
-      </div>
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Input
+            placeholder="Search by patient name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 h-9 bg-white/10 border-slate-600 text-white placeholder:text-slate-400 rounded-lg text-sm"
+          />
+        </div>
+      </section>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border-stone-200">
-          <CardContent className="pt-6">
-            <p className="text-xs text-stone-400 font-medium">Total Billed</p>
-            <p className="text-2xl font-bold text-stone-900 mt-1 tabular-nums">
-              KES {(summary?.totalBilled || 0).toLocaleString()}
-            </p>
+      {/* Summary Metrics */}
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Card className="border-slate-200 shadow-sm rounded-lg sm:rounded-xl overflow-hidden">
+          <CardContent className="p-4 sm:p-5">
+            <p className="text-xs font-semibold text-slate-500 mb-1">Total Outstanding</p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-xs font-semibold text-slate-400">KES</span>
+              <p className="text-2xl sm:text-3xl font-bold text-slate-900 tabular-nums">
+                {(summary?.totalBilled || 0).toLocaleString()}
+              </p>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="border-stone-200">
-          <CardContent className="pt-6">
-            <p className="text-xs text-stone-400 font-medium">Collected</p>
-            <p className="text-2xl font-bold text-stone-900 mt-1 tabular-nums">
-              KES {(summary?.totalCollected || 0).toLocaleString()}
-            </p>
+        <Card className="border-slate-200 shadow-sm rounded-lg sm:rounded-xl overflow-hidden">
+          <CardContent className="p-4 sm:p-5">
+            <p className="text-xs font-semibold text-slate-500 mb-1">Collected Today</p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-xs font-semibold text-slate-400">KES</span>
+              <p className="text-2xl sm:text-3xl font-bold text-slate-900 tabular-nums">
+                {(summary?.totalCollected || 0).toLocaleString()}
+              </p>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="border-stone-200">
-          <CardContent className="pt-6">
-            <p className="text-xs text-stone-400 font-medium">Pending</p>
-            <p className="text-2xl font-bold text-stone-900 mt-1 tabular-nums">
-              {summary?.pendingCount || 0}
-            </p>
+        <Card className="border-slate-200 bg-slate-50 shadow-sm rounded-lg sm:rounded-xl overflow-hidden">
+          <CardContent className="p-4 sm:p-5">
+            <p className="text-xs font-semibold text-slate-500 mb-1">Active Sheets</p>
+            <div className="flex items-baseline">
+              <p className="text-2xl sm:text-3xl font-bold text-slate-900 tabular-nums">
+                {summary?.pendingCount || 0}
+              </p>
+            </div>
           </CardContent>
         </Card>
-      </div>
+      </section>
 
-      {/* Search */}
-      <div className="relative">
-        <Input
-          placeholder="Search by patient name..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="h-11 bg-white border-slate-200"
-        />
-      </div>
-
-      {/* Payments List */}
+      {/* Content Tabs */}
       {isLoading ? (
         <Card className="border-slate-200">
-          <CardContent className="py-16 text-center text-slate-500">
-            Loading payments...
-          </CardContent>
-        </Card>
-      ) : filteredPayments.length === 0 ? (
-        <Card className="border-slate-200">
-          <CardContent className="py-16 text-center">
-            <p className="text-lg font-medium text-slate-900">
-              {searchQuery ? 'No matching payments found' : 'No pending payments'}
-            </p>
-            <p className="text-sm text-slate-500 mt-1">
-              {searchQuery ? 'Try a different search term' : 'All bills have been collected'}
-            </p>
+          <CardContent className="py-16 text-center text-slate-500 flex flex-col items-center">
+            <Loader2 className="w-6 h-6 animate-spin text-slate-300 mb-2" />
+            <p className="text-sm">Loading charge sheets...</p>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
-          {filteredPayments.map((payment) => {
-            const payable = payment.totalAmount - payment.discount;
-            const remaining = payable - payment.amountPaid;
-            const billTypeCfg = BILL_TYPE_CONFIG[payment.billType] || BILL_TYPE_CONFIG.OTHER;
+        <Tabs defaultValue="actionable" className="w-full space-y-4">
+          <TabsList className="bg-slate-100 p-1 rounded-lg h-auto">
+            <TabsTrigger 
+              value="actionable" 
+              className="rounded-md px-4 py-1.5 text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm transition-all"
+            >
+              Ready to Collect
+              <span className="ml-2 bg-slate-900 text-white text-xs py-0.5 px-2 rounded-full">
+                {actionableChargeSheets.length}
+              </span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="draft" 
+              className="rounded-md px-4 py-1.5 text-sm font-medium data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm transition-all text-slate-500"
+            >
+              In Consultation
+              <span className="ml-2 bg-slate-200 text-slate-700 text-xs py-0.5 px-2 rounded-full">
+                {draftChargeSheets.length}
+              </span>
+            </TabsTrigger>
+          </TabsList>
 
-            return (
-              <Card
-                key={payment.id}
-                className="border-slate-200 hover:border-slate-300 transition-colors"
-              >
-                <CardContent className="p-4 sm:p-5">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    {/* Patient & Bill Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <p className="font-semibold text-slate-900">
-                          {payment.patient?.firstName} {payment.patient?.lastName}
-                        </p>
-                        <Badge variant="outline" className={cn("text-xs", billTypeCfg.className)}>
-                          {billTypeCfg.label}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-3 mt-2 text-sm text-slate-500">
-                        <span>{format(new Date(payment.billDate), 'MMM dd, yyyy')}</span>
-                        {payment.appointment && (
-                          <span className="text-slate-400">•</span>
-                        )}
-                        {payment.appointment && (
-                          <span>{payment.appointment.time}</span>
-                        )}
-                        {payment.surgicalCase && (
-                          <>
-                            <span className="text-slate-400">•</span>
-                            <span className="text-stone-500 font-medium">
-                              {payment.surgicalCase.procedureName || 'Surgery'}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
+          <TabsContent value="actionable" className="focus-visible:outline-none focus-visible:ring-0">
+            <ChargeSheetGallery 
+              payments={actionableChargeSheets} 
+              onCollectPayment={handleOpenPaymentDialog}
+              type="finalized"
+              emptyMessageTitle="No collections pending"
+              emptyMessageDesc="All finalized charge sheets have been processed."
+            />
+          </TabsContent>
 
-                    {/* Amount & Action */}
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
-                        <p className="text-sm text-slate-500">Balance Due</p>
-                        <p className="text-xl font-bold text-slate-900">
-                          KES {remaining.toLocaleString()}
-                        </p>
-                        {payment.discount > 0 && (
-                          <p className="text-xs text-stone-400">
-                            -{payment.discount.toLocaleString()} discount
-                          </p>
-                        )}
-                      </div>
-
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "text-xs font-medium px-2.5 py-1",
-                          payment.status === PaymentStatus.PART && "border-stone-300 text-stone-600",
-                          payment.status === PaymentStatus.UNPAID && "border-stone-300 text-stone-600"
-                        )}
-                      >
-                        {getPaymentStatusLabel(payment.status)}
-                      </Badge>
-
-                      <Button
-                        onClick={() => handleOpenPaymentDialog(payment)}
-                        className="bg-slate-900 hover:bg-slate-800 text-white"
-                      >
-                        Collect
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+          <TabsContent value="draft" className="focus-visible:outline-none focus-visible:ring-0">
+            <ChargeSheetGallery 
+              payments={draftChargeSheets} 
+              onCollectPayment={() => {}} // Disabled for drafts
+              type="draft"
+              emptyMessageTitle="No active consultations"
+              emptyMessageDesc="There are currently no active patient sessions generating sheets."
+            />
+          </TabsContent>
+        </Tabs>
       )}
 
       {/* Record Payment Dialog */}

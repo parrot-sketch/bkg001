@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Package, AlertTriangle, Layers, ShoppingCart, Search, RefreshCw, BarChart3, ClipboardCheck, Package2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -27,7 +27,9 @@ export function InventoryDashboard({ summary, initialBatches, inventoryItems }: 
   summary: InventorySummary[]; initialBatches: InventoryBatch[]; inventoryItems: InventoryItem[];
 }) {
   const router = useRouter();
-  const [view, setView] = useState<TabKey>('overview');
+  const searchParams = useSearchParams();
+  const initialTab = (searchParams.get('tab') as TabKey) || 'overview';
+  const [view, setView] = useState<TabKey>(TABS.some(t => t.key === initialTab) ? initialTab : 'overview');
   const [searchTerm, setSearchTerm] = useState('');
   const [showExpiringOnly, setShowExpiringOnly] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -117,7 +119,12 @@ export function InventoryDashboard({ summary, initialBatches, inventoryItems }: 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="inline-flex items-center gap-1 p-1 bg-muted rounded-lg border">
           {TABS.map(tab => (
-            <button key={tab.key} onClick={() => { setView(tab.key); setSearchTerm(''); setCurrentPage(1); }}
+            <button key={tab.key} onClick={() => {
+              setView(tab.key); setSearchTerm(''); setCurrentPage(1);
+              const params = new URLSearchParams(searchParams.toString());
+              params.set('tab', tab.key);
+              router.replace(`?${params.toString()}`, { scroll: false });
+            }}
               className={cn("flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all",
                 view === tab.key ? "bg-white shadow text-foreground" : "text-muted-foreground hover:text-foreground")}>
               {tab.icon} {tab.label}

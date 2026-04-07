@@ -16,6 +16,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
+import { chargeSheetService } from '@/application/services/ChargeSheetService';
 
 /**
  * GET /api/appointments/:id/billing
@@ -372,7 +373,10 @@ export async function PUT(
       paymentId = newPayment.id;
     }
 
-    // 9. Fetch updated payment with relations
+    // 9. IMPORTANT: Assign charge sheet number if it doesn't have one
+    await chargeSheetService.ensureChargeSheetNo(paymentId);
+
+    // 10. Fetch updated payment with relations
     const updatedPayment = await db.payment.findUnique({
       where: { id: paymentId },
       include: {

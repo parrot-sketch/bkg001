@@ -17,6 +17,7 @@ import { AppointmentMapper as ApplicationAppointmentMapper } from '../mappers/Ap
 import { DomainException } from '../../domain/exceptions/DomainException';
 import { ScheduleAppointmentDto } from '../dtos/ScheduleAppointmentDto';
 import db from '@/lib/db';
+import { chargeSheetService } from '@/application/services/ChargeSheetService';
 
 /**
  * Default consultation fee if doctor doesn't have one set
@@ -318,6 +319,11 @@ export class CompleteConsultationUseCase {
           });
           
           paymentId = payment.id;
+        }
+
+        // Finalize the charge sheet to lock editing since consultation is now complete
+        if (paymentId) {
+          await chargeSheetService.finalize(paymentId, dto.doctorId);
         }
 
         // Notify frontdesk users about pending payment

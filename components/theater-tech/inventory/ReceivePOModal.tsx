@@ -100,14 +100,14 @@ export function ReceivePOModal({ po, onSuccess, onClose }: ReceivePOModalProps) 
     if (!isFormValid || isSubmitting) return;
 
     // Filter out 0 qty lines
+    // Filter out 0 qty lines and map to the API schema field names
     const payloadLines = lines.filter(l => l.qty_to_receive > 0).map(l => ({
-      purchase_order_line_item_id: l.id,
-      inventory_item_id: l.inventory_item_id,
-      quantity_received: Number(l.qty_to_receive),
-      unit_cost: Number(l.cost),
-      batch_number: l.batch_number.trim() || null,
-      expiry_date: l.expiry_date.trim() || null,
-      condition_notes: l.condition_notes.trim() || null,
+      poItemId: parseInt(String(l.id), 10),          // API expects: poItemId (number)
+      quantityReceived: Number(l.qty_to_receive),     // API expects: quantityReceived
+      unitCost: Number(l.cost),                        // API expects: unitCost
+      batchNumber: l.batch_number.trim() || undefined, // API expects: batchNumber (optional)
+      expiryDate: l.expiry_date.trim() || undefined,   // API expects: expiryDate (optional ISO string)
+      notes: l.condition_notes.trim() || undefined,    // API expects: notes (optional)
     }));
 
     setIsSubmitting(true);
@@ -118,11 +118,10 @@ export function ReceivePOModal({ po, onSuccess, onClose }: ReceivePOModalProps) 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          vendor_invoice_number: vendorInvoiceNumber.trim() || null,
-          vendor_invoice_date: vendorInvoiceDate.trim() || null,
-          vendor_invoice_amount: vendorInvoiceAmount ? Number(vendorInvoiceAmount) : null,
-          vendor_etims_code: vendorEtimsCode.trim() || null,
-          line_items: payloadLines
+          receiptItems: payloadLines,  // API expects: receiptItems (not line_items)
+          notes: vendorInvoiceNumber.trim()
+            ? `Invoice: ${vendorInvoiceNumber}${vendorEtimsCode ? ` | eTIMS: ${vendorEtimsCode}` : ''}`
+            : undefined,
         }),
       });
 

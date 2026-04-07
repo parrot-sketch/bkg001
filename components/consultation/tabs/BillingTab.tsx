@@ -109,6 +109,17 @@ export function BillingTab({ appointmentId, isReadOnly = false }: BillingTabProp
       toast.error('No active appointment');
       return;
     }
+
+    const itemCost = Number(item.unitCost);
+
+    if (!itemCost || isNaN(itemCost) || itemCost <= 0) {
+      // Item has no price set — add to bill for manual price entry
+      setExtraItems(p => [...p, { key: nextKey(), description: item.name, amount: 0, serviceId: null }]);
+      setIsDirty(true);
+      toast.warning(`${item.name} has no price set. Please enter the amount manually.`);
+      return;
+    }
+
     try {
       const res = await fetch('/api/inventory/usage', {
         method: 'POST',
@@ -117,9 +128,9 @@ export function BillingTab({ appointmentId, isReadOnly = false }: BillingTabProp
       });
       const result = await res.json();
       if (!result.success) throw new Error(result.error || 'Failed to record usage');
-      setExtraItems(p => [...p, { key: nextKey(), description: item.name, amount: item.unitCost, serviceId: null }]);
+      setExtraItems(p => [...p, { key: nextKey(), description: item.name, amount: itemCost, serviceId: null }]);
       setIsDirty(true);
-      toast.success(`${item.name} added to bill`);
+      toast.success(`${item.name} added — KSH ${itemCost.toLocaleString()}`);
     } catch (error: any) {
       toast.error(error.message || 'Error recording inventory usage');
     }
@@ -133,10 +144,31 @@ export function BillingTab({ appointmentId, isReadOnly = false }: BillingTabProp
     );
   }
 
-  const isEditable = !isReadOnly && billingData?.payment?.status !== 'PAID';
+  const isEditable = !isReadOnly && billingData?.payment?.status !== 'PAID' && !billingData?.payment?.finalizedAt;
 
   return (
     <div className="p-5 lg:p-8 max-w-2xl mx-auto space-y-6">
+      {/* Charge Sheet Header */}
+      {billingData?.payment?.chargeSheetNo && (
+        <div className="flex items-center justify-between pb-4 border-b border-stone-100 -mt-2">
+          <div>
+            <p className="text-[10px] uppercase tracking-wider font-semibold text-stone-500 mb-0.5">Charge Sheet</p>
+            <p className="text-sm font-bold text-stone-900 font-mono tracking-tight">{billingData.payment.chargeSheetNo}</p>
+          </div>
+          <div>
+            {billingData.payment.finalizedAt ? (
+              <span className="inline-flex items-center px-2 py-1 rounded text-[10px] font-bold tracking-wide uppercase bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                Finalized
+              </span>
+            ) : (
+              <span className="inline-flex items-center px-2 py-1 rounded text-[10px] font-bold tracking-wide uppercase bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                Draft
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Consultation Fee */}
       <div className="space-y-2">
         <label className="text-xs font-medium text-stone-500">Consultation Fee</label>
@@ -234,7 +266,7 @@ export function BillingTab({ appointmentId, isReadOnly = false }: BillingTabProp
         {isEditable && (
           <Button
             onClick={handleSave}
-            disabled={isSaving || !isDirty || (consultationFee <= 0 && extraItems.length === 0)}
+            disabled={isSaving || !isDirty || (consultationFee <= 0 && extraItems.filter(i => i.description.trim() && i.amount > 0).length === 0)}
             className="h-9 text-xs bg-stone-900 hover:bg-black"
           >
             {isSaving ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Saving</> : <><Save className="h-3.5 w-3.5 mr-1.5" /> Save</>}

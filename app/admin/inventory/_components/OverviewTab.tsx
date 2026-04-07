@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertTriangle, BarChart3, Clock, FileText, Package2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils/currency';
 import type { InventorySummary, InventoryBatch } from './types';
 
 export function OverviewTab({ summary, batches }: { summary: InventorySummary[]; batches: InventoryBatch[] }) {
@@ -51,7 +52,7 @@ export function OverviewTab({ summary, batches }: { summary: InventorySummary[];
                   {cat.lowStock > 0 && <AlertTriangle className="h-3 w-3 text-amber-500" />}
                 </div>
                 <div className="text-lg font-bold">{cat.items} items</div>
-                <div className="text-xs text-muted-foreground">{cat.count.toLocaleString()} units &bull; KES {(cat.value / 1000).toFixed(0)}k</div>
+                <div className="text-xs text-muted-foreground">{cat.count.toLocaleString()} units &bull; {formatCurrency(cat.value)}</div>
                 {cat.lowStock > 0 && <div className="text-xs text-amber-600 font-medium mt-1">{cat.lowStock} low stock</div>}
               </div>
             ))}
@@ -122,7 +123,7 @@ export function OverviewTab({ summary, batches }: { summary: InventorySummary[];
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell><Badge variant="outline" className="text-xs">{item.category}</Badge></TableCell>
                     <TableCell className="text-right font-semibold">{item.currentBalance}</TableCell>
-                    <TableCell className="text-right">KES {item.totalValue.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(item.totalValue)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -461,6 +461,7 @@ export class PrismaInventoryRepository implements IInventoryRepository {
     recordedBy: string;
     notes?: string;
     batchId?: string; // Optional: if provided, use specific batch; otherwise FIFO
+    actorRole?: string; // Caller's role for accurate audit trails
   }): Promise<unknown> {
     // Step 1: Validate item exists and is active
     const item = await this.prisma.inventoryItem.findUnique({
@@ -503,12 +504,27 @@ export class PrismaInventoryRepository implements IInventoryRepository {
         },
       });
 
+      // Step 2.5: WRITE THE GLOBAL LEDGER TRANSACTION
+      // CRITICAL FIX: Ensure the usage forces an outbound inventory event globally
+      await tx.inventoryTransaction.create({
+        data: {
+          inventory_item_id: dto.inventoryItemId,
+          type: 'STOCK_OUT',
+          quantity: dto.quantityUsed,
+          unit_price: unitCostNumber,
+          total_value: dto.quantityUsed * unitCostNumber,
+          reference: `USG-${usageRecord.id}`,
+          notes: dto.notes ? `Clinical Usage: ${dto.notes}` : 'Clinical Usage Logged',
+          created_by_user_id: dto.recordedBy,
+        }
+      });
+
       // Step 3: Emit InventoryAuditEvent for audit trail
       await tx.inventoryAuditEvent.create({
         data: {
           event_type: 'INVENTORY_USAGE_RECORDED',
           actor_user_id: dto.recordedBy,
-          actor_role: 'NURSE', // Could be parameterized in future
+          actor_role: dto.actorRole || 'SYSTEM',
           entity_type: 'InventoryUsage',
           entity_id: usageRecord.id.toString(),
           metadata_json: JSON.stringify({
@@ -588,32 +604,14 @@ export class PrismaInventoryRepository implements IInventoryRepository {
       orderBy: { expiry_date: 'asc' },
     });
 
-    if (batches.length === 0) {
-      throw new InsufficientBatchQuantityError(
-        'FIFO_NO_BATCHES',
-        quantityUsed,
-        0,
-        `No available batches for item ${inventoryItemId}`
-      );
-    }
-
-    // Calculate total available quantity
-    // SAFE: quantity_remaining is INTEGER (not Decimal), so reduce() produces accurate number sum
-    const totalAvailable = batches.reduce((sum: number, b: any) => sum + b.quantity_remaining, 0);
-    if (totalAvailable < quantityUsed) {
-      throw new InsufficientBatchQuantityError(
-        'FIFO_INSUFFICIENT_TOTAL',
-        quantityUsed,
-        totalAvailable,
-        `Insufficient total quantity across all batches for item ${inventoryItemId}`
-      );
-    }
+    let remainingToDeduct = quantityUsed;
+    let fallbackUnitCost = 0;
 
     // Deduct from batches in FIFO order
-    let remainingToDeduct = quantityUsed;
     for (const batch of batches) {
       if (remainingToDeduct <= 0) break;
-
+      
+      fallbackUnitCost = batch.cost_per_unit;
       const deductAmount = Math.min(batch.quantity_remaining, remainingToDeduct);
       
       await tx.inventoryBatch.update({
@@ -624,6 +622,25 @@ export class PrismaInventoryRepository implements IInventoryRepository {
       });
 
       remainingToDeduct -= deductAmount;
+    }
+
+    // ERP BACKFLUSH: If clinical reality outpaces warehouse records, intentionally overdraw
+    // the system natively to ensure patient procedures aren't computationally blocked.
+    if (remainingToDeduct > 0) {
+      const farFutureExpiry = new Date();
+      farFutureExpiry.setFullYear(farFutureExpiry.getFullYear() + 10);
+
+      await tx.inventoryBatch.create({
+        data: {
+          inventory_item_id: inventoryItemId,
+          batch_number: `OVERDRAW-${Date.now().toString(36).toUpperCase()}`,
+          expiry_date: farFutureExpiry,
+          quantity_remaining: -remainingToDeduct, // Formally inject a negative tracked balance
+          cost_per_unit: fallbackUnitCost,
+          received_at: new Date(),
+          notes: 'AUTO-ADJUSTMENT: Backflush batch created dynamically because live clinical usage outpaced tracked physical ledgers.',
+        }
+      });
     }
   }
 }

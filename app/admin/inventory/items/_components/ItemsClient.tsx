@@ -35,6 +35,16 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 import { ItemSheet, InventoryItemFormData } from './ItemSheet';
 
@@ -48,6 +58,7 @@ export function ItemsClient({ initialItems }: { initialItems: any[] }) {
     // Sheet State
     const [isSheetOpen, setIsSheetOpen] = React.useState(false);
     const [selectedItem, setSelectedItem] = React.useState<InventoryItemFormData | null>(null);
+    const [itemToDeactivate, setItemToDeactivate] = React.useState<any>(null);
 
     const handleEdit = (item: any) => {
         setSelectedItem({
@@ -165,7 +176,10 @@ export function ItemsClient({ initialItems }: { initialItems: any[] }) {
                             <DropdownMenuItem onClick={() => handleEdit(item)}>
                                 Edit Item
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600 focus:bg-red-50 focus:text-red-700">
+                            <DropdownMenuItem
+                                className="text-red-600 focus:bg-red-50 focus:text-red-700"
+                                onClick={() => setItemToDeactivate(item)}
+                            >
                                 Deactivate Item
                             </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -306,9 +320,33 @@ export function ItemsClient({ initialItems }: { initialItems: any[] }) {
                 initialData={selectedItem}
                 onSuccess={() => {
                     setIsSheetOpen(false);
-                    router.refresh(); // Ideally replace with React Query invalidation later
+                    router.refresh();
                 }}
             />
+
+            {/* Deactivate Confirmation */}
+            <AlertDialog open={!!itemToDeactivate} onOpenChange={open => { if (!open) setItemToDeactivate(null); }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Deactivate item?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            <strong>{itemToDeactivate?.name}</strong> will be marked as inactive and will no longer appear in procurement lists or usage options. Existing batches will not be affected.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => {
+                                // Placeholder: wire to deactivation API when implemented
+                                setItemToDeactivate(null);
+                            }}
+                        >
+                            Deactivate
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

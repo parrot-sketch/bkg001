@@ -168,6 +168,10 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
       where: {
         doctor_id: doctorId,
         status: 'WAITING',
+        added_at: {
+          gte: today,
+          lt: tomorrow,
+        },
         // Exclude entries where the appointment is already in consultation or completed
         appointment: {
           status: { notIn: ['IN_CONSULTATION', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] },
@@ -226,6 +230,10 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
       where: {
         doctor_id: doctorId,
         status: 'WAITING',
+        added_at: {
+          gte: today,
+          lt: tomorrow,
+        },
         appointment: {
           status: { notIn: ['IN_CONSULTATION', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] },
         },

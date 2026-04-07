@@ -152,6 +152,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       quantityUsed: body.quantityUsed,
       recordedBy: authResult.user.userId,
       notes: body.notes,
+      actorRole: authResult.user.role,
     });
 
     return NextResponse.json({
@@ -160,12 +161,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       message: 'Inventory usage recorded successfully',
     }, { status: 201 });
   } catch (error: any) {
-    // Handle known business rule errors
-    if (error.message?.includes('Insufficient stock') ||
-        error.message?.includes('not found') ||
-        error.message?.includes('inactive')) {
+    // Handle known business rule errors with proper status codes
+    const msg = error.message || '';
+    const isBusinessError =
+      error.name === 'InsufficientBatchQuantityError' ||
+      error.code === 'GATE_BLOCKED' ||
+      msg.includes('Insufficient') ||
+      msg.includes('not found') ||
+      msg.includes('inactive') ||
+      msg.includes('No available batches');
+
+    if (isBusinessError) {
       return NextResponse.json(
-        { success: false, error: error.message },
+        { success: false, error: msg },
         { status: 400 }
       );
     }

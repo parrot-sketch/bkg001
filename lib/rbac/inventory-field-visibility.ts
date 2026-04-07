@@ -59,7 +59,7 @@ export const FIELD_VISIBILITY_MAP: Record<Role, (keyof InventoryItem)[]> = {
     'updatedAt',
   ],
 
-  // Doctor: Clinical access, can see non-pricing operational info
+  // Doctor: Clinical access + billing fields for consultation billing
   [Role.DOCTOR]: [
     'id',
     'name',
@@ -67,7 +67,9 @@ export const FIELD_VISIBILITY_MAP: Record<Role, (keyof InventoryItem)[]> = {
     'category',
     'description',
     'unitOfMeasure',
+    'unitCost',
     'isActive',
+    'isBillable',
     'isImplant',
   ],
 

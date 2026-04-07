@@ -51,6 +51,8 @@ function VendorsContent() {
   const [formEmail, setFormEmail] = useState('');
   const [formPhone, setFormPhone] = useState('');
   const [formAddress, setFormAddress] = useState('');
+  const [formKraPin, setFormKraPin] = useState('');
+  const [formVatNumber, setFormVatNumber] = useState('');
 
   const debouncedSearch = useDebounce(searchQuery, 300);
 
@@ -88,6 +90,8 @@ function VendorsContent() {
           email: formEmail || undefined,
           phone: formPhone || undefined,
           address: formAddress || undefined,
+          kraPin: formKraPin || undefined,
+          vatNumber: formVatNumber || undefined,
         }),
       });
       if (!response.success) throw new Error(response.error || 'Failed');
@@ -100,7 +104,7 @@ function VendorsContent() {
     } finally { setIsSubmitting(false); }
   };
 
-  const resetForm = () => { setFormName(''); setFormContact(''); setFormEmail(''); setFormPhone(''); setFormAddress(''); };
+  const resetForm = () => { setFormName(''); setFormContact(''); setFormEmail(''); setFormPhone(''); setFormAddress(''); setFormKraPin(''); setFormVatNumber(''); };
 
   if (!isAuthenticated) return <div className="flex items-center justify-center h-screen"><p className="text-sm text-slate-400">Authenticating...</p></div>;
 
@@ -204,9 +208,15 @@ function VendorsContent() {
                 <Input value={formPhone} onChange={e => setFormPhone(e.target.value)} placeholder="Optional" />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Address</Label>
-              <Input value={formAddress} onChange={e => setFormAddress(e.target.value)} placeholder="Optional" />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>KRA PIN</Label>
+                <Input value={formKraPin} onChange={e => setFormKraPin(e.target.value)} placeholder="Optional" />
+              </div>
+              <div className="space-y-2">
+                <Label>VAT Number</Label>
+                <Input value={formVatNumber} onChange={e => setFormVatNumber(e.target.value)} placeholder="Optional" />
+              </div>
             </div>
           </div>
           <DialogFooter>

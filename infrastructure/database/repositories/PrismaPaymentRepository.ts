@@ -43,6 +43,9 @@ export class PrismaPaymentRepository implements IPaymentRepository {
       status: data.status as PaymentStatus,
       receiptNumber: data.receipt_number,
       notes: data.notes ?? null,
+      chargeSheetNo: data.charge_sheet_no ?? undefined,
+      finalizedAt: data.finalized_at ?? null,
+      finalizedBy: data.finalized_by ?? null,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
     };

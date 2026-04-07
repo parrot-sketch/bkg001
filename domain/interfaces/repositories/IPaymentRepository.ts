@@ -23,6 +23,9 @@ export interface Payment {
   status: PaymentStatus;
   receiptNumber: string | null;
   notes: string | null;
+  chargeSheetNo?: string;
+  finalizedAt?: Date | null;
+  finalizedBy?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

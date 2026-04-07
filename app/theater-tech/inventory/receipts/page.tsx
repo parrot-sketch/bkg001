@@ -10,9 +10,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from '@/components/ui/dialog';
 import { Receipt, Search, RefreshCw, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
+import { formatDate } from '@/lib/utils/dates';
+import { formatCurrency } from '@/lib/utils/currency';
 import { cn } from '@/lib/utils';
 
 interface GoodsReceipt {
@@ -22,7 +27,7 @@ interface GoodsReceipt {
   received_by: { id: string; email: string; first_name: string | null; last_name: string | null };
   received_at: string;
   notes: string | null;
-  receipt_items: { id: number; quantity_received: number; unit_cost: number }[];
+  receipt_items: { id: number; quantity_received: number; unit_cost: number; purchase_order_item?: { item_name: string } }[];
 }
 
 interface ReceiptsResponse {
@@ -40,6 +45,7 @@ function ReceiptsContent() {
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
+  const [selectedReceipt, setSelectedReceipt] = useState<GoodsReceipt | null>(null);
 
   const debouncedSearch = useDebounce(searchQuery, 300);
 
@@ -112,6 +118,7 @@ function ReceiptsContent() {
                   <TableHead>Items</TableHead>
                   <TableHead>Received By</TableHead>
                   <TableHead>Date</TableHead>
+                  <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -122,7 +129,12 @@ function ReceiptsContent() {
                     <TableCell>{receipt.purchase_order.vendor.name}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{receipt.receipt_items.length} item(s)</TableCell>
                     <TableCell className="text-sm">{formatReceiver(receipt.received_by)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{new Date(receipt.received_at).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{formatDate(receipt.received_at)}</TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setSelectedReceipt(receipt)}>
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -139,6 +151,47 @@ function ReceiptsContent() {
           )}
         </CardContent>
       </Card>
+
+      {/* Receipt Detail Dialog */}
+      {selectedReceipt && (
+        <Dialog open={!!selectedReceipt} onOpenChange={open => { if (!open) setSelectedReceipt(null); }}>
+          <DialogContent className="sm:max-w-[540px]">
+            <DialogHeader>
+              <DialogTitle className="font-mono">{selectedReceipt.receipt_number}</DialogTitle>
+              <DialogDescription>
+                PO {selectedReceipt.purchase_order.po_number} · {selectedReceipt.purchase_order.vendor.name} · Received {formatDate(selectedReceipt.received_at)}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="rounded-md border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30">
+                    <TableHead>Item</TableHead>
+                    <TableHead className="text-right">Qty Received</TableHead>
+                    <TableHead className="text-right">Unit Cost</TableHead>
+                    <TableHead className="text-right">Subtotal</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {selectedReceipt.receipt_items.map(item => (
+                    <TableRow key={item.id}>
+                      <TableCell className="text-sm">{item.purchase_order_item?.item_name ?? `Item #${item.id}`}</TableCell>
+                      <TableCell className="text-right font-medium">{item.quantity_received}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">{formatCurrency(item.unit_cost)}</TableCell>
+                      <TableCell className="text-right font-semibold">{formatCurrency(item.quantity_received * item.unit_cost)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="flex justify-end pt-2 border-t">
+              <p className="text-sm font-semibold">
+                Total: {formatCurrency(selectedReceipt.receipt_items.reduce((s, i) => s + i.quantity_received * i.unit_cost, 0))}
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

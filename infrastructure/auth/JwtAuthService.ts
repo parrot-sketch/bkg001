@@ -67,6 +67,7 @@ export class JwtAuthService implements IAuthService {
   private readonly accessTokenExpiresIn: number;
   private readonly refreshTokenExpiresIn: number;
   private readonly saltRounds: number;
+  private readonly DUMMY_HASH: string;
 
   constructor(
     private readonly userRepository: IUserRepository,
@@ -83,6 +84,10 @@ export class JwtAuthService implements IAuthService {
     this.accessTokenExpiresIn = config.accessTokenExpiresIn ?? 15 * 60; // 15 minutes
     this.refreshTokenExpiresIn = config.refreshTokenExpiresIn ?? 7 * 24 * 60 * 60; // 7 days
     this.saltRounds = config.saltRounds ?? 10;
+    
+    // Pre-computed synthetic hash to mitigate timing attacks
+    // We use hashSync with EXACTLY the same salt rounds configured
+    this.DUMMY_HASH = bcrypt.hashSync('dummy_password_for_timing_mitigation_xyz', this.saltRounds);
   }
 
   /**
@@ -94,25 +99,32 @@ export class JwtAuthService implements IAuthService {
    * @throws DomainException if authentication fails
    */
   async login(email: Email, password: string): Promise<JWTToken> {
-    // 1. Find user by email
+    // 1. Fetch user (don't early return)
     const user = await this.userRepository.findByEmail(email);
 
-    if (!user) {
-      throw new DomainException('Invalid email or password', {
-        email: email.getValue(),
-        // Note: Generic error message to prevent user enumeration
-      });
+    // 2. ALWAYS execute bcrypt.compare (real or dummy) to normalize constant time
+    const passwordHashToCompare = user ? user.getPasswordHash() : this.DUMMY_HASH;
+    const isValidPassword = await this.verifyPassword(password, passwordHashToCompare);
+
+    // 3. Add configurable random jitter delay (0-50ms) for additional obscurity against probabilistic timing analysis
+    const jitter = Math.floor(Math.random() * 50);
+    await new Promise(resolve => setTimeout(resolve, jitter));
+
+    if (!user || !isValidPassword) {
+      console.warn(`[SECURITY:FAILED_LOGIN] Invalid credentials attempt | Email: ${email.getValue()}`);
+      throw new DomainException('Invalid email or password', {});
     }
 
-    // 2. Check if user can authenticate (status must be ACTIVE)
+    // 4. Check if user can authenticate (status must be ACTIVE)
     if (!user.canAuthenticate()) {
+      console.warn(`[SECURITY:FAILED_LOGIN] Inactive account attempt | UserId: ${user.getId()}`);
       throw new DomainException('Account is inactive. Please contact administrator', {
         userId: user.getId(),
         status: user.getStatus(),
       });
     }
 
-    // 2.5. ENFORCE DOCTOR IDENTITY INVARIANT
+    // 5. ENFORCE DOCTOR IDENTITY INVARIANT
     // If user has role DOCTOR, they MUST have a Doctor profile
     if (user.getRole() === Role.DOCTOR) {
       const doctorProfile = await this.prisma.doctor.findUnique({
@@ -124,6 +136,7 @@ export class JwtAuthService implements IAuthService {
       });
 
       if (!doctorProfile) {
+        console.warn(`[SECURITY:FAILED_LOGIN] Missing doctor profile | UserId: ${user.getId()}`);
         throw new DomainException(
           'Doctor profile not found. Please contact administrator to complete account setup.',
           {
@@ -133,10 +146,11 @@ export class JwtAuthService implements IAuthService {
         );
       }
 
-      // 2.6. ENFORCE DOCTOR ONBOARDING INVARIANT
+      // ENFORCE DOCTOR ONBOARDING INVARIANT
       // Doctors can only authenticate when onboarding_status === ACTIVE
       const onboardingStatus = doctorProfile.onboarding_status as DoctorOnboardingStatus;
       if (!canDoctorAuthenticate(onboardingStatus)) {
+        console.warn(`[SECURITY:FAILED_LOGIN] Incomplete doctor onboarding | UserId: ${user.getId()} | Status: ${onboardingStatus}`);
         throw new DomainException(
           'Account onboarding is not complete. Please complete the onboarding process to access the system.',
           {
@@ -148,26 +162,23 @@ export class JwtAuthService implements IAuthService {
       }
     }
 
-    // 3. Verify password
-    const isValidPassword = await this.verifyPassword(password, user.getPasswordHash());
-
-    if (!isValidPassword) {
-      throw new DomainException('Invalid email or password', {
-        email: email.getValue(),
-        // Note: Generic error message to prevent user enumeration
-      });
-    }
-
-    // 4. Generate tokens
+    // 6. Generate tokens
     const tokens = this.generateTokens(user);
 
-    // 5. Store refresh token in database
+    // 7. Store refresh token in database
     await this.storeRefreshToken(user.getId(), tokens.refreshToken, this.refreshTokenExpiresIn);
 
-    // 6. Update last login timestamp
+    // 8. Update last login timestamp
     await this.updateLastLogin(user);
 
-    // 7. Return tokens + authenticated user info (avoids duplicate findByEmail in callers)
+    // 9. Atomic token cleanup (non-blocking)
+    this.cleanupExpiredTokens().catch(err => {
+      console.error(`[SECURITY:CLEANUP_ERROR] Failed to cleanup expired tokens | Reason: ${err instanceof Error ? err.message : String(err)}`);
+    });
+
+    console.info(`[SECURITY:SUCCESSFUL_LOGIN] User authenticated successfully | UserId: ${user.getId()} | Role: ${user.getRole()}`);
+
+    // 10. Return tokens + authenticated user info
     return {
       ...tokens,
       authenticatedUser: {
@@ -277,6 +288,8 @@ export class JwtAuthService implements IAuthService {
 
     // 5. Generate new access token (reuse refresh token)
     const accessToken = this.generateAccessToken(user);
+
+    console.info(`[SECURITY:TOKEN_REFRESH] Successfully refreshed token | UserId: ${user.getId()} | Role: ${user.getRole()}`);
 
     return {
       accessToken,

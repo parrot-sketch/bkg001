@@ -105,10 +105,12 @@ export function CompleteConsultationDialog({
   // Validation
   const missingSummary = !effectiveSummary.trim();
 
-  const validationErrors: string[] = [];
-  if (missingSummary) validationErrors.push('No notes documented — at least one section is required');
+  // Advisory warnings (non-blocking) — the doctor decides what's relevant
+  const advisoryWarnings: string[] = [];
+  if (missingSummary) advisoryWarnings.push('No clinical notes have been documented');
+  if (!hasBilling) advisoryWarnings.push('No billing items recorded');
 
-  const isValid = validationErrors.length === 0;
+  const hasWarnings = advisoryWarnings.length > 0;
 
   // Notes completeness check
   const hasChief = !!state.notes.chiefComplaint && stripHtml(state.notes.chiefComplaint).length > 0;
@@ -116,8 +118,6 @@ export function CompleteConsultationDialog({
   const hasPlan = !!state.notes.plan && stripHtml(state.notes.plan).length > 0;
 
   const handleSubmit = async () => {
-    if (!isValid) return;
-
     setIsSubmitting(true);
 
     try {
@@ -146,8 +146,8 @@ export function CompleteConsultationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[500px] max-h-[85vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-emerald-600" />
             Finalize Documentation
@@ -157,18 +157,21 @@ export function CompleteConsultationDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5 py-2">
-          {!isValid && (
-            <div className="rounded-xl border border-red-200 bg-red-50 p-4 space-y-2">
-              <div className="flex items-center gap-2 text-sm font-semibold text-red-800">
+        <div className="flex-1 overflow-y-auto px-6 py-2 space-y-5 min-h-0">
+          {hasWarnings && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-2">
+              <div className="flex items-center gap-2 text-sm font-semibold text-amber-800">
                 <AlertTriangle className="h-4 w-4" />
-                Missing Required Information
+                Incomplete Documentation
               </div>
               <ul className="space-y-1 ml-6">
-                {validationErrors.map((error, i) => (
-                  <li key={i} className="text-xs text-red-700 list-disc">{error}</li>
+                {advisoryWarnings.map((warning, i) => (
+                  <li key={i} className="text-xs text-amber-700 list-disc">{warning}</li>
                 ))}
               </ul>
+              <p className="text-[11px] text-amber-600 mt-1">
+                You can still complete this consultation — these are optional.
+              </p>
             </div>
           )}
 
@@ -205,13 +208,13 @@ export function CompleteConsultationDialog({
           </div>
         </div>
 
-        <DialogFooter className="gap-2">
+        <DialogFooter className="px-6 py-4 border-t border-slate-100 shrink-0 gap-2 bg-white rounded-b-lg">
           <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
             Continue Editing
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!isValid || isSubmitting}
+            disabled={isSubmitting}
             className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 min-w-[140px]"
           >
             {isSubmitting ? (

@@ -57,6 +57,11 @@ const prismaClientSingleton = () => {
     console.log(`${LOG_PREFIX} Local/Dev Environment: Using direct PrismaClient (no accelerate)`);
     return new PrismaClient({
       log: ['query', 'error', 'warn'],
+      datasources: {
+        db: {
+          url: databaseUrl
+        }
+      }
     });
   }
 
@@ -68,9 +73,15 @@ const prismaClientSingleton = () => {
     return new PrismaClient({ log: logConfig }).$extends(withAccelerate()) as unknown as PrismaClient;
   }
 
+  // Fallback to direct client if it's evaluated as production but without an accelerate URL
   return new PrismaClient({
     log: logConfig,
-  }).$extends(withAccelerate()) as unknown as PrismaClient;
+    datasources: {
+      db: {
+        url: databaseUrl
+      }
+    }
+  }) as unknown as PrismaClient;
 };
 
 declare const globalThis: {

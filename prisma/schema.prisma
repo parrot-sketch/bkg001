@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -19,6 +20,9 @@ model User {
   last_name                  String?
   phone                      String?
   last_login_at              DateTime?
+  failed_login_attempts      Int                      @default(0)
+  locked_until               DateTime?
+  token_version              Int                      @default(1)
   created_at                 DateTime                 @default(now())
   updated_at                 DateTime                 @updatedAt
   created_appointments       Appointment[]            @relation("AppointmentCreator")
@@ -55,11 +59,30 @@ model User {
   checklist_sign_outs        SurgicalChecklist[]      @relation("ChecklistSignOut")
   checklist_time_outs        SurgicalChecklist[]      @relation("ChecklistTimeOut")
   surgical_assignments       SurgicalStaff[]
+  login_attempts             LoginAttempt[]
 
   @@index([email])
   @@index([role])
   @@index([status])
   @@index([role, status])
+}
+
+model LoginAttempt {
+  id         String   @id @default(uuid())
+  user_id    String?
+  email      String
+  ip_address String
+  user_agent String?
+  success    Boolean
+  reason     String?
+  attempt_at DateTime @default(now())
+
+  user       User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@index([email])
+  @@index([ip_address])
+  @@index([attempt_at])
+  @@index([user_id])
 }
 
 model RefreshToken {
@@ -77,6 +100,7 @@ model RefreshToken {
   @@index([token])
   @@index([expires_at])
   @@index([user_id, revoked])
+  @@index([token, revoked, expires_at])
 }
 
 model Patient {
@@ -631,6 +655,12 @@ model Payment {
   surgical_case_id String?       @unique
   bill_type        BillType      @default(CONSULTATION)
   notes            String?
+  
+  // Charge Sheet Fields
+  charge_sheet_no  String?       @unique
+  finalized_at     DateTime?
+  finalized_by     String?
+
   bill_items       PatientBill[]
   appointment      Appointment?  @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
   patient          Patient       @relation(fields: [patient_id], references: [id], onDelete: Cascade)
@@ -757,7 +787,7 @@ model InventoryBatch {
   notes              String?
   created_at         DateTime         @default(now())
   updated_at         DateTime         @updatedAt
-  goods_receipt_id   String?          @unique
+  goods_receipt_id   String?
   goods_receipt      GoodsReceipt?    @relation("GoodsReceiptBatches", fields: [goods_receipt_id], references: [id])
   inventory_item     InventoryItem    @relation(fields: [inventory_item_id], references: [id], onDelete: Cascade)
   usage_records      InventoryUsage[]
@@ -813,7 +843,7 @@ model PurchaseOrder {
   vendor_id           String
   po_number           String              @unique @db.VarChar(255)
   status              PurchaseOrderStatus @default(DRAFT)
-  ordered_by_user_id  String              @map("created_by_user_id")
+  ordered_by_user_id  String?             @map("created_by_user_id")
   approved_by_user_id String?
   approved_at         DateTime?
   expected_delivery_date DateTime?
@@ -826,7 +856,7 @@ model PurchaseOrder {
   updated_at          DateTime            @updatedAt
   goods_receipts      GoodsReceipt[]      @relation("PurchaseOrderReceipts")
   approved_by         User?               @relation("PurchaseOrderApprover", fields: [approved_by_user_id], references: [id], onDelete: SetNull)
-  created_by          User                @relation("PurchaseOrderCreator", fields: [ordered_by_user_id], references: [id], onDelete: Cascade)
+  created_by          User?               @relation("PurchaseOrderCreator", fields: [ordered_by_user_id], references: [id], onDelete: Cascade)
   vendor              Vendor              @relation(fields: [vendor_id], references: [id], onDelete: Restrict)
   items               PurchaseOrderItem[]  @relation("PurchaseOrderItems")
 
@@ -884,7 +914,7 @@ model GoodsReceipt {
   purchase_order      PurchaseOrder      @relation("PurchaseOrderReceipts", fields: [purchase_order_id], references: [id])
   received_by         User               @relation("GoodsReceiptReceiver", fields: [received_by_user_id], references: [id])
   receipt_items       GoodsReceiptItem[]
-  inventory_batches   InventoryBatch?    @relation("GoodsReceiptBatches")
+  inventory_batches   InventoryBatch[]   @relation("GoodsReceiptBatches")
 
   @@index([purchase_order_id])
   @@index([receipt_number])

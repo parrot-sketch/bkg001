@@ -35,7 +35,46 @@ type ApiErrorResponse = ApiResponse<never>;
  * - 429: Rate limit exceeded (if implemented)
  * - 500: Internal server error
  */
+import { InMemoryRateLimiter } from '@/infrastructure/rate-limiting/InMemoryRateLimiter';
+import { NodeSecurityEventEmitter } from '@/infrastructure/events/NodeSecurityEventEmitter';
+import { SecurityEventType } from '@/domain/interfaces/events/ISecurityEventEmitter';
+
+const emitter = NodeSecurityEventEmitter.getInstance();
+
+// Initialize global sliding window rate limiters (persists in warm lambdas/local dev)
+// IP Rate limiter allows 20 rapid bursts per 15 mins across all accounts
+const ipRateLimiter = new InMemoryRateLimiter({ maxRequests: 20, windowMs: 15 * 60 * 1000 });
+// Email Rate limiter tightly restricts attacks on specific accounts (5 attempts per 15 mins)
+const emailRateLimiter = new InMemoryRateLimiter({ maxRequests: 5, windowMs: 15 * 60 * 1000 });
+
 export async function POST(request: NextRequest): Promise<NextResponse<ApiErrorResponse | ApiResponse<LoginResponseDto>>> {
+  // Implement unique Correlation ID for request lifecycle tracing across distributed systems
+  const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID();
+
+  // Extract client IP for rate limiting protection
+  const ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
+  
+  // Dual-Layer Defense 1: IP Rate Limiting
+  const ipKey = `ip:${ip}`;
+  await ipRateLimiter.recordAttempt(ipKey);
+  const ipLimit = await ipRateLimiter.isRateLimited(ipKey);
+  
+  if (ipLimit.isLimited) {
+    emitter.emit(SecurityEventType.RATE_LIMIT_EXCEEDED, {
+      ipAddress: ip,
+      reason: 'IP brute force limit reached',
+      correlationId,
+      timestamp: new Date()
+    });
+    return NextResponse.json({
+      success: false,
+      error: 'Too many requests from this IP. Please try again later.',
+    }, { 
+      status: 429,
+      headers: { 'Retry-After': String(Math.ceil((ipLimit.retryAfterMs || 0) / 1000)) }
+    });
+  }
+
   // Initialize authentication use cases using factory lazily inside handler
   const { loginUseCase } = AuthFactory.create(db);
 
@@ -65,6 +104,28 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiErrorR
 
     const body: LoginDto = validationResult.data;
 
+    // Dual-Layer Defense 2: Email Rate Limiting (Account targeted lockouts)
+    const emailKey = `email:${body.email.toLowerCase()}`;
+    await emailRateLimiter.recordAttempt(emailKey);
+    const emailLimit = await emailRateLimiter.isRateLimited(emailKey);
+
+    if (emailLimit.isLimited) {
+      emitter.emit(SecurityEventType.ACCOUNT_LOCKED, {
+        ipAddress: ip,
+        email: body.email.toLowerCase(),
+        reason: 'Account login attempts maxed out natively',
+        correlationId,
+        timestamp: new Date()
+      });
+      return NextResponse.json({
+        success: false,
+        error: 'Too many login attempts for this account. Please try again later.',
+      }, { 
+        status: 429,
+        headers: { 'Retry-After': String(Math.ceil((emailLimit.retryAfterMs || 0) / 1000)) }
+      });
+    }
+
     // Execute login use case with retry logic for connection errors
     const response = await withRetry(async () => {
       return await loginUseCase.execute({
@@ -87,6 +148,14 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiErrorR
       success: true,
       data: response,
     };
+
+    emitter.emit(SecurityEventType.SUCCESSFUL_LOGIN, {
+      ipAddress: ip,
+      email: response.user.email,
+      userId: response.user.id,
+      correlationId,
+      timestamp: new Date()
+    });
 
     const nextResponse = NextResponse.json(successResponse, { status: 200 });
 
@@ -135,6 +204,12 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiErrorR
 
     // Handle domain exceptions (e.g., invalid credentials)
     if (error instanceof DomainException) {
+      emitter.emit(SecurityEventType.FAILED_LOGIN, {
+        ipAddress: ip,
+        reason: 'Invalid credentials',
+        correlationId,
+        timestamp: new Date()
+      });
       // Generic error message - prevents user enumeration
       const errorResponse: ApiErrorResponse = {
         success: false,
@@ -145,7 +220,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiErrorR
 
     // Unexpected error - log and return generic error
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[API] /api/auth/login - Unexpected error:', errorMessage, error);
+    console.error(`[API] /api/auth/login [${correlationId}] - Unexpected error:`, errorMessage, error);
     
     const errorResponse: ApiErrorResponse = {
       success: false,

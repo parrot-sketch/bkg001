@@ -36,6 +36,16 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 import { ReceiveStockSheet } from './ReceiveStockSheet';
 
@@ -47,6 +57,7 @@ export function BatchesClient({ initialBatches, inventoryItems }: { initialBatch
     
     // Sheet State
     const [isReceiveOpen, setIsReceiveOpen] = React.useState(false);
+    const [batchToDeplete, setBatchToDeplete] = React.useState<any>(null);
 
     // Custom Filter for "Expiring Only"
     const [showExpiringOnly, setShowExpiringOnly] = React.useState(false);
@@ -187,7 +198,10 @@ export function BatchesClient({ initialBatches, inventoryItems }: { initialBatch
                             <DropdownMenuItem>
                                 Adjust Stock Level
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600 focus:bg-red-50 focus:text-red-700">
+                            <DropdownMenuItem
+                                className="text-red-600 focus:bg-red-50 focus:text-red-700"
+                                onClick={() => setBatchToDeplete(batch)}
+                            >
                                 Mark as Depleted
                             </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -335,6 +349,30 @@ export function BatchesClient({ initialBatches, inventoryItems }: { initialBatch
                 }}
                 inventoryItems={inventoryItems}
             />
+
+            {/* Deplete Confirmation */}
+            <AlertDialog open={!!batchToDeplete} onOpenChange={open => { if (!open) setBatchToDeplete(null); }}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Mark batch as depleted?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently mark batch <span className="font-mono font-semibold">{batchToDeplete?.batch_number}</span> as depleted and remove it from available stock. This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => {
+                                // Placeholder: wire to depletion API when implemented
+                                setBatchToDeplete(null);
+                            }}
+                        >
+                            Mark Depleted
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

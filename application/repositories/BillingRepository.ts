@@ -48,6 +48,9 @@ export interface PaymentWithRelations {
     status: PaymentStatus;
     receiptNumber?: string;
     notes: string | null | undefined;
+    chargeSheetNo?: string;
+    finalizedAt?: Date | null;
+    finalizedBy?: string | null;
     patient?: { id: string; firstName: string; lastName: string };
     billItems?: Array<{
         id: number;
@@ -186,6 +189,9 @@ export class BillingRepository {
             status: payment.status,
             receiptNumber: payment.receipt_number ?? undefined,
             notes: payment.notes,
+            chargeSheetNo: payment.charge_sheet_no ?? undefined,
+            finalizedAt: payment.finalized_at,
+            finalizedBy: payment.finalized_by,
             patient: payment.patient ? { id: payment.patient.id, firstName: payment.patient.first_name, lastName: payment.patient.last_name } : undefined,
             billItems: payment.bill_items?.map(item => ({
                 id: item.id,

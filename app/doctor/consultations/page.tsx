@@ -28,7 +28,7 @@ export default async function ConsultationsHubPage() {
     db.appointment.findMany({
       where: {
         doctor_id: doctorId,
-        status: { in: [AppointmentStatus.READY_FOR_CONSULTATION, AppointmentStatus.CHECKED_IN] },
+        status: { in: [AppointmentStatus.IN_CONSULTATION, AppointmentStatus.READY_FOR_CONSULTATION, AppointmentStatus.CHECKED_IN] },
       },
       include: { patient: true },
       orderBy: { checked_in_at: 'asc' },

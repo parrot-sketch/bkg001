@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils/currency';
 import type { InventorySummary } from './types';
 
 export function ItemCatalogTable({ items, currentPage, totalPages, filteredCount, pageSize, onPageChange }: {
@@ -33,8 +34,8 @@ export function ItemCatalogTable({ items, currentPage, totalPages, filteredCount
               <TableCell className="text-right">
                 <span className={cn("font-bold text-lg", item.currentBalance === 0 ? "text-red-500" : item.status === 'LOW_STOCK' ? "text-amber-500" : "text-emerald-600")}>{item.currentBalance}</span>
               </TableCell>
-              <TableCell className="text-right text-sm">{item.unitCost > 0 ? `KES ${item.unitCost.toLocaleString()}` : '—'}</TableCell>
-              <TableCell className="text-right font-semibold">KES {item.totalValue.toLocaleString()}</TableCell>
+              <TableCell className="text-right text-sm">{item.unitCost > 0 ? formatCurrency(item.unitCost) : '—'}</TableCell>
+              <TableCell className="text-right font-semibold">{formatCurrency(item.totalValue)}</TableCell>
               <TableCell className="text-right"><span className="inline-flex items-center text-emerald-600 font-medium"><TrendingUp className="h-3 w-3 mr-1" />+{item.totalStockIn}</span></TableCell>
               <TableCell className="text-right"><span className="inline-flex items-center text-red-500 font-medium"><TrendingDown className="h-3 w-3 mr-1" />{item.totalStockOut}</span></TableCell>
               <TableCell className="text-center">
