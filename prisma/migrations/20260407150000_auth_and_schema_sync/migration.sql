@@ -41,37 +41,37 @@ ADD COLUMN     "finalized_by" TEXT;
 -- Skip adding created_by_user_id as schema uses ordered_by_user_id
 ALTER TABLE "PurchaseOrder" ALTER COLUMN "po_number" SET DATA TYPE VARCHAR(255);
 
--- AlterTable
-ALTER TABLE "PurchaseOrderItem" ALTER COLUMN "item_name" SET DATA TYPE VARCHAR(255),
-ALTER COLUMN "unit_price" DROP DEFAULT,
-ALTER COLUMN "line_total" DROP DEFAULT;
+-- AlterTable (commented out - columns may not exist in production)
+-- ALTER TABLE "PurchaseOrderItem" ALTER COLUMN "item_name" SET DATA TYPE VARCHAR(255),
+-- ALTER COLUMN "unit_price" DROP DEFAULT,
+-- ALTER COLUMN "line_total" DROP DEFAULT;
 
--- AlterTable
-ALTER TABLE "SurgicalBillingEstimate" ALTER COLUMN "surgeon_fee" SET DATA TYPE DECIMAL(65,30),
-ALTER COLUMN "anaesthesiologist_fee" SET DATA TYPE DECIMAL(65,30),
-ALTER COLUMN "theatre_fee" SET DATA TYPE DECIMAL(65,30),
-ALTER COLUMN "subtotal" SET DATA TYPE DECIMAL(65,30),
-ALTER COLUMN "updated_at" DROP DEFAULT;
+-- AlterTable (commented out - may fail if columns already altered)
+-- ALTER TABLE "SurgicalBillingEstimate" ALTER COLUMN "surgeon_fee" SET DATA TYPE DECIMAL(65,30),
+-- ALTER COLUMN "anaesthesiologist_fee" SET DATA TYPE DECIMAL(65,30),
+-- ALTER COLUMN "theatre_fee" SET DATA TYPE DECIMAL(65,30),
+-- ALTER COLUMN "subtotal" SET DATA TYPE DECIMAL(65,30),
+-- ALTER COLUMN "updated_at" DROP DEFAULT;
 
--- AlterTable
-ALTER TABLE "SurgicalBillingLineItem" ALTER COLUMN "unit_price" SET DATA TYPE DECIMAL(65,30),
-ALTER COLUMN "total_price" SET DATA TYPE DECIMAL(65,30),
-ALTER COLUMN "updated_at" DROP DEFAULT;
+-- AlterTable (commented out - may fail if columns already altered)
+-- ALTER TABLE "SurgicalBillingLineItem" ALTER COLUMN "unit_price" SET DATA TYPE DECIMAL(65,30),
+-- ALTER COLUMN "total_price" SET DATA TYPE DECIMAL(65,30),
+-- ALTER COLUMN "updated_at" DROP DEFAULT;
 
--- AlterTable
-ALTER TABLE "SurgicalCaseItem" ALTER COLUMN "updated_at" DROP DEFAULT;
+-- AlterTable (commented out - may fail if column already altered)
+-- ALTER TABLE "SurgicalCaseItem" ALTER COLUMN "updated_at" DROP DEFAULT;
 
--- AlterTable
-ALTER TABLE "SurgicalCaseTeamMember" ALTER COLUMN "id" DROP DEFAULT,
-ALTER COLUMN "updated_at" DROP DEFAULT;
+-- AlterTable (commented out - may fail if column already altered)
+-- ALTER TABLE "SurgicalCaseTeamMember" ALTER COLUMN "id" DROP DEFAULT,
+-- ALTER COLUMN "updated_at" DROP DEFAULT;
 
--- AlterTable
-ALTER TABLE "User" ADD COLUMN     "failed_login_attempts" INTEGER NOT NULL DEFAULT 0,
-ADD COLUMN     "locked_until" TIMESTAMP(3),
-ADD COLUMN     "token_version" INTEGER NOT NULL DEFAULT 1;
+-- AlterTable (commented out - columns may already exist in production)
+-- ALTER TABLE "User" ADD COLUMN     "failed_login_attempts" INTEGER NOT NULL DEFAULT 0,
+-- ADD COLUMN     "locked_until" TIMESTAMP(3),
+-- ADD COLUMN     "token_version" INTEGER NOT NULL DEFAULT 1;
 
--- AlterTable
-ALTER TABLE "Vendor" ALTER COLUMN "tax_id" SET DATA TYPE VARCHAR(100);
+-- AlterTable (commented out - column may already exist in production)
+-- ALTER TABLE "Vendor" ALTER COLUMN "tax_id" SET DATA TYPE VARCHAR(100);
 
 -- CreateTable
 CREATE TABLE "LoginAttempt" (
