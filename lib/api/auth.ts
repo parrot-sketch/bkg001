@@ -19,20 +19,20 @@ export const authApi = {
    * Login with email and password
    */
   async login(dto: LoginDto): Promise<ApiResponse<LoginResponseDto>> {
-    return apiClient.post<LoginResponseDto>('/auth/login', dto);
+    return apiClient.post<LoginResponseDto>('/authentication/login', dto);
   },
 
   /**
    * Refresh access token
    */
   async refreshToken(dto: RefreshTokenDto): Promise<ApiResponse<RefreshTokenResponseDto>> {
-    return apiClient.post<RefreshTokenResponseDto>('/auth/refresh', dto);
+    return apiClient.post<RefreshTokenResponseDto>('/authentication/refresh', dto);
   },
 
   /**
    * Logout current user
    */
   async logout(): Promise<ApiResponse<void>> {
-    return apiClient.post<void>('/auth/logout');
+    return apiClient.post<void>('/authentication/logout');
   },
 };

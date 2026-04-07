@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { POST } from '@/app/api/auth/refresh/route';
+import { POST } from '@/app/api/authentication/refresh/route';
 import { NextRequest } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { JwtAuthService } from '@/infrastructure/auth/JwtAuthService';
@@ -93,7 +93,7 @@ describe('POST /api/auth/refresh', () => {
   describe('Successful Token Refresh', () => {
     it('should return new access and refresh tokens', async () => {
       // Arrange
-      const request = new NextRequest('http://localhost:3000/api/auth/refresh', {
+      const request = new NextRequest('http://localhost:3000/api/authentication/refresh', {
         method: 'POST',
         body: JSON.stringify({
           refreshToken,
@@ -123,7 +123,7 @@ describe('POST /api/auth/refresh', () => {
   describe('Invalid Refresh Token', () => {
     it('should return 401 for invalid refresh token', async () => {
       // Arrange
-      const request = new NextRequest('http://localhost:3000/api/auth/refresh', {
+      const request = new NextRequest('http://localhost:3000/api/authentication/refresh', {
         method: 'POST',
         body: JSON.stringify({
           refreshToken: 'invalid-token',
@@ -144,7 +144,7 @@ describe('POST /api/auth/refresh', () => {
 
     it('should return 400 for missing refresh token', async () => {
       // Arrange
-      const request = new NextRequest('http://localhost:3000/api/auth/refresh', {
+      const request = new NextRequest('http://localhost:3000/api/authentication/refresh', {
         method: 'POST',
         body: JSON.stringify({}),
         headers: {

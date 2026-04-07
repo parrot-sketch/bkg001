@@ -3,63 +3,63 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
 model User {
-  id                         String                   @id @default(uuid())
-  email                      String                   @unique
-  password_hash              String
-  role                       Role
-  status                     Status                   @default(ACTIVE)
-  mfa_enabled                Boolean                  @default(false)
-  mfa_secret                 String?
-  first_name                 String?
-  last_name                  String?
-  phone                      String?
-  last_login_at              DateTime?
-  failed_login_attempts      Int                      @default(0)
-  locked_until               DateTime?
-  token_version              Int                      @default(1)
-  created_at                 DateTime                 @default(now())
-  updated_at                 DateTime                 @updatedAt
-  created_appointments       Appointment[]            @relation("AppointmentCreator")
-  audit_logs                 AuditLog[]
-  care_notes                 CareNote[]               @relation("CareNoteNurse")
-  clinical_audit_events      ClinicalAuditEvent[]
-  forms_created              ClinicalFormResponse[]   @relation("FormCreatedBy")
-  forms_signed               ClinicalFormResponse[]   @relation("FormSignedBy")
-  forms_updated              ClinicalFormResponse[]   @relation("FormUpdatedBy")
-  clinical_notes             ClinicalNote[]           @relation("ClinicalNoteDoctor")
-  witnessed_consents         ConsentForm[]
-  consent_form_documents     ConsentFormDocument[]    @relation("ConsentFormDocumentUser")
-  verified_consent_sessions  ConsentSigningSession[]  @relation("VerifiedByStaff")
-  witnessed_consent_sessions ConsentSigningSession[]  @relation("WitnessUser")
-  consent_template_audits    ConsentTemplateAudit[]
-  consent_template_releases  ConsentTemplateRelease[] @relation("ConsentTemplateReleaseUser")
-  consultations              Consultation[]
-  doctor_profile             Doctor?                  @relation("DoctorUser")
-  goods_receipts_received    GoodsReceipt[]           @relation("GoodsReceiptReceiver")
-  inventory_audit_events     InventoryAuditEvent[]
-  inventory_transactions     InventoryTransaction[]   @relation("InventoryTransactionUser")
-  notifications_sent         Notification[]           @relation("NotificationSender")
-  notifications_received     Notification[]           @relation("NotificationRecipient")
-  nurse_assignments          NurseAssignment[]        @relation("NurseAssignments")
-  assigned_patients          Patient[]                @relation("PatientAssignment")
-  patient_profile            Patient?                 @relation("PatientUser")
-  purchase_orders_approved   PurchaseOrder[]          @relation("PurchaseOrderApprover")
-  purchase_orders_created    PurchaseOrder[]          @relation("PurchaseOrderCreator")
-  refresh_tokens             RefreshToken[]
-  staff_invites_sent         StaffInvite[]            @relation("StaffInviteInviter")
-  staff_invites_received     StaffInvite[]            @relation("StaffInviteUser")
-  stock_adjustments          StockAdjustment[]        @relation("StockAdjustmentUser")
-  checklist_sign_ins         SurgicalChecklist[]      @relation("ChecklistSignIn")
-  checklist_sign_outs        SurgicalChecklist[]      @relation("ChecklistSignOut")
-  checklist_time_outs        SurgicalChecklist[]      @relation("ChecklistTimeOut")
-  surgical_assignments       SurgicalStaff[]
-  login_attempts             LoginAttempt[]
+  id                                                   String                   @id @default(uuid())
+  email                                                String                   @unique
+  password_hash                                        String
+  role                                                 Role
+  status                                               Status                   @default(ACTIVE)
+  mfa_enabled                                          Boolean                  @default(false)
+  mfa_secret                                           String?
+  first_name                                           String?
+  last_name                                            String?
+  phone                                                String?
+  last_login_at                                        DateTime?
+  created_at                                           DateTime                 @default(now())
+  updated_at                                           DateTime                 @updatedAt
+  failed_login_attempts                                Int                      @default(0)
+  locked_until                                         DateTime?
+  token_version                                        Int                      @default(1)
+  created_appointments                                 Appointment[]            @relation("AppointmentCreator")
+  audit_logs                                           AuditLog[]
+  care_notes                                           CareNote[]               @relation("CareNoteNurse")
+  clinical_audit_events                                ClinicalAuditEvent[]
+  forms_created                                        ClinicalFormResponse[]   @relation("FormCreatedBy")
+  forms_signed                                         ClinicalFormResponse[]   @relation("FormSignedBy")
+  forms_updated                                        ClinicalFormResponse[]   @relation("FormUpdatedBy")
+  clinical_notes                                       ClinicalNote[]           @relation("ClinicalNoteDoctor")
+  witnessed_consents                                   ConsentForm[]
+  consent_form_documents                               ConsentFormDocument[]    @relation("ConsentFormDocumentUser")
+  verified_consent_sessions                            ConsentSigningSession[]  @relation("VerifiedByStaff")
+  witnessed_consent_sessions                           ConsentSigningSession[]  @relation("WitnessUser")
+  consent_template_audits                              ConsentTemplateAudit[]
+  consent_template_releases                            ConsentTemplateRelease[] @relation("ConsentTemplateReleaseUser")
+  consultations                                        Consultation[]
+  doctor_profile                                       Doctor?                  @relation("DoctorUser")
+  goods_receipts_received                              GoodsReceipt[]           @relation("GoodsReceiptReceiver")
+  inventory_audit_events                               InventoryAuditEvent[]
+  inventory_transactions                               InventoryTransaction[]   @relation("InventoryTransactionUser")
+  login_attempts                                       LoginAttempt[]
+  notifications_sent                                   Notification[]           @relation("NotificationSender")
+  notifications_received                               Notification[]           @relation("NotificationRecipient")
+  nurse_assignments                                    NurseAssignment[]        @relation("NurseAssignments")
+  assigned_patients                                    Patient[]                @relation("PatientAssignment")
+  patient_profile                                      Patient?                 @relation("PatientUser")
+  purchase_orders_approved                             PurchaseOrder[]          @relation("PurchaseOrderApprover")
+  PurchaseOrder_PurchaseOrder_ordered_by_user_idToUser PurchaseOrder[]          @relation("PurchaseOrder_ordered_by_user_idToUser")
+  refresh_tokens                                       RefreshToken[]
+  staff_invites_sent                                   StaffInvite[]            @relation("StaffInviteInviter")
+  staff_invites_received                               StaffInvite[]            @relation("StaffInviteUser")
+  stock_adjustments                                    StockAdjustment[]        @relation("StockAdjustmentUser")
+  checklist_sign_ins                                   SurgicalChecklist[]      @relation("ChecklistSignIn")
+  checklist_sign_outs                                  SurgicalChecklist[]      @relation("ChecklistSignOut")
+  checklist_time_outs                                  SurgicalChecklist[]      @relation("ChecklistTimeOut")
+  surgical_assignments                                 SurgicalStaff[]
 
   @@index([email])
   @@index([role])
@@ -76,8 +76,7 @@ model LoginAttempt {
   success    Boolean
   reason     String?
   attempt_at DateTime @default(now())
-
-  user       User?    @relation(fields: [user_id], references: [id], onDelete: SetNull)
+  user       User?    @relation(fields: [user_id], references: [id])
 
   @@index([email])
   @@index([ip_address])
@@ -655,12 +654,9 @@ model Payment {
   surgical_case_id String?       @unique
   bill_type        BillType      @default(CONSULTATION)
   notes            String?
-  
-  // Charge Sheet Fields
   charge_sheet_no  String?       @unique
   finalized_at     DateTime?
   finalized_by     String?
-
   bill_items       PatientBill[]
   appointment      Appointment?  @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
   patient          Patient       @relation(fields: [patient_id], references: [id], onDelete: Cascade)
@@ -729,7 +725,6 @@ model InventoryItem {
   unit_of_measure             String                     @default("unit") @db.VarChar(255)
   unit_cost                   Decimal                    @default(0) @db.Decimal(10, 2)
   reorder_point               Int                        @default(0)
-  low_stock_threshold         Int                        @default(0)
   supplier                    String?
   is_active                   Boolean                    @default(true)
   is_billable                 Boolean                    @default(true)
@@ -737,6 +732,7 @@ model InventoryItem {
   updated_at                  DateTime                   @updatedAt
   is_implant                  Boolean                    @default(false)
   manufacturer                String?
+  low_stock_threshold         Int                        @default(0)
   planned_items               CasePlanPlannedItem[]
   goods_receipt_items         GoodsReceiptItem[]         @relation("GoodsReceiptInventoryItem")
   batches                     InventoryBatch[]
@@ -799,21 +795,21 @@ model InventoryBatch {
 }
 
 model Vendor {
-  id                  String          @id @default(uuid())
-  name                String
-  contact_person      String?
-  email               String?
-  phone               String?
-  address             String?
-  tax_id              String?         @db.VarChar(100)
-  kra_pin             String?         @db.VarChar(20)
-  etims_registered    Boolean         @default(false)
-  payment_terms       String?
-  notes               String?
-  is_active           Boolean         @default(true)
-  created_at          DateTime        @default(now())
-  updated_at          DateTime        @updatedAt
-  purchase_orders     PurchaseOrder[]
+  id               String          @id @default(uuid())
+  name             String
+  contact_person   String?
+  email            String?
+  phone            String?
+  address          String?
+  tax_id           String?         @db.VarChar(100)
+  payment_terms    String?
+  notes            String?
+  is_active        Boolean         @default(true)
+  created_at       DateTime        @default(now())
+  updated_at       DateTime        @updatedAt
+  kra_pin          String?         @db.VarChar(20)
+  etims_registered Boolean         @default(false)
+  purchase_orders  PurchaseOrder[]
 
   @@index([name])
   @@index([is_active])
@@ -821,7 +817,7 @@ model Vendor {
 }
 
 /// PurchaseOrder model - Internal procurement document (vendors do NOT log in)
-/// 
+///
 /// STATUS TRANSITIONS (enforced in service layer):
 /// DRAFT → SUBMITTED (when items added and staff confirms)
 /// SUBMITTED → APPROVED (manager/admin reviews and approves)
@@ -839,31 +835,31 @@ model Vendor {
 /// - All monetary fields are Decimal(10,2) in KES currency
 /// - quantity_received in line items must NEVER exceed quantity_ordered
 model PurchaseOrder {
-  id                  String              @id @default(uuid())
-  vendor_id           String
-  po_number           String              @unique @db.VarChar(255)
-  status              PurchaseOrderStatus @default(DRAFT)
-  ordered_by_user_id  String?             @map("created_by_user_id")
-  approved_by_user_id String?
-  approved_at         DateTime?
-  expected_delivery_date DateTime?
-  subtotal            Decimal             @default(0) @db.Decimal(10, 2)
-  vat_amount          Decimal             @default(0) @db.Decimal(10, 2)
-  total_amount        Decimal             @default(0) @db.Decimal(10, 2)
-  currency            String              @default("KES") @db.VarChar(3)
-  notes               String?             @db.Text
-  created_at          DateTime            @default(now())
-  updated_at          DateTime            @updatedAt
-  goods_receipts      GoodsReceipt[]      @relation("PurchaseOrderReceipts")
-  approved_by         User?               @relation("PurchaseOrderApprover", fields: [approved_by_user_id], references: [id], onDelete: SetNull)
-  created_by          User?               @relation("PurchaseOrderCreator", fields: [ordered_by_user_id], references: [id], onDelete: Cascade)
-  vendor              Vendor              @relation(fields: [vendor_id], references: [id], onDelete: Restrict)
-  items               PurchaseOrderItem[]  @relation("PurchaseOrderItems")
+  id                                          String              @id @default(uuid())
+  vendor_id                                   String
+  po_number                                   String              @unique @db.VarChar(255)
+  status                                      PurchaseOrderStatus @default(DRAFT)
+  approved_by_user_id                         String?
+  approved_at                                 DateTime?
+  notes                                       String?
+  created_at                                  DateTime            @default(now())
+  updated_at                                  DateTime            @updatedAt
+  subtotal                                    Decimal             @default(0) @db.Decimal(10, 2)
+  vat_amount                                  Decimal             @default(0) @db.Decimal(10, 2)
+  currency                                    String              @default("KES") @db.VarChar(3)
+  expected_delivery_date                      DateTime?
+  total_amount                                Decimal             @default(0) @db.Decimal(10, 2)
+  ordered_by_user_id                          String?
+  goods_receipts                              GoodsReceipt[]      @relation("PurchaseOrderReceipts")
+  approved_by                                 User?               @relation("PurchaseOrderApprover", fields: [approved_by_user_id], references: [id])
+  User_PurchaseOrder_ordered_by_user_idToUser User?               @relation("PurchaseOrder_ordered_by_user_idToUser", fields: [ordered_by_user_id], references: [id], onDelete: Cascade, map: "PurchaseOrder_created_by_user_id_fkey")
+  vendor                                      Vendor              @relation(fields: [vendor_id], references: [id])
+  items                                       PurchaseOrderItem[] @relation("PurchaseOrderItems")
 
   @@index([vendor_id])
   @@index([status])
   @@index([po_number])
-  @@index([ordered_by_user_id])
+  @@index([ordered_by_user_id], map: "PurchaseOrder_created_by_user_id_idx")
   @@index([created_at])
   @@index([status, created_at])
 }
@@ -885,21 +881,21 @@ model PurchaseOrderItem {
   id                  Int                @id @default(autoincrement())
   purchase_order_id   String
   inventory_item_id   Int?
-  item_name           String              @db.VarChar(255)
+  item_name           String             @db.VarChar(255)
   quantity_ordered    Int
-  unit_price          Decimal             @db.Decimal(10, 2)
-  line_total          Decimal             @db.Decimal(10, 2)
-  notes               String?             @db.Text
+  notes               String?
   quantity_received   Int                @default(0)
   created_at          DateTime           @default(now())
   updated_at          DateTime           @updatedAt
+  unit_price          Decimal            @db.Decimal(10, 2)
+  line_total          Decimal            @db.Decimal(10, 2)
   goods_receipt_items GoodsReceiptItem[] @relation("GoodsReceiptPOItem")
-  inventory_item      InventoryItem?     @relation("POItemInventoryItem", fields: [inventory_item_id], references: [id], onDelete: SetNull)
+  inventory_item      InventoryItem?     @relation("POItemInventoryItem", fields: [inventory_item_id], references: [id])
   purchase_order      PurchaseOrder      @relation("PurchaseOrderItems", fields: [purchase_order_id], references: [id], onDelete: Cascade)
 
+  @@unique([purchase_order_id, inventory_item_id])
   @@index([purchase_order_id])
   @@index([inventory_item_id])
-  @@unique([purchase_order_id, inventory_item_id])
 }
 
 model GoodsReceipt {
@@ -908,7 +904,7 @@ model GoodsReceipt {
   receipt_number      String             @unique
   received_by_user_id String
   received_at         DateTime           @default(now())
-  notes               String?             @db.Text
+  notes               String?
   created_at          DateTime           @default(now())
   updated_at          DateTime           @updatedAt
   purchase_order      PurchaseOrder      @relation("PurchaseOrderReceipts", fields: [purchase_order_id], references: [id])
@@ -1171,15 +1167,15 @@ model CasePlan {
   consent_checklist          String?
   planned_anesthesia         String?
   special_instructions       String?
-  equipment_notes            String?
-  patient_positioning        String?
-  post_op_instructions       String?
-  surgeon_narrative          String?
   readiness_status           CaseReadinessStatus      @default(NOT_STARTED)
   ready_for_surgery          Boolean                  @default(false)
   created_at                 DateTime                 @default(now())
   updated_at                 DateTime                 @updatedAt
   estimated_duration_minutes Int?
+  equipment_notes            String?
+  patient_positioning        String?
+  post_op_instructions       String?
+  surgeon_narrative          String?
   appointment                Appointment              @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
   doctor                     Doctor                   @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
   patient                    Patient                  @relation(fields: [patient_id], references: [id], onDelete: Cascade)
@@ -1506,9 +1502,9 @@ model Theater {
   is_active         Boolean                   @default(true)
   operational_hours String?
   capabilities      String?
-  hourly_rate       Float                     @default(0)
   created_at        DateTime                  @default(now())
   updated_at        DateTime                  @updatedAt
+  hourly_rate       Float                     @default(0)
   surgical_records  SurgicalProcedureRecord[]
   bookings          TheaterBooking[]
 }
@@ -1755,13 +1751,13 @@ model SurgicalCaseTeamMember {
   role                  String
   name                  String
   user_id               String?
+  created_at            DateTime     @default(now())
+  updated_at            DateTime     @updatedAt
   is_external           Boolean      @default(false)
   external_name         String?
   external_credentials  String?
   assigned_by_doctor_id String?
   assigned_at           DateTime     @default(now())
-  created_at            DateTime     @default(now())
-  updated_at            DateTime     @updatedAt
   assigned_by_doctor    Doctor?      @relation("AssignedByDoctor", fields: [assigned_by_doctor_id], references: [id])
   surgical_case         SurgicalCase @relation(fields: [surgical_case_id], references: [id], onDelete: Cascade)
 
@@ -2106,8 +2102,8 @@ enum InventoryCategory {
   DISPOSABLE
   INSTRUMENT
   DRESSING
-  SPECIMEN_CONTAINER
   OTHER
+  SPECIMEN_CONTAINER
 }
 
 enum CareNoteType {
@@ -2327,14 +2323,14 @@ enum SurgicalCaseStatus {
   DRAFT
   PLANNING
   READY_FOR_SCHEDULING
-  READY_FOR_THEATER_PREP
-  READY_FOR_THEATER_BOOKING
   SCHEDULED
   IN_PREP
   IN_THEATER
   RECOVERY
   COMPLETED
   CANCELLED
+  READY_FOR_THEATER_BOOKING
+  READY_FOR_THEATER_PREP
 }
 
 enum TheaterBookingStatus {

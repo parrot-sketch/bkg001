@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
-import { POST } from '@/app/api/auth/login/route';
+import { POST } from '@/app/api/authentication/login/route';
 import { NextRequest } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { JwtAuthService } from '@/infrastructure/auth/JwtAuthService';
@@ -79,7 +79,7 @@ describe('POST /api/auth/login', () => {
   describe('Successful Login', () => {
     it('should return tokens and user data for valid credentials', async () => {
       // Arrange
-      const request = new NextRequest('http://localhost:3000/api/auth/login', {
+      const request = new NextRequest('http://localhost:3000/api/authentication/login', {
         method: 'POST',
         body: JSON.stringify({
           email: 'test-login@example.com',
@@ -111,7 +111,7 @@ describe('POST /api/auth/login', () => {
   describe('Invalid Credentials', () => {
     it('should return 401 for invalid password', async () => {
       // Arrange
-      const request = new NextRequest('http://localhost:3000/api/auth/login', {
+      const request = new NextRequest('http://localhost:3000/api/authentication/login', {
         method: 'POST',
         body: JSON.stringify({
           email: 'test-login@example.com',
@@ -134,7 +134,7 @@ describe('POST /api/auth/login', () => {
 
     it('should return 401 for non-existent email', async () => {
       // Arrange
-      const request = new NextRequest('http://localhost:3000/api/auth/login', {
+      const request = new NextRequest('http://localhost:3000/api/authentication/login', {
         method: 'POST',
         body: JSON.stringify({
           email: 'nonexistent@example.com',
@@ -159,7 +159,7 @@ describe('POST /api/auth/login', () => {
   describe('Request Validation (Zod)', () => {
     it('should return 400 for missing email', async () => {
       // Arrange
-      const request = new NextRequest('http://localhost:3000/api/auth/login', {
+      const request = new NextRequest('http://localhost:3000/api/authentication/login', {
         method: 'POST',
         body: JSON.stringify({
           password: 'password123',
@@ -181,7 +181,7 @@ describe('POST /api/auth/login', () => {
 
     it('should return 400 for missing password', async () => {
       // Arrange
-      const request = new NextRequest('http://localhost:3000/api/auth/login', {
+      const request = new NextRequest('http://localhost:3000/api/authentication/login', {
         method: 'POST',
         body: JSON.stringify({
           email: 'test@example.com',
@@ -203,7 +203,7 @@ describe('POST /api/auth/login', () => {
 
     it('should return 400 for invalid email format', async () => {
       // Arrange
-      const request = new NextRequest('http://localhost:3000/api/auth/login', {
+      const request = new NextRequest('http://localhost:3000/api/authentication/login', {
         method: 'POST',
         body: JSON.stringify({
           email: 'invalid-email-format',
@@ -226,7 +226,7 @@ describe('POST /api/auth/login', () => {
 
     it('should return 400 for password too short', async () => {
       // Arrange
-      const request = new NextRequest('http://localhost:3000/api/auth/login', {
+      const request = new NextRequest('http://localhost:3000/api/authentication/login', {
         method: 'POST',
         body: JSON.stringify({
           email: 'test@example.com',
@@ -249,7 +249,7 @@ describe('POST /api/auth/login', () => {
 
     it('should return 400 for invalid JSON', async () => {
       // Arrange
-      const request = new NextRequest('http://localhost:3000/api/auth/login', {
+      const request = new NextRequest('http://localhost:3000/api/authentication/login', {
         method: 'POST',
         body: 'invalid json',
         headers: {

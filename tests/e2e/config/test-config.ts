@@ -69,10 +69,10 @@ export const TEST_CONFIG = {
   // API Endpoints
   API_ENDPOINTS: {
     AUTH: {
-      LOGIN: '/api/auth/login',
-      LOGOUT: '/api/auth/logout',
-      REGISTER: '/api/auth/register',
-      REFRESH: '/api/auth/refresh',
+      LOGIN: '/api/authentication/login',
+      LOGOUT: '/api/authentication/logout',
+      REGISTER: '/api/authentication/register',
+      REFRESH: '/api/authentication/refresh',
     },
     PATIENT: {
       PROFILE: '/api/patient/profile',
