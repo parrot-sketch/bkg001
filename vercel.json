@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build",
+  "buildCommand": "SKIP_MIGRATION=true npm run build",
   "installCommand": "npm install",
   "framework": "nextjs"
 }
