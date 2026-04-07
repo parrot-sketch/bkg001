@@ -39,6 +39,9 @@ export interface AppointmentBilling {
     paymentMethod: string;
     status: string;
     receiptNumber: string | null;
+    chargeSheetNo?: string | null;
+    finalizedAt?: string | null;
+    finalizedBy?: string | null;
     patient?: {
       id: string;
       firstName: string;

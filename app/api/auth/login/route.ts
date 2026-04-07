@@ -52,7 +52,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiErrorR
   const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID();
 
   // Extract client IP for rate limiting protection
-  const ip = request.ip || request.headers.get('x-forwarded-for') || 'unknown';
+  const ip = request.headers.get('x-forwarded-for') || 'unknown';
   
   // Dual-Layer Defense 1: IP Rate Limiting
   const ipKey = `ip:${ip}`;
