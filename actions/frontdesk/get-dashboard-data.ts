@@ -365,5 +365,5 @@ export async function getFrontdeskDashboardData(): Promise<FrontdeskDashboardDat
 }
 
 export async function revalidateFrontdeskDashboard() {
-  revalidateTag('frontdesk-dashboard-v2');
+  revalidateTag('frontdesk-dashboard-v2', 'max');
 }

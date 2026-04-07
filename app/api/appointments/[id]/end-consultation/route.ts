@@ -117,7 +117,7 @@ export async function POST(
 
         // Revalidate frontdesk dashboard cache
         try {
-            revalidateTag('frontdesk-dashboard-v2');
+            revalidateTag('frontdesk-dashboard-v2', 'max');
         } catch (e) {
             console.log('Could not revalidate tag in this context');
         }

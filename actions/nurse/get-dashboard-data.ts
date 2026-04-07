@@ -159,5 +159,5 @@ export async function getNurseDashboardData(): Promise<NurseDashboardData> {
 }
 
 export async function revalidateNurseDashboard() {
-  revalidateTag('nurse-dashboard');
+  revalidateTag('nurse-dashboard', 'max');
 }

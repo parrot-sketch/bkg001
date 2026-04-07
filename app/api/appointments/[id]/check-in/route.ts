@@ -77,7 +77,7 @@ export async function POST(
         const result = await checkInUseCase.execute(dto);
 
         // 6. Invalidate frontdesk dashboard cache so real-time updates work
-        revalidateTag('frontdesk-dashboard-v2');
+        revalidateTag('frontdesk-dashboard-v2', 'max');
 
         // 7. Return success response
         return NextResponse.json(
