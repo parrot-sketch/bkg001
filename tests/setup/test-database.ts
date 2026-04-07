@@ -43,6 +43,7 @@ function isProductionUrl(url: string): boolean {
     'cockroachlabs.cloud',
     'nairobisculpt',
     'nsac.co.ke',
+    'prisma-data.net',
   ];
   return productionPatterns.some((pattern) => lower.includes(pattern));
 }

@@ -18,17 +18,37 @@ cleanup() {
   echo ""
   echo "🧹 Tearing down test database..."
   docker compose -f "$COMPOSE_FILE" down --volumes --remove-orphans 2>/dev/null || true
+  
+  if [ -f ".env.tmp" ]; then
+    mv .env.tmp .env
+  fi
 }
 trap cleanup EXIT
+
+if [ -f ".env" ]; then
+  mv .env .env.tmp
+fi
 
 echo "🐳 Starting test Postgres container..."
 docker compose -f "$COMPOSE_FILE" up -d --wait
 
 echo "📦 Pushing Prisma schema to test database..."
-DATABASE_URL="$TEST_DB_URL" npx prisma db push --skip-generate --accept-data-loss 2>&1 | tail -3
+# Use TEST_DATABASE_URL and DATABASE_URL to ensure both Prisma and Vitest use the local DB
+# We also pass --schema explicitly just in case prisma.config.ts misbehaves
+export DATABASE_URL="$TEST_DB_URL"
+export TEST_DATABASE_URL="$TEST_DB_URL"
+# CRITICAL: Overwrite DIRECT_URL and SHADOW_DATABASE_URL so Prisma doesn't use production/Aiven values from .env
+export DIRECT_URL="$TEST_DB_URL"
+export SHADOW_DATABASE_URL="$TEST_DB_URL"
+
+# REGENERATE Prisma Client to ensure it's compatible with local postgresql:// protocol
+# (It often gets "locked" to prisma:// if generated with an Accelerate URL)
+npx prisma generate
+
+npx prisma db push --skip-generate --accept-data-loss
 
 echo "🧪 Running integration tests..."
-DATABASE_URL="$TEST_DB_URL" npx vitest run --config vitest.config.integration.ts
+npx vitest run --config vitest.config.integration.ts
 TEST_EXIT=$?
 
 exit $TEST_EXIT
