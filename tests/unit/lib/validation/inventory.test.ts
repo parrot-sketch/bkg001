@@ -306,6 +306,7 @@ describe('CreateItemSchema - POST Body Validation', () => {
     it('should accept valid create item request', () => {
       const result = CreateItemSchema.safeParse({
         name: 'Sterile Bandage',
+        is_billable: false,
       });
       expect(result.success).toBe(true);
       if (result.success) {
@@ -333,7 +334,7 @@ describe('CreateItemSchema - POST Body Validation', () => {
 
     it('should accept name = 255 characters (max)', () => {
       const maxName = 'a'.repeat(255);
-      const result = CreateItemSchema.safeParse({ name: maxName });
+      const result = CreateItemSchema.safeParse({ name: maxName, is_billable: false });
       expect(result.success).toBe(true);
     });
   });
@@ -343,6 +344,7 @@ describe('CreateItemSchema - POST Body Validation', () => {
       const result = CreateItemSchema.safeParse({
         name: 'Item',
         sku: 'SKU-001',
+        is_billable: false,
       });
       expect(result.success).toBe(true);
       if (result.success) {
@@ -368,7 +370,7 @@ describe('CreateItemSchema - POST Body Validation', () => {
     });
 
     it('should be optional', () => {
-      const result = CreateItemSchema.safeParse({ name: 'Item' });
+      const result = CreateItemSchema.safeParse({ name: 'Item', is_billable: false });
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.sku).toBeUndefined();
@@ -381,6 +383,7 @@ describe('CreateItemSchema - POST Body Validation', () => {
       const result = CreateItemSchema.safeParse({
         name: 'Item',
         category: InventoryCategory.IMPLANT,
+        is_billable: false,
       });
       expect(result.success).toBe(true);
       if (result.success) {
@@ -389,7 +392,7 @@ describe('CreateItemSchema - POST Body Validation', () => {
     });
 
     it('should be optional', () => {
-      const result = CreateItemSchema.safeParse({ name: 'Item' });
+      const result = CreateItemSchema.safeParse({ name: 'Item', is_billable: false });
       expect(result.success).toBe(true);
     });
 
@@ -426,6 +429,7 @@ describe('CreateItemSchema - POST Body Validation', () => {
       const result = CreateItemSchema.safeParse({
         name: 'Item',
         unit_cost: 0,
+        is_billable: false,
       });
       expect(result.success).toBe(true);
       if (result.success) {
@@ -434,7 +438,7 @@ describe('CreateItemSchema - POST Body Validation', () => {
     });
 
     it('should use default unit_cost (0) when not provided', () => {
-      const result = CreateItemSchema.safeParse({ name: 'Item' });
+      const result = CreateItemSchema.safeParse({ name: 'Item', is_billable: false });
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.unit_cost).toBe(0);
@@ -447,6 +451,7 @@ describe('CreateItemSchema - POST Body Validation', () => {
       const result = CreateItemSchema.safeParse({
         name: 'Item',
         reorder_point: 50,
+        is_billable: false,
       });
       expect(result.success).toBe(true);
       if (result.success) {
@@ -471,7 +476,7 @@ describe('CreateItemSchema - POST Body Validation', () => {
     });
 
     it('should use default (0) when not provided', () => {
-      const result = CreateItemSchema.safeParse({ name: 'Item' });
+      const result = CreateItemSchema.safeParse({ name: 'Item', is_billable: false });
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.reorder_point).toBe(0);
@@ -484,6 +489,7 @@ describe('CreateItemSchema - POST Body Validation', () => {
       const result = CreateItemSchema.safeParse({
         name: 'Item',
         description: 'A test item',
+        is_billable: false,
       });
       expect(result.success).toBe(true);
       if (result.success) {
@@ -505,12 +511,13 @@ describe('CreateItemSchema - POST Body Validation', () => {
       const result = CreateItemSchema.safeParse({
         name: 'Item',
         description: maxDesc,
+        is_billable: false,
       });
       expect(result.success).toBe(true);
     });
 
     it('should be optional', () => {
-      const result = CreateItemSchema.safeParse({ name: 'Item' });
+      const result = CreateItemSchema.safeParse({ name: 'Item', is_billable: false });
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.description).toBeUndefined();
@@ -545,11 +552,12 @@ describe('CreateItemSchema - POST Body Validation', () => {
     it('should use defaults for optional fields', () => {
       const result = CreateItemSchema.safeParse({
         name: 'Simple Item',
+        unit_cost: 1,
       });
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.unit_of_measure).toBe('unit');
-        expect(result.data.unit_cost).toBe(0);
+        expect(result.data.unit_cost).toBe(1);
         expect(result.data.reorder_point).toBe(0);
         expect(result.data.low_stock_threshold).toBe(0);
         expect(result.data.is_billable).toBe(true);

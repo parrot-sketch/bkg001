@@ -67,7 +67,6 @@ export const FIELD_VISIBILITY_MAP: Record<Role, (keyof InventoryItem)[]> = {
     'category',
     'description',
     'unitOfMeasure',
-    'unitCost',
     'isActive',
     'isBillable',
     'isImplant',
@@ -82,6 +81,7 @@ export const FIELD_VISIBILITY_MAP: Record<Role, (keyof InventoryItem)[]> = {
     'description',
     'unitOfMeasure',
     'isActive',
+    'isBillable',
     'isImplant',
   ],
 
