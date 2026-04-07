@@ -354,10 +354,10 @@ export async function getFrontdeskDashboardData(): Promise<FrontdeskDashboardDat
 
   const cachedFetch = unstable_cache(
     () => fetchDashboardDataInternal(),
-    ['frontdesk-dashboard'],
+    ['frontdesk-dashboard-v2'],
     {
       revalidate: 30,
-      tags: ['frontdesk-dashboard'],
+      tags: ['frontdesk-dashboard-v2'],
     }
   );
 
@@ -365,5 +365,5 @@ export async function getFrontdeskDashboardData(): Promise<FrontdeskDashboardDat
 }
 
 export async function revalidateFrontdeskDashboard() {
-  revalidateTag('frontdesk-dashboard', 'max');
+  revalidateTag('frontdesk-dashboard-v2');
 }
