@@ -10,29 +10,26 @@ CREATE TYPE "StockMovementType" AS ENUM ('STOCK_IN', 'STOCK_OUT', 'ADJUSTMENT', 
 -- AlterEnum
 ALTER TYPE "InventoryCategory" ADD VALUE 'SPECIMEN_CONTAINER';
 
--- DropForeignKey
-ALTER TABLE "PurchaseOrder" DROP CONSTRAINT "PurchaseOrder_created_by_user_id_fkey";
+-- DropForeignKey (commented out - column may not exist in production)
+-- ALTER TABLE "PurchaseOrder" DROP CONSTRAINT "PurchaseOrder_created_by_user_id_fkey";
 
--- DropIndex
-DROP INDEX "InventoryBatch_goods_receipt_id_key";
+-- DropIndex (commented out - constraint may not exist)
+-- DROP INDEX "InventoryBatch_goods_receipt_id_key";
 
--- DropIndex
-DROP INDEX "InventoryItem_quantity_on_hand_idx";
+-- DropIndex (commented out - may not exist in production)
+-- DROP INDEX "InventoryItem_quantity_on_hand_idx";
 
--- DropIndex
-DROP INDEX "SurgicalChecklist_sign_in_completed_at_idx";
-
--- DropIndex
-DROP INDEX "SurgicalChecklist_sign_out_completed_at_idx";
-
--- DropIndex
-DROP INDEX "SurgicalChecklist_time_out_completed_at_idx";
+-- DropIndex (commented out - indexes may not exist in production)
+-- DROP INDEX "SurgicalChecklist_sign_in_completed_at_idx";
+-- DROP INDEX "SurgicalChecklist_sign_out_completed_at_idx";
+-- DROP INDEX "SurgicalChecklist_time_out_completed_at_idx";
 
 -- AlterTable
 ALTER TABLE "CalendarEvent" ALTER COLUMN "updated_at" DROP DEFAULT;
 
 -- AlterTable
-ALTER TABLE "InventoryItem" DROP COLUMN "quantity_on_hand";
+-- InventoryItem.quantity_on_hand may already be removed in production
+-- ALTER TABLE "InventoryItem" DROP COLUMN "quantity_on_hand";
 
 -- AlterTable
 ALTER TABLE "Payment" ADD COLUMN     "charge_sheet_no" TEXT,
@@ -40,9 +37,9 @@ ADD COLUMN     "finalized_at" TIMESTAMP(3),
 ADD COLUMN     "finalized_by" TEXT;
 
 -- AlterTable
-ALTER TABLE "PurchaseOrder" DROP COLUMN "ordered_by_user_id",
-ADD COLUMN     "created_by_user_id" TEXT,
-ALTER COLUMN "po_number" SET DATA TYPE VARCHAR(255);
+-- PurchaseOrder already has ordered_by_user_id in production
+-- Skip adding created_by_user_id as schema uses ordered_by_user_id
+ALTER TABLE "PurchaseOrder" ALTER COLUMN "po_number" SET DATA TYPE VARCHAR(255);
 
 -- AlterTable
 ALTER TABLE "PurchaseOrderItem" ALTER COLUMN "item_name" SET DATA TYPE VARCHAR(255),
@@ -164,8 +161,8 @@ CREATE INDEX "InventoryTransaction_reference_idx" ON "InventoryTransaction"("ref
 -- CreateIndex
 CREATE UNIQUE INDEX "Payment_charge_sheet_no_key" ON "Payment"("charge_sheet_no");
 
--- CreateIndex
-CREATE INDEX "PurchaseOrder_created_by_user_id_idx" ON "PurchaseOrder"("created_by_user_id");
+-- Skip: PurchaseOrder already has ordered_by_user_id
+-- CREATE INDEX "PurchaseOrder_created_by_user_id_idx" ON "PurchaseOrder"("created_by_user_id");
 
 -- CreateIndex
 CREATE INDEX "PurchaseOrder_status_created_at_idx" ON "PurchaseOrder"("status", "created_at");
@@ -191,8 +188,9 @@ ALTER TABLE "InventoryTransaction" ADD CONSTRAINT "InventoryTransaction_created_
 -- AddForeignKey
 ALTER TABLE "InventoryTransaction" ADD CONSTRAINT "InventoryTransaction_inventory_item_id_fkey" FOREIGN KEY ("inventory_item_id") REFERENCES "InventoryItem"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+-- Skip: PurchaseOrder uses ordered_by_user_id, not created_by_user_id
 -- AddForeignKey
-ALTER TABLE "PurchaseOrder" ADD CONSTRAINT "PurchaseOrder_created_by_user_id_fkey" FOREIGN KEY ("created_by_user_id") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- ALTER TABLE "PurchaseOrder" ADD CONSTRAINT "PurchaseOrder_created_by_user_id_fkey" FOREIGN KEY ("created_by_user_id") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "SurgicalCaseTeamMember" ADD CONSTRAINT "SurgicalCaseTeamMember_surgical_case_id_fkey" FOREIGN KEY ("surgical_case_id") REFERENCES "SurgicalCase"("id") ON DELETE CASCADE ON UPDATE CASCADE;
