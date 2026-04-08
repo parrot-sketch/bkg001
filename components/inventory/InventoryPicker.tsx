@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Check, ChevronsUpDown, Search, Package, Loader2 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Search, Package, Loader2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -32,13 +32,22 @@ interface InventoryPickerProps {
     onSelect: (item: InventoryItem) => void;
     className?: string;
     placeholder?: string;
+    excludeIds?: number[];
+    showZeroPrice?: boolean;
 }
 
-export function InventoryPicker({ onSelect, className, placeholder = "Search inventory..." }: InventoryPickerProps) {
+export function InventoryPicker({ 
+    onSelect, 
+    className, 
+    placeholder = "Search inventory...", 
+    excludeIds = [],
+    showZeroPrice = false 
+}: InventoryPickerProps) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [items, setItems] = useState<InventoryItem[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [showZeroPriceItems, setShowZeroPriceItems] = useState(showZeroPrice);
 
     useEffect(() => {
         if (open && items.length === 0) {
@@ -51,10 +60,11 @@ export function InventoryPicker({ onSelect, className, placeholder = "Search inv
         try {
             const res = await fetch('/api/inventory/items?limit=100');
             const result = await res.json();
+            console.log('Inventory API response:', result);
             if (result.success) {
                 setItems(result.data.data);
             } else {
-                toast.error('Failed to load inventory items');
+                toast.error(result.error || 'Failed to load inventory items');
             }
         } catch (error) {
             console.error('Error fetching inventory items:', error);
@@ -63,6 +73,38 @@ export function InventoryPicker({ onSelect, className, placeholder = "Search inv
             setLoading(false);
         }
     };
+
+    const filteredItems = useMemo(() => {
+        let filtered = items.filter(i => !excludeIds.includes(i.id));
+        
+        if (!showZeroPriceItems) {
+            filtered = filtered.filter(i => i.unitCost > 0);
+        }
+        
+        if (searchTerm) {
+            const lower = searchTerm.toLowerCase();
+            filtered = filtered.filter(i => 
+                i.name.toLowerCase().includes(lower) || 
+                i.sku?.toLowerCase().includes(lower) ||
+                i.category.toLowerCase().includes(lower)
+            );
+        }
+        return filtered;
+    }, [items, searchTerm, excludeIds, showZeroPriceItems]);
+
+    const zeroPriceCount = useMemo(() => 
+        items.filter(i => !excludeIds.includes(i.id) && i.unitCost === 0).length
+    , [items, excludeIds]);
+
+    const groupedItems = useMemo(() => {
+        const groups: Record<string, InventoryItem[]> = {};
+        filteredItems.forEach(i => {
+            const cat = i.category || 'Other';
+            if (!groups[cat]) groups[cat] = [];
+            groups[cat].push(i);
+        });
+        return groups;
+    }, [filteredItems]);
 
     return (
         <Popover open={open} onOpenChange={setOpen}>
@@ -79,17 +121,23 @@ export function InventoryPicker({ onSelect, className, placeholder = "Search inv
                             {placeholder}
                         </span>
                     </div>
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    <div className="flex items-center gap-2">
+                        {zeroPriceCount > 0 && (
+                            <span className="text-[10px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                                {zeroPriceCount} no price
+                            </span>
+                        )}
+                    </div>
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[400px] p-0 rounded-2xl border-slate-200 shadow-xl overflow-hidden" align="start">
+            <PopoverContent className="w-[450px] p-0 rounded-2xl border-slate-200 shadow-xl overflow-hidden" align="start">
                 <Command className="border-none">
                     <CommandInput 
-                        placeholder="Type product name or SKU..." 
+                        placeholder="Search by name, SKU or category..." 
                         className="h-12 border-none focus:ring-0"
                         onValueChange={setSearchTerm}
                     />
-                    <CommandList className="max-h-[300px]">
+                    <CommandList className="max-h-[350px]">
                         <CommandEmpty>
                             {loading ? (
                                 <div className="flex items-center justify-center py-6 gap-2 text-slate-400">
@@ -103,32 +151,54 @@ export function InventoryPicker({ onSelect, className, placeholder = "Search inv
                                 </div>
                             )}
                         </CommandEmpty>
-                        <CommandGroup>
-                            {items.map((item) => (
-                                <CommandItem
-                                    key={item.id}
-                                    value={`${item.name} ${item.sku || ''}`}
-                                    onSelect={() => {
-                                        onSelect(item);
-                                        setOpen(false);
+                        {Object.entries(groupedItems).map(([category, categoryItems]) => (
+                            <CommandGroup key={category} heading={category}>
+                                {categoryItems.map((item) => (
+                                    <CommandItem
+                                        key={item.id}
+                                        value={`${item.name} ${item.sku || ''} ${item.category}`}
+                                        onSelect={() => {
+                                            onSelect(item);
+                                            setOpen(false);
+                                        }}
+                                        className="px-4 py-3 cursor-pointer hover:bg-slate-50 aria-selected:bg-slate-50"
+                                    >
+                                        <div className="flex flex-col gap-0.5 w-full">
+                                            <div className="flex items-center justify-between">
+                                                <span className="font-bold text-slate-900">{item.name}</span>
+                                                {item.unitCost > 0 ? (
+                                                    <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                                                        KSH {item.unitCost.toLocaleString()}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                                        <AlertCircle className="w-3 h-3" /> No price
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs font-mono text-slate-400">{item.sku || 'NO SKU'}</span>
+                                                <span className="text-[10px] text-slate-400 uppercase tracking-wider">{item.category}</span>
+                                            </div>
+                                        </div>
+                                    </CommandItem>
+                                ))}
+                            </CommandGroup>
+                        ))}
+                        {zeroPriceCount > 0 && !showZeroPriceItems && (
+                            <div className="border-t border-slate-100 p-3">
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        setShowZeroPriceItems(true);
                                     }}
-                                    className="px-4 py-3 cursor-pointer hover:bg-slate-50 aria-selected:bg-slate-50"
+                                    className="w-full text-center text-sm text-amber-600 hover:text-amber-700 flex items-center justify-center gap-2 py-2"
                                 >
-                                    <div className="flex flex-col gap-0.5 w-full">
-                                        <div className="flex items-center justify-between">
-                                            <span className="font-bold text-slate-900">{item.name}</span>
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{item.category}</span>
-                                        </div>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-xs font-mono text-slate-400">{item.sku || 'NO SKU'}</span>
-                                            {item.isBillable && (
-                                                <span className="text-[10px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded-full font-bold">BILLABLE</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </CommandItem>
-                            ))}
-                        </CommandGroup>
+                                    <AlertCircle className="w-4 h-4" />
+                                    Show {zeroPriceCount} items without price
+                                </button>
+                            </div>
+                        )}
                     </CommandList>
                 </Command>
             </PopoverContent>
