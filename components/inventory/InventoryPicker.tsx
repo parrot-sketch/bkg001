@@ -58,7 +58,7 @@ export function InventoryPicker({
     const fetchItems = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/inventory/items?limit=100');
+            const res = await fetch('/api/inventory/items?limit=100', { credentials: 'include' });
             const result = await res.json();
             console.log('Inventory API response:', result);
             if (result.success) {
