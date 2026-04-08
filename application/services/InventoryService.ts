@@ -19,6 +19,7 @@ export class InventoryService {
     category?: InventoryCategory | string;
     page: number;
     limit: number;
+    isBillable?: boolean;
   }): Promise<PaginatedInventoryItems> {
     // Validate pagination parameters
     if (options.page < 1) {
@@ -27,9 +28,9 @@ export class InventoryService {
       ]);
     }
 
-    if (options.limit < 1 || options.limit > 100) {
-      throw new ValidationError('Limit must be between 1 and 100', [
-        { field: 'limit', message: 'Must be between 1 and 100' }
+    if (options.limit < 1 || options.limit > 200) {
+      throw new ValidationError('Limit must be between 1 and 200', [
+        { field: 'limit', message: 'Must be between 1 and 200' }
       ]);
     }
 
@@ -51,6 +52,7 @@ export class InventoryService {
       category,
       page: options.page,
       limit: options.limit,
+      isBillable: options.isBillable,
     });
   }
 

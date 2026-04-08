@@ -119,6 +119,7 @@ export class PrismaInventoryRepository implements IInventoryRepository {
     category?: InventoryCategory;
     page: number;
     limit: number;
+    isBillable?: boolean;
   }): Promise<PaginatedInventoryItems> {
     // ========================================================================
     // BUILD WHERE CLAUSE - Extracted to const to avoid duplication
@@ -126,6 +127,11 @@ export class PrismaInventoryRepository implements IInventoryRepository {
     const itemsWhere: any = {
       is_active: true,
     };
+
+    // Add is_billable filter if provided
+    if (options.isBillable !== undefined) {
+      itemsWhere.is_billable = options.isBillable;
+    }
 
     // Add search filter if provided and non-empty
     if (options.search && options.search.trim()) {

@@ -27,6 +27,7 @@ interface PatientTableRowProps {
     appointment?: AppointmentResponseDto | null;
     onRecordVitals: (patient: PatientResponseDto) => void;
     onAddCareNote: (patient: PatientResponseDto) => void;
+    hasVitalsRecorded?: boolean;
 }
 
 export function PatientTableRow({

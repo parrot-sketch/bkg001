@@ -12,6 +12,8 @@ import { PatientCombobox } from '@/components/frontdesk/PatientCombobox';
 import { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';
 import { ProfileImage } from '@/components/profile-image';
+import { queryKeys } from '@/lib/constants/queryKeys';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface QuickAssignmentDialogProps {
   open: boolean;
@@ -28,6 +30,7 @@ export function QuickAssignmentDialog({
   initialPatientId,
   initialPatientName,
 }: QuickAssignmentDialogProps) {
+  const queryClient = useQueryClient();
   const [selectedPatient, setSelectedPatient] = useState<PatientResponseDto | null>(null);
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>('');
   const [doctors, setDoctors] = useState<DoctorResponseDto[]>([]);
@@ -98,6 +101,8 @@ export function QuickAssignmentDialog({
         setSelectedDoctorId('');
         onOpenChange(false);
         onSuccess?.();
+        // Invalidate nurse clinic queue so patient appears on nurse dashboard
+        queryClient.invalidateQueries({ queryKey: queryKeys.nurse.clinicQueue('today') });
       } else {
         toast.error(result.msg || 'Failed to add patient to queue');
       }

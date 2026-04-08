@@ -114,7 +114,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       low_stock_only: searchParams.get('low_stock_only') ?? undefined,
     };
 
+    console.log('Query params:', queryParams);
+
     const validationResult = ItemQuerySchema.safeParse(queryParams);
+    console.log('Validation result:', validationResult.success ? 'success' : validationResult.error);
     if (!validationResult.success) {
       return NextResponse.json(
         formatValidationError(validationResult.error),

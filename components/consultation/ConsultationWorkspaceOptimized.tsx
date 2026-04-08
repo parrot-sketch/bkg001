@@ -67,7 +67,7 @@ const TABS: TabConfig[] = [
     { id: 'concerns', label: 'Concerns', noteField: 'chiefComplaint' },
     { id: 'examination', label: 'Exam', noteField: 'examination' },
     { id: 'plan', label: 'Plan', noteField: 'plan' },
-    { id: 'billing', label: 'Billing', noteField: null },
+    { id: 'billing', label: 'Charge Sheet', noteField: null },
 ];
 
 // ============================================================================

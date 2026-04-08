@@ -23,11 +23,14 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { patientApi } from '@/lib/api/patient';
 import { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';
+import { queryKeys } from '@/lib/constants/queryKeys';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Re-export type for use in handlers
 type CheckedInPatient = FrontdeskCheckedInPatient;
 
 export function QueueManagementPanels() {
+  const queryClient = useQueryClient();
   const { data: checkedInAwaiting, isLoading: loadingCheckedIn, refetch: refetchCheckedIn } = useCheckedInAwaitingAssignment();
   const { data: liveQueue, isLoading: loadingQueue, refetch: refetchQueue } = useLiveQueueBoard();
   const [assigningId, setAssigningId] = useState<number | null>(null);
@@ -52,6 +55,8 @@ export function QueueManagementPanels() {
         await invalidateFrontdeskCache();
         refetchCheckedIn();
         refetchQueue();
+        // Invalidate nurse clinic queue so patient appears on nurse dashboard
+        queryClient.invalidateQueries({ queryKey: queryKeys.nurse.clinicQueue('today') });
       } else {
         console.error('Failed to assign patient:', result.msg);
       }

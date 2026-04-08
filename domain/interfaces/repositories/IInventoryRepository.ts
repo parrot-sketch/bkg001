@@ -144,6 +144,7 @@ export interface IInventoryRepository {
     category?: InventoryCategory;
     page: number;
     limit: number;
+    isBillable?: boolean;
   }): Promise<PaginatedInventoryItems>;
 
   /** Create a new inventory item */

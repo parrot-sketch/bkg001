@@ -6,6 +6,8 @@ import { AppointmentSchema, VitalSignsSchema } from "@/lib/schema";
 import { getCurrentUser, getCurrentUserFull } from "@/lib/auth/server-auth";
 import { revalidateDoctorDashboard } from '@/actions/doctor/get-dashboard-data';
 import { revalidateFrontdeskDashboard } from '@/actions/frontdesk/get-dashboard-data';
+import { revalidateNurseDashboard } from '@/actions/nurse/get-dashboard-data';
+import { revalidatePath } from 'next/cache';
 import { AppointmentStatus } from "@prisma/client";
 import { getScheduleAppointmentUseCase } from "@/lib/use-cases";
 import { DomainException } from "@/domain/exceptions/DomainException";
@@ -411,6 +413,8 @@ export async function assignPatientToQueue(data: {
 
     // For walk-ins (no appointment), create a placeholder appointment
     // This ensures the consultation room can work with walk-ins
+    // Use CHECKED_IN status so the patient appears for triage (vitals recording)
+    // before being ready for consultation
     let finalAppointmentId = appointmentId;
     
     if (!appointmentId) {
@@ -421,13 +425,26 @@ export async function assignPatientToQueue(data: {
           appointment_date: new Date(),
           time: new Date().toTimeString().slice(0, 5),
           type: 'Walk-in',
-          status: AppointmentStatus.READY_FOR_CONSULTATION,
+          status: AppointmentStatus.CHECKED_IN, // Start with CHECKED_IN for triage
           source: 'FRONTDESK_SCHEDULED',
           created_at: new Date(),
           updated_at: new Date(),
         },
       });
       finalAppointmentId = walkInAppointment.id;
+    } else {
+      // For existing appointments, ensure they have CHECKED_IN status for triage
+      // If already READY_FOR_CONSULTATION, keep as is (already triaged)
+      const existingAppointment = await db.appointment.findUnique({
+        where: { id: appointmentId },
+        select: { status: true },
+      });
+      if (existingAppointment && existingAppointment.status === AppointmentStatus.CONFIRMED) {
+        await db.appointment.update({
+          where: { id: appointmentId },
+          data: { status: AppointmentStatus.CHECKED_IN },
+        });
+      }
     }
 
     // Create queue entry
@@ -447,15 +464,10 @@ export async function assignPatientToQueue(data: {
       },
     });
 
-    // Update appointment status (either existing or newly created)
-    await db.appointment.update({
-      where: { id: finalAppointmentId },
-      data: {
-        status: AppointmentStatus.READY_FOR_CONSULTATION,
-        status_changed_at: new Date(),
-        status_changed_by: user.userId,
-      },
-    });
+    // DO NOT update appointment status here
+    // Status transition should happen via nurse's vitals recording (CHECKED_IN → READY_FOR_CONSULTATION)
+    // This ensures patients go through triage before being ready for doctor consultation
+    // The RecordVitalSignsUseCase handles the status transition when nurse records vitals
 
     // Send notification to doctor
     const { sendPatientQueuedNotification } = await import('@/domain/utils/notification-helpers');
@@ -471,6 +483,10 @@ export async function assignPatientToQueue(data: {
     await revalidateDoctorDashboard(doctorId);
     // Invalidate frontdesk dashboard cache so live queue board updates
     await revalidateFrontdeskDashboard();
+    // Invalidate nurse dashboard cache so clinical queue updates
+    await revalidateNurseDashboard();
+    // Revalidate nurse patients page path to ensure fresh data
+    revalidatePath('/nurse/patients', 'page');
 
     return { success: true, msg: "Patient added to queue", queueEntry };
   } catch (error) {
