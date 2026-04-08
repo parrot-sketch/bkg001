@@ -41,13 +41,13 @@ export function InventoryPicker({
     className, 
     placeholder = "Search inventory...", 
     excludeIds = [],
-    showZeroPrice = false 
+    showZeroPrice = true 
 }: InventoryPickerProps) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [items, setItems] = useState<InventoryItem[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [showZeroPriceItems, setShowZeroPriceItems] = useState(showZeroPrice);
+    const [showZeroPriceItems, setShowZeroPriceItems] = useState(true);
 
     useEffect(() => {
         if (open && items.length === 0) {
