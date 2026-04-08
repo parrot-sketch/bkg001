@@ -64,6 +64,11 @@ export const ItemQuerySchema = z.object({
     .coerce
     .boolean()
     .optional(),
+
+  is_billable: z
+    .coerce
+    .boolean()
+    .optional(),
 });
 
 export type ItemQuery = z.infer<typeof ItemQuerySchema>;
