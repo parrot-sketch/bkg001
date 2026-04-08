@@ -56,7 +56,7 @@ export function ServicePicker({
     const fetchServices = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/services');
+            const res = await fetch('/api/services', { credentials: 'include' });
             const result = await res.json();
             if (result.success && result.data) {
                 setServices(result.data);
