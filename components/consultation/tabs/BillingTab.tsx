@@ -9,6 +9,7 @@ import { useAppointmentBilling, useSaveBilling } from '@/hooks/doctor/useBilling
 import { InventoryPicker } from '@/components/inventory/InventoryPicker';
 import { ServicePicker } from './ServicePicker';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 interface ChargeItem {
   key: string;
@@ -235,8 +236,11 @@ export function BillingTab({ appointmentId, isReadOnly = false }: { appointmentI
                     value={item.amount || ''}
                     onChange={e => { setItems(p => p.map(i => i.key === item.key ? { ...i, amount: Math.max(0, parseFloat(e.target.value) || 0) } : i)); setIsDirty(true); }}
                     disabled={!isEditable}
-                    className="pl-10 h-8 text-right text-sm"
+                    className={cn("pl-10 h-8 text-right text-sm", item.amount === 0 && "border-amber-300 bg-amber-50 text-amber-600")}
                   />
+                  {item.amount === 0 && (
+                    <span className="absolute -top-1 -right-1 text-[9px] bg-amber-500 text-white px-1 rounded-full">!</span>
+                  )}
                 </div>
                 {isEditable && <button onClick={() => removeItem(item.key)} className="p-1 text-stone-400 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>}
               </div>
