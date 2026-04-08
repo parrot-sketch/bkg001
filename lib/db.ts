@@ -47,6 +47,7 @@ const prismaClientSingleton = () => {
 
   const isBuilding = process.env.NEXT_PHASE === 'phase-production-build';
   const databaseUrl = process.env.DATABASE_URL || (isBuilding ? 'postgresql://dummy:dummy@localhost:5432/dummy' : '');
+  const directUrl = process.env.DIRECT_URL;
 
   if (!databaseUrl && !isBuilding) {
     console.error(`${LOG_PREFIX} DATABASE_URL is not defined`);
@@ -65,12 +66,29 @@ const prismaClientSingleton = () => {
     });
   }
 
-  // Production logic with Accelerate
+  // Production logic with Accelerate fallback
   const isAccelerate = databaseUrl.startsWith('prisma://');
   const logConfig: Array<'query' | 'error' | 'warn'> = ['error'];
 
   if (isAccelerate) {
-    return new PrismaClient({ log: logConfig }).$extends(withAccelerate()) as unknown as PrismaClient;
+    try {
+      const client = new PrismaClient({ log: logConfig }).$extends(withAccelerate()) as unknown as PrismaClient;
+      console.log(`${LOG_PREFIX} Production: Using Prisma Accelerate`);
+      return client;
+    } catch (error: any) {
+      if (error?.code === 'P6008' && directUrl) {
+        console.warn(`${LOG_PREFIX} Accelerate connection failed (P6008), falling back to DIRECT_URL`);
+        return new PrismaClient({
+          log: logConfig,
+          datasources: {
+            db: {
+              url: directUrl
+            }
+          }
+        }) as unknown as PrismaClient;
+      }
+      throw error;
+    }
   }
 
   // Fallback to direct client if it's evaluated as production but without an accelerate URL
