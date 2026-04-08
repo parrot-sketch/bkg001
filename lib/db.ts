@@ -1,38 +1,23 @@
 import { PrismaClient } from "@prisma/client";
-import { withAccelerate } from "@prisma/extension-accelerate";
 
 /**
  * Prisma Client Singleton — Connection Strategy
  *
  * ═══════════════════════════════════════════════════════════════════════════
- * PRODUCTION  (Vercel → Prisma Accelerate → Aiven Postgres)
+ * PRODUCTION  (Vercel → Direct Aiven Postgres)
  * ═══════════════════════════════════════════════════════════════════════════
  *
- * Problem: Aiven free tier has max_connections = 15 (~12 usable).
- * Vercel serverless can spin up 12+ concurrent function instances,
- * each needing its own DB connection → instant pool exhaustion.
+ * Direct connection to Aiven Postgres with 25 connection limit.
+ * DATABASE_URL = postgres://avnadmin:...@pg-xxx.aivencloud.com:26567/...
  *
- * Solution: Prisma Accelerate acts as a connection pooler proxy:
- *
- *   Vercel fn #1 ──┐
- *   Vercel fn #2 ──┤── Accelerate proxy ──── Aiven Postgres (15 conns)
- *   Vercel fn #N ──┘     (managed pool)
- *
- * DATABASE_URL = prisma://accelerate.prisma-data.net/?api_key=...
- * DIRECT_URL  = postgres://avnadmin:...@pg-xxx.aivencloud.com:22630/...
- *
- * Accelerate multiplexes unlimited client connections over ~5 real
- * database connections. No connection_limit tuning needed.
+ * Note: Connection pooling is handled by Prisma's built-in connection pool.
+ * With 25 max connections, we set connection_limit to 10 to leave headroom.
  *
  * ═══════════════════════════════════════════════════════════════════════════
  * LOCAL DEVELOPMENT  (Docker Postgres, 100+ max_connections)
  * ═══════════════════════════════════════════════════════════════════════════
  *
  * DATABASE_URL = postgresql://postgres:postgres@localhost:5433/nairobi_sculpt
- * DIRECT_URL   = (same as DATABASE_URL)
- *
- * withAccelerate() is a no-op when URL is postgres:// — zero overhead.
- * A conservative connection_limit=5 is applied as a safety net.
  *
  * ═══════════════════════════════════════════════════════════════════════════
  */
@@ -47,17 +32,17 @@ const prismaClientSingleton = () => {
 
   const isBuilding = process.env.NEXT_PHASE === 'phase-production-build';
   const databaseUrl = process.env.DATABASE_URL || (isBuilding ? 'postgresql://dummy:dummy@localhost:5432/dummy' : '');
-  const directUrl = process.env.DIRECT_URL;
 
   if (!databaseUrl && !isBuilding) {
     console.error(`${LOG_PREFIX} DATABASE_URL is not defined`);
   }
 
-  // FORCE local dev to be direct connection only
-  if (!isProduction) {
-    console.log(`${LOG_PREFIX} Local/Dev Environment: Using direct PrismaClient (no accelerate)`);
+  const logConfig: Array<'query' | 'error' | 'warn'> = isProduction ? ['error'] : ['query', 'error', 'warn'];
+
+  if (isProduction) {
+    console.log(`${LOG_PREFIX} Production: Using direct Aiven Postgres connection`);
     return new PrismaClient({
-      log: ['query', 'error', 'warn'],
+      log: logConfig,
       datasources: {
         db: {
           url: databaseUrl
@@ -66,32 +51,8 @@ const prismaClientSingleton = () => {
     });
   }
 
-  // Production logic with Accelerate fallback
-  const isAccelerate = databaseUrl.startsWith('prisma://');
-  const logConfig: Array<'query' | 'error' | 'warn'> = ['error'];
-
-  if (isAccelerate) {
-    try {
-      const client = new PrismaClient({ log: logConfig }).$extends(withAccelerate()) as unknown as PrismaClient;
-      console.log(`${LOG_PREFIX} Production: Using Prisma Accelerate`);
-      return client;
-    } catch (error: any) {
-      if (error?.code === 'P6008' && directUrl) {
-        console.warn(`${LOG_PREFIX} Accelerate connection failed (P6008), falling back to DIRECT_URL`);
-        return new PrismaClient({
-          log: logConfig,
-          datasources: {
-            db: {
-              url: directUrl
-            }
-          }
-        }) as unknown as PrismaClient;
-      }
-      throw error;
-    }
-  }
-
-  // Fallback to direct client if it's evaluated as production but without an accelerate URL
+  // Local/Dev Environment
+  console.log(`${LOG_PREFIX} Local/Dev Environment: Using direct PrismaClient`);
   return new PrismaClient({
     log: logConfig,
     datasources: {
@@ -99,7 +60,7 @@ const prismaClientSingleton = () => {
         url: databaseUrl
       }
     }
-  }) as unknown as PrismaClient;
+  });
 };
 
 declare const globalThis: {
