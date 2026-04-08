@@ -67,6 +67,7 @@ export const FIELD_VISIBILITY_MAP: Record<Role, (keyof InventoryItem)[]> = {
     'category',
     'description',
     'unitOfMeasure',
+    'unitCost',
     'isActive',
     'isBillable',
     'isImplant',
@@ -80,12 +81,13 @@ export const FIELD_VISIBILITY_MAP: Record<Role, (keyof InventoryItem)[]> = {
     'category',
     'description',
     'unitOfMeasure',
+    'unitCost',
     'isActive',
     'isBillable',
     'isImplant',
   ],
 
-  // Theater Technician: Can see items, billing status, but not pricing
+  // Theater Technician: Can see items, billing status, and pricing
   [Role.THEATER_TECHNICIAN]: [
     'id',
     'name',
@@ -93,6 +95,7 @@ export const FIELD_VISIBILITY_MAP: Record<Role, (keyof InventoryItem)[]> = {
     'category',
     'description',
     'unitOfMeasure',
+    'unitCost',
     'isActive',
     'isBillable',
     'isImplant',
