@@ -135,10 +135,27 @@ export class CompleteConsultationUseCase {
       const consultation = await this.consultationRepository.findByAppointmentId(dto.appointmentId);
       if (consultation && !consultation.isCompleted()) {
         try {
-          const notes = ConsultationNotes.createRaw(dto.outcome || 'Documentation complete.');
+          // Preserve existing structured notes from draft saves, only add outcome as new content
+          const existingNotes = consultation.getNotes();
+          const outcomeNote = dto.outcome?.trim() 
+            ? `\n\n=== CONSULTATION OUTCOME ===\n${dto.outcome.trim()}` 
+            : '';
+          
+          let finalNotes: ConsultationNotes;
+          if (existingNotes && !existingNotes.isEmpty()) {
+            // Merge existing structured notes with outcome
+            const existingText = existingNotes.toFullText();
+            const combinedText = existingText + outcomeNote;
+            finalNotes = ConsultationNotes.createRaw(combinedText);
+          } else if (outcomeNote) {
+            finalNotes = ConsultationNotes.createRaw('Documentation complete.' + outcomeNote);
+          } else {
+            finalNotes = ConsultationNotes.createRaw('Documentation complete.');
+          }
+          
           const completedConsultation = consultation.complete({
             outcomeType: dto.outcomeType as ConsultationOutcomeType | undefined,
-            notes,
+            notes: finalNotes,
             patientDecision: dto.patientDecision as PatientDecision | undefined,
             completedAt,
           });
