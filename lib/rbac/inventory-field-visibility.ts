@@ -60,6 +60,7 @@ export const FIELD_VISIBILITY_MAP: Record<Role, (keyof InventoryItem)[]> = {
   ],
 
   // Doctor: Clinical access + billing fields for consultation billing
+  // Note: unitCost is needed for the BillingTab in consultation flow
   [Role.DOCTOR]: [
     'id',
     'name',
@@ -67,6 +68,7 @@ export const FIELD_VISIBILITY_MAP: Record<Role, (keyof InventoryItem)[]> = {
     'category',
     'description',
     'unitOfMeasure',
+    'unitCost',
     'isActive',
     'isBillable',
     'isImplant',

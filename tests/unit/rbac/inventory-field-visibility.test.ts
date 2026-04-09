@@ -129,11 +129,11 @@ describe('Inventory Field-Level RBAC', () => {
     });
 
     describe('DOCTOR role (clinical)', () => {
-      it('should NOT see pricing fields', () => {
+      it('should see billing-relevant fields for consultation charging', () => {
         const filtered = filterItemFields(mockItem, Role.DOCTOR);
 
-        // Should NOT see pricing
-        expect(filtered).not.toHaveProperty('unitCost');
+        // Should see billing-relevant fields for consultation billing tab
+        expect(filtered).toHaveProperty('unitCost');
         expect(filtered).not.toHaveProperty('reorderPoint');
         expect(filtered).not.toHaveProperty('lowStockThreshold');
 
@@ -162,13 +162,21 @@ describe('Inventory Field-Level RBAC', () => {
     });
 
     describe('NURSE role', () => {
-      it('should have similar access as DOCTOR', () => {
+      it('should have similar access as DOCTOR except billing fields', () => {
         const doctorFiltered = filterItemFields(mockItem, Role.DOCTOR);
         const nurseFiltered = filterItemFields(mockItem, Role.NURSE);
 
-        expect(Object.keys(nurseFiltered).sort()).toEqual(
-          Object.keys(doctorFiltered).sort()
-        );
+        const doctorFields = Object.keys(doctorFiltered).sort();
+        const nurseFields = Object.keys(nurseFiltered).sort();
+
+        // NURSE should have most fields same as DOCTOR
+        expect(nurseFields).toContain('id');
+        expect(nurseFields).toContain('name');
+        expect(nurseFields).toContain('category');
+        expect(nurseFields).toContain('description');
+        
+        // But NURSE should NOT have unitCost (billing field)
+        expect(nurseFields).not.toContain('unitCost');
       });
 
       it('should NOT see pricing or supplier info', () => {
@@ -324,7 +332,7 @@ describe('Inventory Field-Level RBAC', () => {
     });
 
     it('should return false when role cannot view field', () => {
-      expect(canViewField(Role.DOCTOR, 'unitCost')).toBe(false);
+      expect(canViewField(Role.NURSE, 'unitCost')).toBe(false);
       expect(canViewField(Role.DOCTOR, 'supplier')).toBe(false);
     });
 
@@ -343,10 +351,10 @@ describe('Inventory Field-Level RBAC', () => {
   });
 
   describe('Field filtering security', () => {
-    it('should never leak unitCost to non-procurement roles', () => {
-      const clinicalRoles = [Role.DOCTOR, Role.NURSE, Role.LAB_TECHNICIAN];
+    it('should never leak unitCost to non-billing roles', () => {
+      const nonBillingRoles = [Role.NURSE, Role.LAB_TECHNICIAN, Role.FRONTDESK];
 
-      for (const role of clinicalRoles) {
+      for (const role of nonBillingRoles) {
         const filtered = filterItemFields(mockItem, role);
         expect(filtered).not.toHaveProperty('unitCost');
       }
@@ -388,9 +396,12 @@ describe('Inventory Field-Level RBAC', () => {
 
       expect(storesFields.length).toBeGreaterThan(doctorFields.length);
 
-      // STORES should see pricing, but DOCTOR should not
+      // STORES should see more fields including supplier info
       expect(canViewField(Role.STORES, 'unitCost')).toBe(true);
-      expect(canViewField(Role.DOCTOR, 'unitCost')).toBe(false);
+      expect(canViewField(Role.STORES, 'supplier')).toBe(true);
+      // DOCTOR sees unitCost for billing but not supplier info
+      expect(canViewField(Role.DOCTOR, 'unitCost')).toBe(true);
+      expect(canViewField(Role.DOCTOR, 'supplier')).toBe(false);
     });
 
     it('ADMIN should have maximum access', () => {
