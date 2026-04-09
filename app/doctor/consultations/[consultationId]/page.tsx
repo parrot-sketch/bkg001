@@ -43,12 +43,32 @@ async function getConsultationRecord(consultationId: number, doctorId: string) {
   // Transform data for the UI
   const patient = consultation.appointment.patient;
   
+  // Fall back to doctor_notes if structured fields are empty
+  const hasStructuredNotes = consultation.chief_complaint || consultation.examination || consultation.plan;
+  const fallbackNotes = consultation.doctor_notes || '';
+  
+  // Parse doctor_notes to extract sections if needed
+  let chiefComplaint = consultation.chief_complaint || '';
+  let examination = consultation.examination || '';
+  let plan = consultation.plan || '';
+  
+  if (!hasStructuredNotes && fallbackNotes) {
+    // Try to extract sections from doctor_notes
+    const chiefMatch = fallbackNotes.match(/Chief Complaint:([\s\S]*?)(?:Examination:|Plan:|=== CONSULTATION OUTCOME ===|$)/i);
+    const examMatch = fallbackNotes.match(/Examination:([\s\S]*?)(?:Plan:|=== CONSULTATION OUTCOME ===|$)/i);
+    const planMatch = fallbackNotes.match(/Plan:([\s\S]*?)(?:=== CONSULTATION OUTCOME ===|$)/i);
+    
+    if (chiefMatch) chiefComplaint = chiefMatch[1].trim();
+    if (examMatch) examination = examMatch[1].trim();
+    if (planMatch) plan = planMatch[1].trim();
+  }
+  
   const data = {
     id: consultation.id,
     appointmentId: consultation.appointment_id,
-    chiefComplaint: consultation.chief_complaint,
-    examination: consultation.examination,
-    plan: consultation.plan,
+    chiefComplaint,
+    examination,
+    plan,
     outcomeType: consultation.outcome_type,
     completedAt: consultation.completed_at?.toISOString(),
     durationMinutes: consultation.duration_minutes,
