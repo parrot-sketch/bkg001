@@ -1670,13 +1670,29 @@ model SurgicalCase {
   created_at         DateTime                   @default(now())
   updated_at         DateTime                   @updatedAt
   created_by         String?
+
+  // New enums for simplified surgical case plan (must be defined before use)
+  // Temporary inline enums until schema restructure is complete
+  @@unique([patient_id]) // Placeholder - will be replaced
+  
+  // Simplified Surgical Case Plan Fields (Page 1 & 2)
+  procedure_date           DateTime?
+  procedure_category       String? // ProcedureCategory as string until migration
+  primary_or_revision      String? // CasePlanType as string until migration
+  anaesthesia_type         String? // AnaesthesiaType as string until migration
+  skin_to_skin_minutes     Int?
+  total_theatre_minutes    Int?
+  admission_type           String? // AdmissionType as string until migration
+  device_used              String? // LipoDevice as string until migration
+
+  // Relations
   calendar_events    CalendarEvent[]
   case_plan          CasePlan?
   clinical_forms     ClinicalFormResponse[]
   inventory_usage    InventoryUsage[]
   payment            Payment?
   staff_invites      StaffInvite[]
-  billing_estimate   SurgicalBillingEstimate?
+  billing_estimate   SurgicalBillingEstimate[]
   consultation       Consultation?              @relation(fields: [consultation_id], references: [id])
   patient            Patient                    @relation(fields: [patient_id], references: [id], onDelete: Cascade)
   primary_surgeon    Doctor                     @relation(fields: [primary_surgeon_id], references: [id], onDelete: Cascade)
@@ -1686,6 +1702,7 @@ model SurgicalCase {
   medication_records SurgicalMedicationRecord[]
   procedure_record   SurgicalProcedureRecord?
   theater_booking    TheaterBooking?
+  case_procedures    SurgicalCaseProcedure[]
 
   @@index([patient_id])
   @@index([primary_surgeon_id])
@@ -2425,4 +2442,62 @@ enum CalendarEventStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
+}
+
+// ============================================
+// SIMPLIFIED SURGICAL CASE PLAN SCHEMA
+// ============================================
+
+enum ProcedureCategory {
+  FACE
+  BREAST
+  BODY
+  RECONSTRUCTIVE
+  FACE_AND_NECK
+  BODY_CONTOURING
+  INTIMATE_AESTHETIC
+  HAIR_RESTORATION
+  NON_SURGICAL
+  POST_WEIGHT_LOSS
+}
+
+enum CasePlanType {
+  PRIMARY
+  REVISION
+}
+
+enum AdmissionType {
+  DAYCASE
+  OVERNIGHT
+}
+
+enum LipoDevice {
+  POWER_ASSISTED
+  LASER_ASSISTED
+  SUCTION_ASSISTED
+}
+
+model SurgicalProcedureOption {
+  id           String   @id @default(cuid())
+  category     ProcedureCategory
+  subcategory  String?
+  name         String
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now())
+
+  case_procedures SurgicalCaseProcedure[]
+
+  @@map("surgical_procedure_options")
+}
+
+model SurgicalCaseProcedure {
+  id              String                   @id @default(cuid())
+  surgical_case_id String
+  procedure_id    String
+
+  surgical_case   SurgicalCase            @relation(fields: [surgical_case_id], references: [id], onDelete: Cascade)
+  procedure       SurgicalProcedureOption @relation(fields: [procedure_id], references: [id])
+
+  @@unique([surgical_case_id, procedure_id])
+  @@map("surgical_case_procedures")
 }

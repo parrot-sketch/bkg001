@@ -18,7 +18,17 @@ async function getConsultationRecord(consultationId: number, doctorId: string) {
           patient: true,
         },
       },
-      surgical_case: { select: { id: true } },
+      surgical_case: { 
+        select: { 
+          id: true,
+          procedure_date: true,
+          diagnosis: true,
+          procedure_category: true,
+          primary_or_revision: true,
+          anaesthesia_type: true,
+          case_procedures: { select: { id: true } }
+        } 
+      },
     },
   });
 
@@ -63,6 +73,13 @@ async function getConsultationRecord(consultationId: number, doctorId: string) {
     outcomeType: consultation.outcome_type ?? undefined,
     completedAt: consultation.completed_at?.toISOString() ?? undefined,
     durationMinutes: consultation.duration_minutes ?? undefined,
+    surgicalCaseId: consultation.surgical_case?.id,
+    isSurgicalPlanComplete: !!(consultation.surgical_case?.procedure_date && 
+      consultation.surgical_case?.diagnosis && 
+      consultation.surgical_case?.procedure_category && 
+      consultation.surgical_case?.primary_or_revision && 
+      consultation.surgical_case?.anaesthesia_type &&
+      consultation.surgical_case?.case_procedures?.length > 0),
     appointment: {
       id: consultation.appointment.id,
       type: consultation.appointment.type,
