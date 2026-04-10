@@ -69,7 +69,7 @@ export async function GET(
     }
 
     // 4. If doctor, verify they're the primary surgeon
-    if (userRole === Role.DOCTOR && surgicalCase.primary_surgeon.user_id !== authResult.user.userId) {
+    if (userRole === Role.DOCTOR && surgicalCase.primary_surgeon?.user_id !== authResult.user.userId) {
       return NextResponse.json(
         { success: false, error: 'Access denied: Not your surgical case' },
         { status: 403 }
@@ -268,7 +268,7 @@ export async function PUT(
     }
 
     // If doctor, verify ownership
-    if (userRole === Role.DOCTOR && surgicalCase.primary_surgeon.user_id !== authResult.user.userId) {
+    if (userRole === Role.DOCTOR && surgicalCase.primary_surgeon?.user_id !== authResult.user.userId) {
       return NextResponse.json(
         { success: false, error: 'Access denied: Not your surgical case' },
         { status: 403 }

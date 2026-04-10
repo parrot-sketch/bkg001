@@ -538,7 +538,7 @@ export class TheaterSchedulingService {
             const bookingTime = format(booking.start_time, 'HH:mm');
 
             // Notify surgeon
-            if (booking.surgical_case.primary_surgeon.user_id) {
+            if (booking.surgical_case.primary_surgeon?.user_id) {
                 await createNotification({
                     userId: booking.surgical_case.primary_surgeon.user_id,
                     type: 'IN_APP',

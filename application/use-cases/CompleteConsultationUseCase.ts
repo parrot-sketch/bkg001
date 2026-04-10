@@ -393,10 +393,11 @@ export class CompleteConsultationUseCase {
           consultationId = consultation?.getId();
         }
 
-        // Create surgical case
+        // Create surgical case - don't auto-assign primary surgeon
+        // The theater tech will select surgeons during case planning
         const surgicalCase = await this.surgicalCaseRepository.create({
           patientId: appointment.getPatientId(),
-          primarySurgeonId: dto.doctorId,
+          primarySurgeonId: '', // Will be selected during case planning
           consultationId,
           appointmentId: dto.appointmentId,
           urgency: dto.procedureRecommended?.urgency as any,

@@ -1,20 +1,15 @@
 /**
- * Theater Tech Surgical Case View/Plan Page
+ * Theater Tech Surgical Case Plan Page
  * 
  * Route: /theater-tech/surgical-cases/[caseId]/plan
  * 
- * Theater tech can view case details and plan surgery.
+ * Theater tech can directly plan surgical cases using the SurgicalCasePlanForm.
  */
 
 import { getCurrentUser } from '@/lib/auth/server-auth';
 import db from '@/lib/db';
 import { redirect } from 'next/navigation';
-import Link from 'next/link';
-import { ArrowLeft, CheckCircle, Package, User, Calendar, Stethoscope, FileText } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { format } from 'date-fns';
+import { SurgicalCasePlanForm } from '@/components/doctor/surgical-case-plan/SurgicalCasePlanForm';
 
 interface PageProps {
   params: Promise<{ caseId: string }>;
@@ -28,13 +23,21 @@ export default async function TheaterTechPlanPage({ params }: PageProps) {
     redirect('/login');
   }
 
+  // Get case with surgeon_ids for pre-populating the form
   const surgicalCase = await db.surgicalCase.findUnique({
     where: { id: caseId },
-    include: {
-      patient: true,
-      primary_surgeon: { select: { name: true } },
-      case_items: { include: { inventory_item: true } },
-      case_plan: true,
+    select: { 
+      id: true, 
+      primary_surgeon_id: true,
+      surgeon_ids: true,
+      patient: {
+        select: {
+          id: true,
+          first_name: true,
+          last_name: true,
+          file_number: true
+        }
+      }
     }
   });
 
@@ -42,133 +45,27 @@ export default async function TheaterTechPlanPage({ params }: PageProps) {
     redirect('/theater-tech/surgical-cases');
   }
 
-  const isEditable = surgicalCase.status === 'DRAFT' || surgicalCase.status === 'PLANNING';
+  // Parse surgeon_ids to get the array of selected surgeons
+  let selectedSurgeonIds: string[] = [];
+  if (surgicalCase.surgeon_ids) {
+    try {
+      selectedSurgeonIds = JSON.parse(surgicalCase.surgeon_ids);
+    } catch (e) {
+      selectedSurgeonIds = surgicalCase.primary_surgeon_id ? [surgicalCase.primary_surgeon_id] : [];
+    }
+  } else if (surgicalCase.primary_surgeon_id) {
+    selectedSurgeonIds = [surgicalCase.primary_surgeon_id];
+  }
+
+  // Pre-populate with selected surgeons from surgeon_ids
+  const initialData = {
+    surgeonId: surgicalCase.primary_surgeon_id || '',
+    surgeonIds: selectedSurgeonIds,
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        {/* Back button */}
-        <div className="mb-6">
-          <Button variant="ghost" asChild>
-            <Link href="/theater-tech/surgical-cases" className="flex items-center gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              Back to Surgical Cases
-            </Link>
-          </Button>
-        </div>
-        
-        {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-slate-900">
-                Surgical Case
-              </h1>
-              <Badge className={
-                surgicalCase.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                surgicalCase.status === 'CANCELLED' ? 'bg-gray-100 text-gray-700' :
-                'bg-blue-100 text-blue-700'
-              }>
-                {surgicalCase.status}
-              </Badge>
-            </div>
-            <p className="text-slate-500">
-              {surgicalCase.patient.first_name} {surgicalCase.patient.last_name}
-              {surgicalCase.patient.file_number && ` (${surgicalCase.patient.file_number})`}
-            </p>
-          </div>
-          {isEditable && (
-            <Link href={`/theater-tech/surgical-cases/${caseId}/edit`}>
-              <Button>
-                <FileText className="h-4 w-4 mr-2" />
-                Continue Planning
-              </Button>
-            </Link>
-          )}
-        </div>
-
-        {/* Case Details */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-600" />
-              Case Details
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center gap-3">
-                <User className="h-5 w-5 text-slate-400" />
-                <div>
-                  <p className="text-xs text-slate-500 uppercase">Patient</p>
-                  <p className="font-medium">
-                    {surgicalCase.patient.first_name} {surgicalCase.patient.last_name}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <FileText className="h-5 w-5 text-slate-400" />
-                <div>
-                  <p className="text-xs text-slate-500 uppercase">File Number</p>
-                  <p className="font-medium">{surgicalCase.patient.file_number || 'N/A'}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Stethoscope className="h-5 w-5 text-slate-400" />
-                <div>
-                  <p className="text-xs text-slate-500 uppercase">Surgeon</p>
-                  <p className="font-medium">{surgicalCase.primary_surgeon.name}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Calendar className="h-5 w-5 text-slate-400" />
-                <div>
-                  <p className="text-xs text-slate-500 uppercase">Procedure Date</p>
-                  <p className="font-medium">
-                    {surgicalCase.procedure_date 
-                      ? format(new Date(surgicalCase.procedure_date), 'MMM d, yyyy')
-                      : 'Not scheduled'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="border-t pt-4">
-              <p className="text-xs text-slate-500 uppercase mb-2">Procedure</p>
-              <p className="font-medium">
-                {surgicalCase.procedure_name || surgicalCase.case_plan?.procedure_plan || 'Not specified'}
-              </p>
-            </div>
-
-            <div className="border-t pt-4">
-              <p className="text-xs text-slate-500 uppercase mb-2">Diagnosis</p>
-              <p className="font-medium">{surgicalCase.diagnosis || 'Not specified'}</p>
-            </div>
-
-            <div className="border-t pt-4">
-              <p className="text-xs text-slate-500 uppercase mb-2">Urgency</p>
-              <p className="font-medium">{surgicalCase.urgency}</p>
-            </div>
-
-            {surgicalCase.case_items.length > 0 && (
-              <div className="border-t pt-4">
-                <p className="text-xs text-slate-500 uppercase mb-2 flex items-center gap-2">
-                  <Package className="h-4 w-4" />
-                  Theater Items ({surgicalCase.case_items.length})
-                </p>
-                <div className="space-y-2">
-                  {surgicalCase.case_items.map(item => (
-                    <div key={item.id} className="flex justify-between p-2 bg-slate-50 rounded">
-                      <span>{item.inventory_item.name}</span>
-                      <span className="text-slate-500">x{item.quantity}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      <SurgicalCasePlanForm caseId={caseId} initialData={initialData} isTheaterTech={true} />
     </div>
   );
 }

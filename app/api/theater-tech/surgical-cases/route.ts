@@ -32,20 +32,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ success: false, error: 'Patient not found' }, { status: 404 });
     }
 
-    // Use provided surgeonId or find first available doctor
-    let primarySurgeonId = surgeonId;
-    if (!primarySurgeonId) {
-      const surgeon = await db.doctor.findFirst({
-        where: { availability_status: 'AVAILABLE' },
-        select: { id: true },
-        orderBy: { name: 'asc' },
-      });
-      primarySurgeonId = surgeon?.id;
-    }
-
-    if (!primarySurgeonId) {
-      return NextResponse.json({ success: false, error: 'No surgeon available' }, { status: 400 });
-    }
+    // Theater tech can create cases without assigning a surgeon immediately
+    // Surgeon(s) will be selected during case planning
+    const primarySurgeonId: string | undefined = surgeonId || undefined;
 
     // Create surgical case
     const surgicalCase = await db.surgicalCase.create({

@@ -36,12 +36,13 @@ export default async function SimplifiedSurgicalPlanPage({ params }: PageProps) 
     redirect('/unauthorized');
   }
 
-  // Verify the doctor has access to this case
+  // Get case with surgeon_ids for pre-populating the form
   const surgicalCase = await db.surgicalCase.findUnique({
     where: { id: caseId },
     select: { 
       id: true, 
       primary_surgeon_id: true,
+      surgeon_ids: true,
       patient: {
         select: {
           id: true,
@@ -57,14 +58,27 @@ export default async function SimplifiedSurgicalPlanPage({ params }: PageProps) 
     redirect('/doctor/surgical-cases');
   }
 
+  // Parse surgeon_ids to get the array of selected surgeons
+  let selectedSurgeonIds: string[] = [];
+  if (surgicalCase.surgeon_ids) {
+    try {
+      selectedSurgeonIds = JSON.parse(surgicalCase.surgeon_ids);
+    } catch (e) {
+      selectedSurgeonIds = surgicalCase.primary_surgeon_id ? [surgicalCase.primary_surgeon_id] : [];
+    }
+  } else if (surgicalCase.primary_surgeon_id) {
+    selectedSurgeonIds = [surgicalCase.primary_surgeon_id];
+  }
+
   // Only the primary surgeon can edit the plan
-  if (surgicalCase.primary_surgeon_id !== doctor.id) {
+  if (!selectedSurgeonIds.includes(doctor.id)) {
     redirect('/unauthorized');
   }
 
-  // Pre-populate with current doctor as default surgeon
+  // Pre-populate with selected surgeons from surgeon_ids
   const initialData = {
-    surgeonId: surgicalCase.primary_surgeon_id || doctor.id,
+    surgeonId: surgicalCase.primary_surgeon_id || '',
+    surgeonIds: selectedSurgeonIds,
   };
 
   return (

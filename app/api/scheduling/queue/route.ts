@@ -130,7 +130,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                 procedureName: c.procedure_name,
                 diagnosis: c.diagnosis,
                 urgency: c.urgency,
-                surgeonName: c.primary_surgeon.name,
+                surgeonName: c.primary_surgeon?.name || 'Not assigned',
                 estimatedDurationMinutes: c.case_plan?.estimated_duration_minutes || 60, // Default 60 if missing
                 readiness: {
                     doctorPlanReady: c.case_plan?.ready_for_surgery || false,

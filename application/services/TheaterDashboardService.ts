@@ -265,8 +265,8 @@ export class TheaterDashboardService {
                     hasAllergies: !!sc.patient.allergies && sc.patient.allergies.trim().length > 0,
                 },
                 primarySurgeon: {
-                    id: sc.primary_surgeon.id,
-                    name: sc.primary_surgeon.name,
+                    id: sc.primary_surgeon?.id || '',
+                    name: sc.primary_surgeon?.name || 'Not assigned',
                 },
                 booking: {
                     id: booking.id,
@@ -481,9 +481,9 @@ export class TheaterDashboardService {
                             dateOfBirth: sc.patient.date_of_birth,
                         },
                         primarySurgeon: {
-                            id: sc.primary_surgeon.id,
-                            name: sc.primary_surgeon.name,
-                            specialization: sc.primary_surgeon.specialization,
+                            id: sc.primary_surgeon?.id || '',
+                            name: sc.primary_surgeon?.name || 'Not assigned',
+                            specialization: sc.primary_surgeon?.specialization || '',
                         },
                         booking: {
                             id: booking.id,

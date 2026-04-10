@@ -188,7 +188,7 @@ async function _upsertBillingLineItem(
         anaesthesiologist_fee: 0,
         theatre_fee: 0,
         subtotal: 0,
-        created_by_doctor_id: sc.primary_surgeon_id,
+        created_by_doctor_id: sc.primary_surgeon_id || '',
       },
     });
   }

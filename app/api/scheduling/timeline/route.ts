@@ -124,7 +124,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                 patientName: `${b.surgical_case.patient.first_name} ${b.surgical_case.patient.last_name}`,
                 fileNumber: b.surgical_case.patient.file_number,
                 procedureName: b.surgical_case.procedure_name,
-                surgeonName: b.surgical_case.primary_surgeon.name,
+                surgeonName: b.surgical_case.primary_surgeon?.name || 'Not assigned',
                 urgency: b.surgical_case.urgency
             }));
 

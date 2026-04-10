@@ -1662,7 +1662,7 @@ model IntakeSubmission {
 model SurgicalCase {
   id                 String                     @id @default(uuid())
   patient_id         String
-  primary_surgeon_id String
+  primary_surgeon_id String? // Optional - will be set when surgeon is selected during planning
   consultation_id    Int?                       @unique
   urgency            SurgicalUrgency            @default(ELECTIVE)
   status             SurgicalCaseStatus         @default(DRAFT)
@@ -1674,9 +1674,6 @@ model SurgicalCase {
   created_by         String?
 
   // New enums for simplified surgical case plan (must be defined before use)
-  // Temporary inline enums until schema restructure is complete
-  @@unique([patient_id]) // Placeholder - will be replaced
-  
   // Simplified Surgical Case Plan Fields (Page 1 & 2)
   procedure_date           DateTime?
   procedure_category       String? // ProcedureCategory as string until migration
@@ -1686,6 +1683,7 @@ model SurgicalCase {
   total_theatre_minutes    Int?
   admission_type           String? // AdmissionType as string until migration
   device_used              String? // LipoDevice as string until migration
+  surgeon_ids              String?  // JSON array of selected surgeon IDs (for multi-surgeon selection)
 
   // Relations
   calendar_events    CalendarEvent[]
@@ -1697,7 +1695,7 @@ model SurgicalCase {
   billing_estimate   SurgicalBillingEstimate[]
   consultation       Consultation?              @relation(fields: [consultation_id], references: [id])
   patient            Patient                    @relation(fields: [patient_id], references: [id], onDelete: Cascade)
-  primary_surgeon    Doctor                     @relation(fields: [primary_surgeon_id], references: [id], onDelete: Cascade)
+  primary_surgeon    Doctor?                    @relation(fields: [primary_surgeon_id], references: [id], onDelete: Cascade)
   case_items         SurgicalCaseItem[]
   team_members       SurgicalCaseTeamMember[]
   checklist          SurgicalChecklist?

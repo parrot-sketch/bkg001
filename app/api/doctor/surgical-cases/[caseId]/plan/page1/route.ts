@@ -29,17 +29,17 @@ export async function PATCH(
     const body = await request.json();
     const {
       procedureDate,
-      surgeonId,
+      surgeonIds,
       diagnosis,
       procedureCategory,
       primaryOrRevision,
       procedureIds
     } = body;
 
-    // Validation
-    if (!procedureDate || !surgeonId || !diagnosis || !procedureCategory || !primaryOrRevision) {
+    // Validation - now require surgeonIds (array) instead of single surgeonId
+    if (!procedureDate || !surgeonIds || surgeonIds.length === 0 || !diagnosis || !procedureCategory || !primaryOrRevision) {
       return NextResponse.json(
-        { success: false, error: 'All required fields must be filled' },
+        { success: false, error: 'All required fields must be filled including at least one surgeon' },
         { status: 400 }
       );
     }
@@ -67,12 +67,13 @@ export async function PATCH(
 
     // Transaction: update case and procedures
     await db.$transaction(async (tx) => {
-      // Update SurgicalCase
+      // Update SurgicalCase - store all selected surgeons in surgeon_ids and set first as primary
       await tx.surgicalCase.update({
         where: { id: caseId },
         data: {
           procedure_date: new Date(procedureDate),
-          primary_surgeon_id: surgeonId,
+          primary_surgeon_id: surgeonIds[0], // First surgeon as primary for backward compatibility
+          surgeon_ids: JSON.stringify(surgeonIds), // Store all selected surgeons
           diagnosis,
           procedure_category: procedureCategory,
           primary_or_revision: primaryOrRevision,
