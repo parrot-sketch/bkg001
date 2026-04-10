@@ -26,7 +26,16 @@ export async function GET(
         const cases = await db.surgicalCase.findMany({
             where: {
                 status: {
-                    in: [SurgicalCaseStatus.READY_FOR_THEATER_BOOKING, SurgicalCaseStatus.READY_FOR_THEATER_PREP, SurgicalCaseStatus.SCHEDULED],
+                    in: [
+                        SurgicalCaseStatus.DRAFT,
+                        SurgicalCaseStatus.PLANNING,
+                        SurgicalCaseStatus.READY_FOR_WARD_PREP,
+                        SurgicalCaseStatus.IN_WARD_PREP,
+                        SurgicalCaseStatus.READY_FOR_THEATER_BOOKING,
+                        SurgicalCaseStatus.READY_FOR_THEATER_PREP,
+                        SurgicalCaseStatus.SCHEDULED,
+                        SurgicalCaseStatus.IN_PREP,
+                    ],
                 },
             },
             include: {
