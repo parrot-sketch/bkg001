@@ -42,7 +42,7 @@ export default function TheaterTechPatientsPage() {
       setLoading(true);
       try {
         const res = await fetch(
-          `/api/admin/patients?page=${page}&search=${encodeURIComponent(searchQuery)}`
+          `/api/theater-tech/patients?page=${page}&search=${encodeURIComponent(searchQuery)}`
         );
         const data = await res.json();
         if (data.success) {

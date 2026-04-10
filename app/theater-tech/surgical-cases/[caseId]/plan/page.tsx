@@ -1,20 +1,19 @@
 /**
- * Theater Tech Surgical Case Plan Page
+ * Theater Tech Surgical Case View/Plan Page
  * 
  * Route: /theater-tech/surgical-cases/[caseId]/plan
  * 
- * Shows read-only view for completed cases, edit form for draft/planning cases.
+ * Theater tech can view case details and plan surgery.
  */
 
 import { getCurrentUser } from '@/lib/auth/server-auth';
 import db from '@/lib/db';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Eye, Edit3, CheckCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Package, User, Calendar, Stethoscope, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { SurgicalCasePlanForm } from '@/components/doctor/surgical-case-plan/SurgicalCasePlanForm';
 import { format } from 'date-fns';
 
 interface PageProps {
@@ -29,7 +28,6 @@ export default async function TheaterTechPlanPage({ params }: PageProps) {
     redirect('/login');
   }
 
-  // Fetch the case with full details for read-only view
   const surgicalCase = await db.surgicalCase.findUnique({
     where: { id: caseId },
     include: {
@@ -41,14 +39,14 @@ export default async function TheaterTechPlanPage({ params }: PageProps) {
   });
 
   if (!surgicalCase) {
-    redirect('/theater-tech/consultations');
+    redirect('/theater-tech/surgical-cases');
   }
 
-  const statusToCheck = surgicalCase.status;
+  const isEditable = surgicalCase.status === 'DRAFT' || surgicalCase.status === 'PLANNING';
 
   return (
     <div className="min-h-screen bg-slate-50 py-8">
-      <div className="max-w-6xl mx-auto px-4">
+      <div className="max-w-4xl mx-auto px-4">
         {/* Back button */}
         <div className="mb-6">
           <Button variant="ghost" asChild>
@@ -64,7 +62,7 @@ export default async function TheaterTechPlanPage({ params }: PageProps) {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-slate-900">
-                Surgical Plan
+                Surgical Case
               </h1>
               <Badge className={
                 surgicalCase.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
@@ -79,25 +77,51 @@ export default async function TheaterTechPlanPage({ params }: PageProps) {
               {surgicalCase.patient.file_number && ` (${surgicalCase.patient.file_number})`}
             </p>
           </div>
+          {isEditable && (
+            <Link href={`/theater-tech/surgical-cases/${caseId}/edit`}>
+              <Button>
+                <FileText className="h-4 w-4 mr-2" />
+                Continue Planning
+              </Button>
+            </Link>
+          )}
         </div>
-        
-        {(statusToCheck === 'COMPLETED' || statusToCheck === 'CANCELLED' || statusToCheck === 'IN_THEATER' || statusToCheck === 'RECOVERY') ? (
-          /* Read-only view for completed cases */
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-                Case Details (Read-only)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
+
+        {/* Case Details */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              Case Details
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center gap-3">
+                <User className="h-5 w-5 text-slate-400" />
                 <div>
-                  <p className="text-xs text-slate-500 uppercase">Procedure</p>
+                  <p className="text-xs text-slate-500 uppercase">Patient</p>
                   <p className="font-medium">
-                    {surgicalCase.procedure_name || surgicalCase.case_plan?.procedure_plan || 'Not specified'}
+                    {surgicalCase.patient.first_name} {surgicalCase.patient.last_name}
                   </p>
                 </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <FileText className="h-5 w-5 text-slate-400" />
+                <div>
+                  <p className="text-xs text-slate-500 uppercase">File Number</p>
+                  <p className="font-medium">{surgicalCase.patient.file_number || 'N/A'}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Stethoscope className="h-5 w-5 text-slate-400" />
+                <div>
+                  <p className="text-xs text-slate-500 uppercase">Surgeon</p>
+                  <p className="font-medium">{surgicalCase.primary_surgeon.name}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <Calendar className="h-5 w-5 text-slate-400" />
                 <div>
                   <p className="text-xs text-slate-500 uppercase">Procedure Date</p>
                   <p className="font-medium">
@@ -106,42 +130,44 @@ export default async function TheaterTechPlanPage({ params }: PageProps) {
                       : 'Not scheduled'}
                   </p>
                 </div>
-                <div>
-                  <p className="text-xs text-slate-500 uppercase">Surgeon</p>
-                  <p className="font-medium">{surgicalCase.primary_surgeon.name}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 uppercase">Diagnosis</p>
-                  <p className="font-medium">{surgicalCase.diagnosis || 'Not specified'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500 uppercase">Urgency</p>
-                  <p className="font-medium">{surgicalCase.urgency || 'ELECTIVE'}</p>
+              </div>
+            </div>
+
+            <div className="border-t pt-4">
+              <p className="text-xs text-slate-500 uppercase mb-2">Procedure</p>
+              <p className="font-medium">
+                {surgicalCase.procedure_name || surgicalCase.case_plan?.procedure_plan || 'Not specified'}
+              </p>
+            </div>
+
+            <div className="border-t pt-4">
+              <p className="text-xs text-slate-500 uppercase mb-2">Diagnosis</p>
+              <p className="font-medium">{surgicalCase.diagnosis || 'Not specified'}</p>
+            </div>
+
+            <div className="border-t pt-4">
+              <p className="text-xs text-slate-500 uppercase mb-2">Urgency</p>
+              <p className="font-medium">{surgicalCase.urgency}</p>
+            </div>
+
+            {surgicalCase.case_items.length > 0 && (
+              <div className="border-t pt-4">
+                <p className="text-xs text-slate-500 uppercase mb-2 flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  Theater Items ({surgicalCase.case_items.length})
+                </p>
+                <div className="space-y-2">
+                  {surgicalCase.case_items.map(item => (
+                    <div key={item.id} className="flex justify-between p-2 bg-slate-50 rounded">
+                      <span>{item.inventory_item.name}</span>
+                      <span className="text-slate-500">x{item.quantity}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-              
-              {surgicalCase.case_items.length > 0 && (
-                <div>
-                  <p className="text-xs text-slate-500 uppercase mb-2">Theater Items ({surgicalCase.case_items.length})</p>
-                  <div className="space-y-2">
-                    {surgicalCase.case_items.map(item => (
-                      <div key={item.id} className="flex justify-between p-2 bg-slate-50 rounded">
-                        <span>{item.inventory_item.name}</span>
-                        <span className="text-slate-500">x{item.quantity}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ) : (
-          /* Edit form for draft/planning cases */
-          <SurgicalCasePlanForm 
-            caseId={caseId} 
-            initialData={{ surgeonId: surgicalCase.primary_surgeon_id }}
-          />
-        )}
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
