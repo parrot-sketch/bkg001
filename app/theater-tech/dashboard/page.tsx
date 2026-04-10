@@ -58,8 +58,14 @@ export default function TheaterTechDashboard() {
         fetchCases();
     }, [isAuthenticated, fetched]);
 
-    const handleCaseClick = (caseId: string) => {
-        router.push(`/theater-tech/dashboard/${caseId}`);
+    const handleCaseClick = (caseId: string, status: string) => {
+        // If case needs planning (DRAFT/PLANNING), go to plan page
+        // Otherwise go to theater prep
+        if (status === 'DRAFT' || status === 'PLANNING') {
+            router.push(`/theater-tech/surgical-cases/${caseId}/plan`);
+        } else {
+            router.push(`/theater-tech/dashboard/${caseId}`);
+        }
     };
 
     if (loading) {
@@ -136,7 +142,7 @@ export default function TheaterTechDashboard() {
                                 return (
                                     <div
                                         key={surgicalCase.id}
-                                        onClick={() => handleCaseClick(surgicalCase.id)}
+                                        onClick={() => handleCaseClick(surgicalCase.id, surgicalCase.status)}
                                         className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
                                     >
                                         <div className="flex-1">

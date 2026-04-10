@@ -43,14 +43,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             take: 50,
         });
 
-        // Filter out consultations that already have surgical cases
-        const withoutCase = consultations.filter(c => !c.surgical_case);
-
-        const mapped = withoutCase.map(c => ({
+        // Map all consultations (both with and without surgical cases)
+        const mapped = consultations.map(c => ({
             id: c.id,
             patient: c.appointment?.patient,
             completed_at: c.completed_at,
             appointment: c.appointment,
+            has_surgical_case: !!c.surgical_case,
+            surgical_case_id: c.surgical_case?.id,
         }));
 
         return NextResponse.json({ success: true, data: mapped });
