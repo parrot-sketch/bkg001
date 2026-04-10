@@ -19,7 +19,7 @@ export async function PATCH(
   const { caseId } = await params;
 
   try {
-    const authResult = await JwtMiddleware.verifyToken(request);
+    const authResult = await JwtMiddleware.authenticate(request);
     if (!authResult) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
@@ -83,7 +83,7 @@ export async function PATCH(
       );
     }
 
-    // Update SurgicalCase
+    // Update SurgicalCase - mark as ready for ward prep when plan is complete
     await db.surgicalCase.update({
       where: { id: caseId },
       data: {
@@ -92,10 +92,13 @@ export async function PATCH(
         total_theatre_minutes: totalTheatreMinutes || null,
         admission_type: admissionType || null,
         device_used: deviceUsed || null,
+        status: 'READY_FOR_WARD_PREP', // Plan complete - nurse can now do pre-op checklist
       },
     });
 
     revalidatePath(`/doctor/surgical-cases/${caseId}/plan`);
+    revalidatePath('/doctor/surgical-cases');
+    revalidatePath('/nurse/ward-prep');
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

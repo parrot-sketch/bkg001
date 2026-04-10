@@ -5,7 +5,8 @@
  * Used by: Doctor dashboard - Case Pipeline (Zone 3)
  * 
  * Pipeline Tabs:
- * - Surgical Planning: PLANNING, READY_FOR_SCHEDULING
+ * - Surgical Planning: PLANNING, READY_FOR_WARD_PREP
+ * - Pre-Op (Ward Prep): IN_WARD_PREP
  * - Scheduled / Pre-Op: SCHEDULED, IN_PREP, READY_FOR_THEATER_BOOKING
  * - In Theater: IN_THEATER
  * - Recovery & Post-Op: RECOVERY, COMPLETED (last 7 days)
@@ -20,6 +21,7 @@ import { surgicalCasesApi, SurgicalCaseListItemDto } from '@/lib/api/surgical-ca
 
 export interface SurgicalCasePipeline {
   planning: SurgicalCaseListItemDto[];
+  preOp: SurgicalCaseListItemDto[];
   scheduled: SurgicalCaseListItemDto[];
   inTheater: SurgicalCaseListItemDto[];
   recovery: SurgicalCaseListItemDto[];
@@ -29,6 +31,7 @@ export interface SurgicalCasePipelineWithCounts {
   pipeline: SurgicalCasePipeline;
   counts: {
     planning: number;
+    preOp: number;
     scheduled: number;
     inTheater: number;
     recovery: number;
@@ -37,7 +40,8 @@ export interface SurgicalCasePipelineWithCounts {
 }
 
 // Status categories for each pipeline tab
-const PLANNING_STATUSES = ['PLANNING', 'READY_FOR_SCHEDULING'];
+const PLANNING_STATUSES = ['PLANNING', 'READY_FOR_WARD_PREP'];
+const PREOP_STATUSES = ['IN_WARD_PREP'];
 const SCHEDULED_STATUSES = ['SCHEDULED', 'IN_PREP', 'READY_FOR_THEATER_BOOKING'];
 const IN_THEATER_STATUSES = ['IN_THEATER'];
 const RECOVERY_STATUSES = ['RECOVERY', 'COMPLETED'];
@@ -62,6 +66,7 @@ export function useDoctorSurgicalCasesPipeline(enabled = true) {
       // Group cases by pipeline stage
       const pipeline: SurgicalCasePipeline = {
         planning: [],
+        preOp: [],
         scheduled: [],
         inTheater: [],
         recovery: [],
@@ -76,6 +81,10 @@ export function useDoctorSurgicalCasesPipeline(enabled = true) {
         // Surgical Planning tab
         if (PLANNING_STATUSES.includes(surgicalCase.status)) {
           pipeline.planning.push(surgicalCase);
+        }
+        // Pre-Op / Ward Prep tab
+        else if (PREOP_STATUSES.includes(surgicalCase.status)) {
+          pipeline.preOp.push(surgicalCase);
         }
         // Scheduled / Pre-Op tab
         else if (SCHEDULED_STATUSES.includes(surgicalCase.status)) {
@@ -111,10 +120,11 @@ export function useDoctorSurgicalCasesPipeline(enabled = true) {
         pipeline,
         counts: {
           planning: pipeline.planning.length,
+          preOp: pipeline.preOp.length,
           scheduled: pipeline.scheduled.length,
           inTheater: pipeline.inTheater.length,
           recovery: pipeline.recovery.length,
-          total: pipeline.planning.length + pipeline.scheduled.length + 
+          total: pipeline.planning.length + pipeline.preOp.length + pipeline.scheduled.length + 
                  pipeline.inTheater.length + pipeline.recovery.length,
         },
       };

@@ -123,6 +123,11 @@ export interface PreOpSurgicalCase {
     completedAt?: Date;
   };
   wardChecklist: WardChecklistStatus;
+  procedures?: {
+    id: string;
+    name: string;
+    category: string;
+  }[];
   readiness: PreOpReadiness & {
     wardChecklistComplete?: boolean;
   };

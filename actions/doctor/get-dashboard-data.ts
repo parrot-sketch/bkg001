@@ -2,6 +2,7 @@
 
 import db from '@/lib/db';
 import { JwtMiddleware } from '@/lib/auth/middleware';
+import { SurgicalCaseStatus } from '@prisma/client';
 
 export interface DoctorDashboardData {
   doctor: {
@@ -135,7 +136,7 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
     db.surgicalCase.findMany({
       where: {
         primary_surgeon_id: doctorId,
-        status: { notIn: ['DRAFT', 'CANCELLED'] },
+        status: { notIn: [SurgicalCaseStatus.DRAFT, SurgicalCaseStatus.CANCELLED] },
       },
       include: {
         patient: {

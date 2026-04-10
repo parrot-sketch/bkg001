@@ -20,6 +20,9 @@ export async function getConsultationsForHub(doctorId: string) {
             patient: true,
           },
         },
+        surgical_case: {
+          select: { id: true },
+        },
       },
       orderBy: {
         completed_at: 'desc',
@@ -123,6 +126,7 @@ export async function initiateSurgicalCase(params: {
       });
 
       revalidatePath('/doctor/consultations');
+      revalidatePath('/doctor/surgical-cases');
 
       return {
         success: true,

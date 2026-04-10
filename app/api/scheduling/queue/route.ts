@@ -42,9 +42,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
         const { q, urgency, surgeonId, page, pageSize } = validation.data;
 
-        // 4. Build Where Clause
+        // 4. Build Where Clause - show cases ready for theater booking (after pre-op complete)
         const where: any = {
-            status: SurgicalCaseStatus.READY_FOR_SCHEDULING,
+            status: SurgicalCaseStatus.READY_FOR_THEATER_BOOKING,
         };
 
         if (q) {

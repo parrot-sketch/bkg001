@@ -1,7 +1,8 @@
 /**
  * API Route: POST /api/doctor/surgical-cases/[id]/mark-ready
  *
- * Transitions a surgical case from PLANNING → READY_FOR_SCHEDULING.
+ * Transitions a surgical case from PLANNING → READY_FOR_WARD_PREP.
+ * This marks the case as ready for the nurse to begin pre-op ward checklist.
  *
  * Business rules enforced by SurgicalCaseService:
  * - Case must be in PLANNING status
@@ -82,7 +83,7 @@ export async function POST(
         const surgicalCaseService = getSurgicalCaseService();
         const updated = await surgicalCaseService.transitionTo(
             caseId,
-            SurgicalCaseStatus.READY_FOR_SCHEDULING,
+            SurgicalCaseStatus.READY_FOR_WARD_PREP,
             authResult.user.userId,
         );
 
@@ -93,7 +94,7 @@ export async function POST(
                 record_id: caseId,
                 action: 'UPDATE',
                 model: 'SurgicalCase',
-                details: `Case marked READY_FOR_SCHEDULING. Previous status: ${(currentCase as any).status}`,
+                details: `Case marked READY_FOR_WARD_PREP. Previous status: ${(currentCase as any).status}`,
             },
         });
 
@@ -138,12 +139,12 @@ export async function POST(
                         user_id: admin.id,
                         type: 'IN_APP',
                         status: 'PENDING',
-                        subject: 'Surgical Case Ready for Scheduling',
-                        message: `Dr. ${doctorProfile.name} completed the plan for ${patient?.first_name} ${patient?.last_name}. Case is awaiting theater prep and scheduling.`,
+                        subject: 'Surgical Case Ready for Ward Prep',
+                        message: `Dr. ${doctorProfile.name} completed the plan for ${patient?.first_name} ${patient?.last_name}. Case is ready for pre-operative ward checklist.`,
                         metadata: JSON.stringify({
-                            event: 'CASE_READY_FOR_SCHEDULING',
+                            event: 'CASE_READY_FOR_WARD_PREP',
                             surgicalCaseId: caseId,
-                            navigateTo: '/admin/surgical-cases',
+                            navigateTo: '/nurse/ward-prep',
                         }),
                     },
                 });
@@ -161,7 +162,7 @@ export async function POST(
                 previousStatus: (currentCase as any).status,
                 transitionedAt: new Date().toISOString(),
             },
-            message: 'Case marked as ready for scheduling',
+            message: 'Case marked as ready for ward prep',
         });
     } catch (error) {
         console.error('[API] POST /api/doctor/surgical-cases/[id]/mark-ready - Error:', error);

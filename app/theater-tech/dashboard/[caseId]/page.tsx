@@ -51,7 +51,7 @@ export default async function TheaterPrepPage({ params }: { params: Promise<{ ca
         orderBy: { name: 'asc' }
     });
 
-    const isEditable = caseData.status === 'READY_FOR_SCHEDULING' || caseData.status === 'READY_FOR_THEATER_PREP';
+    const isEditable = caseData.status === 'READY_FOR_THEATER_BOOKING' || caseData.status === 'READY_FOR_THEATER_PREP' || caseData.status === 'IN_WARD_PREP' || caseData.status === 'READY_FOR_WARD_PREP';
     
     // Convert Dates to string for Client Component bridging
     const parsedSelectedItems = caseData.case_items.map(i => ({

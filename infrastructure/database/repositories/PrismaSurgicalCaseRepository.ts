@@ -102,7 +102,13 @@ export class PrismaSurgicalCaseRepository implements ISurgicalCaseRepository {
   async findReadyForScheduling(): Promise<SurgicalCase[]> {
     return this.prisma.surgicalCase.findMany({
       where: {
-        status: SurgicalCaseStatus.READY_FOR_SCHEDULING,
+        status: {
+          in: [
+            SurgicalCaseStatus.READY_FOR_WARD_PREP,
+            SurgicalCaseStatus.IN_WARD_PREP,
+            SurgicalCaseStatus.READY_FOR_THEATER_BOOKING,
+          ],
+        },
       },
       orderBy: { created_at: 'asc' },
       take: 100, // Safety limit for scheduling queue

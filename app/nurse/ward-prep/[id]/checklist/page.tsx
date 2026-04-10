@@ -15,6 +15,7 @@
  * - Structured skin prep agent/area dropdowns
  * - SpO₂ field with soft warning badges
  * - Urinalysis enum dropdown with custom fallback
+ * - Improved navigation with Back to Ward List
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -97,9 +98,9 @@ import {
     FilePen,
     Clock,
 } from 'lucide-react';
-import { Textarea as UITextarea } from '@/components/ui/textarea';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 import { MedicationAdministrationList } from '@/components/nurse/MedicationAdministrationList';
 import { HandoverSection } from '@/components/nurse/ward-prep-checklist/sections';
 
@@ -269,9 +270,6 @@ function NumberField({
     );
 }
 
-/**
- * Generic Select wrapper for string/enum fields.
- */
 function SelectField<T extends string>({
     label,
     value,
@@ -310,10 +308,6 @@ function SelectField<T extends string>({
     );
 }
 
-/**
- * SelectOrCustomField — enum dropdown with free-text fallback when OTHER selected.
- * Value is `UrinalysisResult | { custom: string }`.
- */
 function SelectOrCustomField({
     label,
     value,
@@ -327,8 +321,6 @@ function SelectOrCustomField({
     options: { value: UrinalysisResult; label: string }[];
     disabled: boolean;
 }) {
-    // Determine the currently selected enum key.
-    // Use '__none__' as the sentinel for "no selection" — Radix forbids empty string item values.
     const NONE_VALUE = '__none__';
     const currentEnum = value === undefined
         ? NONE_VALUE
@@ -382,9 +374,6 @@ function SelectOrCustomField({
     );
 }
 
-/**
- * SkinPrepSubSection — shown when nurse indicates skin prep was done.
- */
 function SkinPrepSubSection({
     value,
     onChange,
@@ -486,101 +475,42 @@ function BloodResultsSection({ data, onChange, disabled }: SectionProps) {
     const set = (field: string, value: any) => onChange({ ...data, bloodResults: { ...d, [field]: value } });
 
     const NONE_VALUE = '__none__';
-
     const hbPcvValue = d.hbPcv || NONE_VALUE;
     const uecsValue = d.uecs || NONE_VALUE;
-
     const showHbPcvNotes = hbPcvValue !== '' && hbPcvValue !== NONE_VALUE && hbPcvValue !== 'normal' && hbPcvValue !== 'not_done';
     const showUecsNotes = uecsValue !== '' && uecsValue !== NONE_VALUE && uecsValue !== 'normal' && uecsValue !== 'not_done';
 
     return (
         <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Hb/PCV */}
                 <div className="space-y-1.5">
                     <Label className="text-sm">Hb / PCV</Label>
-                    <Select
-                        value={hbPcvValue}
-                        onValueChange={(v) => set('hbPcv', v === NONE_VALUE ? '' : v)}
-                        disabled={disabled}
-                    >
-                        <SelectTrigger className="h-9 w-full">
-                            <SelectValue placeholder="Select result" />
-                        </SelectTrigger>
+                    <Select value={hbPcvValue} onValueChange={(v) => set('hbPcv', v === NONE_VALUE ? '' : v)} disabled={disabled}>
+                        <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Select result" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value={NONE_VALUE}>— Not recorded —</SelectItem>
-                            {HB_PCV_OPTIONS.map((opt) => (
-                                <SelectItem key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                </SelectItem>
-                            ))}
+                            {HB_PCV_OPTIONS.map((opt) => (<SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>))}
                             <SelectItem value="__custom__">Other (specify)</SelectItem>
                         </SelectContent>
                     </Select>
-                    {showHbPcvNotes && (
-                        <Input
-                            placeholder="Add notes..."
-                            value={d.hbPcvNotes || ''}
-                            onChange={(e) => set('hbPcvNotes', e.target.value)}
-                            disabled={disabled}
-                            className="h-8 mt-1"
-                        />
-                    )}
-                    {hbPcvValue === '__custom__' && (
-                        <Input
-                            placeholder="Specify Hb/PCV value..."
-                            value={d.hbPcvNotes || ''}
-                            onChange={(e) => set('hbPcvNotes', e.target.value)}
-                            disabled={disabled}
-                            className="h-8 mt-1"
-                        />
-                    )}
+                    {showHbPcvNotes && (<Input placeholder="Add notes..." value={d.hbPcvNotes || ''} onChange={(e) => set('hbPcvNotes', e.target.value)} disabled={disabled} className="h-8 mt-1" />)}
+                    {hbPcvValue === '__custom__' && (<Input placeholder="Specify Hb/PCV value..." value={d.hbPcvNotes || ''} onChange={(e) => set('hbPcvNotes', e.target.value)} disabled={disabled} className="h-8 mt-1" />)}
                 </div>
-
-                {/* UECs */}
                 <div className="space-y-1.5">
                     <Label className="text-sm">UECs</Label>
-                    <Select
-                        value={uecsValue}
-                        onValueChange={(v) => set('uecs', v === NONE_VALUE ? '' : v)}
-                        disabled={disabled}
-                    >
-                        <SelectTrigger className="h-9 w-full">
-                            <SelectValue placeholder="Select result" />
-                        </SelectTrigger>
+                    <Select value={uecsValue} onValueChange={(v) => set('uecs', v === NONE_VALUE ? '' : v)} disabled={disabled}>
+                        <SelectTrigger className="h-9 w-full"><SelectValue placeholder="Select result" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value={NONE_VALUE}>— Not recorded —</SelectItem>
-                            {UECS_OPTIONS.map((opt) => (
-                                <SelectItem key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                </SelectItem>
-                            ))}
+                            {UECS_OPTIONS.map((opt) => (<SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>))}
                             <SelectItem value="__custom__">Other (specify)</SelectItem>
                         </SelectContent>
                     </Select>
-                    {showUecsNotes && (
-                        <Input
-                            placeholder="Add notes..."
-                            value={d.uecsNotes || ''}
-                            onChange={(e) => set('uecsNotes', e.target.value)}
-                            disabled={disabled}
-                            className="h-8 mt-1"
-                        />
-                    )}
-                    {uecsValue === '__custom__' && (
-                        <Input
-                            placeholder="Specify UECs value..."
-                            value={d.uecsNotes || ''}
-                            onChange={(e) => set('uecsNotes', e.target.value)}
-                            disabled={disabled}
-                            className="h-8 mt-1"
-                        />
-                    )}
+                    {showUecsNotes && (<Input placeholder="Add notes..." value={d.uecsNotes || ''} onChange={(e) => set('uecsNotes', e.target.value)} disabled={disabled} className="h-8 mt-1" />)}
+                    {uecsValue === '__custom__' && (<Input placeholder="Specify UECs value..." value={d.uecsNotes || ''} onChange={(e) => set('uecsNotes', e.target.value)} disabled={disabled} className="h-8 mt-1" />)}
                 </div>
             </div>
-
             <Separator />
-
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <NumberField label="X-match units available" value={d.xMatchUnitsAvailable} onChange={(v) => set('xMatchUnitsAvailable', v)} min={0} disabled={disabled} />
                 <TextField label="Other lab results / notes" value={d.otherLabResults} onChange={(v) => set('otherLabResults', v)} disabled={disabled} />
@@ -594,15 +524,8 @@ function MedicationsSection({ data, onChange, disabled, caseId, patient, formRes
     const set = (field: string, value: any) => onChange({ ...data, medications: { ...d, [field]: value } });
     return (
         <div className="space-y-6">
-            <MedicationAdministrationList
-                caseId={caseId}
-                patient={patient}
-                formResponseId={formResponseId}
-                readOnly={disabled}
-            />
-
+            <MedicationAdministrationList caseId={caseId} patient={patient} formResponseId={formResponseId} readOnly={disabled} />
             <Separator />
-
             <div className="space-y-4 pt-2">
                 <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Additional Medication Flags</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -623,7 +546,7 @@ function AllergiesNpoSection({ data, onChange, disabled, patientAllergies }: Sec
             {patientAllergies && (
                 <div className="flex items-start gap-3 p-4 bg-red-50 border-2 border-red-200 rounded-lg shadow-sm">
                     <ShieldAlert className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
-                    <div className="flex-1">
+                    <div>
                         <p className="text-sm font-bold text-red-700">KNOWN ALLERGIES - PATIENT RECORD</p>
                         <p className="text-base font-semibold text-red-800 mt-1">{patientAllergies}</p>
                     </div>
@@ -633,11 +556,7 @@ function AllergiesNpoSection({ data, onChange, disabled, patientAllergies }: Sec
             <TextField label="Allergy details (list all)" value={d.allergiesDetails} onChange={(v) => set('allergiesDetails', v)} disabled={disabled} />
             <Separator />
             <BooleanField label="Patient is nil by mouth (NPO)" value={d.npoStatus} onChange={(v) => set('npoStatus', v)} disabled={disabled} />
-            {d.npoStatus && (
-                <div className="pl-7">
-                    <TimeField label="Fasted from (time)" value={d.npoFastedFromTime} onChange={(v) => set('npoFastedFromTime', v)} disabled={disabled} />
-                </div>
-            )}
+            {d.npoStatus && (<div className="pl-7"><TimeField label="Fasted from (time)" value={d.npoFastedFromTime} onChange={(v) => set('npoFastedFromTime', v)} disabled={disabled} /></div>)}
         </div>
     );
 }
@@ -645,21 +564,12 @@ function AllergiesNpoSection({ data, onChange, disabled, patientAllergies }: Sec
 function PreparationSection({ data, onChange, disabled }: SectionProps) {
     const d = data.preparation ?? {};
     const set = (field: string, value: any) => onChange({ ...data, preparation: { ...d, [field]: value } });
-
-    // Show skin prep details if legacy shaveSkinPrep OR if skinPrep already exists
     const showSkinPrepDetails = !!d.shaveSkinPrep || !!d.skinPrep;
-
     return (
         <div className="space-y-3">
             <BooleanField label="Bath / shower and gown" value={d.bathGown} onChange={(v) => set('bathGown', v)} disabled={disabled} />
             <BooleanField label="Shave / skin prep done" value={d.shaveSkinPrep} onChange={(v) => set('shaveSkinPrep', v)} disabled={disabled} />
-            {showSkinPrepDetails && (
-                <SkinPrepSubSection
-                    value={d.skinPrep as any}
-                    onChange={(v) => set('skinPrep', v)}
-                    disabled={disabled}
-                />
-            )}
+            {showSkinPrepDetails && (<SkinPrepSubSection value={d.skinPrep as any} onChange={(v) => set('skinPrep', v)} disabled={disabled} />)}
             <BooleanField label="ID band on" value={d.idBandOn} onChange={(v) => set('idBandOn', v)} disabled={disabled} />
             <BooleanField label="Correct positioning verified" value={d.correctPositioning} onChange={(v) => set('correctPositioning', v)} disabled={disabled} />
             <BooleanField label="Jewelry removed" value={d.jewelryRemoved} onChange={(v) => set('jewelryRemoved', v)} disabled={disabled} />
@@ -685,34 +595,14 @@ function ProstheticsSection({ data, onChange, disabled }: SectionProps) {
 function VitalsSection({ data, onChange, disabled }: SectionProps) {
     const d = data.vitals ?? {};
     const set = (field: string, value: any) => onChange({ ...data, vitals: { ...d, [field]: value } });
-
-    const warningMap = getVitalsWarningMap({
-        bpSystolic: d.bpSystolic,
-        bpDiastolic: d.bpDiastolic,
-        pulse: d.pulse,
-        respiratoryRate: d.respiratoryRate,
-        temperature: d.temperature,
-        spo2: d.spo2,
-    });
-
-    const urinalysisOptions = Object.values(UrinalysisResult).map((r) => ({
-        value: r,
-        label: URINALYSIS_LABELS[r],
-    }));
-
+    const warningMap = getVitalsWarningMap({ bpSystolic: d.bpSystolic, bpDiastolic: d.bpDiastolic, pulse: d.pulse, respiratoryRate: d.respiratoryRate, temperature: d.temperature, spo2: d.spo2 });
+    const urinalysisOptions = Object.values(UrinalysisResult).map((r) => ({ value: r, label: URINALYSIS_LABELS[r] }));
     return (
         <div className="space-y-5">
             {warningMap.size > 0 && (
                 <div className="p-3 rounded-lg border border-amber-200 bg-amber-50 space-y-1">
-                    <p className="text-xs font-semibold text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
-                        <AlertCircle className="w-3.5 h-3.5" />Vitals Advisory
-                    </p>
-                    {Array.from(warningMap.values()).map((w) => (
-                        <p key={w.field} className={`text-xs ${w.severity === 'critical' ? 'text-red-700 font-medium' : 'text-amber-700'
-                            }`}>
-                            <span className="font-semibold">{w.label}:</span> {w.message}
-                        </p>
-                    ))}
+                    <p className="text-xs font-semibold text-amber-800 uppercase tracking-wider flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" />Vitals Advisory</p>
+                    {Array.from(warningMap.values()).map((w) => (<p key={w.field} className={`text-xs ${w.severity === 'critical' ? 'text-red-700 font-medium' : 'text-amber-700'}`}><span className="font-semibold">{w.label}:</span> {w.message}</p>))}
                 </div>
             )}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -730,13 +620,7 @@ function VitalsSection({ data, onChange, disabled }: SectionProps) {
                 <NumberField label="Weight" value={d.weight} onChange={(v) => set('weight', v)} min={2} max={350} unit="kg" disabled={disabled} />
             </div>
             <Separator />
-            <SelectOrCustomField
-                label="Urinalysis results"
-                value={d.urinalysis as UrinalysisValue | undefined}
-                onChange={(v) => set('urinalysis', v)}
-                options={urinalysisOptions}
-                disabled={disabled}
-            />
+            <SelectOrCustomField label="Urinalysis results" value={d.urinalysis as UrinalysisValue | undefined} onChange={(v) => set('urinalysis', v)} options={urinalysisOptions} disabled={disabled} />
             <TextField label="Other forms required / notes" value={d.otherFormsRequired} onChange={(v) => set('otherFormsRequired', v)} disabled={disabled} />
         </div>
     );
@@ -768,22 +652,14 @@ const SECTION_RENDERERS: Record<string, React.FC<SectionProps>> = {
     handover: HandoverSection,
 };
 
-// ──────────────────────────────────────────────────────────────────────
-// Section Header with completion
-// ──────────────────────────────────────────────────────────────────────
-
 function SectionStatus({ complete, label }: { complete: boolean; label: string }) {
     return (
         <div className="flex items-center gap-2 flex-1">
             <span className="font-medium text-sm">{label}</span>
             {complete ? (
-                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] px-1.5 py-0">
-                    Complete
-                </Badge>
+                <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] px-1.5 py-0">Complete</Badge>
             ) : (
-                <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                    Pending
-                </Badge>
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0">Pending</Badge>
             )}
         </div>
     );
@@ -791,7 +667,6 @@ function SectionStatus({ complete, label }: { complete: boolean; label: string }
 
 function SurgicalPlanReferencePanel({ casePlan }: { casePlan: any }) {
     if (!casePlan) return null;
-
     return (
         <Card className="border-indigo-200 bg-indigo-50/20">
             <CardContent className="p-4 space-y-4">
@@ -799,43 +674,26 @@ function SurgicalPlanReferencePanel({ casePlan }: { casePlan: any }) {
                     <ClipboardCheck className="h-4 w-4 text-indigo-600" />
                     <span className="text-sm font-semibold text-slate-800">Surgical Plan Reference</span>
                 </div>
-
                 <Accordion type="single" collapsible className="w-full">
                     {casePlan.procedure_plan && (
                         <AccordionItem value="plan" className="border-b-0">
                             <AccordionTrigger className="py-2 text-xs font-medium hover:no-underline">Procedure Plan</AccordionTrigger>
-                            <AccordionContent>
-                                <div
-                                    className="text-sm prose prose-sm max-w-none text-slate-600 bg-white/50 p-3 rounded border border-indigo-100"
-                                    dangerouslySetInnerHTML={{ __html: casePlan.procedure_plan }}
-                                />
-                            </AccordionContent>
+                            <AccordionContent><div className="text-sm prose prose-sm max-w-none text-slate-600 bg-white/50 p-3 rounded border border-indigo-100" dangerouslySetInnerHTML={{ __html: casePlan.procedure_plan }} /></AccordionContent>
                         </AccordionItem>
                     )}
                     {casePlan.special_instructions && (
                         <AccordionItem value="instructions" className="border-b-0">
                             <AccordionTrigger className="py-2 text-xs font-medium hover:no-underline">Special Instructions</AccordionTrigger>
-                            <AccordionContent>
-                                <div
-                                    className="text-sm prose prose-sm max-w-none text-slate-600 bg-white/50 p-3 rounded border border-indigo-100"
-                                    dangerouslySetInnerHTML={{ __html: casePlan.special_instructions }}
-                                />
-                            </AccordionContent>
+                            <AccordionContent><div className="text-sm prose prose-sm max-w-none text-slate-600 bg-white/50 p-3 rounded border border-indigo-100" dangerouslySetInnerHTML={{ __html: casePlan.special_instructions }} /></AccordionContent>
                         </AccordionItem>
                     )}
                     {casePlan.pre_op_notes && (
                         <AccordionItem value="notes" className="border-b-0">
                             <AccordionTrigger className="py-2 text-xs font-medium hover:no-underline">Pre-op Notes</AccordionTrigger>
-                            <AccordionContent>
-                                <div
-                                    className="text-sm prose prose-sm max-w-none text-slate-600 bg-white/50 p-3 rounded border border-indigo-100"
-                                    dangerouslySetInnerHTML={{ __html: casePlan.pre_op_notes }}
-                                />
-                            </AccordionContent>
+                            <AccordionContent><div className="text-sm prose prose-sm max-w-none text-slate-600 bg-white/50 p-3 rounded border border-indigo-100" dangerouslySetInnerHTML={{ __html: casePlan.pre_op_notes }} /></AccordionContent>
                         </AccordionItem>
                     )}
                 </Accordion>
-
                 {casePlan.planned_anesthesia && (
                     <div className="pt-2 border-t border-indigo-100">
                         <p className="text-[10px] font-medium text-muted-foreground uppercase">Planned Anesthesia</p>
@@ -862,48 +720,26 @@ export default function NursePreopWardChecklistPage() {
     const finalizeMutation = useFinalizePreopWardChecklist(caseId);
 
     const [formData, setFormData] = useState<NursePreopWardChecklistDraft>({
-        documentation: {},
-        bloodResults: {},
-        medications: {},
-        allergiesNpo: {},
-        preparation: {},
-        prosthetics: {},
-        vitals: {},
-        handover: {},
+        documentation: {}, bloodResults: {}, medications: {}, allergiesNpo: {}, preparation: {}, prosthetics: {}, vitals: {}, handover: {},
     });
     const [isDirty, setIsDirty] = useState(false);
     const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
     const [showMissingItems, setShowMissingItems] = useState(false);
     const [missingItemsList, setMissingItemsList] = useState<string[]>([]);
-
-    // Amendment state
     const [showAmendDialog, setShowAmendDialog] = useState(false);
     const [amendReason, setAmendReason] = useState('');
     const [isAmending, setIsAmending] = useState(false);
     const [amendError, setAmendError] = useState('');
 
-    // Initialize form data from server — apply normalizer for backward compat
     useEffect(() => {
         if (response?.form?.data) {
             const normalizedData = normalizeLegacyChecklistData(response.form.data);
-            
-            // Auto-fill handover with current user if not already set
-            const userName = user?.firstName 
-                ? `${user.firstName} ${user.lastName || ''}`.trim() 
-                : user?.email || '';
-            
+            const userName = user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.email || '';
             if (userName) {
-                // Ensure handover object exists
                 normalizedData.handover = normalizedData.handover || {};
-                
-                if (!normalizedData.handover.preparedByName) {
-                    normalizedData.handover.preparedByName = userName;
-                }
-                if (!normalizedData.handover.handedOverByName) {
-                    normalizedData.handover.handedOverByName = userName;
-                }
+                if (!normalizedData.handover.preparedByName) normalizedData.handover.preparedByName = userName;
+                if (!normalizedData.handover.handedOverByName) normalizedData.handover.handedOverByName = userName;
             }
-            
             setFormData(normalizedData);
             setIsDirty(false);
         }
@@ -912,503 +748,155 @@ export default function NursePreopWardChecklistPage() {
     const formStatus = response?.form?.status;
     const isFinalized = formStatus === 'FINAL';
     const isAmendment = formStatus === 'AMENDMENT';
-    // Locked only when truly FINAL. DRAFT and AMENDMENT are both editable.
     const isDisabled = isFinalized || !isAuthenticated;
 
-    // Amendment submit handler
     const handleStartAmendment = async () => {
-        if (amendReason.trim().length < 10) {
-            setAmendError('Please provide a reason of at least 10 characters.');
-            return;
-        }
-        setAmendError('');
-        setIsAmending(true);
+        if (amendReason.trim().length < 10) { setAmendError('Please provide a reason of at least 10 characters.'); return; }
+        setAmendError(''); setIsAmending(true);
         try {
-            const res = await fetch(
-                `/api/nurse/surgical-cases/${caseId}/forms/preop-ward/amend`,
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ reason: amendReason }),
-                },
-            );
+            const res = await fetch(`/api/nurse/surgical-cases/${caseId}/forms/preop-ward/amend`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: amendReason }) });
             const json = await res.json();
-            if (!res.ok) {
-                setAmendError(json.error || 'Failed to start amendment.');
-            } else {
-                setShowAmendDialog(false);
-                setAmendReason('');
-                // Refetch — the query will update via React Query invalidation
-                // Trigger a page reload to refresh the form state from server
-                router.refresh();
-            }
-        } catch {
-            setAmendError('Network error. Please try again.');
-        } finally {
-            setIsAmending(false);
-        }
+            if (!res.ok) setAmendError(json.error || 'Failed to start amendment.');
+            else { setShowAmendDialog(false); setAmendReason(''); router.refresh(); }
+        } catch { setAmendError('Network error. Please try again.'); } finally { setIsAmending(false); }
     };
 
-    // Form change handler
-    const handleChange = useCallback((newData: NursePreopWardChecklistDraft) => {
-        setFormData(newData);
-        setIsDirty(true);
-    }, []);
+    const handleChange = useCallback((newData: NursePreopWardChecklistDraft) => { setFormData(newData); setIsDirty(true); }, []);
 
-    // Save handler
     const handleSave = () => {
-        // Auto-fill handover fields with current user if empty
-        const userName = user?.firstName 
-            ? `${user.firstName} ${user.lastName || ''}`.trim() 
-            : user?.email || '';
-        
+        const userName = user?.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user?.email || '';
         const dataToSave = { ...formData };
         if (userName) {
             dataToSave.handover = dataToSave.handover || {};
-            if (!dataToSave.handover.preparedByName) {
-                dataToSave.handover.preparedByName = userName;
-            }
-            if (!dataToSave.handover.handedOverByName) {
-                dataToSave.handover.handedOverByName = userName;
-            }
+            if (!dataToSave.handover.preparedByName) dataToSave.handover.preparedByName = userName;
+            if (!dataToSave.handover.handedOverByName) dataToSave.handover.handedOverByName = userName;
         }
-        
         saveMutation.mutate(dataToSave, {
-            onSuccess: () => setIsDirty(false),
+            onSuccess: () => { setIsDirty(false); toast.success('Checklist saved successfully'); },
+            onError: () => { toast.error('Failed to save checklist'); },
         });
     };
 
-    // Finalize handler
     const handleFinalize = () => {
         finalizeMutation.mutate(undefined, {
-            onSuccess: () => {
-                setShowFinalizeDialog(false);
-            },
-            onError: (error) => {
-                setShowFinalizeDialog(false);
-                if (error instanceof FinalizeValidationError) {
-                    setMissingItemsList(error.missingItems);
-                    setShowMissingItems(true);
-                }
-            },
+            onSuccess: () => { setShowFinalizeDialog(false); router.push('/nurse/ward-prep'); },
+            onError: (error) => { setShowFinalizeDialog(false); if (error instanceof FinalizeValidationError) { setMissingItemsList(error.missingItems); setShowMissingItems(true); } },
         });
     };
 
-    // Compute progress
     const sectionCompletion = response?.form?.sectionCompletion ?? {};
     const completedSections = Object.values(sectionCompletion).filter((s: any) => s.complete).length;
     const totalSections = CHECKLIST_SECTIONS.length;
     const progressPercent = totalSections > 0 ? Math.round((completedSections / totalSections) * 100) : 0;
 
-    // ── Loading / Error / Auth states ────────────────────────────────
-
-    if (!isAuthenticated || !user) {
-        return (
-            <div className="flex items-center justify-center h-[60vh]">
-                <p className="text-muted-foreground">Please log in to access the checklist.</p>
-            </div>
-        );
-    }
-
-    if (isLoading) {
-        return (
-            <div className="space-y-6 max-w-4xl mx-auto">
-                <Skeleton className="h-8 w-48" />
-                <Skeleton className="h-32 w-full" />
-                <Skeleton className="h-64 w-full" />
-                <Skeleton className="h-48 w-full" />
-            </div>
-        );
-    }
-
-    if (error || !response || !response.form) {
-        return (
-            <div className="space-y-6 max-w-4xl mx-auto">
-                <Button variant="ghost" size="sm" asChild>
-                    <Link href={`/nurse/pre-op-cases/${caseId}`}>
-                        <ArrowLeft className="w-4 h-4 mr-2" /> Back to Case
-                    </Link>
-                </Button>
-                <Card>
-                    <CardContent className="p-8 text-center">
-                        <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
-                        <h3 className="font-semibold text-lg mb-2">Failed to load checklist</h3>
-                        <p className="text-muted-foreground">{(error as Error)?.message || 'Unknown error'}</p>
-                    </CardContent>
-                </Card>
-            </div>
-        );
-    }
+    if (!isAuthenticated || !user) return (<div className="flex items-center justify-center h-[60vh]"><p className="text-muted-foreground">Please log in to access the checklist.</p></div>);
+    if (isLoading) return (<div className="space-y-6 max-w-4xl mx-auto"><Skeleton className="h-8 w-48" /><Skeleton className="h-32 w-full" /><Skeleton className="h-64 w-full" /><Skeleton className="h-48 w-full" /></div>);
+    if (error || !response || !response.form) return (<div className="space-y-6 max-w-4xl mx-auto"><Button variant="ghost" size="sm" asChild><Link href={`/nurse/ward-prep`}><ArrowLeft className="w-4 h-4 mr-2" /> Back to Ward List</Link></Button><Card><CardContent className="p-8 text-center"><AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" /><h3 className="font-semibold text-lg mb-2">Failed to load checklist</h3><p className="text-muted-foreground">{(error as Error)?.message || 'Unknown error'}</p></CardContent></Card></div>);
 
     const patient = response.patient;
     const form = response.form;
 
     return (
         <div className="max-w-4xl mx-auto space-y-5 pb-16 animate-in fade-in duration-500">
-            {/* ── Navigation ──────────────────────────────────────── */}
-            <Button variant="ghost" size="sm" asChild>
-                <Link href={`/nurse/ward-prep/${caseId}`}>
-                    <ArrowLeft className="w-4 h-4 mr-2" /> Back to Case
-                </Link>
-            </Button>
+            {/* Navigation - IMPROVED */}
+            <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" asChild>
+                    <Link href={`/nurse/ward-prep`}><ArrowLeft className="w-4 h-4 mr-2" /> Back to Ward List</Link>
+                </Button>
+                <span className="text-slate-300">|</span>
+                <Button variant="ghost" size="sm" asChild>
+                    <Link href={`/nurse/ward-prep/${caseId}`}><User2 className="w-4 h-4 mr-2" /> Case Details</Link>
+                </Button>
+            </div>
 
-            {/* ── Patient Header ──────────────────────────────────── */}
+            {/* Patient Header */}
             <Card>
                 <CardContent className="p-5">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div className="flex items-center gap-3">
-                            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10">
-                                <User2 className="h-5 w-5 text-primary" />
-                            </div>
+                            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10"><User2 className="h-5 w-5 text-primary" /></div>
                             <div>
-                                <h1 className="text-lg font-semibold">
-                                    {patient.first_name} {patient.last_name}
-                                </h1>
-                                <p className="text-sm text-muted-foreground">
-                                    {patient.file_number} · {response.procedureName || 'Procedure TBD'}
-                                    {response.side && ` (${response.side})`}
-                                    {response.surgeonName && ` · ${formatDoctorName(response.surgeonName)}`}
-                                </p>
+                                <h1 className="text-lg font-semibold">{patient.first_name} {patient.last_name}</h1>
+                                <p className="text-sm text-muted-foreground">{patient.file_number} · {response.procedureName || 'Procedure TBD'}{response.side && ` (${response.side})`}{response.surgeonName && ` · ${formatDoctorName(response.surgeonName)}`}</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            {isFinalized ? (
-                                <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 gap-1">
-                                    <Lock className="h-3 w-3" />
-                                    Finalized
-                                </Badge>
-                            ) : isAmendment ? (
-                                <Badge className="bg-amber-100 text-amber-800 border-amber-200 gap-1">
-                                    <FilePen className="h-3 w-3" />
-                                    Amendment
-                                </Badge>
-                            ) : (
-                                <Badge variant="secondary" className="gap-1">
-                                    <Circle className="h-3 w-3" />
-                                    Draft
-                                </Badge>
-                            )}
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="gap-1.5 h-8"
-                                asChild
-                            >
-                                <a
-                                    href={`/nurse/ward-prep/${caseId}/checklist/print`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                >
-                                    <Printer className="h-3.5 w-3.5" />
-                                    Print
-                                </a>
-                            </Button>
-                            {/* Create Amendment button — only on FINAL */}
-                            {isFinalized && (
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="gap-1.5 h-8 border-amber-300 text-amber-700 hover:bg-amber-50"
-                                    onClick={() => setShowAmendDialog(true)}
-                                >
-                                    <FilePen className="h-3.5 w-3.5" />
-                                    Amend
-                                </Button>
-                            )}
+                            {isFinalized ? (<Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 gap-1"><Lock className="h-3 w-3" />Finalized</Badge>) : isAmendment ? (<Badge className="bg-amber-100 text-amber-800 border-amber-200 gap-1"><FilePen className="h-3 w-3" />Amendment</Badge>) : (<Badge variant="secondary" className="gap-1"><Circle className="h-3 w-3" />Draft</Badge>)}
+                            <Button variant="outline" size="sm" className="gap-1.5 h-8" asChild><a href={`/nurse/ward-prep/${caseId}/checklist/print`} target="_blank" rel="noopener noreferrer"><Printer className="h-3.5 w-3.5" />Print</a></Button>
+                            {isFinalized && (<Button variant="outline" size="sm" className="gap-1.5 h-8 border-amber-300 text-amber-700 hover:bg-amber-50" onClick={() => setShowAmendDialog(true)}><FilePen className="h-3.5 w-3.5" />Amend</Button>)}
                         </div>
                     </div>
-
-                    {/* Amendment in-progress banner */}
-                    {isAmendment && (
-                        <div className="mt-3 flex items-start gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg">
-                            <FilePen className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                            <p className="text-sm text-amber-800">
-                                <strong>Amendment in Progress</strong> — This record was previously finalized.
-                                Make your corrections and re-finalize when ready.
-                            </p>
-                        </div>
-                    )}
-
-                    {/* Allergies alert */}
-                    {patient.allergies && (
-                        <div className="mt-3 flex items-start gap-2 p-2.5 bg-destructive/10 border border-destructive/20 rounded-lg">
-                            <ShieldAlert className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                            <p className="text-sm text-destructive">
-                                <strong>Allergies:</strong> {patient.allergies}
-                            </p>
-                        </div>
-                    )}
-
-                    {/* Progress bar */}
+                    {isAmendment && (<div className="mt-3 flex items-start gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg"><FilePen className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" /><p className="text-sm text-amber-800"><strong>Amendment in Progress</strong> — This record was previously finalized. Make your corrections and re-finalize when ready.</p></div>)}
+                    {patient.allergies && (<div className="mt-3 flex items-start gap-2 p-2.5 bg-destructive/10 border border-destructive/20 rounded-lg"><ShieldAlert className="h-4 w-4 text-destructive shrink-0 mt-0.5" /><p className="text-sm text-destructive"><strong>Allergies:</strong> {patient.allergies}</p></div>)}
                     <div className="mt-4">
-                        <div className="flex items-center justify-between text-xs mb-1.5">
-                            <span className="text-muted-foreground">Checklist Progress</span>
-                            <span className="font-medium">
-                                {completedSections}/{totalSections} sections complete
-                            </span>
-                        </div>
+                        <div className="flex items-center justify-between text-xs mb-1.5"><span className="text-muted-foreground">Checklist Progress</span><span className="font-medium">{completedSections}/{totalSections} sections complete</span></div>
                         <Progress value={progressPercent} className={`h-2 ${progressPercent === 100 ? '[&>div]:bg-emerald-500' : ''}`} />
                     </div>
-
-                    {/* Finalized info */}
-                    {isFinalized && form.signedAt && (
-                        <div className="mt-3 text-xs text-muted-foreground flex items-center gap-1">
-                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                            Finalized on {format(new Date(form.signedAt), 'MMM d, yyyy HH:mm')}
-                        </div>
-                    )}
+                    {isFinalized && form.signedAt && (<div className="mt-3 text-xs text-muted-foreground flex items-center gap-1"><CheckCircle2 className="h-3.5 h-3.5 text-emerald-500" />Finalized on {format(new Date(form.signedAt), 'MMM d, yyyy HH:mm')}</div>)}
                 </CardContent>
             </Card>
 
-            {/* ── Title ──────────────────────────────────────────── */}
+            {/* Title & Actions */}
             <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold tracking-tight">Pre-Operative Ward Checklist</h2>
                 {(isAmendment || !isFinalized) && (
                     <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleSave}
-                            disabled={saveMutation.isPending || !isDirty}
-                            className="gap-1.5"
-                        >
-                            {saveMutation.isPending ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                                <Save className="h-3.5 w-3.5" />
-                            )}
-                            Save Draft
-                        </Button>
-                        <Button
-                            size="sm"
-                            onClick={() => {
-                                if (isDirty) {
-                                    saveMutation.mutate(formData, {
-                                        onSuccess: () => {
-                                            setIsDirty(false);
-                                            setShowFinalizeDialog(true);
-                                        },
-                                    });
-                                } else {
-                                    setShowFinalizeDialog(true);
-                                }
-                            }}
-                            disabled={finalizeMutation.isPending}
-                            className={`gap-1.5 ${isAmendment ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
-                        >
-                            <Lock className="h-3.5 w-3.5" />
-                            {isAmendment ? 'Re-Finalize' : 'Finalize Checklist'}
-                        </Button>
+                        <Button onClick={handleSave} disabled={saveMutation.isPending || !isDirty} className="gap-1.5">{saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Save Draft</Button>
+                        <Button variant="default" onClick={() => setShowFinalizeDialog(true)} className="gap-1.5 bg-emerald-600 hover:bg-emerald-700"><Lock className="h-4 w-4" />Finalize</Button>
                     </div>
                 )}
             </div>
 
-            {/* ── Surgical Plan Reference ──────────────────────── */}
-            <SurgicalPlanReferencePanel casePlan={response.casePlan} />
+            {/* Surgical Plan Reference */}
+            {response.casePlan && <SurgicalPlanReferencePanel casePlan={response.casePlan} />}
 
-            {/* ── Accordion Sections ─────────────────────────────── */}
-            <Accordion type="multiple" defaultValue={CHECKLIST_SECTIONS.map((s) => s.key)} className="space-y-3">
+            {/* Checklist Sections */}
+            <div className="space-y-6">
                 {CHECKLIST_SECTIONS.map((section) => {
                     const SectionRenderer = SECTION_RENDERERS[section.key];
-                    const Icon = SECTION_ICONS[section.icon] || Circle;
-                    const completion = sectionCompletion[section.key];
-                    const isComplete = completion?.complete ?? false;
-
+                    const sectionComplete = sectionCompletion[section.key]?.complete ?? false;
                     return (
-                        <AccordionItem
-                            key={section.key}
-                            value={section.key}
-                            className="border rounded-lg px-4 data-[state=open]:shadow-sm transition-shadow"
-                        >
-                            <AccordionTrigger className="hover:no-underline py-3">
-                                <div className="flex items-center gap-3 flex-1">
-                                    <div className={`flex items-center justify-center w-7 h-7 rounded-full shrink-0 ${isComplete
-                                        ? 'bg-emerald-100 text-emerald-600'
-                                        : 'bg-slate-100 text-slate-400'
-                                        }`}>
-                                        {isComplete ? (
-                                            <CheckCircle2 className="h-4 w-4" />
-                                        ) : (
-                                            <Icon className="h-3.5 w-3.5" />
-                                        )}
-                                    </div>
-                                    <SectionStatus complete={isComplete} label={section.title} />
-                                </div>
-                            </AccordionTrigger>
-                            <AccordionContent className="pt-2 pb-4">
-                                {SectionRenderer && (
-                                    <SectionRenderer
-                                        data={formData}
-                                        onChange={handleChange}
-                                        disabled={isDisabled}
-                                        patientAllergies={section.key === 'allergiesNpo' ? patient.allergies : undefined}
-                                        caseId={caseId}
-                                        patient={patient}
-                                        formResponseId={form.id}
-                                        currentUser={user}
-                                    />
-                                )}
-                            </AccordionContent>
-                        </AccordionItem>
+                        <Card key={section.key} className="overflow-hidden">
+                            <div className="bg-slate-50/80 px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+                                <SectionStatus complete={sectionComplete} label={section.title} />
+                            </div>
+                            <CardContent className="p-5">
+                                {SectionRenderer && (<SectionRenderer data={formData} onChange={handleChange} disabled={isDisabled} caseId={caseId} patient={patient} formResponseId={form.id} patientAllergies={patient.allergies} currentUser={user} />)}
+                            </CardContent>
+                        </Card>
                     );
                 })}
-            </Accordion>
+            </div>
 
-            {/* ── Bottom Action Bar ──────────────────────────────── */}
-            {(isAmendment || !isFinalized) && (
-                <div className="sticky bottom-0 bg-background/95 backdrop-blur border-t py-3 px-4 -mx-4 flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground">
-                        {isAmendment && <span className="text-amber-600 font-medium mr-2">⚠ Amendment in progress</span>}
-                        {isDirty ? 'You have unsaved changes' : 'All changes saved'}
-                    </p>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleSave}
-                            disabled={saveMutation.isPending || !isDirty}
-                        >
-                            {saveMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
-                            Save Draft
-                        </Button>
-                        <Button
-                            size="sm"
-                            className={isAmendment ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'}
-                            onClick={() => {
-                                if (isDirty) {
-                                    saveMutation.mutate(formData, {
-                                        onSuccess: () => {
-                                            setIsDirty(false);
-                                            setShowFinalizeDialog(true);
-                                        },
-                                    });
-                                } else {
-                                    setShowFinalizeDialog(true);
-                                }
-                            }}
-                            disabled={finalizeMutation.isPending}
-                        >
-                            <Lock className="h-3.5 w-3.5 mr-1.5" />
-                            {isAmendment ? 'Re-Finalize' : 'Finalize'}
-                        </Button>
-                    </div>
-                </div>
-            )}
-
-            {/* ── Finalize Confirmation Dialog ───────────────────── */}
+            {/* Dialogs */}
             <Dialog open={showFinalizeDialog} onOpenChange={setShowFinalizeDialog}>
                 <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Finalize Pre-Op Checklist?</DialogTitle>
-                        <DialogDescription>
-                            This will lock the checklist and record your digital signature.
-                            All required fields must be completed. The checklist cannot be edited after finalization.
-                        </DialogDescription>
-                    </DialogHeader>
+                    <DialogHeader><DialogTitle>Finalize Checklist</DialogTitle><DialogDescription>This will lock the checklist and mark it as complete. You can still amend it later if needed.</DialogDescription></DialogHeader>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowFinalizeDialog(false)}>
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleFinalize}
-                            disabled={finalizeMutation.isPending}
-                            className="bg-emerald-600 hover:bg-emerald-700"
-                        >
-                            {finalizeMutation.isPending ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    Finalizing...
-                                </>
-                            ) : (
-                                <>
-                                    <Lock className="w-4 h-4 mr-2" />
-                                    Finalize & Sign
-                                </>
-                            )}
-                        </Button>
+                        <Button variant="outline" onClick={() => setShowFinalizeDialog(false)}>Cancel</Button>
+                        <Button onClick={handleFinalize} disabled={finalizeMutation.isPending} className="bg-emerald-600 hover:bg-emerald-700">{finalizeMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Confirm & Finalize</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            {/* ── Missing Items Dialog ────────────────────────────── */}
             <Dialog open={showMissingItems} onOpenChange={setShowMissingItems}>
-                <DialogContent className="max-w-md">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-destructive">
-                            <AlertTriangle className="h-5 w-5" />
-                            Cannot Finalize
-                        </DialogTitle>
-                        <DialogDescription>
-                            The following required fields are missing or invalid:
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="max-h-64 overflow-y-auto space-y-1.5">
-                        {missingItemsList.map((item, i) => (
-                            <div key={i} className="flex items-start gap-2 text-sm">
-                                <Circle className="h-3 w-3 text-destructive shrink-0 mt-1" />
-                                <span>{item}</span>
-                            </div>
-                        ))}
-                    </div>
-                    <DialogFooter>
-                        <Button onClick={() => setShowMissingItems(false)}>
-                            Close & Fix Issues
-                        </Button>
-                    </DialogFooter>
+                <DialogContent>
+                    <DialogHeader><DialogTitle className="text-amber-600">Missing Required Items</DialogTitle><DialogDescription>Please complete the following required items before finalizing:</DialogDescription></DialogHeader>
+                    <ul className="list-disc pl-6 space-y-1">{missingItemsList.map((item, i) => (<li key={i} className="text-sm">{item}</li>))}</ul>
+                    <DialogFooter><Button variant="outline" onClick={() => setShowMissingItems(false)}>Close</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            {/* ── Amendment Dialog ─────────────────────────────────── */}
-            <Dialog open={showAmendDialog} onOpenChange={(open) => { setShowAmendDialog(open); if (!open) { setAmendReason(''); setAmendError(''); } }}>
-                <DialogContent className="max-w-md">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <FilePen className="h-5 w-5 text-amber-600" />
-                            Create Amendment
-                        </DialogTitle>
-                        <DialogDescription>
-                            This checklist is finalized. Provide a reason for amendment.
-                            The existing record will be preserved in the audit trail.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-3 py-2">
-                        <Label htmlFor="amend-reason" className="text-sm font-medium">
-                            Reason for Amendment <span className="text-destructive">*</span>
-                        </Label>
-                        <UITextarea
-                            id="amend-reason"
-                            placeholder="Describe why this record needs correction (min 10 characters)..."
-                            value={amendReason}
-                            onChange={(e) => { setAmendReason(e.target.value); setAmendError(''); }}
-                            rows={3}
-                            className="resize-none"
-                        />
-                        {amendError && (
-                            <p className="text-sm text-destructive flex items-center gap-1">
-                                <AlertTriangle className="h-3.5 w-3.5" />
-                                {amendError}
-                            </p>
-                        )}
-                        <p className="text-xs text-muted-foreground">
-                            After amendment, the checklist will be editable again.
-                            You must re-finalize once corrections are complete.
-                        </p>
+            <Dialog open={showAmendDialog} onOpenChange={setShowAmendDialog}>
+                <DialogContent>
+                    <DialogHeader><DialogTitle>Start Amendment</DialogTitle><DialogDescription>Please provide a reason for amending this finalized checklist. This will be recorded in the audit trail.</DialogDescription></DialogHeader>
+                    <div className="space-y-4">
+                        <div className="space-y-2"><Label htmlFor="amend-reason">Reason for amendment</Label><Textarea id="amend-reason" value={amendReason} onChange={(e) => setAmendReason(e.target.value)} placeholder="Describe why this record needs to be amended..." rows={4} /></div>
+                        {amendError && (<p className="text-sm text-red-600">{amendError}</p>)}
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => { setShowAmendDialog(false); setAmendReason(''); setAmendError(''); }}>
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleStartAmendment}
-                            disabled={isAmending || amendReason.trim().length < 10}
-                            className="bg-amber-600 hover:bg-amber-700"
-                        >
-                            {isAmending ? (
-                                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Opening...</>
-                            ) : (
-                                <><FilePen className="h-4 w-4 mr-2" />Start Amendment</>
-                            )}
-                        </Button>
+                        <Button variant="outline" onClick={() => setShowAmendDialog(false)}>Cancel</Button>
+                        <Button onClick={handleStartAmendment} disabled={isAmending} className="bg-amber-600 hover:bg-amber-700">{isAmending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Start Amendment</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

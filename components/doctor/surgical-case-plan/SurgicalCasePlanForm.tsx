@@ -565,9 +565,13 @@ function OperativeDetailsForm({
 
 interface SurgicalCasePlanFormProps {
   caseId: string;
+  initialData?: {
+    surgeonId?: string;
+  };
 }
 
-export function SurgicalCasePlanForm({ caseId }: SurgicalCasePlanFormProps) {
+export function SurgicalCasePlanForm({ caseId, initialData }: SurgicalCasePlanFormProps) {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -603,7 +607,7 @@ export function SurgicalCasePlanForm({ caseId }: SurgicalCasePlanFormProps) {
               </p>
               <Button 
                 className="mt-6" 
-                onClick={() => window.history.back()}
+                onClick={() => router.push(`/doctor/surgical-cases/${caseId}`)}
               >
                 View Case
               </Button>
@@ -613,6 +617,14 @@ export function SurgicalCasePlanForm({ caseId }: SurgicalCasePlanFormProps) {
               caseId={caseId}
               onComplete={() => setCurrentStep(2)}
               onError={setError}
+              initialData={initialData ? {
+                surgeonId: initialData.surgeonId || '',
+                procedureDate: null,
+                diagnosis: '',
+                procedureCategory: '',
+                primaryOrRevision: '',
+                procedureIds: []
+              } : undefined}
             />
           ) : (
             <OperativeDetailsForm

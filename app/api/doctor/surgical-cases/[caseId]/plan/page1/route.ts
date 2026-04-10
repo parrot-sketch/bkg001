@@ -18,7 +18,7 @@ export async function PATCH(
   const { caseId } = await params;
 
   try {
-    const authResult = await JwtMiddleware.verifyToken(request);
+    const authResult = await JwtMiddleware.authenticate(request);
     if (!authResult) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
@@ -76,6 +76,7 @@ export async function PATCH(
           diagnosis,
           procedure_category: procedureCategory,
           primary_or_revision: primaryOrRevision,
+          status: 'PLANNING', // Case identification complete - ready for planning
         },
       });
 
@@ -96,6 +97,7 @@ export async function PATCH(
     });
 
     revalidatePath(`/doctor/surgical-cases/${caseId}/plan`);
+    revalidatePath('/doctor/surgical-cases');
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

@@ -3,10 +3,11 @@
  *
  * Returns surgical cases filtered by status for admin dashboards.
  * Primarily used by the theater scheduling page to show cases
- * that are READY_FOR_SCHEDULING.
+ * that are ready for scheduling (READY_FOR_WARD_PREP or IN_WARD_PREP).
  *
  * Query params:
- *   ?status=READY_FOR_SCHEDULING  (default)
+ *   ?status=READY_FOR_WARD_PREP  (default - cases ready for pre-op)
+ *   ?status=IN_WARD_PREP         (cases in pre-op)
  *   ?status=SCHEDULED
  *   ?status=PLANNING
  *   ?page=1            (default 1)
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
         // 3. Parse query params
         const { searchParams } = new URL(request.url);
-        const statusParam = searchParams.get('status') || 'READY_FOR_SCHEDULING';
+        const statusParam = searchParams.get('status') || 'READY_FOR_WARD_PREP';
         const page = Math.max(1, parseInt(searchParams.get('page') || '', 10) || DEFAULT_PAGE);
         const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(searchParams.get('pageSize') || '', 10) || DEFAULT_PAGE_SIZE));
 

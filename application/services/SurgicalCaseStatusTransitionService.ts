@@ -65,10 +65,10 @@ export class SurgicalCaseStatusTransitionService {
             throw new Error(`Surgical case ${caseId} not found`);
         }
 
-        // Handle transition from IN_PREP or READY_FOR_SCHEDULING
+        // Handle transition from IN_WARD_PREP, IN_PREP, or SCHEDULED
         const canTransition = 
+            surgicalCase.status === SurgicalCaseStatus.IN_WARD_PREP ||
             surgicalCase.status === SurgicalCaseStatus.IN_PREP ||
-            surgicalCase.status === SurgicalCaseStatus.READY_FOR_SCHEDULING ||
             surgicalCase.status === SurgicalCaseStatus.SCHEDULED;
 
         if (canTransition) {

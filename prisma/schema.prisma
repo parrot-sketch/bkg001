@@ -2338,17 +2338,19 @@ enum InviteStatus {
 }
 
 enum SurgicalCaseStatus {
-  DRAFT
-  PLANNING
-  READY_FOR_SCHEDULING
-  SCHEDULED
-  IN_PREP
-  IN_THEATER
-  RECOVERY
-  COMPLETED
-  CANCELLED
-  READY_FOR_THEATER_BOOKING
-  READY_FOR_THEATER_PREP
+  DRAFT           // Initial - case just created, no plan details
+  PLANNING        // Doctor filling in case details (Page 1 & 2)
+  READY_FOR_WARD_PREP  // Plan completed, ready for nurse pre-op checklist
+  IN_WARD_PREP    // Nurse is filling pre-op checklist
+  READY_FOR_THEATER_BOOKING  // All pre-op complete, ready for theater scheduling
+  SCHEDULED       // Theater date/time confirmed
+  IN_PREP         // Patient in pre-op holding
+  IN_THEATER      // Surgery in progress
+  RECOVERY        // Post-operative recovery
+  COMPLETED       // Entire process done
+  CANCELLED       // Case cancelled
+  READY_FOR_THEATER_PREP  // Legacy - keeping for compatibility
+  READY_FOR_SCHEDULING   // Legacy - keeping for compatibility
 }
 
 enum TheaterBookingStatus {

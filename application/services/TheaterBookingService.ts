@@ -25,7 +25,9 @@ export class TheaterBookingService {
                 throw new Error('Surgical case not found');
             }
 
-            if (surgicalCase.status !== SurgicalCaseStatus.READY_FOR_SCHEDULING) {
+            if (surgicalCase.status !== SurgicalCaseStatus.READY_FOR_WARD_PREP && 
+                surgicalCase.status !== SurgicalCaseStatus.IN_WARD_PREP &&
+                surgicalCase.status !== SurgicalCaseStatus.READY_FOR_THEATER_BOOKING) {
                 throw new Error(`Cannot book theater for case in status: ${surgicalCase.status}`);
             }
 
@@ -271,7 +273,7 @@ export class TheaterBookingService {
                  // a. Revert surgical case status
                  await tx.surgicalCase.update({
                     where: { id: booking.surgical_case_id },
-                    data: { status: SurgicalCaseStatus.READY_FOR_SCHEDULING }
+                     data: { status: SurgicalCaseStatus.IN_WARD_PREP }
                 });
 
                 // b. Reverse billing: Find the theater fee service

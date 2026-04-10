@@ -257,7 +257,7 @@ export default function PreOpCaseDetailPage() {
               <h1 className="text-2xl font-bold tracking-tight text-slate-900">
                 {patient?.fullName || 'Unknown Patient'}
               </h1>
-              <Badge variant={caseData.status === 'READY_FOR_SCHEDULING' ? 'default' : 'secondary'}>
+              <Badge variant={caseData.status === 'READY_FOR_WARD_PREP' || caseData.status === 'IN_WARD_PREP' ? 'default' : 'secondary'}>
                 {caseData.status.replace(/_/g, ' ')}
               </Badge>
             </div>
@@ -314,7 +314,7 @@ export default function PreOpCaseDetailPage() {
               </Button>
             )}
 
-            {readiness?.isReady && caseData.status !== 'READY_FOR_SCHEDULING' && caseData.status !== 'SCHEDULED' && (
+            {readiness?.isReady && caseData.status !== 'READY_FOR_WARD_PREP' && caseData.status !== 'IN_WARD_PREP' && caseData.status !== 'SCHEDULED' && (
               <Button
                 onClick={() => setShowMarkReadyDialog(true)}
                 className="bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-200"

@@ -39,7 +39,7 @@ const STATUS_SORT_ORDER: Record<string, number> = {
     IN_THEATER: 0,
     IN_PREP: 1,
     SCHEDULED: 2,
-    READY_FOR_SCHEDULING: 3,
+    READY_FOR_WARD_PREP: 3,
     PLANNING: 4,
     DRAFT: 5,
     RECOVERY: 6,
@@ -72,6 +72,7 @@ function mapCaseToDto(sc: any) {
         diagnosis: sc.diagnosis,
         procedureName: sc.procedure_name,
         side: sc.side,
+        procedureDate: sc.procedure_date,
         createdAt: sc.created_at,
         updatedAt: sc.updated_at,
         patient: sc.patient
@@ -119,6 +120,11 @@ function mapCaseToDto(sc: any) {
                 appointmentId: sc.consultation.appointment_id,
             }
             : null,
+        procedures: sc.case_procedures?.map((cp: any) => ({
+            id: cp.procedure.id,
+            name: cp.procedure.name,
+            category: cp.procedure.category,
+        })) ?? [],
     };
 }
 
@@ -238,7 +244,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             total: totalAll,
             draft: countMap['DRAFT'] ?? 0,
             planning: countMap['PLANNING'] ?? 0,
-            readyForScheduling: countMap['READY_FOR_SCHEDULING'] ?? 0,
+            readyForWardPrep: (countMap['READY_FOR_WARD_PREP'] ?? 0) + (countMap['IN_WARD_PREP'] ?? 0),
             scheduled: countMap['SCHEDULED'] ?? 0,
             inProgress:
                 (countMap['IN_PREP'] ?? 0) +
@@ -320,6 +326,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                     select: {
                         id: true,
                         appointment_id: true,
+                    },
+                },
+                case_procedures: {
+                    select: {
+                        id: true,
+                        procedure: {
+                            select: {
+                                id: true,
+                                name: true,
+                                category: true,
+                            },
+                        },
                     },
                 },
             },

@@ -85,8 +85,8 @@ export class SurgicalCaseService {
 
         // 2. PLANNING transitions
         if (current === 'PLANNING') {
-            if (['READY_FOR_SCHEDULING', 'DRAFT', 'CANCELLED'].includes(target)) {
-                if (target === 'READY_FOR_SCHEDULING') {
+            if (['READY_FOR_WARD_PREP', 'DRAFT', 'CANCELLED'].includes(target)) {
+                if (target === 'READY_FOR_WARD_PREP') {
                     await this.validateReadyForScheduling(currentCase);
                 }
                 return;
@@ -94,33 +94,41 @@ export class SurgicalCaseService {
             throw new Error(`Cannot transition from PLANNING to ${target}`);
         }
 
-        // 3. READY_FOR_SCHEDULING transitions
-        // Doctor completed plan → Theater Tech adds team & items
-        if (current === 'READY_FOR_SCHEDULING') {
-            if (['READY_FOR_THEATER_PREP', 'PLANNING', 'CANCELLED'].includes(target)) return;
-            throw new Error(`Cannot transition from READY_FOR_SCHEDULING to ${target}`);
+        // 3. READY_FOR_WARD_PREP transitions
+        // Doctor completed plan → Nurse does pre-op checklist
+        if (current === 'READY_FOR_WARD_PREP') {
+            if (['IN_WARD_PREP', 'PLANNING', 'CANCELLED'].includes(target)) return;
+            throw new Error(`Cannot transition from READY_FOR_WARD_PREP to ${target}`);
         }
 
-        // 3b. READY_FOR_THEATER_PREP transitions
-        // Theater Tech completed team & items → Ready for pre-op (nurse)
-        if (current === 'READY_FOR_THEATER_PREP') {
-            if (['READY_FOR_THEATER_BOOKING', 'READY_FOR_SCHEDULING', 'CANCELLED'].includes(target)) return;
-            throw new Error(`Cannot transition from READY_FOR_THEATER_PREP to ${target}`);
+        // 3b. IN_WARD_PREP transitions
+        // Nurse completed checklist → Ready for theater booking
+        if (current === 'IN_WARD_PREP') {
+            if (['READY_FOR_THEATER_BOOKING', 'READY_FOR_WARD_PREP', 'CANCELLED'].includes(target)) return;
+            throw new Error(`Cannot transition from IN_WARD_PREP to ${target}`);
         }
 
-        // 4. READY_FOR_THEATER_BOOKING transitions
+        // 3c. READY_FOR_THEATER_BOOKING transitions
+        // Nurse completed → Theater Tech adds team & items
         if (current === 'READY_FOR_THEATER_BOOKING') {
-            if (['SCHEDULED', 'READY_FOR_THEATER_PREP', 'CANCELLED'].includes(target)) return;
+            if (['READY_FOR_THEATER_PREP', 'IN_WARD_PREP', 'CANCELLED'].includes(target)) return;
             throw new Error(`Cannot transition from READY_FOR_THEATER_BOOKING to ${target}`);
         }
 
-        // 5. SCHEDULED transitions
+        // 3d. READY_FOR_THEATER_PREP transitions
+        // Theater Tech completed team & items → Ready for theater scheduling
+        if (current === 'READY_FOR_THEATER_PREP') {
+            if (['READY_FOR_THEATER_BOOKING', 'CANCELLED'].includes(target)) return;
+            throw new Error(`Cannot transition from READY_FOR_THEATER_PREP to ${target}`);
+        }
+
+        // 4. SCHEDULED transitions
         if (current === 'SCHEDULED') {
             if (['IN_PREP', 'READY_FOR_THEATER_BOOKING', 'CANCELLED'].includes(target)) return;
             throw new Error(`Cannot transition from SCHEDULED to ${target}`);
         }
 
-        // 6. IN_PREP transitions (can go to IN_THEATER or back to READY_FOR_THEATER_BOOKING if needed)
+        // 5. IN_PREP transitions (can go to IN_THEATER or back to READY_FOR_THEATER_BOOKING if needed)
         if (current === 'IN_PREP') {
             if (['IN_THEATER', 'READY_FOR_THEATER_BOOKING', 'CANCELLED'].includes(target)) return;
             throw new Error(`Cannot transition from IN_PREP to ${target}`);

@@ -95,8 +95,8 @@ export async function PUT(
             return NextResponse.json({ success: false, error: 'Case not found' }, { status: 404 });
         }
 
-        // Only allow theater prep for cases in READY_FOR_SCHEDULING or READY_FOR_THEATER_PREP
-        if (!['READY_FOR_SCHEDULING', 'READY_FOR_THEATER_PREP'].includes(surgicalCase.status)) {
+        // Only allow theater prep for cases ready for theater booking or theater prep
+        if (!['READY_FOR_THEATER_BOOKING', 'READY_FOR_THEATER_PREP'].includes(surgicalCase.status)) {
             return NextResponse.json(
                 { success: false, error: `Cannot modify theater prep for case in status: ${surgicalCase.status}` },
                 { status: 422 }

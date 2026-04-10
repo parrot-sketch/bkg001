@@ -9,7 +9,7 @@ import db from '@/lib/db';
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await JwtMiddleware.verifyToken(request);
+    const authResult = await JwtMiddleware.authenticate(request);
     if (!authResult) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
@@ -19,7 +19,9 @@ export async function GET(request: NextRequest) {
 
     const surgeons = await db.doctor.findMany({
       where: {
-        onboarding_status: 'COMPLETED',
+        availability_status: {
+          not: 'UNAVAILABLE',
+        },
       },
       select: {
         id: true,

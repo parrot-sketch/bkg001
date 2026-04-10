@@ -280,7 +280,9 @@ export async function updateSurgicalCasePlanPage2(input: z.infer<typeof Page2Sch
 export async function getSurgeons() {
   const doctors = await db.doctor.findMany({
     where: {
-      onboarding_status: 'COMPLETED',
+      availability_status: {
+        not: 'UNAVAILABLE',
+      },
     },
     select: {
       id: true,

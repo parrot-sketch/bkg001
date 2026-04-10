@@ -13,26 +13,26 @@ async function main() {
   console.log(`Total Cases: ${allCases.length}`);
   console.log(allCases);
 
-  // 2. Identify a PLANNING case to test mark-ready (simulate Doctor action)
+    // 2. Identify a PLANNING case to test mark-ready (simulate Doctor action)
   const planningCase = allCases.find(c => c.status === SurgicalCaseStatus.PLANNING);
   if (planningCase) {
     console.log(`\nFound PLANNING case: ${planningCase.id}. In a real flow, doctor clicks 'Mark Ready'.`);
     // Simulate doctor completing the plan
     const readyCase = await prisma.surgicalCase.update({
         where: { id: planningCase.id },
-        data: { status: SurgicalCaseStatus.READY_FOR_SCHEDULING }
+        data: { status: SurgicalCaseStatus.READY_FOR_WARD_PREP }
     });
-    console.log(`Simulated Transition -> READY_FOR_SCHEDULING! (Case ${readyCase.id})`);
+    console.log(`Simulated Transition -> READY_FOR_WARD_PREP! (Case ${readyCase.id})`);
   } else {
     console.log('\nNo PLANNING cases found to simulate Doctor.');
   }
 
-  // 3. Find READY_FOR_SCHEDULING cases (simulate Frontdesk queue)
+  // 3. Find READY_FOR_WARD_PREP cases (simulate Nurse pre-op queue)
   const queueCases = await prisma.surgicalCase.findMany({
-      where: { status: SurgicalCaseStatus.READY_FOR_SCHEDULING },
+      where: { status: SurgicalCaseStatus.READY_FOR_WARD_PREP },
       select: { id: true, status: true }
   });
-  console.log(`\nCases waiting in Frontdesk Queue (READY_FOR_SCHEDULING): ${queueCases.length}`);
+  console.log(`\nCases waiting in Nurse Pre-Op Queue (READY_FOR_WARD_PREP): ${queueCases.length}`);
 
   if (queueCases.length > 0) {
       const qCase = queueCases[0];

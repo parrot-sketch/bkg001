@@ -12,7 +12,7 @@
  * Run with: npx tsx prisma/seed.ts
  */
 
-import { PrismaClient, Role, Status, Gender, ConsentType, NotificationType, NotificationStatus } from '@prisma/client';
+import { PrismaClient, Role, Status, Gender, ConsentType, NotificationType, NotificationStatus, SurgicalCaseStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -1053,7 +1053,7 @@ async function main() {
       primary_surgeon_id: doctors[3].id, // Dr. Ken
       consultation_id: consultation2.id, // ✅ Linked to consultation
       urgency: 'ELECTIVE',
-      status: 'READY_FOR_SCHEDULING',
+      status: SurgicalCaseStatus.READY_FOR_WARD_PREP,
       procedure_name: 'Liposuction 360 + BBL',
       diagnosis: 'Lipodystrophy',
       created_by: adminUser.id,
@@ -1734,7 +1734,7 @@ async function main() {
 
   // Get surgical case that's ready for pre-op (use valid status)
   const caseForPreOp = await prisma.surgicalCase.findFirst({
-    where: { status: 'READY_FOR_SCHEDULING' },
+    where: { status: SurgicalCaseStatus.READY_FOR_WARD_PREP },
     include: { patient: true }
   });
 

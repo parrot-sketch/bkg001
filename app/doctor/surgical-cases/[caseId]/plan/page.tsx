@@ -62,9 +62,14 @@ export default async function SimplifiedSurgicalPlanPage({ params }: PageProps) 
     redirect('/unauthorized');
   }
 
+  // Pre-populate with current doctor as default surgeon
+  const initialData = {
+    surgeonId: surgicalCase.primary_surgeon_id || doctor.id,
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 py-8">
-      <SurgicalCasePlanForm caseId={caseId} />
+      <SurgicalCasePlanForm caseId={caseId} initialData={initialData} />
     </div>
   );
 }

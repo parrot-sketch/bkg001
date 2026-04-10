@@ -2,8 +2,9 @@
  * API Route: GET /api/theater-tech/surgical-cases
  * 
  * Returns surgical cases that need theater tech attention:
- * - READY_FOR_SCHEDULING (pending team/items)
- * - READY_FOR_THEATER_PREP (ready for booking)
+ * - READY_FOR_THEATER_BOOKING (pre-op complete, needs theater scheduling)
+ * - READY_FOR_THEATER_PREP (theater prep in progress)
+ * - SCHEDULED (confirmed cases)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -25,7 +26,7 @@ export async function GET(
         const cases = await db.surgicalCase.findMany({
             where: {
                 status: {
-                    in: [SurgicalCaseStatus.READY_FOR_SCHEDULING, SurgicalCaseStatus.READY_FOR_THEATER_PREP],
+                    in: [SurgicalCaseStatus.READY_FOR_THEATER_BOOKING, SurgicalCaseStatus.READY_FOR_THEATER_PREP, SurgicalCaseStatus.SCHEDULED],
                 },
             },
             include: {

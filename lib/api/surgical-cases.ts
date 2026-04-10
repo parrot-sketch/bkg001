@@ -19,6 +19,7 @@ export interface SurgicalCaseListItemDto {
     diagnosis: string | null;
     procedureName: string | null;
     side: string | null;
+    procedureDate: string | null;
     createdAt: string;
     updatedAt: string;
     patient: {
@@ -56,6 +57,11 @@ export interface SurgicalCaseListItemDto {
         id: number;
         appointmentId: number;
     } | null;
+    procedures: Array<{
+        id: string;
+        name: string;
+        category: string;
+    }>;
 }
 
 /** Pagination metadata */
@@ -71,7 +77,7 @@ export interface SurgicalCaseMetrics {
     total: number;
     draft: number;
     planning: number;
-    readyForScheduling: number;
+    readyForWardPrep: number;
     scheduled: number;
     inProgress: number;
     completed: number;
@@ -150,8 +156,8 @@ export const surgicalCasesApi = {
     },
 
     /**
-     * Mark a surgical case as ready for scheduling.
-     * Transitions: PLANNING → READY_FOR_SCHEDULING
+     * Mark a surgical case as ready for ward prep.
+     * Transitions: PLANNING → READY_FOR_WARD_PREP
      *
      * On 422, returns MarkReadyValidationError with structured missingItems.
      */
@@ -159,7 +165,7 @@ export const surgicalCasesApi = {
         return apiClient.post<MarkReadyResultDto>(
             `/doctor/surgical-cases/${caseId}/mark-ready`,
         );
-    },
+    }
 };
 
 // ============================================================================
@@ -171,7 +177,7 @@ export const adminSurgicalCasesApi = {
      * Get surgical cases by status (for admin scheduling)
      */
     async getByStatus(
-        status: string = 'READY_FOR_SCHEDULING',
+        status: string = 'READY_FOR_WARD_PREP',
     ): Promise<ApiResponse<SurgicalCaseListItemDto[]>> {
         return apiClient.get<SurgicalCaseListItemDto[]>(
             `/admin/surgical-cases?status=${status}`,

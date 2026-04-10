@@ -384,7 +384,8 @@ export async function PATCH(
           },
         });
 
-        // Only transition if Nurse Form is FINAL and case is currently SCHEDULED or READY_FOR_SCHEDULING
+        // Only transition if Nurse Form is FINAL and case is currently in ward prep
+        // New workflow: case moves from IN_WARD_PREP → READY_FOR_THEATER_BOOKING when checklist complete
         if (nurseMarksReady) {
           // Check nurse form engine checklist
           const nurseForm = await tx.clinicalFormResponse.findUnique({
@@ -403,12 +404,11 @@ export async function PATCH(
           // If the form is finalized and implicitly accepted, we transition the case
           if (nurseFormFinalized) {
             // Determine the next state based on current state.
-            // Under new workflow, cases should be SCHEDULED when they reach Ward Prep.
-            // If they are SCHEDULED or READY_FOR_SCHEDULING, we can advance them to READY_FOR_THEATER_BOOKING/IN_PREP.
+            // Under new workflow: PLANNING → READY_FOR_WARD_PREP → IN_WARD_PREP → READY_FOR_THEATER_BOOKING
+            // When nurse completes the checklist (FINAL), advance from IN_WARD_PREP to READY_FOR_THEATER_BOOKING
             let nextStatus = surgicalCase.status;
             
-            if (surgicalCase.status === SurgicalCaseStatus.SCHEDULED || surgicalCase.status === SurgicalCaseStatus.READY_FOR_SCHEDULING) {
-               // We will use READY_FOR_THEATER_BOOKING as the equivalent to "Ward Prep Complete"
+            if (surgicalCase.status === SurgicalCaseStatus.IN_WARD_PREP) {
                nextStatus = SurgicalCaseStatus.READY_FOR_THEATER_BOOKING;
             }
 
@@ -427,7 +427,7 @@ export async function PATCH(
       if (
         surgicalCaseStatus &&
         Object.values(SurgicalCaseStatus).includes(surgicalCaseStatus) &&
-        ![SurgicalCaseStatus.READY_FOR_SCHEDULING, SurgicalCaseStatus.READY_FOR_THEATER_BOOKING].includes(surgicalCaseStatus)
+        ![SurgicalCaseStatus.IN_WARD_PREP, SurgicalCaseStatus.READY_FOR_THEATER_BOOKING].includes(surgicalCaseStatus)
       ) {
         // Allow non-readiness status changes (e.g., reverting to PLANNING)
         await tx.surgicalCase.update({

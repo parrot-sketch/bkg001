@@ -58,21 +58,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const limit = parseInt(searchParams.get('limit') || '20');
     const search = searchParams.get('search') || undefined;
 
-    // 4. Build query filters - CORRECTED: Only include pre-op eligible statuses
+    // 4. Build query filters - SIMPLIFIED: Only show cases ready for ward prep
     // Ward prep shows cases where:
-    // - Doctor has completed the surgery plan (PLANNING is done)
-    // - Nurse pre-op checklist has NOT been completed yet
-    // NOT: SCHEDULED (theater booked), IN_PREP (already in theater), IN_THEATER (in surgery)
+    // - READY_FOR_WARD_PREP: Doctor completed the plan, nurse needs to do pre-op checklist
+    // - IN_WARD_PREP: Nurse has started/completed pre-op checklist
     const statusWhere =
       statusFilter && Object.values(SurgicalCaseStatus).includes(statusFilter as SurgicalCaseStatus)
         ? { status: statusFilter as SurgicalCaseStatus }
         : {
             status: {
               in: [
-                SurgicalCaseStatus.DRAFT,
-                SurgicalCaseStatus.PLANNING,
-                SurgicalCaseStatus.READY_FOR_SCHEDULING,
-                SurgicalCaseStatus.READY_FOR_THEATER_PREP,
+                SurgicalCaseStatus.READY_FOR_WARD_PREP,
+                SurgicalCaseStatus.IN_WARD_PREP,
               ],
             },
           };
@@ -139,6 +136,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             start_time: true,
             end_time: true,
             status: true,
+          },
+        },
+        case_procedures: {
+          select: {
+            id: true,
+            procedure: {
+              select: {
+                id: true,
+                name: true,
+                category: true,
+              },
+            },
           },
         },
       },
@@ -253,6 +262,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           : null,
         theaterBooking: surgicalCase.theater_booking,
         consultation: surgicalCase.consultation,
+        procedures: surgicalCase.case_procedures?.map(cp => ({
+          id: cp.procedure.id,
+          name: cp.procedure.name,
+          category: cp.procedure.category,
+        })) ?? [],
         // Ward checklist status from clinicalFormResponse
         wardChecklist: (() => {
           const form = checklistMap.get(surgicalCase.id);

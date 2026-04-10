@@ -238,7 +238,7 @@ export async function completeSurgicalPlan(caseId: string) {
 
     await db.surgicalCase.update({
       where: { id: caseId },
-      data: { status: 'READY_FOR_SCHEDULING' },
+      data: { status: 'READY_FOR_WARD_PREP' },
     });
 
     // ─────────────────────────────────────────────────────────────────────────────
@@ -252,7 +252,7 @@ export async function completeSurgicalPlan(caseId: string) {
         record_id: caseId,
         action: 'UPDATE',
         model: 'SurgicalCase',
-        details: `Case marked READY_FOR_SCHEDULING. (via completeSurgicalPlan)`,
+        details: `Case marked READY_FOR_WARD_PREP. (via completeSurgicalPlan)`,
       },
     });
 
@@ -297,12 +297,12 @@ export async function completeSurgicalPlan(caseId: string) {
             user_id: admin.id,
             type: 'IN_APP',
             status: 'PENDING',
-            subject: 'Surgical Case Ready for Scheduling',
-            message: `Dr. ${doctor.name} completed the plan for ${patient?.first_name} ${patient?.last_name}. Case is awaiting theater prep and scheduling.`,
+            subject: 'Surgical Case Ready for Ward Prep',
+            message: `Dr. ${doctor.name} completed the plan for ${patient?.first_name} ${patient?.last_name}. Case is now ready for pre-operative ward checklist.`,
             metadata: JSON.stringify({
-              event: 'CASE_READY_FOR_SCHEDULING',
+              event: 'CASE_READY_FOR_WARD_PREP',
               surgicalCaseId: caseId,
-              navigateTo: '/admin/surgical-cases',
+              navigateTo: '/nurse/ward-prep',
             }),
           },
         });
@@ -319,7 +319,7 @@ export async function completeSurgicalPlan(caseId: string) {
 
     revalidatePath(`/doctor/surgical-cases/${caseId}/plan`);
     await revalidateDoctorDashboard(doctor.id);
-    return { success: true, msg: 'Plan submitted for scheduling', status: 'READY_FOR_SCHEDULING' };
+    return { success: true, msg: 'Plan completed - case ready for ward prep', status: 'READY_FOR_WARD_PREP' };
   } catch (err) {
     console.error('[completeSurgicalPlan]', err);
     return { success: false, msg: 'Failed to complete surgical plan' };

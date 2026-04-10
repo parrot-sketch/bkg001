@@ -80,7 +80,9 @@ export function WardPrepTableRow({ surgicalCase }: WardPrepTableRowProps) {
     const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive'; className?: string }> = {
         DRAFT: { label: 'Draft', variant: 'secondary' },
         PLANNING: { label: 'Planning', variant: 'default' },
-        READY_FOR_SCHEDULING: { label: 'Ready for Scheduling', variant: 'default', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+        READY_FOR_WARD_PREP: { label: 'Ready for Ward Prep', variant: 'default', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+        IN_WARD_PREP: { label: 'In Ward Prep', variant: 'default', className: 'bg-amber-50 text-amber-700 border-amber-200' },
+        READY_FOR_THEATER_BOOKING: { label: 'Ready for Scheduling', variant: 'default', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
         SCHEDULED: { label: 'Scheduled', variant: 'outline', className: 'bg-blue-50 text-blue-700 border-blue-200' },
         IN_PREP: { label: 'In Pre-Op', variant: 'outline', className: 'bg-amber-50 text-amber-700 border-amber-200' },
         IN_THEATER: { label: 'In Theater', variant: 'outline', className: 'bg-blue-50 text-blue-700 border-blue-200' },
@@ -100,7 +102,7 @@ export function WardPrepTableRow({ surgicalCase }: WardPrepTableRowProps) {
     const wardChecklistDone = surgicalCase.wardChecklist?.isComplete;
     const wardChecklistStarted = surgicalCase.wardChecklist?.isStarted;
     
-    const showCompleteChecklist = !wardChecklistDone && (surgicalCase.status === 'IN_PREP' || surgicalCase.status === 'SCHEDULED' || surgicalCase.status === 'READY_FOR_SCHEDULING');
+    const showCompleteChecklist = !wardChecklistDone && (surgicalCase.status === 'IN_PREP' || surgicalCase.status === 'SCHEDULED' || surgicalCase.status === 'READY_FOR_WARD_PREP' || surgicalCase.status === 'IN_WARD_PREP' || surgicalCase.status === 'READY_FOR_THEATER_BOOKING');
 
     return (
         <TableRow
@@ -115,7 +117,11 @@ export function WardPrepTableRow({ surgicalCase }: WardPrepTableRowProps) {
                             <span className="text-[10px] text-slate-400">#{surgicalCase.patient.fileNumber}</span>
                         )}
                     </div>
-                    <span className="text-[11px] text-slate-500 line-clamp-1">{surgicalCase.procedureName || 'Unspecified Procedure'}</span>
+                    <span className="text-[11px] text-slate-500 line-clamp-1">
+                        {surgicalCase.procedures && surgicalCase.procedures.length > 0
+                            ? surgicalCase.procedures.map(p => p.name).join(', ')
+                            : surgicalCase.procedureName || 'Unspecified Procedure'}
+                    </span>
                 </div>
             </TableCell>
 
@@ -230,7 +236,7 @@ export function WardPrepTableRow({ surgicalCase }: WardPrepTableRowProps) {
 
             <TableCell className="text-right">
                 <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                    {readiness.isReady && surgicalCase.status !== 'READY_FOR_SCHEDULING' && surgicalCase.status !== 'SCHEDULED' && (
+                    {readiness.isReady && surgicalCase.status !== 'READY_FOR_WARD_PREP' && surgicalCase.status !== 'IN_WARD_PREP' && surgicalCase.status !== 'READY_FOR_THEATER_BOOKING' && surgicalCase.status !== 'SCHEDULED' && (
                         <Button
                             size="sm"
                             variant="outline"
@@ -268,7 +274,7 @@ export function WardPrepTableRow({ surgicalCase }: WardPrepTableRowProps) {
                                 <CheckSquare className="mr-2 h-4 w-4" /> 
                                 {wardChecklistDone ? 'View Checklist' : wardChecklistStarted ? 'Continue Checklist' : 'Complete Checklist'}
                             </DropdownMenuItem>
-                            {readiness.isReady && surgicalCase.status !== 'READY_FOR_SCHEDULING' && surgicalCase.status !== 'SCHEDULED' && (
+                    {readiness.isReady && surgicalCase.status !== 'READY_FOR_WARD_PREP' && surgicalCase.status !== 'IN_WARD_PREP' && surgicalCase.status !== 'READY_FOR_THEATER_BOOKING' && surgicalCase.status !== 'SCHEDULED' && (
                                 <>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem onClick={handleMarkReady} className="text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50">
