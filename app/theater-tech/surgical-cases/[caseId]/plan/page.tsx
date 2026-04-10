@@ -44,10 +44,7 @@ export default async function TheaterTechPlanPage({ params }: PageProps) {
     redirect('/theater-tech/consultations');
   }
 
-  const isReadOnly = surgicalCase.status === 'COMPLETED' || 
-                    surgicalCase.status === 'CANCELLED' ||
-                    surgicalCase.status === 'IN_THEATER' ||
-                    surgicalCase.status === 'RECOVERY';
+  const statusToCheck = surgicalCase.status;
 
   return (
     <div className="min-h-screen bg-slate-50 py-8">
@@ -84,7 +81,7 @@ export default async function TheaterTechPlanPage({ params }: PageProps) {
           </div>
         </div>
         
-        {isReadOnly ? (
+        {(statusToCheck === 'COMPLETED' || statusToCheck === 'CANCELLED' || statusToCheck === 'IN_THEATER' || statusToCheck === 'RECOVERY') ? (
           /* Read-only view for completed cases */
           <Card>
             <CardHeader>
@@ -97,7 +94,9 @@ export default async function TheaterTechPlanPage({ params }: PageProps) {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-slate-500 uppercase">Procedure</p>
-                  <p className="font-medium">{surgicalCase.procedure_name || 'Not specified'}</p>
+                  <p className="font-medium">
+                    {surgicalCase.procedure_name || surgicalCase.case_plan?.procedure_plan || 'Not specified'}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs text-slate-500 uppercase">Procedure Date</p>
@@ -114,6 +113,10 @@ export default async function TheaterTechPlanPage({ params }: PageProps) {
                 <div>
                   <p className="text-xs text-slate-500 uppercase">Diagnosis</p>
                   <p className="font-medium">{surgicalCase.diagnosis || 'Not specified'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 uppercase">Urgency</p>
+                  <p className="font-medium">{surgicalCase.urgency || 'ELECTIVE'}</p>
                 </div>
               </div>
               
