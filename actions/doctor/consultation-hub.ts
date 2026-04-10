@@ -3,16 +3,20 @@
 import db from '@/lib/db';
 import { ConsultationOutcomeType } from '@/domain/enums/ConsultationOutcomeType';
 import { revalidatePath } from 'next/cache';
+import { startOfDay, endOfDay } from 'date-fns';
 
 /**
- * Get recently completed consultations for a doctor to display in the Hub.
+ * Get today's completed consultations for a doctor to display in the Hub.
  */
 export async function getConsultationsForHub(doctorId: string) {
   try {
+    const today = startOfDay(new Date());
+    const tomorrow = endOfDay(new Date());
+
     const consultations = await db.consultation.findMany({
       where: {
         doctor_id: doctorId,
-        completed_at: { not: null },
+        completed_at: { not: null, gte: today, lt: tomorrow },
       },
       include: {
         appointment: {
