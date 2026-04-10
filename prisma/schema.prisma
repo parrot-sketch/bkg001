@@ -442,13 +442,15 @@ model PatientQueue {
   removal_reason String?
   appointment    Appointment? @relation(fields: [appointment_id], references: [id])
   doctor         Doctor       @relation(fields: [doctor_id], references: [id], onDelete: Cascade)
-  patient        Patient      @relation(fields: [patient_id], references: [id], onDelete: Cascade)
+  patient        Patient     @relation(fields: [patient_id], references: [id], onDelete: Cascade)
 
   @@index([patient_id])
   @@index([doctor_id])
   @@index([appointment_id])
   @@index([status])
   @@index([added_at])
+  @@index([status, added_at])
+  @@index([doctor_id, status, added_at])
 }
 
 model Consultation {

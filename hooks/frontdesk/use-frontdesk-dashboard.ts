@@ -106,7 +106,7 @@ export function useDashboardStats() {
 
 const STALE_TIME_MS = 30_000; // 30 seconds - aligns with server action cache
 const GC_TIME_MS = 5 * 60 * 1000; // 5 minutes
-const REFETCH_INTERVAL_MS = 30_000; // 30 seconds - Tier 2 polling
+const REFETCH_INTERVAL_MS = 60_000; // 60 seconds - reduced for production performance
 
 // ─── Main Hook ────────────────────────────────────────────────────
 
