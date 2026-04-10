@@ -52,8 +52,8 @@ export async function POST(
         const validTransitions: Record<SurgicalCaseStatus, SurgicalCaseStatus[]> = {
             [SurgicalCaseStatus.DRAFT]: [],
             [SurgicalCaseStatus.PLANNING]: [],
-            [SurgicalCaseStatus.READY_FOR_SCHEDULING]: [],
-            [SurgicalCaseStatus.READY_FOR_THEATER_PREP]: [],
+            [SurgicalCaseStatus.READY_FOR_WARD_PREP]: [],
+            [SurgicalCaseStatus.IN_WARD_PREP]: [],
             [SurgicalCaseStatus.READY_FOR_THEATER_BOOKING]: [],
             [SurgicalCaseStatus.SCHEDULED]: [],
             [SurgicalCaseStatus.IN_PREP]: [],
@@ -61,6 +61,8 @@ export async function POST(
             [SurgicalCaseStatus.RECOVERY]: [SurgicalCaseStatus.COMPLETED],
             [SurgicalCaseStatus.COMPLETED]: [],
             [SurgicalCaseStatus.CANCELLED]: [],
+            [SurgicalCaseStatus.READY_FOR_THEATER_PREP]: [],
+            [SurgicalCaseStatus.READY_FOR_SCHEDULING]: [],
         };
 
         // Get current case status
