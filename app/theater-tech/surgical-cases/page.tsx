@@ -103,11 +103,8 @@ export default function TheaterTechSurgicalCasesPage() {
     });
 
     const handleViewPlan = (caseId: string, status: string) => {
-        if (status === 'DRAFT' || status === 'PLANNING') {
-            router.push(`/theater-tech/surgical-cases/${caseId}/plan`);
-        } else {
-            router.push(`/theater-tech/dashboard/${caseId}`);
-        }
+        // Always route to theater tech's plan page
+        router.push(`/theater-tech/surgical-cases/${caseId}/plan`);
     };
 
     return (
