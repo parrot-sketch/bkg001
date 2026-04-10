@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -10,7 +9,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   ClipboardCheck,
-  Scissors,
   Calendar,
   Eye,
   MoreVertical,
@@ -18,7 +16,6 @@ import {
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
-import { toast } from 'sonner';
 
 interface ConsultationItem {
   id: number;
@@ -72,8 +69,6 @@ export function ConsultationLedger({ consultations }: Props) {
 }
 
 function ConsultationRow({ item }: { item: ConsultationItem }) {
-  const [loading, setLoading] = useState(false);
-
   const patient = item.appointment?.patient;
   const firstName = patient?.first_name ?? patient?.firstName ?? '';
   const lastName = patient?.last_name ?? patient?.lastName ?? '';
@@ -89,23 +84,6 @@ function ConsultationRow({ item }: { item: ConsultationItem }) {
   const duration = item.duration_minutes ?? item.durationMinutes;
   const appointmentType = item.appointment?.type ?? 'Consultation';
   const hasSurgicalCase = item.has_surgical_case ?? item.hasCasePlan ?? false;
-
-  const handlePlanSurgery = async () => {
-    setLoading(true);
-    try {
-      const { initiateSurgicalCase } = await import('@/actions/doctor/consultation-hub');
-      const res = await initiateSurgicalCase({ consultationId: item.id }) as { success: boolean; surgicalCaseId?: string; error?: string };
-      if (res.success && res.surgicalCaseId) {
-        window.location.href = `/doctor/surgical-cases/${res.surgicalCaseId}/plan`;
-      } else {
-        toast.error(res.error || 'Failed to create surgical case');
-      }
-    } catch (e) {
-      toast.error('Failed to create surgical case');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="group flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors">
@@ -140,17 +118,20 @@ function ConsultationRow({ item }: { item: ConsultationItem }) {
               variant="ghost"
               size="sm"
               className="h-7 w-7 p-0 text-slate-400 hover:text-slate-700"
-              disabled={loading}
             >
               <MoreVertical className="h-3.5 w-3.5" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
-            {/* Plan Surgery — contextual label */}
-            <DropdownMenuItem onClick={handlePlanSurgery} className="cursor-pointer">
-              <Scissors className="h-3.5 w-3.5 mr-2 text-orange-500" />
-              {hasSurgicalCase ? 'Continue Planning' : 'Plan Surgery'}
-            </DropdownMenuItem>
+            {/* View surgical case if exists (read-only) */}
+            {hasSurgicalCase && (
+              <DropdownMenuItem asChild className="cursor-pointer">
+                <Link href={`/doctor/surgical-cases/${item.id}`}>
+                  <Eye className="h-3.5 w-3.5 mr-2 text-slate-400" />
+                  View Surgical Case
+                </Link>
+              </DropdownMenuItem>
+            )}
 
             {/* Schedule Follow-up */}
             <DropdownMenuItem asChild className="cursor-pointer">
