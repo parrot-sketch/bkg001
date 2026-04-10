@@ -7,7 +7,7 @@
  * Provides navigation for theater technician operations.
  */
 
-import { Activity, LayoutDashboard, User, ClipboardList, Package, Boxes, Truck, ShoppingCart, FileText, BarChart3, Settings, Scissors, ClipboardCheck } from 'lucide-react';
+import { Activity, LayoutDashboard, User, Package, Boxes, Truck, ShoppingCart, FileText, Scissors, ClipboardCheck } from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { useAuth } from '@/hooks/patient/useAuth';
 
@@ -26,11 +26,6 @@ const navItems: NavItem[] = [
     name: 'Surgical Cases',
     href: '/theater-tech/surgical-cases',
     icon: Scissors,
-  },
-  {
-    name: 'Case Prep',
-    href: '/theater-tech/dashboard',
-    icon: ClipboardList,
   },
   {
     name: 'Dayboard',

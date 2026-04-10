@@ -6,10 +6,7 @@ import { format } from 'date-fns';
 import {
     ClipboardCheck,
     Search,
-    Plus,
-    Calendar,
     User,
-    FileText,
     Scissors,
     Clock,
     Eye,
@@ -97,11 +94,9 @@ export default function TheaterTechConsultationsPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                    <h1 className="text-xl font-bold text-slate-900">Consultation Hub</h1>
-                    <p className="text-xs text-slate-500">Select completed consultations to plan surgery</p>
-                </div>
+            <div>
+                <h1 className="text-xl font-bold text-slate-900">Consultation Hub</h1>
+                <p className="text-xs text-slate-500">Select completed consultations to plan surgery</p>
             </div>
 
             {/* Search */}
@@ -188,7 +183,7 @@ export default function TheaterTechConsultationsPage() {
                                             )}
                                         </td>
                                         <td className="px-4 py-3">
-                                            <div className="flex items-center justify-end gap-2">
+                                            <div className="flex justify-end gap-2">
                                                 {consultation.has_surgical_case ? (
                                                     <Button 
                                                         variant="ghost" 
