@@ -600,6 +600,10 @@ interface SurgicalCasePlanFormProps {
   initialData?: {
     surgeonId?: string;
     surgeonIds?: string[];
+    procedureDate?: Date | string | null;
+    diagnosis?: string;
+    procedureCategory?: string;
+    primaryOrRevision?: string;
   };
   isTheaterTech?: boolean;
 }
@@ -657,10 +661,11 @@ export function SurgicalCasePlanForm({ caseId, initialData, isTheaterTech = fals
               onError={setError}
               initialData={initialData ? {
                 surgeonId: initialData.surgeonId || '',
-                procedureDate: null,
-                diagnosis: '',
-                procedureCategory: '',
-                primaryOrRevision: '',
+                surgeonIds: initialData.surgeonIds || [],
+                procedureDate: (initialData.procedureDate ? new Date(initialData.procedureDate) : null),
+                diagnosis: initialData.diagnosis || '',
+                procedureCategory: initialData.procedureCategory || '',
+                primaryOrRevision: initialData.primaryOrRevision || '',
                 procedureIds: []
               } : undefined}
             />

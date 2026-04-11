@@ -4,6 +4,7 @@
  * Route: /theater-tech/surgical-cases/[caseId]/plan
  * 
  * Theater tech can directly plan surgical cases using the SurgicalCasePlanForm.
+ * Pre-populates with existing case data if available.
  */
 
 import { getCurrentUser } from '@/lib/auth/server-auth';
@@ -23,13 +24,17 @@ export default async function TheaterTechPlanPage({ params }: PageProps) {
     redirect('/login');
   }
 
-  // Get case with surgeon_ids for pre-populating the form
+  // Get case with all relevant fields for pre-populating the form
   const surgicalCase = await db.surgicalCase.findUnique({
     where: { id: caseId },
     select: { 
       id: true, 
       primary_surgeon_id: true,
       surgeon_ids: true,
+      procedure_date: true,
+      diagnosis: true,
+      procedure_category: true,
+      primary_or_revision: true,
       patient: {
         select: {
           id: true,
@@ -57,10 +62,14 @@ export default async function TheaterTechPlanPage({ params }: PageProps) {
     selectedSurgeonIds = [surgicalCase.primary_surgeon_id];
   }
 
-  // Pre-populate with selected surgeons from surgeon_ids
+  // Pre-populate with all available case data
   const initialData = {
     surgeonId: surgicalCase.primary_surgeon_id || '',
     surgeonIds: selectedSurgeonIds,
+    procedureDate: surgicalCase.procedure_date,
+    diagnosis: surgicalCase.diagnosis || '',
+    procedureCategory: surgicalCase.procedure_category || '',
+    primaryOrRevision: surgicalCase.primary_or_revision || '',
   };
 
   return (
