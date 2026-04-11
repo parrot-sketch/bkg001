@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Search, Plus, Trash2, Save, X, Package, FileText, Loader2, ChevronDown, Check } from 'lucide-react';
+import { Search, Plus, Trash2, Save, X, Package, FileText, Loader2, ChevronDown, Check, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 
 interface Service {
   id: number;
@@ -163,8 +164,17 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const billingItems = chargeItems.map(item => ({
-        serviceId: item.type === 'service' ? item.itemId : 1,
+      // Only save services (inventory items don't integrate with billing API)
+      const serviceItems = chargeItems.filter(item => item.type === 'service');
+      
+      if (serviceItems.length === 0) {
+        toast.error('Add at least one service to save');
+        setIsSaving(false);
+        return;
+      }
+
+      const billingItems = serviceItems.map(item => ({
+        serviceId: item.itemId,
         quantity: 1,
         unitCost: item.amount
       }));
@@ -177,12 +187,13 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
 
       const data = await res.json();
       if (data.success) {
-        // Success feedback handled by parent
+        toast.success('Charge sheet saved');
       } else {
-        console.error('Save failed:', data.error);
+        toast.error(data.error || 'Failed to save');
       }
     } catch (error) {
       console.error('Error saving billing:', error);
+      toast.error('Failed to save charge sheet');
     } finally {
       setIsSaving(false);
     }
