@@ -230,38 +230,24 @@ export default function TheaterTechSurgicalCasesPage() {
                         </td>
                         <td className="px-4 py-2.5">
                           <div className="flex justify-end gap-2">
-                            {surgicalCase.status === 'DRAFT' || surgicalCase.status === 'PLANNING' ? (
-                              <>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  className="h-8 text-xs gap-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                                  onClick={() => router.push(`/theater-tech/surgical-cases/${surgicalCase.id}/edit`)}
-                                >
-                                  <Scissors className="h-3 w-3" />
-                                  Edit
-                                </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm"
-                                  className="h-8 text-xs gap-1.5 text-slate-400 hover:text-slate-600"
-                                  onClick={() => router.push(`/theater-tech/surgical-cases/${surgicalCase.id}/plan`)}
-                                >
-                                  <Eye className="h-3 w-3" />
-                                  View
-                                </Button>
-                              </>
-                            ) : (
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                className="h-8 text-xs gap-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                                onClick={() => router.push(`/theater-tech/surgical-cases/${surgicalCase.id}/plan`)}
-                              >
-                                <Eye className="h-3 w-3" />
-                                View
-                              </Button>
-                            )}
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              className="h-8 text-xs gap-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                              onClick={() => router.push(`/theater-tech/surgical-cases/${surgicalCase.id}/edit`)}
+                            >
+                              <Scissors className="h-3 w-3" />
+                              Edit
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              className="h-8 text-xs gap-1.5 text-slate-400 hover:text-slate-600"
+                              onClick={() => router.push(`/theater-tech/surgical-cases/${surgicalCase.id}/plan`)}
+                            >
+                              <Eye className="h-3 w-3" />
+                              View
+                            </Button>
                           </div>
                         </td>
                       </tr>
