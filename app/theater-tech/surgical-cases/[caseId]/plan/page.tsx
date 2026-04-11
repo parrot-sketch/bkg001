@@ -20,12 +20,14 @@ import {
   Package, 
   Clock,
   Activity,
-  ChevronRight
+  ChevronRight,
+  DollarSign
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
+import { TheaterTechBilling } from '@/components/theater-tech/TheaterTechBilling';
 
 interface PageProps {
   params: Promise<{ caseId: string }>;
@@ -285,6 +287,11 @@ export default async function TheaterTechPlanDocumentPage({ params }: PageProps)
             </CardContent>
           </Card>
         )}
+
+        {/* Charge Sheet */}
+        <div className="mb-6">
+          <TheaterTechBilling caseId={caseId} />
+        </div>
 
         {/* Metadata */}
         <div className="text-xs text-slate-400 border-t pt-4 mt-8">

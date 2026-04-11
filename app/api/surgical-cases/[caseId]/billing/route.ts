@@ -44,7 +44,7 @@ export async function GET(
 
     // 2. Check authorization
     const userRole = authResult.user.role as Role;
-    const allowedRoles = [Role.DOCTOR, Role.FRONTDESK, Role.ADMIN];
+    const allowedRoles = [Role.DOCTOR, Role.FRONTDESK, Role.ADMIN, Role.THEATER_TECHNICIAN];
     if (!allowedRoles.includes(userRole)) {
       return NextResponse.json(
         { success: false, error: 'Access denied' },
@@ -213,7 +213,7 @@ export async function PUT(
 
     // 2. Check authorization
     const userRole = authResult.user.role as Role;
-    const allowedRoles = [Role.DOCTOR, Role.FRONTDESK, Role.ADMIN];
+    const allowedRoles = [Role.DOCTOR, Role.FRONTDESK, Role.ADMIN, Role.THEATER_TECHNICIAN];
     if (!allowedRoles.includes(userRole)) {
       return NextResponse.json(
         { success: false, error: 'Access denied' },
@@ -267,7 +267,7 @@ export async function PUT(
       );
     }
 
-    // If doctor, verify ownership
+    // If doctor, verify ownership (theater tech can access all cases)
     if (userRole === Role.DOCTOR && surgicalCase.primary_surgeon?.user_id !== authResult.user.userId) {
       return NextResponse.json(
         { success: false, error: 'Access denied: Not your surgical case' },
