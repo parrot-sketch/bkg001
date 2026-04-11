@@ -28,6 +28,7 @@ interface ChargeItem {
   id: string;
   description: string;
   amount: number;
+  quantity: number;
   type: 'service' | 'inventory';
   itemId: number | string;
 }
@@ -64,10 +65,11 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
         const inventoryData = await inventoryRes.json();
 
         if (billingData.success && billingData.data?.payment) {
-          const items: ChargeItem[] = billingData.data.payment.billItems?.map((item: any, idx: number) => ({
-            id: `existing-${idx}`,
+          const items: ChargeItem[] = billingData.data.payment.billItems?.map((item: any) => ({
+            id: `existing-${item.id}`,
             description: item.serviceName,
-            amount: item.totalCost,
+            amount: item.unitCost || 0,
+            quantity: item.quantity || 1,
             type: 'service',
             itemId: item.serviceId
           })) || [];
@@ -117,7 +119,7 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
   }, [inventoryItems, searchQuery]);
 
   const total = useMemo(() => {
-    return Math.max(0, chargeItems.reduce((sum, item) => sum + item.amount, 0) - discount);
+    return Math.max(0, chargeItems.reduce((sum, item) => sum + (item.amount * item.quantity), 0) - discount);
   }, [chargeItems, discount]);
 
   const handleAddService = useCallback((service: Service) => {
@@ -128,6 +130,7 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
       id: `service-${Date.now()}`,
       description: service.service_name,
       amount: service.price || 0,
+      quantity: 1,
       type: 'service',
       itemId: service.id
     }]);
@@ -143,6 +146,7 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
       id: `inv-${Date.now()}`,
       description: item.name,
       amount: item.unit_cost || 0,
+      quantity: 1,
       type: 'inventory',
       itemId: item.id
     }]);
@@ -161,6 +165,13 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
     ));
   }, []);
 
+  const handleQuantityChange = useCallback((id: string, value: string) => {
+    const quantity = parseInt(value) || 1;
+    setChargeItems(prev => prev.map(item => 
+      item.id === id ? { ...item, quantity } : item
+    ));
+  }, []);
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -175,7 +186,7 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
 
       const billingItems = serviceItems.map(item => ({
         serviceId: item.itemId,
-        quantity: 1,
+        quantity: item.quantity,
         unitCost: item.amount
       }));
 
@@ -297,7 +308,9 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
                 <thead className="bg-slate-50">
                   <tr>
                     <th className="text-left text-xs font-medium text-slate-500 px-3 py-2">Item</th>
-                    <th className="text-left text-xs font-medium text-slate-500 px-3 py-2 w-32">Amount (KSH)</th>
+                    <th className="text-left text-xs font-medium text-slate-500 px-3 py-2 w-20">Qty</th>
+                    <th className="text-left text-xs font-medium text-slate-500 px-3 py-2 w-28">Unit Price</th>
+                    <th className="text-left text-xs font-medium text-slate-500 px-3 py-2 w-28">Total</th>
                     <th className="w-10"></th>
                   </tr>
                 </thead>
@@ -317,10 +330,22 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
                       <td className="px-3 py-2">
                         <Input
                           type="number"
+                          min="1"
+                          className="h-8 text-sm"
+                          value={item.quantity}
+                          onChange={(e) => handleQuantityChange(item.id, e.target.value)}
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <Input
+                          type="number"
                           className="h-8 text-sm"
                           value={item.amount}
                           onChange={(e) => handleAmountChange(item.id, e.target.value)}
                         />
+                      </td>
+                      <td className="px-3 py-2 text-sm font-medium">
+                        KSH {(item.amount * item.quantity).toLocaleString()}
                       </td>
                       <td className="px-2 py-2">
                         <button
