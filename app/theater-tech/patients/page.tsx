@@ -73,7 +73,7 @@ export default function TheaterTechPatientsPage() {
       
       if (data.success && data.surgicalCaseId) {
         toast.success('Case created');
-        router.push(`/theater-tech/surgical-cases/${data.surgicalCaseId}/plan`);
+        router.push(`/theater-tech/surgical-cases/${data.surgicalCaseId}/edit`);
       } else {
         toast.error(data.error || 'Failed to create case');
       }

@@ -187,9 +187,19 @@ export function ChargeSheetGallery({
                         Collect
                       </Button>
                     )}
-                    {type === 'draft' && (
+                    {type === 'draft' && payment.billType === 'SURGERY' && (
+                      <Button 
+                        onClick={() => onCollectPayment(payment)}
+                        size="sm"
+                        className="bg-slate-900 hover:bg-slate-800 text-white font-medium h-7 rounded-md px-3 text-xs w-full shadow-sm"
+                      >
+                        <CreditCard className="h-3 w-3 mr-1.5" />
+                        Collect
+                      </Button>
+                    )}
+                    {type === 'draft' && payment.billType !== 'SURGERY' && (
                       <div className="text-[10px] text-slate-400 flex items-center bg-slate-50 border border-slate-100 px-2 py-0.5 rounded">
-                        In Consultation
+                        In Progress
                       </div>
                     )}
                   </div>
