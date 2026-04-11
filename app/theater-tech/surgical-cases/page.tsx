@@ -107,7 +107,12 @@ export default function TheaterTechSurgicalCasesPage() {
   });
 
   const handleViewPlan = (caseId: string, status: string) => {
-    router.push(`/theater-tech/surgical-cases/${caseId}/plan`);
+    // For DRAFT/PLANNING go to edit mode, otherwise view document
+    if (status === 'DRAFT' || status === 'PLANNING') {
+      router.push(`/theater-tech/surgical-cases/${caseId}/edit`);
+    } else {
+      router.push(`/theater-tech/surgical-cases/${caseId}/plan`);
+    }
   };
 
   return (

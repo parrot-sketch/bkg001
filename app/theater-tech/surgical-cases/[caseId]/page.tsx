@@ -98,7 +98,7 @@ export default async function TheaterTechCaseDetailPage({ params }: PageProps) {
             </p>
           </div>
           {isEditable && (
-            <Link href={`/theater-tech/surgical-cases/${caseId}/plan`}>
+            <Link href={`/theater-tech/surgical-cases/${caseId}/edit`}>
               <Button>
                 <FileText className="h-4 w-4 mr-2" />
                 Continue Planning
