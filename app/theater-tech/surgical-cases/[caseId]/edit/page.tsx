@@ -33,6 +33,12 @@ export default async function TheaterTechPlanEditPage({ params }: PageProps) {
       diagnosis: true,
       procedure_category: true,
       primary_or_revision: true,
+      anaesthesia_type: true,
+      skin_to_skin_minutes: true,
+      total_theatre_minutes: true,
+      admission_type: true,
+      device_used: true,
+      case_procedures: { select: { procedure_id: true } },
       patient: {
         select: {
           id: true,
@@ -60,6 +66,9 @@ export default async function TheaterTechPlanEditPage({ params }: PageProps) {
     selectedSurgeonIds = [surgicalCase.primary_surgeon_id];
   }
 
+  // Parse procedure IDs from case_procedures
+  const procedureIds = surgicalCase.case_procedures?.map(cp => cp.procedure_id) || [];
+
   const initialData = {
     surgeonId: surgicalCase.primary_surgeon_id || '',
     surgeonIds: selectedSurgeonIds,
@@ -67,6 +76,13 @@ export default async function TheaterTechPlanEditPage({ params }: PageProps) {
     diagnosis: surgicalCase.diagnosis || '',
     procedureCategory: surgicalCase.procedure_category || '',
     primaryOrRevision: surgicalCase.primary_or_revision || '',
+    procedureIds: procedureIds,
+    // Step 2 fields
+    anaesthesiaType: surgicalCase.anaesthesia_type || '',
+    skinToSkinMinutes: surgicalCase.skin_to_skin_minutes,
+    totalTheatreMinutes: surgicalCase.total_theatre_minutes,
+    admissionType: surgicalCase.admission_type || '',
+    deviceUsed: surgicalCase.device_used || '',
   };
 
   return (

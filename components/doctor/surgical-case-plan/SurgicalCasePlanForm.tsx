@@ -604,6 +604,13 @@ interface SurgicalCasePlanFormProps {
     diagnosis?: string;
     procedureCategory?: string;
     primaryOrRevision?: string;
+    procedureIds?: string[];
+    // Step 2 fields
+    anaesthesiaType?: string;
+    skinToSkinMinutes?: number | null;
+    totalTheatreMinutes?: number | null;
+    admissionType?: string;
+    deviceUsed?: string;
   };
   isTheaterTech?: boolean;
 }
@@ -666,7 +673,7 @@ export function SurgicalCasePlanForm({ caseId, initialData, isTheaterTech = fals
                 diagnosis: initialData.diagnosis || '',
                 procedureCategory: initialData.procedureCategory || '',
                 primaryOrRevision: initialData.primaryOrRevision || '',
-                procedureIds: []
+                procedureIds: initialData.procedureIds || []
               } : undefined}
             />
           ) : (
@@ -675,6 +682,13 @@ export function SurgicalCasePlanForm({ caseId, initialData, isTheaterTech = fals
               onComplete={() => setSuccess(true)}
               onError={setError}
               selectedProcedures={[]}
+              initialData={initialData ? {
+                anaesthesiaType: initialData.anaesthesiaType || '',
+                skinToSkinMinutes: initialData.skinToSkinMinutes ?? null,
+                totalTheatreMinutes: initialData.totalTheatreMinutes ?? null,
+                admissionType: initialData.admissionType || '',
+                deviceUsed: initialData.deviceUsed || '',
+              } : undefined}
             />
           )}
         </CardContent>
