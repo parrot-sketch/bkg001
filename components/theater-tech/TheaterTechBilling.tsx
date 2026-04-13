@@ -249,12 +249,12 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
         {/* Add Items Section */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-slate-700">Add Charge</label>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1 min-w-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
                 placeholder="Search services or inventory..."
-                className="pl-9 h-9"
+                className="pl-9 h-10 sm:h-9 touch-manipulation"
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
@@ -267,18 +267,18 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
                 }}
               />
               {(serviceDropdownOpen || inventoryDropdownOpen) && searchQuery && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-64 overflow-auto">
+                <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-48 sm:max-h-64 overflow-auto">
                   {filteredServices.length > 0 && (
                     <div className="p-1">
                       <p className="px-2 py-1 text-xs font-medium text-slate-500">Services</p>
                       {filteredServices.map(service => (
                         <button
                           key={service.id}
-                          className="w-full flex items-center justify-between px-2 py-2 text-left hover:bg-slate-50 rounded"
+                          className="w-full flex items-center justify-between px-2 py-2 text-left hover:bg-slate-50 rounded touch-manipulation"
                           onClick={() => handleAddService(service)}
                         >
-                          <span className="text-sm">{service.service_name}</span>
-                          <span className="text-sm text-slate-500">KSH {service.price.toLocaleString()}</span>
+                          <span className="text-sm truncate">{service.service_name}</span>
+                          <span className="text-sm text-slate-500 shrink-0">KSH {service.price.toLocaleString()}</span>
                         </button>
                       ))}
                     </div>
@@ -310,35 +310,37 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
         {/* Items List */}
         {chargeItems.length > 0 ? (
           <div className="space-y-2">
-            <div className="border rounded-md">
-              <table className="w-full">
+            <div className="border rounded-md overflow-x-auto">
+              <table className="w-full min-w-[400px]">
                 <thead className="bg-slate-50">
                   <tr>
-                    <th className="text-left text-xs font-medium text-slate-500 px-3 py-2">Item</th>
-                    <th className="text-left text-xs font-medium text-slate-500 px-3 py-2 w-20">Qty</th>
-                    <th className="text-left text-xs font-medium text-slate-500 px-3 py-2 w-28">Unit Price</th>
-                    <th className="text-left text-xs font-medium text-slate-500 px-3 py-2 w-28">Total</th>
+                    <th className="text-left text-xs font-medium text-slate-500 px-2 py-2">Item</th>
+                    <th className="text-left text-xs font-medium text-slate-500 px-1 py-2 w-16 sm:w-20">Qty</th>
+                    <th className="text-left text-xs font-medium text-slate-500 px-1 py-2 w-20 sm:w-28">Unit Price</th>
+                    <th className="text-left text-xs font-medium text-slate-500 px-2 py-2 w-20">Total</th>
                     <th className="w-10"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {chargeItems.map(item => (
                     <tr key={item.id}>
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-2">
+                      <td className="px-2 py-3">
+                        <div className="flex items-center gap-2 min-w-0">
                           {item.type === 'service' ? (
-                            <FileText className="h-4 w-4 text-blue-500" />
+                            <FileText className="h-4 w-4 text-blue-500 shrink-0" />
                           ) : (
-                            <Package className="h-4 w-4 text-orange-500" />
+                            <Package className="h-4 w-4 text-orange-500 shrink-0" />
                           )}
-                          <span className="text-sm">{item.description}</span>
+                          <span className="text-sm truncate max-w-[120px] sm:max-w-[200px]">{item.description}</span>
                         </div>
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-1 py-3">
                         <Input
                           type="number"
                           min="1"
-                          className="h-8 text-sm"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          className="h-10 text-sm w-16 sm:w-20 touch-manipulation"
                           value={item.quantity || ''}
                           placeholder="1"
                           onChange={(e) => {
@@ -349,10 +351,11 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
                           }}
                         />
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-1 py-3">
                         <Input
                           type="number"
-                          className="h-8 text-sm"
+                          inputMode="decimal"
+                          className="h-10 text-sm w-20 sm:w-24 touch-manipulation"
                           value={item.amount || ''}
                           placeholder="0"
                           onChange={(e) => {
@@ -363,13 +366,13 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
                           }}
                         />
                       </td>
-                      <td className="px-3 py-2 text-sm font-medium">
-                        KSH {(item.amount * item.quantity).toLocaleString()}
+                      <td className="px-2 py-3 text-sm font-medium whitespace-nowrap">
+                        KSH {((item.amount || 0) * (item.quantity || 1)).toLocaleString()}
                       </td>
-                      <td className="px-2 py-2">
+                      <td className="px-1 py-3">
                         <button
                           onClick={() => handleRemoveItem(item.id)}
-                          className="p-1 text-slate-400 hover:text-red-500"
+                          className="p-2 text-slate-400 hover:text-red-500 touch-manipulation"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
