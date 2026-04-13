@@ -236,7 +236,7 @@ export async function PUT(
 
     const { billingItems, discount, customTotalAmount, includeInventory, notes } = body;
 
-    // 4. Validate billing items - allow serviceId OR inventoryItemId
+    // 4. Validate billing items - allow serviceId OR inventoryItemId (string or number)
     if (!billingItems || !Array.isArray(billingItems) || billingItems.length === 0) {
       return NextResponse.json(
         { success: false, error: 'At least one billing item is required' },
@@ -244,7 +244,14 @@ export async function PUT(
       );
     }
 
-    for (const item of billingItems) {
+    const validatedItems = billingItems.map((item: any) => ({
+      serviceId: item.serviceId ? Number(item.serviceId) : null,
+      inventoryItemId: item.inventoryItemId ? Number(item.inventoryItemId) : null,
+      quantity: item.quantity ? Number(item.quantity) : 1,
+      unitCost: item.unitCost ? Number(item.unitCost) : 0,
+    }));
+
+    for (const item of validatedItems) {
       // Must have either serviceId or inventoryItemId
       const hasService = item.serviceId && item.serviceId > 0;
       const hasInventory = item.inventoryItemId && item.inventoryItemId > 0;
@@ -254,7 +261,7 @@ export async function PUT(
           { status: 400 }
         );
       }
-      if ((!item.quantity || item.quantity <= 0) || item.unitCost === undefined || item.unitCost < 0) {
+      if (!item.quantity || item.quantity <= 0 || item.unitCost === undefined || item.unitCost < 0) {
         return NextResponse.json(
           { success: false, error: 'Each billing item must have positive quantity and non-negative unitCost' },
           { status: 400 }
@@ -287,7 +294,7 @@ export async function PUT(
     }
 
     // 6. Calculate total from service items
-    let calculatedTotal = billingItems.reduce(
+    let calculatedTotal = validatedItems.reduce(
       (sum: number, item: any) => sum + (item.quantity * item.unitCost), 0
     );
 
@@ -335,7 +342,7 @@ export async function PUT(
       });
 
       // Build bill items for database - handle both service and inventory
-      const billItemsData = billingItems.map((item: any) => {
+      const billItemsData = validatedItems.map((item: any) => {
         if (item.inventoryItemId && item.inventoryItemId > 0) {
           return {
             inventory_item_id: parseInt(item.inventoryItemId, 10),
@@ -370,7 +377,7 @@ export async function PUT(
       paymentId = existingPayment.id;
     } else {
       // Build bill items for database - handle both service and inventory
-      const billItemsData = billingItems.map((item: any) => {
+      const billItemsData = validatedItems.map((item: any) => {
         if (item.inventoryItemId && item.inventoryItemId > 0) {
           return {
             inventory_item_id: parseInt(item.inventoryItemId, 10),
