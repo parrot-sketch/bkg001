@@ -9,6 +9,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 const surgicalNotesSchema = z.object({
   pre_op_notes: z.string().optional().nullable(),
@@ -122,8 +123,8 @@ export function SurgicalNotesEditor({ caseId }: Props) {
   ] as const;
 
   return (
-    <Card className="shadow-sm border-slate-200 w-full animate-in fade-in duration-300">
-      <CardHeader className="bg-white border-b border-slate-100 flex flex-row items-center justify-between py-5 px-6">
+    <Card className="shadow-sm border-slate-200 w-full animate-in fade-in duration-300 mb-8">
+      <CardHeader className="bg-white border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between py-5 px-6 gap-4">
         <div>
           <CardTitle className="flex items-center gap-2 text-lg text-slate-800">
              <FileText className="h-5 w-5 text-slate-500" />
@@ -155,32 +156,74 @@ export function SurgicalNotesEditor({ caseId }: Props) {
       
       <CardContent className="p-0 bg-slate-50/30">
         <Form {...form}>
-          <form className="divide-y divide-slate-100">
-            {sections.map((section) => (
-              <div key={section.name} className="p-6 md:p-8">
-                <FormField
-                  control={form.control}
-                  name={section.name}
-                  render={({ field }) => (
-                    <FormItem>
-                      <Label className="text-base font-semibold text-slate-800 mb-2 block">
-                        {section.label}
-                      </Label>
-                      <FormControl>
-                        <RichTextEditor 
-                          placeholder={section.placeholder}
-                          content={field.value || ''}
-                          onChange={field.onChange}
-                          minHeight="120px"
-                          className="bg-white"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            ))}
+          <form className="pb-6">
+            <Accordion type="multiple" defaultValue={['pre-op', 'operative', 'post-op']} className="w-full">
+              
+              {/* Pre-Operative Group */}
+              <AccordionItem value="pre-op" className="border-b-0 px-6 md:px-8 py-2">
+                <AccordionTrigger className="text-lg font-semibold text-slate-800 hover:no-underline py-4">
+                  Pre-Operative Planning
+                </AccordionTrigger>
+                <AccordionContent className="space-y-8 pb-6">
+                  {sections.filter(s => ['procedure_plan', 'pre_op_notes', 'planned_anesthesia'].includes(s.name)).map(section => (
+                    <FormField key={section.name} control={form.control} name={section.name} render={({ field }) => (
+                      <FormItem>
+                        <Label className="text-base font-semibold text-slate-800 mb-2 block">{section.label}</Label>
+                        <FormControl>
+                          <RichTextEditor placeholder={section.placeholder} content={field.value || ''} onChange={field.onChange} minHeight="120px" className="bg-white" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  ))}
+                </AccordionContent>
+              </AccordionItem>
+              
+              <div className="h-px bg-slate-200 mx-6 md:mx-8" />
+
+              {/* Operative Group */}
+              <AccordionItem value="operative" className="border-b-0 px-6 md:px-8 py-2">
+                <AccordionTrigger className="text-lg font-semibold text-slate-800 hover:no-underline py-4">
+                  Operative Narrative
+                </AccordionTrigger>
+                <AccordionContent className="space-y-8 pb-6">
+                  {sections.filter(s => ['surgeon_narrative', 'equipment_notes'].includes(s.name)).map(section => (
+                    <FormField key={section.name} control={form.control} name={section.name} render={({ field }) => (
+                      <FormItem>
+                        <Label className="text-base font-semibold text-slate-800 mb-2 block">{section.label}</Label>
+                        <FormControl>
+                          <RichTextEditor placeholder={section.placeholder} content={field.value || ''} onChange={field.onChange} minHeight="120px" className="bg-white" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  ))}
+                </AccordionContent>
+              </AccordionItem>
+
+              <div className="h-px bg-slate-200 mx-6 md:mx-8" />
+
+              {/* Post-Operative Group */}
+              <AccordionItem value="post-op" className="border-b-0 px-6 md:px-8 py-2">
+                <AccordionTrigger className="text-lg font-semibold text-slate-800 hover:no-underline py-4">
+                  Post-Operative & Safety
+                </AccordionTrigger>
+                <AccordionContent className="space-y-8 pb-4">
+                  {sections.filter(s => ['risk_factors', 'special_instructions', 'post_op_instructions'].includes(s.name)).map(section => (
+                    <FormField key={section.name} control={form.control} name={section.name} render={({ field }) => (
+                      <FormItem>
+                        <Label className="text-base font-semibold text-slate-800 mb-2 block">{section.label}</Label>
+                        <FormControl>
+                          <RichTextEditor placeholder={section.placeholder} content={field.value || ''} onChange={field.onChange} minHeight="120px" className="bg-white" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+                  ))}
+                </AccordionContent>
+              </AccordionItem>
+
+            </Accordion>
           </form>
         </Form>
       </CardContent>
