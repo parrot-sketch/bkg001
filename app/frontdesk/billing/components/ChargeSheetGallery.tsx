@@ -194,7 +194,9 @@ export function ChargeSheetGallery({
                       <Button 
                         onClick={() => {
                           console.log('[Gallery] Collect clicked (draft), payment:', payment.id, payment.billType);
+                          console.log('[Gallery] onCollectPayment function:', typeof onCollectPayment);
                           onCollectPayment(payment);
+                          console.log('[Gallery] after onCollectPayment call');
                         }}
                         size="sm"
                         className="bg-slate-900 hover:bg-slate-800 text-white font-medium h-7 rounded-md px-3 text-xs w-full shadow-sm"

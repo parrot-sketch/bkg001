@@ -173,7 +173,7 @@ export default function FrontdeskBillingPage() {
           <TabsContent value="draft" className="focus-visible:outline-none focus-visible:ring-0">
             <ChargeSheetGallery 
               payments={draftChargeSheets} 
-              onCollectPayment={() => {}} // Disabled for drafts
+              onCollectPayment={handleOpenPaymentDialog}
               type="draft"
               emptyMessageTitle="No active consultations"
               emptyMessageDesc="There are currently no active patient sessions generating sheets."
