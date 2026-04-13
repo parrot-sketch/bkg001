@@ -56,10 +56,10 @@ export default function TheaterTechLayout({ children }: TheaterTechLayoutProps) 
 
   return (
     <div className="flex h-screen overflow-hidden bg-stone-50">
-      <TheaterTechSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <TheaterTechSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <div className="flex-1 lg:ml-[280px] flex flex-col min-w-0 h-full overflow-hidden">
-        <TheaterTechHeader />
+        <div className="flex-1 lg:ml-[280px] flex flex-col min-w-0 h-full overflow-hidden">
+        <TheaterTechHeader onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="flex-1 relative overflow-hidden focus:outline-none bg-white overflow-y-auto overscroll-contain scroll-smooth">
           <div className="w-full min-h-full mx-auto max-w-[1600px] px-4 py-5 sm:px-5 sm:py-6 lg:px-8 lg:py-7 xl:px-10 xl:py-8">

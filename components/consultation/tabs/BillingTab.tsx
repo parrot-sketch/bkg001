@@ -14,6 +14,7 @@ interface ChargeItem {
   key: string;
   description: string;
   amount: number;
+  quantity: number;
   serviceId: number | null;
   source: 'procedure' | 'inventory';
   inventoryItemId?: number;
@@ -44,6 +45,7 @@ export function BillingTab({ appointmentId, isReadOnly = false }: { appointmentI
         key: generateKey(), 
         description: i.serviceName, 
         amount: i.totalCost, 
+        quantity: i.quantity || 1,
         serviceId: i.serviceId,
         source: 'procedure' as const
       })));
@@ -54,7 +56,7 @@ export function BillingTab({ appointmentId, isReadOnly = false }: { appointmentI
   }, [billingData]);
 
   const total = useMemo(() => {
-    return Math.max(0, consultationFee + items.reduce((s, i) => s + (i.amount || 0), 0) - discount);
+    return Math.max(0, consultationFee + items.reduce((s, i) => s + ((i.amount || 0) * (i.quantity || 1)), 0) - discount);
   }, [consultationFee, items, discount]);
 
   const handleProcedureSelect = useCallback((service: any) => {
@@ -67,6 +69,7 @@ export function BillingTab({ appointmentId, isReadOnly = false }: { appointmentI
       key: generateKey(), 
       description: service.service_name, 
       amount: service.price > 0 ? service.price : 0, 
+      quantity: 1,
       serviceId: service.id,
       source: 'procedure'
     }]);
@@ -89,6 +92,7 @@ export function BillingTab({ appointmentId, isReadOnly = false }: { appointmentI
       key: generateKey(), 
       description: item.name, 
       amount: itemCost, 
+      quantity: 1,
       serviceId: null,
       source: 'inventory',
       inventoryItemId: item.id
@@ -120,21 +124,35 @@ export function BillingTab({ appointmentId, isReadOnly = false }: { appointmentI
       billItems.push({ serviceId: 1, quantity: 1, unitCost: saveFee });
     }
     
-    saveItems.forEach(item => {
+    // Only save service items - inventory items need different API handling
+    const serviceItems = saveItems.filter(item => item.source === 'procedure' && item.serviceId);
+    
+    serviceItems.forEach(item => {
       if (item.amount > 0) {
-        billItems.push({ serviceId: item.serviceId ?? 1, quantity: 1, unitCost: item.amount });
+        const finalServiceId = item.serviceId ?? 1;
+        const finalQuantity = item.quantity || 1;
+        const finalUnitCost = item.amount;
+        billItems.push({ serviceId: finalServiceId, quantity: finalQuantity, unitCost: finalUnitCost });
       }
     });
 
-    await saveBilling({ 
-      appointmentId, 
-      billingItems: billItems,
-      discount: saveDiscount > 0 ? saveDiscount : undefined,
-    });
-    setIsDirty(false);
-    setHasChanges(false);
-    setLastSaved(new Date());
-    toast.success('Charge sheet saved');
+    if (billItems.length === 0) {
+      toast.error('No service items to save');
+      return;
+    }
+
+    try {
+      await saveBilling({ 
+        appointmentId, 
+        billingItems: billItems,
+        discount: saveDiscount > 0 ? saveDiscount : undefined,
+      });
+      setIsDirty(false);
+      setHasChanges(false);
+      setLastSaved(new Date());
+    } catch (error) {
+      console.error('[BILLING] Save error:', error);
+    }
   }, [appointmentId, consultationFee, items, discount, saveBilling]);
 
   if (billingLoading) {
@@ -256,19 +274,36 @@ export function BillingTab({ appointmentId, isReadOnly = false }: { appointmentI
                   disabled
                   className="flex-1 bg-transparent text-sm font-medium border-none focus:outline-none"
                 />
-                <div className="relative w-24">
-                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-stone-400">KSH</span>
+                <div className="flex items-center gap-2">
                   <Input
                     type="number"
-                    value={item.amount || ''}
+                    min="1"
+                    value={item.quantity || 1}
                     onChange={e => { 
-                      setItems(p => p.map(i => i.key === item.key ? { ...i, amount: Math.max(0, parseFloat(e.target.value) || 0) } : i)); 
+                      setItems(p => p.map(i => i.key === item.key ? { ...i, quantity: Math.max(1, parseInt(e.target.value) || 1) } : i)); 
                       setIsDirty(true);
                       setHasChanges(true);
                     }}
                     disabled={!isEditable}
-                    className="pl-10 h-8 text-right text-sm"
+                    className="w-16 h-8 text-center text-sm"
                   />
+                  <div className="relative w-24">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-stone-400">KSH</span>
+                    <Input
+                      type="number"
+                      value={item.amount || ''}
+                      onChange={e => { 
+                        setItems(p => p.map(i => i.key === item.key ? { ...i, amount: Math.max(0, parseFloat(e.target.value) || 0) } : i)); 
+                        setIsDirty(true);
+                        setHasChanges(true);
+                      }}
+                      disabled={!isEditable}
+                      className="pl-10 h-8 text-right text-sm"
+                    />
+                  </div>
+                  <span className="text-sm font-medium text-stone-600 w-24 text-right">
+                    KSH {((item.amount || 0) * (item.quantity || 1)).toLocaleString()}
+                  </span>
                 </div>
                 {isEditable && (
                   <button 

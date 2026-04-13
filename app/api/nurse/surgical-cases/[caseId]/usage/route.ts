@@ -107,12 +107,20 @@ export async function POST(
       select: { name: true, reorder_point: true },
     });
 
-    const serviceName = result.billItem
-      ? await db.service.findUnique({
-          where: { id: result.billItem.serviceId },
-          select: { service_name: true },
-        })
-      : null;
+    let serviceName: string | null = null;
+    if (result.billItem?.serviceId) {
+      const service = await db.service.findUnique({
+        where: { id: result.billItem.serviceId },
+        select: { service_name: true },
+      });
+      serviceName = service?.service_name || null;
+    } else if (result.billItem?.inventoryItemId) {
+      const invItem = await db.inventoryItem.findUnique({
+        where: { id: result.billItem.inventoryItemId },
+        select: { name: true },
+      });
+      serviceName = invItem?.name || null;
+    }
 
     const stockWarnings: string[] = [];
     // Dynamic stock calculations should happen instead of item-level checks
@@ -126,7 +134,7 @@ export async function POST(
       billItem: result.billItem
         ? {
             ...result.billItem,
-            serviceName: serviceName?.service_name || 'Unknown',
+            serviceName: serviceName || 'Unknown',
           }
         : null,
       payment: result.payment,

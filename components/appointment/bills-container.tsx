@@ -51,8 +51,13 @@ interface ExtendedBillProps extends PatientBill {
   service: {
     service_name: string;
     id: number;
-  };
+  } | null;
+  inventory_item: {
+    name: string;
+    id: number;
+  } | null;
 }
+
 export const BillsContainer = async ({ id }: { id: string }) => {
   const [data, servicesData] = await Promise.all([
     db.payment.findFirst({
@@ -61,6 +66,7 @@ export const BillsContainer = async ({ id }: { id: string }) => {
         bill_items: {
           include: {
             service: { select: { service_name: true, id: true } },
+            inventory_item: { select: { name: true, id: true } },
           },
 
           orderBy: { created_at: "asc" },
@@ -85,6 +91,7 @@ export const BillsContainer = async ({ id }: { id: string }) => {
   }
 
   const renderRow = (item: ExtendedBillProps) => {
+    const itemName = item.service?.service_name || item.inventory_item?.name || 'Unknown';
     return (
       <tr
         key={item.id}
@@ -92,7 +99,7 @@ export const BillsContainer = async ({ id }: { id: string }) => {
       >
         <td className="hidden md:table-cell py-2 xl:py-6"># {item?.id}</td>
 
-        <td className="items-center py-2">{item?.service?.service_name}</td>
+        <td className="items-center py-2">{itemName}</td>
 
         <td className="">{format(item?.service_date, "MMM d, yyyy")}</td>
 

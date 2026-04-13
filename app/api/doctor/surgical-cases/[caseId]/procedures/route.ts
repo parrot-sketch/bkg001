@@ -30,7 +30,6 @@ export async function GET(
     );
   }
 
-  // Map form category to enum categories
   const enumCategories = FORM_CATEGORY_TO_ENUM_CATEGORIES[category] || [category];
 
   try {
@@ -47,6 +46,11 @@ export async function GET(
         id: true,
         name: true,
         category: true,
+        description: true,
+        estimated_duration_minutes: true,
+        default_price: true,
+        preparation_notes: true,
+        post_op_notes: true,
       },
     });
 

@@ -7,11 +7,11 @@
  * Provides navigation for theater technician operations.
  */
 
-import { Activity, LayoutDashboard, User, Package, Boxes, Truck, ShoppingCart, FileText, Scissors, ClipboardCheck, Users } from 'lucide-react';
+import { Activity, LayoutDashboard, User, Package, Boxes, Truck, ShoppingCart, FileText, Scissors, ClipboardCheck, Users, Stethoscope } from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { useAuth } from '@/hooks/patient/useAuth';
 
-const navItems: NavItem[] = [
+const baseNavItems: NavItem[] = [
   {
     name: 'Dashboard',
     href: '/theater-tech/dashboard',
@@ -69,6 +69,19 @@ const navItems: NavItem[] = [
   },
 ];
 
+const adminNavItems: NavItem[] = [
+  {
+    name: 'Services',
+    href: '/admin/services',
+    icon: Stethoscope,
+  },
+  {
+    name: 'Procedures',
+    href: '/admin/procedures',
+    icon: Scissors,
+  },
+];
+
 interface TheaterTechSidebarProps {
   isOpen: boolean;
   onClose: () => void;
@@ -76,6 +89,9 @@ interface TheaterTechSidebarProps {
 
 export function TheaterTechSidebar({ isOpen, onClose }: TheaterTechSidebarProps) {
   const { logout, user } = useAuth();
+
+  const isAdmin = user?.role?.toUpperCase() === 'ADMIN';
+  const navItems = isAdmin ? [...baseNavItems, ...adminNavItems] : baseNavItems;
 
   const handleLogout = async () => {
     try {

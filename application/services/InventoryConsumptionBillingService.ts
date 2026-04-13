@@ -69,7 +69,8 @@ export interface UsageRecord {
 export interface BillItem {
   id: number;
   paymentId: number;
-  serviceId: number;
+  serviceId: number | null;
+  inventoryItemId: number | null;
   serviceDate: Date;
   quantity: number;
   unitCost: number;
@@ -219,6 +220,7 @@ export class PrismaInventoryConsumptionBillingService implements InventoryConsum
               id: existingUsage.bill_item.id,
               paymentId: existingUsage.bill_item.payment_id,
               serviceId: existingUsage.bill_item.service_id,
+              inventoryItemId: existingUsage.bill_item.inventory_item_id,
               serviceDate: existingUsage.bill_item.service_date,
               quantity: existingUsage.bill_item.quantity,
               unitCost: existingUsage.bill_item.unit_cost,
@@ -345,6 +347,7 @@ export class PrismaInventoryConsumptionBillingService implements InventoryConsum
         id: createdBillItem.id,
         paymentId: createdBillItem.payment_id,
         serviceId: createdBillItem.service_id,
+        inventoryItemId: createdBillItem.inventory_item_id,
         serviceDate: createdBillItem.service_date,
         quantity: createdBillItem.quantity,
         unitCost: createdBillItem.unit_cost,

@@ -1,12 +1,70 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { JwtMiddleware } from '@/lib/auth/middleware';
+import db from '@/lib/db';
+
+/**
+ * GET /api/theater-tech/surgical-cases
+ * 
+ * Get surgical cases for theater tech dashboard.
+ */
+
+export async function GET(): Promise<NextResponse> {
+  try {
+    const surgicalCases = await db.surgicalCase.findMany({
+      where: {
+        status: {
+          not: 'CANCELLED',
+        },
+      },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            file_number: true,
+          },
+        },
+        primary_surgeon: {
+          select: {
+            name: true,
+          },
+        },
+        team_members: {
+          select: {
+            id: true,
+          },
+        },
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+      take: 50,
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: surgicalCases.map((c) => ({
+        id: c.id,
+        status: c.status,
+        procedure_name: c.procedure_name,
+        patient: c.patient,
+        primary_surgeon: c.primary_surgeon,
+        created_at: c.created_at.toISOString(),
+        team_members_count: c.team_members.length,
+      })),
+    });
+  } catch (error) {
+    console.error('Error fetching surgical cases:', error);
+    return NextResponse.json({ success: false, error: 'Failed to fetch cases' }, { status: 500 });
+  }
+}
+
 /**
  * POST /api/theater-tech/surgical-cases
  * 
  * Create a new surgical case for a patient (without consultation).
  */
-
-import { NextRequest, NextResponse } from 'next/server';
-import { JwtMiddleware } from '@/lib/auth/middleware';
-import db from '@/lib/db';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -22,7 +80,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ success: false, error: 'Patient ID required' }, { status: 400 });
     }
 
-    // Verify patient exists
     const patient = await db.patient.findUnique({
       where: { id: patientId },
       select: { id: true },
@@ -32,11 +89,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ success: false, error: 'Patient not found' }, { status: 404 });
     }
 
-    // Theater tech can create cases without assigning a surgeon immediately
-    // Surgeon(s) will be selected during case planning
     const primarySurgeonId: string | undefined = surgeonId || undefined;
 
-    // Create surgical case
     const surgicalCase = await db.surgicalCase.create({
       data: {
         patient_id: patientId,

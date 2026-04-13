@@ -678,7 +678,8 @@ model Payment {
 model PatientBill {
   id                            Int                       @id @default(autoincrement())
   payment_id                    Int
-  service_id                    Int
+  service_id                    Int?
+  inventory_item_id             Int?
   service_date                  DateTime
   quantity                      Int                       @default(1)
   unit_cost                     Float
@@ -688,11 +689,13 @@ model PatientBill {
   surgical_medication_record_id String?                   @unique
   inventory_usage               InventoryUsage?
   payment                       Payment                   @relation(fields: [payment_id], references: [id], onDelete: Cascade)
-  service                       Service                   @relation(fields: [service_id], references: [id], onDelete: Cascade)
+  service                       Service?                  @relation(fields: [service_id], references: [id], onDelete: Cascade)
+  inventory_item                InventoryItem?            @relation(fields: [inventory_item_id], references: [id], onDelete: Cascade)
   surgical_medication_record    SurgicalMedicationRecord? @relation("MedicationPatientBill", fields: [surgical_medication_record_id], references: [id])
 
   @@index([payment_id])
   @@index([service_id])
+  @@index([inventory_item_id])
   @@index([surgical_medication_record_id])
   @@index([payment_id, service_id])
 }
@@ -712,6 +715,7 @@ model Service {
   planned_items CasePlanPlannedItem[]
   lab_test      LabTest?
   bill_items    PatientBill[]
+  procedure_links ProcedureServiceLink[]
 
   @@index([service_name])
   @@index([category])
@@ -746,6 +750,7 @@ model InventoryItem {
   surgical_billing_line_items SurgicalBillingLineItem[]
   surgical_case_items         SurgicalCaseItem[]
   medication_records          SurgicalMedicationRecord[]
+  patient_bills               PatientBill[]
 
   @@index([name])
   @@index([sku])
@@ -2461,6 +2466,14 @@ enum ProcedureCategory {
   HAIR_RESTORATION
   NON_SURGICAL
   POST_WEIGHT_LOSS
+  OTHER
+}
+
+enum ProcedureStatus {
+  DRAFT
+  ACTIVE
+  DEPRECATED
+  ARCHIVED
 }
 
 enum CasePlanType {
@@ -2480,16 +2493,73 @@ enum LipoDevice {
 }
 
 model SurgicalProcedureOption {
-  id           String   @id @default(cuid())
-  category     ProcedureCategory
-  subcategory  String?
-  name         String
-  is_active    Boolean  @default(true)
-  created_at   DateTime @default(now())
+  id                    String                   @id @default(cuid())
+  category              ProcedureCategory
+  subcategory           String?
+  name                  String
+  description           String?
+  is_active              Boolean                 @default(true)
+  is_billable            Boolean                 @default(true)
+  estimated_duration_minutes Int?
+  default_price          Float?
+  min_price             Float?
+  max_price             Float?
+  preparation_notes     String?
+  post_op_notes         String?
+  created_at            DateTime                 @default(now())
+  updated_at            DateTime                 @updatedAt
+  created_by            String?
 
-  case_procedures SurgicalCaseProcedure[]
+  case_procedures       SurgicalCaseProcedure[]
+  procedure_service_links ProcedureServiceLink[]
 
   @@map("surgical_procedure_options")
+}
+
+model ProcedureCategoryConfig {
+  id                    String                   @id @default(cuid())
+  name                  String                   @unique
+  code                  String                   @unique
+  description           String?
+  display_order         Int                      @default(0)
+  is_active             Boolean                 @default(true)
+  color_code            String?
+  created_at            DateTime                 @default(now())
+  updated_at            DateTime                 @updatedAt
+
+  @@index([code])
+  @@index([is_active])
+  @@map("procedure_category_config")
+}
+
+model ProcedureSubcategory {
+  id                String   @id @default(cuid())
+  category_id       String
+  name             String
+  display_order    Int      @default(0)
+  is_active        Boolean  @default(true)
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  @@unique([category_id, name])
+  @@index([category_id])
+  @@map("procedure_subcategory")
+}
+
+model ProcedureServiceLink {
+  id                  String                   @id @default(cuid())
+  procedure_id         String
+  service_id          Int
+  is_primary         Boolean                 @default(false)
+  created_at         DateTime                 @default(now())
+
+  procedure          SurgicalProcedureOption @relation(fields: [procedure_id], references: [id], onDelete: Cascade)
+  service           Service               @relation(fields: [service_id], references: [id])
+
+  @@unique([procedure_id, service_id])
+  @@index([procedure_id])
+  @@index([service_id])
+  @@map("procedure_service_link")
 }
 
 model SurgicalCaseProcedure {

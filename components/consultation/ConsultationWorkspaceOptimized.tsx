@@ -67,7 +67,6 @@ const TABS: TabConfig[] = [
     { id: 'concerns', label: 'Concerns', noteField: 'chiefComplaint' },
     { id: 'examination', label: 'Exam', noteField: 'examination' },
     { id: 'plan', label: 'Plan', noteField: 'plan' },
-    { id: 'billing', label: 'Charge Sheet', noteField: null },
 ];
 
 // ============================================================================
@@ -188,15 +187,6 @@ export function ConsultationWorkspaceOptimized() {
                                 planValue={state.notes.plan || ''}
                                 onPlanChange={handleNoteChange('plan')}
                                 isReadOnly={isReadOnly}
-                            />
-                        </div>
-                    </TabsContent>
-
-                    <TabsContent value="billing" className="m-0 h-full border-none">
-                        <div className="p-4 max-w-3xl mx-auto">
-                            <BillingTab
-                                appointmentId={state.appointment?.id}
-                                isReadOnly={false}
                             />
                         </div>
                     </TabsContent>

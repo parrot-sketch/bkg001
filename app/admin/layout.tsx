@@ -11,11 +11,11 @@ import { ReactNode, useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { LayoutDashboard, Settings, Users, BarChart3, Calendar, FileText, Package, CreditCard, Shield } from 'lucide-react';
+import { LayoutDashboard, Settings, Users, BarChart3, Calendar, FileText, Package, CreditCard, Shield, Stethoscope, Scissors } from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { AdminHeader } from './_components/AdminHeader';
 
-const navItems: NavItem[] = [
+const baseNavItems: NavItem[] = [
   {
     name: 'Dashboard',
     href: '/admin/dashboard',
@@ -50,6 +50,19 @@ const navItems: NavItem[] = [
     name: 'Reports',
     href: '/admin/reports',
     icon: FileText,
+  },
+];
+
+const masterDataNavItems: NavItem[] = [
+  {
+    name: 'Services',
+    href: '/admin/services',
+    icon: Stethoscope,
+  },
+  {
+    name: 'Procedures',
+    href: '/admin/procedures',
+    icon: Scissors,
   },
 ];
 
@@ -157,11 +170,13 @@ function AdminSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => voi
       }
     : null;
 
+  const allNavItems = [...baseNavItems, ...masterDataNavItems];
+
   return (
     <UnifiedSidebar
       isOpen={isOpen}
       onClose={onClose}
-      navItems={navItems}
+      navItems={allNavItems}
       userInfo={userInfo}
       onLogout={handleLogout}
       dashboardHref="/admin/dashboard"

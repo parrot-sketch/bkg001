@@ -1,12 +1,13 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { useAuth } from '@/hooks/patient/useAuth';
+import { useAuth } from '@/hooks/patient/useAuth'; 
 import { 
     ChevronRight, 
     Search, 
     HelpCircle,
-    User
+    User,
+    Menu
 } from 'lucide-react';
 import { 
     DropdownMenu, 
@@ -22,7 +23,11 @@ import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 
-export function TheaterTechHeader() {
+interface TheaterTechHeaderProps {
+    onMenuClick?: () => void;
+}
+
+export function TheaterTechHeader({ onMenuClick }: TheaterTechHeaderProps) {
     const pathname = usePathname();
     const { user, logout } = useAuth();
     const [mounted, setMounted] = useState(false);
@@ -43,8 +48,17 @@ export function TheaterTechHeader() {
     if (!mounted) return <div className="h-16 border-b bg-white/50 backdrop-blur-md" />;
 
     return (
-        <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b bg-white/80 backdrop-blur-md px-6 shadow-sm">
+        <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b bg-white/80 backdrop-blur-md px-4 sm:px-6 shadow-sm">
             <div className="flex items-center space-x-2 overflow-hidden">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="lg:hidden h-8 w-8 -ml-2"
+                    onClick={onMenuClick}
+                    aria-label="Open menu"
+                >
+                    <Menu className="h-5 w-5" />
+                </Button>
                 <div className="flex items-center text-sm font-medium text-slate-500">
                     <span className="hidden sm:inline">Theater Tech</span>
                     {breadcrumbs.length > 0 && <ChevronRight className="mx-1 h-4 w-4" />}

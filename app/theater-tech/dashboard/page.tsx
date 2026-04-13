@@ -1,174 +1,420 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/patient/useAuth';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useRouter } from 'next/navigation';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import {
+  Calendar,
+  Users,
+  Clock,
+  Activity,
+  CheckCircle2,
+  AlertCircle,
+  Scissors,
+  FileText,
+  ChevronRight,
+  Loader2,
+  RefreshCw,
+  Stethoscope,
+  ClipboardList,
+  Package,
+  LayoutDashboard,
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, Package, ChevronRight, Clock, AlertCircle } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 
-interface SurgicalCase {
-    id: string;
-    status: string;
-    procedure_name: string | null;
-    patient: {
-        first_name: string;
-        last_name: string;
-        file_number: string | null;
-    };
-    primary_surgeon: {
-        name: string;
-    };
-    created_at: string;
-    team_members_count?: number;
+interface DashboardStats {
+  total: number;
+  draft: number;
+  planning: number;
+  readyForPrep: number;
+  scheduled: number;
+  inPrep: number;
+  inTheater: number;
+  recovery: number;
+  completed: number;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive'; className?: string }> = {
-    READY_FOR_SCHEDULING: { label: 'Pending Theater Prep', variant: 'outline', className: 'bg-amber-50 text-amber-700 border-amber-200' },
-    READY_FOR_THEATER_PREP: { label: 'Ready for Booking', variant: 'outline', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+interface RecentCase {
+  id: string;
+  status: string;
+  procedure_name: string | null;
+  created_at: string;
+  patient: {
+    first_name: string;
+    last_name: string;
+    file_number: string | null;
+  };
+  primary_surgeon: {
+    name: string;
+  } | null;
+}
+
+const STATUS_CONFIG: Record<string, { label: string; variant: string; className: string }> = {
+  DRAFT: { label: 'Draft', variant: 'outline', className: 'bg-slate-50 text-slate-700 border-slate-200' },
+  PLANNING: { label: 'Planning', variant: 'outline', className: 'bg-blue-50 text-blue-700 border-blue-200' },
+  READY_FOR_WARD_PREP: { label: 'Ward Prep', variant: 'outline', className: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
+  IN_WARD_PREP: { label: 'In Ward', variant: 'outline', className: 'bg-teal-50 text-teal-700 border-teal-200' },
+  READY_FOR_THEATER_BOOKING: { label: 'Ready', variant: 'outline', className: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+  READY_FOR_THEATER_PREP: { label: 'Ready for Prep', variant: 'outline', className: 'bg-violet-50 text-violet-700 border-violet-200' },
+  SCHEDULED: { label: 'Scheduled', variant: 'outline', className: 'bg-purple-50 text-purple-700 border-purple-200' },
+  IN_PREP: { label: 'In Prep', variant: 'outline', className: 'bg-amber-50 text-amber-700 border-amber-200' },
+  IN_THEATER: { label: 'In Theater', variant: 'outline', className: 'bg-red-50 text-red-700 border-red-200' },
+  RECOVERY: { label: 'Recovery', variant: 'outline', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  COMPLETED: { label: 'Completed', variant: 'outline', className: 'bg-green-50 text-green-700 border-green-200' },
 };
 
 export default function TheaterTechDashboard() {
-    const router = useRouter();
-    const { user, isAuthenticated } = useAuth();
-    const [cases, setCases] = useState<SurgicalCase[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [fetched, setFetched] = useState(false);
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats>({
+    total: 0,
+    draft: 0,
+    planning: 0,
+    readyForPrep: 0,
+    scheduled: 0,
+    inPrep: 0,
+    inTheater: 0,
+    recovery: 0,
+    completed: 0,
+  });
+  const [recentCases, setRecentCases] = useState<RecentCase[]>([]);
 
-    useEffect(() => {
-        if (!isAuthenticated || fetched) return;
-
-        const fetchCases = async () => {
-            try {
-                const res = await fetch('/api/theater-tech/surgical-cases');
-                const data = await res.json();
-                if (data.success) {
-                    setCases(data.data || []);
-                }
-            } catch (error) {
-                console.error('Error fetching cases:', error);
-            } finally {
-                setLoading(false);
-                setFetched(true);
-            }
-        };
-
-        fetchCases();
-    }, [isAuthenticated, fetched]);
-
-    const handleCaseClick = (caseId: string, status: string) => {
-        // If case needs planning (DRAFT/PLANNING), go to plan page
-        // Otherwise go to theater prep
-        if (status === 'DRAFT' || status === 'PLANNING') {
-            router.push(`/theater-tech/surgical-cases/${caseId}/plan`);
-        } else {
-            router.push(`/theater-tech/dashboard/${caseId}`);
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch('/api/theater-tech/surgical-cases');
+        const data = await res.json();
+        
+        if (data.success && data.data) {
+          const cases = data.data as RecentCase[];
+          
+          const newStats: DashboardStats = {
+            total: cases.length,
+            draft: cases.filter((c) => c.status === 'DRAFT').length,
+            planning: cases.filter((c) => c.status === 'PLANNING').length,
+            readyForPrep: cases.filter((c) => ['READY_FOR_THEATER_PREP', 'READY_FOR_THEATER_BOOKING'].includes(c.status)).length,
+            scheduled: cases.filter((c) => c.status === 'SCHEDULED').length,
+            inPrep: cases.filter((c) => c.status === 'IN_PREP').length,
+            inTheater: cases.filter((c) => c.status === 'IN_THEATER').length,
+            recovery: cases.filter((c) => c.status === 'RECOVERY').length,
+            completed: cases.filter((c) => c.status === 'COMPLETED').length,
+          };
+          
+          setStats(newStats);
+          setRecentCases(cases.slice(0, 5));
         }
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    if (loading) {
-        return (
-            <div className="p-6 space-y-6">
-                <Skeleton className="h-10 w-64" />
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {[1, 2, 3].map((i) => (
-                        <Skeleton key={i} className="h-32" />
-                    ))}
-                </div>
-            </div>
-        );
+    fetchData();
+  }, []);
+
+  const handleCaseClick = (caseId: string, status: string) => {
+    if (status === 'DRAFT' || status === 'PLANNING') {
+      router.push(`/theater-tech/surgical-cases/${caseId}/edit`);
+    } else {
+      router.push(`/theater-tech/surgical-cases/${caseId}/plan`);
     }
+  };
 
-    const pendingCases = cases.filter(c => c.status === 'READY_FOR_SCHEDULING');
-    const readyCases = cases.filter(c => c.status === 'READY_FOR_THEATER_PREP');
-
+  if (loading) {
     return (
-        <div className="p-6 space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold text-slate-900">Theater Tech Dashboard</h1>
-                <p className="text-slate-500">Manage surgical team and prepare cases for theater</p>
-            </div>
-
-            {/* Stats */}
-            <div className="grid gap-4 md:grid-cols-3">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Pending Prep</CardTitle>
-                        <AlertCircle className="h-4 w-4 text-amber-500" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{pendingCases.length}</div>
-                        <p className="text-xs text-muted-foreground">Cases awaiting team & items</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Ready for Booking</CardTitle>
-                        <Clock className="h-4 w-4 text-blue-500" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{readyCases.length}</div>
-                        <p className="text-xs text-muted-foreground">Awaiting theater scheduling</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Total Cases</CardTitle>
-                        <Users className="h-4 w-4 text-slate-400" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{cases.length}</div>
-                        <p className="text-xs text-muted-foreground">Active surgical cases</p>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Cases List */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Surgical Cases</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {cases.length === 0 ? (
-                        <div className="text-center py-8 text-slate-500">
-                            No surgical cases requiring theater prep
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            {cases.map((surgicalCase) => {
-                                const statusConfig = STATUS_CONFIG[surgicalCase.status] || { label: surgicalCase.status, variant: 'secondary' };
-                                return (
-                                    <div
-                                        key={surgicalCase.id}
-                                        onClick={() => handleCaseClick(surgicalCase.id, surgicalCase.status)}
-                                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
-                                    >
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-3">
-                                                <span className="font-medium">
-                                                    {surgicalCase.patient.first_name} {surgicalCase.patient.last_name}
-                                                </span>
-                                                {surgicalCase.patient.file_number && (
-                                                    <span className="text-xs text-slate-400">#{surgicalCase.patient.file_number}</span>
-                                                )}
-                                                <Badge variant={statusConfig.variant} className={statusConfig.className}>
-                                                    {statusConfig.label}
-                                                </Badge>
-                                            </div>
-                                            <div className="text-sm text-slate-500 mt-1">
-                                                {surgicalCase.procedure_name || 'No procedure specified'} • Dr. {surgicalCase.primary_surgeon.name}
-                                            </div>
-                                        </div>
-                                        <ChevronRight className="h-5 w-5 text-slate-400" />
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+      <div className="space-y-6">
+        <Skeleton className="h-10 w-64" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[...Array(8)].map((_, i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
         </div>
+      </div>
     );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Theater Tech Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage surgical cases and daily operations
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => router.refresh()}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className={cn(
+          "cursor-pointer transition-all hover:shadow-md",
+          stats.readyForPrep > 0 && "border-amber-300 bg-amber-50"
+        )}
+        onClick={() => router.push('/theater-tech/dayboard')}
+        >
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Ready for Prep</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-amber-600">{stats.readyForPrep}</div>
+            <p className="text-xs text-muted-foreground mt-1">Cases awaiting preparation</p>
+          </CardContent>
+        </Card>
+
+        <Card 
+          className={cn(
+            "cursor-pointer transition-all hover:shadow-md",
+            stats.inPrep > 0 && "border-amber-400 bg-amber-50"
+          )}
+          onClick={() => router.push('/theater-tech/dayboard?status=IN_PREP')}
+        >
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">In Preparation</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-amber-700">{stats.inPrep}</div>
+            <p className="text-xs text-muted-foreground mt-1">Cases in pre-op</p>
+          </CardContent>
+        </Card>
+
+        <Card 
+          className={cn(
+            "cursor-pointer transition-all hover:shadow-md",
+            stats.inTheater > 0 && "border-red-400 bg-red-50"
+          )}
+          onClick={() => router.push('/theater-tech/dayboard?status=IN_THEATER')}
+        >
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">In Theater</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-red-600">{stats.inTheater}</div>
+            <p className="text-xs text-muted-foreground mt-1">Active surgeries</p>
+          </CardContent>
+        </Card>
+
+        <Card 
+          className="cursor-pointer transition-all hover:shadow-md"
+          onClick={() => router.push('/theater-tech/dayboard?status=RECOVERY')}
+        >
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">In Recovery</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-emerald-600">{stats.recovery}</div>
+            <p className="text-xs text-muted-foreground mt-1">Post-operative</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Quick Actions</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Button
+              variant="outline"
+              className="w-full justify-start h-11"
+              onClick={() => router.push('/theater-tech/dayboard')}
+            >
+              <LayoutDashboard className="h-4 w-4 mr-3" />
+              <span className="flex-1 text-left">Operations Dayboard</span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start h-11"
+              onClick={() => router.push('/theater-tech/patients')}
+            >
+              <Users className="h-4 w-4 mr-3" />
+              <span className="flex-1 text-left">New Surgical Case</span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start h-11"
+              onClick={() => router.push('/theater-tech/consultations')}
+            >
+              <Stethoscope className="h-4 w-4 mr-3" />
+              <span className="flex-1 text-left">From Consultations</span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start h-11"
+              onClick={() => router.push('/theater-tech/surgical-cases')}
+            >
+              <ClipboardList className="h-4 w-4 mr-3" />
+              <span className="flex-1 text-left">All Cases</span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start h-11"
+              onClick={() => router.push('/theater-tech/inventory/items')}
+            >
+              <Package className="h-4 w-4 mr-3" />
+              <span className="flex-1 text-left">Inventory</span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="md:col-span-2">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Recent Cases</CardTitle>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => router.push('/theater-tech/surgical-cases')}
+              >
+                View All
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {recentCases.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Scissors className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p>No surgical cases yet</p>
+                <Button 
+                  variant="link" 
+                  className="mt-2"
+                  onClick={() => router.push('/theater-tech/patients')}
+                >
+                  Create your first case
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {recentCases.map((caseItem) => {
+                  const statusCfg = STATUS_CONFIG[caseItem.status] || { 
+                    label: caseItem.status, 
+                    variant: 'outline', 
+                    className: 'bg-slate-50 text-slate-700' 
+                  };
+                  return (
+                    <div
+                      key={caseItem.id}
+                      className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 cursor-pointer transition-colors"
+                      onClick={() => handleCaseClick(caseItem.id, caseItem.status)}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm truncate">
+                            {caseItem.patient.first_name} {caseItem.patient.last_name}
+                          </p>
+                          {caseItem.patient.file_number && (
+                            <span className="text-xs font-mono text-muted-foreground">
+                              #{caseItem.patient.file_number}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {caseItem.procedure_name || 'No procedure specified'} •{' '}
+                          Dr. {caseItem.primary_surgeon?.name || '—'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant={statusCfg.variant as any} 
+                          className={cn("text-xs font-normal", statusCfg.className)}
+                        >
+                          {statusCfg.label}
+                        </Badge>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-all"
+          onClick={() => router.push('/theater-tech/surgical-cases?status=DRAFT,PLANNING')}
+        >
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-slate-500" />
+              <span className="text-sm text-muted-foreground">Draft/Planning</span>
+            </div>
+            <p className="text-2xl font-bold mt-1">{stats.draft + stats.planning}</p>
+          </CardContent>
+        </Card>
+
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-all"
+          onClick={() => router.push('/theater-tech/surgical-cases?status=READY_FOR_THEATER_BOOKING,SCHEDULED')}
+        >
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-indigo-500" />
+              <span className="text-sm text-muted-foreground">Scheduled</span>
+            </div>
+            <p className="text-2xl font-bold mt-1">{stats.scheduled}</p>
+          </CardContent>
+        </Card>
+
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-all"
+          onClick={() => router.push('/theater-tech/surgical-cases?status=IN_PREP')}
+        >
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-amber-500" />
+              <span className="text-sm text-muted-foreground">In Prep</span>
+            </div>
+            <p className="text-2xl font-bold mt-1">{stats.inPrep}</p>
+          </CardContent>
+        </Card>
+
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-all"
+          onClick={() => router.push('/theater-tech/surgical-cases?status=IN_THEATER')}
+        >
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-sm text-muted-foreground">In Theater</span>
+            </div>
+            <p className="text-2xl font-bold mt-1">{stats.inTheater}</p>
+          </CardContent>
+        </Card>
+
+        <Card 
+          className="cursor-pointer hover:shadow-md transition-all"
+          onClick={() => router.push('/theater-tech/surgical-cases?status=COMPLETED')}
+        >
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-green-500" />
+              <span className="text-sm text-muted-foreground">Completed</span>
+            </div>
+            <p className="text-2xl font-bold mt-1">{stats.completed}</p>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
 }

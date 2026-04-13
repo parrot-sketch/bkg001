@@ -81,7 +81,7 @@ export async function GET(
       where: { surgical_case_id: surgicalCaseId },
       include: {
         bill_items: {
-          include: { service: true },
+          include: { service: true, inventory_item: true },
         },
       },
     });
@@ -142,12 +142,14 @@ export async function GET(
           billItems: payment.bill_items.map(item => ({
             id: item.id,
             serviceId: item.service_id,
-            serviceName: item.service?.service_name || 'Unknown Service',
-            serviceCategory: item.service?.category || null,
+            inventoryItemId: item.inventory_item_id,
+            serviceName: item.service?.service_name || item.inventory_item?.name || 'Unknown Item',
+            serviceCategory: item.service?.category || item.inventory_item?.category || null,
             quantity: item.quantity,
             unitCost: item.unit_cost,
             totalCost: item.total_cost,
             serviceDate: item.service_date,
+            isInventory: !!item.inventory_item_id,
           })),
         },
         surgicalCase: {
@@ -234,7 +236,7 @@ export async function PUT(
 
     const { billingItems, discount, customTotalAmount, includeInventory, notes } = body;
 
-    // 4. Validate billing items
+    // 4. Validate billing items - allow serviceId OR inventoryItemId
     if (!billingItems || !Array.isArray(billingItems) || billingItems.length === 0) {
       return NextResponse.json(
         { success: false, error: 'At least one billing item is required' },
@@ -243,9 +245,18 @@ export async function PUT(
     }
 
     for (const item of billingItems) {
-      if (!item.serviceId || !item.quantity || item.quantity <= 0 || item.unitCost === undefined || item.unitCost < 0) {
+      // Must have either serviceId or inventoryItemId
+      const hasService = item.serviceId && item.serviceId > 0;
+      const hasInventory = item.inventoryItemId && item.inventoryItemId > 0;
+      if (!hasService && !hasInventory) {
         return NextResponse.json(
-          { success: false, error: 'Each billing item must have serviceId, positive quantity, and non-negative unitCost' },
+          { success: false, error: 'Each billing item must have serviceId or inventoryItemId' },
+          { status: 400 }
+        );
+      }
+      if ((!item.quantity || item.quantity <= 0) || item.unitCost === undefined || item.unitCost < 0) {
+        return NextResponse.json(
+          { success: false, error: 'Each billing item must have positive quantity and non-negative unitCost' },
           { status: 400 }
         );
       }
@@ -323,6 +334,26 @@ export async function PUT(
         where: { payment_id: existingPayment.id },
       });
 
+      // Build bill items for database - handle both service and inventory
+      const billItemsData = billingItems.map((item: any) => {
+        if (item.inventoryItemId && item.inventoryItemId > 0) {
+          return {
+            inventory_item_id: item.inventoryItemId,
+            service_date: new Date(),
+            quantity: item.quantity,
+            unit_cost: item.unitCost,
+            total_cost: item.quantity * item.unitCost,
+          };
+        }
+        return {
+          service_id: item.serviceId,
+          service_date: new Date(),
+          quantity: item.quantity,
+          unit_cost: item.unitCost,
+          total_cost: item.quantity * item.unitCost,
+        };
+      });
+
       // Update payment record
       await db.payment.update({
         where: { id: existingPayment.id },
@@ -331,19 +362,33 @@ export async function PUT(
           discount: finalDiscount,
           notes: notes ?? existingPayment.notes,
           bill_items: {
-            create: billingItems.map((item: any) => ({
-              service_id: item.serviceId,
-              service_date: new Date(),
-              quantity: item.quantity,
-              unit_cost: item.unitCost,
-              total_cost: item.quantity * item.unitCost,
-            })),
+            create: billItemsData,
           },
         },
       });
 
       paymentId = existingPayment.id;
     } else {
+      // Build bill items for database - handle both service and inventory
+      const billItemsData = billingItems.map((item: any) => {
+        if (item.inventoryItemId && item.inventoryItemId > 0) {
+          return {
+            inventory_item_id: item.inventoryItemId,
+            service_date: new Date(),
+            quantity: item.quantity,
+            unit_cost: item.unitCost,
+            total_cost: item.quantity * item.unitCost,
+          };
+        }
+        return {
+          service_id: item.serviceId,
+          service_date: new Date(),
+          quantity: item.quantity,
+          unit_cost: item.unitCost,
+          total_cost: item.quantity * item.unitCost,
+        };
+      });
+
       // Create new surgery payment
       const newPayment = await db.payment.create({
         data: {
@@ -358,13 +403,7 @@ export async function PUT(
           status: 'UNPAID',
           notes: notes ?? null,
           bill_items: {
-            create: billingItems.map((item: any) => ({
-              service_id: item.serviceId,
-              service_date: new Date(),
-              quantity: item.quantity,
-              unit_cost: item.unitCost,
-              total_cost: item.quantity * item.unitCost,
-            })),
+            create: billItemsData,
           },
         },
       });
@@ -377,7 +416,7 @@ export async function PUT(
       where: { id: paymentId },
       include: {
         bill_items: {
-          include: { service: true },
+          include: { service: true, inventory_item: true },
         },
       },
     });

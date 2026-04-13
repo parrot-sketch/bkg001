@@ -7,7 +7,7 @@ export default function TheaterTechRoot() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/theater-tech/dayboard');
+    router.replace('/theater-tech/dashboard');
   }, [router]);
 
   return null;

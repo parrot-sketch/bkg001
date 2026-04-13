@@ -175,20 +175,27 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Only save services (inventory items don't integrate with billing API)
-      const serviceItems = chargeItems.filter(item => item.type === 'service');
-      
-      if (serviceItems.length === 0) {
-        toast.error('Add at least one service to save');
+      // Build billing items - include both services and inventory
+      const billingItems = chargeItems.map(item => {
+        if (item.type === 'inventory') {
+          return {
+            inventoryItemId: item.itemId,
+            quantity: item.quantity,
+            unitCost: item.amount
+          };
+        }
+        return {
+          serviceId: item.itemId,
+          quantity: item.quantity,
+          unitCost: item.amount
+        };
+      });
+
+      if (billingItems.length === 0) {
+        toast.error('Add at least one item to save');
         setIsSaving(false);
         return;
       }
-
-      const billingItems = serviceItems.map(item => ({
-        serviceId: item.itemId,
-        quantity: item.quantity,
-        unitCost: item.amount
-      }));
 
       const res = await fetch(`/api/surgical-cases/${caseId}/billing`, {
         method: 'PUT',
