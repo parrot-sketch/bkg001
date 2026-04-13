@@ -227,120 +227,113 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
 
   return (
     <Card className="border-slate-200">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-semibold">Charge Sheet</CardTitle>
-          <div className="flex items-center gap-2">
-            {chargeItems.length > 0 && (
-              <Button 
-                size="sm" 
-                onClick={handleSave}
-                disabled={isSaving}
-                className="h-8"
-              >
-                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
-                Save
-              </Button>
-            )}
-          </div>
-        </div>
+      <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+        <CardTitle className="text-base font-semibold">Charge Sheet</CardTitle>
+        {chargeItems.length > 0 && (
+          <Button 
+            size="sm" 
+            onClick={handleSave}
+            disabled={isSaving}
+            className="h-8"
+          >
+            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+            <span className="ml-1">Save</span>
+          </Button>
+        )}
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Add Items Section */}
         <div className="space-y-2">
           <label className="text-sm font-medium text-slate-700">Add Charge</label>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <div className="relative flex-1 min-w-0">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input
-                placeholder="Search services or inventory..."
-                className="pl-9 h-10 sm:h-9 touch-manipulation"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setServiceDropdownOpen(true);
-                  setInventoryDropdownOpen(true);
-                }}
-                onFocus={() => {
-                  setServiceDropdownOpen(true);
-                  setInventoryDropdownOpen(true);
-                }}
-              />
-              {(serviceDropdownOpen || inventoryDropdownOpen) && searchQuery && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-48 sm:max-h-64 overflow-auto">
-                  {filteredServices.length > 0 && (
-                    <div className="p-1">
-                      <p className="px-2 py-1 text-xs font-medium text-slate-500">Services</p>
-                      {filteredServices.map(service => (
-                        <button
-                          key={service.id}
-                          className="w-full flex items-center justify-between px-2 py-2 text-left hover:bg-slate-50 rounded touch-manipulation"
-                          onClick={() => handleAddService(service)}
-                        >
-                          <span className="text-sm truncate">{service.service_name}</span>
-                          <span className="text-sm text-slate-500 shrink-0">KSH {service.price.toLocaleString()}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {filteredInventory.length > 0 && (
-                    <div className="p-1 border-t">
-                      <p className="px-2 py-1 text-xs font-medium text-slate-500">Inventory Items</p>
-                      {filteredInventory.map(item => (
-                        <button
-                          key={item.id}
-                          className="w-full flex items-center justify-between px-2 py-2 text-left hover:bg-slate-50 rounded"
-                          onClick={() => handleAddInventory(item)}
-                        >
-                          <span className="text-sm">{item.name}</span>
-                          <span className="text-sm text-slate-500">KSH {item.unit_cost.toLocaleString()}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {filteredServices.length === 0 && filteredInventory.length === 0 && (
-                    <p className="p-3 text-sm text-slate-500 text-center">No items found</p>
-                  )}
-                </div>
-              )}
-            </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 z-10" />
+            <Input
+              placeholder="Search services or inventory..."
+              className="pl-9 h-11 md:h-9 touch-manipulation"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setServiceDropdownOpen(true);
+                setInventoryDropdownOpen(true);
+              }}
+              onFocus={() => {
+                setServiceDropdownOpen(true);
+                setInventoryDropdownOpen(true);
+              }}
+            />
+            {(serviceDropdownOpen || inventoryDropdownOpen) && searchQuery && (
+              <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                {filteredServices.length > 0 && (
+                  <div className="p-1">
+                    <p className="px-2 py-1 text-xs font-medium text-slate-500">Services</p>
+                    {filteredServices.map(service => (
+                      <button
+                        key={service.id}
+                        className="w-full flex items-center justify-between px-2 py-2.5 text-left hover:bg-slate-50 rounded touch-manipulation"
+                        onClick={() => handleAddService(service)}
+                      >
+                        <span className="text-sm truncate">{service.service_name}</span>
+                        <span className="text-sm text-slate-500 shrink-0 ml-2">KSH {service.price.toLocaleString()}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {filteredInventory.length > 0 && (
+                  <div className="p-1 border-t">
+                    <p className="px-2 py-1 text-xs font-medium text-slate-500">Inventory</p>
+                    {filteredInventory.map(item => (
+                      <button
+                        key={item.id}
+                        className="w-full flex items-center justify-between px-2 py-2.5 text-left hover:bg-slate-50 rounded touch-manipulation"
+                        onClick={() => handleAddInventory(item)}
+                      >
+                        <span className="text-sm truncate">{item.name}</span>
+                        <span className="text-sm text-slate-500 shrink-0 ml-2">KSH {item.unit_cost.toLocaleString()}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {filteredServices.length === 0 && filteredInventory.length === 0 && (
+                  <p className="p-3 text-sm text-slate-500 text-center">No items found</p>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
         {/* Items List */}
         {chargeItems.length > 0 ? (
-          <div className="space-y-2">
-            <div className="border rounded-md overflow-x-auto">
-              <table className="w-full min-w-[400px]">
-                <thead className="bg-slate-50">
-                  <tr>
-                    <th className="text-left text-xs font-medium text-slate-500 px-2 py-2">Item</th>
-                    <th className="text-left text-xs font-medium text-slate-500 px-1 py-2 w-16 sm:w-20">Qty</th>
-                    <th className="text-left text-xs font-medium text-slate-500 px-1 py-2 w-20 sm:w-28">Unit Price</th>
-                    <th className="text-left text-xs font-medium text-slate-500 px-2 py-2 w-20">Total</th>
-                    <th className="w-10"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {chargeItems.map(item => (
-                    <tr key={item.id}>
-                      <td className="px-2 py-3">
-                        <div className="flex items-center gap-2 min-w-0">
-                          {item.type === 'service' ? (
-                            <FileText className="h-4 w-4 text-blue-500 shrink-0" />
-                          ) : (
-                            <Package className="h-4 w-4 text-orange-500 shrink-0" />
-                          )}
-                          <span className="text-sm truncate max-w-[120px] sm:max-w-[200px]">{item.description}</span>
-                        </div>
-                      </td>
-                      <td className="px-1 py-3">
+          <div className="space-y-3">
+            {/* Header row - desktop only */}
+            <div className="hidden sm:grid sm:grid-cols-[1fr_80px_100px_80px_40px] gap-2 text-xs font-medium text-slate-500 px-2">
+              <span>Item</span>
+              <span>Qty</span>
+              <span>Unit Price</span>
+              <span>Total</span>
+              <span></span>
+            </div>
+            
+            <div className="space-y-2">
+              {chargeItems.map(item => (
+                <div key={item.id} className="bg-slate-50 rounded-lg p-3 sm:p-2">
+                  {/* Mobile: stacked layout */}
+                  <div className="sm:hidden space-y-2">
+                    <div className="flex items-center gap-2">
+                      {item.type === 'service' ? (
+                        <FileText className="h-4 w-4 text-blue-500 shrink-0" />
+                      ) : (
+                        <Package className="h-4 w-4 text-orange-500 shrink-0" />
+                      )}
+                      <span className="text-sm font-medium truncate flex-1">{item.description}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <label className="text-xs text-slate-500">Qty</label>
                         <Input
                           type="number"
                           min="1"
                           inputMode="numeric"
-                          pattern="[0-9]*"
-                          className="h-10 text-sm w-16 sm:w-20 touch-manipulation"
+                          className="h-9 touch-manipulation"
                           value={item.quantity || ''}
                           placeholder="1"
                           onChange={(e) => {
@@ -350,12 +343,13 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
                             ));
                           }}
                         />
-                      </td>
-                      <td className="px-1 py-3">
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-xs text-slate-500">Unit Price</label>
                         <Input
                           type="number"
                           inputMode="decimal"
-                          className="h-10 text-sm w-20 sm:w-24 touch-manipulation"
+                          className="h-9 touch-manipulation"
                           value={item.amount || ''}
                           placeholder="0"
                           onChange={(e) => {
@@ -365,37 +359,87 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
                             ));
                           }}
                         />
-                      </td>
-                      <td className="px-2 py-3 text-sm font-medium whitespace-nowrap">
-                        KSH {((item.amount || 0) * (item.quantity || 1)).toLocaleString()}
-                      </td>
-                      <td className="px-1 py-3">
-                        <button
-                          onClick={() => handleRemoveItem(item.id)}
-                          className="p-2 text-slate-400 hover:text-red-500 touch-manipulation"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                      <div className="flex items-end">
+                        <span className="text-sm font-medium">
+                          KSH {((item.amount || 0) * (item.quantity || 1)).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Desktop: inline layout */}
+                  <div className="hidden sm:grid sm:grid-cols-[1fr_80px_100px_80px_40px] gap-2 items-center">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {item.type === 'service' ? (
+                        <FileText className="h-4 w-4 text-blue-500 shrink-0" />
+                      ) : (
+                        <Package className="h-4 w-4 text-orange-500 shrink-0" />
+                      )}
+                      <span className="text-sm truncate max-w-[180px]">{item.description}</span>
+                    </div>
+                    <Input
+                      type="number"
+                      min="1"
+                      inputMode="numeric"
+                      className="h-8 text-sm"
+                      value={item.quantity || ''}
+                      placeholder="1"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setChargeItems(prev => prev.map(i => 
+                          i.id === item.id ? { ...i, quantity: val === '' ? 1 : Math.max(1, parseInt(val) || 1) } : i
+                        ));
+                      }}
+                    />
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      className="h-8 text-sm"
+                      value={item.amount || ''}
+                      placeholder="0"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setChargeItems(prev => prev.map(i => 
+                          i.id === item.id ? { ...i, amount: val === '' ? 0 : parseFloat(val) || 0 } : i
+                        ));
+                      }}
+                    />
+                    <span className="text-sm font-medium">
+                      KSH {((item.amount || 0) * (item.quantity || 1)).toLocaleString()}
+                    </span>
+                    <button
+                      onClick={() => handleRemoveItem(item.id)}
+                      className="p-1.5 text-slate-400 hover:text-red-500 touch-manipulation"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {/* Mobile delete button */}
+                  <button
+                    onClick={() => handleRemoveItem(item.id)}
+                    className="sm:hidden absolute top-2 right-2 p-1.5 text-slate-400 hover:text-red-500"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
             </div>
 
             {/* Discount */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 pt-2">
               <label className="text-sm text-slate-600">Discount (KSH)</label>
               <Input
                 type="number"
-                className="h-8 w-32"
+                className="h-9 w-28"
                 value={discount}
                 onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
               />
             </div>
 
             {/* Total */}
-            <div className="flex items-center justify-between pt-2 border-t">
+            <div className="flex items-center justify-between pt-3 border-t">
               <span className="text-sm font-medium text-slate-600">Total</span>
               <span className="text-lg font-semibold text-slate-900">
                 KSH {total.toLocaleString()}

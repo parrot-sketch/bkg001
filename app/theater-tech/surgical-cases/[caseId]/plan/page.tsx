@@ -7,6 +7,7 @@
  * Clean, printable format for theater tech reference.
  */
 
+import { Suspense } from 'react';
 import { getCurrentUser } from '@/lib/auth/server-auth';
 import db from '@/lib/db';
 import { redirect } from 'next/navigation';
@@ -14,20 +15,31 @@ import Link from 'next/link';
 import { 
   ArrowLeft, 
   User, 
-  Calendar, 
   Stethoscope, 
-  FileText, 
-  Package, 
-  Clock,
-  Activity,
   ChevronRight,
-  DollarSign
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { TheaterTechBilling } from '@/components/theater-tech/TheaterTechBilling';
+
+function PlanPageSkeleton() {
+  return (
+    <div className="animate-pulse space-y-4">
+      <div className="h-16 bg-slate-100 rounded-lg" />
+      <div className="grid grid-cols-2 gap-4">
+        {[1,2,3,4].map(i => (
+          <div key={i} className="h-16 bg-slate-100 rounded-lg" />
+        ))}
+      </div>
+      <div className="h-32 bg-slate-100 rounded-lg" />
+      <div className="h-20 bg-slate-100 rounded-lg" />
+      <div className="h-48 bg-slate-100 rounded-lg" />
+    </div>
+  );
+}
 
 interface PageProps {
   params: Promise<{ caseId: string }>;
@@ -299,10 +311,22 @@ export default async function TheaterTechPlanDocumentPage({ params }: PageProps)
           </Card>
         )}
 
-        {/* Charge Sheet */}
-        <div className="mb-4 md:mb-6">
+        {/* Charge Sheet - Lazy loaded for performance */}
+        <Suspense fallback={
+          <Card className="mb-4 md:mb-6 border-slate-200">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold">Charge Sheet</CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center justify-center py-12">
+              <div className="flex items-center gap-2 text-slate-400">
+                <Skeleton className="h-4 w-4" />
+                <span className="text-sm">Loading...</span>
+              </div>
+            </CardContent>
+          </Card>
+        }>
           <TheaterTechBilling caseId={caseId} />
-        </div>
+        </Suspense>
 
         {/* Metadata - Mobile responsive */}
         <div className="text-xs text-slate-400 border-t pt-3 md:pt-4 mt-4 md:mt-8">
