@@ -70,8 +70,8 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
             description: item.serviceName,
             amount: item.unitCost || 0,
             quantity: item.quantity || 1,
-            type: 'service',
-            itemId: item.serviceId
+            type: item.isInventory || item.inventoryItemId ? 'inventory' : 'service',
+            itemId: item.inventoryItemId || item.serviceId
           })) || [];
           setChargeItems(items);
           setDiscount(billingData.data.payment.discount || 0);
