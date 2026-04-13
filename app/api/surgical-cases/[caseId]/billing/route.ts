@@ -338,7 +338,7 @@ export async function PUT(
       const billItemsData = billingItems.map((item: any) => {
         if (item.inventoryItemId && item.inventoryItemId > 0) {
           return {
-            inventory_item_id: item.inventoryItemId,
+            inventory_item_id: parseInt(item.inventoryItemId, 10),
             service_date: new Date(),
             quantity: item.quantity,
             unit_cost: item.unitCost,
@@ -373,7 +373,7 @@ export async function PUT(
       const billItemsData = billingItems.map((item: any) => {
         if (item.inventoryItemId && item.inventoryItemId > 0) {
           return {
-            inventory_item_id: item.inventoryItemId,
+            inventory_item_id: parseInt(item.inventoryItemId, 10),
             service_date: new Date(),
             quantity: item.quantity,
             unit_cost: item.unitCost,
