@@ -2,54 +2,55 @@
 
 /**
  * Theater Tech Surgical Cases Page
- * 
- * Clean, modern surgical case listing with compact, well-organized UI.
- * Organized by status tabs with inline actions.
+ *
+ * Mobile: scrollable card list
+ * Desktop (md+): full data table
+ *
+ * Both views have the same dual actions:
+ *   - Tap/click row → case detail
+ *   - Charges → charge sheet
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import {
-  Search,
-  Calendar,
-  User,
-  Eye,
-  Scissors,
-  Clock,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Search, Receipt, ChevronRight, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  DRAFT: { label: 'Draft', color: 'text-slate-700', bg: 'bg-slate-100' },
-  PLANNING: { label: 'Planning', color: 'text-blue-700', bg: 'bg-blue-50' },
-  READY_FOR_WARD_PREP: { label: 'Ward Prep', color: 'text-cyan-700', bg: 'bg-cyan-50' },
-  IN_WARD_PREP: { label: 'Ward Prep', color: 'text-teal-700', bg: 'bg-teal-50' },
-  READY_FOR_THEATER_BOOKING: { label: 'Ready', color: 'text-indigo-700', bg: 'bg-indigo-50' },
-  READY_FOR_THEATER_PREP: { label: 'Prep', color: 'text-violet-700', bg: 'bg-violet-50' },
-  SCHEDULED: { label: 'Scheduled', color: 'text-purple-700', bg: 'bg-purple-50' },
-  IN_PREP: { label: 'In Prep', color: 'text-amber-700', bg: 'bg-amber-50' },
-  IN_THEATER: { label: 'In Theater', color: 'text-red-700', bg: 'bg-red-50' },
-  RECOVERY: { label: 'Recovery', color: 'text-emerald-700', bg: 'bg-emerald-50' },
-  COMPLETED: { label: 'Done', color: 'text-green-700', bg: 'bg-green-50' },
-  CANCELLED: { label: 'Cancelled', color: 'text-slate-500', bg: 'bg-slate-100' },
+// ─────────────────────────────────────────────────────────────────────────────
+// Config
+// ─────────────────────────────────────────────────────────────────────────────
+
+const STATUS_CONFIG: Record<string, { label: string; pill: string }> = {
+  DRAFT:                      { label: 'Draft',         pill: 'bg-slate-100 text-slate-600 ring-slate-200'       },
+  PLANNING:                   { label: 'Planning',      pill: 'bg-blue-50 text-blue-700 ring-blue-200'           },
+  READY_FOR_WARD_PREP:        { label: 'Ward Prep',     pill: 'bg-cyan-50 text-cyan-700 ring-cyan-200'           },
+  IN_WARD_PREP:               { label: 'In Ward Prep',  pill: 'bg-teal-50 text-teal-700 ring-teal-200'           },
+  READY_FOR_THEATER_BOOKING:  { label: 'Ready',         pill: 'bg-indigo-50 text-indigo-700 ring-indigo-200'     },
+  READY_FOR_THEATER_PREP:     { label: 'Theater Prep',  pill: 'bg-violet-50 text-violet-700 ring-violet-200'     },
+  SCHEDULED:                  { label: 'Scheduled',     pill: 'bg-purple-50 text-purple-700 ring-purple-200'     },
+  IN_PREP:                    { label: 'In Prep',       pill: 'bg-amber-50 text-amber-700 ring-amber-200'        },
+  IN_THEATER:                 { label: 'In Theater',    pill: 'bg-red-50 text-red-700 ring-red-200'              },
+  RECOVERY:                   { label: 'Recovery',      pill: 'bg-emerald-50 text-emerald-700 ring-emerald-200'  },
+  COMPLETED:                  { label: 'Completed',     pill: 'bg-green-50 text-green-700 ring-green-200'        },
+  CANCELLED:                  { label: 'Cancelled',     pill: 'bg-slate-100 text-slate-400 ring-slate-200'       },
 };
 
 const STATUS_TABS = [
-  { value: '', label: 'All' },
-  { value: 'DRAFT,PLANNING', label: 'Planning' },
-  { value: 'READY_FOR_WARD_PREP,IN_WARD_PREP,READY_FOR_THEATER_BOOKING,READY_FOR_THEATER_PREP', label: 'Prep' },
-  { value: 'SCHEDULED,IN_PREP', label: 'Scheduled' },
-  { value: 'IN_THEATER,RECOVERY', label: 'Active' },
-  { value: 'COMPLETED,CANCELLED', label: 'Done' },
+  { value: '',                                                                                    label: 'All'       },
+  { value: 'DRAFT,PLANNING',                                                                     label: 'Planning'  },
+  { value: 'READY_FOR_WARD_PREP,IN_WARD_PREP,READY_FOR_THEATER_BOOKING,READY_FOR_THEATER_PREP',  label: 'Prep'      },
+  { value: 'SCHEDULED,IN_PREP',                                                                  label: 'Scheduled' },
+  { value: 'IN_THEATER,RECOVERY',                                                                label: 'Active'    },
+  { value: 'COMPLETED,CANCELLED',                                                                label: 'Done'      },
 ] as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface SurgicalCaseItem {
   id: string;
@@ -58,15 +59,13 @@ interface SurgicalCaseItem {
   procedure_name: string | null;
   procedure_date: string | null;
   created_at: string;
-  patient: {
-    first_name: string;
-    last_name: string;
-    file_number: string | null;
-  };
-  primary_surgeon: {
-    name: string;
-  } | null;
+  patient: { first_name: string; last_name: string; file_number: string | null };
+  primary_surgeon: { name: string } | null;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Page
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function TheaterTechSurgicalCasesPage() {
   const router = useRouter();
@@ -81,64 +80,56 @@ export default function TheaterTechSurgicalCasesPage() {
       const statusParam = activeTab ? `&status=${activeTab}` : '';
       const res = await fetch(`/api/theater-tech/surgical-cases/list?page=1${statusParam}`);
       const data = await res.json();
-      if (data.success) {
-        setCases(data.data || []);
-      }
-    } catch (error) {
-      console.error('Error fetching cases:', error);
+      if (data.success) setCases(data.data || []);
+    } catch (err) {
+      console.error('Error fetching cases:', err);
     } finally {
       setLoading(false);
     }
   }, [activeTab]);
 
-  useEffect(() => {
-    fetchCases();
-  }, [fetchCases]);
+  useEffect(() => { fetchCases(); }, [fetchCases]);
 
-  const filteredCases = cases.filter(c => {
+  const filtered = cases.filter((c) => {
     if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
+    const q = searchQuery.toLowerCase();
     return (
-      c.patient.first_name.toLowerCase().includes(query) ||
-      c.patient.last_name.toLowerCase().includes(query) ||
-      c.patient.file_number?.toLowerCase().includes(query) ||
-      c.procedure_name?.toLowerCase().includes(query)
+      c.patient.first_name.toLowerCase().includes(q) ||
+      c.patient.last_name.toLowerCase().includes(q) ||
+      c.patient.file_number?.toLowerCase().includes(q) ||
+      c.procedure_name?.toLowerCase().includes(q) ||
+      c.primary_surgeon?.name.toLowerCase().includes(q)
     );
   });
 
-  const handleViewPlan = (caseId: string, status: string) => {
-    // For DRAFT/PLANNING go to edit mode, otherwise view document
-    if (status === 'DRAFT' || status === 'PLANNING') {
-      router.push(`/theater-tech/surgical-cases/${caseId}/edit`);
-    } else {
-      router.push(`/theater-tech/surgical-cases/${caseId}/plan`);
-    }
-  };
+  const toDetail = (id: string) => router.push(`/theater-tech/surgical-cases/${id}`);
+  const toCharges = (id: string) => router.push(`/theater-tech/surgical-cases/${id}/charges`);
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold text-slate-900">Surgical Cases</h1>
-          <p className="text-sm text-slate-500">Manage and track cases</p>
+          <p className="text-sm text-slate-500">Manage and track all cases</p>
         </div>
-        <Badge variant="outline" className="text-xs bg-white self-start sm:self-auto">
-          {filteredCases.length} cases
-        </Badge>
+        <span className="text-xs bg-white border border-slate-200 text-slate-500 px-2.5 py-1 rounded-full tabular-nums">
+          {filtered.length} {filtered.length === 1 ? 'case' : 'cases'}
+        </span>
       </div>
 
-      {/* Status Tabs */}
-      <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-2 px-2">
-        {STATUS_TABS.map(tab => (
+      {/* ── Status Tabs (horizontal scroll, no wrap) ── */}
+      <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
+        {STATUS_TABS.map((tab) => (
           <button
             key={tab.value}
-            onClick={() => { setActiveTab(tab.value); }}
+            onClick={() => setActiveTab(tab.value)}
             className={cn(
-              "px-2.5 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-colors touch-manipulation",
+              'px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-colors touch-manipulation',
               activeTab === tab.value
-                ? "bg-slate-900 text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             )}
           >
             {tab.label}
@@ -146,74 +137,181 @@ export default function TheaterTechSurgicalCasesPage() {
         ))}
       </div>
 
-      {/* Search */}
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+      {/* ── Search ── */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
         <Input
-          placeholder="Search patients or procedures..."
-          className="pl-9 h-10 sm:h-9 bg-white touch-manipulation"
+          placeholder="Search patient, file no., procedure or surgeon…"
+          className="pl-9 h-10 md:h-9 bg-white touch-manipulation"
           value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
+          onChange={(e) => setSearchQuery(e.target.value)}
         />
       </div>
 
-{/* Mobile Card View - Touch-friendly targets */}
-      <Card className="border-slate-200 shadow-sm">
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="p-4 space-y-2">
-              {[1, 2, 3].map(i => (
-                <Skeleton key={i} className="h-20" />
-              ))}
-            </div>
-          ) : filteredCases.length === 0 ? (
-            <div className="text-center py-12 text-slate-500">
-              {searchQuery ? 'No cases match your search' : 'No surgical cases found'}
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {filteredCases.map(surgicalCase => {
-                const statusCfg = STATUS_CONFIG[surgicalCase.status] || { label: surgicalCase.status, color: 'text-slate-600', bg: 'bg-slate-100' };
-                return (
+      {/* ══════════════════════════════════════════════════════ */}
+      {/* MOBILE CARD LIST (hidden on md+)                      */}
+      {/* ══════════════════════════════════════════════════════ */}
+      <div className="md:hidden border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+        {loading ? (
+          <div className="p-4 space-y-3">
+            {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-20 rounded-lg" />)}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-14 text-slate-400 text-sm">
+            {searchQuery ? 'No cases match your search.' : 'No surgical cases found.'}
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {filtered.map((c) => {
+              const cfg = STATUS_CONFIG[c.status] ?? { label: c.status, pill: 'bg-slate-100 text-slate-600 ring-slate-200' };
+              return (
+                <div key={c.id} className="flex items-center gap-3 px-4 py-3.5 active:bg-slate-50">
+                  {/* Avatar */}
+                  <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
+                    <User className="h-4 w-4 text-slate-400" />
+                  </div>
+
+                  {/* Info — tappable */}
                   <button
-                    key={surgicalCase.id}
-                    onClick={() => handleViewPlan(surgicalCase.id, surgicalCase.status)}
-                    className="w-full text-left p-4 hover:bg-slate-50 active:bg-slate-100 transition-colors touch-manipulation min-h-[80px]"
+                    type="button"
+                    className="flex-1 min-w-0 text-left touch-manipulation py-0.5"
+                    onClick={() => toDetail(c.id)}
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
-                        <User className="h-5 w-5 text-slate-500" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2 mb-1">
-                          <p className="font-medium text-slate-900 truncate">
-                            {surgicalCase.patient.first_name} {surgicalCase.patient.last_name}
-                          </p>
-                          <span className={cn("text-[10px] px-2 py-0.5 rounded font-medium shrink-0", statusCfg.bg, statusCfg.color)}>
-                            {statusCfg.label}
-                          </span>
-                        </div>
-                        {surgicalCase.patient.file_number && (
-                          <p className="text-xs text-slate-400 font-mono mb-1">{surgicalCase.patient.file_number}</p>
-                        )}
-                        <div className="flex items-center gap-2 text-xs text-slate-500">
-                          <span className="truncate">{surgicalCase.procedure_name || 'No procedure'}</span>
-                          {surgicalCase.procedure_date && (
-                            <>
-                              <span className="text-slate-300">|</span>
-                              <span className="shrink-0">{format(new Date(surgicalCase.procedure_date), 'MMM d')}</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium text-slate-900 truncate">
+                        {c.patient.first_name} {c.patient.last_name}
+                      </p>
+                      <span className={cn('text-[10px] font-medium px-2 py-0.5 rounded-full ring-1 ring-inset shrink-0', cfg.pill)}>
+                        {cfg.label}
+                      </span>
                     </div>
+                    {c.patient.file_number && (
+                      <p className="text-[11px] text-slate-400 font-mono mt-0.5">{c.patient.file_number}</p>
+                    )}
+                    <p className="text-xs text-slate-500 mt-0.5 truncate">
+                      {c.procedure_name ?? <span className="italic text-slate-400">No procedure</span>}
+                      {c.procedure_date &&
+                        ` · ${format(new Date(c.procedure_date), 'MMM d')}`}
+                    </p>
                   </button>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+
+                  {/* Charges icon */}
+                  <button
+                    type="button"
+                    onClick={() => toCharges(c.id)}
+                    className="h-9 w-9 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors touch-manipulation shrink-0"
+                    title="Charge Sheet"
+                  >
+                    <Receipt className="h-4 w-4" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ══════════════════════════════════════════════════════ */}
+      {/* DESKTOP TABLE (hidden below md)                       */}
+      {/* ══════════════════════════════════════════════════════ */}
+      <div className="hidden md:block border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse min-w-[700px]">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200">
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Patient</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 w-28">File No.</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500">Procedure</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 w-36">Surgeon</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 w-28">Date</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 w-28">Status</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 w-32">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {loading ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={i}>
+                    {Array.from({ length: 7 }).map((__, j) => (
+                      <td key={j} className="px-4 py-3.5">
+                        <Skeleton className="h-4 rounded" />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="text-center py-16 text-slate-400 text-sm">
+                    {searchQuery ? 'No cases match your search.' : 'No surgical cases found.'}
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((c) => {
+                  const cfg = STATUS_CONFIG[c.status] ?? { label: c.status, pill: 'bg-slate-100 text-slate-600 ring-slate-200' };
+                  return (
+                    <tr
+                      key={c.id}
+                      onClick={() => toDetail(c.id)}
+                      className="hover:bg-slate-50/70 cursor-pointer transition-colors group"
+                    >
+                      <td className="px-4 py-3.5 font-medium text-slate-900 group-hover:text-slate-700">
+                        {c.patient.first_name} {c.patient.last_name}
+                      </td>
+                      <td className="px-4 py-3.5 font-mono text-xs text-slate-500">
+                        {c.patient.file_number ?? '—'}
+                      </td>
+                      <td className="px-4 py-3.5 text-slate-600 max-w-[180px] truncate">
+                        {c.procedure_name ?? <span className="italic text-slate-400">Not set</span>}
+                      </td>
+                      <td className="px-4 py-3.5 text-slate-600 truncate">
+                        {c.primary_surgeon?.name ?? <span className="text-slate-400">—</span>}
+                      </td>
+                      <td className="px-4 py-3.5 tabular-nums text-slate-500 whitespace-nowrap">
+                        {c.procedure_date
+                          ? format(new Date(c.procedure_date), 'MMM d, yyyy')
+                          : <span className="text-slate-400">—</span>}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ring-1 ring-inset', cfg.pill)}>
+                          {cfg.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-slate-500 hover:text-slate-800 gap-1"
+                            onClick={() => toCharges(c.id)}
+                          >
+                            <Receipt className="h-3.5 w-3.5" />
+                            Charges
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-slate-400 hover:text-slate-700"
+                            onClick={() => toDetail(c.id)}
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {!loading && filtered.length > 0 && (
+          <div className="px-4 py-2.5 border-t border-slate-100 bg-slate-50/50 text-xs text-slate-400 tabular-nums">
+            Showing {filtered.length} of {cases.length} cases
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }

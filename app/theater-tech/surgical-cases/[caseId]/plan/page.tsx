@@ -7,7 +7,7 @@
  * Clean, printable format for theater tech reference.
  */
 
-import { Suspense } from 'react';
+
 import { getCurrentUser } from '@/lib/auth/server-auth';
 import db from '@/lib/db';
 import { redirect } from 'next/navigation';
@@ -21,9 +21,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
-import { TheaterTechBilling } from '@/components/theater-tech/TheaterTechBilling';
+
 
 function PlanPageSkeleton() {
   return (
@@ -311,22 +310,22 @@ export default async function TheaterTechPlanDocumentPage({ params }: PageProps)
           </Card>
         )}
 
-        {/* Charge Sheet - Lazy loaded for performance */}
-        <Suspense fallback={
-          <Card className="mb-4 md:mb-6 border-slate-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold">Charge Sheet</CardTitle>
-            </CardHeader>
-            <CardContent className="flex items-center justify-center py-12">
-              <div className="flex items-center gap-2 text-slate-400">
-                <Skeleton className="h-4 w-4" />
-                <span className="text-sm">Loading...</span>
-              </div>
+        {/* Billing note — charges are managed in the edit form (Step 3) */}
+        {isEditable && (
+          <Card className="mb-4 md:mb-6 border-dashed border-slate-300 bg-slate-50">
+            <CardContent className="py-5 text-center">
+              <p className="text-sm font-medium text-slate-600 mb-1">Charge Sheet</p>
+              <p className="text-xs text-slate-400 mb-3">
+                Add services and inventory charges by continuing the case plan
+              </p>
+              <Button size="sm" asChild>
+                <Link href={`/theater-tech/surgical-cases/${caseId}/edit`}>
+                  Open Case Plan to Add Charges
+                </Link>
+              </Button>
             </CardContent>
           </Card>
-        }>
-          <TheaterTechBilling caseId={caseId} />
-        </Suspense>
+        )}
 
         {/* Metadata - Mobile responsive */}
         <div className="text-xs text-slate-400 border-t pt-3 md:pt-4 mt-4 md:mt-8">
