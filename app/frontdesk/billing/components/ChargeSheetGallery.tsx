@@ -190,10 +190,10 @@ export function ChargeSheetGallery({
                         Collect
                       </Button>
                     )}
-                    {type === 'draft' && payment.billType === 'SURGERY' && (
+                    {(type === 'draft') && (
                       <Button 
                         onClick={() => {
-                          console.log('[Gallery] Collect clicked (draft/surgery), payment:', payment.id, payment.billType);
+                          console.log('[Gallery] Collect clicked (draft), payment:', payment.id, payment.billType);
                           onCollectPayment(payment);
                         }}
                         size="sm"
@@ -202,11 +202,6 @@ export function ChargeSheetGallery({
                         <CreditCard className="h-3 w-3 mr-1.5" />
                         Collect
                       </Button>
-                    )}
-                    {type === 'draft' && payment.billType !== 'SURGERY' && (
-                      <div className="text-[10px] text-slate-400 flex items-center bg-slate-50 border border-slate-100 px-2 py-0.5 rounded">
-                        In Progress
-                      </div>
                     )}
                   </div>
                 </div>
