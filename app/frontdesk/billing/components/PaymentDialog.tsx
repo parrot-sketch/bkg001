@@ -40,6 +40,7 @@ export function PaymentDialog({
   onRecord,
   isRecording,
 }: PaymentDialogProps) {
+  console.log('[PaymentDialog] Props received - open:', open, 'payment:', payment?.id);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(PaymentMethod.CASH);
   const [error, setError] = useState<string | null>(null);

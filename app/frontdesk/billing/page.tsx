@@ -51,8 +51,11 @@ export default function FrontdeskBillingPage() {
 
   const handleOpenPaymentDialog = (payment: PaymentWithRelations) => {
     console.log('[Billing] Opening payment dialog for payment:', payment.id, payment.billType);
+    console.log('[Billing] Will set selectedPayment.id:', payment.id);
     setSelectedPayment(payment);
+    console.log('[Billing] Calling setPaymentDialogOpen(true)');
     setPaymentDialogOpen(true);
+    console.log('[Billing] handleOpenPaymentDialog complete');
   };
 
   const handleRecordPayment = async (amount: number, method: PaymentMethod) => {
