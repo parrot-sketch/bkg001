@@ -83,22 +83,6 @@ export async function PUT(
             });
             return NextResponse.json({ success: true });
         } else {
-            // Create a new CasePlan
-            // We require an appointment ID for CasePlan according to Prisma schema
-            let appointmentId = surgicalCase.consultation?.appointment_id;
-            
-            // Fallback to fetch most recent appointment for this patient if consultation lacks it
-            if (!appointmentId) {
-                const latestApt = await db.appointment.findFirst({
-                    where: { patient_id: surgicalCase.patient_id },
-                    orderBy: { created_at: 'desc' }
-                });
-                if (!latestApt) {
-                    return NextResponse.json({ success: false, error: 'No associated appointment found for this patient to map CasePlan to.' }, { status: 400 });
-                }
-                appointmentId = latestApt.id;
-            }
-
             // Find Doctor record for this user
             const doctor = await db.doctor.findFirst({
                 where: { user_id: auth.user.userId }
@@ -106,6 +90,47 @@ export async function PUT(
 
             if (!doctor) {
                  return NextResponse.json({ success: false, error: 'Doctor record not found.' }, { status: 400 });
+            }
+
+            // Create a new CasePlan
+            // We require an appointment ID for CasePlan according to Prisma schema
+            let appointmentId = surgicalCase.consultation?.appointment_id;
+            
+            // Check if this appointment is already consumed by another CasePlan!
+            if (appointmentId) {
+                 const aptCheck = await db.casePlan.findUnique({ where: { appointment_id: appointmentId } });
+                 if (aptCheck && aptCheck.surgical_case_id !== caseId) {
+                      appointmentId = undefined; // It's taken! Clear it to fallback.
+                 }
+            }
+
+            // Fallback: fetch most recent appointment for this patient that does NOT share a CasePlan
+            if (!appointmentId) {
+                const availableApt = await db.appointment.findFirst({
+                    where: { 
+                        patient_id: surgicalCase.patient_id,
+                        case_plan: null 
+                    },
+                    orderBy: { created_at: 'desc' }
+                });
+                
+                if (availableApt) {
+                    appointmentId = availableApt.id;
+                } else {
+                    // Create a silent proxy appointment to satisfy the strict schema relations.
+                    const proxyApt = await db.appointment.create({
+                        data: {
+                             patient_id: surgicalCase.patient_id,
+                             doctor_id: doctor.id,
+                             appointment_date: new Date(),
+                             time: '00:00',
+                             type: 'SURGICAL_NOTES_PROXY',
+                             status: 'COMPLETED',
+                             reason: 'Auto-generated to anchor backend Surgical Notes constraints'
+                        }
+                    });
+                    appointmentId = proxyApt.id;
+                }
             }
 
             await db.casePlan.create({
