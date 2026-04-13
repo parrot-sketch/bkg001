@@ -137,6 +137,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
               surgicalCaseId: surgicalCase.id,
               patientName,
               role: 'SURGEON',
+              event: 'SURGICAL_CASE_ASSIGNMENT'
             }),
           },
         });

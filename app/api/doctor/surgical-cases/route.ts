@@ -179,7 +179,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                     staff_invites: {
                         some: {
                             invited_user_id: authResult.user.userId,
-                            status: 'ACCEPTED'
+                            status: { in: ['ACCEPTED', 'PENDING'] }
                         }
                     }
                 }
@@ -224,7 +224,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                         staff_invites: {
                             some: {
                                 invited_user_id: authResult.user.userId,
-                                status: 'ACCEPTED'
+                                status: { in: ['ACCEPTED', 'PENDING'] }
                             }
                         }
                     }

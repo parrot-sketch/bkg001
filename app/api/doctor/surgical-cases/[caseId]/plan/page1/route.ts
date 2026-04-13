@@ -179,6 +179,7 @@ export async function PATCH(
                 patientName,
                 procedureDate,
                 role: role as any,
+                event: 'SURGICAL_CASE_ASSIGNMENT'
               }),
             },
           });
