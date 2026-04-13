@@ -26,6 +26,8 @@ export default function FrontdeskBillingPage() {
   const [selectedPayment, setSelectedPayment] = useState<PaymentWithRelations | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
 
+  console.log('[Billing Page] Render - paymentDialogOpen:', paymentDialogOpen, 'selectedPayment:', selectedPayment?.id);
+
   if (!isAuthenticated || !user) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
@@ -51,11 +53,10 @@ export default function FrontdeskBillingPage() {
 
   const handleOpenPaymentDialog = (payment: PaymentWithRelations) => {
     console.log('[Billing] Opening payment dialog for payment:', payment.id, payment.billType);
-    console.log('[Billing] Will set selectedPayment.id:', payment.id);
+    console.log('[Billing] Current state - paymentDialogOpen:', paymentDialogOpen, 'selectedPayment:', selectedPayment?.id);
     setSelectedPayment(payment);
-    console.log('[Billing] Calling setPaymentDialogOpen(true)');
     setPaymentDialogOpen(true);
-    console.log('[Billing] handleOpenPaymentDialog complete');
+    console.log('[Billing] After setState, paymentDialogOpen should be true');
   };
 
   const handleRecordPayment = async (amount: number, method: PaymentMethod) => {
