@@ -324,8 +324,8 @@ export default function DoctorSurgicalCasesPage() {
                                                 onClick={() => navigateToCase(sc.id)}
                                                 className="h-7 gap-1.5"
                                             >
-                                                <Eye className="h-3.5 w-3.5" />
-                                                View
+                                                <FileText className="h-3.5 w-3.5" />
+                                                Workspace
                                             </Button>
                                         </td>
                                     </tr>
