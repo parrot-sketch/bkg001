@@ -4,9 +4,9 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PatientInfoSidebar } from './PatientInfoSidebar';
 import { cn } from '@/lib/utils';
-import { ClipboardList, Stethoscope } from 'lucide-react';
+import { ClipboardList, FileText } from 'lucide-react';
 import { SurgicalCasePlanForm } from '@/components/doctor/surgical-case-plan/SurgicalCasePlanForm';
-import OperativeNoteContent from '@/app/doctor/surgical-cases/[caseId]/operative-note/page';
+import { SurgicalNotesEditor } from '@/components/doctor/surgical-notes/SurgicalNotesEditor';
 
 interface Props {
   surgicalCase: any;
@@ -27,7 +27,7 @@ export function SurgicalCaseWorkspace({ surgicalCase, patient, caseId, initialPl
 
   const TABS = [
     { id: 'case-plan', label: 'Case Plan', icon: ClipboardList },
-    { id: 'operative-note', label: 'Surgical Notes', icon: Stethoscope },
+    { id: 'surgical-notes', label: 'Surgical Notes', icon: FileText },
   ];
 
   return (
@@ -91,10 +91,9 @@ export function SurgicalCaseWorkspace({ surgicalCase, patient, caseId, initialPl
               </div>
             )}
 
-            {activeTab === 'operative-note' && (
-              <div className="w-full">
-                {/* Operative Note is full-width self-contained layout */}
-                <OperativeNoteContent />
+            {activeTab === 'surgical-notes' && (
+              <div className="p-6 md:p-8 max-w-5xl mx-auto w-full">
+                <SurgicalNotesEditor caseId={caseId} />
               </div>
             )}
           </div>

@@ -1,0 +1,134 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { JwtMiddleware } from '@/lib/auth/middleware';
+import db from '@/lib/db';
+import { Role } from '@/domain/enums/Role';
+
+export async function GET(
+    request: NextRequest,
+    context: { params: Promise<{ caseId: string }> }
+) {
+    try {
+        const { caseId } = await context.params;
+        const auth = await JwtMiddleware.authenticate(request);
+        
+        if (!auth.success || !auth.user) {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const casePlan = await db.casePlan.findFirst({
+            where: { surgical_case_id: caseId },
+            select: {
+                pre_op_notes: true,
+                procedure_plan: true,
+                surgeon_narrative: true,
+                equipment_notes: true,
+                special_instructions: true,
+                risk_factors: true,
+                post_op_instructions: true,
+                planned_anesthesia: true,
+            }
+        });
+
+        // It is perfectly okay if casePlan is completely null initially
+        return NextResponse.json({ success: true, data: casePlan || {} });
+
+    } catch (error) {
+        console.error('[GET Surgical Notes Error]:', error);
+        return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
+    }
+}
+
+export async function PUT(
+    request: NextRequest,
+    context: { params: Promise<{ caseId: string }> }
+) {
+    try {
+        const { caseId } = await context.params;
+        const auth = await JwtMiddleware.authenticate(request);
+        
+        if (!auth.success || !auth.user || auth.user.role !== Role.DOCTOR) {
+            return NextResponse.json({ success: false, error: 'Unauthorized. Doctors only.' }, { status: 403 });
+        }
+
+        const body = await request.json();
+        
+        // Find existing surgical case
+        const surgicalCase = await db.surgicalCase.findUnique({
+            where: { id: caseId },
+            include: { consultation: true }
+        });
+
+        if (!surgicalCase) {
+            return NextResponse.json({ success: false, error: 'Case not found' }, { status: 404 });
+        }
+
+        const existingPlan = await db.casePlan.findFirst({
+            where: { surgical_case_id: caseId }
+        });
+
+        if (existingPlan) {
+            // Update existing CasePlan
+            await db.casePlan.update({
+                where: { id: existingPlan.id },
+                data: {
+                    pre_op_notes: body.pre_op_notes,
+                    procedure_plan: body.procedure_plan,
+                    surgeon_narrative: body.surgeon_narrative,
+                    equipment_notes: body.equipment_notes,
+                    special_instructions: body.special_instructions,
+                    risk_factors: body.risk_factors,
+                    post_op_instructions: body.post_op_instructions,
+                    planned_anesthesia: body.planned_anesthesia,
+                }
+            });
+            return NextResponse.json({ success: true });
+        } else {
+            // Create a new CasePlan
+            // We require an appointment ID for CasePlan according to Prisma schema
+            let appointmentId = surgicalCase.consultation?.appointment_id;
+            
+            // Fallback to fetch most recent appointment for this patient if consultation lacks it
+            if (!appointmentId) {
+                const latestApt = await db.appointment.findFirst({
+                    where: { patient_id: surgicalCase.patient_id },
+                    orderBy: { created_at: 'desc' }
+                });
+                if (!latestApt) {
+                    return NextResponse.json({ success: false, error: 'No associated appointment found for this patient to map CasePlan to.' }, { status: 400 });
+                }
+                appointmentId = latestApt.id;
+            }
+
+            // Find Doctor record for this user
+            const doctor = await db.doctor.findFirst({
+                where: { user_id: auth.user.userId }
+            });
+
+            if (!doctor) {
+                 return NextResponse.json({ success: false, error: 'Doctor record not found.' }, { status: 400 });
+            }
+
+            await db.casePlan.create({
+                data: {
+                    surgical_case_id: caseId,
+                    patient_id: surgicalCase.patient_id,
+                    doctor_id: doctor.id,
+                    appointment_id: appointmentId,
+                    
+                    pre_op_notes: body.pre_op_notes,
+                    procedure_plan: body.procedure_plan,
+                    surgeon_narrative: body.surgeon_narrative,
+                    equipment_notes: body.equipment_notes,
+                    special_instructions: body.special_instructions,
+                    risk_factors: body.risk_factors,
+                    post_op_instructions: body.post_op_instructions,
+                    planned_anesthesia: body.planned_anesthesia,
+                }
+            });
+            return NextResponse.json({ success: true });
+        }
+    } catch (error) {
+        console.error('[PUT Surgical Notes Error]:', error);
+        return NextResponse.json({ success: false, error: 'Internal Server Error' }, { status: 500 });
+    }
+}
