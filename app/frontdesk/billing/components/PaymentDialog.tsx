@@ -96,7 +96,10 @@ export function PaymentDialog({
     { id: PaymentMethod.BANK_TRANSFER, label: 'Bank' },
   ];
 
-  if (!payment) return null;
+  if (!payment) {
+    console.log('[PaymentDialog] No payment, returning null. open:', open);
+    return null;
+  }
 
   const isFullPayment = parseFloat(paymentAmount) === remaining;
 

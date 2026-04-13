@@ -50,6 +50,7 @@ export default function FrontdeskBillingPage() {
   const draftChargeSheets = filteredPayments.filter(p => !p.finalizedAt);
 
   const handleOpenPaymentDialog = (payment: PaymentWithRelations) => {
+    console.log('[Billing] Opening payment dialog for payment:', payment.id, payment.billType);
     setSelectedPayment(payment);
     setPaymentDialogOpen(true);
   };

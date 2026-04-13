@@ -179,7 +179,10 @@ export function ChargeSheetGallery({
 
                     {type === 'finalized' && (
                       <Button 
-                        onClick={() => onCollectPayment(payment)}
+                        onClick={() => {
+                          console.log('[Gallery] Collect clicked, payment:', payment.id, payment.billType);
+                          onCollectPayment(payment);
+                        }}
                         size="sm"
                         className="bg-slate-900 hover:bg-slate-800 text-white font-medium h-7 rounded-md px-3 text-xs w-full shadow-sm"
                       >
@@ -189,7 +192,10 @@ export function ChargeSheetGallery({
                     )}
                     {type === 'draft' && payment.billType === 'SURGERY' && (
                       <Button 
-                        onClick={() => onCollectPayment(payment)}
+                        onClick={() => {
+                          console.log('[Gallery] Collect clicked (draft/surgery), payment:', payment.id, payment.billType);
+                          onCollectPayment(payment);
+                        }}
                         size="sm"
                         className="bg-slate-900 hover:bg-slate-800 text-white font-medium h-7 rounded-md px-3 text-xs w-full shadow-sm"
                       >
