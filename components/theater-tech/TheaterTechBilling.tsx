@@ -304,54 +304,112 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
         {/* Items List */}
         {chargeItems.length > 0 ? (
           <div className="space-y-3">
-            {/* Header row - desktop only */}
-            <div className="hidden sm:grid sm:grid-cols-[1fr_80px_100px_80px_40px] gap-2 text-xs font-medium text-slate-500 px-2">
-              <span>Item</span>
-              <span>Qty</span>
-              <span>Unit Price</span>
-              <span>Total</span>
-              <span></span>
-            </div>
-            
-            <div className="space-y-2">
+            {/* Mobile: Card-based stacked layout (below lg) */}
+            <div className="lg:hidden space-y-2">
               {chargeItems.map(item => (
-                <div key={item.id} className="bg-slate-50 rounded-lg p-3 sm:p-2">
-                  {/* Mobile: stacked layout */}
-                  <div className="sm:hidden space-y-2">
-                    <div className="flex items-center gap-2">
-                      {item.type === 'service' ? (
-                        <FileText className="h-4 w-4 text-blue-500 shrink-0" />
-                      ) : (
-                        <Package className="h-4 w-4 text-orange-500 shrink-0" />
-                      )}
-                      <span className="text-sm font-medium truncate flex-1">{item.description}</span>
+                <div key={item.id} className="bg-slate-50 rounded-lg p-3 relative">
+                  <div className="flex items-center gap-2 mb-2">
+                    {item.type === 'service' ? (
+                      <FileText className="h-4 w-4 text-blue-500 shrink-0" />
+                    ) : (
+                      <Package className="h-4 w-4 text-orange-500 shrink-0" />
+                    )}
+                    <span className="text-sm font-medium truncate flex-1">{item.description}</span>
+                    <button
+                      onClick={() => handleRemoveItem(item.id)}
+                      className="p-1 text-slate-400 hover:text-red-500 touch-manipulation"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <label className="text-xs text-slate-500">Qty</label>
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        className="h-9 touch-manipulation"
+                        value={item.quantity}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setChargeItems(prev => prev.map(i => 
+                            i.id === item.id ? { ...i, quantity: val === '' ? 1 : parseInt(val) || 1 } : i
+                          ));
+                        }}
+                      />
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1">
-                        <label className="text-xs text-slate-500">Qty</label>
+                    <div className="flex-1">
+                      <label className="text-xs text-slate-500">Unit Price</label>
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        className="h-9 touch-manipulation"
+                        value={item.amount}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setChargeItems(prev => prev.map(i => 
+                            i.id === item.id ? { ...i, amount: val === '' ? 0 : parseFloat(val) || 0 } : i
+                          ));
+                        }}
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <span className="text-sm font-medium">
+                        KSH {((item.amount || 0) * (item.quantity || 1)).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop: Table layout (lg and above) */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full min-w-[500px]">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="text-left text-xs font-medium text-slate-500 px-3 py-2">Item</th>
+                    <th className="text-left text-xs font-medium text-slate-500 px-3 py-2 w-24">Qty</th>
+                    <th className="text-left text-xs font-medium text-slate-500 px-3 py-2 w-32">Unit Price</th>
+                    <th className="text-right text-xs font-medium text-slate-500 px-3 py-2 w-28">Total</th>
+                    <th className="w-10"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {chargeItems.map(item => (
+                    <tr key={item.id} className="hover:bg-slate-50">
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          {item.type === 'service' ? (
+                            <FileText className="h-4 w-4 text-blue-500 shrink-0" />
+                          ) : (
+                            <Package className="h-4 w-4 text-orange-500 shrink-0" />
+                          )}
+                          <span className="text-sm">{item.description}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2">
                         <Input
-                          type="number"
-                          min="1"
+                          type="text"
                           inputMode="numeric"
-                          className="h-9 touch-manipulation"
-                          value={item.quantity || ''}
-                          placeholder="1"
+                          pattern="[0-9]*"
+                          className="h-8 w-20"
+                          value={item.quantity}
                           onChange={(e) => {
                             const val = e.target.value;
                             setChargeItems(prev => prev.map(i => 
-                              i.id === item.id ? { ...i, quantity: val === '' ? 1 : Math.max(1, parseInt(val) || 1) } : i
+                              i.id === item.id ? { ...i, quantity: val === '' ? 1 : parseInt(val) || 1 } : i
                             ));
                           }}
                         />
-                      </div>
-                      <div className="flex-1">
-                        <label className="text-xs text-slate-500">Unit Price</label>
+                      </td>
+                      <td className="px-3 py-2">
                         <Input
-                          type="number"
+                          type="text"
                           inputMode="decimal"
-                          className="h-9 touch-manipulation"
-                          value={item.amount || ''}
-                          placeholder="0"
+                          className="h-8 w-28"
+                          value={item.amount}
                           onChange={(e) => {
                             const val = e.target.value;
                             setChargeItems(prev => prev.map(i => 
@@ -359,72 +417,22 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
                             ));
                           }}
                         />
-                      </div>
-                      <div className="flex items-end">
-                        <span className="text-sm font-medium">
-                          KSH {((item.amount || 0) * (item.quantity || 1)).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Desktop: inline layout */}
-                  <div className="hidden sm:grid sm:grid-cols-[1fr_80px_100px_80px_40px] gap-2 items-center">
-                    <div className="flex items-center gap-2 min-w-0">
-                      {item.type === 'service' ? (
-                        <FileText className="h-4 w-4 text-blue-500 shrink-0" />
-                      ) : (
-                        <Package className="h-4 w-4 text-orange-500 shrink-0" />
-                      )}
-                      <span className="text-sm truncate max-w-[180px]">{item.description}</span>
-                    </div>
-                    <Input
-                      type="number"
-                      min="1"
-                      inputMode="numeric"
-                      className="h-8 text-sm"
-                      value={item.quantity || ''}
-                      placeholder="1"
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setChargeItems(prev => prev.map(i => 
-                          i.id === item.id ? { ...i, quantity: val === '' ? 1 : Math.max(1, parseInt(val) || 1) } : i
-                        ));
-                      }}
-                    />
-                    <Input
-                      type="number"
-                      inputMode="decimal"
-                      className="h-8 text-sm"
-                      value={item.amount || ''}
-                      placeholder="0"
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setChargeItems(prev => prev.map(i => 
-                          i.id === item.id ? { ...i, amount: val === '' ? 0 : parseFloat(val) || 0 } : i
-                        ));
-                      }}
-                    />
-                    <span className="text-sm font-medium">
-                      KSH {((item.amount || 0) * (item.quantity || 1)).toLocaleString()}
-                    </span>
-                    <button
-                      onClick={() => handleRemoveItem(item.id)}
-                      className="p-1.5 text-slate-400 hover:text-red-500 touch-manipulation"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-
-                  {/* Mobile delete button */}
-                  <button
-                    onClick={() => handleRemoveItem(item.id)}
-                    className="sm:hidden absolute top-2 right-2 p-1.5 text-slate-400 hover:text-red-500"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
+                      </td>
+                      <td className="px-3 py-2 text-right text-sm font-medium">
+                        KSH {((item.amount || 0) * (item.quantity || 1)).toLocaleString()}
+                      </td>
+                      <td className="px-3 py-2">
+                        <button
+                          onClick={() => handleRemoveItem(item.id)}
+                          className="p-1.5 text-slate-400 hover:text-red-500"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
             {/* Discount */}
