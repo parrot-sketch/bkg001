@@ -339,16 +339,28 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
                           type="number"
                           min="1"
                           className="h-8 text-sm"
-                          value={item.quantity}
-                          onChange={(e) => handleQuantityChange(item.id, e.target.value)}
+                          value={item.quantity || ''}
+                          placeholder="1"
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setChargeItems(prev => prev.map(i => 
+                              i.id === item.id ? { ...i, quantity: val === '' ? 1 : Math.max(1, parseInt(val) || 1) } : i
+                            ));
+                          }}
                         />
                       </td>
                       <td className="px-3 py-2">
                         <Input
                           type="number"
                           className="h-8 text-sm"
-                          value={item.amount}
-                          onChange={(e) => handleAmountChange(item.id, e.target.value)}
+                          value={item.amount || ''}
+                          placeholder="0"
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setChargeItems(prev => prev.map(i => 
+                              i.id === item.id ? { ...i, amount: val === '' ? 0 : parseFloat(val) || 0 } : i
+                            ));
+                          }}
                         />
                       </td>
                       <td className="px-3 py-2 text-sm font-medium">
