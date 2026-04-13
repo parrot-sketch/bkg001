@@ -60,7 +60,7 @@ function StepIndicator({ currentStep, totalSteps }: { currentStep: number; total
   ];
 
   return (
-    <div className="flex items-center justify-center gap-2 mb-8">
+    <div className="flex items-center justify-center gap-1 md:gap-2 mb-6 md:mb-8">
       {steps.map((step, idx) => {
         const Icon = step.icon;
         const isActive = currentStep === step.num;
@@ -70,12 +70,12 @@ function StepIndicator({ currentStep, totalSteps }: { currentStep: number; total
           <div key={step.num} className="flex items-center">
             {idx > 0 && (
               <div className={cn(
-                "w-12 h-0.5 mx-2",
+                "w-8 md:w-12 h-0.5 mx-1 md:mx-2",
                 isCompleted ? "bg-emerald-500" : "bg-slate-200"
               )} />
             )}
             <div className={cn(
-              "flex items-center gap-2 px-3 py-1.5 rounded-full transition-colors",
+              "flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1.5 rounded-full transition-colors",
               isActive && "bg-slate-800 text-white",
               isCompleted && "bg-emerald-100 text-emerald-700",
               !isActive && !isCompleted && "bg-slate-100 text-slate-500"
@@ -85,7 +85,7 @@ function StepIndicator({ currentStep, totalSteps }: { currentStep: number; total
               ) : (
                 <Icon className="h-4 w-4" />
               )}
-              <span className="text-sm font-medium">{step.label}</span>
+              <span className="text-xs md:text-sm font-medium">{step.label}</span>
             </div>
           </div>
         );
@@ -254,11 +254,11 @@ function CaseIdentificationForm({
                 <span>Loading surgeons...</span>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border rounded-lg p-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 md:max-h-64 overflow-y-auto border rounded-lg p-2">
                 {surgeons.map(surgeon => (
                   <label
                     key={surgeon.id}
-                    className="flex items-center gap-2 p-2 rounded hover:bg-slate-50 cursor-pointer"
+                    className="flex items-start gap-2 p-2.5 md:p-2 rounded hover:bg-slate-50 cursor-pointer touch-manipulation"
                   >
                     <input
                       type="checkbox"
@@ -272,7 +272,7 @@ function CaseIdentificationForm({
                           return { ...prev, surgeonIds: newIds };
                         });
                       }}
-                      className="h-4 w-4 rounded border-slate-300 text-slate-800 focus:ring-slate-800"
+                      className="h-5 w-5 md:h-4 md:w-4 rounded border-slate-300 text-slate-800 focus:ring-slate-800 mt-0.5"
                     />
                     <div>
                       <p className="text-sm font-medium">{surgeon.name}</p>
@@ -304,18 +304,18 @@ function CaseIdentificationForm({
         />
       </div>
 
-      {/* Procedure Category */}
+      {/* Procedure Category - Mobile responsive */}
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-2">
           Procedure Category <span className="text-rose-500">*</span>
         </label>
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {categories.map(cat => (
             <button
               key={cat.value}
               type="button"
               className={cn(
-                "px-3 py-2 border rounded-lg text-sm font-medium transition-colors",
+                "px-2 md:px-3 py-2.5 md:py-2 border rounded-lg text-sm font-medium transition-colors touch-manipulation",
                 formData.procedureCategory === cat.value
                   ? "border-slate-800 bg-slate-800 text-white"
                   : "border-slate-200 hover:border-slate-400"
@@ -328,7 +328,7 @@ function CaseIdentificationForm({
         </div>
       </div>
 
-      {/* Primary or Revision */}
+      {/* Primary or Revision - Mobile responsive */}
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-2">
           Primary or Revision <span className="text-rose-500">*</span>
@@ -339,7 +339,7 @@ function CaseIdentificationForm({
               key={opt.value}
               type="button"
               className={cn(
-                "px-3 py-2 border rounded-lg text-sm font-medium transition-colors",
+                "px-3 py-2.5 md:py-2 border rounded-lg text-sm font-medium transition-colors touch-manipulation",
                 formData.primaryOrRevision === opt.value
                   ? "border-slate-800 bg-slate-800 text-white"
                   : "border-slate-200 hover:border-slate-400"
@@ -366,12 +366,12 @@ function CaseIdentificationForm({
               <span>Loading procedures...</span>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto border border-slate-200 rounded-lg p-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 md:max-h-64 overflow-y-auto border border-slate-200 rounded-lg p-2">
               {procedures.map(proc => (
                 <label
                   key={proc.id}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-colors",
+                    "flex items-center gap-2 px-3 py-2.5 md:py-2 rounded-lg cursor-pointer transition-colors touch-manipulation",
                     formData.procedureIds.includes(proc.id)
                       ? "bg-slate-100 border-slate-400"
                       : "hover:bg-slate-50"
@@ -379,7 +379,7 @@ function CaseIdentificationForm({
                 >
                   <input
                     type="checkbox"
-                    className="rounded border-slate-300"
+                    className="h-5 w-5 md:h-4 md:w-4 rounded border-slate-300"
                     checked={formData.procedureIds.includes(proc.id)}
                     onChange={() => toggleProcedure(proc.id)}
                   />
@@ -475,7 +475,7 @@ function OperativeDetailsForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Anaesthesia Type */}
+      {/* Anaesthesia Type - Mobile responsive */}
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-2">
           Anaesthesia Type <span className="text-rose-500">*</span>
@@ -486,7 +486,7 @@ function OperativeDetailsForm({
               key={opt.value}
               type="button"
               className={cn(
-                "px-3 py-2 border rounded-lg text-sm font-medium transition-colors",
+                "px-2 md:px-3 py-2.5 md:py-2 border rounded-lg text-sm font-medium transition-colors touch-manipulation",
                 formData.anaesthesiaType === opt.value
                   ? "border-slate-800 bg-slate-800 text-white"
                   : "border-slate-200 hover:border-slate-400"
@@ -499,8 +499,8 @@ function OperativeDetailsForm({
         </div>
       </div>
 
-      {/* Theatre Times */}
-      <div className="grid grid-cols-2 gap-4">
+      {/* Theatre Times - Mobile responsive */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
             Skin-to-Skin Time (minutes)
@@ -508,7 +508,7 @@ function OperativeDetailsForm({
           <input
             type="number"
             min="0"
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-800 focus:border-transparent"
+            className="w-full px-3 py-2.5 md:py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-800 focus:border-transparent text-base md:text-sm"
             placeholder="e.g. 120"
             value={formData.skinToSkinMinutes}
             onChange={e => setFormData(prev => ({ ...prev, skinToSkinMinutes: e.target.value }))}
@@ -521,7 +521,7 @@ function OperativeDetailsForm({
           <input
             type="number"
             min="0"
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-800 focus:border-transparent"
+            className="w-full px-3 py-2.5 md:py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-800 focus:border-transparent text-base md:text-sm"
             placeholder="e.g. 180"
             value={formData.totalTheatreMinutes}
             onChange={e => setFormData(prev => ({ ...prev, totalTheatreMinutes: e.target.value }))}
@@ -529,7 +529,7 @@ function OperativeDetailsForm({
         </div>
       </div>
 
-      {/* Admission Type */}
+      {/* Admission Type - Mobile responsive */}
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-2">
           Admission Type
@@ -540,7 +540,7 @@ function OperativeDetailsForm({
               key={opt.value}
               type="button"
               className={cn(
-                "px-3 py-2 border rounded-lg text-sm font-medium transition-colors",
+                "px-3 py-2.5 md:py-2 border rounded-lg text-sm font-medium transition-colors touch-manipulation",
                 formData.admissionType === opt.value
                   ? "border-slate-800 bg-slate-800 text-white"
                   : "border-slate-200 hover:border-slate-400"
@@ -553,20 +553,20 @@ function OperativeDetailsForm({
         </div>
       </div>
 
-      {/* Device Used (conditional) */}
+      {/* Device Used (conditional) - Mobile responsive */}
       {hasLipoProcedure && (
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-2">
             Device Used
-            <span className="text-slate-400 font-normal ml-2">(shown because lipo procedure selected)</span>
+            <span className="text-slate-400 font-normal ml-1 md:ml-2 text-xs md:text-sm">(shown because lipo procedure selected)</span>
           </label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
             {lipoDevices.map(opt => (
               <button
                 key={opt.value}
                 type="button"
                 className={cn(
-                  "px-3 py-2 border rounded-lg text-sm font-medium transition-colors",
+                  "px-3 py-2.5 md:py-2 border rounded-lg text-sm font-medium transition-colors touch-manipulation",
                   formData.deviceUsed === opt.value
                     ? "border-slate-800 bg-slate-800 text-white"
                     : "border-slate-200 hover:border-slate-400"
@@ -632,14 +632,14 @@ export function SurgicalCasePlanForm({ caseId, initialData, isTheaterTech = fals
   }, [success, isTheaterTech, caseId, router]);
 
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-2xl mx-auto px-4 md:px-0">
       <Card>
-        <CardContent className="pt-6">
-          <div className="text-center mb-6">
-            <h2 className="text-xl font-semibold text-slate-900">
+        <CardContent className="pt-4 md:pt-6">
+          <div className="text-center mb-4 md:mb-6">
+            <h2 className="text-lg md:text-xl font-semibold text-slate-900">
               Surgical Case Plan
             </h2>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-xs md:text-sm text-slate-500 mt-1">
               Complete the case identification and operative details
             </p>
           </div>

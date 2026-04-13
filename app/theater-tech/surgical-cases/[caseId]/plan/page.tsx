@@ -78,23 +78,23 @@ export default async function TheaterTechPlanDocumentPage({ params }: PageProps)
   const isEditable = surgicalCase.status === 'DRAFT' || surgicalCase.status === 'PLANNING';
 
   return (
-    <div className="min-h-screen bg-white py-8">
-      <div className="max-w-4xl mx-auto px-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" asChild>
+    <div className="min-h-screen bg-white py-4 md:py-8">
+      <div className="max-w-4xl mx-auto px-4 md:px-6">
+        {/* Header - Mobile responsive */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" asChild className="h-10 w-10 p-0 md:w-auto md:p-2">
               <Link href="/theater-tech/surgical-cases" className="flex items-center gap-2">
                 <ArrowLeft className="h-4 w-4" />
-                Back
+                <span className="hidden md:inline">Back</span>
               </Link>
             </Button>
             <div>
-              <h1 className="text-xl font-semibold text-slate-900">Surgical Case Plan</h1>
-              <p className="text-sm text-slate-500">Case ID: {caseId.slice(0, 8)}...</p>
+              <h1 className="text-lg md:text-xl font-semibold text-slate-900">Surgical Case Plan</h1>
+              <p className="text-xs md:text-sm text-slate-500">Case ID: {caseId.slice(0, 8)}...</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Badge className={
               surgicalCase.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
               surgicalCase.status === 'PLANNING' ? 'bg-blue-100 text-blue-700' :
@@ -103,34 +103,35 @@ export default async function TheaterTechPlanDocumentPage({ params }: PageProps)
               {surgicalCase.status}
             </Badge>
             {isEditable && (
-              <Button asChild>
+              <Button size="sm" asChild>
                 <Link href={`/theater-tech/surgical-cases/${caseId}/edit`}>
-                  Continue Planning
-                  <ChevronRight className="h-4 w-4 ml-1" />
+                  <span className="hidden sm:inline">Continue Planning</span>
+                  <span className="sm:hidden">Edit</span>
+                  <ChevronRight className="h-4 w-4 ml-1 hidden sm:inline" />
                 </Link>
               </Button>
             )}
           </div>
         </div>
 
-        {/* Patient Info */}
-        <Card className="mb-6 border-slate-200">
-          <CardHeader className="pb-3">
+        {/* Patient Info - Mobile responsive grid */}
+        <Card className="mb-4 md:mb-6 border-slate-200">
+          <CardHeader className="pb-2 md:pb-3">
             <CardTitle className="text-sm font-medium text-slate-500 uppercase tracking-wide">Patient Information</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
               <div>
                 <p className="text-xs text-slate-400 mb-1">Name</p>
-                <p className="font-medium text-slate-900">{surgicalCase.patient.first_name} {surgicalCase.patient.last_name}</p>
+                <p className="font-medium text-slate-900 text-sm md:text-base">{surgicalCase.patient.first_name} {surgicalCase.patient.last_name}</p>
               </div>
               <div>
                 <p className="text-xs text-slate-400 mb-1">File Number</p>
-                <p className="font-medium text-slate-900">{surgicalCase.patient.file_number || '—'}</p>
+                <p className="font-medium text-slate-900 text-sm md:text-base">{surgicalCase.patient.file_number || '—'}</p>
               </div>
               <div>
                 <p className="text-xs text-slate-400 mb-1">Date of Birth</p>
-                <p className="font-medium text-slate-900">
+                <p className="font-medium text-slate-900 text-sm md:text-base">
                   {surgicalCase.patient.date_of_birth 
                     ? format(new Date(surgicalCase.patient.date_of_birth), 'MMM d, yyyy')
                     : '—'}
@@ -138,22 +139,22 @@ export default async function TheaterTechPlanDocumentPage({ params }: PageProps)
               </div>
               <div>
                 <p className="text-xs text-slate-400 mb-1">Gender</p>
-                <p className="font-medium text-slate-900">{surgicalCase.patient.gender || '—'}</p>
+                <p className="font-medium text-slate-900 text-sm md:text-base">{surgicalCase.patient.gender || '—'}</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Procedure Details */}
-        <Card className="mb-6 border-slate-200">
-          <CardHeader className="pb-3">
+        {/* Procedure Details - Mobile responsive */}
+        <Card className="mb-4 md:mb-6 border-slate-200">
+          <CardHeader className="pb-2 md:pb-3">
             <CardTitle className="text-sm font-medium text-slate-500 uppercase tracking-wide">Procedure Details</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-3 gap-6 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 mb-4 md:mb-6">
               <div>
                 <p className="text-xs text-slate-400 mb-1">Procedure Date</p>
-                <p className="font-medium text-slate-900">
+                <p className="font-medium text-slate-900 text-sm md:text-base">
                   {surgicalCase.procedure_date 
                     ? format(new Date(surgicalCase.procedure_date), 'MMMM d, yyyy')
                     : 'Not scheduled'}
@@ -161,11 +162,11 @@ export default async function TheaterTechPlanDocumentPage({ params }: PageProps)
               </div>
               <div>
                 <p className="text-xs text-slate-400 mb-1">Category</p>
-                <p className="font-medium text-slate-900">{surgicalCase.procedure_category || '—'}</p>
+                <p className="font-medium text-slate-900 text-sm md:text-base">{surgicalCase.procedure_category || '—'}</p>
               </div>
               <div>
                 <p className="text-xs text-slate-400 mb-1">Case Type</p>
-                <p className="font-medium text-slate-900">
+                <p className="font-medium text-slate-900 text-sm md:text-base">
                   {surgicalCase.primary_or_revision === 'PRIMARY' ? 'Primary' : 
                    surgicalCase.primary_or_revision === 'REVISION' ? 'Revision' : '—'}
                 </p>
@@ -173,11 +174,11 @@ export default async function TheaterTechPlanDocumentPage({ params }: PageProps)
             </div>
 
             {surgicalCase.case_procedures.length > 0 && (
-              <div className="mb-6">
+              <div className="mb-4 md:mb-6">
                 <p className="text-xs text-slate-400 mb-2">Procedures</p>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5 md:gap-2">
                   {surgicalCase.case_procedures.map(cp => (
-                    <Badge key={cp.id} variant="outline" className="text-sm font-normal">
+                    <Badge key={cp.id} variant="outline" className="text-xs md:text-sm font-normal">
                       {cp.procedure.name}
                     </Badge>
                   ))}
@@ -187,44 +188,44 @@ export default async function TheaterTechPlanDocumentPage({ params }: PageProps)
 
             <div>
               <p className="text-xs text-slate-400 mb-1">Diagnosis</p>
-              <p className="text-slate-900">{surgicalCase.diagnosis || '—'}</p>
+              <p className="text-slate-900 text-sm md:text-base">{surgicalCase.diagnosis || '—'}</p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Surgical Team */}
-        <Card className="mb-6 border-slate-200">
-          <CardHeader className="pb-3">
+        {/* Surgical Team - Mobile responsive */}
+        <Card className="mb-4 md:mb-6 border-slate-200">
+          <CardHeader className="pb-2 md:pb-3">
             <CardTitle className="text-sm font-medium text-slate-500 uppercase tracking-wide">Surgical Team</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2 md:gap-3">
               {selectedSurgeonNames.length > 0 ? (
                 selectedSurgeonNames.map((name, i) => (
-                  <div key={i} className="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-md">
+                  <div key={i} className="flex items-center gap-2 bg-slate-50 px-2 md:px-3 py-1.5 md:py-2 rounded-md">
                     <Stethoscope className="h-4 w-4 text-slate-500" />
-                    <span className="font-medium text-slate-900">{name}</span>
+                    <span className="font-medium text-slate-900 text-sm md:text-base">{name}</span>
                   </div>
                 ))
               ) : (
-                <p className="text-slate-500">No surgeons assigned</p>
+                <p className="text-slate-500 text-sm">No surgeons assigned</p>
               )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Operative Details */}
+        {/* Operative Details - Mobile responsive */}
         {(surgicalCase.anaesthesia_type || surgicalCase.skin_to_skin_minutes || surgicalCase.total_theatre_minutes || surgicalCase.admission_type) && (
-          <Card className="mb-6 border-slate-200">
-            <CardHeader className="pb-3">
+          <Card className="mb-4 md:mb-6 border-slate-200">
+            <CardHeader className="pb-2 md:pb-3">
               <CardTitle className="text-sm font-medium text-slate-500 uppercase tracking-wide">Operative Details</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-4 gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
                 {surgicalCase.anaesthesia_type && (
                   <div>
                     <p className="text-xs text-slate-400 mb-1">Anaesthesia</p>
-                    <p className="font-medium text-slate-900">
+                    <p className="font-medium text-slate-900 text-sm md:text-base">
                       {surgicalCase.anaesthesia_type === 'GENERAL' ? 'General' : 
                        surgicalCase.anaesthesia_type === 'LOCAL' ? 'Local' :
                        surgicalCase.anaesthesia_type === 'REGIONAL' ? 'Regional' : 
@@ -235,19 +236,19 @@ export default async function TheaterTechPlanDocumentPage({ params }: PageProps)
                 {surgicalCase.skin_to_skin_minutes && (
                   <div>
                     <p className="text-xs text-slate-400 mb-1">Skin to Skin</p>
-                    <p className="font-medium text-slate-900">{surgicalCase.skin_to_skin_minutes} min</p>
+                    <p className="font-medium text-slate-900 text-sm md:text-base">{surgicalCase.skin_to_skin_minutes} min</p>
                   </div>
                 )}
                 {surgicalCase.total_theatre_minutes && (
                   <div>
                     <p className="text-xs text-slate-400 mb-1">Total Theater Time</p>
-                    <p className="font-medium text-slate-900">{surgicalCase.total_theatre_minutes} min</p>
+                    <p className="font-medium text-slate-900 text-sm md:text-base">{surgicalCase.total_theatre_minutes} min</p>
                   </div>
                 )}
                 {surgicalCase.admission_type && (
                   <div>
                     <p className="text-xs text-slate-400 mb-1">Admission</p>
-                    <p className="font-medium text-slate-900">
+                    <p className="font-medium text-slate-900 text-sm md:text-base">
                       {surgicalCase.admission_type === 'DAYCASE' ? 'Daycase' : 
                        surgicalCase.admission_type === 'OVERNIGHT' ? 'Overnight' : 
                        surgicalCase.admission_type}
@@ -259,16 +260,26 @@ export default async function TheaterTechPlanDocumentPage({ params }: PageProps)
           </Card>
         )}
 
-        {/* Theater Items */}
+        {/* Theater Items - Mobile responsive card view */}
         {surgicalCase.case_items.length > 0 && (
-          <Card className="mb-6 border-slate-200">
-            <CardHeader className="pb-3">
+          <Card className="mb-4 md:mb-6 border-slate-200">
+            <CardHeader className="pb-2 md:pb-3">
               <CardTitle className="text-sm font-medium text-slate-500 uppercase tracking-wide">
                 Theater Items ({surgicalCase.case_items.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <table className="w-full">
+              {/* Mobile card view */}
+              <div className="md:hidden space-y-2">
+                {surgicalCase.case_items.map(item => (
+                  <div key={item.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
+                    <span className="text-sm text-slate-900">{item.inventory_item.name}</span>
+                    <span className="text-sm text-slate-600 font-medium">×{item.quantity}</span>
+                  </div>
+                ))}
+              </div>
+              {/* Desktop table view */}
+              <table className="w-full hidden md:table">
                 <thead>
                   <tr className="border-b border-slate-100">
                     <th className="text-left text-xs font-medium text-slate-500 py-2">Item</th>
@@ -289,13 +300,13 @@ export default async function TheaterTechPlanDocumentPage({ params }: PageProps)
         )}
 
         {/* Charge Sheet */}
-        <div className="mb-6">
+        <div className="mb-4 md:mb-6">
           <TheaterTechBilling caseId={caseId} />
         </div>
 
-        {/* Metadata */}
-        <div className="text-xs text-slate-400 border-t pt-4 mt-8">
-          <div className="flex justify-between">
+        {/* Metadata - Mobile responsive */}
+        <div className="text-xs text-slate-400 border-t pt-3 md:pt-4 mt-4 md:mt-8">
+          <div className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-0">
             <span>Created: {format(new Date(surgicalCase.created_at), 'MMM d, yyyy h:mm a')}</span>
             <span>Urgency: {surgicalCase.urgency}</span>
           </div>
