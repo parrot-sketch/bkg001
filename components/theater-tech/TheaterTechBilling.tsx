@@ -304,8 +304,8 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
         {/* Items List */}
         {chargeItems.length > 0 ? (
           <div className="space-y-3">
-            {/* Mobile: Card-based stacked layout (below lg) */}
-            <div className="lg:hidden space-y-2">
+            {/* Mobile: Card-based stacked layout (below md) */}
+            <div className="md:hidden space-y-2">
               {chargeItems.map(item => (
                 <div key={item.id} className="bg-slate-50 rounded-lg p-3 relative">
                   <div className="flex items-center gap-2 mb-2">
@@ -364,8 +364,8 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
               ))}
             </div>
 
-            {/* Desktop: Table layout (lg and above) */}
-            <div className="hidden lg:block overflow-x-auto">
+            {/* Desktop: Table layout (md and above) */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full min-w-[500px]">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
