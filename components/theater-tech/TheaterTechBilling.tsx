@@ -179,13 +179,13 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
       const billingItems = chargeItems.map(item => {
         if (item.type === 'inventory') {
           return {
-            inventoryItemId: item.itemId,
+            inventoryItemId: Number(item.itemId),
             quantity: item.quantity,
             unitCost: item.amount
           };
         }
         return {
-          serviceId: item.itemId,
+          serviceId: Number(item.itemId),
           quantity: item.quantity,
           unitCost: item.amount
         };
