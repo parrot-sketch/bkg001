@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
-import db from '@/lib/db';
+import db, { withRetry } from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth/jwt-helper';
 
 /**
@@ -70,14 +70,14 @@ export async function GET(request: NextRequest) {
             delete where.created_at;
         }
 
-        // 4. Fetch notifications from database
-        const notifications = await db.notification.findMany({
+        // 4. Fetch notifications from database (with retry for pool exhaustion resilience)
+        const notifications = await withRetry(() => db.notification.findMany({
             where,
             orderBy: {
                 created_at: 'desc',
             },
             take: 50,
-        });
+        }));
 
         return NextResponse.json({
             success: true,

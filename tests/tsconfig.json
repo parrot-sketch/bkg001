@@ -7,7 +7,6 @@
       "@domain/*": ["./domain/*"],
       "@/*": ["./*"]
     },
-    "noCheck": true,
     "noEmit": true
   },
   "include": [

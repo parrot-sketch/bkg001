@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import db from '@/lib/db';
+import db, { withRetry } from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth/jwt-helper';
 
 /**
@@ -34,9 +34,9 @@ export async function POST(
 
         // 2. Update notification in database
         // Ensure the notification belongs to the user
-        const notification = await db.notification.findUnique({
+        const notification = await withRetry(() => db.notification.findUnique({
             where: { id: notificationId },
-        });
+        }));
 
         if (!notification) {
             return NextResponse.json(
@@ -52,13 +52,13 @@ export async function POST(
             );
         }
 
-        const updatedNotification = await db.notification.update({
+        const updatedNotification = await withRetry(() => db.notification.update({
             where: { id: notificationId },
             data: {
                 status: 'READ',
                 read_at: new Date(),
             },
-        });
+        }));
 
         return NextResponse.json({
             success: true,

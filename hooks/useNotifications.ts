@@ -30,12 +30,12 @@ export function useNotifications(userId?: string) {
             }
             return response.data;
         },
-        // Refresh every 15 seconds
-        refetchInterval: 15_000,
-        // Consider data fresh for 10 seconds (avoids redundant refetches within that window)
-        staleTime: 10_000,
-        // Refetch when user returns to the tab
-        refetchOnWindowFocus: true,
+        // Refresh every 60 seconds — non-clinical, no need for aggressive polling
+        refetchInterval: 60_000,
+        // Consider data fresh for 30 seconds (avoids redundant refetches)
+        staleTime: 30_000,
+        // Skip window focus refetch — notifications are non-critical
+        refetchOnWindowFocus: false,
         // Keep previous data while refetching for smoother UX
         placeholderData: (previousData) => previousData,
     });

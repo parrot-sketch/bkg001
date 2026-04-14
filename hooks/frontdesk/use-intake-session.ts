@@ -48,8 +48,8 @@ export function useIntakeSessionStatus(options: {
       return result.data;
     },
     enabled: !!sessionId && enabled,
-    refetchInterval: 4000,
-    staleTime: 1_000,
+    refetchInterval: 15_000, // Was 4s — reduced to prevent connection exhaustion
+    staleTime: 5_000,
     gcTime: 60_000,
     refetchOnWindowFocus: true,
   });

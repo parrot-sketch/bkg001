@@ -4,14 +4,11 @@ import { PrismaClient } from "@prisma/client";
  * Prisma Client Singleton — Connection Strategy
  *
  * ═══════════════════════════════════════════════════════════════════════════
- * PRODUCTION  (Vercel → Direct Aiven Postgres)
+ * PRODUCTION  (Vercel → Aiven Postgres)
  * ═══════════════════════════════════════════════════════════════════════════
  *
- * Direct connection to Aiven Postgres with 25 connection limit.
+ * Direct connection to Aiven Postgres with 15 connection limit.
  * DATABASE_URL = postgres://avnadmin:...@pg-xxx.aivencloud.com:26567/...
- *
- * Note: Connection pooling is handled by Prisma's built-in connection pool.
- * With 25 max connections, we set connection_limit to 10 to leave headroom.
  *
  * ═══════════════════════════════════════════════════════════════════════════
  * LOCAL DEVELOPMENT  (Docker Postgres, 100+ max_connections)
@@ -19,7 +16,6 @@ import { PrismaClient } from "@prisma/client";
  *
  * DATABASE_URL = postgresql://postgres:postgres@localhost:5433/nairobi_sculpt
  *
- * ═══════════════════════════════════════════════════════════════════════════
  */
 
 const LOG_PREFIX = '[DB]';
@@ -40,12 +36,19 @@ const prismaClientSingleton = () => {
   const logConfig: Array<'query' | 'error' | 'warn'> = isProduction ? ['error'] : ['query', 'error', 'warn'];
 
   if (isProduction) {
-    console.log(`${LOG_PREFIX} Production: Using direct Aiven Postgres connection`);
+    // Cap connection pool to 5 — Aiven allows only ~12 non-superuser slots
+    // out of 15 max_connections. This prevents pool exhaustion during
+    // concurrent polling from multiple hooks.
+    const pooledUrl = databaseUrl.includes('?')
+      ? `${databaseUrl}&connection_limit=5`
+      : `${databaseUrl}?connection_limit=5`;
+
+    console.log(`${LOG_PREFIX} Production: Using direct Aiven Postgres connection (pool_size=5)`);
     return new PrismaClient({
       log: logConfig,
       datasources: {
         db: {
-          url: databaseUrl
+          url: pooledUrl
         }
       }
     });
@@ -131,6 +134,10 @@ export async function withRetry<T>(
         error?.message?.includes('Connection refused') ||
         error?.message?.includes('Can\'t reach database server') ||
         error?.message?.includes('Can\'t reach database') ||
+        // Pool exhaustion — the exact error that crashed production on Aiven
+        error?.message?.includes('Too many database connections') ||
+        error?.message?.includes('remaining connection slots') ||
+        error?.message?.includes('FATAL: sorry, too many clients') ||
         error?.code === 'P1001' || // Can't reach DB server
         error?.code === 'P1008' || // Operation timeout
         error?.code === 'P1017' || // Server closed connection

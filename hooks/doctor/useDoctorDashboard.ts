@@ -89,7 +89,7 @@ export function useDoctorTodayAppointments(doctorId: string | undefined, enabled
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     refetchOnWindowFocus: true, // Refetch on focus for clinical safety
     refetchOnReconnect: true,
-    refetchInterval: 15000, // Poll every 15 seconds for new patients in queue
+    refetchInterval: 30_000, // Was 15s — reduced to conserve DB connections
     enabled: enabled && !!doctorId,
   });
 

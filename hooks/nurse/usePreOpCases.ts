@@ -35,7 +35,7 @@ export function usePreOpCases(
     },
     staleTime: 1000 * 30, // 30 seconds - Tier 2 (HIGH urgency)
     gcTime: 1000 * 60 * 5, // 5 minutes
-    refetchInterval: 1000 * 30, // Poll every 30 seconds
+    refetchInterval: 1000 * 60, // Was 30s — reduced to conserve DB connections
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     refetchOnWindowFocus: true, // Refetch on focus for clinical safety

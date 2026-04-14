@@ -33,9 +33,9 @@ export function useDoctorDashboard(options: UseDoctorDashboardOptions = {}) {
       const data = await getDoctorDashboardData();
       return data;
     },
-    staleTime: 5_000,
+    staleTime: 15_000,
     gcTime: 1000 * 60 * 5,
-    refetchInterval: 10_000,
+    refetchInterval: 30_000, // Was 10s — reduced to conserve DB connections
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
     retry: 2,

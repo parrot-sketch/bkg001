@@ -30,8 +30,8 @@ export function useTodaysSchedule(doctorId?: string) {
                 completed: appointments.filter(a => a.status === 'COMPLETED'),
             };
         },
-        refetchInterval: 30000, // Refresh every 30 seconds
-        staleTime: 10000, // Consider data stale after 10 seconds
+        refetchInterval: 60_000, // Was 30s — reduced to conserve DB connections
+        staleTime: 30_000, // Consider data fresh for 30 seconds
     });
 }
 

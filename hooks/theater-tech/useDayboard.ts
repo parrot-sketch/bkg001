@@ -38,8 +38,8 @@ export function useDayboard(date: string, theaterId?: string) {
     queryKey: ['theater-tech-dayboard', date, theaterId || ''],
     queryFn: () => fetchDayboard(date, theaterId),
     enabled: isAuthenticated,
-    refetchInterval: 30_000,
-    staleTime: 10_000,
+    refetchInterval: 60_000, // Was 30s — reduced to conserve DB connections
+    staleTime: 30_000,
     gcTime: 1000 * 60 * 5,
     refetchOnWindowFocus: true,
   });

@@ -58,7 +58,7 @@ export function useDoctorQueue(doctorId: string | undefined, enabled = true) {
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
-    refetchInterval: 30000, // Poll every 30 seconds - consistent with notifications
+    refetchInterval: 60_000, // Was 30s — reduced to conserve DB connections
     enabled: enabled && !!doctorId,
   });
 }
