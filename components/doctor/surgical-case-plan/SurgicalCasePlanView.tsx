@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Edit, Clock, Stethoscope, FileText, User, Microscope } from 'lucide-react';
+import { Edit, Clock, Stethoscope, FileText, User, Microscope, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Procedure {
@@ -17,6 +17,7 @@ interface Surgeon {
 
 interface SurgicalCasePlanViewProps {
     onEdit: () => void;
+    onContinue?: () => void;
     data: {
         procedureDate?: Date | string | null;
         diagnosis?: string;
@@ -32,7 +33,7 @@ interface SurgicalCasePlanViewProps {
     procedures: Procedure[];
 }
 
-export function SurgicalCasePlanView({ onEdit, data, surgeons, procedures }: SurgicalCasePlanViewProps) {
+export function SurgicalCasePlanView({ onEdit, onContinue, data, surgeons, procedures }: SurgicalCasePlanViewProps) {
     const formatDate = (date: Date | string | null | undefined) => {
         if (!date) return '—';
         return format(new Date(date), 'MMMM d, yyyy');
@@ -55,7 +56,7 @@ export function SurgicalCasePlanView({ onEdit, data, surgeons, procedures }: Sur
     }
 
     return (
-        <div className="max-w-4xl mx-auto animate-in fade-in duration-300">
+        <div className="max-w-4xl mx-auto animate-in fade-in duration-300 pb-10">
             {/* Header Action Bar */}
             <div className="flex items-center justify-between mb-6">
                  <div>
@@ -189,6 +190,18 @@ export function SurgicalCasePlanView({ onEdit, data, surgeons, procedures }: Sur
                     </div>
                 </CardContent>
             </Card>
+
+            {onContinue && (
+                <div className="flex justify-end mt-8">
+                    <Button 
+                        onClick={onContinue}
+                        className="bg-slate-900 text-white gap-2 px-8 h-12 rounded-full shadow-lg shadow-slate-200/50 transition-all hover:scale-[1.02] active:scale-[0.98] font-bold"
+                    >
+                        Continue to Surgical Notes
+                        <ArrowRight className="h-4 w-4" />
+                    </Button>
+                </div>
+            )}
         </div>
     );
 }

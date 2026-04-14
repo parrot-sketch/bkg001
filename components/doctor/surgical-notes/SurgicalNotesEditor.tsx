@@ -27,9 +27,10 @@ type SurgicalNotesValues = z.infer<typeof surgicalNotesSchema>;
 
 interface Props {
   caseId: string;
+  onContinue?: () => void;
 }
 
-export function SurgicalNotesEditor({ caseId }: Props) {
+export function SurgicalNotesEditor({ caseId, onContinue }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -139,6 +140,7 @@ export function SurgicalNotesEditor({ caseId }: Props) {
               caseId={caseId} 
               data={notesData} 
               onEdit={() => setIsEditing(true)} 
+              onContinue={onContinue}
           />
       );
   }

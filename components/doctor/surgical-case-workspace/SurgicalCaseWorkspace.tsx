@@ -100,12 +100,13 @@ export function SurgicalCaseWorkspace({
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const rawTab = searchParams.get('tab') || 'case-plan';
-  const activeTab: TabId = TABS.some((t) => t.id === rawTab)
-    ? (rawTab as TabId)
-    : 'case-plan';
+  const [activeTab, setActiveTab] = useState<TabId>(() => {
+    const rawTab = searchParams.get('tab') || 'case-plan';
+    return TABS.some((t) => t.id === rawTab) ? (rawTab as TabId) : 'case-plan';
+  });
 
   const handleTabChange = (tabId: TabId) => {
+    setActiveTab(tabId);
     router.replace(`?tab=${tabId}`, { scroll: false });
   };
 
@@ -214,10 +215,11 @@ export function SurgicalCaseWorkspace({
             </div>
           </div>
 
-          {/* Tab Content */}
-          <div className="flex-1 overflow-y-auto w-full">
-            {activeTab === 'case-plan' && (
-              <div className="p-4 md:p-6 lg:p-8 max-w-5xl mx-auto w-full">
+          {/* Tab Content — Persistent Mounting to prevent re-fetching and provide instant switching */}
+          <div className="flex-1 overflow-y-auto w-full relative">
+            
+            {/* Case Plan Tab */}
+            <div className={cn("p-4 md:p-6 lg:p-8 max-w-5xl mx-auto w-full", activeTab !== 'case-plan' && "hidden")}>
                 {isEditingCasePlan ? (
                     <div className="space-y-4">
                         <div className="flex justify-start max-w-2xl mx-auto mb-2">
@@ -237,22 +239,24 @@ export function SurgicalCaseWorkspace({
                 ) : (
                     <SurgicalCasePlanView
                         onEdit={() => setIsEditingCasePlan(true)}
+                        onContinue={() => handleTabChange('surgical-notes')}
                         data={initialPlanData}
                         surgeons={surgicalCase.primary_surgeon ? [surgicalCase.primary_surgeon] : []}
                         procedures={surgicalCase.case_procedures?.map(cp => cp.procedure) || []}
                     />
                 )}
-              </div>
-            )}
+            </div>
 
-            {activeTab === 'surgical-notes' && (
-              <div className="p-4 md:p-6 lg:p-8 max-w-5xl mx-auto w-full">
-                <SurgicalNotesEditor caseId={caseId} />
-              </div>
-            )}
+            {/* Surgical Notes Tab */}
+            <div className={cn("p-4 md:p-6 lg:p-8 max-w-5xl mx-auto w-full", activeTab !== 'surgical-notes' && "hidden")}>
+                <SurgicalNotesEditor 
+                  caseId={caseId} 
+                  onContinue={() => handleTabChange('charge-sheet')}
+                />
+            </div>
 
-            {activeTab === 'charge-sheet' && (
-              <div className="p-4 md:p-6 lg:p-8 max-w-3xl mx-auto w-full">
+            {/* Charge Sheet Tab */}
+            <div className={cn("p-4 md:p-6 lg:p-8 max-w-3xl mx-auto w-full", activeTab !== 'charge-sheet' && "hidden")}>
                 <div className="mb-4 md:mb-6">
                   <h2 className="text-lg font-bold text-slate-800">Charge Sheet</h2>
                   <p className="text-sm text-slate-500 mt-0.5">
@@ -260,8 +264,7 @@ export function SurgicalCaseWorkspace({
                   </p>
                 </div>
                 <ChargeSheetStep caseId={caseId} />
-              </div>
-            )}
+            </div>
           </div>
         </div>
       </div>

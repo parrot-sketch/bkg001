@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { FileText, Printer, Edit } from 'lucide-react';
+import { FileText, Printer, Edit, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
@@ -19,6 +19,7 @@ interface Props {
   caseId: string;
   data: SurgicalNotesData;
   onEdit: () => void;
+  onContinue?: () => void;
 }
 
 const SECTIONS = [
@@ -32,7 +33,7 @@ const SECTIONS = [
   { key: 'post_op_instructions', label: 'Post-Operative Instructions' },
 ] as const;
 
-export function SurgicalNotesView({ caseId, data, onEdit }: Props) {
+export function SurgicalNotesView({ caseId, data, onEdit, onContinue }: Props) {
   // Filter out any sections that don't have text (or are just empty HTML like <p></p>)
   const isHtmlEmpty = (html?: string | null) => {
     if (!html) return true;
@@ -113,6 +114,18 @@ export function SurgicalNotesView({ caseId, data, onEdit }: Props) {
                   <p className="text-xs text-slate-500 font-medium">Surgeon's Signature</p>
                </div>
             </div>
+
+            {onContinue && (
+                <div className="flex justify-end mt-12 pt-8 border-t border-slate-100">
+                    <Button 
+                        onClick={onContinue}
+                        className="bg-slate-900 text-white gap-2 px-8 h-12 rounded-full shadow-lg shadow-slate-200/50 transition-all hover:scale-[1.02] active:scale-[0.98] font-bold"
+                    >
+                        Proceed to Charge Sheet
+                        <ArrowRight className="h-4 w-4" />
+                    </Button>
+                </div>
+            )}
           </div>
         )}
       </CardContent>

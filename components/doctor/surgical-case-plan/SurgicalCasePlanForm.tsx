@@ -748,7 +748,8 @@ export function SurgicalCasePlanForm({
     if (isTheaterTech) {
       router.push('/theater-tech/surgical-cases');
     } else {
-      router.push(`/doctor/surgical-cases/${caseId}`);
+      // Direct navigation to the next logical clinical step
+      router.push(`/doctor/surgical-cases/${caseId}?tab=surgical-notes`);
     }
   };
 
