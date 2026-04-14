@@ -63,7 +63,7 @@ export default async function DoctorSurgicalCaseWorkspacePage({ params }: PagePr
     selectedSurgeonIds = [surgicalCase.primary_surgeon_id];
   }
 
-  const procedureIds = surgicalCase.case_procedures?.map((cp) => cp.procedure.id) || [];
+  const procedureIds = surgicalCase.case_procedures?.map((cp) => String(cp.procedure.id)) || [];
 
   const initialPlanData = {
     surgeonId: surgicalCase.primary_surgeon_id || '',

@@ -99,6 +99,8 @@ function mapCaseToDto(sc: any) {
                 readyForSurgery: sc.case_plan.ready_for_surgery,
                 hasProcedurePlan: !!sc.case_plan.procedure_plan,
                 hasRiskFactors: !!sc.case_plan.risk_factors,
+                hasSurgicalNotes: !!(sc.case_plan.pre_op_notes || sc.case_plan.surgeon_narrative || sc.case_plan.post_op_instructions),
+                hasChargeSheet: !!sc.payment?.id,
                 plannedAnesthesia: sc.case_plan.planned_anesthesia,
                 estimatedDurationMinutes: sc.case_plan.estimated_duration_minutes,
                 consentCount: sc.case_plan._count?.consents ?? 0,
@@ -114,6 +116,7 @@ function mapCaseToDto(sc: any) {
                 theaterName: sc.theater_booking.theater?.name ?? null,
             }
             : null,
+        payment: sc.payment ? { id: sc.payment.id, chargeSheetNo: sc.payment.charge_sheet_no, status: sc.payment.status } : null,
         consultation: sc.consultation
             ? {
                 id: sc.consultation.id,
@@ -301,6 +304,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                         ready_for_surgery: true,
                         procedure_plan: true,
                         risk_factors: true,
+                        pre_op_notes: true,
+                        surgeon_narrative: true,
+                        post_op_instructions: true,
                         planned_anesthesia: true,
                         estimated_duration_minutes: true,
                         _count: {
@@ -320,6 +326,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                         theater: {
                             select: { name: true },
                         },
+                    },
+                },
+                payment: {
+                    select: {
+                        id: true,
+                        status: true,
+                        charge_sheet_no: true,
                     },
                 },
                 consultation: {

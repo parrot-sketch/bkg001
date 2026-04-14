@@ -23,6 +23,9 @@ import {
     ChevronRight,
     FileText,
     Eye,
+    MoreHorizontal,
+    ClipboardList,
+    Receipt,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,6 +33,14 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
     DRAFT: { label: 'Draft', color: 'text-slate-700', bg: 'bg-slate-100' },
@@ -289,11 +300,16 @@ export default function DoctorSurgicalCasesPage() {
                                             </div>
                                         </td>
                                         <td className="px-4 py-3">
-                                            <span className="line-clamp-1 text-sm">
+                                            <span className="line-clamp-1 text-sm font-medium">
                                                 {sc.procedures && sc.procedures.length > 0
                                                     ? sc.procedures.map(p => p.name).join(', ')
                                                     : sc.procedureName || '—'}
                                             </span>
+                                            <div className="flex gap-1.5 mt-1.5">
+                                                {sc.casePlan?.hasProcedurePlan && <Badge variant="secondary" className="px-1.5 py-0 text-[10px] bg-slate-100 text-slate-500 font-medium">Plan</Badge>}
+                                                {sc.casePlan?.hasSurgicalNotes && <Badge variant="secondary" className="px-1.5 py-0 text-[10px] bg-emerald-50 text-emerald-600 font-medium border-emerald-100">Notes</Badge>}
+                                                {sc.casePlan?.hasChargeSheet && <Badge variant="secondary" className="px-1.5 py-0 text-[10px] bg-blue-50 text-blue-600 font-medium border-blue-100">Charges</Badge>}
+                                            </div>
                                         </td>
                                         <td className="px-4 py-3">
                                             <span className="line-clamp-1 text-sm text-slate-500">
@@ -318,15 +334,44 @@ export default function DoctorSurgicalCasesPage() {
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 text-center">
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() => navigateToCase(sc.id)}
-                                                className="h-7 gap-1.5"
-                                            >
-                                                <FileText className="h-3.5 w-3.5" />
-                                                Workspace
-                                            </Button>
+                                            <div className="flex items-center justify-center gap-1">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => navigateToCase(sc.id)}
+                                                    className="h-7 gap-1.5 rounded-r-none border-r-0"
+                                                >
+                                                    <Eye className="h-3.5 w-3.5" />
+                                                    Open
+                                                </Button>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            className="h-7 w-7 p-0 rounded-l-none"
+                                                        >
+                                                            <MoreHorizontal className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end" className="w-44">
+                                                        <DropdownMenuLabel className="text-xs">Jump to</DropdownMenuLabel>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuItem onClick={() => router.push(`/doctor/surgical-cases/${sc.id}?tab=case-plan`)}>
+                                                            <ClipboardList className="h-3.5 w-3.5 mr-2" />
+                                                            Case Plan
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => router.push(`/doctor/surgical-cases/${sc.id}?tab=surgical-notes`)}>
+                                                            <FileText className="h-3.5 w-3.5 mr-2" />
+                                                            Surgical Notes
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => router.push(`/doctor/surgical-cases/${sc.id}?tab=charge-sheet`)}>
+                                                            <Receipt className="h-3.5 w-3.5 mr-2" />
+                                                            Charge Sheet
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </div>
                                         </td>
                                     </tr>
                                 );

@@ -41,6 +41,8 @@ export interface SurgicalCaseListItemDto {
         readyForSurgery: boolean;
         hasProcedurePlan: boolean;
         hasRiskFactors: boolean;
+        hasSurgicalNotes: boolean;
+        hasChargeSheet: boolean;
         plannedAnesthesia: string | null;
         estimatedDurationMinutes: number | null;
         consentCount: number;
@@ -52,6 +54,11 @@ export interface SurgicalCaseListItemDto {
         endTime: string;
         status: string;
         theaterName: string | null;
+    } | null;
+    payment: {
+        id: number;
+        status: string;
+        chargeSheetNo: string | null;
     } | null;
     consultation: {
         id: number;

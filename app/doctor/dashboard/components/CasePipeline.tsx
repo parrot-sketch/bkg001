@@ -66,13 +66,13 @@ export function CasePipeline({ isLoading }: CasePipelineProps) {
   const handleCaseAction = (caseId: string, tab: TabValue) => {
     switch (tab) {
       case 'planning':
-        router.push(`/doctor/surgical-cases/${caseId}/plan`);
+        router.push(`/doctor/surgical-cases/${caseId}?tab=case-plan`);
         break;
       case 'scheduled':
         router.push(`/doctor/surgical-cases/${caseId}`);
         break;
       case 'theater':
-        router.push(`/doctor/surgical-cases/${caseId}/intra-op`);
+        router.push(`/doctor/surgical-cases/${caseId}?tab=surgical-notes`);
         break;
       case 'recovery':
         router.push(`/doctor/surgical-cases/${caseId}`);
@@ -169,7 +169,7 @@ export function CasePipeline({ isLoading }: CasePipelineProps) {
           >
             {tab === 'planning' && 'Continue Planning'}
             {tab === 'scheduled' && 'View Case'}
-            {tab === 'theater' && 'Open Intra-Op'}
+            {tab === 'theater' && 'Open Workspace'}
             {tab === 'recovery' && 'View Record'}
             <ArrowRight className="h-3 w-3 ml-1" />
           </Button>
