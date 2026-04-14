@@ -403,6 +403,10 @@ export class PrismaInventoryRepository implements IInventoryRepository {
     return balances.get(itemId) ?? 0;
   }
 
+  async getBalances(itemIds: number[]): Promise<Map<number, number>> {
+    return this.calculateBalances(itemIds);
+  }
+
   // ============================================================================
   // USAGE RECORDS
   // ============================================================================

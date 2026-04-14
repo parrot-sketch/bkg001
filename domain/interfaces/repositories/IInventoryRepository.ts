@@ -169,6 +169,9 @@ export interface IInventoryRepository {
   /** Get current balance for a specific item */
   getItemBalance(itemId: number): Promise<number>;
 
+  /** Get current balances for multiple items in bulk (solves N+1) */
+  getBalances(itemIds: number[]): Promise<Map<number, number>>;
+
   // ============================================================================
   // USAGE RECORDS
   // ============================================================================

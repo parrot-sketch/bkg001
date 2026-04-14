@@ -244,11 +244,14 @@ export function createAuthenticationError(
   const correlationId = generateCorrelationId();
   const timestamp = new Date().toISOString();
 
-  logErrorDetails(
-    new Error('Authentication required'),
+  // Log as warning without stack trace for routine auth failures
+  console.warn('[WARN]', JSON.stringify({
+    timestamp,
     correlationId,
-    context
-  );
+    errorType: 'AuthenticationError',
+    message: 'Authentication required',
+    context,
+  }, null, 2));
 
   const response: ErrorResponse = {
     success: false,
@@ -273,11 +276,14 @@ export function createAuthorizationError(
   const correlationId = generateCorrelationId();
   const timestamp = new Date().toISOString();
 
-  logErrorDetails(
-    new Error('Access denied'),
+  // Log as warning without stack trace for routine auth failures
+  console.warn('[WARN]', JSON.stringify({
+    timestamp,
     correlationId,
-    context
-  );
+    errorType: 'AuthorizationError',
+    message: 'Access denied',
+    context,
+  }, null, 2));
 
   const response: ErrorResponse = {
     success: false,
