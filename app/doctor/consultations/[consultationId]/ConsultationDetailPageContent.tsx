@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { ChargeSheet } from '@/components/charge-sheet';
 import { 
   ChevronLeft, 
   FileText, 
@@ -90,6 +92,7 @@ interface ConsultationDetailPageContentProps {
 export default function ConsultationDetailPageContent({ recordData }: ConsultationDetailPageContentProps) {
   const patient = recordData.appointment.patient;
   const { payment } = recordData;
+  const [isEditingBilling, setIsEditingBilling] = useState(false);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-KE', {
@@ -316,76 +319,105 @@ export default function ConsultationDetailPageContent({ recordData }: Consultati
         </div>
 
         {/* Charge Sheet Section */}
-        {payment && payment.billItems && payment.billItems.length > 0 && (
-          <div className="border-2 border-slate-200 mb-8 print:border-black">
-            <div className="bg-slate-100 print:bg-white px-4 sm:px-6 py-2 border-b border-slate-200 print:border-black">
-              <h2 className="font-semibold text-slate-800 flex items-center gap-2 print:text-black">
-                <CreditCard className="h-4 w-4" />
-                CHARGE SHEET
-              </h2>
+        {isEditingBilling ? (
+          <div className="border-2 border-slate-200 mb-8 print:hidden">
+            <div className="bg-slate-100 px-4 sm:px-6 py-2 border-b border-slate-200">
+              <div className="flex items-center justify-between">
+                <h2 className="font-semibold text-slate-800 flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  CHARGE SHEET (Edit Mode)
+                </h2>
+                <Button variant="ghost" size="sm" onClick={() => setIsEditingBilling(false)}>
+                  Cancel
+                </Button>
+              </div>
             </div>
             <div className="p-4 sm:p-6">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-sm text-slate-500 print:text-black">
-                  Charge Sheet No: <span className="font-mono font-semibold">{payment.chargeSheetNo || 'N/A'}</span>
-                </span>
-                <Badge className={
-                  payment.status === 'PAID' 
-                    ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
-                    : payment.status === 'PART'
-                    ? 'bg-amber-100 text-amber-800 border-amber-200'
-                    : 'bg-slate-100 text-slate-800 border-slate-200'
-                }>
-                  {payment.status}
-                </Badge>
-              </div>
-
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-slate-200 print:border-black">
-                    <th className="text-left py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider print:text-black">Item</th>
-                    <th className="text-center py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider print:text-black">Qty</th>
-                    <th className="text-right py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider print:text-black">Unit Price</th>
-                    <th className="text-right py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider print:text-black">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {payment.billItems.map((item, idx) => (
-                    <tr key={item.id || idx} className="border-b border-slate-100 print:border-black">
-                      <td className="py-2 text-slate-700 print:text-black">{item.serviceName}</td>
-                      <td className="py-2 text-center text-slate-600 print:text-black">{item.quantity}</td>
-                      <td className="py-2 text-right text-slate-600 print:text-black">{formatCurrency(item.unitCost)}</td>
-                      <td className="py-2 text-right font-medium text-slate-900 print:text-black">{formatCurrency(item.totalCost)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  {payment.discount > 0 && (
-                    <tr>
-                      <td colSpan={3} className="pt-3 text-right text-slate-500 print:text-black">Discount</td>
-                      <td className="pt-3 text-right text-rose-600">-{formatCurrency(payment.discount)}</td>
-                    </tr>
-                  )}
-                  <tr className="border-t-2 border-slate-200 print:border-black">
-                    <td colSpan={3} className="pt-3 text-right font-semibold text-slate-900 print:text-black">TOTAL</td>
-                    <td className="pt-3 text-right font-bold text-lg text-slate-900 print:text-black">{formatCurrency(payment.totalAmount)}</td>
-                  </tr>
-                  {payment.amountPaid > 0 && (
-                    <tr>
-                      <td colSpan={3} className="pt-1 text-right text-slate-500 print:text-black">Amount Paid</td>
-                      <td className="pt-1 text-right text-emerald-600">-{formatCurrency(payment.amountPaid)}</td>
-                    </tr>
-                  )}
-                  {(payment.totalAmount - payment.amountPaid) > 0 && (
-                    <tr>
-                      <td colSpan={3} className="pt-1 text-right font-semibold text-slate-900 print:text-black">Balance Due</td>
-                      <td className="pt-1 text-right font-semibold text-rose-600 print:text-black">{formatCurrency(payment.totalAmount - payment.amountPaid)}</td>
-                    </tr>
-                  )}
-                </tfoot>
-              </table>
+              <ChargeSheet 
+                appointmentId={recordData.appointmentId}
+              />
             </div>
           </div>
+        ) : (
+          <>
+            {payment && payment.billItems && payment.billItems.length > 0 && (
+              <div className="border-2 border-slate-200 mb-8 print:border-black">
+                <div className="bg-slate-100 print:bg-white px-4 sm:px-6 py-2 border-b border-slate-200 print:border-black">
+                  <div className="flex items-center justify-between">
+                    <h2 className="font-semibold text-slate-800 flex items-center gap-2 print:text-black">
+                      <CreditCard className="h-4 w-4" />
+                      CHARGE SHEET
+                    </h2>
+                    <Button variant="outline" size="sm" onClick={() => setIsEditingBilling(true)}>
+                      Edit
+                    </Button>
+                  </div>
+                </div>
+                <div className="p-4 sm:p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-sm text-slate-500 print:text-black">
+                      Charge Sheet No: <span className="font-mono font-semibold">{payment.chargeSheetNo || 'N/A'}</span>
+                    </span>
+                    <Badge className={
+                      payment.status === 'PAID' 
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                        : payment.status === 'PART'
+                        ? 'bg-amber-100 text-amber-800 border-amber-200'
+                        : 'bg-slate-100 text-slate-800 border-slate-200'
+                    }>
+                      {payment.status}
+                    </Badge>
+                  </div>
+
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-slate-200 print:border-black">
+                        <th className="text-left py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider print:text-black">Item</th>
+                        <th className="text-center py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider print:text-black">Qty</th>
+                        <th className="text-right py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider print:text-black">Unit Price</th>
+                        <th className="text-right py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider print:text-black">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {payment.billItems.map((item, idx) => (
+                        <tr key={item.id || idx} className="border-b border-slate-100 print:border-black">
+                          <td className="py-2 text-slate-700 print:text-black">{item.serviceName}</td>
+                          <td className="py-2 text-center text-slate-600 print:text-black">{item.quantity}</td>
+                          <td className="py-2 text-right text-slate-600 print:text-black">{formatCurrency(item.unitCost)}</td>
+                          <td className="py-2 text-right font-medium text-slate-900 print:text-black">{formatCurrency(item.totalCost)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      {payment.discount > 0 && (
+                        <tr>
+                          <td colSpan={3} className="pt-3 text-right text-slate-500 print:text-black">Discount</td>
+                          <td className="pt-3 text-right text-rose-600">-{formatCurrency(payment.discount)}</td>
+                        </tr>
+                      )}
+                      <tr className="border-t-2 border-slate-200 print:border-black">
+                        <td colSpan={3} className="pt-3 text-right font-semibold text-slate-900 print:text-black">TOTAL</td>
+                        <td className="pt-3 text-right font-bold text-lg text-slate-900 print:text-black">{formatCurrency(payment.totalAmount)}</td>
+                      </tr>
+                      {payment.amountPaid > 0 && (
+                        <tr>
+                          <td colSpan={3} className="pt-1 text-right text-slate-500 print:text-black">Amount Paid</td>
+                          <td className="pt-1 text-right text-emerald-600">-{formatCurrency(payment.amountPaid)}</td>
+                        </tr>
+                      )}
+                      {(payment.totalAmount - payment.amountPaid) > 0 && (
+                        <tr>
+                          <td colSpan={3} className="pt-1 text-right font-semibold text-slate-900 print:text-black">Balance Due</td>
+                          <td className="pt-1 text-right font-semibold text-rose-600 print:text-black">{formatCurrency(payment.totalAmount - payment.amountPaid)}</td>
+                        </tr>
+                      )}
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+
+          </>
         )}
 
         {/* Surgical Plan Actions */}
@@ -420,19 +452,6 @@ export default function ConsultationDetailPageContent({ recordData }: Consultati
                     </>
                   )}
                 </Link>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* No Charge Sheet Notice */}
-        {(!payment || !payment.billItems || payment.billItems.length === 0) && (
-          <div className="border-2 border-amber-200 bg-amber-50 mb-8 print:border-black print:bg-white">
-            <div className="p-4 flex items-center gap-3">
-              <AlertCircle className="h-5 w-5 text-amber-500" />
-              <div>
-                <p className="font-medium text-amber-800 print:text-black">No Charge Sheet</p>
-                <p className="text-sm text-amber-600 print:text-black">No billing was recorded for this consultation</p>
               </div>
             </div>
           </div>
