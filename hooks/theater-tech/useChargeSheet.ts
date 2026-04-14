@@ -127,11 +127,13 @@ export function useChargeSheet(caseId: string): UseChargeSheetReturn {
           const items: InventoryItem[] = inventoryData.data.data.map(
             (i: unknown) => {
               const rec = i as Record<string, unknown>;
+              const uc = rec.unitCost;
+              const unitCost = typeof uc === 'number' ? uc : Number(uc) || 0;
               return {
                 id: String(rec.id),
                 name: rec.name as string,
                 sku: (rec.sku as string) ?? '',
-                unit_cost: (rec.unitCost as number) ?? 0,
+                unit_cost: unitCost,
                 category: (rec.category as string) ?? '',
               };
             }
