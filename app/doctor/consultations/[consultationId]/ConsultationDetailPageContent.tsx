@@ -420,6 +420,22 @@ export default function ConsultationDetailPageContent({ recordData }: Consultati
           </>
         )}
 
+        {/* No Charge Sheet - Add Button */}
+        {(!payment || !payment.billItems || payment.billItems.length === 0) && !isEditingBilling && (
+          <div className="border-2 border-amber-200 bg-amber-50 mb-8 print:border-black print:bg-white">
+            <div className="p-4 flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-amber-500" />
+              <div className="flex-1">
+                <p className="font-medium text-amber-800 print:text-black">No Charge Sheet</p>
+                <p className="text-sm text-amber-600 print:text-black">No billing was recorded for this consultation</p>
+              </div>
+              <Button onClick={() => setIsEditingBilling(true)}>
+                Add Charge Sheet
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Surgical Plan Actions */}
         {recordData.hasSurgicalCase && recordData.surgicalCaseId && (
           <div className="border-2 border-slate-200 mb-8 print:border-black">
