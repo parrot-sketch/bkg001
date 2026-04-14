@@ -319,7 +319,7 @@ function CaseIdentificationForm({
         <label className="block text-sm font-medium text-slate-700 mb-2">
           Procedure Category <span className="text-rose-500">*</span>
         </label>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
           {categories.map((cat) => (
             <button
               key={cat.value}
@@ -343,7 +343,7 @@ function CaseIdentificationForm({
         <label className="block text-sm font-medium text-slate-700 mb-2">
           Primary or Revision <span className="text-rose-500">*</span>
         </label>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3">
           {primaryOrRevisionOptions.map((opt) => (
             <button
               key={opt.value}
@@ -525,7 +525,7 @@ function OperativeDetailsForm({
         <label className="block text-sm font-medium text-slate-700 mb-2">
           Anaesthesia Type <span className="text-rose-500">*</span>
         </label>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-3">
           {anaesthesias.map((opt) => (
             <button
               key={opt.value}
@@ -591,7 +591,7 @@ function OperativeDetailsForm({
         <label className="block text-sm font-medium text-slate-700 mb-2">
           Admission Type
         </label>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-3">
           {admissionTypes.map((opt) => (
             <button
               key={opt.value}
@@ -621,7 +621,7 @@ function OperativeDetailsForm({
               (shown because a lipo procedure is selected)
             </span>
           </label>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 md:gap-3">
             {lipoDevices.map((opt) => (
               <button
                 key={opt.value}

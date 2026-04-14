@@ -72,7 +72,7 @@ export default function TheaterTechPatientsPage() {
       const data = await res.json();
       
       if (data.success && data.surgicalCaseId) {
-        toast.success('Case created');
+        // Removed disruptive 'toast.success' so transition feels instant mapping
         router.push(`/theater-tech/surgical-cases/${data.surgicalCaseId}/edit`);
       } else {
         toast.error(data.error || 'Failed to create case');
@@ -80,7 +80,7 @@ export default function TheaterTechPatientsPage() {
     } catch (error) {
       toast.error('Failed to create case');
     } finally {
-      setCreatingCase(null);
+      // NOTE: Leave it as creating if successful to prevent button jitter during route change
     }
   };
 
@@ -125,65 +125,114 @@ export default function TheaterTechPatientsPage() {
               {searchQuery ? 'No patients match your search' : 'No patients found'}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th className="text-left text-xs font-medium text-slate-500 px-4 py-2.5">Patient</th>
-                    <th className="text-left text-xs font-medium text-slate-500 px-4 py-2.5 hidden md:table-cell">File #</th>
-                    <th className="text-left text-xs font-medium text-slate-500 px-4 py-2.5 hidden lg:table-cell">Contact</th>
-                    <th className="text-right text-xs font-medium text-slate-500 px-4 py-2.5">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {patients.map((patient) => (
-                    <tr key={patient.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-4 py-2.5">
-                        <div className="flex items-center gap-2.5">
-                          <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center">
-                            <User className="h-4 w-4 text-slate-500" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-slate-900">
-                              {patient.first_name} {patient.last_name}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-2.5 hidden md:table-cell">
-                        <div className="flex items-center gap-1.5 text-slate-500">
-                          <FileText className="h-3.5 w-3.5" />
-                          <span className="text-sm">{patient.file_number || '—'}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-2.5 hidden lg:table-cell">
-                        <div className="flex items-center gap-1.5 text-slate-500">
-                          <Phone className="h-3.5 w-3.5" />
-                          <span className="text-sm">{patient.phone || '—'}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <div className="flex justify-end">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8 text-xs gap-1.5 border-slate-200 hover:bg-slate-800 hover:text-white"
-                            onClick={() => handleCreateSurgicalCase(patient.id)}
-                            disabled={creatingCase === patient.id}
-                          >
-                            {creatingCase === patient.id ? (
-                              <div className="h-3 w-3 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
-                            ) : (
-                              <Scissors className="h-3 w-3" />
-                            )}
-                            Plan Surgery
-                          </Button>
-                        </div>
-                      </td>
+            <div className="w-full">
+              {/* Desktop Table View */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="text-left text-xs font-medium text-slate-500 px-4 py-2.5">Patient</th>
+                      <th className="text-left text-xs font-medium text-slate-500 px-4 py-2.5">File #</th>
+                      <th className="text-left text-xs font-medium text-slate-500 px-4 py-2.5 hidden lg:table-cell">Contact</th>
+                      <th className="text-right text-xs font-medium text-slate-500 px-4 py-2.5">Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {patients.map((patient) => (
+                      <tr key={patient.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center gap-2.5">
+                            <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center">
+                              <User className="h-4 w-4 text-slate-500" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-slate-900">
+                                {patient.first_name} {patient.last_name}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center gap-1.5 text-slate-500">
+                            <FileText className="h-3.5 w-3.5" />
+                            <span className="text-sm">{patient.file_number || '—'}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5 hidden lg:table-cell">
+                          <div className="flex items-center gap-1.5 text-slate-500">
+                            <Phone className="h-3.5 w-3.5" />
+                            <span className="text-sm">{patient.phone || '—'}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex justify-end">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 text-xs gap-1.5 border-slate-200 hover:bg-slate-800 hover:text-white"
+                              onClick={() => handleCreateSurgicalCase(patient.id)}
+                              disabled={creatingCase === patient.id}
+                            >
+                              {creatingCase === patient.id ? (
+                                <div className="h-3 w-3 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
+                              ) : (
+                                <Scissors className="h-3 w-3" />
+                              )}
+                              Plan Surgery
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              {/* Mobile Card View (flex columns) */}
+              <div className="md:hidden flex flex-col divide-y divide-slate-100">
+                {patients.map((patient) => (
+                  <div key={patient.id} className="p-4 bg-white flex flex-col gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 shrink-0 rounded-full bg-slate-100 flex items-center justify-center">
+                        <User className="h-5 w-5 text-slate-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-900 truncate">
+                          {patient.first_name} {patient.last_name}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-0.5 text-xs text-slate-500">
+                          <div className="flex items-center gap-1">
+                            <FileText className="h-3 w-3" />
+                            <span>{patient.file_number || '—'}</span>
+                          </div>
+                          {patient.phone && (
+                            <div className="flex items-center gap-1">
+                              <Phone className="h-3 w-3" />
+                              <span>{patient.phone}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="pt-2">
+                       <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full text-sm font-medium border-slate-200 h-10 hover:bg-slate-800 hover:text-white"
+                          onClick={() => handleCreateSurgicalCase(patient.id)}
+                          disabled={creatingCase === patient.id}
+                        >
+                          {creatingCase === patient.id ? (
+                            <div className="h-4 w-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin mr-2" />
+                          ) : (
+                            <Scissors className="h-4 w-4 mr-2" />
+                          )}
+                          Plan Surgery
+                        </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </CardContent>
