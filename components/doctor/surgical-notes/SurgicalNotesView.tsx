@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { FileText, Printer, Edit, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { cn } from '@/lib/utils';
+import { useMemo } from 'react';
 
 interface SurgicalNotesData {
   pre_op_notes?: string | null;
@@ -22,26 +22,32 @@ interface Props {
   onContinue?: () => void;
 }
 
-const SECTIONS = [
-  { key: 'procedure_plan', label: 'Procedure Plan' },
-  { key: 'pre_op_notes', label: 'Pre-Operative Notes' },
-  { key: 'planned_anesthesia', label: 'Planned Anesthesia' },
-  { key: 'surgeon_narrative', label: 'Operative Narrative' },
-  { key: 'equipment_notes', label: 'Equipment & Instruments' },
-  { key: 'risk_factors', label: 'Identified Risk Factors' },
-  { key: 'special_instructions', label: 'Special Instructions' },
-  { key: 'post_op_instructions', label: 'Post-Operative Instructions' },
-] as const;
-
 export function SurgicalNotesView({ caseId, data, onEdit, onContinue }: Props) {
-  // Filter out any sections that don't have text (or are just empty HTML like <p></p>)
-  const isHtmlEmpty = (html?: string | null) => {
-    if (!html) return true;
-    const stripped = html.replace(/<[^>]+>/g, '').trim();
-    return stripped.length === 0;
-  };
+  // Consolidate logic for consistent view even if not yet saved in new format
+  const documentContent = useMemo(() => {
+    if (data.surgeon_narrative && data.surgeon_narrative.trim().length > 0) {
+      return data.surgeon_narrative;
+    }
 
-  const activeSections = SECTIONS.filter((s) => !isHtmlEmpty(data[s.key as keyof typeof data]));
+    const sections = [
+      { label: 'Procedure Plan', value: data.procedure_plan },
+      { label: 'Pre-Operative Notes', value: data.pre_op_notes },
+      { label: 'Anesthesia', value: data.planned_anesthesia },
+      { label: 'Risk Factors', value: data.risk_factors },
+      { label: 'Equipment', value: data.equipment_notes },
+      { label: 'Special Instructions', value: data.special_instructions },
+      { label: 'Post-Operative Instructions', value: data.post_op_instructions },
+    ];
+
+    const html = sections
+      .filter(s => s.value && s.value.replace(/<[^>]+>/g, '').trim().length > 0)
+      .map(s => `<h2 style="font-size: 1.1rem; font-weight: bold; margin-bottom: 0.5rem; color: #475569; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.25rem;">${s.label}</h2>${s.value}`)
+      .join('<br/><br/>');
+
+    return html;
+  }, [data]);
+
+  const isEmpty = !documentContent || documentContent.trim().length === 0;
 
   return (
     <Card className="shadow-sm border-slate-200 w-full animate-in fade-in duration-300 mb-8 bg-white overflow-hidden">
@@ -49,10 +55,10 @@ export function SurgicalNotesView({ caseId, data, onEdit, onContinue }: Props) {
         <div>
           <CardTitle className="flex items-center gap-2 text-base md:text-lg text-slate-800">
              <FileText className="h-4 w-4 md:h-5 md:w-5 text-slate-500" />
-             Surgical Notes
+             Surgical Note
           </CardTitle>
           <CardDescription className="text-xs md:text-sm mt-0.5">
-            Read-only document view
+            Clinical narrative document
           </CardDescription>
         </div>
         
@@ -71,41 +77,29 @@ export function SurgicalNotesView({ caseId, data, onEdit, onContinue }: Props) {
            <Button 
              size="sm"
              onClick={onEdit} 
-             className="bg-slate-900 text-white shadow-none h-8 px-3 text-xs md:text-sm md:h-9"
+             className="bg-slate-900 text-white shadow-none h-8 px-3 text-xs md:text-sm md:h-9 font-bold"
            >
              <Edit className="h-3.5 w-3.5 mr-1.5" />
-             Edit
+             {isEmpty ? 'Create Note' : 'Edit Note'}
            </Button>
         </div>
       </CardHeader>
       
       <CardContent className="p-6 md:p-10 bg-white">
-        {activeSections.length === 0 ? (
+        {isEmpty ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <FileText className="h-10 w-10 text-slate-200 mb-3" />
-            <h3 className="text-base font-semibold text-slate-700">No notes recorded yet</h3>
+            <h3 className="text-base font-semibold text-slate-700">No narrative recorded yet</h3>
             <p className="text-sm text-slate-500 mt-1 max-w-sm">
-              Click edit to start adding pre-operative, operative, or post-operative documentation.
+              Click create to document the surgical narrative, operative findings, and post-operative plan.
             </p>
           </div>
         ) : (
-          <div className="max-w-3xl mx-auto space-y-10">
-            {/* Header info could go here if needed, but Context is usually provided by the workspace wrapper */}
-            
-            {/* Sections mapped out as read-only prose blocks */}
-            <div className="space-y-10">
-              {activeSections.map((section) => (
-                <section key={section.key} className="break-inside-avoid">
-                  <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3 pb-2 border-b border-slate-100">
-                    {section.label}
-                  </h3>
-                  <div 
-                    className="prose prose-sm md:prose-base max-w-none prose-slate"
-                    dangerouslySetInnerHTML={{ __html: data[section.key as keyof typeof data] || '' }}
-                  />
-                </section>
-              ))}
-            </div>
+          <div className="max-w-3xl mx-auto">
+            <div 
+              className="prose prose-sm md:prose-base max-w-none prose-slate"
+              dangerouslySetInnerHTML={{ __html: documentContent }}
+            />
             
             {/* Signature Block (Visual only for PDF/Print readiness) */}
             <div className="mt-16 pt-8 border-t border-slate-200 flex justify-end">

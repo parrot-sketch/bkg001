@@ -66,20 +66,23 @@ export async function PUT(
             where: { surgical_case_id: caseId }
         });
 
+        // Consolidate data into surgeon_narrative if 'content' is provided
+        const updateData: any = {
+            pre_op_notes: body.pre_op_notes,
+            procedure_plan: body.procedure_plan,
+            surgeon_narrative: body.content ?? body.surgeon_narrative,
+            equipment_notes: body.equipment_notes,
+            special_instructions: body.special_instructions,
+            risk_factors: body.risk_factors,
+            post_op_instructions: body.post_op_instructions,
+            planned_anesthesia: body.planned_anesthesia,
+        };
+
         if (existingPlan) {
             // Update existing CasePlan
             await db.casePlan.update({
                 where: { id: existingPlan.id },
-                data: {
-                    pre_op_notes: body.pre_op_notes,
-                    procedure_plan: body.procedure_plan,
-                    surgeon_narrative: body.surgeon_narrative,
-                    equipment_notes: body.equipment_notes,
-                    special_instructions: body.special_instructions,
-                    risk_factors: body.risk_factors,
-                    post_op_instructions: body.post_op_instructions,
-                    planned_anesthesia: body.planned_anesthesia,
-                }
+                data: updateData
             });
             return NextResponse.json({ success: true });
         } else {
@@ -139,15 +142,7 @@ export async function PUT(
                     patient_id: surgicalCase.patient_id,
                     doctor_id: doctor.id,
                     appointment_id: appointmentId,
-                    
-                    pre_op_notes: body.pre_op_notes,
-                    procedure_plan: body.procedure_plan,
-                    surgeon_narrative: body.surgeon_narrative,
-                    equipment_notes: body.equipment_notes,
-                    special_instructions: body.special_instructions,
-                    risk_factors: body.risk_factors,
-                    post_op_instructions: body.post_op_instructions,
-                    planned_anesthesia: body.planned_anesthesia,
+                    ...updateData
                 }
             });
             return NextResponse.json({ success: true });
