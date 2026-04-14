@@ -57,6 +57,7 @@ export async function GET(
                 teamMembers: surgicalCase.team_members,
                 plannedItems: surgicalCase.case_plan?.planned_items || [],
                 isReadyForTheaterPrep: surgicalCase.status === 'READY_FOR_THEATER_PREP',
+                isEditable: surgicalCase.status !== 'COMPLETED' && surgicalCase.status !== 'CANCELLED',
             },
         });
 
@@ -95,8 +96,9 @@ export async function PUT(
             return NextResponse.json({ success: false, error: 'Case not found' }, { status: 404 });
         }
 
-        // Only allow theater prep for cases ready for theater booking or theater prep
-        if (!['READY_FOR_THEATER_BOOKING', 'READY_FOR_THEATER_PREP'].includes(surgicalCase.status)) {
+        // Allow theater tech to edit cases in any status (including WARD_PREP)
+        // This ensures theater tech can always modify the case even after nurse pre-op
+        if (surgicalCase.status === 'COMPLETED' || surgicalCase.status === 'CANCELLED') {
             return NextResponse.json(
                 { success: false, error: `Cannot modify theater prep for case in status: ${surgicalCase.status}` },
                 { status: 422 }
