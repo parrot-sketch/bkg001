@@ -82,7 +82,7 @@ export async function getPostAuthRedirect(
       return '/admin/dashboard'; // Cashiers use admin dashboard
 
     case UserRole.THEATER_TECHNICIAN:
-      return '/theater-tech/dayboard';
+      return '/theater-tech/dashboard';
 
     case UserRole.STORES:
       return '/admin/inventory';
