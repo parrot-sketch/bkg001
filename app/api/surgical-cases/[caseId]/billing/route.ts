@@ -68,12 +68,20 @@ export async function GET(
       );
     }
 
-    // 4. If doctor, verify they're the primary surgeon
+    // 4. If doctor, verify they're the primary surgeon or an invited assistant
     if (userRole === Role.DOCTOR && surgicalCase.primary_surgeon?.user_id !== authResult.user.userId) {
-      return NextResponse.json(
-        { success: false, error: 'Access denied: Not your surgical case' },
-        { status: 403 }
-      );
+      const invite = await db.staffInvite.findFirst({
+        where: {
+          surgical_case_id: surgicalCaseId,
+          invited_user_id: authResult.user.userId,
+        }
+      });
+      if (!invite) {
+        return NextResponse.json(
+          { success: false, error: 'Access denied: Not your surgical case' },
+          { status: 403 }
+        );
+      }
     }
 
     // 5. Find payment for this surgical case
@@ -285,12 +293,20 @@ export async function PUT(
       );
     }
 
-    // If doctor, verify ownership (theater tech can access all cases)
+    // If doctor, verify ownership or staff invite
     if (userRole === Role.DOCTOR && surgicalCase.primary_surgeon?.user_id !== authResult.user.userId) {
-      return NextResponse.json(
-        { success: false, error: 'Access denied: Not your surgical case' },
-        { status: 403 }
-      );
+      const invite = await db.staffInvite.findFirst({
+        where: {
+          surgical_case_id: surgicalCaseId,
+          invited_user_id: authResult.user.userId,
+        }
+      });
+      if (!invite) {
+        return NextResponse.json(
+          { success: false, error: 'Access denied: Not your surgical case' },
+          { status: 403 }
+        );
+      }
     }
 
     // 6. Calculate total from service items
