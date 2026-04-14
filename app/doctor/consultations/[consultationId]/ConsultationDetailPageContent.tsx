@@ -340,7 +340,7 @@ export default function ConsultationDetailPageContent({ recordData }: Consultati
           </div>
         ) : (
           <>
-            {payment && payment.billItems && payment.billItems.length > 0 && (
+            {(payment && payment.billItems && payment.billItems.length > 0) ? (
               <div className="border-2 border-slate-200 mb-8 print:border-black">
                 <div className="bg-slate-100 print:bg-white px-4 sm:px-6 py-2 border-b border-slate-200 print:border-black">
                   <div className="flex items-center justify-between">
@@ -415,13 +415,25 @@ export default function ConsultationDetailPageContent({ recordData }: Consultati
                   </table>
                 </div>
               </div>
-            )}
-
+            ) : payment ? (
+              <div className="border-2 border-amber-200 bg-amber-50 mb-8 print:border-black print:bg-white">
+                <div className="p-4 flex items-center gap-3">
+                  <AlertCircle className="h-5 w-5 text-amber-500" />
+                  <div className="flex-1">
+                    <p className="font-medium text-amber-800 print:text-black">No Items in Charge Sheet</p>
+                    <p className="text-sm text-amber-600 print:text-black">The charge sheet exists but has no items</p>
+                  </div>
+                  <Button onClick={() => setIsEditingBilling(true)}>
+                    Add Items
+                  </Button>
+                </div>
+              </div>
+            ) : null}
           </>
         )}
 
-        {/* No Charge Sheet - Add Button */}
-        {(!payment || !payment.billItems || payment.billItems.length === 0) && !isEditingBilling && (
+        {/* No Charge Sheet - Add Button - Show when no payment exists at all */}
+        {!payment && !isEditingBilling && (
           <div className="border-2 border-amber-200 bg-amber-50 mb-8 print:border-black print:bg-white">
             <div className="p-4 flex items-center gap-3">
               <AlertCircle className="h-5 w-5 text-amber-500" />
