@@ -107,6 +107,9 @@ export default async function TheaterTechCaseDetailPage({ params }: PageProps) {
     surgicalCase.status !== 'PLANNING' &&
     surgicalCase.status !== 'COMPLETED' &&
     surgicalCase.status !== 'CANCELLED';
+  const isEditable =
+    surgicalCase.status !== 'COMPLETED' &&
+    surgicalCase.status !== 'CANCELLED';
 
   const procedureNames = surgicalCase.case_procedures.map((cp) => cp.procedure.name);
 
@@ -149,7 +152,7 @@ export default async function TheaterTechCaseDetailPage({ params }: PageProps) {
                 <span>Charges</span>
               </Link>
             </Button>
-            {isPlanning && (
+            {isEditable && (
               <Button size="sm" asChild className="h-8 gap-1.5">
                 <Link href={`/theater-tech/surgical-cases/${caseId}/edit`}>
                   <Pencil className="h-3.5 w-3.5" />
