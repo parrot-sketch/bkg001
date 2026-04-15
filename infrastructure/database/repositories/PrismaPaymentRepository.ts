@@ -80,7 +80,7 @@ export class PrismaPaymentRepository implements IPaymentRepository {
       } : null,
       billItems: data.bill_items?.map((item: any) => ({
         id: item.id,
-        serviceName: item.service?.service_name || 'Unknown Service',
+        serviceName: item.service?.service_name || item.inventory_item?.name || 'Unknown Service',
         quantity: item.quantity,
         unitCost: item.unit_cost,
         totalCost: item.total_cost,
@@ -107,6 +107,7 @@ export class PrismaPaymentRepository implements IPaymentRepository {
       bill_items: {
         include: {
           service: true,
+          inventory_item: true,
         },
       },
     };
@@ -152,10 +153,16 @@ export class PrismaPaymentRepository implements IPaymentRepository {
   }
 
   async findPendingPayments(limit?: number): Promise<PaymentWithRelations[]> {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
     const results = await this.prisma.payment.findMany({
       where: {
         status: {
           in: ['UNPAID', 'PART'],
+        },
+        bill_date: {
+          gte: thirtyDaysAgo,
         },
       },
       include: this.fullInclude,

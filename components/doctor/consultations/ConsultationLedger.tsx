@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -12,11 +13,13 @@ import {
   Calendar,
   Eye,
   MoreVertical,
-  Clock,
+  Banknote,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
+import { ConsultationChargeSheetDrawer } from './ConsultationChargeSheetDrawer';
 
+// Extended ConsultationItem to reflect new relations included in getConsultationsForHub
 interface ConsultationItem {
   id: number;
   outcome_type?: string | null;
@@ -41,6 +44,12 @@ interface ConsultationItem {
       file_number?: string;
       fileNumber?: string;
     };
+    payments?: {
+      id: number;
+      status: string;
+      total_amount: number;
+      bill_items: { id: number }[];
+    } | null;
   };
 }
 
@@ -49,6 +58,11 @@ interface Props {
 }
 
 export function ConsultationLedger({ consultations }: Props) {
+  const [activeChargeSheet, setActiveChargeSheet] = useState<{
+    appointmentId: number;
+    patientName: string;
+  } | null>(null);
+
   if (consultations.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 border border-slate-200 rounded-xl text-center">
@@ -62,13 +76,36 @@ export function ConsultationLedger({ consultations }: Props) {
   return (
     <div className="space-y-1">
       {consultations.map((item) => (
-        <ConsultationRow key={item.id} item={item} />
+        <ConsultationRow 
+          key={item.id} 
+          item={item} 
+          onOpenChargeSheet={(appointmentId, patientName) => 
+            setActiveChargeSheet({ appointmentId, patientName })
+          } 
+        />
       ))}
+
+      {activeChargeSheet && (
+        <ConsultationChargeSheetDrawer
+          open={!!activeChargeSheet}
+          onOpenChange={(open) => {
+            if (!open) setActiveChargeSheet(null);
+          }}
+          appointmentId={activeChargeSheet.appointmentId}
+          patientName={activeChargeSheet.patientName}
+        />
+      )}
     </div>
   );
 }
 
-function ConsultationRow({ item }: { item: ConsultationItem }) {
+function ConsultationRow({ 
+  item, 
+  onOpenChargeSheet 
+}: { 
+  item: ConsultationItem,
+  onOpenChargeSheet: (appointmentId: number, patientName: string) => void 
+}) {
   const patient = item.appointment?.patient;
   const firstName = patient?.first_name ?? patient?.firstName ?? '';
   const lastName = patient?.last_name ?? patient?.lastName ?? '';
@@ -84,6 +121,10 @@ function ConsultationRow({ item }: { item: ConsultationItem }) {
   const duration = item.duration_minutes ?? item.durationMinutes;
   const appointmentType = item.appointment?.type ?? 'Consultation';
   const hasSurgicalCase = item.has_surgical_case ?? item.hasCasePlan ?? false;
+  
+  // Payment Status
+  const payment = item.appointment?.payments;
+  const hasCharges = payment && payment.bill_items && payment.bill_items.length > 0;
 
   return (
     <div className="group flex items-center justify-between px-4 py-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors">
@@ -97,6 +138,11 @@ function ConsultationRow({ item }: { item: ConsultationItem }) {
           <div className="flex items-center gap-2 text-[11px] text-slate-400">
             {fileNumber && <span className="font-mono">{fileNumber}</span>}
             <span>{appointmentType}</span>
+            {hasCharges && (
+              <span className="flex items-center gap-1 font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md">
+                <Banknote className="h-3 w-3" />Charges Added
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -123,6 +169,16 @@ function ConsultationRow({ item }: { item: ConsultationItem }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
+            {item.appointment?.id && (
+              <DropdownMenuItem 
+                onClick={() => onOpenChargeSheet(item.appointment!.id!, patientName)}
+                className="cursor-pointer font-medium text-slate-700"
+              >
+                <Banknote className="h-3.5 w-3.5 mr-2 text-emerald-600" />
+                Charge Sheet
+              </DropdownMenuItem>
+            )}
+
             {/* View surgical case if exists (read-only) */}
             {hasSurgicalCase && (
               <DropdownMenuItem asChild className="cursor-pointer">

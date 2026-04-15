@@ -18,6 +18,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
+import { chargeSheetService } from '@/application/services/ChargeSheetService';
 
 /**
  * GET /api/surgical-cases/:caseId/billing
@@ -433,6 +434,9 @@ export async function PUT(
 
       paymentId = newPayment.id;
     }
+
+    // 8.5 Assign charge sheet number for surgery billing
+    await chargeSheetService.ensureChargeSheetNo(paymentId);
 
     // 9. Fetch updated payment with relations
     const updatedPayment = await db.payment.findUnique({

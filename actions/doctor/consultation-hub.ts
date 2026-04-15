@@ -22,6 +22,14 @@ export async function getConsultationsForHub(doctorId: string) {
         appointment: {
           include: {
             patient: true,
+            payments: {
+              select: {
+                id: true,
+                status: true,
+                total_amount: true,
+                bill_items: { select: { id: true } }
+              }
+            }
           },
         },
         surgical_case: {
