@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Users, Clock, Play, Activity, Loader2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,17 +18,23 @@ export function PatientQueue({ isLoading: parentLoading }: PatientQueueProps) {
   const { error, refetch } = useDoctorDashboard();
   const queue = useDoctorQueue();
   const router = useRouter();
-  const { mutate: startConsultation, isPending: isStarting } = useStartConsultation();
+  const { mutate: startConsultation } = useStartConsultation();
+  const [startingPatientId, setStartingPatientId] = useState<number | null>(null);
 
   const handleStartConsultation = (queueEntry: { appointmentId: number | null; patientId: string; id: number }) => {
+    setStartingPatientId(queueEntry.id);
     if (queueEntry.appointmentId) {
       startConsultation(queueEntry.appointmentId, {
         onSuccess: () => {
           router.push(`/doctor/consultations/session/${queueEntry.appointmentId}`);
+        },
+        onError: () => {
+          setStartingPatientId(null);
         }
       });
     } else {
       router.push(`/doctor/consultations/new?patientId=${queueEntry.patientId}`);
+      setStartingPatientId(null);
     }
   };
 
@@ -187,10 +194,10 @@ export function PatientQueue({ isLoading: parentLoading }: PatientQueueProps) {
                       <Button
                         size="sm"
                         onClick={() => handleStartConsultation(patient)}
-                        disabled={isStarting}
+                        disabled={startingPatientId !== null}
                         className="bg-stone-900 hover:bg-black text-white text-xs font-medium min-w-[70px]"
                       >
-                        {isStarting ? (
+                        {startingPatientId === patient.id ? (
                           <Loader2 className="h-3 w-3 animate-spin" />
                         ) : (
                           <>

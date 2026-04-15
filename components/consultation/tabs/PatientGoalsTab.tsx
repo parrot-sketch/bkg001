@@ -225,11 +225,8 @@ export function PatientGoalsTab({
     }
 
     return (
-        <div className="space-y-6">
-            <div>
-                <h2 className="text-lg font-semibold text-slate-900">Patient Concerns</h2>
-                <p className="text-sm text-slate-500">Document the patient&apos;s primary concerns and goals.</p>
-            </div>
+        <div className="space-y-5">
+            <h2 className="text-lg font-semibold text-slate-900">Patient Concerns</h2>
 
             {/* Routine follow-up toggle */}
             <div className="flex items-center gap-3">

@@ -44,23 +44,38 @@ export default async function ConsultationsHubPage() {
 
   const completedConsultations = hubData.success ? hubData.data ?? [] : [];
 
-  const mappedWaitingQueue = waitingQueue.map(q => ({
-    id: q.id,
-    patientId: q.patient_id,
-    doctorId: q.doctor_id,
-    appointmentDate: q.appointment?.appointment_date ?? null,
-    time: q.appointment?.time ?? q.added_at.toISOString(),
-    status: q.status,
-    type: q.appointment?.type ?? 'Walk-in',
-    note: q.notes ?? undefined,
-    checkedInAt: q.added_at.toISOString(),
-    patient: {
-      id: q.patient.id,
-      firstName: q.patient.first_name,
-      lastName: q.patient.last_name,
-      fileNumber: q.patient.file_number,
-    },
-  }));
+  const mappedWaitingQueue = waitingQueue.map(q => {
+    // Use appointment ID if available and valid, fall back to queue ID only for walk-ins
+    const appointmentId = q.appointment?.id;
+    
+    // If no appointment ID exists, this is a data integrity issue - log it
+    if (!appointmentId) {
+      console.warn('[ConsultationsHub] Queue entry missing appointment_id:', {
+        queueId: q.id,
+        patientId: q.patient_id,
+        status: q.status,
+        addedAt: q.added_at,
+      });
+    }
+    
+    return {
+      id: appointmentId ?? q.id, // Fall back to queue ID only if no appointment exists
+      patientId: q.patient_id,
+      doctorId: q.doctor_id,
+      appointmentDate: q.appointment?.appointment_date ?? null,
+      time: q.appointment?.time ?? q.added_at.toISOString(),
+      status: q.status,
+      type: q.appointment?.type ?? 'Walk-in',
+      note: q.notes ?? undefined,
+      checkedInAt: q.added_at.toISOString(),
+      patient: {
+        id: q.patient.id,
+        firstName: q.patient.first_name,
+        lastName: q.patient.last_name,
+        fileNumber: q.patient.file_number,
+      },
+    };
+  });
 
   return (
     <div className="space-y-6">

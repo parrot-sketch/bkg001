@@ -37,24 +37,14 @@ export function ExaminationTab({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-            <Stethoscope className="h-4 w-4 text-blue-500" />
-            Physical Examination & Findings
-          </h2>
-          <p className="text-xs text-slate-500 mt-1">
-            Record physical findings, measurements, and clinical observations.
-          </p>
+    <div className="space-y-5">
+      <h2 className="text-lg font-semibold text-slate-900">Physical Examination</h2>
+      {initialValue.length > 0 && (
+        <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100 uppercase tracking-wider">
+          <CheckCircle2 className="h-3 w-3" />
+          Findings Recorded
         </div>
-        {initialValue.length > 0 && (
-          <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100 uppercase tracking-wider">
-            <CheckCircle2 className="h-3 w-3" />
-            Findings Recorded
-          </div>
-        )}
-      </div>
+      )}
 
       {!isReadOnly && (
         <div className="flex flex-wrap gap-2">

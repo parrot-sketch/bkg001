@@ -137,7 +137,7 @@ export function ConsultationWorkspaceOptimized() {
                                 key={tab.id}
                                 onClick={() => handleTabChange(tab.id)}
                                 className={cn(
-                                    "relative px-3 py-2.5 text-xs font-medium transition-colors",
+                                    "relative px-4 py-3 text-xs font-medium transition-colors",
                                     isActive
                                         ? "text-slate-900"
                                         : "text-slate-400 hover:text-slate-600"
@@ -148,7 +148,7 @@ export function ConsultationWorkspaceOptimized() {
                                     <span className="ml-1 text-emerald-500 text-[10px]">●</span>
                                 )}
                                 {isActive && (
-                                    <div className="absolute bottom-0 left-1 right-1 h-0.5 bg-slate-900 rounded-full" />
+                                    <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-slate-900 rounded-full" />
                                 )}
                             </button>
                         );
@@ -160,7 +160,7 @@ export function ConsultationWorkspaceOptimized() {
             <div className="flex-1 overflow-y-auto">
                 <Tabs value={activeTab} className="h-full">
                     <TabsContent value="concerns" className="m-0 h-full border-none">
-                        <div className="p-4 max-w-3xl mx-auto">
+                        <div className="p-6 max-w-3xl mx-auto">
                             <PatientGoalsTab
                                 initialValue={state.notes.chiefComplaint || ''}
                                 onChange={handleNoteChange('chiefComplaint')}
@@ -170,7 +170,7 @@ export function ConsultationWorkspaceOptimized() {
                     </TabsContent>
 
                     <TabsContent value="examination" className="m-0 h-full border-none">
-                        <div className="p-4 max-w-3xl mx-auto">
+                        <div className="p-6 max-w-3xl mx-auto">
                             <ExaminationTab
                                 initialValue={state.notes.examination || ''}
                                 onChange={handleNoteChange('examination')}
@@ -180,7 +180,7 @@ export function ConsultationWorkspaceOptimized() {
                     </TabsContent>
 
                     <TabsContent value="plan" className="m-0 h-full border-none">
-                        <div className="p-4 max-w-3xl mx-auto">
+                        <div className="p-6 max-w-3xl mx-auto">
                             <TreatmentPlanTab
                                 consultation={state.consultation}
                                 hasCasePlan={state.consultation?.hasCasePlan || false}
@@ -194,7 +194,7 @@ export function ConsultationWorkspaceOptimized() {
             </div>
 
             {/* Persistent Action Bar — always visible on every tab */}
-            <div className="border-t border-slate-200 bg-white px-4 py-2.5 flex items-center justify-between shrink-0">
+            <div className="border-t border-slate-200 bg-white px-6 py-3 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-1.5">
                     {completedFields.size > 0 && (
                         <span className="text-[11px] text-slate-400">

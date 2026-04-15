@@ -10,7 +10,7 @@
  */
 
 import Link from 'next/link';
-import { Calendar, CheckCircle2, ExternalLink, CalendarPlus } from 'lucide-react';
+import { Calendar, CheckCircle2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { RichTextEditor } from '@/components/consultation/RichTextEditor';
@@ -39,17 +39,8 @@ export function TreatmentPlanTab({
   };
 
   return (
-    <div className="p-5 lg:p-6 max-w-4xl mx-auto space-y-5">
-      {/* Section header */}
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <CalendarPlus className="h-4 w-4 text-slate-400" />
-          <h2 className="text-sm font-semibold text-slate-900">Treatment Plan & Next Steps</h2>
-        </div>
-        <p className="text-xs text-slate-500 ml-6">
-          Document the treatment plan, timeline, pre-op requirements, and patient instructions.
-        </p>
-      </div>
+    <div className="space-y-5">
+      <h2 className="text-lg font-semibold text-slate-900">Treatment Plan</h2>
 
       {/* Case Plan Banner */}
       {hasCasePlan && consultation?.casePlanId && (
