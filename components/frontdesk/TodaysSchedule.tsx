@@ -50,30 +50,11 @@ function mapScheduleAppointmentToDto(appointment: FrontdeskAppointment): Appoint
 }
 
 export function TodaysSchedule() {
+    // ALL hooks must be called unconditionally at the top
     const { data: schedule, isLoading, error } = useTodaysSchedule();
     const [searchQuery, setSearchQuery] = useState('');
 
-    if (isLoading) {
-        return (
-            <Card className="h-full min-h-[400px] flex items-center justify-center border-slate-200 shadow-sm">
-                <div className="flex flex-col items-center gap-2 text-slate-500">
-                    <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-                    <p>Loading today's schedule...</p>
-                </div>
-            </Card>
-        );
-    }
-
-    if (error) {
-        return (
-            <Card className="h-full min-h-[400px] flex items-center justify-center border-red-200 bg-red-50 shadow-sm">
-                <p className="text-red-600 font-medium">Failed to load schedule. Please try again.</p>
-            </Card>
-        );
-    }
-
-    // Combine lists for searching if needed, or keep sections.
-    // Let's filter the sections based on search query
+    // Filter function defined before any conditionals
     const filterAppointments = (list: FrontdeskAppointment[] = []) => {
         if (!searchQuery) return list;
         const lowerQuery = searchQuery.toLowerCase();
@@ -83,6 +64,7 @@ export function TodaysSchedule() {
         );
     };
 
+    // Computed values before any early returns
     const scheduled = filterAppointments(schedule?.scheduled ?? []);
     const checkedIn = filterAppointments(schedule?.checkedIn ?? []);
     const inConsultation = filterAppointments(schedule?.inConsultation ?? []);
@@ -138,6 +120,26 @@ export function TodaysSchedule() {
         inConsultation,
         completed,
     };
+
+    // Early returns AFTER all hooks are called - now React-compliant
+    if (isLoading) {
+        return (
+            <Card className="h-full min-h-[400px] flex items-center justify-center border-slate-200 shadow-sm">
+                <div className="flex flex-col items-center gap-2 text-slate-500">
+                    <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+                    <p>Loading today's schedule...</p>
+                </div>
+            </Card>
+        );
+    }
+
+    if (error) {
+        return (
+            <Card className="h-full min-h-[400px] flex items-center justify-center border-red-200 bg-red-50 shadow-sm">
+                <p className="text-red-600 font-medium">Failed to load schedule. Please try again.</p>
+            </Card>
+        );
+    }
 
     return (
         <Card className="border-slate-200 shadow-sm bg-white overflow-hidden rounded-2xl">
