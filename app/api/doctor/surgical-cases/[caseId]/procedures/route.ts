@@ -33,10 +33,10 @@ export async function GET(
   const enumCategories = FORM_CATEGORY_TO_ENUM_CATEGORIES[category] || [category];
 
   try {
+    // Show ALL procedures regardless of active status
     const procedures = await db.surgicalProcedureOption.findMany({
       where: {
         category: { in: enumCategories as any[] },
-        is_active: true,
       },
       orderBy: [
         { category: 'asc' },
