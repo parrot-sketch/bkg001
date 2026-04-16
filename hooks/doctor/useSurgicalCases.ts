@@ -3,7 +3,7 @@
  *
  * Provides:
  * - useDoctorSurgicalCases: Paginated, filterable surgical cases list
- * - useMarkCaseReady: Transition a case PLANNING → READY_FOR_SCHEDULING
+ * - useMarkCaseReady: Transition a case PLANNING → READY_FOR_WARD_PREP
  */
 
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
@@ -71,7 +71,7 @@ export class MarkReadyError extends Error {
 }
 
 /**
- * Mark a surgical case as ready for scheduling.
+ * Mark a surgical case as ready for ward prep.
  * Invalidates all surgical case queries on success.
  *
  * On failure, throws MarkReadyError with structured missingItems
@@ -94,7 +94,7 @@ export function useMarkCaseReady() {
             return response.data;
         },
         onSuccess: () => {
-            toast.success('Case marked as ready for scheduling');
+            toast.success('Case marked as ready for ward prep');
             queryClient.invalidateQueries({ queryKey: surgicalCaseKeys.all });
         },
         // Don't show toast here — let the plan page handle it with a modal

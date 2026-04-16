@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -18,6 +18,7 @@ interface AvailabilitySettingsProps {
     initialWorkingDays?: WorkingDay[];
     initialSlotConfig?: any | null;
     userId: string;
+    onSaved?: () => Promise<void> | void;
 }
 
 // ── Default settings
@@ -37,16 +38,16 @@ export function AvailabilitySettings({
     initialWorkingDays = [],
     initialSlotConfig,
     userId,
+    onSaved,
 }: AvailabilitySettingsProps) {
     const [saving, setSaving] = useState(false);
-    
-    // ── Build initial state from working days
-    const [daysConfig, setDaysConfig] = useState<Record<number, DaySettings>>(() => {
+
+    const buildDaysConfig = (workingDays: WorkingDay[]): Record<number, DaySettings> => {
         const config: Record<number, DaySettings> = {};
         for (let i = 0; i < 7; i++) {
             config[i] = { active: false, slots: [] };
         }
-        initialWorkingDays.forEach(wd => {
+        workingDays.forEach(wd => {
             config[wd.dayOfWeek].active = true;
             config[wd.dayOfWeek].slots.push({
                 startTime: wd.startTime,
@@ -64,13 +65,30 @@ export function AvailabilitySettings({
             }
         }
         return config;
+    };
+
+    const buildSlotConfig = (config?: any | null) => ({
+        defaultDuration: config?.defaultDuration || DEFAULT_SLOT_CONFIG.defaultDuration,
+        slotInterval: config?.slotInterval || DEFAULT_SLOT_CONFIG.slotInterval,
+        bufferTime: config?.bufferTime || DEFAULT_SLOT_CONFIG.bufferTime,
     });
 
-    const [slotConfig, setSlotConfig] = useState(() => ({
-        defaultDuration: initialSlotConfig?.defaultDuration || DEFAULT_SLOT_CONFIG.defaultDuration,
-        slotInterval: initialSlotConfig?.slotInterval || DEFAULT_SLOT_CONFIG.slotInterval,
-        bufferTime: initialSlotConfig?.bufferTime || DEFAULT_SLOT_CONFIG.bufferTime,
-    }));
+    // ── Build initial state from working days
+    const [daysConfig, setDaysConfig] = useState<Record<number, DaySettings>>(() =>
+        buildDaysConfig(initialWorkingDays)
+    );
+
+    const [slotConfig, setSlotConfig] = useState(() =>
+        buildSlotConfig(initialSlotConfig)
+    );
+
+    useEffect(() => {
+        setDaysConfig(buildDaysConfig(initialWorkingDays));
+    }, [initialWorkingDays]);
+
+    useEffect(() => {
+        setSlotConfig(buildSlotConfig(initialSlotConfig));
+    }, [initialSlotConfig]);
 
     // ── Handlers
     const toggleDay = (dayIndex: number) => {
@@ -152,6 +170,7 @@ export function AvailabilitySettings({
             if (!configResult.success) throw new Error('Failed to save timing rules');
 
             toast.success('Availability settings saved successfully');
+            await onSaved?.();
         } catch (error: any) {
             toast.error(error.message || 'An error occurred while saving');
         } finally {

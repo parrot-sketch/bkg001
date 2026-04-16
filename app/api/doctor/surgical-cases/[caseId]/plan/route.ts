@@ -80,6 +80,24 @@ async function resolveDoctorId(userId: string): Promise<string | null> {
     return doc?.id ?? null;
 }
 
+async function getCaseAuthorizationSnapshot(caseId: string, userId: string) {
+    return db.surgicalCase.findUnique({
+        where: { id: caseId },
+        select: {
+            id: true,
+            primary_surgeon_id: true,
+            staff_invites: {
+                where: {
+                    invited_user_id: userId,
+                    status: 'ACCEPTED',
+                },
+                select: { id: true },
+                take: 1,
+            },
+        },
+    });
+}
+
 /** Map raw Prisma to a camelCase DTO with readiness checklist truth */
 function mapCasePlanResponse(sc: any) {
     const cp = sc.case_plan;
@@ -281,6 +299,19 @@ export async function GET(
         }
 
         const { caseId } = await context.params;
+        const authCase = await getCaseAuthorizationSnapshot(caseId, authResult.user.userId);
+
+        if (!authCase) {
+            return handleApiError(new NotFoundError('Surgical case not found', 'SurgicalCase', caseId));
+        }
+
+        const isPrimary = authCase.primary_surgeon_id === doctorId;
+        const hasAcceptedInvite = authCase.staff_invites.length > 0;
+
+        if (!isPrimary && !hasAcceptedInvite) {
+            return handleApiError(new ForbiddenError('Forbidden: You are not authorized to view this surgical plan'));
+        }
+
         const timer = endpointTimer('GET /api/doctor/surgical-cases/plan');
 
         const sc = await db.surgicalCase.findUnique({
@@ -386,30 +417,11 @@ export async function GET(
                     },
                     orderBy: { assigned_at: 'asc' },
                 },
-                billing_estimate: {
-                    include: {
-                        line_items: {
-                            orderBy: { created_at: 'asc' }
-                        }
-                    }
-                },
             },
         });
 
         if (!sc) {
             return handleApiError(new NotFoundError('Surgical case not found', 'SurgicalCase', caseId));
-        }
-
-        // Authorization: doctor must be primary surgeon OR have an accepted invite
-        const isPrimary = sc.primary_surgeon_id === doctorId;
-        const hasAcceptedInvite = sc.staff_invites.some(
-            (invite: any) =>
-                invite.invited_user.id === authResult.user?.userId &&
-                invite.status === 'ACCEPTED'
-        );
-
-        if (!isPrimary && !hasAcceptedInvite) {
-            return handleApiError(new ForbiddenError('Forbidden: You are not authorized to view this surgical plan'));
         }
 
         timer.end({ caseId });
@@ -606,13 +618,6 @@ export async function PATCH(
                             },
                         },
                     },
-                },
-                billing_estimate: {
-                    include: {
-                        line_items: {
-                            orderBy: { created_at: 'asc' }
-                        }
-                    }
                 },
             },
         });

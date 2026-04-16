@@ -91,8 +91,12 @@ export function AppointmentBookingWizard({
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-3 border-b bg-white rounded-t-2xl">
         <div>
-          <h2 className="text-base font-bold text-slate-900">Book Appointment</h2>
-          <p className="text-xs text-slate-500">Schedule a new appointment</p>
+          <h2 className="text-base font-bold text-slate-900">
+            {isFollowUp ? 'Schedule Follow-up' : 'Book Appointment'}
+          </h2>
+          <p className="text-xs text-slate-500">
+            {isFollowUp ? 'Choose the follow-up date and time for this patient' : 'Schedule a new appointment'}
+          </p>
         </div>
       </div>
 

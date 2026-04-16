@@ -18,7 +18,8 @@ export function useRecoveryCases() {
         staleTime: 1000 * 30, // 30 seconds - local cache freshness
         gcTime: 1000 * 60 * 5, // 5 minutes
         refetchInterval: 1000 * 60, // Was 30s — reduced to conserve DB connections
-        refetchOnWindowFocus: true, // Refetch on focus for clinical safety
+        refetchOnWindowFocus: false, // Interval polling keeps the board fresh without focus spikes
         refetchOnReconnect: true,
+        networkMode: 'offlineFirst',
     });
 }

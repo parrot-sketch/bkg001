@@ -38,8 +38,9 @@ export function usePreOpCases(
     refetchInterval: 1000 * 60, // Was 30s — reduced to conserve DB connections
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    refetchOnWindowFocus: true, // Refetch on focus for clinical safety
+    refetchOnWindowFocus: false, // Rely on interval polling + explicit invalidations to avoid DB spikes
     refetchOnReconnect: true,
+    networkMode: 'offlineFirst',
     enabled,
   });
 }
@@ -124,7 +125,7 @@ export function useUpdatePreOpCase() {
 }
 
 /**
- * Hook for marking a case as ready for scheduling
+ * Hook for marking a case as ready for theater booking
  *
  * @returns Mutation object with markReady function
  */
@@ -133,7 +134,7 @@ export function useMarkCaseReady() {
 
   return useMutation({
     mutationFn: async (caseId: string) => {
-      const response = await nurseApi.markCaseReadyForScheduling(caseId);
+      const response = await nurseApi.markCaseReadyForBooking(caseId);
       if (!response.success) {
         throw new Error(response.error || 'Failed to mark case as ready');
       }
@@ -145,7 +146,7 @@ export function useMarkCaseReady() {
       queryClient.invalidateQueries({ queryKey: queryKeys.nurse.dashboard('current') });
       queryClient.invalidateQueries({ queryKey: queryKeys.frontdesk.theaterQueue() });
       queryClient.invalidateQueries({ queryKey: queryKeys.shared.surgicalCase(caseId) });
-      console.log(`Case ${caseId} marked as ready for scheduling`);
+      console.log(`Case ${caseId} marked as ready for theater booking`);
     },
   });
 }

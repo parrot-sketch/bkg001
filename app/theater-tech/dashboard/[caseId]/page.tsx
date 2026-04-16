@@ -51,7 +51,10 @@ export default async function TheaterPrepPage({ params }: { params: Promise<{ ca
         orderBy: { name: 'asc' }
     });
 
-    const isEditable = caseData.status === 'READY_FOR_THEATER_BOOKING' || caseData.status === 'READY_FOR_THEATER_PREP' || caseData.status === 'IN_WARD_PREP' || caseData.status === 'READY_FOR_WARD_PREP';
+    const isEditable =
+        caseData.status === 'READY_FOR_THEATER_BOOKING' ||
+        caseData.status === 'IN_WARD_PREP' ||
+        caseData.status === 'READY_FOR_WARD_PREP';
     
     // Convert Dates to string for Client Component bridging
     const parsedSelectedItems = caseData.case_items.map(i => ({
@@ -77,9 +80,9 @@ export default async function TheaterPrepPage({ params }: { params: Promise<{ ca
                     </div>
                 </div>
                 
-                {caseData.status === 'READY_FOR_THEATER_PREP' && (
-                    <Badge variant="secondary" className="px-3 py-1 text-sm bg-blue-100 text-blue-800 hover:bg-blue-100">
-                        In Preparation
+                {isEditable && (
+                    <Badge variant="secondary" className="border border-amber-200 bg-amber-50 px-3 py-1 text-sm text-amber-700 hover:bg-amber-50">
+                        Preparation Open
                     </Badge>
                 )}
             </div>
@@ -108,7 +111,11 @@ export default async function TheaterPrepPage({ params }: { params: Promise<{ ca
                         </div>
                         <div className="space-y-1">
                             <Label className="text-xs text-slate-500 uppercase tracking-wider">Status</Label>
-                            <div><Badge variant="outline">{caseData.status}</Badge></div>
+                            <div>
+                                <Badge variant="outline" className="border-slate-300 bg-slate-100 text-slate-700">
+                                    {caseData.status.replace(/_/g, ' ')}
+                                </Badge>
+                            </div>
                         </div>
                     </div>
                 </CardContent>
@@ -210,7 +217,7 @@ export default async function TheaterPrepPage({ params }: { params: Promise<{ ca
                                 }}>
                                     <Button type="submit" className="w-full sm:w-auto">
                                         <CheckCircle className="h-4 w-4 mr-2" />
-                                        Complete Prep
+                                        Save Coordination
                                     </Button>
                                 </form>
                             </CardContent>

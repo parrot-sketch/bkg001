@@ -90,7 +90,7 @@ export function BookTheaterSlotDialog({
     const fetchCases = async () => {
         setLoadingCases(true);
         try {
-            const res = await adminSurgicalCasesApi.getByStatus('READY_FOR_SCHEDULING');
+            const res = await adminSurgicalCasesApi.getByStatus('READY_FOR_THEATER_BOOKING');
             if (res.success && res.data) {
                 setCases(res.data);
             } else {
@@ -218,7 +218,7 @@ export function BookTheaterSlotDialog({
                                 </div>
                             ) : filteredCases.length === 0 ? (
                                 <div className="flex flex-col justify-center items-center h-full text-muted-foreground">
-                                    <p>No cases ready for scheduling</p>
+                                    <p>No cases ready for theater booking</p>
                                 </div>
                             ) : (
                                 filteredCases.map(c => (

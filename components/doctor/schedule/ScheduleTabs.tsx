@@ -35,7 +35,7 @@ export function ScheduleTabs({ initialSchedule, currentUser }: ScheduleTabsProps
     const [scheduleData, setScheduleData] = useState<any>(initialSchedule);
     const [refreshing, setRefreshing] = useState(false);
 
-    const refreshSchedule = useCallback(async () => {
+    const refreshSchedule = useCallback(async (options?: { silent?: boolean }) => {
         if (!currentUser?.id) return;
         setRefreshing(true);
         try {
@@ -45,7 +45,9 @@ export function ScheduleTabs({ initialSchedule, currentUser }: ScheduleTabsProps
             end.setDate(end.getDate() + 60);
             const data = await getDoctorSchedule(currentUser.id, start, end);
             setScheduleData(data);
-            toast.success('Schedule refreshed');
+            if (!options?.silent) {
+                toast.success('Schedule refreshed');
+            }
         } catch (error) {
             console.error(error);
             toast.error('Failed to refresh schedule');
@@ -98,7 +100,7 @@ export function ScheduleTabs({ initialSchedule, currentUser }: ScheduleTabsProps
                 <Button
                     variant="ghost"
                     size="sm"
-                    onClick={refreshSchedule}
+                    onClick={() => refreshSchedule()}
                     disabled={refreshing}
                     className="text-muted-foreground hover:text-foreground h-8"
                 >
@@ -125,6 +127,7 @@ export function ScheduleTabs({ initialSchedule, currentUser }: ScheduleTabsProps
                     initialWorkingDays={scheduleData?.workingDays || []}
                     initialSlotConfig={scheduleData?.slotConfig || null}
                     userId={currentUser.id}
+                    onSaved={() => refreshSchedule({ silent: true })}
                 />
             )}
         </div>

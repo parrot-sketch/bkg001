@@ -12,7 +12,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { doctorApi } from '@/lib/api/doctor';
 import { Button } from '@/components/ui/button';
@@ -41,6 +41,7 @@ type TabKey = 'today' | 'upcoming' | 'pending';
 
 export default function DoctorAppointmentsPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { user, isAuthenticated } = useAuth();
 
     const {
@@ -94,7 +95,12 @@ export default function DoctorAppointmentsPage() {
         };
     }, [appointments]);
 
-    const [activeTab, setActiveTab] = useState<TabKey>('today');
+    const initialTab = searchParams.get('tab');
+    const resolvedInitialTab: TabKey =
+        initialTab === 'upcoming' || initialTab === 'pending' || initialTab === 'today'
+            ? initialTab
+            : 'today';
+    const [activeTab, setActiveTab] = useState<TabKey>(resolvedInitialTab);
 
     const handleCheckIn = async (appointmentId: number) => {
         if (!user) return;

@@ -22,18 +22,17 @@ interface PageProps {
 }
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  DRAFT:                      { label: 'Draft',          color: 'bg-slate-100 text-slate-600' },
-  PLANNING:                   { label: 'Planning',       color: 'bg-blue-50 text-blue-700' },
-  READY_FOR_WARD_PREP:        { label: 'Ward Prep',      color: 'bg-cyan-50 text-cyan-700' },
-  IN_WARD_PREP:               { label: 'In Ward Prep',   color: 'bg-teal-50 text-teal-700' },
-  READY_FOR_THEATER_BOOKING:  { label: 'Ready to Book',  color: 'bg-indigo-50 text-indigo-700' },
-  READY_FOR_THEATER_PREP:     { label: 'Theater Prep',   color: 'bg-violet-50 text-violet-700' },
-  SCHEDULED:                  { label: 'Scheduled',      color: 'bg-purple-50 text-purple-700' },
-  IN_PREP:                    { label: 'In Prep',        color: 'bg-amber-50 text-amber-700' },
-  IN_THEATER:                 { label: 'In Theater',     color: 'bg-red-50 text-red-700' },
-  RECOVERY:                   { label: 'Recovery',       color: 'bg-emerald-50 text-emerald-700' },
-  COMPLETED:                  { label: 'Completed',      color: 'bg-green-50 text-green-700' },
-  CANCELLED:                  { label: 'Cancelled',      color: 'bg-slate-100 text-slate-500' },
+  DRAFT:                      { label: 'Draft',          color: 'border border-slate-200 bg-slate-100 text-slate-600' },
+  PLANNING:                   { label: 'Planning',       color: 'border border-amber-200 bg-amber-50 text-amber-700' },
+  READY_FOR_WARD_PREP:        { label: 'Ward Prep',      color: 'border border-emerald-200 bg-emerald-50 text-emerald-700' },
+  IN_WARD_PREP:               { label: 'In Ward Prep',   color: 'border border-amber-200 bg-amber-50 text-amber-700' },
+  READY_FOR_THEATER_BOOKING:  { label: 'Ready to Book',  color: 'border border-slate-300 bg-slate-100 text-slate-700' },
+  SCHEDULED:                  { label: 'Scheduled',      color: 'border border-slate-300 bg-slate-100 text-slate-700' },
+  IN_PREP:                    { label: 'In Prep',        color: 'border border-amber-200 bg-amber-50 text-amber-700' },
+  IN_THEATER:                 { label: 'In Theater',     color: 'border border-red-200 bg-red-50 text-red-700' },
+  RECOVERY:                   { label: 'Recovery',       color: 'border border-emerald-200 bg-emerald-50 text-emerald-700' },
+  COMPLETED:                  { label: 'Completed',      color: 'border border-emerald-200 bg-emerald-50 text-emerald-700' },
+  CANCELLED:                  { label: 'Cancelled',      color: 'border border-red-200 bg-red-50 text-red-700' },
 };
 
 export default async function SurgicalCaseChargesPage({ params }: PageProps) {

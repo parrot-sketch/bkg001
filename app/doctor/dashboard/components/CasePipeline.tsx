@@ -51,7 +51,7 @@ export function CasePipeline({ isLoading }: CasePipelineProps) {
 
   const pipeline = {
     planning: cases.filter(c => ['PLANNING', 'READY_FOR_WARD_PREP', 'IN_WARD_PREP'].includes(c.status)),
-    scheduled: cases.filter(c => ['SCHEDULED', 'IN_PREP', 'READY_FOR_THEATER_BOOKING', 'READY_FOR_THEATER_PREP'].includes(c.status)),
+    scheduled: cases.filter(c => ['SCHEDULED', 'IN_PREP', 'READY_FOR_THEATER_BOOKING'].includes(c.status)),
     inTheater: cases.filter(c => c.status === 'IN_THEATER'),
     recovery: cases.filter(c => c.status === 'RECOVERY' || (c.status === 'COMPLETED' && new Date(c.createdAt) >= new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))),
   };
@@ -82,15 +82,14 @@ export function CasePipeline({ isLoading }: CasePipelineProps) {
 
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { variant: 'default' | 'outline' | 'secondary'; className: string }> = {
-      PLANNING: { variant: 'secondary', className: 'bg-blue-50 text-blue-700 border-blue-200' },
-      READY_FOR_WARD_PREP: { variant: 'default', className: 'bg-amber-100 text-amber-700 border-amber-200' },
-      IN_WARD_PREP: { variant: 'default', className: 'bg-orange-100 text-orange-700 border-orange-200' },
-      READY_FOR_THEATER_BOOKING: { variant: 'default', className: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-      READY_FOR_THEATER_PREP: { variant: 'default', className: 'bg-cyan-100 text-cyan-700 border-cyan-200' },
-      SCHEDULED: { variant: 'outline', className: 'bg-purple-50 text-purple-700 border-purple-200' },
-      IN_PREP: { variant: 'outline', className: 'bg-orange-50 text-orange-700 border-orange-200' },
-      IN_THEATER: { variant: 'default', className: 'bg-blue-600 text-white' },
-      RECOVERY: { variant: 'outline', className: 'bg-teal-50 text-teal-700 border-teal-200' },
+      PLANNING: { variant: 'secondary', className: 'bg-amber-50 text-amber-700 border-amber-200' },
+      READY_FOR_WARD_PREP: { variant: 'default', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+      IN_WARD_PREP: { variant: 'default', className: 'bg-amber-50 text-amber-700 border-amber-200' },
+      READY_FOR_THEATER_BOOKING: { variant: 'default', className: 'bg-slate-100 text-slate-700 border-slate-300' },
+      SCHEDULED: { variant: 'outline', className: 'bg-slate-100 text-slate-700 border-slate-300' },
+      IN_PREP: { variant: 'outline', className: 'bg-amber-50 text-amber-700 border-amber-200' },
+      IN_THEATER: { variant: 'default', className: 'bg-red-50 text-red-700 border-red-200' },
+      RECOVERY: { variant: 'outline', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
       COMPLETED: { variant: 'outline', className: 'bg-slate-100 text-slate-600 border-slate-200' },
     };
     

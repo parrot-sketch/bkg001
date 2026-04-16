@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Loader2, Save } from 'lucide-react';
+import { BadgeDollarSign, Loader2, Save, Search, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -61,6 +61,7 @@ export function ChargeSheet({ appointmentId, surgicalCaseId }: ChargeSheetProps)
             id: `existing-${item.serviceId}`,
             description: item.serviceName,
             amount: item.unitCost || 0,
+            catalogAmount: item.unitCost || 0,
             quantity: item.quantity || 1,
             type: item.isInventory || item.inventoryItemId ? 'inventory' as const : 'service' as const,
             itemId: item.inventoryItemId || item.serviceId,
@@ -138,6 +139,7 @@ export function ChargeSheet({ appointmentId, surgicalCaseId }: ChargeSheetProps)
       id: `service-${Date.now()}`,
       description: service.service_name,
       amount: service.price || 0,
+      catalogAmount: service.price || 0,
       quantity: 1,
       type: 'service',
       itemId: service.id,
@@ -157,6 +159,7 @@ export function ChargeSheet({ appointmentId, surgicalCaseId }: ChargeSheetProps)
       id: `inv-${Date.now()}`,
       description: item.name,
       amount: item.unit_cost || 0,
+      catalogAmount: item.unit_cost || 0,
       quantity: 1,
       type: 'inventory',
       itemId: item.id,
@@ -293,59 +296,113 @@ export function ChargeSheet({ appointmentId, surgicalCaseId }: ChargeSheetProps)
   }
 
   return (
-    <Card className="border-slate-200">
-      <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
-        <CardTitle className="text-base font-semibold">Charge Sheet</CardTitle>
-        {chargeItems.length > 0 && (
-          <Button size="sm" onClick={handleSave} disabled={isSaving} className="h-8">
-            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            <span className="ml-1">{isSaving ? 'Saving…' : 'Save'}</span>
-          </Button>
-        )}
+    <Card className="overflow-hidden border-slate-200 bg-white shadow-sm">
+      <CardHeader className="border-b border-slate-200 bg-slate-50/70 px-4 py-4 sm:px-5 sm:py-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-slate-500">
+              <BadgeDollarSign className="h-4 w-4" />
+              <span className="text-xs font-medium uppercase tracking-[0.18em]">Billing Workspace</span>
+            </div>
+            <div>
+              <CardTitle className="text-lg font-semibold tracking-tight text-slate-900">
+                Consultation Charge Sheet
+              </CardTitle>
+              <p className="mt-1 max-w-2xl text-sm text-slate-500">
+                Search services or inventory, adjust the charge for this specific sheet, and save without changing the underlying catalog price.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:min-w-[280px]">
+            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+              <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">Items</p>
+              <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">{chargeItems.length}</p>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+              <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-slate-500">Total</p>
+              <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">KSH {total.toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        <ChargeSearchInput
-          searchQuery={searchQuery}
-          dropdownOpen={dropdownOpen}
-          filteredServices={filteredServices}
-          filteredInventory={filteredInventory}
-          onSearchChange={(v) => {
-            setSearchQuery(v);
-            setDropdownOpen(true);
-          }}
-          onFocus={() => setDropdownOpen(true)}
-          onAddService={handleAddService}
-          onAddInventory={handleAddInventory}
-          onClose={() => setDropdownOpen(false)}
-        />
-
-        {chargeItems.length > 0 ? (
-          <div className="space-y-3">
-            <ChargeItemsTable
-              chargeItems={chargeItems}
-              rowDrafts={rowDrafts}
-              onQuantityChange={handleQuantityChange}
-              onQuantityBlur={handleQuantityBlur}
-              onAmountChange={handleAmountChange}
-              onAmountBlur={handleAmountBlur}
-              onRemoveItem={handleRemoveItem}
-              getDraft={getDraft}
-            />
-            <ChargeTotals
-              subtotal={subtotal}
-              discount={discount}
-              total={total}
-              discountStr={discountStr}
-              onDiscountChange={handleDiscountChange}
-              onDiscountBlur={handleDiscountBlur}
+      <CardContent className="space-y-5 p-4 sm:p-5">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <ChargeSearchInput
+              searchQuery={searchQuery}
+              dropdownOpen={dropdownOpen}
+              filteredServices={filteredServices}
+              filteredInventory={filteredInventory}
+              onSearchChange={(v) => {
+                setSearchQuery(v);
+                setDropdownOpen(true);
+              }}
+              onFocus={() => setDropdownOpen(true)}
+              onAddService={handleAddService}
+              onAddInventory={handleAddInventory}
+              onClose={() => setDropdownOpen(false)}
             />
           </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-slate-600 shadow-sm">
+                <ShieldCheck className="h-4 w-4" />
+              </div>
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-slate-900">Price Override Policy</p>
+                <p className="text-xs leading-5 text-slate-600">
+                  Doctors can edit the unit price for this charge sheet. The saved amount applies only to this patient bill and does not rewrite the default service or inventory price.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {chargeItems.length > 0 ? (
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+            <div className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4 shadow-sm">
+              <ChargeItemsTable
+                chargeItems={chargeItems}
+                rowDrafts={rowDrafts}
+                onQuantityChange={handleQuantityChange}
+                onQuantityBlur={handleQuantityBlur}
+                onAmountChange={handleAmountChange}
+                onAmountBlur={handleAmountBlur}
+                onRemoveItem={handleRemoveItem}
+                getDraft={getDraft}
+              />
+            </div>
+
+            <div className="h-fit rounded-2xl border border-slate-200 bg-white p-4 shadow-sm xl:sticky xl:top-4">
+              <ChargeTotals
+                subtotal={subtotal}
+                discount={discount}
+                total={total}
+                discountStr={discountStr}
+                onDiscountChange={handleDiscountChange}
+                onDiscountBlur={handleDiscountBlur}
+              />
+              <Button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="mt-4 h-10 w-full bg-slate-900 text-white hover:bg-slate-800"
+              >
+                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                <span className="ml-2">{isSaving ? 'Saving…' : 'Save Charge Sheet'}</span>
+              </Button>
+            </div>
+          </div>
         ) : (
-          <div className="text-center py-8 text-slate-500">
-            <p className="text-sm">No charges added yet</p>
-            <p className="text-xs text-slate-400 mt-1">
-              Search and add services or inventory items
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-6 py-12 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm">
+              <Search className="h-5 w-5 text-slate-400" />
+            </div>
+            <p className="mt-4 text-sm font-medium text-slate-800">No charge items yet</p>
+            <p className="mt-1 text-xs text-slate-500">
+              Search and add consultation services or inventory, then adjust the final bill price if needed.
             </p>
           </div>
         )}

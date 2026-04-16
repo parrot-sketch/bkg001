@@ -40,6 +40,10 @@ export function useCasePlanDetail(caseId: string) {
         },
         enabled: !!caseId,
         staleTime: 1000 * 60, // 1 min — plan detail, less volatile
+        gcTime: 1000 * 60 * 5,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: true,
+        networkMode: 'offlineFirst',
     });
 }
 

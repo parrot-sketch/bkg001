@@ -36,14 +36,15 @@ const prismaClientSingleton = () => {
   const logConfig: Array<'query' | 'error' | 'warn'> = isProduction ? ['error'] : ['query', 'error', 'warn'];
 
   if (isProduction) {
-    // Cap connection pool to 5 — Aiven allows only ~12 non-superuser slots
-    // out of 15 max_connections. This prevents pool exhaustion during
+    // Cap connection pool to 3 — Aiven allows only ~12 non-superuser slots
+    // out of 15 max_connections. This leaves headroom for concurrent
+    // serverless instances and prevents pool exhaustion during
     // concurrent polling from multiple hooks.
     const pooledUrl = databaseUrl.includes('?')
-      ? `${databaseUrl}&connection_limit=5`
-      : `${databaseUrl}?connection_limit=5`;
+      ? `${databaseUrl}&connection_limit=3`
+      : `${databaseUrl}?connection_limit=3`;
 
-    console.log(`${LOG_PREFIX} Production: Using direct Aiven Postgres connection (pool_size=5)`);
+    console.log(`${LOG_PREFIX} Production: Using direct Aiven Postgres connection (pool_size=3)`);
     return new PrismaClient({
       log: logConfig,
       datasources: {

@@ -78,6 +78,26 @@ const TYPE_ICONS: Record<string, any> = {
     'Follow Up': Clock,
 };
 
+function getEventKindLabel(event: CalendarEvent): string {
+    if (event.type !== 'Surgery') {
+        return event.type;
+    }
+
+    if (event.status === 'CONFIRMED' || event.status === 'IN_PROGRESS' || event.status === 'COMPLETED') {
+        return 'Theater Booking';
+    }
+
+    return 'Tentative Surgery';
+}
+
+function getStatusLabel(event: CalendarEvent): string {
+    if (event.type === 'Surgery' && event.status === 'CONFIRMED') {
+        return 'Booked';
+    }
+
+    return STATUS_CONFIG[event.status]?.label ?? event.status;
+}
+
 // ── Custom Toolbar ─────────────────────────────────────────────────────────
 function CustomToolbar({
     date,
@@ -131,7 +151,7 @@ function CustomToolbar({
                 </h2>
                 {eventCount > 0 && (
                     <Badge variant="secondary" className="hidden sm:flex text-xs font-normal">
-                        {eventCount} appointments
+                        {eventCount} schedule items
                     </Badge>
                 )}
             </div>
@@ -179,6 +199,8 @@ function AppointmentEvent({ event }: { event: CalendarEvent }) {
     const durationMins = Math.round((event.end.getTime() - event.start.getTime()) / 60000);
     const isShort = durationMins < 30;
     const isCancelled = event.status === 'CANCELLED' || event.status === 'NO_SHOW';
+    const eventKindLabel = getEventKindLabel(event);
+    const statusLabel = getStatusLabel(event);
 
     if (isShort) {
         return (
@@ -216,7 +238,7 @@ function AppointmentEvent({ event }: { event: CalendarEvent }) {
             {/* Meta Row */}
             <div className="flex items-center gap-1 text-[0.65rem] text-slate-500">
                 <TypeIcon className="h-2.5 w-2.5 flex-shrink-0" />
-                <span className="truncate">{event.type}</span>
+                <span className="truncate">{eventKindLabel}</span>
                 <span className="opacity-60 text-[10px]">·</span>
                 <span className="whitespace-nowrap font-medium">{format(event.start, 'h:mm a')}</span>
             </div>
@@ -227,7 +249,7 @@ function AppointmentEvent({ event }: { event: CalendarEvent }) {
                     <span
                         className="text-[0.6rem] font-medium px-1.5 py-0.5 rounded-md inline-block bg-white/60 text-slate-700 shadow-sm border border-slate-100 backdrop-blur-sm"
                     >
-                        {cfg.label}
+                        {statusLabel}
                     </span>
                 </div>
             )}
@@ -287,13 +309,28 @@ export function ScheduleCalendarView({
 
         const surgicalEvents = calendarEvents
             .map(ce => {
-                if (!ce.start_time || !ce.end_time) return null;
-                const start = new Date(ce.start_time);
-                const end = new Date(ce.end_time);
+                const sc = ce.surgical_case;
+                const durationMinutes =
+                    sc?.total_theatre_minutes && sc.total_theatre_minutes > 0
+                        ? sc.total_theatre_minutes
+                        : 60;
+
+                let start: Date | null = ce.start_time ? new Date(ce.start_time) : null;
+                let end: Date | null = ce.end_time ? new Date(ce.end_time) : null;
+
+                // Planned surgical cases can exist before a theater slot is confirmed.
+                // In that state we still show the case on the planned procedure date as a
+                // tentative placeholder so the doctor's schedule reflects the commitment.
+                if ((!start || !end) && sc?.procedure_date) {
+                    start = new Date(sc.procedure_date);
+                    start.setHours(9, 0, 0, 0);
+                    end = new Date(start.getTime() + durationMinutes * 60000);
+                }
+
+                if (!start || !end) return null;
                 if (isNaN(start.getTime())) return null;
 
-                const sc = ce.surgical_case;
-                const roleFormatted = ce.role?.replace(/_/g, ' ') || 'Surgery';
+                const roleFormatted = ce.team_member_role?.replace(/_/g, ' ') || 'Surgery';
                 const fileNum = sc?.patient?.file_number ? `(${sc.patient.file_number})` : '';
 
                 return {
@@ -479,7 +516,7 @@ export function ScheduleCalendarView({
                                     `${format(start, 'h:mm a')} – ${format(end, 'h:mm a')}`,
                             }}
                             tooltipAccessor={(event: CalendarEvent) =>
-                                `${event.title}\n${event.type} · ${STATUS_CONFIG[event.status]?.label ?? event.status}\n${format(event.start, 'h:mm a')} – ${format(event.end, 'h:mm a')}`
+                                `${event.title}\n${getEventKindLabel(event)} · ${getStatusLabel(event)}\n${format(event.start, 'h:mm a')} – ${format(event.end, 'h:mm a')}`
                             }
                             popup
                             resizable

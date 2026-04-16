@@ -13,7 +13,7 @@ export class DoctorScheduleService {
         startDate: Date,
         endDate: Date
     ): Promise<any> { // Temporarily using any to match existing complex UI needs
-        const [template, overrides, blocks, appointments, surgicalCases, slotConfig] = await Promise.all([
+        const [template, overrides, blocks, appointments, slotConfig] = await Promise.all([
             // 1. Availability template (active first, then any)
             this.prisma.availabilityTemplate.findFirst({
                 where: { doctor_id: doctorId, is_active: true },
@@ -60,28 +60,7 @@ export class DoctorScheduleService {
                 },
             }),
 
-            // 5. Surgical Cases (for cohesion)
-            this.prisma.surgicalCase.findMany({
-                where: {
-                    primary_surgeon_id: doctorId,
-                    theater_booking: {
-                        start_time: { gte: startDate, lte: endDate },
-                        status: { not: 'CANCELLED' },
-                    },
-                },
-                include: {
-                    patient: {
-                        select: {
-                            id: true,
-                            first_name: true,
-                            last_name: true,
-                        },
-                    },
-                    theater_booking: true,
-                },
-            }),
-
-            // 6. Config
+            // 5. Config
             this.prisma.slotConfiguration.findUnique({
                 where: { doctor_id: doctorId },
             }),
@@ -89,7 +68,7 @@ export class DoctorScheduleService {
 
         return {
             appointments,
-            surgicalCases,
+            surgicalCases: [],
             workingDays: template?.slots || [],
             blocks,
             overrides,
@@ -171,6 +150,19 @@ export class DoctorScheduleService {
         }
 
         // B. Check overlapping theater bookings (Surgeries)
+        const conflictingCalendarEvent = await tx.calendarEvent.findFirst({
+            where: {
+                doctor_id: doctorId,
+                status: { in: ['CONFIRMED', 'IN_PROGRESS'] },
+                start_time: { lt: end },
+                end_time: { gt: start },
+            }
+        });
+
+        if (conflictingCalendarEvent) {
+            throw new Error(`Time slot conflicts with a scheduled surgery.`);
+        }
+
         const conflictingSurgery = await tx.theaterBooking.findFirst({
             where: {
                 status: { not: 'CANCELLED' },

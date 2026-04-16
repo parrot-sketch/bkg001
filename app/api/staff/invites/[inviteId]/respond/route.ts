@@ -5,6 +5,7 @@ import { PrismaStaffInviteRepository } from '@/infrastructure/database/repositor
 import { PrismaSurgicalCaseRepository } from '@/infrastructure/database/repositories/PrismaSurgicalCaseRepository';
 import { PrismaOutboxRepository } from '@/infrastructure/database/repositories/PrismaOutboxRepository';
 import db from '@/lib/db';
+import { syncDoctorCalendarEventsForSurgicalCase } from '@/application/services/SurgicalCaseCalendarSyncService';
 
 export async function POST(
     request: NextRequest,
@@ -40,6 +41,15 @@ export async function POST(
             responderUserId: authResult.user.userId,
             declinedReason
         });
+
+        const invite = await db.staffInvite.findUnique({
+            where: { id: inviteId },
+            select: { surgical_case_id: true },
+        });
+
+        if (invite?.surgical_case_id) {
+            await syncDoctorCalendarEventsForSurgicalCase(db, invite.surgical_case_id);
+        }
 
         return NextResponse.json({
             success: true,

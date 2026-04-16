@@ -180,7 +180,7 @@ export default function PreOpCaseDetailPage() {
   const handleMarkReady = async () => {
     try {
       await markReady.mutateAsync(caseId);
-      toast.success('Case marked as ready for scheduling');
+      toast.success('Case marked as ready for theater booking');
       setShowMarkReadyDialog(false);
       refetch();
     } catch (error) {
@@ -236,6 +236,17 @@ export default function PreOpCaseDetailPage() {
   const patient = caseData.patient;
   const surgeon = caseData.primarySurgeon;
   const casePlan = caseData.casePlan;
+  const statusLabelMap: Record<string, string> = {
+    READY_FOR_WARD_PREP: 'Ward Prep',
+    IN_WARD_PREP: 'In Ward Prep',
+    READY_FOR_THEATER_BOOKING: 'Ready for Booking',
+    SCHEDULED: 'Scheduled',
+    IN_PREP: 'Awaiting Theater Entry',
+    IN_THEATER: 'In Theater',
+    RECOVERY: 'Recovery',
+    COMPLETED: 'Completed',
+  };
+  const statusLabel = statusLabelMap[caseData.status] ?? caseData.status.replace(/_/g, ' ');
 
   return (
     <div className="animate-in fade-in duration-500 pb-10">
@@ -258,7 +269,7 @@ export default function PreOpCaseDetailPage() {
                 {patient?.fullName || 'Unknown Patient'}
               </h1>
               <Badge variant={caseData.status === 'READY_FOR_WARD_PREP' || caseData.status === 'IN_WARD_PREP' ? 'default' : 'secondary'}>
-                {caseData.status.replace(/_/g, ' ')}
+                {statusLabel}
               </Badge>
             </div>
             <p className="text-slate-500 text-sm">
@@ -320,7 +331,7 @@ export default function PreOpCaseDetailPage() {
                 className="bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-200"
               >
                 <CheckCircle2 className="w-4 h-4 mr-2" />
-                Mark Ready for Scheduling
+                Ready for Booking
               </Button>
             )}
           </div>
@@ -673,10 +684,10 @@ export default function PreOpCaseDetailPage() {
       <Dialog open={showMarkReadyDialog} onOpenChange={setShowMarkReadyDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Mark Case Ready for Scheduling?</DialogTitle>
+            <DialogTitle>Mark Case Ready for Theater Booking?</DialogTitle>
             <DialogDescription>
-              This will mark the case as ready and notify the scheduling team. The case will move to
-              the ready-for-scheduling queue.
+              This will mark the case as ready and notify the booking team. The case will move to
+              the ready-for-booking queue.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

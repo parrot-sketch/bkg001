@@ -42,16 +42,18 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-    DRAFT: { label: 'Draft', color: 'text-slate-700', bg: 'bg-slate-100' },
-    PLANNING: { label: 'Planning', color: 'text-blue-700', bg: 'bg-blue-100' },
-    READY_FOR_SCHEDULING: { label: 'Ready', color: 'text-cyan-700', bg: 'bg-cyan-100' },
-    SCHEDULED: { label: 'Scheduled', color: 'text-indigo-700', bg: 'bg-indigo-100' },
-    IN_PREP: { label: 'In Prep', color: 'text-amber-700', bg: 'bg-amber-100' },
-    IN_THEATER: { label: 'In Theater', color: 'text-red-700', bg: 'bg-red-100' },
-    RECOVERY: { label: 'Recovery', color: 'text-emerald-700', bg: 'bg-emerald-100' },
-    COMPLETED: { label: 'Completed', color: 'text-green-700', bg: 'bg-green-100' },
-    CANCELLED: { label: 'Cancelled', color: 'text-gray-500', bg: 'bg-gray-100' },
+const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+    DRAFT: { label: 'Draft', className: 'border border-slate-200 bg-slate-100 text-slate-700' },
+    PLANNING: { label: 'Planning', className: 'border border-amber-200 bg-amber-50 text-amber-700' },
+    READY_FOR_WARD_PREP: { label: 'Ward Prep', className: 'border border-emerald-200 bg-emerald-50 text-emerald-700' },
+    IN_WARD_PREP: { label: 'In Ward Prep', className: 'border border-amber-200 bg-amber-50 text-amber-700' },
+    READY_FOR_THEATER_BOOKING: { label: 'Ready for Booking', className: 'border border-slate-300 bg-slate-100 text-slate-700' },
+    SCHEDULED: { label: 'Scheduled', className: 'border border-slate-300 bg-slate-100 text-slate-700' },
+    IN_PREP: { label: 'In Prep', className: 'border border-amber-200 bg-amber-50 text-amber-700' },
+    IN_THEATER: { label: 'In Theater', className: 'border border-red-200 bg-red-50 text-red-700' },
+    RECOVERY: { label: 'Recovery', className: 'border border-emerald-200 bg-emerald-50 text-emerald-700' },
+    COMPLETED: { label: 'Completed', className: 'border border-emerald-200 bg-emerald-50 text-emerald-700' },
+    CANCELLED: { label: 'Cancelled', className: 'border border-red-200 bg-red-50 text-red-700' },
 };
 
 const URGENCY_CONFIG: Record<string, { label: string; className: string }> = {
@@ -64,7 +66,7 @@ const STATUS_TABS = [
     { value: '', label: 'All' },
     { value: 'DRAFT', label: 'Draft' },
     { value: 'PLANNING', label: 'Planning' },
-    { value: 'READY_FOR_SCHEDULING', label: 'Ready' },
+    { value: 'READY_FOR_WARD_PREP,IN_WARD_PREP', label: 'Ward Prep' },
     { value: 'SCHEDULED', label: 'Scheduled' },
     { value: 'IN_PREP,IN_THEATER,RECOVERY', label: 'Active' },
     { value: 'COMPLETED,CANCELLED', label: 'Done' },
@@ -76,7 +78,7 @@ function getTabCount(metrics: SurgicalCaseMetrics | undefined, tabValue: string)
         case '': return metrics.total;
         case 'DRAFT': return metrics.draft;
         case 'PLANNING': return metrics.planning;
-        case 'READY_FOR_WARD_PREP': return metrics.readyForWardPrep;
+        case 'READY_FOR_WARD_PREP,IN_WARD_PREP': return metrics.readyForWardPrep;
         case 'SCHEDULED': return metrics.scheduled;
         case 'IN_PREP,IN_THEATER,RECOVERY': return metrics.inProgress;
         case 'COMPLETED,CANCELLED': return metrics.completed + metrics.cancelled;
@@ -143,8 +145,11 @@ export default function DoctorSurgicalCasesPage() {
         <div className="space-y-6 animate-in fade-in duration-500 pb-12">
             {/* Header */}
             <div>
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Your Interventions</p>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Surgical Cases</h1>
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Doctor Workspace</p>
+                <h1 className="text-2xl font-semibold tracking-tight text-foreground">Surgical Cases</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    Follow each case from planning through ward prep, booking, and active surgery.
+                </p>
             </div>
 
             {/* Metrics Bar */}
@@ -152,10 +157,10 @@ export default function DoctorSurgicalCasesPage() {
                 {[
                     { label: 'Total', value: metrics?.total, color: 'text-foreground' },
                     { label: 'Draft', value: metrics?.draft, color: 'text-slate-600' },
-                    { label: 'Planning', value: metrics?.planning, color: 'text-blue-600' },
-                    { label: 'Ward Prep', value: metrics?.readyForWardPrep, color: 'text-cyan-600' },
-                    { label: 'Scheduled', value: metrics?.scheduled, color: 'text-indigo-600' },
-                    { label: 'Active', value: metrics?.inProgress, color: 'text-red-600' },
+                    { label: 'Planning', value: metrics?.planning, color: 'text-amber-700' },
+                    { label: 'Ward Prep', value: metrics?.readyForWardPrep, color: 'text-emerald-700' },
+                    { label: 'Scheduled', value: metrics?.scheduled, color: 'text-slate-700' },
+                    { label: 'Active', value: metrics?.inProgress, color: 'text-red-700' },
                 ].map(({ label, value, color }) => (
                     <Card key={label} className="shadow-none border">
                         <CardContent className="p-3">
@@ -280,7 +285,7 @@ export default function DoctorSurgicalCasesPage() {
                                 return (
                                     <tr key={sc.id} className="hover:bg-slate-50 transition-colors">
                                         <td className="px-4 py-3">
-                                            <Badge className={cn(status.bg, status.color)}>
+                                            <Badge className={status.className}>
                                                 {status.label}
                                             </Badge>
                                         </td>
@@ -306,9 +311,9 @@ export default function DoctorSurgicalCasesPage() {
                                                     : sc.procedureName || '—'}
                                             </span>
                                             <div className="flex gap-1.5 mt-1.5">
-                                                {sc.casePlan?.hasProcedurePlan && <Badge variant="secondary" className="px-1.5 py-0 text-[10px] bg-slate-100 text-slate-500 font-medium">Plan</Badge>}
-                                                {sc.casePlan?.hasSurgicalNotes && <Badge variant="secondary" className="px-1.5 py-0 text-[10px] bg-emerald-50 text-emerald-600 font-medium border-emerald-100">Notes</Badge>}
-                                                {sc.casePlan?.hasChargeSheet && <Badge variant="secondary" className="px-1.5 py-0 text-[10px] bg-blue-50 text-blue-600 font-medium border-blue-100">Charges</Badge>}
+                                                {sc.casePlan?.hasProcedurePlan && <Badge variant="secondary" className="border border-slate-200 px-1.5 py-0 text-[10px] font-medium text-slate-600">Plan</Badge>}
+                                                {sc.casePlan?.hasSurgicalNotes && <Badge variant="secondary" className="border border-emerald-200 bg-emerald-50 px-1.5 py-0 text-[10px] font-medium text-emerald-700">Notes</Badge>}
+                                                {sc.casePlan?.hasChargeSheet && <Badge variant="secondary" className="border border-slate-300 bg-slate-100 px-1.5 py-0 text-[10px] font-medium text-slate-700">Charges</Badge>}
                                             </div>
                                         </td>
                                         <td className="px-4 py-3">

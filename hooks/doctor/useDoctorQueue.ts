@@ -52,13 +52,14 @@ export function useDoctorQueue(doctorId: string | undefined, enabled = true) {
       
       return fetchDoctorQueue(doctorId);
     },
-    staleTime: 1000 * 15, // 15 seconds - queue needs to be fresh
+    staleTime: 1000 * 30, // 30 seconds - polling + invalidation keep this fresh enough
     gcTime: 1000 * 60 * 2, // 2 minutes
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
     refetchOnReconnect: true,
     refetchInterval: 60_000, // Was 30s — reduced to conserve DB connections
+    networkMode: 'offlineFirst',
     enabled: enabled && !!doctorId,
   });
 }

@@ -31,12 +31,14 @@ interface TheaterDetailDialogProps {
 
 const CASE_STATUS_COLORS: Record<string, string> = {
   DRAFT: 'bg-slate-100 text-slate-600',
-  PLANNING: 'bg-slate-100 text-slate-600',
-  READY_FOR_SCHEDULING: 'bg-indigo-50 text-indigo-700 border-indigo-100',
-  SCHEDULED: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-  IN_PREP: 'bg-slate-100 text-slate-700',
-  IN_THEATER: 'bg-indigo-600 text-white shadow-sm',
-  RECOVERY: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+  PLANNING: 'bg-amber-50 text-amber-700 border-amber-200',
+  READY_FOR_WARD_PREP: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  IN_WARD_PREP: 'bg-amber-50 text-amber-700 border-amber-200',
+  READY_FOR_THEATER_BOOKING: 'bg-slate-100 text-slate-700 border-slate-300',
+  SCHEDULED: 'bg-slate-100 text-slate-700 border-slate-300',
+  IN_PREP: 'bg-amber-50 text-amber-700 border-amber-200',
+  IN_THEATER: 'bg-red-50 text-red-700 border-red-200',
+  RECOVERY: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   COMPLETED: 'bg-slate-50 text-slate-400',
   CANCELLED: 'bg-rose-50 text-rose-400 border-rose-100',
 };

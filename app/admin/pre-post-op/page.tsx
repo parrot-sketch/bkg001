@@ -78,8 +78,8 @@ export default function AdminPrePostOpPage() {
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-slate-900">Surgical Workflow Monitor</h2>
-          <p className="text-slate-500 font-medium">Pre-operative pipeline and post-operative outcomes</p>
+          <h2 className="text-3xl font-bold tracking-tight text-slate-900">Peri-Operative Appointments</h2>
+          <p className="text-slate-500 font-medium">Administrative oversight for pre-op and post-op appointment activity</p>
         </div>
       </div>
 
@@ -87,7 +87,7 @@ export default function AdminPrePostOpPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           {
-            label: 'Pre-Op Queue',
+            label: 'Pre-Op Appointments',
             value: (preOp as AppointmentResponseDto[]).length,
             color: 'text-indigo-600 bg-indigo-50 border-indigo-100',
           },
@@ -97,7 +97,7 @@ export default function AdminPrePostOpPage() {
             color: imminentCount > 0 ? 'text-amber-600 bg-amber-50 border-amber-100' : 'text-slate-600 bg-slate-50 border-slate-200',
           },
           {
-            label: 'Post-Op (30 days)',
+            label: 'Post-Op Appointments',
             value: (postOp as AppointmentResponseDto[]).length,
             color: 'text-emerald-600 bg-emerald-50 border-emerald-100',
           },

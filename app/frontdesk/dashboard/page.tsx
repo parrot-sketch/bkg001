@@ -151,14 +151,14 @@ export default function FrontdeskDashboardPage(): React.ReactElement {
       </section>
 
       {/* Main Content - Responsive layout */}
-      <section className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
-        {/* Primary: Today's Schedule - takes more space on larger screens */}
-        <div className="md:col-span-2 lg:col-span-3">
+      <section className="grid grid-cols-1 xl:grid-cols-12 gap-4 sm:gap-5 items-start">
+        {/* Primary: Today's Schedule - the operational anchor of the page */}
+        <div className="xl:col-span-8 2xl:col-span-9">
           <TodaysSchedule />
         </div>
 
-        {/* Sidebar - stacks on mobile, fixed width on tablet+ */}
-        <div className="space-y-3 sm:space-y-4 md:col-span-1">
+        {/* Sidebar - secondary operational rail */}
+        <div className="space-y-3 sm:space-y-4 xl:col-span-4 2xl:col-span-3">
           {/* Queue Management Panels */}
           <QueueManagementPanels />
           

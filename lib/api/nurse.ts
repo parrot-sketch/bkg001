@@ -290,12 +290,12 @@ export const nurseApi = {
   },
 
   /**
-   * Mark a surgical case as ready for scheduling
+   * Mark a surgical case as ready for theater booking
    */
-  async markCaseReadyForScheduling(caseId: string): Promise<ApiResponse<PreOpSurgicalCase>> {
+  async markCaseReadyForBooking(caseId: string): Promise<ApiResponse<PreOpSurgicalCase>> {
     return apiClient.patch<PreOpSurgicalCase>(`/nurse/pre-op/${caseId}`, {
       readinessStatus: 'READY',
-      surgicalCaseStatus: 'READY_FOR_SCHEDULING',
+      surgicalCaseStatus: 'READY_FOR_THEATER_BOOKING',
     });
   },
 

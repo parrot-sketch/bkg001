@@ -22,6 +22,7 @@ import {
   Receipt,
   ArrowLeft,
   Menu,
+  CircleDot,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SurgicalCasePlanForm } from '@/components/doctor/surgical-case-plan/SurgicalCasePlanForm';
@@ -29,6 +30,7 @@ import { SurgicalCasePlanView } from '@/components/doctor/surgical-case-plan/Sur
 import { SurgicalNotesEditor } from '@/components/doctor/surgical-notes/SurgicalNotesEditor';
 import { ChargeSheetStep } from '@/components/theater-tech/ChargeSheetStep';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
+import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 
 // ── Workspace Props ─────────────────────────────────────────────────────
@@ -89,6 +91,20 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]['id'];
 
+const CASE_STATUS_META: Record<string, { label: string; className: string }> = {
+  DRAFT: { label: 'Draft', className: 'border border-slate-200 bg-slate-100 text-slate-700' },
+  PLANNING: { label: 'Planning', className: 'border border-amber-200 bg-amber-50 text-amber-700' },
+  READY_FOR_WARD_PREP: { label: 'Ward Prep', className: 'border border-emerald-200 bg-emerald-50 text-emerald-700' },
+  IN_WARD_PREP: { label: 'In Ward Prep', className: 'border border-amber-200 bg-amber-50 text-amber-700' },
+  READY_FOR_THEATER_BOOKING: { label: 'Ready for Booking', className: 'border border-slate-300 bg-slate-100 text-slate-700' },
+  SCHEDULED: { label: 'Scheduled', className: 'border border-slate-300 bg-slate-100 text-slate-700' },
+  IN_PREP: { label: 'In Prep', className: 'border border-amber-200 bg-amber-50 text-amber-700' },
+  IN_THEATER: { label: 'In Theater', className: 'border border-red-200 bg-red-50 text-red-700' },
+  RECOVERY: { label: 'Recovery', className: 'border border-emerald-200 bg-emerald-50 text-emerald-700' },
+  COMPLETED: { label: 'Completed', className: 'border border-emerald-200 bg-emerald-50 text-emerald-700' },
+  CANCELLED: { label: 'Cancelled', className: 'border border-red-200 bg-red-50 text-red-700' },
+};
+
 // ── Component ───────────────────────────────────────────────────────────
 
 export function SurgicalCaseWorkspace({
@@ -112,6 +128,10 @@ export function SurgicalCaseWorkspace({
 
   const hasInitialPlanData = !!(initialPlanData.procedureCategory || initialPlanData.diagnosis || (surgicalCase.case_procedures && surgicalCase.case_procedures.length > 0));
   const [isEditingCasePlan, setIsEditingCasePlan] = useState(!hasInitialPlanData);
+  const caseStatus = CASE_STATUS_META[surgicalCase.status] ?? {
+    label: surgicalCase.status.replace(/_/g, ' '),
+    className: 'border border-slate-200 bg-slate-100 text-slate-700',
+  };
 
   const SidebarContent = () => (
     <>
@@ -171,8 +191,8 @@ export function SurgicalCaseWorkspace({
           </Link>
         </Button>
         <div className="h-5 w-px bg-slate-200 hidden sm:block" />
-        <h1 className="text-sm font-bold truncate">
-          <span className="text-slate-400 font-normal hidden sm:inline">Workspace </span>
+        <h1 className="text-sm font-semibold truncate">
+          <span className="text-slate-400 font-normal hidden sm:inline">Surgical Documentation </span>
           <span className="text-slate-700">
             {patient.first_name} {patient.last_name}
           </span>
@@ -190,6 +210,21 @@ export function SurgicalCaseWorkspace({
         <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50/50 relative">
           {/* Tab Navigation */}
           <div className="border-b border-slate-200 bg-white px-4 md:px-6 shrink-0 pt-2 overflow-x-auto no-scrollbar">
+            <div className="flex flex-col gap-3 pb-3 pt-2 md:flex-row md:items-start md:justify-between">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-medium text-slate-900">Documentation Workspace</h2>
+                  <Badge className={caseStatus.className}>{caseStatus.label}</Badge>
+                </div>
+                <p className="max-w-2xl text-sm text-slate-500">
+                  Plan the case, capture freeform surgical notes, and complete billing from one focused workspace.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <CircleDot className="h-3.5 w-3.5 text-slate-400" />
+                <span>Current section: {TABS.find((tab) => tab.id === activeTab)?.label}</span>
+              </div>
+            </div>
             <div className="flex gap-4 md:gap-6 min-w-max">
               {TABS.map((tab) => {
                 const Icon = tab.icon;
@@ -249,6 +284,12 @@ export function SurgicalCaseWorkspace({
 
             {/* Surgical Notes Tab */}
             <div className={cn("p-4 md:p-6 lg:p-8 max-w-5xl mx-auto w-full", activeTab !== 'surgical-notes' && "hidden")}>
+                <div className="mb-4 rounded-xl border border-slate-200 bg-white px-4 py-3">
+                  <p className="text-sm font-medium text-slate-900">Surgical Notes</p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Use this space for the doctor&apos;s narrative notes. Structured records remain in their dedicated clinical forms.
+                  </p>
+                </div>
                 <SurgicalNotesEditor 
                   caseId={caseId} 
                   onContinue={() => handleTabChange('charge-sheet')}
@@ -258,9 +299,9 @@ export function SurgicalCaseWorkspace({
             {/* Charge Sheet Tab */}
             <div className={cn("p-4 md:p-6 lg:p-8 max-w-3xl mx-auto w-full", activeTab !== 'charge-sheet' && "hidden")}>
                 <div className="mb-4 md:mb-6">
-                  <h2 className="text-lg font-bold text-slate-800">Charge Sheet</h2>
+                  <h2 className="text-lg font-medium text-slate-900">Charge Sheet</h2>
                   <p className="text-sm text-slate-500 mt-0.5">
-                    Services and inventory items billed for this surgical case
+                    Services and inventory items captured against this surgical case
                   </p>
                 </div>
                 <ChargeSheetStep caseId={caseId} />

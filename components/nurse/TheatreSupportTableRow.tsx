@@ -30,9 +30,9 @@ interface TheatreSupportTableRowProps {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-    SCHEDULED: { label: 'Scheduled', color: 'bg-stone-100 text-stone-600' },
-    IN_PREP: { label: 'In Prep', color: 'bg-stone-100 text-stone-600' },
-    IN_THEATER: { label: 'In Theater', color: 'bg-stone-100 text-stone-700 font-semibold' },
+    SCHEDULED: { label: 'Scheduled', color: 'bg-slate-100 text-slate-700 border-slate-300' },
+    IN_PREP: { label: 'Awaiting Theater Entry', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+    IN_THEATER: { label: 'In Theater', color: 'bg-red-50 text-red-700 border-red-200 font-semibold' },
 };
 
 export function TheatreSupportTableRow({ surgicalCase }: TheatreSupportTableRowProps) {
@@ -65,9 +65,9 @@ export function TheatreSupportTableRow({ surgicalCase }: TheatreSupportTableRowP
             </TableCell>
 
             <TableCell>
-                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 border-stone-200 ${status.color}`}>
-                    {status.label}
-                </Badge>
+                    <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 ${status.color}`}>
+                        {status.label}
+                    </Badge>
             </TableCell>
 
             <TableCell onClick={() => isInTheater && router.push(`/nurse/intra-op-cases/${surgicalCase.id}/record`)}>

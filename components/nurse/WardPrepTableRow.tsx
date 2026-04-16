@@ -57,7 +57,7 @@ export function WardPrepTableRow({ surgicalCase }: WardPrepTableRowProps) {
             return;
         }
         markReady.mutate(surgicalCase.id, {
-            onSuccess: () => toast.success('Case marked as ready for scheduling'),
+            onSuccess: () => toast.success('Case marked as ready for theater booking'),
             onError: (error) => toast.error(error.message),
         });
     };
@@ -79,15 +79,15 @@ export function WardPrepTableRow({ surgicalCase }: WardPrepTableRowProps) {
 
     const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive'; className?: string }> = {
         DRAFT: { label: 'Draft', variant: 'secondary' },
-        PLANNING: { label: 'Planning', variant: 'default' },
+        PLANNING: { label: 'Planning', variant: 'default', className: 'bg-amber-50 text-amber-700 border-amber-200' },
         READY_FOR_WARD_PREP: { label: 'Ready for Ward Prep', variant: 'default', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
         IN_WARD_PREP: { label: 'In Ward Prep', variant: 'default', className: 'bg-amber-50 text-amber-700 border-amber-200' },
-        READY_FOR_THEATER_BOOKING: { label: 'Ready for Scheduling', variant: 'default', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-        SCHEDULED: { label: 'Scheduled', variant: 'outline', className: 'bg-blue-50 text-blue-700 border-blue-200' },
-        IN_PREP: { label: 'In Pre-Op', variant: 'outline', className: 'bg-amber-50 text-amber-700 border-amber-200' },
-        IN_THEATER: { label: 'In Theater', variant: 'outline', className: 'bg-blue-50 text-blue-700 border-blue-200' },
-        RECOVERY: { label: 'Recovery', variant: 'outline', className: 'bg-purple-50 text-purple-700 border-purple-200' },
-        COMPLETED: { label: 'Completed', variant: 'outline', className: 'bg-slate-50 text-slate-700 border-slate-200' },
+        READY_FOR_THEATER_BOOKING: { label: 'Ready for Booking', variant: 'default', className: 'bg-slate-100 text-slate-700 border-slate-300' },
+        SCHEDULED: { label: 'Scheduled', variant: 'outline', className: 'bg-slate-100 text-slate-700 border-slate-300' },
+        IN_PREP: { label: 'Awaiting Theater Entry', variant: 'outline', className: 'bg-amber-50 text-amber-700 border-amber-200' },
+        IN_THEATER: { label: 'In Theater', variant: 'outline', className: 'bg-red-50 text-red-700 border-red-200' },
+        RECOVERY: { label: 'Recovery', variant: 'outline', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+        COMPLETED: { label: 'Completed', variant: 'outline', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
     };
 
     const urgencyConfig: Record<string, { label: string; className: string }> = {
@@ -244,7 +244,7 @@ export function WardPrepTableRow({ surgicalCase }: WardPrepTableRowProps) {
                             onClick={handleMarkReady}
                         >
                             <CheckCircle2 className="h-3 w-3 mr-1" />
-                            Mark Ready
+                            Ready for Booking
                         </Button>
                     )}
                     {surgicalCase.status === 'IN_PREP' && (
@@ -256,7 +256,7 @@ export function WardPrepTableRow({ surgicalCase }: WardPrepTableRowProps) {
                             disabled={markInTheater.isPending}
                         >
                             <DoorOpen className="h-3 w-3 mr-1" />
-                            {markInTheater.isPending ? '...' : 'To Theater'}
+                            {markInTheater.isPending ? '...' : 'Enter Theater'}
                         </Button>
                     )}
                     <DropdownMenu>
@@ -278,7 +278,7 @@ export function WardPrepTableRow({ surgicalCase }: WardPrepTableRowProps) {
                                 <>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem onClick={handleMarkReady} className="text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50">
-                                        <CheckCircle2 className="mr-2 h-4 w-4" /> Mark Ready for Scheduling
+                                        <CheckCircle2 className="mr-2 h-4 w-4" /> Ready for Booking
                                     </DropdownMenuItem>
                                 </>
                             )}

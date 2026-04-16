@@ -28,6 +28,8 @@ export interface ChargeItem {
   description: string;
   /** Unit price — stored as a real number; editing uses RowDraft.amountStr. */
   amount: number;
+  /** Optional reference price from the service or inventory catalog. */
+  catalogAmount?: number;
   /** Quantity — stored as a real number; editing uses RowDraft.quantityStr. */
   quantity: number;
   type: 'service' | 'inventory';

@@ -41,6 +41,7 @@ export function useDayboard(date: string, theaterId?: string) {
     refetchInterval: 60_000, // Was 30s — reduced to conserve DB connections
     staleTime: 30_000,
     gcTime: 1000 * 60 * 5,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
+    networkMode: 'offlineFirst',
   });
 }

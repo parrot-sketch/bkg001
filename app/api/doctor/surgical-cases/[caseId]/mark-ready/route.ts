@@ -7,7 +7,7 @@
  * Business rules enforced by SurgicalCaseService:
  * - Case must be in PLANNING status
  * - Doctor planning items complete (procedure, risk, anesthesia, consent, photo)
- * - Nurse pre-op checklist complete (ready_for_surgery = true)
+ * - Successful transition moves the case into the nurse ward-prep queue
  *
  * On failure returns structured { missingItems, completedCount, totalRequired }
  * so the UI can render a targeted checklist.
@@ -116,7 +116,7 @@ export async function POST(
                         user_id: tech.id,
                         type: 'IN_APP',
                         status: 'PENDING',
-                        subject: 'New Case Ready for Theater Prep',
+                        subject: 'New Case Ready for Ward Prep',
                         message: `Dr. ${doctorProfile.name} has completed the surgical plan for ${patient?.first_name} ${patient?.last_name}. Please add team members and planned items.`,
                         metadata: JSON.stringify({
                             event: 'THEATER_PREP_REQUIRED',

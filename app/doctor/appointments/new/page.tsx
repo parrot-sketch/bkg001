@@ -5,12 +5,14 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { AppointmentBookingWizard } from '@/components/appointments/AppointmentBookingWizard';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { doctorApi } from '@/lib/api/doctor';
+import type { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';
 
 function DoctorBookingWrapper() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const { user } = useAuth();
     const [doctorId, setDoctorId] = useState<string | undefined>(undefined);
+    const [doctor, setDoctor] = useState<DoctorResponseDto | undefined>(undefined);
 
     const safeParseId = (val: string | null) => {
         if (!val || val === 'undefined' || val === 'null') return undefined;
@@ -32,6 +34,7 @@ function DoctorBookingWrapper() {
             doctorApi.getDoctorByUserId(user.id).then(res => {
                 if (res.success && res.data) {
                     setDoctorId(res.data.id);
+                    setDoctor(res.data);
                 }
             });
         }
@@ -44,6 +47,7 @@ function DoctorBookingWrapper() {
         <div className="max-w-4xl mx-auto py-6 px-4">
             <AppointmentBookingWizard
                 initialDoctorId={doctorId}
+                initialDoctor={doctor}
                 initialPatientId={patientId}
                 initialType={type}
                 userRole="doctor"
@@ -52,9 +56,9 @@ function DoctorBookingWrapper() {
                 parentAppointmentId={parentAppointmentId}
                 parentConsultationId={parentConsultationId}
                 onSuccess={() => {
-                    // After follow-up: go to consultation room / queue
+                    // Follow-ups behave like upcoming appointments owned by this doctor.
                     if (isFollowUp) {
-                        router.push('/doctor/consultations');
+                        router.push('/doctor/appointments?tab=upcoming');
                     } else {
                         router.push('/doctor/dashboard');
                     }

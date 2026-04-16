@@ -138,14 +138,14 @@ export function OperativePlanHeader({
                                 ) : (
                                     <Send className="h-3 w-3" />
                                 )}
-                                Mark Ready for Scheduling
+                                Mark Ready for Ward Prep
                             </Button>
                         )}
 
-                        {surgicalCaseStatus === 'READY_FOR_SCHEDULING' && (
-                            <Badge className="bg-cyan-100 text-cyan-700 border-cyan-200 text-xs gap-1">
+                        {surgicalCaseStatus === 'READY_FOR_WARD_PREP' && (
+                            <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs gap-1">
                                 <CalendarCheck className="h-3 w-3" />
-                                Ready for Scheduling
+                                Ready for Ward Prep
                             </Badge>
                         )}
                         {surgicalCaseStatus === 'SCHEDULED' && (

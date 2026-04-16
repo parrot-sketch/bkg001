@@ -228,7 +228,7 @@ export class TheaterDashboardService {
             const intraOpDiscrepancy = bs?.intraOpDiscrepancy ?? false;
             const dischargeReady = bs?.dischargeReady ?? false;
 
-            const isPreDay = ['DRAFT', 'PLANNING', 'READY_FOR_SCHEDULING', 'SCHEDULED'].includes(sc.status);
+            const isPreDay = ['DRAFT', 'PLANNING', 'READY_FOR_WARD_PREP', 'IN_WARD_PREP', 'READY_FOR_THEATER_BOOKING', 'SCHEDULED'].includes(sc.status);
             const isIntraDay = ['IN_PREP', 'IN_THEATER'].includes(sc.status);
             const isRecovery = sc.status === 'RECOVERY';
             let blockerLevel: 'clear' | 'warning' | 'blocked' = 'clear';

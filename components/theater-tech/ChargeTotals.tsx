@@ -19,16 +19,24 @@ export function ChargeTotals({
   onDiscountBlur,
 }: ChargeTotalsProps) {
   return (
-    <>
-      {/* Discount */}
-      <div className="flex items-center gap-3 pt-2">
-        <label className="text-sm text-slate-600 shrink-0">
+    <div className="space-y-4">
+      <div>
+        <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+          Bill Summary
+        </p>
+        <p className="mt-1 text-sm text-slate-600">
+          Review the totals before saving this consultation charge sheet.
+        </p>
+      </div>
+
+      <div className="space-y-2 rounded-2xl bg-slate-50 p-4">
+        <label className="text-sm font-medium text-slate-700">
           Discount (KSH)
         </label>
         <Input
           type="text"
           inputMode="decimal"
-          className="h-9 w-28"
+          className="h-10 border-slate-200 bg-white"
           value={discountStr}
           onChange={(e) => onDiscountChange(e.target.value)}
           onBlur={onDiscountBlur}
@@ -36,8 +44,7 @@ export function ChargeTotals({
         />
       </div>
 
-      {/* Totals */}
-      <div className="pt-3 border-t space-y-1">
+      <div className="space-y-2 border-t border-slate-200 pt-4">
         {discount > 0 && (
           <div className="flex items-center justify-between text-sm text-slate-500">
             <span>Subtotal</span>
@@ -59,6 +66,6 @@ export function ChargeTotals({
           </span>
         </div>
       </div>
-    </>
+    </div>
   );
 }

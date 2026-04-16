@@ -41,13 +41,13 @@ export default function NurseDashboardPage() {
     isLoading: loadingPreOp
   } = usePreOpSummary();
 
-  // Pre-op cases for "Ready for Theater" section
+  // Pre-op cases for the final nurse-controlled step before theater entry
   const {
     data: preOpCasesData,
     isLoading: loadingPreOpCases
   } = usePreOpCases();
 
-  // Filter cases in IN_PREP status (ready for theater)
+  // Cases already booked and waiting to be physically moved into theater
   const readyForTheaterCases = preOpCasesData?.cases.filter(
     (c) => c.status === 'IN_PREP'
   ) || [];
@@ -147,12 +147,12 @@ export default function NurseDashboardPage() {
           {/* Left Column: Active Surgeries & Clinic Flow (8 cols) */}
           <div className="xl:col-span-8 space-y-6">
 
-            {/* Ready for Theater Section - NEW */}
+            {/* Awaiting Theater Entry */}
             {readyForTheaterCases.length > 0 && (
               <section className="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
                 <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <h2 className="text-sm font-semibold text-slate-900">Ready for Theater</h2>
+                    <h2 className="text-sm font-semibold text-slate-900">Awaiting Theater Entry</h2>
                     <Badge variant="outline" className="text-slate-700 border-slate-300 text-[10px]">
                       {readyForTheaterCases.length}
                     </Badge>
@@ -179,7 +179,7 @@ export default function NurseDashboardPage() {
                                 {c.procedureName}
                               </Badge>
                               <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 text-slate-700 border-slate-200">
-                                Pre-op Complete
+                                Booked and prepped
                               </Badge>
                             </div>
                           </div>

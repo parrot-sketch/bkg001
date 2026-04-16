@@ -48,10 +48,12 @@ export function useIntakeSessionStatus(options: {
       return result.data;
     },
     enabled: !!sessionId && enabled,
-    refetchInterval: 15_000, // Was 4s — reduced to prevent connection exhaustion
-    staleTime: 5_000,
+    refetchInterval: (query) =>
+      query.state.data?.status === 'ACTIVE' ? 15_000 : false,
+    staleTime: 15_000,
     gcTime: 60_000,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
+    networkMode: 'offlineFirst',
   });
 }
 

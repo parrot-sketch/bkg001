@@ -56,7 +56,7 @@ export async function GET(
                 },
                 teamMembers: surgicalCase.team_members,
                 plannedItems: surgicalCase.case_plan?.planned_items || [],
-                isReadyForTheaterPrep: surgicalCase.status === 'READY_FOR_THEATER_PREP',
+                isReadyForTheaterBooking: surgicalCase.status === 'READY_FOR_THEATER_BOOKING',
                 isEditable: surgicalCase.status !== 'COMPLETED' && surgicalCase.status !== 'CANCELLED',
             },
         });
@@ -128,12 +128,12 @@ export async function PUT(
             }
         }
 
-        // If action is "complete", transition to READY_FOR_THEATER_PREP or trigger notification for pre-op
+        // If action is "complete", transition to the booking-ready state and notify downstream teams
         if (action === 'complete') {
-            // Transition to READY_FOR_THEATER_PREP
+            // Transition to READY_FOR_THEATER_BOOKING
             await db.surgicalCase.update({
                 where: { id: caseId },
-                data: { status: 'READY_FOR_THEATER_PREP' },
+                data: { status: 'READY_FOR_THEATER_BOOKING' },
             });
 
             // Notify Nurse for pre-op
@@ -200,7 +200,7 @@ export async function PUT(
                         type: 'IN_APP',
                         status: 'PENDING',
                         subject: 'Case Ready for Theater Booking',
-                        message: `Case for ${patient?.first_name} ${patient?.last_name} is ready for scheduling.`,
+                        message: `Case for ${patient?.first_name} ${patient?.last_name} is ready for theater booking.`,
                         metadata: JSON.stringify({
                             event: 'CASE_READY_FOR_THEATER_BOOKING',
                             surgicalCaseId: caseId,
@@ -213,7 +213,7 @@ export async function PUT(
 
         return NextResponse.json({
             success: true,
-            message: action === 'complete' ? 'Theater prep completed' : 'Team members updated',
+            message: action === 'complete' ? 'Case marked ready for theater booking' : 'Team members updated',
         });
 
     } catch (error) {

@@ -184,7 +184,7 @@ export const adminSurgicalCasesApi = {
      * Get surgical cases by status (for admin scheduling)
      */
     async getByStatus(
-        status: string = 'READY_FOR_WARD_PREP',
+        status: string = 'READY_FOR_THEATER_BOOKING',
     ): Promise<ApiResponse<SurgicalCaseListItemDto[]>> {
         return apiClient.get<SurgicalCaseListItemDto[]>(
             `/admin/surgical-cases?status=${status}`,

@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface DashboardStats {
@@ -53,18 +52,17 @@ interface RecentCase {
   } | null;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; variant: string; className: string }> = {
-  DRAFT: { label: 'Draft', variant: 'outline', className: 'bg-slate-50 text-slate-700 border-slate-200' },
-  PLANNING: { label: 'Planning', variant: 'outline', className: 'bg-blue-50 text-blue-700 border-blue-200' },
-  READY_FOR_WARD_PREP: { label: 'Ward Prep', variant: 'outline', className: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
-  IN_WARD_PREP: { label: 'In Ward', variant: 'outline', className: 'bg-teal-50 text-teal-700 border-teal-200' },
-  READY_FOR_THEATER_BOOKING: { label: 'Ready', variant: 'outline', className: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-  READY_FOR_THEATER_PREP: { label: 'Ready for Prep', variant: 'outline', className: 'bg-violet-50 text-violet-700 border-violet-200' },
-  SCHEDULED: { label: 'Scheduled', variant: 'outline', className: 'bg-purple-50 text-purple-700 border-purple-200' },
-  IN_PREP: { label: 'In Prep', variant: 'outline', className: 'bg-amber-50 text-amber-700 border-amber-200' },
-  IN_THEATER: { label: 'In Theater', variant: 'outline', className: 'bg-red-50 text-red-700 border-red-200' },
-  RECOVERY: { label: 'Recovery', variant: 'outline', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  COMPLETED: { label: 'Completed', variant: 'outline', className: 'bg-green-50 text-green-700 border-green-200' },
+const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+  DRAFT: { label: 'Draft', className: 'border border-slate-200 bg-slate-100 text-slate-700' },
+  PLANNING: { label: 'Planning', className: 'border border-amber-200 bg-amber-50 text-amber-700' },
+  READY_FOR_WARD_PREP: { label: 'Ward Prep', className: 'border border-emerald-200 bg-emerald-50 text-emerald-700' },
+  IN_WARD_PREP: { label: 'In Ward Prep', className: 'border border-amber-200 bg-amber-50 text-amber-700' },
+  READY_FOR_THEATER_BOOKING: { label: 'Ready for Booking', className: 'border border-slate-300 bg-slate-100 text-slate-700' },
+  SCHEDULED: { label: 'Scheduled', className: 'border border-slate-300 bg-slate-100 text-slate-700' },
+  IN_PREP: { label: 'In Prep', className: 'border border-amber-200 bg-amber-50 text-amber-700' },
+  IN_THEATER: { label: 'In Theater', className: 'border border-red-200 bg-red-50 text-red-700' },
+  RECOVERY: { label: 'Recovery', className: 'border border-emerald-200 bg-emerald-50 text-emerald-700' },
+  COMPLETED: { label: 'Completed', className: 'border border-emerald-200 bg-emerald-50 text-emerald-700' },
 };
 
 export default function TheaterTechDashboard() {
@@ -97,8 +95,8 @@ export default function TheaterTechDashboard() {
             total: cases.length,
             draft: cases.filter((c) => c.status === 'DRAFT').length,
             planning: cases.filter((c) => c.status === 'PLANNING').length,
-            readyForPrep: cases.filter((c) => ['READY_FOR_THEATER_PREP', 'READY_FOR_THEATER_BOOKING'].includes(c.status)).length,
-            scheduled: cases.filter((c) => c.status === 'SCHEDULED').length,
+            readyForPrep: cases.filter((c) => ['READY_FOR_WARD_PREP', 'IN_WARD_PREP', 'READY_FOR_THEATER_BOOKING'].includes(c.status)).length,
+            scheduled: cases.filter((c) => ['READY_FOR_THEATER_BOOKING', 'SCHEDULED'].includes(c.status)).length,
             inPrep: cases.filter((c) => c.status === 'IN_PREP').length,
             inTheater: cases.filter((c) => c.status === 'IN_THEATER').length,
             recovery: cases.filter((c) => c.status === 'RECOVERY').length,
@@ -145,7 +143,7 @@ export default function TheaterTechDashboard() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Theater Tech Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage surgical cases and daily operations
+            Coordinate surgical cases from ward readiness through live theater activity
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -161,14 +159,14 @@ export default function TheaterTechDashboard() {
           "cursor-pointer transition-all hover:shadow-md",
           stats.readyForPrep > 0 && "border-amber-300 bg-amber-50"
         )}
-        onClick={() => router.push('/theater-tech/dayboard')}
+        onClick={() => router.push('/theater-tech/surgical-cases?status=READY_FOR_WARD_PREP,IN_WARD_PREP,READY_FOR_THEATER_BOOKING')}
         >
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Ready for Prep</CardTitle>
+            <CardTitle className="text-sm font-medium">Awaiting Coordination</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-amber-600">{stats.readyForPrep}</div>
-            <p className="text-xs text-muted-foreground mt-1">Cases awaiting preparation</p>
+            <p className="text-xs text-muted-foreground mt-1">Cases in ward prep or ready for booking</p>
           </CardContent>
         </Card>
 
@@ -306,8 +304,7 @@ export default function TheaterTechDashboard() {
                 {recentCases.map((caseItem) => {
                   const statusCfg = STATUS_CONFIG[caseItem.status] || { 
                     label: caseItem.status, 
-                    variant: 'outline', 
-                    className: 'bg-slate-50 text-slate-700' 
+                    className: 'border border-slate-200 bg-slate-100 text-slate-700' 
                   };
                   return (
                     <div
@@ -332,12 +329,9 @@ export default function TheaterTechDashboard() {
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge 
-                          variant={statusCfg.variant as any} 
-                          className={cn("text-xs font-normal", statusCfg.className)}
-                        >
+                        <span className={cn("inline-flex items-center rounded-full px-2 py-0.5 text-xs font-normal", statusCfg.className)}>
                           {statusCfg.label}
-                        </Badge>
+                        </span>
                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </div>
                     </div>
@@ -369,8 +363,8 @@ export default function TheaterTechDashboard() {
         >
           <CardContent className="pt-4">
             <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-indigo-500" />
-              <span className="text-sm text-muted-foreground">Scheduled</span>
+              <div className="h-2 w-2 rounded-full bg-slate-500" />
+              <span className="text-sm text-muted-foreground">Booking</span>
             </div>
             <p className="text-2xl font-bold mt-1">{stats.scheduled}</p>
           </CardContent>

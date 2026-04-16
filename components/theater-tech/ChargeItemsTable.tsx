@@ -10,6 +10,7 @@
 
 import { FileText, Trash2, Package } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import type { ChargeItem, ChargeItemsTableProps } from './charge-sheet.types';
 
 function ItemTypeIcon({ type }: { type: ChargeItem['type'] }) {
@@ -40,12 +41,15 @@ export function ChargeItemsTable({
         {chargeItems.map((item) => {
           const draft = getDraft(item);
           return (
-            <div key={item.id} className="bg-slate-50 rounded-lg p-3">
+            <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
               <div className="flex items-center gap-2 mb-2">
                 <ItemTypeIcon type={item.type} />
                 <span className="text-sm font-medium truncate flex-1">
                   {item.description}
                 </span>
+                <Badge variant="outline" className="border-slate-200 bg-white text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">
+                  {item.type}
+                </Badge>
                 <button
                   type="button"
                   onClick={() => onRemoveItem(item.id)}
@@ -55,6 +59,11 @@ export function ChargeItemsTable({
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
+              {typeof item.catalogAmount === 'number' && (
+                <p className="mb-3 text-xs text-slate-500">
+                  Catalog price: KSH {item.catalogAmount.toLocaleString()}. This sheet price can be edited below.
+                </p>
+              )}
               <div className="flex items-end gap-3">
                 <div className="flex-1">
                   <label className="text-xs text-slate-500">Qty</label>
@@ -72,7 +81,7 @@ export function ChargeItemsTable({
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="text-xs text-slate-500">Unit Price</label>
+                  <label className="text-xs text-slate-500">This Sheet Price</label>
                   <Input
                     type="text"
                     inputMode="decimal"
@@ -97,7 +106,7 @@ export function ChargeItemsTable({
       </div>
 
       {/* Desktop: table */}
-      <div className="hidden md:block overflow-x-auto">
+      <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200">
         <table className="w-full min-w-[500px]">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
@@ -108,7 +117,7 @@ export function ChargeItemsTable({
                 Qty
               </th>
               <th className="text-left text-xs font-medium text-slate-500 px-3 py-2 w-32">
-                Unit Price
+                This Sheet Price
               </th>
               <th className="text-right text-xs font-medium text-slate-500 px-3 py-2 w-28">
                 Total
@@ -120,11 +129,18 @@ export function ChargeItemsTable({
             {chargeItems.map((item) => {
               const draft = getDraft(item);
               return (
-                <tr key={item.id} className="hover:bg-slate-50">
+                <tr key={item.id} className="hover:bg-slate-50/70">
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
                       <ItemTypeIcon type={item.type} />
-                      <span className="text-sm">{item.description}</span>
+                      <div>
+                        <p className="text-sm font-medium text-slate-900">{item.description}</p>
+                        {typeof item.catalogAmount === 'number' && (
+                          <p className="text-xs text-slate-500">
+                            Catalog price: KSH {item.catalogAmount.toLocaleString()}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </td>
                   <td className="px-3 py-2">
@@ -145,7 +161,7 @@ export function ChargeItemsTable({
                     <Input
                       type="text"
                       inputMode="decimal"
-                      className="h-8 w-28"
+                      className="h-8 w-32"
                       value={draft.amountStr}
                       onChange={(e) =>
                         onAmountChange(item.id, e.target.value)

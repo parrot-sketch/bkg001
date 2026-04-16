@@ -83,13 +83,14 @@ export function useDoctorTodayAppointments(doctorId: string | undefined, enabled
         return true;
       });
     },
-    staleTime: 1000 * 10, // 10 seconds - faster stale time for queue updates
+    staleTime: 1000 * 30, // 30 seconds - aligns with polling and avoids duplicate refetches
     gcTime: 1000 * 60 * 5, // 5 minutes
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    refetchOnWindowFocus: true, // Refetch on focus for clinical safety
+    refetchOnWindowFocus: false, // Polling already keeps this fresh enough
     refetchOnReconnect: true,
     refetchInterval: 30_000, // Was 15s — reduced to conserve DB connections
+    networkMode: 'offlineFirst',
     enabled: enabled && !!doctorId,
   });
 
@@ -127,7 +128,8 @@ export function useDoctorUpcomingAppointments(doctorId: string | undefined, enab
     gcTime: 1000 * 60 * 10, // 10 minutes
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
+    networkMode: 'offlineFirst',
     enabled: enabled && !!doctorId,
   });
 }
@@ -170,8 +172,9 @@ export function useDoctorPendingConfirmations(doctorId: string | undefined, enab
     gcTime: 1000 * 60 * 5, // 5 minutes
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    refetchOnWindowFocus: true, // Refetch on focus since these are action items
+    refetchOnWindowFocus: false, // Manual invalidation + navigation keeps this current enough
     refetchOnReconnect: true,
+    networkMode: 'offlineFirst',
     enabled: enabled && !!doctorId,
   });
 }

@@ -3,6 +3,7 @@ import { TheaterRepository } from '../repositories/TheaterRepository';
 import { TheaterBillingService } from './TheaterBillingService';
 import { TheaterNotificationService } from './TheaterNotificationService';
 import { TheaterAuditService } from './TheaterAuditService';
+import { syncDoctorCalendarEventsForSurgicalCase } from './SurgicalCaseCalendarSyncService';
 import {
     LockTheaterSlotDto,
     ConfirmTheaterBookingDto,
@@ -198,6 +199,8 @@ export class TheaterSchedulingUseCase {
             userId
         );
 
+        await syncDoctorCalendarEventsForSurgicalCase(prisma, booking.surgical_case_id);
+
         // Audit confirmation
         const feeAmount = billingResult.theaterFee?.amount || 0;
         await this.auditService.logBookingConfirmed(
@@ -279,6 +282,8 @@ export class TheaterSchedulingUseCase {
             billingReversed = billingResult.reversed;
             reversedAmount = billingResult.amount;
         }
+
+        await syncDoctorCalendarEventsForSurgicalCase(prisma, booking.surgical_case_id);
 
         // Notify
         await this.notificationService.notifyBookingCancelled(booking, userId);

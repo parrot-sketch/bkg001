@@ -6,12 +6,12 @@
  * View and book theater slots for surgical cases ready for theater booking.
  * 
  * Workflow:
- * 1. Doctor completes operative plan → case becomes READY_FOR_SCHEDULING
- * 2. Nurse completes pre-op checklist → case becomes READY_FOR_THEATER_BOOKING
+ * 1. Doctor completes case planning → case becomes READY_FOR_WARD_PREP
+ * 2. Nurse completes ward prep → case becomes READY_FOR_THEATER_BOOKING
  * 3. Frontdesk books theater → case becomes SCHEDULED
  *
  * This page shows cases in READY_FOR_THEATER_BOOKING status only.
- * Cases in other statuses (e.g., READY_FOR_SCHEDULING) are managed elsewhere.
+ * Cases in earlier workflow stages are managed on the doctor and nurse queues.
  *
  * Features:
  * - Filter by surgeon, urgency, date
@@ -170,9 +170,9 @@ export default function TheaterSchedulingPage() {
             <header className="mb-6">
                 <div className="flex items-center justify-between mb-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-900">Theater Scheduling</h1>
+                        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Theater Scheduling</h1>
                         <p className="text-sm text-slate-500 mt-1">
-                            Book theater slots for cases ready for scheduling
+                            Book theater slots for cases that have cleared ward preparation
                         </p>
                     </div>
                     <Link href="/frontdesk/dashboard">

@@ -40,8 +40,9 @@ export function useTodayCheckedInPatients(enabled = true) {
     refetchInterval: 1000 * 60, // Was 30s — reduced to conserve DB connections
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    refetchOnWindowFocus: true, // Refetch on focus for clinical safety
+    refetchOnWindowFocus: false,
     refetchOnReconnect: true,
+    networkMode: 'offlineFirst',
     enabled,
   });
 }
@@ -68,8 +69,9 @@ export function usePreOpPatients(enabled = true) {
     refetchInterval: 1000 * 60, // Was 30s — reduced to conserve DB connections
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
     refetchOnReconnect: true,
+    networkMode: 'offlineFirst',
     enabled,
   });
 }
@@ -96,8 +98,9 @@ export function usePostOpPatients(enabled = true) {
     refetchInterval: 1000 * 60, // Was 30s — reduced to conserve DB connections
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
     refetchOnReconnect: true,
+    networkMode: 'offlineFirst',
     enabled,
   });
 }

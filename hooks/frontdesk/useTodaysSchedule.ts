@@ -32,6 +32,8 @@ export function useTodaysSchedule(doctorId?: string) {
         },
         refetchInterval: 60_000, // Was 30s — reduced to conserve DB connections
         staleTime: 30_000, // Consider data fresh for 30 seconds
+        refetchOnWindowFocus: false,
+        networkMode: 'offlineFirst',
     });
 }
 

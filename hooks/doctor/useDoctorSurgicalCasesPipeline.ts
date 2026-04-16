@@ -133,9 +133,10 @@ export function useDoctorSurgicalCasesPipeline(enabled = true) {
     gcTime: 1000 * 60 * 5, // 5 minutes
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
     refetchOnReconnect: true,
     refetchInterval: 60000, // Poll every 60 seconds
+    networkMode: 'offlineFirst',
     enabled,
   });
 }

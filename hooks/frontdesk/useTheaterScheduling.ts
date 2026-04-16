@@ -45,7 +45,8 @@ export function useTheaterSchedulingQueue(options: TheaterSchedulingQueueOptions
         placeholderData: keepPreviousData,
         staleTime: 1000 * 60, // 60 seconds - Tier 3 polling
         refetchInterval: 1000 * 60, // Refetch every minute
-        refetchOnWindowFocus: true,
+        refetchOnWindowFocus: false,
+        networkMode: 'offlineFirst',
         enabled,
     });
 }
@@ -67,7 +68,8 @@ export function useTheaters(date?: string, enabled = true) {
             return response.data;
         },
         staleTime: 1000 * 60, // 60 seconds
-        refetchOnWindowFocus: true,
+        refetchOnWindowFocus: false,
+        networkMode: 'offlineFirst',
         enabled,
     });
 }

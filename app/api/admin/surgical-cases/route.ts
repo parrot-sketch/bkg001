@@ -2,12 +2,13 @@
  * API Route: GET /api/admin/surgical-cases
  *
  * Returns surgical cases filtered by status for admin dashboards.
- * Primarily used by the theater scheduling page to show cases
- * that are ready for scheduling (READY_FOR_WARD_PREP or IN_WARD_PREP).
+ * Primarily used by booking and coordination views to show cases
+ * at the requested workflow stage.
  *
  * Query params:
- *   ?status=READY_FOR_WARD_PREP  (default - cases ready for pre-op)
- *   ?status=IN_WARD_PREP         (cases in pre-op)
+ *   ?status=READY_FOR_THEATER_BOOKING  (default - cases ready for theater booking)
+ *   ?status=READY_FOR_WARD_PREP        (cases entering ward prep)
+ *   ?status=IN_WARD_PREP               (cases in ward prep)
  *   ?status=SCHEDULED
  *   ?status=PLANNING
  *   ?page=1            (default 1)
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
         // 3. Parse query params
         const { searchParams } = new URL(request.url);
-        const statusParam = searchParams.get('status') || 'READY_FOR_WARD_PREP';
+        const statusParam = searchParams.get('status') || 'READY_FOR_THEATER_BOOKING';
         const page = Math.max(1, parseInt(searchParams.get('page') || '', 10) || DEFAULT_PAGE);
         const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(searchParams.get('pageSize') || '', 10) || DEFAULT_PAGE_SIZE));
 

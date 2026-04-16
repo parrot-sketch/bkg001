@@ -25,26 +25,25 @@ import { Skeleton } from '@/components/ui/skeleton';
 // ─────────────────────────────────────────────────────────────────────────────
 
 const STATUS_CONFIG: Record<string, { label: string; pill: string }> = {
-  DRAFT:                      { label: 'Draft',         pill: 'bg-slate-100 text-slate-600 ring-slate-200'       },
-  PLANNING:                   { label: 'Planning',      pill: 'bg-blue-50 text-blue-700 ring-blue-200'           },
-  READY_FOR_WARD_PREP:        { label: 'Ward Prep',     pill: 'bg-cyan-50 text-cyan-700 ring-cyan-200'           },
-  IN_WARD_PREP:               { label: 'In Ward Prep',  pill: 'bg-teal-50 text-teal-700 ring-teal-200'           },
-  READY_FOR_THEATER_BOOKING:  { label: 'Ready',         pill: 'bg-indigo-50 text-indigo-700 ring-indigo-200'     },
-  READY_FOR_THEATER_PREP:     { label: 'Theater Prep',  pill: 'bg-violet-50 text-violet-700 ring-violet-200'     },
-  SCHEDULED:                  { label: 'Scheduled',     pill: 'bg-purple-50 text-purple-700 ring-purple-200'     },
-  IN_PREP:                    { label: 'In Prep',       pill: 'bg-amber-50 text-amber-700 ring-amber-200'        },
-  IN_THEATER:                 { label: 'In Theater',    pill: 'bg-red-50 text-red-700 ring-red-200'              },
-  RECOVERY:                   { label: 'Recovery',      pill: 'bg-emerald-50 text-emerald-700 ring-emerald-200'  },
-  COMPLETED:                  { label: 'Completed',     pill: 'bg-green-50 text-green-700 ring-green-200'        },
-  CANCELLED:                  { label: 'Cancelled',     pill: 'bg-slate-100 text-slate-400 ring-slate-200'       },
+  DRAFT:                      { label: 'Draft',         pill: 'border border-slate-200 bg-slate-100 text-slate-600 ring-slate-200'      },
+  PLANNING:                   { label: 'Planning',      pill: 'border border-amber-200 bg-amber-50 text-amber-700 ring-amber-200'      },
+  READY_FOR_WARD_PREP:        { label: 'Ward Prep',     pill: 'border border-emerald-200 bg-emerald-50 text-emerald-700 ring-emerald-200' },
+  IN_WARD_PREP:               { label: 'In Ward Prep',  pill: 'border border-amber-200 bg-amber-50 text-amber-700 ring-amber-200'      },
+  READY_FOR_THEATER_BOOKING:  { label: 'Ready for Booking', pill: 'border border-slate-300 bg-slate-100 text-slate-700 ring-slate-300' },
+  SCHEDULED:                  { label: 'Scheduled',     pill: 'border border-slate-300 bg-slate-100 text-slate-700 ring-slate-300'      },
+  IN_PREP:                    { label: 'In Prep',       pill: 'border border-amber-200 bg-amber-50 text-amber-700 ring-amber-200'      },
+  IN_THEATER:                 { label: 'In Theater',    pill: 'border border-red-200 bg-red-50 text-red-700 ring-red-200'              },
+  RECOVERY:                   { label: 'Recovery',      pill: 'border border-emerald-200 bg-emerald-50 text-emerald-700 ring-emerald-200' },
+  COMPLETED:                  { label: 'Completed',     pill: 'border border-emerald-200 bg-emerald-50 text-emerald-700 ring-emerald-200' },
+  CANCELLED:                  { label: 'Cancelled',     pill: 'border border-red-200 bg-red-50 text-red-700 ring-red-200'              },
 };
 
 const STATUS_TABS = [
   { value: '',                                                                                    label: 'All'       },
   { value: 'DRAFT,PLANNING',                                                                     label: 'Planning'  },
-  { value: 'READY_FOR_WARD_PREP,IN_WARD_PREP,READY_FOR_THEATER_BOOKING,READY_FOR_THEATER_PREP',  label: 'Prep'      },
-  { value: 'SCHEDULED,IN_PREP',                                                                  label: 'Scheduled' },
-  { value: 'IN_THEATER,RECOVERY',                                                                label: 'Active'    },
+  { value: 'READY_FOR_WARD_PREP,IN_WARD_PREP',                                                   label: 'Ward Prep' },
+  { value: 'READY_FOR_THEATER_BOOKING,SCHEDULED',                                                label: 'Booking'   },
+  { value: 'IN_PREP,IN_THEATER,RECOVERY',                                                        label: 'Live'      },
   { value: 'COMPLETED,CANCELLED',                                                                label: 'Done'      },
 ] as const;
 
@@ -111,8 +110,8 @@ export default function TheaterTechSurgicalCasesPage() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-slate-900">Surgical Cases</h1>
-          <p className="text-sm text-slate-500">Manage and track all cases</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Surgical Cases</h1>
+          <p className="text-sm text-slate-500">Track each case from planning through booking and live theater flow.</p>
         </div>
         <span className="text-xs bg-white border border-slate-200 text-slate-500 px-2.5 py-1 rounded-full tabular-nums">
           {filtered.length} {filtered.length === 1 ? 'case' : 'cases'}
@@ -128,8 +127,8 @@ export default function TheaterTechSurgicalCasesPage() {
             className={cn(
               'px-3 py-1.5 text-xs font-medium rounded-md whitespace-nowrap transition-colors touch-manipulation',
               activeTab === tab.value
-                ? 'bg-slate-900 text-white shadow-sm'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                ? 'border border-slate-900 bg-slate-900 text-white shadow-sm'
+                : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
             )}
           >
             {tab.label}

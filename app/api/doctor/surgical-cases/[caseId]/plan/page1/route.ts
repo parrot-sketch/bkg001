@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import db from '@/lib/db';
 import { revalidatePath } from 'next/cache';
+import { syncDoctorCalendarEventsForSurgicalCase } from '@/application/services/SurgicalCaseCalendarSyncService';
 
 const VALID_PROCEDURE_CATEGORIES = ['FACE', 'BREAST', 'BODY', 'RECONSTRUCTIVE'];
 const VALID_CASE_PLAN_TYPES = ['PRIMARY', 'REVISION'];
@@ -197,8 +198,11 @@ export async function PATCH(
       })
     );
 
+    await syncDoctorCalendarEventsForSurgicalCase(db, caseId);
+
     revalidatePath(`/doctor/surgical-cases/${caseId}/plan`);
     revalidatePath('/doctor/surgical-cases');
+    revalidatePath('/doctor/schedule');
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

@@ -2,7 +2,7 @@
  * Domain Helper: Planning Readiness
  *
  * Computes the list of missing planning items that must be completed
- * before a surgical case can transition PLANNING → READY_FOR_SCHEDULING.
+ * before a surgical case can transition PLANNING → READY_FOR_WARD_PREP.
  *
  * This is the single source of truth for doctor-side readiness.
  * The same logic is used by:

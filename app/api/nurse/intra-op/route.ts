@@ -23,8 +23,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
         }
 
-        // CORRECTED: Only show IN_THEATER (actively in surgery), not SCHEDULED (booked but not yet in theater)
-        // Filter by theater booking date = today to show only today's surgeries
+        // Include the live peri-operative queue for today:
+        // - SCHEDULED: booked and visible on the support list
+        // - IN_PREP: awaiting transfer into theater
+        // - IN_THEATER: active surgery
         const today = new Date();
         const startOfDay = new Date(today);
         startOfDay.setHours(0, 0, 0, 0);

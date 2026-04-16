@@ -110,7 +110,7 @@ export default function PreOpCasesPage() {
               loading={isLoading}
             />
             <NurseStatCard
-              title="Ready for Scheduling"
+              title="Ready for Booking"
               value={data.summary.ready}
               subtitle="All checks passed"
               color="emerald"

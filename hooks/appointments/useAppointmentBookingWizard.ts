@@ -44,8 +44,17 @@ export function useAppointmentBookingWizard({
   onCancel,
 }: UseAppointmentBookingWizardProps) {
   const isFollowUp = source === AppointmentSource.DOCTOR_FOLLOW_UP || source === 'DOCTOR_FOLLOW_UP' || initialType === 'Follow-up';
+  const skipDoctorStep = lockDoctor && !!initialDoctorId;
+  const skipPatientStep = !!(initialPatientId || initialPatient);
+  const stepSequence = useMemo(() => {
+    const steps: number[] = [];
+    if (!skipDoctorStep) steps.push(1);
+    if (!skipPatientStep) steps.push(2);
+    steps.push(3, 4);
+    return steps;
+  }, [skipDoctorStep, skipPatientStep]);
 
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState<number>(stepSequence[0] ?? 4);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState(() => {
@@ -108,20 +117,18 @@ export function useAppointmentBookingWizard({
 
   const handleNext = () => {
     if (!canProceed()) return;
-    if (currentStep === 1 && formData.patientId) {
-      setCurrentStep(3);
-    } else {
-      setCurrentStep(prev => Math.min(prev + 1, 4));
+    const currentIndex = stepSequence.indexOf(currentStep);
+    const nextStep = stepSequence[currentIndex + 1];
+    if (nextStep) {
+      setCurrentStep(nextStep);
     }
   };
 
   const handleBack = () => {
-    if (currentStep === 3 && (initialPatientId || initialPatient)) {
-      setCurrentStep(1);
-    } else if (currentStep === 3) {
-      setCurrentStep(2);
-    } else {
-      setCurrentStep(prev => Math.max(prev - 1, 1));
+    const currentIndex = stepSequence.indexOf(currentStep);
+    const previousStep = stepSequence[currentIndex - 1];
+    if (previousStep) {
+      setCurrentStep(previousStep);
     }
   };
 
@@ -171,16 +178,13 @@ export function useAppointmentBookingWizard({
   };
 
   const stepLabels = useMemo(() => {
-    const labels = [
-      { id: 1, label: 'Doctor' },
-      { id: 3, label: 'Date & Time' },
-      { id: 4, label: 'Review' },
-    ];
-    if (!initialPatientId && !initialPatient) {
-      labels.splice(1, 0, { id: 2, label: 'Patient' });
-    }
+    const labels: Array<{ id: number; label: string }> = [];
+    if (!skipDoctorStep) labels.push({ id: 1, label: 'Doctor' });
+    if (!skipPatientStep) labels.push({ id: 2, label: 'Patient' });
+    labels.push({ id: 3, label: 'Date & Time' });
+    labels.push({ id: 4, label: 'Review' });
     return labels;
-  }, [initialPatientId, initialPatient]);
+  }, [skipDoctorStep, skipPatientStep]);
 
   const currentStepIndex = stepLabels.findIndex(s => s.id === currentStep) + 1;
 
