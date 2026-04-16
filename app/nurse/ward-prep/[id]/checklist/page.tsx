@@ -378,6 +378,7 @@ function SkinPrepSubSection({
     value,
     onChange,
     disabled,
+    defaultPerformerName,
 }: {
     value: {
         agent?: SkinPrepAgent;
@@ -388,6 +389,7 @@ function SkinPrepSubSection({
     } | undefined;
     onChange: (v: NonNullable<typeof value>) => void;
     disabled: boolean;
+    defaultPerformerName?: string;
 }) {
     const sp = value ?? {};
     const set = (field: string, val: unknown) => onChange({ ...sp, [field]: val });
@@ -444,9 +446,9 @@ function SkinPrepSubSection({
 
                 <TextField
                     label="Performed by (name)"
-                    value={sp.performerName}
+                    value={sp.performerName || defaultPerformerName || ''}
                     onChange={(v) => set('performerName', v)}
-                    placeholder="Nurse / tech name"
+                    placeholder={defaultPerformerName || "Nurse / tech name"}
                     disabled={disabled}
                 />
             </div>
@@ -561,15 +563,18 @@ function AllergiesNpoSection({ data, onChange, disabled, patientAllergies }: Sec
     );
 }
 
-function PreparationSection({ data, onChange, disabled }: SectionProps) {
+function PreparationSection({ data, onChange, disabled, currentUser }: SectionProps) {
     const d = data.preparation ?? {};
     const set = (field: string, value: any) => onChange({ ...data, preparation: { ...d, [field]: value } });
     const showSkinPrepDetails = !!d.shaveSkinPrep || !!d.skinPrep;
+    const userName = currentUser?.firstName
+        ? `${currentUser.firstName} ${currentUser.lastName || ''}`.trim()
+        : currentUser?.email || '';
     return (
         <div className="space-y-3">
             <BooleanField label="Bath / shower and gown" value={d.bathGown} onChange={(v) => set('bathGown', v)} disabled={disabled} />
             <BooleanField label="Shave / skin prep done" value={d.shaveSkinPrep} onChange={(v) => set('shaveSkinPrep', v)} disabled={disabled} />
-            {showSkinPrepDetails && (<SkinPrepSubSection value={d.skinPrep as any} onChange={(v) => set('skinPrep', v)} disabled={disabled} />)}
+            {showSkinPrepDetails && (<SkinPrepSubSection value={d.skinPrep as any} onChange={(v) => set('skinPrep', v)} disabled={disabled} defaultPerformerName={userName} />)}
             <BooleanField label="ID band on" value={d.idBandOn} onChange={(v) => set('idBandOn', v)} disabled={disabled} />
             <BooleanField label="Correct positioning verified" value={d.correctPositioning} onChange={(v) => set('correctPositioning', v)} disabled={disabled} />
             <BooleanField label="Jewelry removed" value={d.jewelryRemoved} onChange={(v) => set('jewelryRemoved', v)} disabled={disabled} />
@@ -599,12 +604,6 @@ function VitalsSection({ data, onChange, disabled }: SectionProps) {
     const urinalysisOptions = Object.values(UrinalysisResult).map((r) => ({ value: r, label: URINALYSIS_LABELS[r] }));
     return (
         <div className="space-y-5">
-            {warningMap.size > 0 && (
-                <div className="p-3 rounded-lg border border-amber-200 bg-amber-50 space-y-1">
-                    <p className="text-xs font-semibold text-amber-800 uppercase tracking-wider flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" />Vitals Advisory</p>
-                    {Array.from(warningMap.values()).map((w) => (<p key={w.field} className={`text-xs ${w.severity === 'critical' ? 'text-red-700 font-medium' : 'text-amber-700'}`}><span className="font-semibold">{w.label}:</span> {w.message}</p>))}
-                </div>
-            )}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 <NumberField label="BP Systolic" value={d.bpSystolic} onChange={(v) => set('bpSystolic', v)} min={60} max={260} unit="mmHg" disabled={disabled} warning={warningMap.get('bpSystolic')} />
                 <NumberField label="BP Diastolic" value={d.bpDiastolic} onChange={(v) => set('bpDiastolic', v)} min={30} max={160} unit="mmHg" disabled={disabled} warning={warningMap.get('bpDiastolic')} />
