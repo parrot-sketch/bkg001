@@ -1,0 +1,520 @@
+{
+  "by_category": {
+    "BODY_CONTOURING": [
+      "LIPO 360",
+      "LIPOSUCTION",
+      "TUMMY TUCK",
+      "ABDOMINOPLASTY",
+      "LIPOABDOMINOPLASTY",
+      "ARM LIPO",
+      "ARM LIFT",
+      "BRACHIOPLASTY",
+      "THIGH LIPO",
+      "THIGH LIFT",
+      "UPPER BODY LIFT",
+      "LOWER BODY LIFT",
+      "BODY LIFT",
+      "360HD LASER LIPO",
+      "LIPO OF INNER KNEE",
+      "LIPO TOUCH UP",
+      "LIPO REVISION"
+    ],
+    "BUTTOCK_ENHANCEMENT": [
+      "BBL",
+      "BRAZILIAN BUTT LIFT",
+      "FAT TRANSFER TO HIPS",
+      "FAT TRANSFER TO BUTT",
+      "HIP DIP CORRECTION"
+    ],
+    "BREAST": [
+      "BREAST AUGMENTATION",
+      "BREAST IMPLANTS",
+      "BREAST REDUCTION",
+      "BILATERAL BREAST REDUCTION",
+      "MASTOPEXY",
+      "BREAST LIFT",
+      "BILATERAL MASTOPEXY",
+      "NIPPLE GRAFT",
+      "BREAST LIFT WITH IMPLANTS",
+      "MASTOPEXY REVISION"
+    ],
+    "FACE": [
+      "RHINOPLASTY",
+      "SECONDARY RHINOPLASTY",
+      "OPEN RHINOPLASTY",
+      "BLEPHAROPLASTY",
+      "EYELID SURGERY",
+      "LOWER LID BLEPHAROPLASTY",
+      "FACELIFT",
+      "NECKLIFT",
+      "CHIN LIPO",
+      "CHIN AUGMENTATION",
+      "LIP REDUCTION",
+      "UPPER LIP REDUCTION",
+      "LOWER LIP REDUCTION",
+      "OTOPLASTY",
+      "BILATERAL OTOPLASTY",
+      "FACIAL RECONSTRUCTION",
+      "BUCCAL FAT PAD REMOVAL",
+      "EAR SURGERY"
+    ],
+    "INJECTIONS_TREATMENTS": [
+      "BOTOX",
+      "BOTOX TOUCH UP",
+      "PROFHILO",
+      "PROFHILO TOUCH UP",
+      "KENALOG INJECTION",
+      "TRIAMCINOLONE INJECTION",
+      "PRP",
+      "MICRONEEDLING",
+      "NANOFAT",
+      "FILLER",
+      "IV DRIP",
+      "IV GLUTA"
+    ],
+    "EXCISION_REMOVAL": [
+      "LIPOMA EXCISION",
+      "EXCISION OF LIPOMA",
+      "EXCISION OF LIPOMA OF BACK",
+      "CYST EXCISION",
+      "EXCISION OF SABACEOUS CYST",
+      "KELOID EXCISION",
+      "KELOID REMOVAL",
+      "EXCISION OF ABSCESS",
+      "EXCISION OF INGROWN TOE NAIL",
+      "WART EXCISION",
+      "SABACEOUS CYST"
+    ],
+    "SKIN_GRAFTING_WOUNDS": [
+      "SKIN GRAFT",
+      "SKIN GRAFT + VAC DRESSING",
+      "VAC DRESSING",
+      "WOUND CLOSURE",
+      "SECONDARY WOUND CLOSURE",
+      "SEROMA DRAINAGE",
+      "DEBRIDMENT",
+      "CONTRACTURE RELEASE",
+      "TOP CLOSURE ADJUSTMENT"
+    ],
+    "GENDER_CONFIRMATION": [
+      "TOP SURGERY",
+      "VAGINOPLASTY",
+      "VAGINAL REJUVINATION"
+    ],
+    "MALE_SPECIFIC": [
+      "GYNECOMASTIA",
+      "CIRCUMCISION"
+    ],
+    "PEDIATRIC": [
+      "CLEFT PALATE REPAIR"
+    ],
+    "OTHER": [
+      "BIOPSY",
+      "EXCISIONAL BIOPSY",
+      "BLOOD TRANSFUSION",
+      "FLAP SURGERY",
+      "VY ADVANCEMENT FLAP",
+      "SCAR REVISION",
+      "SCLEROTHERAPY",
+      "GROWTH EXCISION",
+      "MASS EXCISION",
+      "WIDE LOCAL EXCISION"
+    ]
+  },
+  "for_seeding": [
+    {
+      "name": "LIPO 360",
+      "category": "BODY_CONTOURING"
+    },
+    {
+      "name": "LIPOSUCTION",
+      "category": "BODY_CONTOURING"
+    },
+    {
+      "name": "TUMMY TUCK",
+      "category": "BODY_CONTOURING"
+    },
+    {
+      "name": "ABDOMINOPLASTY",
+      "category": "BODY_CONTOURING"
+    },
+    {
+      "name": "LIPOABDOMINOPLASTY",
+      "category": "BODY_CONTOURING"
+    },
+    {
+      "name": "ARM LIPO",
+      "category": "BODY_CONTOURING"
+    },
+    {
+      "name": "ARM LIFT",
+      "category": "BODY_CONTOURING"
+    },
+    {
+      "name": "BRACHIOPLASTY",
+      "category": "BODY_CONTOURING"
+    },
+    {
+      "name": "THIGH LIPO",
+      "category": "BODY_CONTOURING"
+    },
+    {
+      "name": "THIGH LIFT",
+      "category": "BODY_CONTOURING"
+    },
+    {
+      "name": "UPPER BODY LIFT",
+      "category": "BODY_CONTOURING"
+    },
+    {
+      "name": "LOWER BODY LIFT",
+      "category": "BODY_CONTOURING"
+    },
+    {
+      "name": "BODY LIFT",
+      "category": "BODY_CONTOURING"
+    },
+    {
+      "name": "360HD LASER LIPO",
+      "category": "BODY_CONTOURING"
+    },
+    {
+      "name": "LIPO OF INNER KNEE",
+      "category": "BODY_CONTOURING"
+    },
+    {
+      "name": "LIPO TOUCH UP",
+      "category": "BODY_CONTOURING"
+    },
+    {
+      "name": "LIPO REVISION",
+      "category": "BODY_CONTOURING"
+    },
+    {
+      "name": "BBL",
+      "category": "BUTTOCK_ENHANCEMENT"
+    },
+    {
+      "name": "BRAZILIAN BUTT LIFT",
+      "category": "BUTTOCK_ENHANCEMENT"
+    },
+    {
+      "name": "FAT TRANSFER TO HIPS",
+      "category": "BUTTOCK_ENHANCEMENT"
+    },
+    {
+      "name": "FAT TRANSFER TO BUTT",
+      "category": "BUTTOCK_ENHANCEMENT"
+    },
+    {
+      "name": "HIP DIP CORRECTION",
+      "category": "BUTTOCK_ENHANCEMENT"
+    },
+    {
+      "name": "BREAST AUGMENTATION",
+      "category": "BREAST"
+    },
+    {
+      "name": "BREAST IMPLANTS",
+      "category": "BREAST"
+    },
+    {
+      "name": "BREAST REDUCTION",
+      "category": "BREAST"
+    },
+    {
+      "name": "BILATERAL BREAST REDUCTION",
+      "category": "BREAST"
+    },
+    {
+      "name": "MASTOPEXY",
+      "category": "BREAST"
+    },
+    {
+      "name": "BREAST LIFT",
+      "category": "BREAST"
+    },
+    {
+      "name": "BILATERAL MASTOPEXY",
+      "category": "BREAST"
+    },
+    {
+      "name": "NIPPLE GRAFT",
+      "category": "BREAST"
+    },
+    {
+      "name": "BREAST LIFT WITH IMPLANTS",
+      "category": "BREAST"
+    },
+    {
+      "name": "MASTOPEXY REVISION",
+      "category": "BREAST"
+    },
+    {
+      "name": "RHINOPLASTY",
+      "category": "FACE"
+    },
+    {
+      "name": "SECONDARY RHINOPLASTY",
+      "category": "FACE"
+    },
+    {
+      "name": "OPEN RHINOPLASTY",
+      "category": "FACE"
+    },
+    {
+      "name": "BLEPHAROPLASTY",
+      "category": "FACE"
+    },
+    {
+      "name": "EYELID SURGERY",
+      "category": "FACE"
+    },
+    {
+      "name": "LOWER LID BLEPHAROPLASTY",
+      "category": "FACE"
+    },
+    {
+      "name": "FACELIFT",
+      "category": "FACE"
+    },
+    {
+      "name": "NECKLIFT",
+      "category": "FACE"
+    },
+    {
+      "name": "CHIN LIPO",
+      "category": "FACE"
+    },
+    {
+      "name": "CHIN AUGMENTATION",
+      "category": "FACE"
+    },
+    {
+      "name": "LIP REDUCTION",
+      "category": "FACE"
+    },
+    {
+      "name": "UPPER LIP REDUCTION",
+      "category": "FACE"
+    },
+    {
+      "name": "LOWER LIP REDUCTION",
+      "category": "FACE"
+    },
+    {
+      "name": "OTOPLASTY",
+      "category": "FACE"
+    },
+    {
+      "name": "BILATERAL OTOPLASTY",
+      "category": "FACE"
+    },
+    {
+      "name": "FACIAL RECONSTRUCTION",
+      "category": "FACE"
+    },
+    {
+      "name": "BUCCAL FAT PAD REMOVAL",
+      "category": "FACE"
+    },
+    {
+      "name": "EAR SURGERY",
+      "category": "FACE"
+    },
+    {
+      "name": "BOTOX",
+      "category": "INJECTIONS_TREATMENTS"
+    },
+    {
+      "name": "BOTOX TOUCH UP",
+      "category": "INJECTIONS_TREATMENTS"
+    },
+    {
+      "name": "PROFHILO",
+      "category": "INJECTIONS_TREATMENTS"
+    },
+    {
+      "name": "PROFHILO TOUCH UP",
+      "category": "INJECTIONS_TREATMENTS"
+    },
+    {
+      "name": "KENALOG INJECTION",
+      "category": "INJECTIONS_TREATMENTS"
+    },
+    {
+      "name": "TRIAMCINOLONE INJECTION",
+      "category": "INJECTIONS_TREATMENTS"
+    },
+    {
+      "name": "PRP",
+      "category": "INJECTIONS_TREATMENTS"
+    },
+    {
+      "name": "MICRONEEDLING",
+      "category": "INJECTIONS_TREATMENTS"
+    },
+    {
+      "name": "NANOFAT",
+      "category": "INJECTIONS_TREATMENTS"
+    },
+    {
+      "name": "FILLER",
+      "category": "INJECTIONS_TREATMENTS"
+    },
+    {
+      "name": "IV DRIP",
+      "category": "INJECTIONS_TREATMENTS"
+    },
+    {
+      "name": "IV GLUTA",
+      "category": "INJECTIONS_TREATMENTS"
+    },
+    {
+      "name": "LIPOMA EXCISION",
+      "category": "EXCISION_REMOVAL"
+    },
+    {
+      "name": "EXCISION OF LIPOMA",
+      "category": "EXCISION_REMOVAL"
+    },
+    {
+      "name": "EXCISION OF LIPOMA OF BACK",
+      "category": "EXCISION_REMOVAL"
+    },
+    {
+      "name": "CYST EXCISION",
+      "category": "EXCISION_REMOVAL"
+    },
+    {
+      "name": "EXCISION OF SABACEOUS CYST",
+      "category": "EXCISION_REMOVAL"
+    },
+    {
+      "name": "KELOID EXCISION",
+      "category": "EXCISION_REMOVAL"
+    },
+    {
+      "name": "KELOID REMOVAL",
+      "category": "EXCISION_REMOVAL"
+    },
+    {
+      "name": "EXCISION OF ABSCESS",
+      "category": "EXCISION_REMOVAL"
+    },
+    {
+      "name": "EXCISION OF INGROWN TOE NAIL",
+      "category": "EXCISION_REMOVAL"
+    },
+    {
+      "name": "WART EXCISION",
+      "category": "EXCISION_REMOVAL"
+    },
+    {
+      "name": "SABACEOUS CYST",
+      "category": "EXCISION_REMOVAL"
+    },
+    {
+      "name": "SKIN GRAFT",
+      "category": "SKIN_GRAFTING_WOUNDS"
+    },
+    {
+      "name": "SKIN GRAFT + VAC DRESSING",
+      "category": "SKIN_GRAFTING_WOUNDS"
+    },
+    {
+      "name": "VAC DRESSING",
+      "category": "SKIN_GRAFTING_WOUNDS"
+    },
+    {
+      "name": "WOUND CLOSURE",
+      "category": "SKIN_GRAFTING_WOUNDS"
+    },
+    {
+      "name": "SECONDARY WOUND CLOSURE",
+      "category": "SKIN_GRAFTING_WOUNDS"
+    },
+    {
+      "name": "SEROMA DRAINAGE",
+      "category": "SKIN_GRAFTING_WOUNDS"
+    },
+    {
+      "name": "DEBRIDMENT",
+      "category": "SKIN_GRAFTING_WOUNDS"
+    },
+    {
+      "name": "CONTRACTURE RELEASE",
+      "category": "SKIN_GRAFTING_WOUNDS"
+    },
+    {
+      "name": "TOP CLOSURE ADJUSTMENT",
+      "category": "SKIN_GRAFTING_WOUNDS"
+    },
+    {
+      "name": "TOP SURGERY",
+      "category": "GENDER_CONFIRMATION"
+    },
+    {
+      "name": "VAGINOPLASTY",
+      "category": "GENDER_CONFIRMATION"
+    },
+    {
+      "name": "VAGINAL REJUVINATION",
+      "category": "GENDER_CONFIRMATION"
+    },
+    {
+      "name": "GYNECOMASTIA",
+      "category": "MALE_SPECIFIC"
+    },
+    {
+      "name": "CIRCUMCISION",
+      "category": "MALE_SPECIFIC"
+    },
+    {
+      "name": "CLEFT PALATE REPAIR",
+      "category": "PEDIATRIC"
+    },
+    {
+      "name": "BIOPSY",
+      "category": "OTHER"
+    },
+    {
+      "name": "EXCISIONAL BIOPSY",
+      "category": "OTHER"
+    },
+    {
+      "name": "BLOOD TRANSFUSION",
+      "category": "OTHER"
+    },
+    {
+      "name": "FLAP SURGERY",
+      "category": "OTHER"
+    },
+    {
+      "name": "VY ADVANCEMENT FLAP",
+      "category": "OTHER"
+    },
+    {
+      "name": "SCAR REVISION",
+      "category": "OTHER"
+    },
+    {
+      "name": "SCLEROTHERAPY",
+      "category": "OTHER"
+    },
+    {
+      "name": "GROWTH EXCISION",
+      "category": "OTHER"
+    },
+    {
+      "name": "MASS EXCISION",
+      "category": "OTHER"
+    },
+    {
+      "name": "WIDE LOCAL EXCISION",
+      "category": "OTHER"
+    }
+  ],
+  "total_count": 98,
+  "category_count": 11
+}

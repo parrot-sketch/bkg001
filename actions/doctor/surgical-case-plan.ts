@@ -138,10 +138,10 @@ export async function getSurgicalProcedureOptions(category: string) {
   // Map form category to enum categories
   const enumCategories = FORM_CATEGORY_TO_ENUM_CATEGORIES[category] || [category];
 
+  // Show ALL procedures regardless of is_active status
   const procedures = await db.surgicalProcedureOption.findMany({
     where: {
       category: { in: enumCategories as any[] },
-      is_active: true,
     },
     orderBy: [
       { category: 'asc' },

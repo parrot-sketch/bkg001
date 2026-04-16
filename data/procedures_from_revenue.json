@@ -1,0 +1,545 @@
+{
+  "procedures": [
+    {
+      "name": "360HD LASER LIPO + BBL + HIP DIP CORRECTION",
+      "name_normalized": "360HD LASER LIPO + BBL + HIP DIP CORRECTION"
+    },
+    {
+      "name": "ARM LIPO + BRACHIOPLASTY",
+      "name_normalized": "ARM LIPO + BRACHIOPLASTY"
+    },
+    {
+      "name": "ARM LIPO, LIPO OF TUMMY, BACK, HIPS & BUTT",
+      "name_normalized": "ARM LIPO, LIPO OF TUMMY, BACK, HIPS & BUTT"
+    },
+    {
+      "name": "BILATERAL ARM LIFT + THIGH LIFT",
+      "name_normalized": "BILATERAL ARM LIFT + THIGH LIFT"
+    },
+    {
+      "name": "BILATERAL BREAST AUGMENTATION WITH IMPLANT + VAGINOPLASTY",
+      "name_normalized": "BILATERAL BREAST AUGMENTATION WITH IMPLANT + VAGINOPLASTY"
+    },
+    {
+      "name": "BILATERAL BREAST REDUCTION",
+      "name_normalized": "BILATERAL BREAST REDUCTION"
+    },
+    {
+      "name": "BILATERAL BREST REDUCTION",
+      "name_normalized": "BILATERAL BREST REDUCTION"
+    },
+    {
+      "name": "BILATERAL MASTOPEXY & VAGINAL REJUVINATION WITH FAT",
+      "name_normalized": "BILATERAL MASTOPEXY & VAGINAL REJUVINATION WITH FAT"
+    },
+    {
+      "name": "BILATERAL OTOPLASTY",
+      "name_normalized": "BILATERAL OTOPLASTY"
+    },
+    {
+      "name": "BIOPSY + PRP",
+      "name_normalized": "BIOPSY + PRP"
+    },
+    {
+      "name": "BLEPHEROPLASTY, CHIN LIPO + OPEN RHINOPLASTY + NANO FAT GRAFTING",
+      "name_normalized": "BLEPHEROPLASTY, CHIN LIPO + OPEN RHINOPLASTY + NANO FAT GRAFTING"
+    },
+    {
+      "name": "BLOOD TRANSFUSION",
+      "name_normalized": "BLOOD TRANSFUSION"
+    },
+    {
+      "name": "BOTOX",
+      "name_normalized": "BOTOX"
+    },
+    {
+      "name": "BOTOX & PROFHILO",
+      "name_normalized": "BOTOX & PROFHILO"
+    },
+    {
+      "name": "BOTOX + PROFHILO",
+      "name_normalized": "BOTOX + PROFHILO"
+    },
+    {
+      "name": "BOTOX TOUCH UP",
+      "name_normalized": "BOTOX TOUCH UP"
+    },
+    {
+      "name": "BRACHIOPLASTY BILATERAL",
+      "name_normalized": "BRACHIOPLASTY BILATERAL"
+    },
+    {
+      "name": "BREAST AUGMENTATION WITH IMPLANTS",
+      "name_normalized": "BREAST AUGMENTATION WITH IMPLANTS"
+    },
+    {
+      "name": "BREAST AUGMENTATION WITH MPLANTS + VAGINOPLASTY",
+      "name_normalized": "BREAST AUGMENTATION WITH MPLANTS + VAGINOPLASTY"
+    },
+    {
+      "name": "BREAST IMPLANTS",
+      "name_normalized": "BREAST IMPLANTS"
+    },
+    {
+      "name": "BREAST REDUCTION",
+      "name_normalized": "BREAST REDUCTION"
+    },
+    {
+      "name": "CHANGE OF DRESSING",
+      "name_normalized": "CHANGE OF DRESSING"
+    },
+    {
+      "name": "CHANGE OF DRESSING & DRAINAGE",
+      "name_normalized": "CHANGE OF DRESSING & DRAINAGE"
+    },
+    {
+      "name": "CHANGE OF DRESSING + SECONDARY SUTURING",
+      "name_normalized": "CHANGE OF DRESSING + SECONDARY SUTURING"
+    },
+    {
+      "name": "CHANGE OF DRESSING + SUTURING",
+      "name_normalized": "CHANGE OF DRESSING + SUTURING"
+    },
+    {
+      "name": "CHANGE OF DRESSINGS",
+      "name_normalized": "CHANGE OF DRESSINGS"
+    },
+    {
+      "name": "CHANGE OF DRSESSING",
+      "name_normalized": "CHANGE OF DRSESSING"
+    },
+    {
+      "name": "CHIN LIPO",
+      "name_normalized": "CHIN LIPO"
+    },
+    {
+      "name": "CIRCUMCISION",
+      "name_normalized": "CIRCUMCISION"
+    },
+    {
+      "name": "CLEFT PALATE REPAIR",
+      "name_normalized": "CLEFT PALATE REPAIR"
+    },
+    {
+      "name": "CONTACTURE RELEASE",
+      "name_normalized": "CONTACTURE RELEASE"
+    },
+    {
+      "name": "CONTRACTURE RELEASE + SKIN GRAFT",
+      "name_normalized": "CONTRACTURE RELEASE + SKIN GRAFT"
+    },
+    {
+      "name": "DEBRIDMENT + PRP",
+      "name_normalized": "DEBRIDMENT + PRP"
+    },
+    {
+      "name": "EXCISION OF ABSCESS",
+      "name_normalized": "EXCISION OF ABSCESS"
+    },
+    {
+      "name": "EXCISION OF INGROWN TOE NAIL",
+      "name_normalized": "EXCISION OF INGROWN TOE NAIL"
+    },
+    {
+      "name": "EXCISION OF LIPOMA",
+      "name_normalized": "EXCISION OF LIPOMA"
+    },
+    {
+      "name": "EXCISION OF LIPOMA OF BACK",
+      "name_normalized": "EXCISION OF LIPOMA OF BACK"
+    },
+    {
+      "name": "EXCISION OF SABACEOUS CYST",
+      "name_normalized": "EXCISION OF SABACEOUS CYST"
+    },
+    {
+      "name": "EXCISIONAL BIOPSY",
+      "name_normalized": "EXCISIONAL BIOPSY"
+    },
+    {
+      "name": "FACIAL RECONSTRUCTION",
+      "name_normalized": "FACIAL RECONSTRUCTION"
+    },
+    {
+      "name": "FAT GRAFTING",
+      "name_normalized": "FAT GRAFTING"
+    },
+    {
+      "name": "FAT GRAFTING + DEBRIDMENT PRP",
+      "name_normalized": "FAT GRAFTING + DEBRIDMENT PRP"
+    },
+    {
+      "name": "FAT GRAFTY + PRP LEFT LOWER LIMB",
+      "name_normalized": "FAT GRAFTY + PRP LEFT LOWER LIMB"
+    },
+    {
+      "name": "FRONTAL LIPO + BBL",
+      "name_normalized": "FRONTAL LIPO + BBL"
+    },
+    {
+      "name": "FRONTAL LIPO + FT TO HIP DIPS",
+      "name_normalized": "FRONTAL LIPO + FT TO HIP DIPS"
+    },
+    {
+      "name": "GROWTH EXCISION",
+      "name_normalized": "GROWTH EXCISION"
+    },
+    {
+      "name": "GYNACOMASTIA",
+      "name_normalized": "GYNACOMASTIA"
+    },
+    {
+      "name": "HD LIPO + FT TO BREAST + MASTOPEXY REVISION",
+      "name_normalized": "HD LIPO + FT TO BREAST + MASTOPEXY REVISION"
+    },
+    {
+      "name": "IV DRIP",
+      "name_normalized": "IV DRIP"
+    },
+    {
+      "name": "IV GLUTA",
+      "name_normalized": "IV GLUTA"
+    },
+    {
+      "name": "KELOID",
+      "name_normalized": "KELOID"
+    },
+    {
+      "name": "KELOID EXCISION",
+      "name_normalized": "KELOID EXCISION"
+    },
+    {
+      "name": "KELOID REMOVAL",
+      "name_normalized": "KELOID REMOVAL"
+    },
+    {
+      "name": "KENALOG INJ",
+      "name_normalized": "KENALOG INJ"
+    },
+    {
+      "name": "LEFT FOOT MASS EXCISION",
+      "name_normalized": "LEFT FOOT MASS EXCISION"
+    },
+    {
+      "name": "LIP RECONSTRUCTION",
+      "name_normalized": "LIP RECONSTRUCTION"
+    },
+    {
+      "name": "LIP REDUCTION",
+      "name_normalized": "LIP REDUCTION"
+    },
+    {
+      "name": "LIPO 360",
+      "name_normalized": "LIPO 360"
+    },
+    {
+      "name": "LIPO 360 + ARM LIPO",
+      "name_normalized": "LIPO 360 + ARM LIPO"
+    },
+    {
+      "name": "LIPO 360 + ARMS + FT",
+      "name_normalized": "LIPO 360 + ARMS + FT"
+    },
+    {
+      "name": "LIPO 360 + ARMS + FT TO HIPS & BUTT",
+      "name_normalized": "LIPO 360 + ARMS + FT TO HIPS & BUTT"
+    },
+    {
+      "name": "LIPO 360 + ARMS + FT TO HIPS & BUTT + BLEPHAROPLASTY",
+      "name_normalized": "LIPO 360 + ARMS + FT TO HIPS & BUTT + BLEPHAROPLASTY"
+    },
+    {
+      "name": "LIPO 360 + BACK LIFT + FT TO BUTT",
+      "name_normalized": "LIPO 360 + BACK LIFT + FT TO BUTT"
+    },
+    {
+      "name": "LIPO 360 + BBL",
+      "name_normalized": "LIPO 360 + BBL"
+    },
+    {
+      "name": "LIPO 360 + BBL + ARMS",
+      "name_normalized": "LIPO 360 + BBL + ARMS"
+    },
+    {
+      "name": "LIPO 360 + EXCISION OF KELOIDS",
+      "name_normalized": "LIPO 360 + EXCISION OF KELOIDS"
+    },
+    {
+      "name": "LIPO 360 + FAT TT",
+      "name_normalized": "LIPO 360 + FAT TT"
+    },
+    {
+      "name": "LIPO 360 + FAT TT TO HIPS + BREAST AUGMENTATION WITH IMPLANTS",
+      "name_normalized": "LIPO 360 + FAT TT TO HIPS + BREAST AUGMENTATION WITH IMPLANTS"
+    },
+    {
+      "name": "LIPO 360 + FT",
+      "name_normalized": "LIPO 360 + FT"
+    },
+    {
+      "name": "LIPO 360 + FT TO BUTT & HIPS",
+      "name_normalized": "LIPO 360 + FT TO BUTT & HIPS"
+    },
+    {
+      "name": "LIPO 360 + FT TO HIPS",
+      "name_normalized": "LIPO 360 + FT TO HIPS"
+    },
+    {
+      "name": "LIPO 360 BBL",
+      "name_normalized": "LIPO 360 BBL"
+    },
+    {
+      "name": "LIPO 360 LASER",
+      "name_normalized": "LIPO 360 LASER"
+    },
+    {
+      "name": "LIPO 360, TT , FAT TT TO HIPS & REDUCTION MAMMOPLASTY",
+      "name_normalized": "LIPO 360, TT , FAT TT TO HIPS & REDUCTION MAMMOPLASTY"
+    },
+    {
+      "name": "LIPO ABDOMINOPLASTY",
+      "name_normalized": "LIPO ABDOMINOPLASTY"
+    },
+    {
+      "name": "LIPO BACK + BREAST AUGMENTATION WITH IMPLANTS",
+      "name_normalized": "LIPO BACK + BREAST AUGMENTATION WITH IMPLANTS"
+    },
+    {
+      "name": "LIPO BACK + LIFT , ABDOMINOPLASTY + FAT TRANSFER",
+      "name_normalized": "LIPO BACK + LIFT , ABDOMINOPLASTY + FAT TRANSFER"
+    },
+    {
+      "name": "LIPO BACK LIFT+ TUMMY TUCK + FT",
+      "name_normalized": "LIPO BACK LIFT+ TUMMY TUCK + FT"
+    },
+    {
+      "name": "LIPO BACK, ARMS , CHIN, TT + BREAST LIFT",
+      "name_normalized": "LIPO BACK, ARMS , CHIN, TT + BREAST LIFT"
+    },
+    {
+      "name": "LIPO BBL",
+      "name_normalized": "LIPO BBL"
+    },
+    {
+      "name": "LIPO BBL + BREAST REDUCTION",
+      "name_normalized": "LIPO BBL + BREAST REDUCTION"
+    },
+    {
+      "name": "LIPO BBL + THIGH LIFT",
+      "name_normalized": "LIPO BBL + THIGH LIFT"
+    },
+    {
+      "name": "LIPO OF INNER KNEE AREA",
+      "name_normalized": "LIPO OF INNER KNEE AREA"
+    },
+    {
+      "name": "LIPO TOUCH UP",
+      "name_normalized": "LIPO TOUCH UP"
+    },
+    {
+      "name": "LIPO TUMMY TUCK",
+      "name_normalized": "LIPO TUMMY TUCK"
+    },
+    {
+      "name": "LIPO TUMMY TUCK + FT TO HIPS",
+      "name_normalized": "LIPO TUMMY TUCK + FT TO HIPS"
+    },
+    {
+      "name": "LIPO TUMMYTUCK",
+      "name_normalized": "LIPO TUMMYTUCK"
+    },
+    {
+      "name": "LIPO TUMMYTUCK + BACK LIFT + FT",
+      "name_normalized": "LIPO TUMMYTUCK + BACK LIFT + FT"
+    },
+    {
+      "name": "LIPO TUMMYTUCK + BBL",
+      "name_normalized": "LIPO TUMMYTUCK + BBL"
+    },
+    {
+      "name": "LIPO TUMMYTUCK + FAT TRANSFER + LIPO BACK",
+      "name_normalized": "LIPO TUMMYTUCK + FAT TRANSFER + LIPO BACK"
+    },
+    {
+      "name": "LIPO+TT REVISION",
+      "name_normalized": "LIPO+TT REVISION"
+    },
+    {
+      "name": "LIPOABDOMINOPLASTY",
+      "name_normalized": "LIPOABDOMINOPLASTY"
+    },
+    {
+      "name": "LIPOABDOMINOPLASTY + ARM LIPO",
+      "name_normalized": "LIPOABDOMINOPLASTY + ARM LIPO"
+    },
+    {
+      "name": "LIPOABDOMINOPLASTY + FAT TRANSFER TO HIP DIPS",
+      "name_normalized": "LIPOABDOMINOPLASTY + FAT TRANSFER TO HIP DIPS"
+    },
+    {
+      "name": "LIPOABDOMINOPLASTY + FT",
+      "name_normalized": "LIPOABDOMINOPLASTY + FT"
+    },
+    {
+      "name": "LIPOABDOMINOPLASTY + HIP DIP CORRECTION",
+      "name_normalized": "LIPOABDOMINOPLASTY + HIP DIP CORRECTION"
+    },
+    {
+      "name": "LIPOABDOMINOPLASTY + MATOPEXY + LIPO ARMS + FAT TT TO HIPS",
+      "name_normalized": "LIPOABDOMINOPLASTY + MATOPEXY + LIPO ARMS + FAT TT TO HIPS"
+    },
+    {
+      "name": "LIPOABDOMINOPLASTY, ARM LIFT & SCLEROTHERAPY",
+      "name_normalized": "LIPOABDOMINOPLASTY, ARM LIFT & SCLEROTHERAPY"
+    },
+    {
+      "name": "LIPOMA EXCISIN",
+      "name_normalized": "LIPOMA EXCISIN"
+    },
+    {
+      "name": "LIPOMA EXCISION",
+      "name_normalized": "LIPOMA EXCISION"
+    },
+    {
+      "name": "LIPOSUCTION",
+      "name_normalized": "LIPOSUCTION"
+    },
+    {
+      "name": "LIPOSUCTION + TT REVISION.",
+      "name_normalized": "LIPOSUCTION + TT REVISION."
+    },
+    {
+      "name": "LOWER LID BLEPHEROPLASTY + NANOFAT",
+      "name_normalized": "LOWER LID BLEPHEROPLASTY + NANOFAT"
+    },
+    {
+      "name": "LOWER LIP REDUCTION",
+      "name_normalized": "LOWER LIP REDUCTION"
+    },
+    {
+      "name": "MASS EXCISION UNDER LOCAL",
+      "name_normalized": "MASS EXCISION UNDER LOCAL"
+    },
+    {
+      "name": "MASTOPEXY",
+      "name_normalized": "MASTOPEXY"
+    },
+    {
+      "name": "MASTOPEXY WITH NIPPLE GRAFT",
+      "name_normalized": "MASTOPEXY WITH NIPPLE GRAFT"
+    },
+    {
+      "name": "MICRONEEDLING",
+      "name_normalized": "MICRONEEDLING"
+    },
+    {
+      "name": "MICRONEEDLING + PRP",
+      "name_normalized": "MICRONEEDLING + PRP"
+    },
+    {
+      "name": "PROFHILO",
+      "name_normalized": "PROFHILO"
+    },
+    {
+      "name": "PROFHILO TOUCH UP",
+      "name_normalized": "PROFHILO TOUCH UP"
+    },
+    {
+      "name": "REDUCTION MAMMOPLASTY",
+      "name_normalized": "REDUCTION MAMMOPLASTY"
+    },
+    {
+      "name": "REVISION",
+      "name_normalized": "REVISION"
+    },
+    {
+      "name": "REVISION LIPO",
+      "name_normalized": "REVISION LIPO"
+    },
+    {
+      "name": "REVISION TT, THIGH LIPO + FAT TRANSFER TO ARMS",
+      "name_normalized": "REVISION TT, THIGH LIPO + FAT TRANSFER TO ARMS"
+    },
+    {
+      "name": "REVISION TUMMYTUCK",
+      "name_normalized": "REVISION TUMMYTUCK"
+    },
+    {
+      "name": "RHINOPLASTY + FT + BLEPHEROPLASTY",
+      "name_normalized": "RHINOPLASTY + FT + BLEPHEROPLASTY"
+    },
+    {
+      "name": "SCAR EXCISION UPPER BACK LEFT",
+      "name_normalized": "SCAR EXCISION UPPER BACK LEFT"
+    },
+    {
+      "name": "SCAR REVISION",
+      "name_normalized": "SCAR REVISION"
+    },
+    {
+      "name": "SECONDARY RHINOPLASTY , NECKLIFT,TUMMY LIPO, WART EXCISION",
+      "name_normalized": "SECONDARY RHINOPLASTY , NECKLIFT,TUMMY LIPO, WART EXCISION"
+    },
+    {
+      "name": "SECONDARY WOUND CLOSURE",
+      "name_normalized": "SECONDARY WOUND CLOSURE"
+    },
+    {
+      "name": "SEROMA DRAINAGE",
+      "name_normalized": "SEROMA DRAINAGE"
+    },
+    {
+      "name": "SKIN GRAFT",
+      "name_normalized": "SKIN GRAFT"
+    },
+    {
+      "name": "SKIN GRAFT + VAC DRESSING",
+      "name_normalized": "SKIN GRAFT + VAC DRESSING"
+    },
+    {
+      "name": "TOP CLOSURE ADJUSTMENT + VAC DRESSING",
+      "name_normalized": "TOP CLOSURE ADJUSTMENT + VAC DRESSING"
+    },
+    {
+      "name": "TOP SURGERY",
+      "name_normalized": "TOP SURGERY"
+    },
+    {
+      "name": "TRANSFUSION",
+      "name_normalized": "TRANSFUSION"
+    },
+    {
+      "name": "TRIAMCINOLONE INJ",
+      "name_normalized": "TRIAMCINOLONE INJ"
+    },
+    {
+      "name": "UPPER & LOWER LIP REDUCTION",
+      "name_normalized": "UPPER & LOWER LIP REDUCTION"
+    },
+    {
+      "name": "UPPER BODY LIFT , THIGH LIFT + BRACHIOPLASTY",
+      "name_normalized": "UPPER BODY LIFT , THIGH LIFT + BRACHIOPLASTY"
+    },
+    {
+      "name": "VAC DRESSING",
+      "name_normalized": "VAC DRESSING"
+    },
+    {
+      "name": "VAGINOPLASTY",
+      "name_normalized": "VAGINOPLASTY"
+    },
+    {
+      "name": "VY ADVANCEMENT FLAP",
+      "name_normalized": "VY ADVANCEMENT FLAP"
+    },
+    {
+      "name": "WIDE LOCAL EXCISION UNDER LA",
+      "name_normalized": "WIDE LOCAL EXCISION UNDER LA"
+    },
+    {
+      "name": "WOUND CLOSURE",
+      "name_normalized": "WOUND CLOSURE"
+    }
+  ],
+  "count": 135
+}
