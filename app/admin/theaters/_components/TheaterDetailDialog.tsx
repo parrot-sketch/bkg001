@@ -26,7 +26,7 @@ interface TheaterDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   theater: Theater | null;
-  onBookSlot: () => void;
+  onBookSlot?: () => void;
 }
 
 const CASE_STATUS_COLORS: Record<string, string> = {
@@ -82,13 +82,15 @@ export function TheaterDetailDialog({
                         Room Allocation & Surgical Timeline
                     </DialogDescription>
                 </div>
-                <Button 
-                    onClick={onBookSlot} 
-                    className="rounded-xl bg-slate-900 hover:bg-slate-800 px-6 font-bold shadow-lg shadow-slate-900/10"
-                >
-                    <Plus className="mr-2 h-4 w-4" />
-                    New Booking
-                </Button>
+                {onBookSlot && (
+                  <Button
+                      onClick={onBookSlot}
+                      className="rounded-xl bg-slate-900 hover:bg-slate-800 px-6 font-bold shadow-lg shadow-slate-900/10"
+                  >
+                      <Plus className="mr-2 h-4 w-4" />
+                      New Booking
+                  </Button>
+                )}
             </DialogHeader>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pt-8">

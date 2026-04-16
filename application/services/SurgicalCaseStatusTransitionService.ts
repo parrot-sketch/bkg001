@@ -17,6 +17,36 @@ export class SurgicalCaseStatusTransitionService {
     constructor(private db: PrismaClient) {}
 
     /**
+     * Transition case to IN_WARD_PREP when the pre-op ward checklist is started.
+     * This reflects that the nurse has begun ward prep work.
+     */
+    async transitionToInWardPrep(caseId: string, userId: string): Promise<void> {
+        const surgicalCase = await this.db.surgicalCase.findUnique({
+            where: { id: caseId },
+            select: { id: true, status: true },
+        });
+
+        if (!surgicalCase) {
+            throw new Error(`Surgical case ${caseId} not found`);
+        }
+
+        if (surgicalCase.status === SurgicalCaseStatus.READY_FOR_WARD_PREP) {
+            const service = getSurgicalCaseService();
+            await service.transitionTo(caseId, SurgicalCaseStatus.IN_WARD_PREP, userId);
+
+            await this.db.auditLog.create({
+                data: {
+                    user_id: userId,
+                    record_id: caseId,
+                    action: 'UPDATE',
+                    model: 'SurgicalCase',
+                    details: `Case status transitioned to IN_WARD_PREP (pre-op ward checklist started)`,
+                },
+            });
+        }
+    }
+
+    /**
      * Transition case to IN_PREP when pre-op checklist is started
      * Only transitions if case is currently SCHEDULED
      */
@@ -65,14 +95,22 @@ export class SurgicalCaseStatusTransitionService {
             throw new Error(`Surgical case ${caseId} not found`);
         }
 
+        const service = getSurgicalCaseService();
+
+        // If checklist was completed but the case never moved into IN_WARD_PREP (legacy),
+        // normalize first so we can reach READY_FOR_THEATER_BOOKING safely.
+        if (surgicalCase.status === SurgicalCaseStatus.READY_FOR_WARD_PREP) {
+            await service.transitionTo(caseId, SurgicalCaseStatus.IN_WARD_PREP, userId);
+        }
+
         // Handle transition from IN_WARD_PREP, IN_PREP, or SCHEDULED
-        const canTransition = 
+        const canTransition =
             surgicalCase.status === SurgicalCaseStatus.IN_WARD_PREP ||
             surgicalCase.status === SurgicalCaseStatus.IN_PREP ||
-            surgicalCase.status === SurgicalCaseStatus.SCHEDULED;
+            surgicalCase.status === SurgicalCaseStatus.SCHEDULED ||
+            surgicalCase.status === SurgicalCaseStatus.READY_FOR_WARD_PREP;
 
         if (canTransition) {
-            const service = getSurgicalCaseService();
             await service.transitionTo(caseId, SurgicalCaseStatus.READY_FOR_THEATER_BOOKING, userId);
 
             // Audit log
@@ -82,7 +120,7 @@ export class SurgicalCaseStatusTransitionService {
                     record_id: caseId,
                     action: 'UPDATE',
                     model: 'SurgicalCase',
-                    details: `Pre-op checklist finalized - case ready for theater booking by frontdesk (from ${surgicalCase.status})`,
+                    details: `Pre-op checklist finalized - case ready for theater booking (from ${surgicalCase.status})`,
                 },
             });
         }

@@ -27,7 +27,6 @@ interface SurgicalCasePlanViewProps {
         skinToSkinMinutes?: number | null;
         totalTheatreMinutes?: number | null;
         admissionType?: string;
-        deviceUsed?: string;
     };
     surgeons: Surgeon[];
     procedures: Procedure[];
@@ -175,18 +174,6 @@ export function SurgicalCasePlanView({ onEdit, onContinue, data, surgeons, proce
                             </p>
                         </div>
 
-                        {data.deviceUsed && (
-                            <div className="sm:col-span-2 lg:col-span-4 mt-2">
-                                <div className="space-y-1.5 bg-orange-50/50 p-4 rounded-md border border-orange-100">
-                                    <p className="text-[11px] text-orange-600 font-bold uppercase tracking-wider">
-                                        Lipo Device Designation
-                                    </p>
-                                    <p className="text-sm font-semibold text-slate-800 capitalize inline-block">
-                                        {data.deviceUsed.replace(/_/g, ' ').toLowerCase()}
-                                    </p>
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </CardContent>
             </Card>

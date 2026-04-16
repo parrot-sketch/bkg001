@@ -7,6 +7,11 @@ import { z } from 'zod';
 const createTheaterSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
   type: z.enum(['MAJOR', 'MINOR', 'PROCEDURE_ROOM']),
+  // Pricing:
+  // UI captures KES/minute, but billing uses Theater.hourly_rate (KES/hour).
+  // Allow either field for backward compatibility.
+  rate_per_minute: z.number().nonnegative().optional(),
+  hourly_rate: z.number().nonnegative().optional(),
   color_code: z.string().optional(),
   notes: z.string().max(1000).nullable().optional(),
   operational_hours: z.string().nullable().optional(),
@@ -80,6 +85,11 @@ export async function POST(request: Request) {
     const body = await request.json();
     const validated = createTheaterSchema.parse(body);
 
+    const hourlyRate =
+      typeof validated.rate_per_minute === 'number'
+        ? Math.round(validated.rate_per_minute * 60)
+        : Math.round(validated.hourly_rate ?? 0);
+
     const theater = await db.theater.create({
       data: {
         name: validated.name,
@@ -88,6 +98,7 @@ export async function POST(request: Request) {
         notes: validated.notes,
         operational_hours: validated.operational_hours,
         capabilities: validated.capabilities,
+        hourly_rate: hourlyRate,
         status: 'ACTIVE',
         is_active: true,
       },

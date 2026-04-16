@@ -126,6 +126,26 @@ export function TheaterFormDialog({
                     </div>
 
                     <div className="space-y-2">
+                        <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Rate (KES per minute)</Label>
+                        <Input
+                            type="number"
+                            min={0}
+                            step={1}
+                            inputMode="numeric"
+                            placeholder="e.g., 100"
+                            className="rounded-xl border-slate-200 bg-slate-50/50"
+                            value={Number.isFinite(formData.rate_per_minute) ? String(formData.rate_per_minute) : '0'}
+                            onChange={(e) => {
+                              const next = e.target.value === '' ? 0 : Number(e.target.value);
+                              setFormData(prev => ({ ...prev, rate_per_minute: Number.isFinite(next) ? next : 0 }));
+                            }}
+                        />
+                        <p className="text-xs text-slate-500">
+                          Stored and billed as an hourly rate internally (rate × 60).
+                        </p>
+                    </div>
+
+                    <div className="space-y-2">
                         <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Operational Hours</Label>
                         <Input
                             placeholder="e.g., Mon-Fri, 08:00 - 18:00"

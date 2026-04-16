@@ -169,7 +169,9 @@ export function TimeSlotPicker({
             </span>
           </div>
           <div className="text-[10px] text-slate-400 mt-0.5">
-            {theater.type} · ${theater.hourlyRate}/hr
+            {theater.type} · KES {Math.round((theater.hourlyRate || 0) / 60).toLocaleString('en-KE')}/min
+            <span className="text-slate-300"> · </span>
+            KES {Math.round(theater.hourlyRate || 0).toLocaleString('en-KE')}/hr
           </div>
         </div>
 

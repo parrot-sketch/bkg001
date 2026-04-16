@@ -25,6 +25,7 @@ export interface Theater {
   is_active: boolean;
   operational_hours: string | null;
   capabilities: string | null;
+  hourly_rate: number;
   bookings: TheaterBooking[];
   _count: { bookings: number; surgical_records: number };
   created_at: string;
@@ -40,6 +41,7 @@ export interface TheaterFormData {
   notes: string;
   operational_hours: string;
   capabilities: string;
+  rate_per_minute: number;
 }
 
 export const EMPTY_FORM: TheaterFormData = {
@@ -49,6 +51,7 @@ export const EMPTY_FORM: TheaterFormData = {
   notes: '',
   operational_hours: '',
   capabilities: '',
+  rate_per_minute: 0,
 };
 
 export interface StatsCardProps {

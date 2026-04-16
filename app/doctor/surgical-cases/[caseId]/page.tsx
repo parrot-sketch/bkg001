@@ -77,7 +77,6 @@ export default async function DoctorSurgicalCaseWorkspacePage({ params }: PagePr
     skinToSkinMinutes: surgicalCase.skin_to_skin_minutes,
     totalTheatreMinutes: surgicalCase.total_theatre_minutes,
     admissionType: surgicalCase.admission_type || '',
-    deviceUsed: surgicalCase.device_used || '',
   };
 
   return (

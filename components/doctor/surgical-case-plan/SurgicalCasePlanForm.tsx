@@ -103,8 +103,6 @@ interface CaseIdentificationFormProps extends StepProps {
     primaryOrRevision: string;
     procedureIds: string[];
   };
-  /** Called with the resolved procedure objects after a successful save */
-  onProceduresResolved: (procedures: Procedure[]) => void;
 }
 
 function CaseIdentificationForm({
@@ -112,7 +110,6 @@ function CaseIdentificationForm({
   onComplete,
   onError,
   initialData,
-  onProceduresResolved,
 }: CaseIdentificationFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [surgeons, setSurgeons] = useState<Surgeon[]>([]);
@@ -212,10 +209,6 @@ function CaseIdentificationForm({
       }
 
       // Pass resolved procedure objects up so Step 2 gets the lipo flag right
-      const resolved = procedures.filter((p) =>
-        formData.procedureIds.includes(p.id)
-      );
-      onProceduresResolved(resolved);
       onComplete();
     } catch (err: any) {
       onError(err.message ?? 'An error occurred');
@@ -432,9 +425,7 @@ interface OperativeDetailsFormProps extends StepProps {
     skinToSkinMinutes: number | null;
     totalTheatreMinutes: number | null;
     admissionType: string;
-    deviceUsed: string;
   };
-  selectedProcedures: Procedure[];
   onBack: () => void;
 }
 
@@ -443,7 +434,6 @@ function OperativeDetailsForm({
   onComplete,
   onError,
   initialData,
-  selectedProcedures,
   onBack,
 }: OperativeDetailsFormProps) {
   const [isLoading, setIsLoading] = useState(false);
@@ -452,17 +442,6 @@ function OperativeDetailsForm({
     skinToSkinMinutes: initialData?.skinToSkinMinutes?.toString() ?? '',
     totalTheatreMinutes: initialData?.totalTheatreMinutes?.toString() ?? '',
     admissionType: initialData?.admissionType ?? '',
-    deviceUsed: initialData?.deviceUsed ?? '',
-  });
-
-  const hasLipoProcedure = selectedProcedures.some((p) => {
-    const n = p.name.toLowerCase();
-    return (
-      n.includes('liposuction') ||
-      n.includes('bbl') ||
-      n.includes('180') ||
-      n.includes('360')
-    );
   });
 
   const anaesthesias = [
@@ -474,12 +453,6 @@ function OperativeDetailsForm({
   const admissionTypes = [
     { value: 'DAYCASE', label: 'Daycase' },
     { value: 'OVERNIGHT', label: 'Overnight' },
-  ];
-
-  const lipoDevices = [
-    { value: 'POWER_ASSISTED', label: 'Power Assisted' },
-    { value: 'LASER_ASSISTED', label: 'Laser Assisted' },
-    { value: 'SUCTION_ASSISTED', label: 'Suction Assisted' },
   ];
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -500,7 +473,6 @@ function OperativeDetailsForm({
               ? parseInt(formData.totalTheatreMinutes)
               : undefined,
             admissionType: formData.admissionType || undefined,
-            deviceUsed: formData.deviceUsed || undefined,
           }),
         }
       );
@@ -612,37 +584,6 @@ function OperativeDetailsForm({
         </div>
       </div>
 
-      {/* Device Used (lipo procedures only) */}
-      {hasLipoProcedure && (
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            Device Used
-            <span className="text-slate-400 font-normal ml-2 text-xs">
-              (shown because a lipo procedure is selected)
-            </span>
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 md:gap-3">
-            {lipoDevices.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                className={cn(
-                  'px-3 py-2.5 md:py-2 border rounded-lg text-sm font-medium transition-colors touch-manipulation',
-                  formData.deviceUsed === opt.value
-                    ? 'border-slate-800 bg-slate-800 text-white'
-                    : 'border-slate-200 hover:border-slate-400'
-                )}
-                onClick={() =>
-                  setFormData((prev) => ({ ...prev, deviceUsed: opt.value }))
-                }
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       <div className="flex justify-between pt-4">
         <Button type="button" variant="outline" onClick={onBack}>
           <ChevronLeft className="h-4 w-4 mr-2" />
@@ -720,7 +661,6 @@ export interface SurgicalCasePlanFormProps {
     skinToSkinMinutes?: number | null;
     totalTheatreMinutes?: number | null;
     admissionType?: string;
-    deviceUsed?: string;
   };
   isTheaterTech?: boolean;
 }
@@ -733,8 +673,6 @@ export function SurgicalCasePlanForm({
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [error, setError] = useState<string | null>(null);
-  /** Procedures resolved from Step 1, passed into Step 2 for lipo detection */
-  const [resolvedProcedures, setResolvedProcedures] = useState<Procedure[]>([]);
 
   const handleError = (msg: string) => setError(msg);
   const clearError = () => setError(null);
@@ -782,7 +720,6 @@ export function SurgicalCasePlanForm({
               caseId={caseId}
               onComplete={() => goToStep(2)}
               onError={handleError}
-              onProceduresResolved={(procs) => setResolvedProcedures(procs)}
               initialData={
                 initialData
                   ? {
@@ -807,7 +744,6 @@ export function SurgicalCasePlanForm({
               onComplete={() => goToStep(3)}
               onError={handleError}
               onBack={() => goToStep(1)}
-              selectedProcedures={resolvedProcedures}
               initialData={
                 initialData
                   ? {
@@ -816,7 +752,6 @@ export function SurgicalCasePlanForm({
                       totalTheatreMinutes:
                         initialData.totalTheatreMinutes ?? null,
                       admissionType: initialData.admissionType ?? '',
-                      deviceUsed: initialData.deviceUsed ?? '',
                     }
                   : undefined
               }

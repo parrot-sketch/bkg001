@@ -5,7 +5,7 @@
  */
 
 import { useState, useCallback } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { tokenStorage } from '@/lib/auth/token';
 import { ApiResponse, isSuccess } from '@/lib/http/apiResponse';
 
@@ -136,18 +136,22 @@ async function confirmBooking(caseId: string, bookingId: string): Promise<Confir
 
 interface UseTheaterBookingOptions {
   caseId: string;
+  date: string;
+  enabled?: boolean;
 }
 
-export function useTheaterBooking({ caseId }: UseTheaterBookingOptions) {
+export function useTheaterBooking({ caseId, date, enabled = true }: UseTheaterBookingOptions) {
   const queryClient = useQueryClient();
   const [bookingError, setBookingError] = useState<string | null>(null);
 
-  // Fetch theaters for a date
-  const theatersQuery = useMutation<TheaterWithBookings[], Error, string>({
-    mutationFn: fetchTheatersApi,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['theater-tech-theaters'] });
-    },
+  const theatersQuery = useQuery<TheaterWithBookings[], Error>({
+    queryKey: ['theater-tech', 'theater-scheduling', 'theaters', date],
+    queryFn: () => fetchTheatersApi(date),
+    enabled: enabled && !!date,
+    staleTime: 1000 * 30,
+    refetchInterval: enabled ? 1000 * 30 : false,
+    refetchOnWindowFocus: false,
+    networkMode: 'offlineFirst',
   });
 
   // Book a slot (provisional lock)
@@ -162,7 +166,7 @@ export function useTheaterBooking({ caseId }: UseTheaterBookingOptions) {
       endTime: string;
     }) => bookTheaterSlot(caseId, theaterId, startTime, endTime),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['theater-tech-theaters'] });
+      queryClient.invalidateQueries({ queryKey: ['theater-tech', 'theater-scheduling', 'theaters'] });
       queryClient.invalidateQueries({ queryKey: ['theater-tech-case', caseId] });
       setBookingError(null);
     },
@@ -175,7 +179,7 @@ export function useTheaterBooking({ caseId }: UseTheaterBookingOptions) {
   const confirmMutation = useMutation({
     mutationFn: async (bookingId: string) => confirmBooking(caseId, bookingId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['theater-tech-theaters'] });
+      queryClient.invalidateQueries({ queryKey: ['theater-tech', 'theater-scheduling', 'theaters'] });
       queryClient.invalidateQueries({ queryKey: ['theater-tech-case', caseId] });
       setBookingError(null);
     },
@@ -183,11 +187,6 @@ export function useTheaterBooking({ caseId }: UseTheaterBookingOptions) {
       setBookingError(error.message);
     },
   });
-
-  const fetchTheaters = useCallback(
-    (date: string) => theatersQuery.mutateAsync(date),
-    [theatersQuery]
-  );
 
   const bookSlot = useCallback(
     (theaterId: string, startTime: string, endTime: string) =>
@@ -203,7 +202,8 @@ export function useTheaterBooking({ caseId }: UseTheaterBookingOptions) {
   return {
     // Theaters data
     theaters: theatersQuery.data,
-    isLoadingTheaters: theatersQuery.isPending,
+    isLoadingTheaters: theatersQuery.isLoading,
+    isRefreshingTheaters: theatersQuery.isFetching && !theatersQuery.isLoading,
     theatersError: theatersQuery.error,
 
     // Booking mutation
@@ -217,8 +217,8 @@ export function useTheaterBooking({ caseId }: UseTheaterBookingOptions) {
     confirmError: confirmMutation.error ? confirmMutation.error.message : null,
 
     // Actions
-    fetchTheaters,
     bookSlot,
     confirm,
+    refetchTheaters: theatersQuery.refetch,
   };
 }

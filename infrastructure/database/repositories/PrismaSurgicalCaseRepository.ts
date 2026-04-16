@@ -27,7 +27,10 @@ export class PrismaSurgicalCaseRepository implements ISurgicalCaseRepository {
             theater: true,
           },
         },
-        procedure_record: true,
+        // NOTE: selecting the full procedure_record can error in some environments
+        // where the ProcedureRecord table has drifted columns. We only need the id
+        // for workflow transitions and invite handling.
+        procedure_record: { select: { id: true } },
       },
     });
   }

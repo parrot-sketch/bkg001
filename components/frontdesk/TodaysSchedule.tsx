@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +34,49 @@ interface ScheduleSectionDefinition {
     borderTone: string;
     badgeTone: string;
 }
+
+const SCHEDULE_SECTIONS: ScheduleSectionDefinition[] = [
+    {
+        key: 'scheduled',
+        title: 'Scheduled / Arriving',
+        description: 'Patients expected today who still need frontdesk movement.',
+        emptyMessage: 'No scheduled appointments pending arrival.',
+        icon: Clock,
+        tone: 'bg-slate-100 text-slate-700',
+        borderTone: 'border-slate-200',
+        badgeTone: 'bg-slate-900 text-white border-slate-900',
+    },
+    {
+        key: 'checkedIn',
+        title: 'Waiting Room',
+        description: 'Checked-in patients who should be assigned or called next.',
+        emptyMessage: 'Waiting room is empty.',
+        icon: User,
+        tone: 'bg-amber-50 text-amber-700',
+        borderTone: 'border-amber-200/80',
+        badgeTone: 'bg-amber-50 text-amber-700 border-amber-200',
+    },
+    {
+        key: 'inConsultation',
+        title: 'In Consultation',
+        description: 'Active consults currently underway with the clinical team.',
+        emptyMessage: 'No active consultations.',
+        icon: Stethoscope,
+        tone: 'bg-emerald-50 text-emerald-700',
+        borderTone: 'border-emerald-200/80',
+        badgeTone: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    },
+    {
+        key: 'completed',
+        title: 'Completed Today',
+        description: 'Visits already closed out and completed today.',
+        emptyMessage: 'No completed appointments yet.',
+        icon: CheckCircle,
+        tone: 'bg-slate-100 text-slate-600',
+        borderTone: 'border-slate-200',
+        badgeTone: 'bg-slate-100 text-slate-700 border-slate-200',
+    },
+];
 
 function mapScheduleAppointmentToDto(appointment: FrontdeskAppointment): AppointmentResponseDto {
     return {
@@ -71,48 +114,7 @@ export function TodaysSchedule() {
     const completed = filterAppointments(schedule?.completed ?? []);
     const totalAppointments = scheduled.length + checkedIn.length + inConsultation.length + completed.length;
 
-    const sections = useMemo<ScheduleSectionDefinition[]>(() => ([
-        {
-            key: 'scheduled',
-            title: 'Scheduled / Arriving',
-            description: 'Patients expected today who still need frontdesk movement.',
-            emptyMessage: 'No scheduled appointments pending arrival.',
-            icon: Clock,
-            tone: 'bg-slate-100 text-slate-700',
-            borderTone: 'border-slate-200',
-            badgeTone: 'bg-slate-900 text-white border-slate-900',
-        },
-        {
-            key: 'checkedIn',
-            title: 'Waiting Room',
-            description: 'Checked-in patients who should be assigned or called next.',
-            emptyMessage: 'Waiting room is empty.',
-            icon: User,
-            tone: 'bg-amber-50 text-amber-700',
-            borderTone: 'border-amber-200/80',
-            badgeTone: 'bg-amber-50 text-amber-700 border-amber-200',
-        },
-        {
-            key: 'inConsultation',
-            title: 'In Consultation',
-            description: 'Active consults currently underway with the clinical team.',
-            emptyMessage: 'No active consultations.',
-            icon: Stethoscope,
-            tone: 'bg-emerald-50 text-emerald-700',
-            borderTone: 'border-emerald-200/80',
-            badgeTone: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-        },
-        {
-            key: 'completed',
-            title: 'Completed Today',
-            description: 'Visits already closed out and completed today.',
-            emptyMessage: 'No completed appointments yet.',
-            icon: CheckCircle,
-            tone: 'bg-slate-100 text-slate-600',
-            borderTone: 'border-slate-200',
-            badgeTone: 'bg-slate-100 text-slate-700 border-slate-200',
-        },
-    ]), []);
+    const sections = SCHEDULE_SECTIONS;
 
     const appointmentMap: Record<ScheduleSectionKey, FrontdeskAppointment[]> = {
         scheduled,

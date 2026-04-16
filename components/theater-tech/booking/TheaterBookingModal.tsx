@@ -61,7 +61,6 @@ export function TheaterBookingModal({
   const {
     theaters,
     isLoadingTheaters,
-    fetchTheaters,
     isBooking,
     bookingData,
     bookingError,
@@ -70,14 +69,8 @@ export function TheaterBookingModal({
     confirmError,
     bookSlot,
     confirm,
-  } = useTheaterBooking({ caseId });
-
-  // Fetch theaters when modal opens or date changes
-  useEffect(() => {
-    if (isOpen && selectedDate) {
-      fetchTheaters(selectedDate).catch(() => {});
-    }
-  }, [isOpen, selectedDate, fetchTheaters]);
+    theatersError,
+  } = useTheaterBooking({ caseId, date: selectedDate, enabled: isOpen });
 
   // Reset state when modal closes
   useEffect(() => {
@@ -108,6 +101,13 @@ export function TheaterBookingModal({
       setLocalError(bookingError);
     }
   }, [bookingError]);
+
+  // Handle theaters error
+  useEffect(() => {
+    if (theatersError) {
+      setLocalError(theatersError.message);
+    }
+  }, [theatersError]);
 
   // Handle successful confirmation
   useEffect(() => {
@@ -175,7 +175,13 @@ export function TheaterBookingModal({
   const isProcessing = isBooking || isConfirming;
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog
+      open={isOpen}
+      // Radix calls onOpenChange for both open and close; only treat "false" as a close request.
+      onOpenChange={(open) => {
+        if (!open) handleClose();
+      }}
+    >
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold">Book Theater Slot</DialogTitle>
@@ -342,13 +348,23 @@ export function TheaterBookingModal({
             </div>
 
             {/* Billing info */}
-            {confirmData.billing && (
+            {confirmData.billing ? (
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
                 <div className="text-xs text-slate-400 uppercase tracking-wide mb-1">Theater Fee</div>
                 <div className="text-sm font-medium text-slate-800">
-                  KES {confirmData.billing.feeAmount.toLocaleString()} 
+                  KES {(confirmData.billing.feeAmount ?? 0).toLocaleString()} 
                   <span className="text-slate-400 font-normal ml-1">
-                    ({confirmData.billing.durationHours.toFixed(1)} hours)
+                    ({(confirmData.billing.durationHours ?? 0).toFixed(1)} hours)
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <div className="text-xs text-slate-400 uppercase tracking-wide mb-1">Theater Fee</div>
+                <div className="text-sm font-medium text-slate-700">
+                  Pending billing sync
+                  <span className="text-slate-400 font-normal ml-1">
+                    (you can still proceed)
                   </span>
                 </div>
               </div>

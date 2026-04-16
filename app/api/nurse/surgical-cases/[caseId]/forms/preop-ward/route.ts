@@ -215,11 +215,11 @@ export async function GET(
                 },
             });
 
-            // Auto-transition case status: Pre-op checklist started → IN_PREP
-            // Only if case is currently SCHEDULED
+            // Auto-transition case status: Ward checklist started → IN_WARD_PREP
+            // This keeps the ward-prep queue semantically correct.
             try {
                 const statusTransitionService = new SurgicalCaseStatusTransitionService(db);
-                await statusTransitionService.transitionToInPrep(caseId, auth.user.userId);
+                await statusTransitionService.transitionToInWardPrep(caseId, auth.user.userId);
             } catch (error) {
                 // Log but don't fail - status transition is best effort
                 console.error('[API] Pre-op checklist creation: Status transition error:', error);

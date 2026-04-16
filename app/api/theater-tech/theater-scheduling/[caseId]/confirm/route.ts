@@ -80,7 +80,14 @@ export async function POST(
                 endTime: result.endTime,
                 confirmedAt: result.confirmedAt,
                 caseStatus: result.caseStatus,
-                billing: result.billing,
+                // Normalize billing into the UI-friendly shape expected by theater-tech screens.
+                // The use case returns { created, theaterFee: { amount, hours } | null }.
+                billing: result.billing?.theaterFee
+                    ? {
+                        feeAmount: result.billing.theaterFee.amount,
+                        durationHours: result.billing.theaterFee.hours,
+                    }
+                    : null,
             },
         });
     } catch (error) {

@@ -57,6 +57,10 @@ function calculateFee(startTime: string, endTime: string, hourlyRate: number): {
     return { hours: Math.round(hours * 100) / 100, fee };
 }
 
+function hourlyToPerMinute(hourlyRate: number): number {
+    return Math.round((hourlyRate || 0) / 60);
+}
+
 interface BookTheaterSlotDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -228,6 +232,8 @@ export function BookTheaterSlotDialog({
                                             <div className="flex justify-between text-sm">
                                                 <span className="text-emerald-700">Theater Rate</span>
                                                 <span className="font-medium text-emerald-900">
+                                                    {formatCurrency(hourlyToPerMinute(selectedTheaterData?.hourlyRate || 0))}/min
+                                                    <span className="text-emerald-700"> · </span>
                                                     {formatCurrency(selectedTheaterData?.hourlyRate || 0)}/hr
                                                 </span>
                                             </div>

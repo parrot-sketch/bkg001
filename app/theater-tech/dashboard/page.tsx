@@ -245,10 +245,10 @@ export default function TheaterTechDashboard() {
             <Button
               variant="outline"
               className="w-full justify-start h-11"
-              onClick={() => router.push('/theater-tech/consultations')}
+              onClick={() => router.push('/theater-tech/patients')}
             >
               <Stethoscope className="h-4 w-4 mr-3" />
-              <span className="flex-1 text-left">From Consultations</span>
+              <span className="flex-1 text-left">From Patients</span>
               <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </Button>
             <Button

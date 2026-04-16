@@ -83,7 +83,6 @@ export async function GET(
       skinToSkinMinutes: surgicalCase.skin_to_skin_minutes,
       totalTheatreMinutes: surgicalCase.total_theatre_minutes,
       admissionType: surgicalCase.admission_type || '',
-      deviceUsed: surgicalCase.device_used,
     };
 
     return NextResponse.json({ success: true, case: caseData });

@@ -71,7 +71,6 @@ interface InitialPlanData {
   skinToSkinMinutes?: number | null;
   totalTheatreMinutes?: number | null;
   admissionType?: string;
-  deviceUsed?: string;
 }
 
 interface Props {

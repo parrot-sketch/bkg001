@@ -12,6 +12,9 @@ const updateTheaterSchema = z.object({
   is_active: z.boolean().optional(),
   operational_hours: z.string().nullable().optional(),
   capabilities: z.string().nullable().optional(),
+  // Pricing: accept either KES/min or KES/hour (legacy).
+  rate_per_minute: z.number().nonnegative().optional(),
+  hourly_rate: z.number().nonnegative().optional(),
 });
 
 export async function GET(
@@ -83,9 +86,17 @@ export async function PUT(
     const body = await request.json();
     const validated = updateTheaterSchema.parse(body);
 
+    const { rate_per_minute, hourly_rate, ...rest } = validated;
+    const data: Record<string, unknown> = { ...rest };
+    if (typeof rate_per_minute === 'number') {
+      data.hourly_rate = Math.round(rate_per_minute * 60);
+    } else if (typeof hourly_rate === 'number') {
+      data.hourly_rate = Math.round(hourly_rate);
+    }
+
     const updated = await db.theater.update({
       where: { id },
-      data: validated,
+      data,
     });
     return NextResponse.json(updated);
   } catch (error) {

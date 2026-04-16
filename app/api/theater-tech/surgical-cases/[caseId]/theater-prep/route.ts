@@ -164,7 +164,7 @@ export async function PUT(
                 });
             }
 
-            // Notify Admin
+            // Notify Admin (oversight) — scheduling is handled by theater tech
             const adminUsers = await db.user.findMany({
                 where: { role: Role.ADMIN },
                 select: { id: true },
@@ -177,34 +177,11 @@ export async function PUT(
                         type: 'IN_APP',
                         status: 'PENDING',
                         subject: 'Case Ready for Theater Booking',
-                        message: `Case for ${patient?.first_name} ${patient?.last_name} has been prepared by Theater Tech. Please schedule the procedure.`,
+                        message: `Case for ${patient?.first_name} ${patient?.last_name} is ready for theater booking. Scheduling is handled by Theater Tech.`,
                         metadata: JSON.stringify({
                             event: 'CASE_READY_FOR_THEATER_BOOKING',
                             surgicalCaseId: caseId,
-                            navigateTo: '/admin/surgical-cases',
-                        }),
-                    },
-                });
-            }
-
-            // Also notify Frontdesk
-            const frontdeskUsers = await db.user.findMany({
-                where: { role: Role.FRONTDESK },
-                select: { id: true },
-            });
-
-            for (const fd of frontdeskUsers) {
-                await db.notification.create({
-                    data: {
-                        user_id: fd.id,
-                        type: 'IN_APP',
-                        status: 'PENDING',
-                        subject: 'Case Ready for Theater Booking',
-                        message: `Case for ${patient?.first_name} ${patient?.last_name} is ready for theater booking.`,
-                        metadata: JSON.stringify({
-                            event: 'CASE_READY_FOR_THEATER_BOOKING',
-                            surgicalCaseId: caseId,
-                            navigateTo: '/frontdesk/theater-scheduling',
+                            navigateTo: '/theater-tech/theater-scheduling',
                         }),
                     },
                 });

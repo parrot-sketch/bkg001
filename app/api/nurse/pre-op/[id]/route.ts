@@ -13,7 +13,6 @@ import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import db from '@/lib/db';
 import { CaseReadinessStatus, ClinicalFormStatus, SurgicalCaseStatus } from '@prisma/client';
-import { getMissingPlanningItems } from '@/domain/helpers/planningReadiness';
 import { TEMPLATE_KEY, TEMPLATE_VERSION } from '@/domain/clinical-forms/NursePreopWardChecklist';
 
 const WARD_CHECKLIST_TEMPLATE_KEY = TEMPLATE_KEY;
@@ -123,58 +122,6 @@ export async function GET(
 
     // 5. Calculate detailed readiness checklist
     const casePlan = surgicalCase.case_plan;
-    const readinessChecklist = {
-      intakeForm: {
-        label: 'Pre-Op Intake Form',
-        complete: !!casePlan?.pre_op_notes,
-        notes: casePlan?.pre_op_notes?.substring(0, 100),
-      },
-      medicalHistory: {
-        label: 'Medical History Review',
-        complete: !!casePlan?.risk_factors,
-        notes: casePlan?.risk_factors?.substring(0, 100),
-      },
-      clinicalPhotos: {
-        label: 'Clinical Photos',
-        complete: true, // TEMPORARILY DISABLED - pending regulatory compliance review
-        count: casePlan?.images?.length ?? 0,
-      },
-      consentForms: {
-        label: 'Consent Forms',
-        complete: casePlan?.consents?.some((c) => c.signed_at !== null) ?? false,
-        total: casePlan?.consents?.length ?? 0,
-        signed: casePlan?.consents?.filter((c) => c.signed_at !== null).length ?? 0,
-      },
-      procedurePlan: {
-        label: 'Procedure Plan',
-        complete: !!casePlan?.procedure_plan,
-      },
-      implantDetails: {
-        label: 'Implant Details',
-        complete: !!casePlan?.implant_details,
-        required: requiresImplant(surgicalCase.procedure_name),
-      },
-      anesthesia: {
-        label: 'Anesthesia Plan',
-        complete: !!casePlan?.planned_anesthesia,
-      },
-      specialInstructions: {
-        label: 'Special Instructions',
-        complete: !!casePlan?.special_instructions,
-      },
-    };
-
-    const allRequired = [
-      readinessChecklist.intakeForm.complete,
-      readinessChecklist.medicalHistory.complete,
-      readinessChecklist.clinicalPhotos.complete,
-      readinessChecklist.consentForms.complete,
-      readinessChecklist.procedurePlan.complete,
-      !readinessChecklist.implantDetails.required || readinessChecklist.implantDetails.complete,
-    ];
-
-    const completedCount = allRequired.filter(Boolean).length;
-    const readinessPercentage = Math.round((completedCount / allRequired.length) * 100);
 
     // Map response
     const wardChecklistStatus = wardChecklistForm?.status || null;
@@ -229,45 +176,20 @@ export async function GET(
         createdAt: wardChecklistForm?.created_at || null,
         updatedAt: wardChecklistForm?.updated_at || null,
       },
-      readinessChecklist,
-      readinessPercentage,
-      isReadyForScheduling: readinessPercentage === 100,
       readiness: {
-        intakeFormComplete: readinessChecklist.intakeForm.complete,
-        medicalHistoryComplete: readinessChecklist.medicalHistory.complete,
-        photosUploaded: readinessChecklist.clinicalPhotos.complete,
-        consentSigned: readinessChecklist.consentForms.complete,
-        procedurePlanComplete: readinessChecklist.procedurePlan.complete,
-        implantDetailsComplete: readinessChecklist.implantDetails.complete,
-        percentage: readinessPercentage,
+        intakeFormComplete: false,
+        medicalHistoryComplete: false,
+        photosUploaded: false,
+        consentSigned: false,
+        procedurePlanComplete: false,
+        implantDetailsComplete: false,
+        percentage: isWardChecklistComplete ? 100 : 0,
         missingItems: [] as string[],
-        isReady: readinessPercentage === 100,
+        isReady: isWardChecklistComplete,
       },
     };
 
-    // Calculate missing items - include ward checklist
-    if (!readinessChecklist.intakeForm.complete) response.readiness.missingItems.push('Pre-op intake');
-    if (!readinessChecklist.medicalHistory.complete) response.readiness.missingItems.push('Medical history');
-    // TEMPORARILY DISABLED: Clinical photos - pending regulatory compliance review
-    // if (!readinessChecklist.clinicalPhotos.complete) response.readiness.missingItems.push('Clinical photos');
-    if (!readinessChecklist.consentForms.complete) response.readiness.missingItems.push('Consent form');
-    if (!readinessChecklist.procedurePlan.complete) response.readiness.missingItems.push('Procedure plan');
-    
-    // Add ward checklist to readiness calculation
-    const wardChecklistComplete = isWardChecklistComplete;
-    
-    // Update readiness percentage to include ward checklist
-    const allRequiredWithChecklist = [...allRequired, wardChecklistComplete];
-    const completedCountWithChecklist = allRequiredWithChecklist.filter(Boolean).length;
-    const readinessPercentageWithChecklist = Math.round((completedCountWithChecklist / allRequiredWithChecklist.length) * 100);
-    
-    response.readinessPercentage = readinessPercentageWithChecklist;
-    response.isReadyForScheduling = readinessPercentageWithChecklist === 100;
-    (response.readiness as any).percentage = readinessPercentageWithChecklist;
-    (response.readiness as any).isReady = readinessPercentageWithChecklist === 100;
-    (response.readiness as any).wardChecklistComplete = wardChecklistComplete;
-    
-    if (!wardChecklistComplete) {
+    if (!isWardChecklistComplete) {
       response.readiness.missingItems.push('Ward checklist');
     }
 

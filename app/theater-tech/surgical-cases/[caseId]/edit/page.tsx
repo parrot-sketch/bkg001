@@ -37,7 +37,6 @@ export default async function TheaterTechPlanEditPage({ params }: PageProps) {
       skin_to_skin_minutes: true,
       total_theatre_minutes: true,
       admission_type: true,
-      device_used: true,
       case_procedures: { select: { procedure_id: true } },
       patient: {
         select: {
@@ -82,7 +81,6 @@ export default async function TheaterTechPlanEditPage({ params }: PageProps) {
     skinToSkinMinutes: surgicalCase.skin_to_skin_minutes,
     totalTheatreMinutes: surgicalCase.total_theatre_minutes,
     admissionType: surgicalCase.admission_type || '',
-    deviceUsed: surgicalCase.device_used || '',
   };
 
   return (

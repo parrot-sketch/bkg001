@@ -6,14 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { TableRow, TableCell } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import {
-    CheckCircle2,
-    ChevronRight,
     ClipboardList,
     Clock,
     MoreHorizontal,
     Stethoscope,
     FileText,
-    AlertCircle,
     CheckSquare,
 } from 'lucide-react';
 import {
@@ -24,15 +21,8 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { formatDistanceToNow } from 'date-fns';
-import { toast } from 'sonner';
-import { useMarkCaseReady, useInventoryStatus } from '@/hooks/nurse/usePreOpCases';
+import { useInventoryStatus } from '@/hooks/nurse/usePreOpCases';
 import { useMarkInTheater } from '@/hooks/nurse/useMarkInTheater';
 import type { PreOpSurgicalCase } from '@/lib/api/nurse';
 import { InventoryReadinessIndicator } from './InventoryReadinessIndicator';
@@ -44,23 +34,9 @@ interface WardPrepTableRowProps {
 
 export function WardPrepTableRow({ surgicalCase }: WardPrepTableRowProps) {
     const router = useRouter();
-    const markReady = useMarkCaseReady();
     const markInTheater = useMarkInTheater();
-    const readiness = surgicalCase.readiness;
 
     const { data: inventoryStatus, isLoading: isLoadingInventory } = useInventoryStatus(surgicalCase.id, true);
-
-    const handleMarkReady = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (!readiness.isReady) {
-            toast.error('Cannot mark as ready - missing required items');
-            return;
-        }
-        markReady.mutate(surgicalCase.id, {
-            onSuccess: () => toast.success('Case marked as ready for theater booking'),
-            onError: (error) => toast.error(error.message),
-        });
-    };
 
     const handleMarkInTheater = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -166,26 +142,6 @@ export function WardPrepTableRow({ surgicalCase }: WardPrepTableRowProps) {
                         value={wardChecklistDone ? 100 : 0} 
                         className={`h-2 ${wardChecklistDone ? '[&>div]:bg-emerald-500' : '[&>div]:bg-amber-400'}`}
                     />
-                    {readiness.missingItems.length > 0 && (
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <div className="flex items-center gap-1 text-[10px] text-amber-600 cursor-help">
-                                        <AlertCircle className="h-3 w-3" />
-                                        {readiness.missingItems.length} other items pending
-                                    </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p className="font-semibold mb-1">Missing Items:</p>
-                                    <ul className="list-disc pl-4 text-xs">
-                                        {readiness.missingItems.map(item => (
-                                            <li key={item}>{item}</li>
-                                        ))}
-                                    </ul>
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                    )}
                 </div>
             </TableCell>
 
@@ -203,27 +159,15 @@ export function WardPrepTableRow({ surgicalCase }: WardPrepTableRowProps) {
                         </Button>
                     )}
                     {wardChecklistDone && (
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        className="h-8 text-xs text-emerald-600 hover:text-emerald-700"
-                                        onClick={handleGoToChecklist}
-                                    >
-                                        <FileText className="h-3 w-3 mr-1" />
-                                        View
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                    <p>Ward checklist completed</p>
-                                    {surgicalCase.wardChecklist?.signedBy && (
-                                        <p className="text-xs text-slate-500 mt-1">Signed by: {surgicalCase.wardChecklist.signedBy}</p>
-                                    )}
-                                </TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 text-xs text-emerald-600 hover:text-emerald-700"
+                            onClick={handleGoToChecklist}
+                        >
+                            <FileText className="h-3 w-3 mr-1" />
+                            View
+                        </Button>
                     )}
                     <div onClick={(e) => e.stopPropagation()}>
                         <InventoryReadinessIndicator
@@ -236,17 +180,6 @@ export function WardPrepTableRow({ surgicalCase }: WardPrepTableRowProps) {
 
             <TableCell className="text-right">
                 <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                    {readiness.isReady && surgicalCase.status !== 'READY_FOR_WARD_PREP' && surgicalCase.status !== 'IN_WARD_PREP' && surgicalCase.status !== 'READY_FOR_THEATER_BOOKING' && surgicalCase.status !== 'SCHEDULED' && (
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50"
-                            onClick={handleMarkReady}
-                        >
-                            <CheckCircle2 className="h-3 w-3 mr-1" />
-                            Ready for Booking
-                        </Button>
-                    )}
                     {surgicalCase.status === 'IN_PREP' && (
                         <Button
                             size="sm"
@@ -270,19 +203,11 @@ export function WardPrepTableRow({ surgicalCase }: WardPrepTableRowProps) {
                             <DropdownMenuItem onClick={handleViewDetails}>
                                 <ClipboardList className="mr-2 h-4 w-4" /> View Details
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleGoToChecklist}>
-                                <CheckSquare className="mr-2 h-4 w-4" /> 
-                                {wardChecklistDone ? 'View Checklist' : wardChecklistStarted ? 'Continue Checklist' : 'Complete Checklist'}
-                            </DropdownMenuItem>
-                    {readiness.isReady && surgicalCase.status !== 'READY_FOR_WARD_PREP' && surgicalCase.status !== 'IN_WARD_PREP' && surgicalCase.status !== 'READY_FOR_THEATER_BOOKING' && surgicalCase.status !== 'SCHEDULED' && (
-                                <>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={handleMarkReady} className="text-emerald-600 focus:text-emerald-700 focus:bg-emerald-50">
-                                        <CheckCircle2 className="mr-2 h-4 w-4" /> Ready for Booking
-                                    </DropdownMenuItem>
-                                </>
-                            )}
-                            {surgicalCase.status === 'IN_PREP' && (
+                    <DropdownMenuItem onClick={handleGoToChecklist}>
+                        <CheckSquare className="mr-2 h-4 w-4" /> 
+                        {wardChecklistDone ? 'View Checklist' : wardChecklistStarted ? 'Continue Checklist' : 'Complete Checklist'}
+                    </DropdownMenuItem>
+                    {surgicalCase.status === 'IN_PREP' && (
                                 <>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem onClick={handleMarkInTheater} className="text-amber-600 focus:text-amber-700 focus:bg-amber-50">

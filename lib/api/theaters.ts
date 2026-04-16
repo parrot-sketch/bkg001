@@ -26,7 +26,10 @@ export const theaterApi = {
   /**
    * Update an existing theater
    */
-  async update(id: string, data: Partial<Theater>): Promise<ApiResponse<Theater>> {
+  async update(
+    id: string,
+    data: Partial<Theater> | TheaterFormData | (Partial<Theater> & { rate_per_minute?: number }),
+  ): Promise<ApiResponse<Theater>> {
     return apiClient.put<Theater>(`/admin/theaters/${id}`, data);
   },
 

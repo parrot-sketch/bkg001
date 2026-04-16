@@ -142,23 +142,26 @@ async function main() {
 
   const theaterMajor = await prisma.theater.create({
     data: {
-      name: 'Theater A (Major)',
+      name: 'Main Theater',
       type: 'MAJOR',
       status: 'ACTIVE',
       color_code: '#EF4444', // Red
       notes: 'Equipped for general anesthesia and complex reconstructive surgeries.',
-      hourly_rate: 50000, // KES per hour
+      // Pricing in this system is stored as KES/hour, but operationally we set it using KES/min.
+      // Main Theater: 100 KES/min -> 6,000 KES/hour
+      hourly_rate: 100 * 60,
     }
   });
 
   const theaterMinor = await prisma.theater.create({
     data: {
-      name: 'Theater B (Minor)',
+      name: 'Minor Theater',
       type: 'MINOR',
       status: 'ACTIVE',
       color_code: '#3B82F6', // Blue
       notes: 'Local anesthesia and sedation procedures only.',
-      hourly_rate: 35000, // KES per hour
+      // Minor Theater: 50 KES/min -> 3,000 KES/hour
+      hourly_rate: 50 * 60,
     }
   });
 

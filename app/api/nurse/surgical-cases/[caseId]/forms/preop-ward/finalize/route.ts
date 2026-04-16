@@ -16,14 +16,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import db from '@/lib/db';
-import { ClinicalFormStatus } from '@prisma/client';
+import { ClinicalFormStatus, Role as PrismaRole, SurgicalCaseStatus } from '@prisma/client';
 import {
     TEMPLATE_KEY,
     TEMPLATE_VERSION,
     nursePreopWardChecklistFinalSchema,
     getMissingChecklistItems,
 } from '@/domain/clinical-forms/NursePreopWardChecklist';
-import { SurgicalCaseStatusTransitionService } from '@/application/services/SurgicalCaseStatusTransitionService';
 
 export async function POST(
     request: NextRequest,
@@ -100,6 +99,11 @@ export async function POST(
         const now = new Date();
 
         const finalized = await db.$transaction(async (tx) => {
+            const currentCase = await tx.surgicalCase.findUnique({
+                where: { id: caseId },
+                select: { id: true, status: true, patient_id: true },
+            });
+
             const updated = await tx.clinicalFormResponse.update({
                 where: { id: existing.id },
                 data: {
@@ -137,37 +141,71 @@ export async function POST(
                 },
             });
 
+            // Authoritative workflow transition:
+            // If the nurse finalized the ward checklist while the case is in the ward-prep states,
+            // move it into the theater scheduling queue.
+            if (
+                currentCase &&
+                (currentCase.status === SurgicalCaseStatus.READY_FOR_WARD_PREP ||
+                    currentCase.status === SurgicalCaseStatus.IN_WARD_PREP)
+            ) {
+                await tx.surgicalCase.update({
+                    where: { id: caseId },
+                    data: { status: SurgicalCaseStatus.READY_FOR_THEATER_BOOKING },
+                });
+
+                await tx.auditLog.create({
+                    data: {
+                        user_id: userId,
+                        record_id: caseId,
+                        action: 'UPDATE',
+                        model: 'SurgicalCase',
+                        details: `Case status transitioned to READY_FOR_THEATER_BOOKING (ward checklist finalized)`,
+                    },
+                });
+
+                await tx.clinicalAuditEvent.create({
+                    data: {
+                        actor_user_id: userId,
+                        action_type: 'STATUS_TRANSITION',
+                        entity_type: 'SurgicalCase',
+                        entity_id: caseId,
+                        metadata: JSON.stringify({
+                            from_status: currentCase.status,
+                            to_status: SurgicalCaseStatus.READY_FOR_THEATER_BOOKING,
+                            event: 'PREOP_CHECKLIST_FINALIZED',
+                        }),
+                    },
+                });
+            }
+
             return updated;
         });
 
-        // 5. Auto-transition case status: Pre-op finalized → patient ready for theater
-        // Note: Status stays IN_PREP until patient actually enters theater
+        // 5. Notify theater tech that case is ready for theater booking
+        // (Now that status transition is authoritative/atomic, the notification is "best effort".)
         try {
-            const statusTransitionService = new SurgicalCaseStatusTransitionService(db);
-            await statusTransitionService.transitionToReadyForTheater(caseId, userId);
-            
-            // 6. Notify frontdesk that case is ready for theater booking
             const { createNotificationForRole } = await import('@/lib/notifications/createNotification');
             const surgicalCase = await db.surgicalCase.findUnique({
                 where: { id: caseId },
                 include: {
-                    patient: { 
-                        select: { 
-                            first_name: true, 
-                            last_name: true, 
-                            file_number: true 
-                        } 
+                    patient: {
+                        select: {
+                            first_name: true,
+                            last_name: true,
+                            file_number: true,
+                        }
                     },
                     case_plan: { select: { procedure_plan: true } },
                 },
             });
-            
+
             if (surgicalCase?.patient) {
                 const procedureName = (surgicalCase.case_plan?.procedure_plan as any)?.procedureName || 'Surgical procedure';
-                const patientFullName = surgicalCase.patient 
+                const patientFullName = surgicalCase.patient
                     ? `${surgicalCase.patient.first_name} ${surgicalCase.patient.last_name}`.trim()
                     : 'Patient';
-                await createNotificationForRole(Role.FRONTDESK, {
+                await createNotificationForRole(PrismaRole.THEATER_TECHNICIAN, {
                     type: 'IN_APP',
                     subject: 'Case Ready for Theater Booking',
                     message: `${patientFullName} (${surgicalCase.patient?.file_number || 'N/A'}) - ${procedureName} is ready for theater scheduling. Pre-op checklist completed.`,
@@ -175,12 +213,12 @@ export async function POST(
                         surgicalCaseId: caseId,
                         patientId: surgicalCase.patient_id,
                         event: 'PREOP_CHECKLIST_FINALIZED',
+                        navigateTo: '/theater-tech/theater-scheduling',
                     },
                 });
             }
         } catch (error) {
-            // Log but don't fail - status transition and notifications are best effort
-            console.error('[API] Pre-op finalize: Status transition/notification error:', error);
+            console.error('[API] Pre-op finalize: Notification error:', error);
         }
 
         return NextResponse.json({

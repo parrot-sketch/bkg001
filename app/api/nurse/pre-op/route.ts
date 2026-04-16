@@ -16,7 +16,6 @@ import { Role } from '@/domain/enums/Role';
 import db from '@/lib/db';
 import { SurgicalCaseStatus } from '@prisma/client';
 import { TEMPLATE_KEY as WARD_CHECKLIST_TEMPLATE_KEY, TEMPLATE_VERSION as WARD_CHECKLIST_TEMPLATE_VERSION } from '@/domain/clinical-forms/NursePreopWardChecklist';
-import { getMissingPlanningItems } from '@/domain/helpers/planningReadiness';
 
 /**
  * GET /api/nurse/pre-op
@@ -62,6 +61,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Ward prep shows cases where:
     // - READY_FOR_WARD_PREP: Doctor completed the plan, nurse needs to do pre-op checklist
     // - IN_WARD_PREP: Nurse has started/completed pre-op checklist
+    // - READY_FOR_THEATER_BOOKING: Ward checklist finalized; awaiting theater booking
     const statusWhere =
       statusFilter && Object.values(SurgicalCaseStatus).includes(statusFilter as SurgicalCaseStatus)
         ? { status: statusFilter as SurgicalCaseStatus }
@@ -70,6 +70,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
               in: [
                 SurgicalCaseStatus.READY_FOR_WARD_PREP,
                 SurgicalCaseStatus.IN_WARD_PREP,
+                SurgicalCaseStatus.READY_FOR_THEATER_BOOKING,
               ],
             },
           };
@@ -181,46 +182,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       wardChecklistForms.map(f => [f.surgical_case_id, f])
     );
 
-    // 9. Batch-fetch consent counts per case plan
-    const casePlanIds = surgicalCases
-      .map(sc => sc.case_plan?.id)
-      .filter((id): id is number => id !== undefined && id !== null);
-
-    const signedConsents = await db.consentForm.findMany({
-      where: {
-        case_plan_id: { in: casePlanIds },
-        status: 'SIGNED',
-      },
-      select: { case_plan_id: true },
-    });
-
-    const consentCountMap = new Map<number, number>();
-    signedConsents.forEach(c => {
-      consentCountMap.set(c.case_plan_id, (consentCountMap.get(c.case_plan_id) || 0) + 1);
-    });
-
-    // 10. Calculate readiness information for each case
+    // 9. Calculate readiness information for each case
     const casesWithReadiness = surgicalCases.map((surgicalCase) => {
       const casePlan = surgicalCase.case_plan;
-      const cpId = casePlan?.id;
-      const signedConsentCount = cpId ? (consentCountMap.get(cpId) || 0) : 0;
-
-      // Use the same readiness logic as the detail page and surgical plan
-      const missing = getMissingPlanningItems({
-        procedurePlan: casePlan?.procedure_plan ?? null,
-        riskFactors: casePlan?.risk_factors ?? null,
-        plannedAnesthesia: (casePlan as any)?.planned_anesthesia ?? null,
-        signedConsentCount,
-        preOpPhotoCount: 0, // TEMPORARILY DISABLED - pending regulatory compliance
-      });
-
-      const requiredItems = missing.items.filter(i => i.required);
-      const completedRequired = requiredItems.filter(i => i.done).length;
-      const readinessPercentage = requiredItems.length > 0
-        ? Math.round((completedRequired / requiredItems.length) * 100)
-        : 100;
-
-      const missingItems = requiredItems.filter(i => !i.done).map(i => i.label);
+      const form = checklistMap.get(surgicalCase.id);
+      const wardChecklistComplete = form?.status === 'FINAL';
 
       return {
         id: surgicalCase.id,
@@ -269,18 +235,18 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         })) ?? [],
         // Ward checklist status from clinicalFormResponse
         wardChecklist: (() => {
-          const form = checklistMap.get(surgicalCase.id);
           return {
             status: form?.status ?? null,
-            isComplete: form?.status === 'FINAL',
+            isComplete: wardChecklistComplete,
             isStarted: !!form,
             formId: form?.id ?? null,
           };
         })(),
         readiness: {
-          percentage: readinessPercentage,
-          missingItems,
-          isReady: readinessPercentage === 100,
+          // Ward Prep semantics: the nurse ward checklist is the single readiness signal.
+          percentage: wardChecklistComplete ? 100 : 0,
+          missingItems: wardChecklistComplete ? [] : ['Ward checklist'],
+          isReady: wardChecklistComplete,
         },
       };
     });

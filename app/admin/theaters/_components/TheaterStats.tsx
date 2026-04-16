@@ -11,11 +11,11 @@ interface TheaterStatsProps {
 export function TheaterStats({ theaters }: TheaterStatsProps) {
   const activeCount = theaters.filter((t) => t.is_active).length;
   const totalBookingsToday = theaters.reduce(
-    (sum, t) => sum + t.bookings.length,
+    (sum, t) => sum + (t.bookings?.length ?? 0),
     0
   );
   const totalProcedures = theaters.reduce(
-    (sum, t) => sum + t._count.surgical_records,
+    (sum, t) => sum + (t._count?.surgical_records ?? 0),
     0
   );
 

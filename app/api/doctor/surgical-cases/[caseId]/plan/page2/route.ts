@@ -10,7 +10,6 @@ import { revalidatePath } from 'next/cache';
 
 const VALID_ANESTHESIA_TYPES = ['GENERAL', 'LOCAL', 'REGIONAL', 'SEDATION', 'TIVA', 'MAC'];
 const VALID_ADMISSION_TYPES = ['DAYCASE', 'OVERNIGHT'];
-const VALID_LIPO_DEVICES = ['POWER_ASSISTED', 'LASER_ASSISTED', 'SUCTION_ASSISTED'];
 
 export async function PATCH(
   request: NextRequest,
@@ -33,7 +32,6 @@ export async function PATCH(
       skinToSkinMinutes,
       totalTheatreMinutes,
       admissionType,
-      deviceUsed
     } = body;
 
     // Validation - anaesthesiaType is required
@@ -42,37 +40,6 @@ export async function PATCH(
         { success: false, error: 'Valid anaesthesia type is required' },
         { status: 400 }
       );
-    }
-
-    // Validate device_used: if provided, must have at least one liposuction procedure
-    if (deviceUsed) {
-      if (!VALID_LIPO_DEVICES.includes(deviceUsed)) {
-        return NextResponse.json(
-          { success: false, error: 'Invalid device type' },
-          { status: 400 }
-        );
-      }
-
-      const caseProcedures = await db.surgicalCaseProcedure.findMany({
-        where: { surgical_case_id: caseId },
-        include: {
-          procedure: { select: { name: true } },
-        },
-      });
-
-      const hasLipoProcedure = caseProcedures.some((cp) =>
-        cp.procedure.name.toLowerCase().includes('liposuction') ||
-        cp.procedure.name.toLowerCase().includes('bbl') ||
-        cp.procedure.name.toLowerCase().includes('180 lipo') ||
-        cp.procedure.name.toLowerCase().includes('360 lipo')
-      );
-
-      if (!hasLipoProcedure) {
-        return NextResponse.json(
-          { success: false, error: 'Device selection is only available when a liposuction procedure is selected' },
-          { status: 400 }
-        );
-      }
     }
 
     // Validate admission type if provided
@@ -91,7 +58,8 @@ export async function PATCH(
         skin_to_skin_minutes: skinToSkinMinutes || null,
         total_theatre_minutes: totalTheatreMinutes || null,
         admission_type: admissionType || null,
-        device_used: deviceUsed || null,
+        // Device used concept removed from workflow; keep column null for clarity.
+        device_used: null,
         status: 'READY_FOR_WARD_PREP', // Plan complete - nurse can now do pre-op checklist
       },
     });

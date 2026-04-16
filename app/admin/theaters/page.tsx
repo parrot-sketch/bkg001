@@ -13,7 +13,6 @@ import { TheaterDetailDialog } from './_components/TheaterDetailDialog';
 import { TheaterFormDialog } from './_components/TheaterFormDialog';
 import { TheaterDeleteDialog } from './_components/TheaterDeleteDialog';
 import { Button } from '@/components/ui/button';
-import { BookTheaterSlotDialog } from '@/components/admin/theaters/BookTheaterSlotDialog';
 
 export default function AdministrativeTheatersPage() {
   const queryClient = useQueryClient();
@@ -23,7 +22,6 @@ export default function AdministrativeTheatersPage() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [formData, setFormData] = useState<TheaterFormData>(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -50,7 +48,7 @@ export default function AdministrativeTheatersPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Theater> }) => 
+    mutationFn: ({ id, data }: { id: string; data: TheaterFormData | Partial<Theater> }) =>
       theaterApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'theaters'] });
@@ -98,6 +96,7 @@ export default function AdministrativeTheatersPage() {
       notes: theater.notes || '',
       operational_hours: theater.operational_hours || '',
       capabilities: theater.capabilities || '',
+      rate_per_minute: Math.round((theater.hourly_rate || 0) / 60),
     });
     setIsFormOpen(true);
   };
@@ -182,10 +181,6 @@ export default function AdministrativeTheatersPage() {
         open={isDetailOpen}
         onOpenChange={setIsDetailOpen}
         theater={selectedTheater}
-        onBookSlot={() => {
-            setIsDetailOpen(false);
-            setIsBookingOpen(true);
-        }}
       />
 
       <TheaterFormDialog
@@ -206,19 +201,6 @@ export default function AdministrativeTheatersPage() {
         onDelete={() => selectedTheater && deleteMutation.mutate(selectedTheater.id)}
       />
 
-      {selectedTheater && (
-        <BookTheaterSlotDialog
-          open={isBookingOpen}
-          onOpenChange={setIsBookingOpen}
-          theaterId={selectedTheater.id}
-          theaterName={selectedTheater.name}
-          onBookSuccess={() => {
-            setIsBookingOpen(false);
-            queryClient.invalidateQueries({ queryKey: ['admin', 'theaters'] });
-            toast.success('Surgical slot booked successfully');
-          }}
-        />
-      )}
     </div>
   );
 }
