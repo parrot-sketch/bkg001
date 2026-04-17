@@ -15,7 +15,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { ChargeSheetStep } from '@/components/theater-tech/ChargeSheetStep';
+import { useChargeSheet } from '@/hooks/theater-tech/useChargeSheet';
+import { ChargeSheetStepContent } from '@/components/theater-tech/ChargeSheetStepContent';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared types
@@ -30,7 +31,6 @@ interface StepProps {
 interface Surgeon {
   id: string;
   name: string;
-  specialization: string;
 }
 
 interface Procedure {
@@ -279,7 +279,6 @@ function CaseIdentificationForm({
                 />
                 <div>
                   <p className="text-sm font-medium">{surgeon.name}</p>
-                  <p className="text-xs text-slate-500">{surgeon.specialization}</p>
                 </div>
               </label>
             ))}
@@ -610,13 +609,34 @@ interface ChargeSheetStepWrapperProps {
   caseId: string;
   onBack: () => void;
   onFinalize: () => void;
+  finishLabel?: string;
 }
 
 function ChargeSheetStepWrapper({
   caseId,
   onBack,
   onFinalize,
+  finishLabel = 'Finish',
 }: ChargeSheetStepWrapperProps) {
+  const cs = useChargeSheet(caseId);
+
+  const handleBack = async () => {
+    if (cs.isDirty && cs.chargeItems.length > 0) {
+      const ok = window.confirm('You have unsaved charges. Go back without saving?');
+      if (!ok) return;
+    }
+    onBack();
+  };
+
+  const handleFinish = async () => {
+    // If user has added charges and they are dirty, save first to reduce errors.
+    if (cs.chargeItems.length > 0 && cs.isDirty) {
+      const saved = await cs.handleSave();
+      if (!saved) return;
+    }
+    onFinalize();
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -626,17 +646,41 @@ function ChargeSheetStepWrapper({
         </p>
       </div>
 
-      <ChargeSheetStep caseId={caseId} />
+      <ChargeSheetStepContent cs={cs} />
 
-      <div className="flex justify-between pt-2">
-        <Button type="button" variant="outline" onClick={onBack}>
-          <ChevronLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
-        <Button onClick={onFinalize}>
-          <CheckCircle2 className="h-4 w-4 mr-2" />
-          Finish &amp; View Case
-        </Button>
+      <div className="sticky bottom-0 -mx-4 md:mx-0 pt-3 pb-4 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-t border-slate-200 px-4 md:px-0">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <Button type="button" variant="outline" onClick={handleBack} className="sm:w-auto">
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 sm:justify-end">
+            {cs.chargeItems.length > 0 && (
+              <div className="flex items-center gap-2 text-xs text-slate-500 sm:order-1">
+                <span
+                  className={cn(
+                    'h-2 w-2 rounded-full',
+                    cs.isDirty ? 'bg-amber-400' : 'bg-emerald-500',
+                  )}
+                />
+                <span className="font-medium">
+                  {cs.isDirty ? 'Unsaved changes' : 'Charges saved'}
+                </span>
+              </div>
+            )}
+
+            <Button
+              onClick={handleFinish}
+              disabled={cs.isSaving}
+              className="sm:order-2"
+            >
+              {cs.isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              {cs.chargeItems.length > 0 && cs.isDirty ? 'Save & Finish' : finishLabel}
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -763,6 +807,7 @@ export function SurgicalCasePlanForm({
               caseId={caseId}
               onBack={() => goToStep(2)}
               onFinalize={handleFinalize}
+              finishLabel={isTheaterTech ? 'Finish Planning' : 'Finish'}
             />
           )}
         </CardContent>

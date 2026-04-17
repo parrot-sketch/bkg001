@@ -1,5 +1,5 @@
 {
-  "buildCommand": "SKIP_MIGRATION=true npm run build",
+  "buildCommand": "npx prisma migrate deploy && npm run build",
   "installCommand": "npm install",
   "framework": "nextjs"
 }

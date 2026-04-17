@@ -18,6 +18,8 @@ interface UseAuthReturn {
   refreshToken: () => Promise<void>;
 }
 
+
+
 /**
  * Custom hook for authentication
  * Delegates to AuthContext

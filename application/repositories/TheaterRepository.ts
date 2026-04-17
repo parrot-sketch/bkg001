@@ -1,6 +1,32 @@
 import { PrismaClient, SurgicalCaseStatus, TheaterBookingStatus } from '@prisma/client';
 import { TheaterSchedulingQueueItem, TheaterWithBookings, TheaterBookingSlot } from '../dtos/TheaterSchedulingDtos';
 
+function stripHtmlToText(html: string): string {
+    return html
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/&nbsp;|&#160;/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function deriveProcedureLabel(input: { procedureName?: string | null; procedurePlanHtml?: string | null }): string | null {
+    const direct = input.procedureName?.trim();
+    if (direct) return direct;
+
+    const plan = input.procedurePlanHtml ? stripHtmlToText(input.procedurePlanHtml) : '';
+    if (!plan) return null;
+
+    // Prefer explicit "Procedure Name: X" if present.
+    const m1 = plan.match(/procedure\s*name\s*[:\\-]\\s*([^\\n\\r.]{3,120})/i);
+    if (m1?.[1]) return m1[1].trim();
+
+    const m2 = plan.match(/procedure\\s*[:\\-]\\s*([^\\n\\r.]{3,120})/i);
+    if (m2?.[1]) return m2[1].trim();
+
+    // Fallback: show a concise excerpt of the plan text.
+    return plan.length > 80 ? `${plan.slice(0, 77)}…` : plan;
+}
+
 export class TheaterRepository {
     constructor(private prisma: PrismaClient) {}
 
@@ -85,12 +111,18 @@ export class TheaterRepository {
                 ? c.theater_booking
                 : null;
 
+            const procedureLabel =
+                deriveProcedureLabel({
+                    procedureName: c.procedure_name,
+                    procedurePlanHtml: c.case_plan?.procedure_plan ?? null,
+                }) ?? 'Procedure TBD';
+
             return {
                 id: c.id,
                 caseNumber: c.id.slice(0, 8).toUpperCase(),
                 status: c.status,
                 urgency: c.urgency || 'ELECTIVE',
-                procedure: c.procedure_name || 'Unspecified',
+                procedure: procedureLabel,
                 patient: {
                     id: c.patient.id,
                     name: `${c.patient.first_name} ${c.patient.last_name}`.trim(),

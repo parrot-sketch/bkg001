@@ -24,6 +24,7 @@ import {
   Search,
   Scissors,
 } from 'lucide-react';
+import { formatDoctorName } from '@/lib/formatting/formatDoctorName';
 
 type QueueCase = NonNullable<ReturnType<typeof useTheaterSchedulingQueue>['data']>['cases'][number];
 
@@ -173,7 +174,7 @@ export default function TheaterTechTheaterSchedulingPage() {
                         <span className="text-slate-400">·</span>
                       )}
                       {c.surgeon?.name && (
-                        <span className="truncate">Dr. {c.surgeon.name}</span>
+                        <span className="truncate">{formatDoctorName(c.surgeon.name)}</span>
                       )}
                     </div>
                   </div>
@@ -213,4 +214,3 @@ export default function TheaterTechTheaterSchedulingPage() {
     </div>
   );
 }
-

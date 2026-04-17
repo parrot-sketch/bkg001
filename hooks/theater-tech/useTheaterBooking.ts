@@ -178,9 +178,23 @@ export function useTheaterBooking({ caseId, date, enabled = true }: UseTheaterBo
   // Confirm booking
   const confirmMutation = useMutation({
     mutationFn: async (bookingId: string) => confirmBooking(caseId, bookingId),
-    onSuccess: () => {
+    onSuccess: (_data) => {
       queryClient.invalidateQueries({ queryKey: ['theater-tech', 'theater-scheduling', 'theaters'] });
       queryClient.invalidateQueries({ queryKey: ['theater-tech-case', caseId] });
+      // Immediately refresh/remove from the scheduling queue so the UI updates without full page reload.
+      queryClient.invalidateQueries({ queryKey: ['theater-tech', 'theater-scheduling', 'queue'] });
+      queryClient.setQueriesData(
+        { queryKey: ['theater-tech', 'theater-scheduling', 'queue'] },
+        (old: any) => {
+          if (!old?.cases || !Array.isArray(old.cases)) return old;
+          const nextCases = old.cases.filter((c: any) => c?.id !== caseId);
+          return {
+            ...old,
+            cases: nextCases,
+            count: typeof old.count === 'number' ? nextCases.length : old.count,
+          };
+        },
+      );
       setBookingError(null);
     },
     onError: (error: Error) => {

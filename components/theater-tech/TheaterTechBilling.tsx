@@ -4,9 +4,7 @@ import { Loader2, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useChargeSheet } from '@/hooks/theater-tech/useChargeSheet';
-import { ChargeSearchInput } from './ChargeSearchInput';
-import { ChargeItemsTable } from './ChargeItemsTable';
-import { ChargeTotals } from './ChargeTotals';
+import { ChargeSheetStepContent } from './ChargeSheetStepContent';
 
 interface TheaterTechBillingProps {
   caseId: string;
@@ -47,50 +45,10 @@ export function TheaterTechBilling({ caseId }: TheaterTechBillingProps) {
       </CardHeader>
 
       <CardContent className="space-y-4">
-        <ChargeSearchInput
-          searchQuery={cs.searchQuery}
-          dropdownOpen={cs.dropdownOpen}
-          filteredServices={cs.filteredServices}
-          filteredInventory={cs.filteredInventory}
-          onSearchChange={(v) => {
-            cs.setSearchQuery(v);
-            cs.setDropdownOpen(true);
-          }}
-          onFocus={() => cs.setDropdownOpen(true)}
-          onAddService={cs.handleAddService}
-          onAddInventory={cs.handleAddInventory}
-          onClose={() => cs.setDropdownOpen(false)}
+        <ChargeSheetStepContent
+          cs={cs}
+          emptyHint="Search and add services or inventory items"
         />
-
-        {cs.chargeItems.length > 0 ? (
-          <div className="space-y-3">
-            <ChargeItemsTable
-              chargeItems={cs.chargeItems}
-              rowDrafts={cs.rowDrafts}
-              onQuantityChange={cs.handleQuantityChange}
-              onQuantityBlur={cs.handleQuantityBlur}
-              onAmountChange={cs.handleAmountChange}
-              onAmountBlur={cs.handleAmountBlur}
-              onRemoveItem={cs.handleRemoveItem}
-              getDraft={cs.getDraft}
-            />
-            <ChargeTotals
-              subtotal={cs.subtotal}
-              discount={cs.discount}
-              total={cs.total}
-              discountStr={cs.discountStr}
-              onDiscountChange={cs.handleDiscountChange}
-              onDiscountBlur={cs.handleDiscountBlur}
-            />
-          </div>
-        ) : (
-          <div className="text-center py-8 text-slate-500">
-            <p className="text-sm">No charges added yet</p>
-            <p className="text-xs text-slate-400 mt-1">
-              Search and add services or inventory items
-            </p>
-          </div>
-        )}
       </CardContent>
     </Card>
   );

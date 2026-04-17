@@ -14,6 +14,7 @@ import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import db from '@/lib/db';
 import { SurgicalCaseStatusTransitionService } from '@/application/services/SurgicalCaseStatusTransitionService';
+import { SurgicalCaseStatus } from '@prisma/client';
 
 export async function POST(
     request: NextRequest,
@@ -33,7 +34,7 @@ export async function POST(
 
         const userId = authResult.user.userId;
 
-        // 2. Verify case exists
+        // 2. Load current status
         const surgicalCase = await db.surgicalCase.findUnique({
             where: { id: caseId },
             select: { id: true, status: true },
@@ -43,16 +44,47 @@ export async function POST(
             return NextResponse.json({ success: false, error: 'Surgical case not found' }, { status: 404 });
         }
 
-        // 3. Transition status: IN_PREP → IN_THEATER
+        // 3. Transition status:
+        // We intentionally support a "one-click" nurse action from the theatre support queue:
+        // - SCHEDULED → IN_PREP (if needed)
+        // - IN_PREP → IN_THEATER
+        //
+        // If the case is already IN_THEATER, this is idempotent.
         const statusTransitionService = new SurgicalCaseStatusTransitionService(db);
-        await statusTransitionService.transitionToInTheater(caseId, userId);
+        if (surgicalCase.status === SurgicalCaseStatus.SCHEDULED) {
+            await statusTransitionService.transitionToInPrep(caseId, userId);
+        }
+        if (surgicalCase.status !== SurgicalCaseStatus.IN_THEATER) {
+            await statusTransitionService.transitionToInTheater(caseId, userId);
+        }
+
+        // 4. Verify resulting status (avoid false-positive "success" responses)
+        const updated = await db.surgicalCase.findUnique({
+            where: { id: caseId },
+            select: { status: true },
+        });
+
+        if (!updated) {
+            return NextResponse.json({ success: false, error: 'Surgical case not found after update' }, { status: 404 });
+        }
+
+        if (updated.status !== SurgicalCaseStatus.IN_THEATER) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: `Cannot mark patient in theater from status ${surgicalCase.status}`,
+                    data: { caseId, status: updated.status },
+                },
+                { status: 422 },
+            );
+        }
 
         return NextResponse.json({
             success: true,
             message: 'Patient marked as in theater',
             data: {
                 caseId,
-                status: 'IN_THEATER',
+                status: updated.status,
             },
         });
     } catch (error: any) {

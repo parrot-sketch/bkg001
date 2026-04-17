@@ -44,10 +44,13 @@ export function TheaterBookingSection({
   onBookingComplete,
 }: TheaterBookingSectionProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  // The case detail page is a server component; props won't update until refresh.
+  // Keep a local "effective booking" so the button disappears immediately after confirm.
+  const [effectiveBooking, setEffectiveBooking] = useState(theaterBooking ?? null);
 
-  const canBook = BOOKABLE_STATUSES.includes(caseStatus) && !theaterBooking;
-  const isScheduled = theaterBooking?.status === 'CONFIRMED';
-  const isProvisional = theaterBooking?.status === 'PROVISIONAL';
+  const canBook = BOOKABLE_STATUSES.includes(caseStatus) && !effectiveBooking;
+  const isScheduled = effectiveBooking?.status === 'CONFIRMED';
+  const isProvisional = effectiveBooking?.status === 'PROVISIONAL';
 
   const duration = totalTheatreMinutes || 60; // Default 60 mins if not set
 
@@ -73,9 +76,9 @@ export function TheaterBookingSection({
 
             <div>
               <div className="text-sm font-medium text-slate-900">Theater Booking</div>
-              {isScheduled && theaterBooking && (
+              {isScheduled && effectiveBooking && (
                 <div className="text-xs text-slate-500">
-                  {theaterBooking.theater.name} · {format(new Date(theaterBooking.start_time), 'MMM d, h:mm a')}
+                  {effectiveBooking.theater.name} · {format(new Date(effectiveBooking.start_time), 'MMM d, h:mm a')}
                 </div>
               )}
               {isProvisional && (
@@ -83,7 +86,7 @@ export function TheaterBookingSection({
                   Provisional booking pending confirmation
                 </div>
               )}
-              {!theaterBooking && caseStatus === 'SCHEDULED' && (
+              {!effectiveBooking && caseStatus === 'SCHEDULED' && (
                 <div className="text-xs text-slate-500">No theater assigned</div>
               )}
             </div>
@@ -97,16 +100,16 @@ export function TheaterBookingSection({
         </div>
 
         {/* Show booking details if exists */}
-        {theaterBooking && (
+        {effectiveBooking && (
           <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 gap-4">
             <div>
               <div className="text-xs text-slate-400 uppercase tracking-wide">Theater</div>
-              <div className="text-sm font-medium text-slate-800">{theaterBooking.theater.name}</div>
+              <div className="text-sm font-medium text-slate-800">{effectiveBooking.theater.name}</div>
             </div>
             <div>
               <div className="text-xs text-slate-400 uppercase tracking-wide">Time</div>
               <div className="text-sm font-medium text-slate-800">
-                {format(new Date(theaterBooking.start_time), 'h:mm a')} - {format(new Date(theaterBooking.end_time), 'h:mm a')}
+                {format(new Date(effectiveBooking.start_time), 'h:mm a')} - {format(new Date(effectiveBooking.end_time), 'h:mm a')}
               </div>
             </div>
             <div>
@@ -114,13 +117,13 @@ export function TheaterBookingSection({
               <div className={`text-sm font-medium ${
                 isScheduled ? 'text-emerald-700' : isProvisional ? 'text-amber-700' : 'text-slate-700'
               }`}>
-                {theaterBooking.status}
+                {effectiveBooking.status}
               </div>
             </div>
             <div>
               <div className="text-xs text-slate-400 uppercase tracking-wide">Date</div>
               <div className="text-sm font-medium text-slate-800">
-                {format(new Date(theaterBooking.start_time), 'MMM d, yyyy')}
+                {format(new Date(effectiveBooking.start_time), 'MMM d, yyyy')}
               </div>
             </div>
           </div>
@@ -136,7 +139,19 @@ export function TheaterBookingSection({
           caseDurationMinutes={duration}
           patientName={patientName}
           procedureName={procedureName}
-          onBookingConfirmed={() => {
+          onBookingConfirmed={(confirmed) => {
+            if (!confirmed) {
+              setIsModalOpen(false);
+              onBookingComplete?.();
+              return;
+            }
+            setEffectiveBooking({
+              id: confirmed.bookingId,
+              start_time: new Date(confirmed.startTime),
+              end_time: new Date(confirmed.endTime),
+              status: 'CONFIRMED',
+              theater: { name: confirmed.theaterName },
+            });
             setIsModalOpen(false);
             onBookingComplete?.();
           }}

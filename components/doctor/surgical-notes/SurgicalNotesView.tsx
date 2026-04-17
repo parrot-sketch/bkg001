@@ -18,11 +18,12 @@ interface SurgicalNotesData {
 interface Props {
   caseId: string;
   data: SurgicalNotesData;
-  onEdit: () => void;
+  onEdit?: () => void;
   onContinue?: () => void;
+  canEdit?: boolean;
 }
 
-export function SurgicalNotesView({ caseId, data, onEdit, onContinue }: Props) {
+export function SurgicalNotesView({ caseId, data, onEdit, onContinue, canEdit = true }: Props) {
   // Consolidate logic for consistent view even if not yet saved in new format
   const documentContent = useMemo(() => {
     if (data.surgeon_narrative && data.surgeon_narrative.trim().length > 0) {
@@ -74,14 +75,20 @@ export function SurgicalNotesView({ caseId, data, onEdit, onContinue }: Props) {
                Print
              </Link>
            </Button>
-           <Button 
-             size="sm"
-             onClick={onEdit} 
-             className="bg-slate-900 text-white shadow-none h-8 px-3 text-xs md:text-sm md:h-9 font-bold"
-           >
-             <Edit className="h-3.5 w-3.5 mr-1.5" />
-             {isEmpty ? 'Create Note' : 'Edit Note'}
-           </Button>
+           {canEdit ? (
+             <Button 
+               size="sm"
+               onClick={onEdit} 
+               className="bg-slate-900 text-white shadow-none h-8 px-3 text-xs md:text-sm md:h-9 font-bold"
+             >
+               <Edit className="h-3.5 w-3.5 mr-1.5" />
+               {isEmpty ? 'Create Note' : 'Edit Note'}
+             </Button>
+           ) : (
+             <div className="h-8 md:h-9 px-3 rounded-md bg-slate-100 text-slate-700 text-xs md:text-sm flex items-center font-medium">
+               View only
+             </div>
+           )}
         </div>
       </CardHeader>
       

@@ -8,9 +8,9 @@
   "scripts": {
     "postinstall": "prisma generate && bash scripts/copy-pdf-worker.sh",
     "dev": "next dev",
-    "build": "prisma generate && ([ -n \"$SKIP_MIGRATION\" ] || prisma migrate deploy) && next build",
+    "build": "prisma generate && ([ -n \"$SKIP_MIGRATION\" ] || prisma migrate deploy) && next build --webpack",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "npm run -s type-check",
     "seed": "tsx prisma/seed.ts",
     "db:seed": "tsx prisma/seed.ts",
     "seed:services": "tsx scripts/seed-services.ts",

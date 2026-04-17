@@ -23,6 +23,8 @@ export interface UseChargeSheetReturn {
   // State
   isLoading: boolean;
   isSaving: boolean;
+  isDirty: boolean;
+  lastSavedAt: Date | null;
   chargeItems: ChargeItem[];
   searchQuery: string;
   dropdownOpen: boolean;
@@ -46,7 +48,7 @@ export interface UseChargeSheetReturn {
   handleAmountBlur: (id: string) => void;
   handleDiscountChange: (value: string) => void;
   handleDiscountBlur: () => void;
-  handleSave: () => Promise<void>;
+  handleSave: () => Promise<boolean>;
 
   // Helpers
   getDraft: (item: ChargeItem) => RowDraft;
@@ -57,6 +59,8 @@ export interface UseChargeSheetReturn {
 export function useChargeSheet(caseId: string): UseChargeSheetReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [lastSavedHash, setLastSavedHash] = useState<string>('');
 
   const [services, setServices] = useState<Service[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
@@ -117,6 +121,10 @@ export function useChargeSheet(caseId: string): UseChargeSheetReturn {
 
           const disc = (billingData.data.payment.discount as number) ?? 0;
           setDiscountStr(String(disc));
+          // Mark loaded server state as "saved" baseline.
+          const baselineHash = JSON.stringify({ items, discount: disc });
+          setLastSavedHash(baselineHash);
+          setLastSavedAt(new Date());
         }
 
         if (servicesData.success) {
@@ -149,6 +157,19 @@ export function useChargeSheet(caseId: string): UseChargeSheetReturn {
     }
     loadData();
   }, [caseId]);
+
+  const currentHash = useMemo(
+    () => JSON.stringify({ items: chargeItems, discount: parseFloat(discountStr) || 0 }),
+    [chargeItems, discountStr],
+  );
+
+  const isDirty = useMemo(() => {
+    // If we haven't established a baseline yet, treat as "not dirty" until load completes.
+    if (isLoading) return false;
+    // If no items and no baseline, not dirty.
+    if (!lastSavedHash) return chargeItems.length > 0 || (parseFloat(discountStr) || 0) !== 0;
+    return currentHash !== lastSavedHash;
+  }, [chargeItems.length, currentHash, discountStr, isLoading, lastSavedHash]);
 
   // ── Filtered search results ─────────────────────────────────────────────
   const filteredServices = useMemo(() => {
@@ -348,7 +369,7 @@ export function useChargeSheet(caseId: string): UseChargeSheetReturn {
   const handleSave = useCallback(async () => {
     if (chargeItems.length === 0) {
       toast.error('Add at least one item to save');
-      return;
+      return false;
     }
 
     setIsSaving(true);
@@ -376,16 +397,21 @@ export function useChargeSheet(caseId: string): UseChargeSheetReturn {
       const data = await res.json();
       if (data.success) {
         toast.success('Charge sheet saved');
+        setLastSavedHash(currentHash);
+        setLastSavedAt(new Date());
+        return true;
       } else {
         toast.error(data.error || 'Failed to save');
+        return false;
       }
     } catch (error) {
       console.error('Error saving billing:', error);
       toast.error('Failed to save charge sheet');
+      return false;
     } finally {
       setIsSaving(false);
     }
-  }, [chargeItems, caseId, discount]);
+  }, [chargeItems, caseId, currentHash, discount]);
 
   // ── Helper ──────────────────────────────────────────────────────────────
   const getDraft = useCallback(
@@ -400,6 +426,8 @@ export function useChargeSheet(caseId: string): UseChargeSheetReturn {
   return {
     isLoading,
     isSaving,
+    isDirty,
+    lastSavedAt,
     chargeItems,
     searchQuery,
     dropdownOpen,

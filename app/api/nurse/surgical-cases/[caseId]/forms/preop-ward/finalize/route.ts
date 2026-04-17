@@ -30,6 +30,7 @@ export async function POST(
 ): Promise<NextResponse> {
     try {
         const { caseId } = await context.params;
+        console.info('[API] POST preop-ward/finalize hit', { caseId });
 
         // 1. Auth — NURSE only
         const authResult = await JwtMiddleware.authenticate(request);
@@ -51,6 +52,12 @@ export async function POST(
                     surgical_case_id: caseId,
                 },
             },
+        });
+        console.info('[API] POST preop-ward/finalize loaded response', {
+            caseId,
+            found: Boolean(existing),
+            status: existing?.status ?? null,
+            templateVersion: existing?.template_version ?? null,
         });
 
         if (!existing) {

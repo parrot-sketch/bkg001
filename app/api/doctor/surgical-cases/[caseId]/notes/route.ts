@@ -15,9 +15,30 @@ export async function GET(
             return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         }
 
+        if (auth.user.role !== Role.DOCTOR) {
+            return NextResponse.json({ success: false, error: 'Doctors only.' }, { status: 403 });
+        }
+
+        const doctor = await db.doctor.findFirst({
+            where: { user_id: auth.user.userId },
+            select: { id: true },
+        });
+        if (!doctor) {
+            return NextResponse.json({ success: false, error: 'Doctor record not found.' }, { status: 400 });
+        }
+
+        const surgicalCase = await db.surgicalCase.findUnique({
+            where: { id: caseId },
+            select: { id: true, primary_surgeon_id: true },
+        });
+        if (!surgicalCase) {
+            return NextResponse.json({ success: false, error: 'Case not found' }, { status: 404 });
+        }
+
         const casePlan = await db.casePlan.findFirst({
             where: { surgical_case_id: caseId },
             select: {
+                doctor_id: true,
                 pre_op_notes: true,
                 procedure_plan: true,
                 surgeon_narrative: true,
@@ -29,8 +50,41 @@ export async function GET(
             }
         });
 
+        // ── Membership gate ────────────────────────────────────────────────
+        // "Membership" is expressed by:
+        // 1) being the primary surgeon on the SurgicalCase, or
+        // 2) having an ACCEPTED StaffInvite for this surgical_case_id, or
+        // 3) being the author of the CasePlan (legacy/edge cases).
+        const hasAcceptedInvite = await db.staffInvite.findFirst({
+            where: {
+                surgical_case_id: caseId,
+                invited_user_id: auth.user.userId,
+                status: 'ACCEPTED' as any,
+            },
+            select: { id: true },
+        });
+
+        const isPrimary = doctor.id === surgicalCase.primary_surgeon_id;
+        const isAuthor = (casePlan?.doctor_id ? casePlan.doctor_id === doctor.id : false);
+        const canView = isPrimary || isAuthor || !!hasAcceptedInvite;
+
+        if (!canView) {
+            return NextResponse.json(
+                { success: false, error: 'Forbidden: You are not assigned to this surgical case.' },
+                { status: 403 },
+            );
+        }
+
+        const canEdit =
+            isPrimary || isAuthor;
+
         // It is perfectly okay if casePlan is completely null initially
-        return NextResponse.json({ success: true, data: casePlan || {} });
+        const { doctor_id: _authorId, ...publicPlan } = (casePlan || {}) as any;
+        return NextResponse.json({
+            success: true,
+            data: publicPlan,
+            meta: { canEdit, canView },
+        });
 
     } catch (error) {
         console.error('[GET Surgical Notes Error]:', error);
@@ -51,11 +105,24 @@ export async function PUT(
         }
 
         const body = await request.json();
+
+        const doctor = await db.doctor.findFirst({
+            where: { user_id: auth.user.userId },
+            select: { id: true },
+        });
+        if (!doctor) {
+            return NextResponse.json({ success: false, error: 'Doctor record not found.' }, { status: 400 });
+        }
         
         // Find existing surgical case
         const surgicalCase = await db.surgicalCase.findUnique({
             where: { id: caseId },
-            include: { consultation: true }
+            select: {
+                id: true,
+                patient_id: true,
+                primary_surgeon_id: true,
+                consultation: { select: { appointment_id: true } },
+            },
         });
 
         if (!surgicalCase) {
@@ -63,8 +130,39 @@ export async function PUT(
         }
 
         const existingPlan = await db.casePlan.findFirst({
-            where: { surgical_case_id: caseId }
+            where: { surgical_case_id: caseId },
+            select: { id: true, doctor_id: true },
         });
+
+        // Membership gate (same semantics as GET)
+        const hasAcceptedInvite = await db.staffInvite.findFirst({
+            where: {
+                surgical_case_id: caseId,
+                invited_user_id: auth.user.userId,
+                status: 'ACCEPTED' as any,
+            },
+            select: { id: true },
+        });
+
+        const isPrimary = doctor.id === surgicalCase.primary_surgeon_id;
+        const isAuthor = (existingPlan?.doctor_id ? existingPlan.doctor_id === doctor.id : false);
+        const canView = isPrimary || isAuthor || !!hasAcceptedInvite;
+        if (!canView) {
+            return NextResponse.json(
+                { success: false, error: 'Forbidden: You are not assigned to this surgical case.' },
+                { status: 403 },
+            );
+        }
+
+        const canEdit =
+            isPrimary || isAuthor;
+
+        if (!canEdit) {
+            return NextResponse.json(
+                { success: false, error: 'Read-only: Only the primary surgeon (or original author) can edit surgical notes.' },
+                { status: 403 },
+            );
+        }
 
         // Consolidate data into surgeon_narrative if 'content' is provided
         const updateData: any = {
@@ -86,15 +184,6 @@ export async function PUT(
             });
             return NextResponse.json({ success: true });
         } else {
-            // Find Doctor record for this user
-            const doctor = await db.doctor.findFirst({
-                where: { user_id: auth.user.userId }
-            });
-
-            if (!doctor) {
-                 return NextResponse.json({ success: false, error: 'Doctor record not found.' }, { status: 400 });
-            }
-
             // Create a new CasePlan
             // We require an appointment ID for CasePlan according to Prisma schema
             let appointmentId = surgicalCase.consultation?.appointment_id;

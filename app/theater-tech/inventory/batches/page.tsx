@@ -74,7 +74,7 @@ function BatchesContent() {
 
   const loadItems = async () => {
     try {
-      const response = await apiClient.request<{ data: InventoryItem[]; pagination: any }>('/inventory/items?limit=100');
+      const response = await apiClient.request<{ data: InventoryItem[]; pagination: any }>('/inventory/items?limit=500');
       if (response.success) setItems(response.data.data ?? []);
     } catch {}
   };

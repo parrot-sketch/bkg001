@@ -30,6 +30,7 @@ export function SurgicalNotesEditor({ caseId, onContinue }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const [content, setContent] = useState('');
   const [notesData, setNotesData] = useState<SurgicalNotesFields | null>(null);
+  const [canEdit, setCanEdit] = useState(true);
 
   const consolidateNotes = useCallback((data: SurgicalNotesFields) => {
     // If we already have a surgeon narrative, just use that as the master document
@@ -62,15 +63,19 @@ export function SurgicalNotesEditor({ caseId, onContinue }: Props) {
       const json = await res.json();
       
       if (json.success && json.data) {
+        setCanEdit(json?.meta?.canEdit ?? true);
         setNotesData(json.data);
         const consolidated = consolidateNotes(json.data);
         setContent(consolidated);
         
-        if (!consolidated || consolidated.trim().length === 0) {
-            setIsEditing(true);
+        if ((json?.meta?.canEdit ?? true) && (!consolidated || consolidated.trim().length === 0)) {
+          setIsEditing(true);
+        } else {
+          setIsEditing(false);
         }
       } else {
-        setIsEditing(true);
+        setCanEdit(json?.meta?.canEdit ?? true);
+        setIsEditing(json?.meta?.canEdit ?? true);
       }
     } catch (err) {
       console.error('Failed to load surgical notes', err);
@@ -85,6 +90,7 @@ export function SurgicalNotesEditor({ caseId, onContinue }: Props) {
   }, [fetchNotes]);
 
   const onSave = async () => {
+    if (!canEdit) return;
     setIsSaving(true);
     setSaveSuccess(false);
     setError(null);
@@ -129,8 +135,20 @@ export function SurgicalNotesEditor({ caseId, onContinue }: Props) {
           <SurgicalNotesView 
               caseId={caseId} 
               data={notesData} 
-              onEdit={() => setIsEditing(true)} 
+              onEdit={canEdit ? () => setIsEditing(true) : undefined} 
               onContinue={onContinue}
+              canEdit={canEdit}
+          />
+      );
+  }
+  if (!isEditing && notesData && !content) {
+      return (
+          <SurgicalNotesView 
+              caseId={caseId} 
+              data={notesData} 
+              onEdit={canEdit ? () => setIsEditing(true) : undefined}
+              onContinue={onContinue}
+              canEdit={canEdit}
           />
       );
   }
@@ -164,7 +182,7 @@ export function SurgicalNotesEditor({ caseId, onContinue }: Props) {
            <Button 
              size="sm"
              onClick={onSave} 
-             disabled={isSaving}
+             disabled={isSaving || !canEdit}
              className="bg-slate-900 text-white shadow-none h-8 px-3 text-xs md:text-sm md:h-9 font-bold"
            >
              {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}

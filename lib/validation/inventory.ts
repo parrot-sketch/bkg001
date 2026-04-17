@@ -64,11 +64,6 @@ export const ItemQuerySchema = z.object({
     .coerce
     .boolean()
     .optional(),
-
-  is_billable: z
-    .coerce
-    .boolean()
-    .optional(),
 });
 
 export type ItemQuery = z.infer<typeof ItemQuerySchema>;
@@ -158,16 +153,7 @@ export const CreateItemSchema = z.object({
     .boolean()
     .optional()
     .default(false),
-}).refine(
-  (data) => !data.is_billable || data.unit_cost > 0,
-  {
-    message: 'Billable items must have a unit cost greater than 0',
-    path: ['unit_cost'],
-  }
-);
-
-// Base shape without refinement — used for partial update schema
-const CreateItemBaseSchema = CreateItemSchema.innerType();
+});
 
 export type CreateItem = z.infer<typeof CreateItemSchema>;
 
@@ -179,9 +165,8 @@ export type CreateItem = z.infer<typeof CreateItemSchema>;
  * Schema for PUT /api/inventory/items/:id request body
  * 
  * Similar to CreateItemSchema but all fields are optional for partial updates.
- * Uses base object (no refinement) since partial updates may not include both fields.
  */
-export const UpdateItemSchema = CreateItemBaseSchema.partial();
+export const UpdateItemSchema = CreateItemSchema.partial();
 
 export type UpdateItem = z.infer<typeof UpdateItemSchema>;
 

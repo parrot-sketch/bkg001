@@ -45,7 +45,10 @@ export function TheatreSupportTableRow({ surgicalCase }: TheatreSupportTableRowP
 
     const handleMarkInTheater = () => {
         markInTheater(surgicalCase.id, {
-            onSuccess: () => toast.success('Patient marked in theater'),
+            onSuccess: () => {
+                toast.success('Patient marked in theater');
+                router.push(`/nurse/intra-op-cases/${surgicalCase.id}/record`);
+            },
             onError: () => toast.error('Failed to mark in theater'),
         });
     };

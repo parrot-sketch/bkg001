@@ -5,17 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
 
 interface Vendor { id: string; name: string; }
-interface CatalogItem { id: number; name: string; sku: string | null; unit_cost: number; unit_of_measure: string | null; }
-interface POLine { itemName: string; inventoryItemId: number | null; quantityOrdered: number; unitPrice: number; uom: string; }
+interface CatalogItem { id: number; name: string; sku: string | null; unit_cost: number; }
+interface POLine { itemName: string; inventoryItemId: number | null; quantityOrdered: number; unitPrice: number; }
 
 export function CreatePODialog({ isOpen, onClose, onCreated }: {
   isOpen: boolean; onClose: () => void; onCreated: () => void;
@@ -23,7 +19,7 @@ export function CreatePODialog({ isOpen, onClose, onCreated }: {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [items, setItems] = useState<CatalogItem[]>([]);
   const [vendorId, setVendorId] = useState('');
-  const [lines, setLines] = useState<POLine[]>([{ itemName: '', inventoryItemId: null, quantityOrdered: 1, unitPrice: 0, uom: 'Unit' }]);
+  const [lines, setLines] = useState<POLine[]>([{ itemName: '', inventoryItemId: null, quantityOrdered: 1, unitPrice: 0 }]);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingVendors, setIsLoadingVendors] = useState(false);
@@ -33,7 +29,8 @@ export function CreatePODialog({ isOpen, onClose, onCreated }: {
 
   useEffect(() => {
     if (!isOpen) return;
-
+    
+    // Fetch vendors
     setIsLoadingVendors(true);
     setVendorError('');
     apiClient.request<{ data: Vendor[] }>('/stores/vendors?pageSize=200').then(r => {
@@ -41,29 +38,34 @@ export function CreatePODialog({ isOpen, onClose, onCreated }: {
         setVendors(r.data.data ?? []);
       } else {
         setVendorError('Failed to load vendors. Please try again.');
+        console.error('Vendor load error:', r.error);
       }
       setIsLoadingVendors(false);
-    }).catch(() => {
+    }).catch(err => {
       setVendorError('Error loading vendors');
+      console.error(err);
       setIsLoadingVendors(false);
     });
 
+    // Fetch items
     setIsLoadingItems(true);
     setItemError('');
-    apiClient.request<{ data: CatalogItem[] }>('/inventory/items?limit=100').then(r => {
+    apiClient.request<{ data: { data: CatalogItem[] } }>('/inventory/items?limit=500').then(r => {
       if (r.success) {
-        setItems(r.data.data ?? []);
+        setItems(r.data.data.data ?? []);
       } else {
         setItemError('Failed to load inventory items.');
+        console.error('Item load error:', r.error);
       }
       setIsLoadingItems(false);
-    }).catch(() => {
+    }).catch(err => {
       setItemError('Error loading inventory items');
+      console.error(err);
       setIsLoadingItems(false);
     });
   }, [isOpen]);
 
-  const addLine = () => setLines(prev => [...prev, { itemName: '', inventoryItemId: null, quantityOrdered: 1, unitPrice: 0, uom: 'Unit' }]);
+  const addLine = () => setLines(prev => [...prev, { itemName: '', inventoryItemId: null, quantityOrdered: 1, unitPrice: 0 }]);
   const removeLine = (idx: number) => setLines(prev => prev.filter((_, i) => i !== idx));
 
   const updateLine = (idx: number, field: keyof POLine, value: any) => {
@@ -71,13 +73,7 @@ export function CreatePODialog({ isOpen, onClose, onCreated }: {
       if (i !== idx) return line;
       if (field === 'inventoryItemId') {
         const item = items.find(it => it.id === parseInt(value));
-        return {
-          ...line,
-          inventoryItemId: item ? item.id : null,
-          itemName: item ? item.name : line.itemName,
-          unitPrice: item ? (item.unit_cost ?? 0) : line.unitPrice,
-          uom: item?.unit_of_measure || 'Unit',
-        };
+        return { ...line, inventoryItemId: item ? item.id : null, itemName: item ? item.name : line.itemName, unitPrice: item ? item.unit_cost : line.unitPrice };
       }
       return { ...line, [field]: value };
     }));
@@ -114,79 +110,64 @@ export function CreatePODialog({ isOpen, onClose, onCreated }: {
 
   return (
     <Dialog open={isOpen} onOpenChange={open => { if (!open) onClose(); }}>
-      <DialogContent className="sm:max-w-[680px] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[650px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>New Purchase Order</DialogTitle>
           <DialogDescription>Create a purchase order for a vendor.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-5 py-2">
-          {/* Vendor */}
+        <div className="space-y-4 py-2">
           <div className="space-y-2">
             <Label>Vendor <span className="text-red-500">*</span></Label>
             {vendorError && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{vendorError}</AlertDescription>
-              </Alert>
+              <div className="p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                {vendorError}
+              </div>
             )}
-            <Select value={vendorId} onValueChange={setVendorId} disabled={isLoadingVendors}>
-              <SelectTrigger>
-                <SelectValue placeholder={isLoadingVendors ? 'Loading vendors…' : vendors.length === 0 ? 'No vendors available' : 'Select vendor…'} />
-              </SelectTrigger>
-              <SelectContent>
-                {vendors.map(v => (
-                  <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <select 
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              value={vendorId} 
+              onChange={e => setVendorId(e.target.value)}
+              disabled={isLoadingVendors || vendors.length === 0}
+            >
+              <option value="">
+                {isLoadingVendors ? 'Loading vendors...' : vendors.length === 0 ? 'No vendors available' : 'Select Vendor...'}
+              </option>
+              {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+            </select>
           </div>
 
-          {/* Line Items */}
           <div className="space-y-2">
             <Label>Line Items</Label>
             {itemError && (
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{itemError}</AlertDescription>
-              </Alert>
+              <div className="p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-700">
+                {itemError}
+              </div>
             )}
             <div className="space-y-2">
               {lines.map((line, idx) => (
-                <div key={idx} className="flex items-end gap-2 p-3 border rounded-lg bg-muted/30">
+                <div key={idx} className="flex items-end gap-2 p-2 border rounded-lg bg-muted/30">
                   <div className="flex-1 space-y-1">
                     <Label className="text-xs">Item</Label>
-                    <Select
-                      value={line.inventoryItemId != null ? String(line.inventoryItemId) : ''}
-                      onValueChange={val => updateLine(idx, 'inventoryItemId', val)}
-                      disabled={isLoadingItems}
+                    <select 
+                      className="flex h-9 w-full rounded-md border border-input bg-background px-2 py-1 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      value={line.inventoryItemId ?? ''} 
+                      onChange={e => updateLine(idx, 'inventoryItemId', e.target.value)}
+                      disabled={isLoadingItems || items.length === 0}
                     >
-                      <SelectTrigger className="h-9 text-sm">
-                        <SelectValue placeholder={isLoadingItems ? 'Loading…' : items.length === 0 ? 'No items' : 'Select item…'} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {items.map(it => (
-                          <SelectItem key={it.id} value={String(it.id)}>
-                            {it.name}{it.sku ? ` (${it.sku})` : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {/* UOM badge */}
-                  <div className="w-16 space-y-1 text-center">
-                    <Label className="text-xs">UOM</Label>
-                    <div className="h-9 flex items-center justify-center border rounded-md bg-background px-2 text-xs font-medium text-muted-foreground">
-                      {line.uom}
-                    </div>
+                      <option value="">
+                        {isLoadingItems ? 'Loading...' : items.length === 0 ? 'No items' : 'Select or type below...'}
+                      </option>
+                      {items.map(it => <option key={it.id} value={it.id}>{it.name}{it.sku ? ` (${it.sku})` : ''}</option>)}
+                    </select>
                   </div>
                   <div className="w-20 space-y-1">
                     <Label className="text-xs">Qty</Label>
                     <Input type="number" min="1" className="h-9 text-sm" value={line.quantityOrdered}
                       onChange={e => updateLine(idx, 'quantityOrdered', parseInt(e.target.value) || 1)} />
                   </div>
-                  <div className="w-28 space-y-1">
-                    <Label className="text-xs">Unit Price (KES)</Label>
-                    <Input type="number" min="0" step="0.01" className="h-9 text-sm" value={line.unitPrice ?? 0}
+                  <div className="w-24 space-y-1">
+                    <Label className="text-xs">Unit Price</Label>
+                    <Input type="number" min="0" step="0.01" className="h-9 text-sm" value={line.unitPrice}
                       onChange={e => updateLine(idx, 'unitPrice', parseFloat(e.target.value) || 0)} />
                   </div>
                   {lines.length > 1 && (
@@ -202,23 +183,21 @@ export function CreatePODialog({ isOpen, onClose, onCreated }: {
             </Button>
           </div>
 
-          {/* Notes */}
           <div className="space-y-2">
             <Label>Notes</Label>
             <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" />
           </div>
 
-          {/* Total */}
           <div className="flex justify-end border-t pt-3">
             <div className="text-right">
-              <p className="text-sm text-muted-foreground">Order Total</p>
-              <p className="text-xl font-bold">KES {total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+              <p className="text-sm text-muted-foreground">Total</p>
+              <p className="text-lg font-bold">KES {total.toLocaleString()}</p>
             </div>
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>{isSubmitting ? 'Creating…' : 'Create PO'}</Button>
+          <Button onClick={handleSubmit} disabled={isSubmitting}>{isSubmitting ? 'Creating...' : 'Create PO'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

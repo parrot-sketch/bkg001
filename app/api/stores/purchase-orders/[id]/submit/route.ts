@@ -17,9 +17,10 @@ const purchaseOrderService = getPurchaseOrderService();
 
 export async function POST(
   request: NextRequest,
-  context: { params: Promise<{ id: string }> | { id: string } }
+  context: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   const timer = endpointTimer('POST /api/stores/purchase-orders/[id]/submit');
+  let poId: string | undefined;
   try {
     const authResult = await JwtMiddleware.authenticate(request);
     const authzResult = authorizeInventoryOperation(authResult, 'SUBMIT_PURCHASE_ORDERS');
@@ -27,7 +28,8 @@ export async function POST(
       return authzResult.error || handleApiError(new ForbiddenError('Unauthorized'));
     }
 
-    const { id } = await Promise.resolve(context.params);
+    const { id } = await context.params;
+    poId = id;
     const body = await request.json();
     const dto = parseSubmitPurchaseOrderRequest(body);
 
@@ -48,7 +50,6 @@ export async function POST(
     timer.end({ userId: authzResult.user.userId, poId: id });
     return handleApiSuccess(po, 200);
   } catch (error) {
-    const { id: poId } = await context.params;
     timer.end({ poId, error: error instanceof Error ? error.message : 'Unknown error' });
     return handleApiError(error);
   }

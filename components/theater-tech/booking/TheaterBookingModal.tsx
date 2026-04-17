@@ -34,7 +34,14 @@ interface TheaterBookingModalProps {
   caseDurationMinutes: number;
   patientName: string;
   procedureName: string;
-  onBookingConfirmed?: () => void;
+  onBookingConfirmed?: (confirmed?: {
+    bookingId: string;
+    theaterId: string;
+    theaterName: string;
+    startTime: string;
+    endTime: string;
+    caseStatus: string;
+  }) => void;
 }
 
 interface SelectedSlot {
@@ -155,8 +162,15 @@ export function TheaterBookingModal({
     if (!bookingData?.bookingId) return;
     setLocalError(null);
     try {
-      await confirm(bookingData.bookingId);
-      onBookingConfirmed?.();
+      const confirmed = await confirm(bookingData.bookingId);
+      onBookingConfirmed?.({
+        bookingId: confirmed.bookingId,
+        theaterId: confirmed.theaterId,
+        theaterName: confirmed.theaterName,
+        startTime: confirmed.startTime,
+        endTime: confirmed.endTime,
+        caseStatus: confirmed.caseStatus,
+      });
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : 'Failed to confirm booking');
     }
