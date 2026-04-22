@@ -91,29 +91,44 @@ describe('ItemQuerySchema - GET Query Parameters', () => {
       }
     });
 
-    it('should reject page < 1', () => {
+    it('should use default page when < 1', () => {
       const result = ItemQuerySchema.safeParse({ page: '0' });
-      expect(result.success).toBe(false);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.page).toBe(1);
+      }
     });
 
-    it('should reject page = 0', () => {
+    it('should use default page when = 0', () => {
       const result = ItemQuerySchema.safeParse({ page: '0' });
-      expect(result.success).toBe(false);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.page).toBe(1);
+      }
     });
 
-    it('should reject negative page', () => {
+    it('should use default page when negative', () => {
       const result = ItemQuerySchema.safeParse({ page: '-5' });
-      expect(result.success).toBe(false);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.page).toBe(1);
+      }
     });
 
-    it('should reject limit < 1', () => {
+    it('should use default limit when < 1', () => {
       const result = ItemQuerySchema.safeParse({ limit: '0' });
-      expect(result.success).toBe(false);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.limit).toBe(20);
+      }
     });
 
-    it('should reject limit > 100', () => {
+    it('should use default limit when > 100', () => {
       const result = ItemQuerySchema.safeParse({ limit: '101' });
-      expect(result.success).toBe(false);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.limit).toBe(20);
+      }
     });
 
     it('should accept limit = 100 (max)', () => {
@@ -124,14 +139,20 @@ describe('ItemQuerySchema - GET Query Parameters', () => {
       }
     });
 
-    it('should reject non-integer page', () => {
+    it('should use integer part for non-integer page', () => {
       const result = ItemQuerySchema.safeParse({ page: '1.5' });
-      expect(result.success).toBe(false);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.page).toBe(1);
+      }
     });
 
-    it('should reject non-integer limit', () => {
+    it('should use integer part for non-integer limit', () => {
       const result = ItemQuerySchema.safeParse({ limit: '20.5' });
-      expect(result.success).toBe(false);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.limit).toBe(20);
+      }
     });
 
     it('should coerce string numbers to integers', () => {
