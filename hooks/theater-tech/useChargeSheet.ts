@@ -35,6 +35,7 @@ export interface UseChargeSheetReturn {
   discount: number;
   total: number;
   discountStr: string;
+  suggestedCount: number;
 
   // Actions
   setSearchQuery: (q: string) => void;
@@ -56,7 +57,10 @@ export interface UseChargeSheetReturn {
 
 // ── Hook Implementation ─────────────────────────────────────────────────────
 
-export function useChargeSheet(caseId: string): UseChargeSheetReturn {
+export function useChargeSheet(
+  caseId: string,
+  suggestedServices?: Array<{ id: number; service_name: string; price: number }>
+): UseChargeSheetReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
@@ -72,6 +76,7 @@ export function useChargeSheet(caseId: string): UseChargeSheetReturn {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [suggestedCount, setSuggestedCount] = useState(0);
 
   // ── Load existing billing data ──────────────────────────────────────────
   useEffect(() => {
@@ -90,7 +95,7 @@ export function useChargeSheet(caseId: string): UseChargeSheetReturn {
         ]);
 
         if (billingData.success && billingData.data?.payment) {
-          const items: ChargeItem[] =
+          let items: ChargeItem[] =
             billingData.data.payment.billItems?.map((item: unknown) => {
               const rec = item as Record<string, unknown>;
               return {
@@ -108,6 +113,22 @@ export function useChargeSheet(caseId: string): UseChargeSheetReturn {
               };
             }) ?? [];
 
+          const hasExistingCharges = billingData.data.payment.billItems?.length > 0;
+          let loadedDiscount = (billingData.data.payment.discount as number) ?? 0;
+          let count = 0;
+
+          if (!hasExistingCharges && suggestedServices && suggestedServices.length > 0) {
+            items = suggestedServices.map(s => ({
+              id: `suggested-${s.id}-${Date.now()}`,
+              description: s.service_name,
+              amount: s.price,
+              quantity: 1,
+              type: 'service',
+              itemId: s.id,
+            }));
+            count = items.length;
+          }
+
           setChargeItems(items);
 
           const drafts: Record<string, RowDraft> = {};
@@ -118,11 +139,11 @@ export function useChargeSheet(caseId: string): UseChargeSheetReturn {
             };
           }
           setRowDrafts(drafts);
+          setSuggestedCount(count);
 
-          const disc = (billingData.data.payment.discount as number) ?? 0;
-          setDiscountStr(String(disc));
-          // Mark loaded server state as "saved" baseline.
-          const baselineHash = JSON.stringify({ items, discount: disc });
+          setDiscountStr(String(loadedDiscount));
+          // If we auto-populated items, they are not saved yet. Therefore the baseline is empty so isDirty = true.
+          const baselineHash = count > 0 ? '' : JSON.stringify({ items, discount: loadedDiscount });
           setLastSavedHash(baselineHash);
           setLastSavedAt(new Date());
         }
@@ -438,6 +459,7 @@ export function useChargeSheet(caseId: string): UseChargeSheetReturn {
     discount,
     total,
     discountStr,
+    suggestedCount,
 
     setSearchQuery,
     setDropdownOpen,

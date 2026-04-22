@@ -103,8 +103,6 @@ export async function getDoctorSchedule(userId: string, start: Date, end: Date) 
                         select: {
                             id: true,
                             procedure_name: true,
-                            procedure_date: true,
-                            total_theatre_minutes: true,
                             status: true,
                             patient: { select: { first_name: true, last_name: true, file_number: true } },
                         },

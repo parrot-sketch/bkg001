@@ -72,25 +72,23 @@ export default async function TheaterTechCaseDetailPage({ params }: PageProps) {
 
   if (!surgicalCase) notFound();
 
-  // Resolve all surgeons from surgeon_ids JSON
+  // Parse surgeon_ids from JSON string
   let surgeons: { name: string; specialization: string | null }[] = [];
   if (surgicalCase.surgeon_ids) {
     try {
-      const ids = JSON.parse(surgicalCase.surgeon_ids) as string[];
-      const docs = await db.doctor.findMany({
-        where: { id: { in: ids } },
-        select: { name: true, specialization: true },
-      });
-      surgeons = docs;
-    } catch {
-      if (surgicalCase.primary_surgeon) {
-        surgeons = [{
-          name: surgicalCase.primary_surgeon.name,
-          specialization: surgicalCase.primary_surgeon.specialization ?? null,
-        }];
+      const ids = JSON.parse(surgicalCase.surgeon_ids);
+      if (Array.isArray(ids)) {
+        const docs = await db.doctor.findMany({
+          where: { id: { in: ids } },
+          select: { name: true, specialization: true },
+        });
+        surgeons = docs;
       }
+    } catch (e) {
+      // Fall through to primary surgeon
     }
-  } else if (surgicalCase.primary_surgeon) {
+  }
+  if (surgeons.length === 0 && surgicalCase.primary_surgeon) {
     surgeons = [{
       name: surgicalCase.primary_surgeon.name,
       specialization: surgicalCase.primary_surgeon.specialization ?? null,

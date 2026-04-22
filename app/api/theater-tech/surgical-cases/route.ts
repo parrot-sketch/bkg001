@@ -91,11 +91,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const primarySurgeonId: string | undefined = surgeonId || undefined;
 
-    // Create the surgical case
+    // Create the surgical case - only include primary_surgeon_id if provided
     const surgicalCase = await db.surgicalCase.create({
       data: {
         patient_id: patientId,
-        primary_surgeon_id: primarySurgeonId,
+        ...(primarySurgeonId && { primary_surgeon_id: primarySurgeonId }),
         status: 'DRAFT',
         created_by: authResult.user.userId,
       },

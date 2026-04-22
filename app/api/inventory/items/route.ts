@@ -114,10 +114,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       low_stock_only: searchParams.get('low_stock_only') ?? undefined,
     };
 
-    console.log('Query params:', queryParams);
-
     const validationResult = ItemQuerySchema.safeParse(queryParams);
-    console.log('Validation result:', validationResult.success ? 'success' : validationResult.error);
     if (!validationResult.success) {
       return NextResponse.json(
         formatValidationError(validationResult.error),
@@ -141,33 +138,31 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
      // ENRICH ITEMS WITH BALANCE CALCULATION
      // ========================================================================
      // Calculate quantity_on_hand for each item from InventoryTransaction records.
-     // Fetches all balances in a single query to eliminate N+1 latency.
-     
-     const itemIds = paginatedResult.items.map(item => item.id);
-     const balancesMap = await inventoryRepository.getBalances(itemIds);
-
-     let enrichedItems: InventoryItemWithBalance[] = paginatedResult.items.map((item: InventoryItem) => {
-       const quantityOnHand = balancesMap.get(item.id) ?? 0;
-       return {
-         id: item.id,
-         name: item.name,
-         sku: item.sku,
-         category: item.category,
-         description: item.description,
-         unitOfMeasure: item.unitOfMeasure,
-         unitCost: item.unitCost,
-         reorderPoint: item.reorderPoint,
-         lowStockThreshold: item.lowStockThreshold,
-         supplier: item.supplier,
-         manufacturer: item.manufacturer,
-         isActive: item.isActive,
-         isBillable: item.isBillable,
-         isImplant: item.isImplant,
-         quantityOnHand,
-         createdAt: item.createdAt,
-         updatedAt: item.updatedAt,
-       };
-     });
+     // This ensures the balance is always current and audit-trail accurate.
+     let enrichedItems: InventoryItemWithBalance[] = await Promise.all(
+       paginatedResult.items.map(async (item: InventoryItem) => {
+         const quantityOnHand = await inventoryRepository.getItemBalance(item.id);
+         return {
+           id: item.id,
+           name: item.name,
+           sku: item.sku,
+           category: item.category,
+           description: item.description,
+           unitOfMeasure: item.unitOfMeasure,
+           unitCost: item.unitCost,
+           reorderPoint: item.reorderPoint,
+           lowStockThreshold: item.lowStockThreshold,
+           supplier: item.supplier,
+           manufacturer: item.manufacturer,
+           isActive: item.isActive,
+           isBillable: item.isBillable,
+           isImplant: item.isImplant,
+           quantityOnHand,
+           createdAt: item.createdAt,
+           updatedAt: item.updatedAt,
+         };
+       })
+     );
 
      // ========================================================================
      // APPLY LOW STOCK FILTER (if requested)

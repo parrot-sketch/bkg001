@@ -49,8 +49,26 @@ export async function GET(
         description: true,
         estimated_duration_minutes: true,
         default_price: true,
+        min_price: true,
+        max_price: true,
         preparation_notes: true,
         post_op_notes: true,
+        procedure_service_links: {
+          select: {
+            id: true,
+            is_primary: true,
+            service: {
+              select: {
+                id: true,
+                service_name: true,
+                price: true,
+                category: true,
+                is_active: true,
+              },
+            },
+          },
+          orderBy: { is_primary: 'desc' },
+        },
       },
     });
 

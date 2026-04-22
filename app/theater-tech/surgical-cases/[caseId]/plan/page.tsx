@@ -67,22 +67,23 @@ export default async function TheaterTechPlanDocumentPage({ params }: PageProps)
     redirect('/theater-tech/surgical-cases');
   }
 
-  // Parse surgeon_ids for display
+  // Parse surgeon_ids from JSON string
   let selectedSurgeonNames: string[] = [];
   if (surgicalCase.surgeon_ids) {
     try {
-      const surgeonIds = JSON.parse(surgicalCase.surgeon_ids) as string[];
-      const surgeons = await db.doctor.findMany({
-        where: { id: { in: surgeonIds } },
-        select: { name: true }
-      });
-      selectedSurgeonNames = surgeons.map(s => s.name);
-    } catch (e) {
-      if (surgicalCase.primary_surgeon) {
-        selectedSurgeonNames = [surgicalCase.primary_surgeon.name];
+      const surgeonIds = JSON.parse(surgicalCase.surgeon_ids);
+      if (Array.isArray(surgeonIds)) {
+        const surgeons = await db.doctor.findMany({
+          where: { id: { in: surgeonIds } },
+          select: { name: true }
+        });
+        selectedSurgeonNames = surgeons.map(s => s.name);
       }
+    } catch (e) {
+      // Fall through to primary surgeon
     }
-  } else if (surgicalCase.primary_surgeon) {
+  }
+  if (selectedSurgeonNames.length === 0 && surgicalCase.primary_surgeon) {
     selectedSurgeonNames = [surgicalCase.primary_surgeon.name];
   }
 

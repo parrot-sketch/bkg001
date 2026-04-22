@@ -6,9 +6,13 @@ import {
   TheaterBookingStatus,
 } from '@prisma/client';
 
-function parseSelectedSurgeonIds(raw: string | null | undefined, primarySurgeonId?: string | null): string[] {
+function parseSelectedSurgeonIds(raw: string | string[] | null | undefined, primarySurgeonId?: string | null): string[] {
   if (!raw) {
     return primarySurgeonId ? [primarySurgeonId] : [];
+  }
+
+  if (Array.isArray(raw)) {
+    return raw.filter((value): value is string => typeof value === 'string');
   }
 
   try {

@@ -43,6 +43,16 @@ const baseNavItems: NavItem[] = [
     icon: Activity,
   },
   {
+    name: 'Services',
+    href: '/theater-tech/services',
+    icon: Stethoscope,
+  },
+  {
+    name: 'Procedures',
+    href: '/theater-tech/procedures',
+    icon: Scissors,
+  },
+  {
     name: 'Item Catalog',
     href: '/theater-tech/inventory/items',
     icon: Package,
@@ -74,19 +84,6 @@ const baseNavItems: NavItem[] = [
   },
 ];
 
-const adminNavItems: NavItem[] = [
-  {
-    name: 'Services',
-    href: '/admin/services',
-    icon: Stethoscope,
-  },
-  {
-    name: 'Procedures',
-    href: '/admin/procedures',
-    icon: Scissors,
-  },
-];
-
 interface TheaterTechSidebarProps {
   isOpen: boolean;
   onClose: () => void;
@@ -95,8 +92,7 @@ interface TheaterTechSidebarProps {
 export function TheaterTechSidebar({ isOpen, onClose }: TheaterTechSidebarProps) {
   const { logout, user } = useAuth();
 
-  const isAdmin = user?.role?.toUpperCase() === 'ADMIN';
-  const navItems = isAdmin ? [...baseNavItems, ...adminNavItems] : baseNavItems;
+  const navItems = baseNavItems;
 
   const handleLogout = async () => {
     try {

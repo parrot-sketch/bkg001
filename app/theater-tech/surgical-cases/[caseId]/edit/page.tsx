@@ -53,7 +53,7 @@ export default async function TheaterTechPlanEditPage({ params }: PageProps) {
     redirect('/theater-tech/surgical-cases');
   }
 
-  // Parse surgeon_ids to get the array of selected surgeons
+  // Parse surgeon_ids from JSON string
   let selectedSurgeonIds: string[] = [];
   if (surgicalCase.surgeon_ids) {
     try {

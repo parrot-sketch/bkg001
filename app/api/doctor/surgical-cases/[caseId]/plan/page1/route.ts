@@ -108,7 +108,8 @@ export async function PATCH(
         data: {
           procedure_date: new Date(procedureDate),
           primary_surgeon_id: surgeonIds[0],
-          surgeon_ids: JSON.stringify(surgeonIds),
+          // Store as JSON string in TEXT column
+          surgeon_ids: surgeonIds.length > 0 ? JSON.stringify(surgeonIds) : null,
           diagnosis,
           procedure_category: procedureCategory,
           primary_or_revision: primaryOrRevision,

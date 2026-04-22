@@ -48,6 +48,7 @@ model User {
   purchase_orders_approved   PurchaseOrder[]          @relation("PurchaseOrderApprover")
   purchase_orders_created    PurchaseOrder[]          @relation("PurchaseOrderCreator")
   refresh_tokens             RefreshToken[]
+  login_attempts             LoginAttempt[]
   staff_invites_sent         StaffInvite[]            @relation("StaffInviteInviter")
   staff_invites_received     StaffInvite[]            @relation("StaffInviteUser")
   stock_adjustments          StockAdjustment[]        @relation("StockAdjustmentUser")
@@ -60,6 +61,23 @@ model User {
   @@index([role])
   @@index([status])
   @@index([role, status])
+}
+
+model LoginAttempt {
+  id         String   @id @default(uuid())
+  user_id    String?
+  email      String
+  ip_address String
+  user_agent String?
+  success    Boolean
+  reason     String?
+  attempt_at DateTime @default(now())
+  user       User?    @relation(fields: [user_id], references: [id])
+
+  @@index([email])
+  @@index([ip_address])
+  @@index([attempt_at])
+  @@index([user_id])
 }
 
 model RefreshToken {
@@ -353,7 +371,7 @@ model Appointment {
   consultation_duration         Int?
   consultation_ended_at         DateTime?
   consultation_started_at       DateTime?
-  parent_appointment_id         Int?
+  parent_appointment_id   Int?          @unique
   parent_consultation_id        Int?
   source                        AppointmentSource          @default(PATIENT_REQUESTED)
   created_by_user_id            String?
@@ -631,6 +649,9 @@ model Payment {
   surgical_case_id String?       @unique
   bill_type        BillType      @default(CONSULTATION)
   notes            String?
+  charge_sheet_no  String?
+  finalized_at     DateTime?
+  finalized_by     String?
   bill_items       PatientBill[]
   appointment      Appointment?  @relation(fields: [appointment_id], references: [id], onDelete: Cascade)
   patient          Patient       @relation(fields: [patient_id], references: [id], onDelete: Cascade)
@@ -649,7 +670,7 @@ model Payment {
 model PatientBill {
   id                            Int                       @id @default(autoincrement())
   payment_id                    Int
-  service_id                    Int
+  service_id                    Int?
   service_date                  DateTime
   quantity                      Int                       @default(1)
   unit_cost                     Float
@@ -657,9 +678,11 @@ model PatientBill {
   created_at                    DateTime                  @default(now())
   updated_at                    DateTime                  @updatedAt
   surgical_medication_record_id String?                   @unique
+  inventory_item_id             Int?
   inventory_usage               InventoryUsage?
   payment                       Payment                   @relation(fields: [payment_id], references: [id], onDelete: Cascade)
-  service                       Service                   @relation(fields: [service_id], references: [id], onDelete: Cascade)
+  service                       Service?                  @relation(fields: [service_id], references: [id], onDelete: Cascade)
+  inventory_item                InventoryItem?            @relation(fields: [inventory_item_id], references: [id])
   surgical_medication_record    SurgicalMedicationRecord? @relation("MedicationPatientBill", fields: [surgical_medication_record_id], references: [id])
 
   @@index([payment_id])
@@ -683,6 +706,7 @@ model Service {
   planned_items CasePlanPlannedItem[]
   lab_test      LabTest?
   bill_items    PatientBill[]
+  procedure_links ProcedureServiceLink[]
 
   @@index([service_name])
   @@index([category])
@@ -717,6 +741,7 @@ model InventoryItem {
   surgical_billing_line_items SurgicalBillingLineItem[]
   surgical_case_items         SurgicalCaseItem[]
   medication_records          SurgicalMedicationRecord[]
+  patient_bills               PatientBill[]
 
   @@index([name])
   @@index([sku])
@@ -1187,6 +1212,56 @@ model CasePlanPlannedItem {
   @@index([service_id])
 }
 
+model SurgicalProcedureOption {
+  id           String   @id @default(cuid())
+  category     ProcedureCategory
+  subcategory  String?
+  name         String
+  description  String?
+  is_billable  Boolean  @default(true)
+  estimated_duration_minutes Int?
+  default_price Float?
+  min_price    Float?
+  max_price    Float?
+  preparation_notes String?
+  post_op_notes String?
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  created_by   String?
+
+  case_procedures SurgicalCaseProcedure[]
+  procedure_service_links ProcedureServiceLink[]
+
+  @@map("surgical_procedure_options")
+}
+
+model ProcedureServiceLink {
+  id           String   @id @default(cuid())
+  procedure_id String
+  service_id   Int
+  is_primary   Boolean  @default(false)
+  created_at   DateTime @default(now())
+
+  procedure    SurgicalProcedureOption @relation(fields: [procedure_id], references: [id], onDelete: Cascade)
+  service      Service                  @relation(fields: [service_id], references: [id], onDelete: Restrict)
+
+  @@unique([procedure_id, service_id])
+  @@map("procedure_service_link")
+}
+
+model SurgicalCaseProcedure {
+  id              String                   @id @default(cuid())
+  surgical_case_id String
+  procedure_id    String
+
+  surgical_case   SurgicalCase             @relation(fields: [surgical_case_id], references: [id], onDelete: Cascade)
+  procedure       SurgicalProcedureOption  @relation(fields: [procedure_id], references: [id])
+
+  @@unique([surgical_case_id, procedure_id])
+  @@map("surgical_case_procedures")
+}
+
 model SurgicalProcedureRecord {
   id                             Int                  @id @default(autoincrement())
   case_plan_id                   Int?                 @unique
@@ -1633,12 +1708,21 @@ model IntakeSubmission {
 model SurgicalCase {
   id                 String                     @id @default(uuid())
   patient_id         String
-  primary_surgeon_id String
+  primary_surgeon_id String?
+  surgeon_ids        String?                   // JSON string array: ["id1","id2"]
   consultation_id    Int?                       @unique
   urgency            SurgicalUrgency            @default(ELECTIVE)
   status             SurgicalCaseStatus         @default(DRAFT)
   diagnosis          String?
   procedure_name     String?
+  procedure_date     DateTime?
+  procedure_category String?
+  primary_or_revision String?
+  anaesthesia_type   String?
+  skin_to_skin_minutes Int?
+  total_theatre_minutes Int?
+  admission_type     String?
+  device_used        String?
   side               String?
   created_at         DateTime                   @default(now())
   updated_at         DateTime                   @updatedAt
@@ -1652,13 +1736,14 @@ model SurgicalCase {
   billing_estimate   SurgicalBillingEstimate?
   consultation       Consultation?              @relation(fields: [consultation_id], references: [id])
   patient            Patient                    @relation(fields: [patient_id], references: [id], onDelete: Cascade)
-  primary_surgeon    Doctor                     @relation(fields: [primary_surgeon_id], references: [id], onDelete: Cascade)
+  primary_surgeon    Doctor?                    @relation(fields: [primary_surgeon_id], references: [id], onDelete: Cascade)
   case_items         SurgicalCaseItem[]
   team_members       SurgicalCaseTeamMember[]
   checklist          SurgicalChecklist?
   medication_records SurgicalMedicationRecord[]
   procedure_record   SurgicalProcedureRecord?
   theater_booking    TheaterBooking?
+  case_procedures    SurgicalCaseProcedure[]
 
   @@index([patient_id])
   @@index([primary_surgeon_id])
@@ -2305,6 +2390,22 @@ enum SurgicalCaseStatus {
   RECOVERY
   COMPLETED
   CANCELLED
+  READY_FOR_WARD_PREP
+  IN_WARD_PREP
+}
+
+enum ProcedureCategory {
+  GENERAL
+  FACE
+  BREAST
+  BODY
+  RECONSTRUCTIVE
+  FACE_AND_NECK
+  BODY_CONTOURING
+  INTIMATE_AESTHETIC
+  HAIR_RESTORATION
+  NON_SURGICAL
+  POST_WEIGHT_LOSS
 }
 
 enum TheaterBookingStatus {

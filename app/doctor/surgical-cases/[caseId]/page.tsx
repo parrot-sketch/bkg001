@@ -51,7 +51,7 @@ export default async function DoctorSurgicalCaseWorkspacePage({ params }: PagePr
     }
   }
 
-  // Parse surgeon_ids to get the array of selected surgeons
+  // Parse surgeon_ids from JSON string
   let selectedSurgeonIds: string[] = [];
   if (surgicalCase.surgeon_ids) {
     try {
