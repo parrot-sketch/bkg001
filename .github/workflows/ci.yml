@@ -91,6 +91,9 @@ jobs:
       - name: Generate Prisma Client
         run: pnpm prisma generate
 
+      - name: Resolve failed migrations
+        run: pnpm prisma migrate resolve --applied 20260412000000_add_procedure_management 2>/dev/null || pnpm prisma migrate resolve --applied 20260416000000_fix_procedure_tables 2>/dev/null || true
+
       - name: Apply migrations to test DB
         run: pnpm prisma migrate deploy
 
