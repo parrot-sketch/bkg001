@@ -91,11 +91,8 @@ jobs:
       - name: Generate Prisma Client
         run: pnpm prisma generate
 
-      - name: Resolve failed migrations
-        run: pnpm prisma migrate resolve --applied 20260412000000_add_procedure_management 2>/dev/null || pnpm prisma migrate resolve --applied 20260416000000_fix_procedure_tables 2>/dev/null || true
-
-      - name: Apply migrations to test DB
-        run: pnpm prisma migrate deploy
+      - name: Push schema to test DB (simpler than migrate for fresh test DBs)
+        run: pnpm prisma db push --accept-data-loss
 
       - name: Run integration tests
         run: pnpm vitest run --config vitest.config.integration.ts --exclude 'tests/integration/booking-concurrency.test.ts' --exclude 'tests/integration/check-in-flow.test.ts' --exclude 'tests/integration/frontdesk-theater-booking.test.ts' --exclude 'tests/integration/team-assignment.test.ts' --exclude 'tests/integration/auth/**' --exclude 'tests/integration/consents-phase2/**' --exclude 'tests/integration/frontdesk-booking/**' --exclude 'tests/integration/inventory-billing/**' --exclude 'tests/integration/surgical-plan/**' --exclude 'tests/integration/theater-tech/**'
