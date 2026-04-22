@@ -2,8 +2,8 @@
   "name": "hms-video",
   "version": "0.1.0",
   "private": true,
-  "engines": {
-    "node": "20.x"
+"engines": {
+    "node": ">=20.x"
   },
   "scripts": {
     "postinstall": "prisma generate && bash scripts/copy-pdf-worker.sh",
