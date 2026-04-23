@@ -116,17 +116,17 @@ export class JwtAuthService implements IAuthService {
       // Increment failed attempts and lock if threshold reached
       const currentUser = await this.prisma.user.findUnique({
         where: { id: user?.getId() },
-        select: { failed_attempts: true },
+        select: { failed_login_attempts: true },
       });
-      
-      const failedCount = (currentUser?.failed_attempts || 0) + 1;
+
+      const failedCount = (currentUser?.failed_login_attempts || 0) + 1;
       const shouldLock = failedCount >= 5; // Lock after 5 failed attempts
-      
+
       await this.prisma.user.update({
         where: { id: user?.getId() },
         data: {
-          failed_attempts: failedCount,
-          locked_at: shouldLock ? new Date(Date.now() + 15 * 60 * 1000) : null, // 15 min lock
+          failed_login_attempts: failedCount,
+          locked_until: shouldLock ? new Date(Date.now() + 15 * 60 * 1000) : null, // 15 min lock
         },
       }).catch(() => {}); // Fire-and-forget
       

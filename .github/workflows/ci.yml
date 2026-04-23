@@ -37,6 +37,9 @@ jobs:
       - name: Generate Prisma Client
         run: pnpm prisma generate
 
+      - name: Clear TypeScript cache
+        run: rm -f tsconfig.tsbuildinfo
+
       - name: Type-check
         run: pnpm tsc --noEmit
 

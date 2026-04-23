@@ -2,11 +2,6 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "types": ["vitest/globals", "node"],
-    "baseUrl": "..",
-    "paths": {
-      "@domain/*": ["./domain/*"],
-      "@/*": ["./*"]
-    },
     "noEmit": true
   },
   "include": [
