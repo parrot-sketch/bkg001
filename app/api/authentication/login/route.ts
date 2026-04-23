@@ -104,12 +104,53 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiErrorR
 
     const body: LoginDto = validationResult.data;
 
-    // Dual-Layer Defense 2: Email Rate Limiting (Account targeted lockouts)
+    // Dual-Layer Defense 2: Check for locked/stopped account BEFORE rate limiting
+    const accountCheck = await db.user.findUnique({
+      where: { email: body.email.toLowerCase() },
+      select: { 
+        id: true, 
+        locked_at: true, 
+        failed_attempts: true,
+        status: true,
+      },
+    });
+
+    if (accountCheck?.locked_at && accountCheck.locked_at > new Date()) {
+      emitter.emit(SecurityEventType.ACCOUNT_LOCKED, {
+        ipAddress: ip,
+        email: body.email.toLowerCase(),
+        reason: 'Account locked - too many failed attempts',
+        correlationId,
+        timestamp: new Date()
+      });
+      return NextResponse.json({
+        success: false,
+        error: 'Account is temporarily locked due to multiple failed login attempts. Please try again later or contact support.',
+      }, { status: 423 });
+    }
+
+    if (accountCheck?.status === 'INACTIVE') {
+      return NextResponse.json({
+        success: false,
+        error: 'Account is inactive. Please contact administrator.',
+      }, { status: 403 });
+    }
+
+    // Dual-Layer Defense 3: Email Rate Limiting (Account targeted lockouts)
     const emailKey = `email:${body.email.toLowerCase()}`;
     await emailRateLimiter.recordAttempt(emailKey);
     const emailLimit = await emailRateLimiter.isRateLimited(emailKey);
 
     if (emailLimit.isLimited) {
+      // Lock the account in database
+      await db.user.update({
+        where: { email: body.email.toLowerCase() },
+        data: { 
+          locked_at: new Date(Date.now() + 15 * 60 * 1000), // 15 minute lock
+          failed_attempts: { increment: 1 },
+        },
+      }).catch(() => {});
+
       emitter.emit(SecurityEventType.ACCOUNT_LOCKED, {
         ipAddress: ip,
         email: body.email.toLowerCase(),
@@ -119,10 +160,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiErrorR
       });
       return NextResponse.json({
         success: false,
-        error: 'Too many login attempts for this account. Please try again later.',
+        error: 'Account is temporarily locked due to multiple failed login attempts. Please try again in 15 minutes.',
       }, { 
-        status: 429,
-        headers: { 'Retry-After': String(Math.ceil((emailLimit.retryAfterMs || 0) / 1000)) }
+        status: 423,
+        headers: { 'Retry-After': '900' }
       });
     }
 

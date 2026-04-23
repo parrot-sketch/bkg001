@@ -112,8 +112,35 @@ export class JwtAuthService implements IAuthService {
 
     if (!user || !isValidPassword) {
       console.warn(`[SECURITY:FAILED_LOGIN] Invalid credentials attempt | Email: ${email.getValue()}`);
+      
+      // Increment failed attempts and lock if threshold reached
+      const currentUser = await this.prisma.user.findUnique({
+        where: { id: user?.getId() },
+        select: { failed_attempts: true },
+      });
+      
+      const failedCount = (currentUser?.failed_attempts || 0) + 1;
+      const shouldLock = failedCount >= 5; // Lock after 5 failed attempts
+      
+      await this.prisma.user.update({
+        where: { id: user?.getId() },
+        data: {
+          failed_attempts: failedCount,
+          locked_at: shouldLock ? new Date(Date.now() + 15 * 60 * 1000) : null, // 15 min lock
+        },
+      }).catch(() => {}); // Fire-and-forget
+      
       throw new DomainException('Invalid email or password', {});
     }
+
+    // Reset failed attempts on successful login
+    await this.prisma.user.update({
+      where: { id: user.getId() },
+      data: {
+        failed_attempts: 0,
+        locked_at: null,
+      },
+    }).catch(() => {}); // Fire-and-forget
 
     // 4. Check if user can authenticate (status must be ACTIVE)
     if (!user.canAuthenticate()) {

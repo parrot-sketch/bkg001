@@ -47,13 +47,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                 primary_surgeon: {
                     select: { name: true },
                 },
+                case_procedures: {
+                    include: { procedure: true },
+                },
             },
             orderBy: { created_at: 'desc' },
             take: pageSize,
             skip: (page - 1) * pageSize,
         });
 
-        return NextResponse.json({ success: true, data: cases });
+        const mappedCases = cases.map((c) => ({
+            ...c,
+            procedure_name: c.case_procedures?.length > 0
+                ? c.case_procedures.map((cp) => cp.procedure.name).join(', ')
+                : c.procedure_name,
+        }));
+
+        return NextResponse.json({ success: true, data: mappedCases });
     } catch (error) {
         console.error('Error fetching surgical cases:', error);
         return NextResponse.json({ success: false, error: 'Failed to fetch cases' }, { status: 500 });

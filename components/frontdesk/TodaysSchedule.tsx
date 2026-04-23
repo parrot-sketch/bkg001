@@ -1,15 +1,10 @@
 import { useState, type ReactNode } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
-    ArrowUpRight,
-    Calendar,
-    CalendarClock,
     CheckCircle,
     Clock,
-    Filter,
     Loader2,
     Search,
     Stethoscope,
@@ -18,7 +13,6 @@ import {
 import { useTodaysSchedule } from '@/hooks/frontdesk/use-frontdesk-dashboard';
 import { FrontdeskAppointment } from '@/actions/frontdesk/get-dashboard-data';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
-import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { FrontdeskAppointmentCard } from './FrontdeskAppointmentCard';
 
@@ -39,7 +33,7 @@ const SCHEDULE_SECTIONS: ScheduleSectionDefinition[] = [
     {
         key: 'scheduled',
         title: 'Scheduled / Arriving',
-        description: 'Patients expected today who still need frontdesk movement.',
+        description: '',
         emptyMessage: 'No scheduled appointments pending arrival.',
         icon: Clock,
         tone: 'bg-slate-100 text-slate-700',
@@ -49,7 +43,7 @@ const SCHEDULE_SECTIONS: ScheduleSectionDefinition[] = [
     {
         key: 'checkedIn',
         title: 'Waiting Room',
-        description: 'Checked-in patients who should be assigned or called next.',
+        description: '',
         emptyMessage: 'Waiting room is empty.',
         icon: User,
         tone: 'bg-amber-50 text-amber-700',
@@ -59,7 +53,7 @@ const SCHEDULE_SECTIONS: ScheduleSectionDefinition[] = [
     {
         key: 'inConsultation',
         title: 'In Consultation',
-        description: 'Active consults currently underway with the clinical team.',
+        description: '',
         emptyMessage: 'No active consultations.',
         icon: Stethoscope,
         tone: 'bg-emerald-50 text-emerald-700',
@@ -69,7 +63,7 @@ const SCHEDULE_SECTIONS: ScheduleSectionDefinition[] = [
     {
         key: 'completed',
         title: 'Completed Today',
-        description: 'Visits already closed out and completed today.',
+        description: '',
         emptyMessage: 'No completed appointments yet.',
         icon: CheckCircle,
         tone: 'bg-slate-100 text-slate-600',
@@ -149,26 +143,12 @@ export function TodaysSchedule() {
                 <div className="flex flex-col gap-5">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-slate-500">
-                                <CalendarClock className="h-4 w-4" />
-                                <span className="text-xs font-medium uppercase tracking-[0.18em]">
-                                    Daily Operations
-                                </span>
-                            </div>
                             <CardTitle className="flex items-center gap-2 text-lg sm:text-xl font-semibold tracking-tight text-slate-900">
-                                <Calendar className="h-5 w-5 text-slate-600" />
                                 Today's Schedule
                             </CardTitle>
-                            <p className="max-w-2xl text-sm text-slate-500">
-                                Track arrivals, waiting room movement, and active consultations from one clear board.
-                            </p>
                         </div>
 
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center lg:justify-end">
-                            <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 shadow-sm">
-                                <CalendarClock className="h-4 w-4 text-slate-500" />
-                                <span>{format(new Date(), 'EEEE, dd MMM yyyy')}</span>
-                            </div>
                             <div className="relative min-w-0 sm:min-w-[260px]">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                                 <Input
@@ -178,32 +158,25 @@ export function TodaysSchedule() {
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                 />
                             </div>
-                            <Button variant="outline" size="icon" className="shrink-0 rounded-xl border-slate-200 text-slate-600">
-                                <Filter className="h-4 w-4" />
-                            </Button>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
                         <ScheduleSummaryTile
-                            label="Total Visible"
+                            label="Total"
                             value={totalAppointments}
-                            meta={searchQuery ? 'Filtered results' : 'All appointments'}
                         />
                         <ScheduleSummaryTile
-                            label="Awaiting Arrival"
+                            label="Scheduled"
                             value={scheduled.length}
-                            meta="Scheduled / confirmed"
                         />
                         <ScheduleSummaryTile
-                            label="Waiting Room"
+                            label="Waiting"
                             value={checkedIn.length}
-                            meta="Checked in and ready"
                         />
                         <ScheduleSummaryTile
-                            label="Active Consults"
+                            label="In Progress"
                             value={inConsultation.length}
-                            meta="Currently in progress"
                         />
                     </div>
                 </div>
@@ -240,21 +213,15 @@ export function TodaysSchedule() {
 function ScheduleSummaryTile({
     label,
     value,
-    meta,
 }: {
     label: string;
     value: number;
-    meta: string;
 }) {
     return (
         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                    <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">{label}</p>
-                    <p className="text-2xl font-semibold tracking-tight text-slate-900">{value}</p>
-                    <p className="text-xs text-slate-500">{meta}</p>
-                </div>
-                <ArrowUpRight className="h-4 w-4 text-slate-300" />
+            <div className="space-y-1">
+                <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">{label}</p>
+                <p className="text-2xl font-semibold tracking-tight text-slate-900">{value}</p>
             </div>
         </div>
     );
@@ -291,7 +258,7 @@ function ScheduleLane({
                         </div>
                         <div>
                             <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
-                            <p className="text-xs text-slate-500">{description}</p>
+                            {description && <p className="text-xs text-slate-500">{description}</p>}
                         </div>
                     </div>
                 </div>

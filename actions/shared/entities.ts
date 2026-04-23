@@ -309,13 +309,13 @@ export async function getSharedSurgicalCases(filters: SharedSurgicalCaseFilters 
 }
 
 export async function revalidateSharedPatients() {
-  revalidateTag('shared-patients', 'max');
+  revalidateTag('shared-patients', { expire: 0 });
 }
 
 export async function revalidateSharedAppointments() {
-  revalidateTag('shared-appointments', 'max');
+  revalidateTag('shared-appointments', { expire: 0 });
 }
 
 export async function revalidateSharedSurgicalCases() {
-  revalidateTag('shared-surgical-cases', 'max');
+  revalidateTag('shared-surgical-cases', { expire: 0 });
 }

@@ -21,6 +21,7 @@ interface FrontdeskLayoutProps {
 
 export default function FrontdeskLayout({ children }: FrontdeskLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { user, isLoading } = useAuth();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -57,10 +58,15 @@ export default function FrontdeskLayout({ children }: FrontdeskLayoutProps) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-stone-50">
-      <FrontdeskSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <FrontdeskSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} onCollapse={setSidebarCollapsed} />
 
-      {/* Main content area with responsive margin */}
-      <div className="flex-1 md:ml-[280px] flex flex-col min-w-0 h-full overflow-hidden transition-all duration-300">
+      {/* Main content area - responsive margin based on sidebar state */}
+      <div 
+        className="flex-1 flex flex-col min-w-0 h-full overflow-hidden transition-all duration-300"
+        style={{ 
+          marginLeft: sidebarCollapsed ? '4rem' : '280px'
+        }}
+      >
         <FrontdeskHeader onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
         
         <BookAppointmentDialog />

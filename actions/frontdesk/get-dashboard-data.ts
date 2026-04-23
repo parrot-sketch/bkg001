@@ -119,7 +119,6 @@ async function fetchDashboardDataInternal(): Promise<FrontdeskDashboardData> {
     statsByStatus,
     appointments,
     pendingIntakes,
-    checkedInAwaiting,
     liveQueue,
   ] = await Promise.all([
     db.appointment.groupBy({
@@ -162,26 +161,6 @@ async function fetchDashboardDataInternal(): Promise<FrontdeskDashboardData> {
     }),
     db.intakeSubmission.count({
       where: { status: 'PENDING' },
-    }),
-    db.appointment.findMany({
-      where: {
-        appointment_date: {
-          gte: today,
-          lt: tomorrow,
-        },
-        status: 'CHECKED_IN',
-      },
-      include: {
-        patient: {
-          select: {
-            id: true,
-            first_name: true,
-            last_name: true,
-            file_number: true,
-            phone: true,
-          },
-        },
-      },
     }),
     db.patientQueue.findMany({
       where: {
@@ -254,21 +233,21 @@ async function fetchDashboardDataInternal(): Promise<FrontdeskDashboardData> {
   );
   const completed = mappedAppointments.filter(a => a.status === 'COMPLETED');
 
-  const checkedInAwaitingMapped: FrontdeskCheckedInPatient[] = checkedInAwaiting.map(a => ({
+  const checkedInAwaitingMapped: FrontdeskCheckedInPatient[] = checkedIn.map(a => ({
     id: a.id,
-    patientId: a.patient_id,
+    patientId: a.patientId,
     patient: {
-      id: a.patient.id,
-      firstName: a.patient.first_name,
-      lastName: a.patient.last_name,
-      fileNumber: a.patient.file_number || '',
-      phone: a.patient.phone || '',
+      id: a.patient?.id || '',
+      firstName: a.patient?.firstName || '',
+      lastName: a.patient?.lastName || '',
+      fileNumber: a.patient?.fileNumber || '',
+      phone: a.patientPhone || '',
     },
-    appointmentDate: a.appointment_date.toISOString(),
+    appointmentDate: a.appointmentDate,
     time: a.time,
     type: a.type,
-    checkedInAt: a.checked_in_at?.toISOString() || a.updated_at.toISOString(),
-    waitTime: calculateWaitTime(a.checked_in_at || a.updated_at),
+    checkedInAt: new Date().toISOString(),
+    waitTime: 'Just now',
     isWalkIn: false,
   }));
 
@@ -365,5 +344,5 @@ export async function getFrontdeskDashboardData(): Promise<FrontdeskDashboardDat
 }
 
 export async function revalidateFrontdeskDashboard() {
-  revalidateTag('frontdesk-dashboard-v2', 'max');
+  revalidateTag('frontdesk-dashboard-v2', { expire: 0 });
 }

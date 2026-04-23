@@ -106,7 +106,7 @@ export function useDashboardStats() {
 
 const STALE_TIME_MS = 30_000; // 30 seconds - aligns with server action cache
 const GC_TIME_MS = 5 * 60 * 1000; // 5 minutes
-const REFETCH_INTERVAL_MS = 60_000; // 60 seconds - reduced for production performance
+const REFETCH_INTERVAL_MS = 120_000; // 2 minutes - appropriate for operational dashboard
 
 // ─── Main Hook ────────────────────────────────────────────────────
 
@@ -196,10 +196,51 @@ export function useCheckIn() {
 
       return response.data;
     },
-    onSuccess: () => {
-      // Fire-and-forget: don't await server action — it blocks invalidation if slow
-      revalidateFrontdeskDashboard();
+    onMutate: async ({ appointmentId }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.frontdesk.dashboard() });
 
+      const previousData = queryClient.getQueryData<FrontdeskDashboardData>(queryKeys.frontdesk.dashboard());
+
+      if (previousData) {
+        const optimisticData = {
+          ...previousData,
+          stats: {
+            ...previousData.stats,
+            pendingCheckIns: Math.max(0, previousData.stats.pendingCheckIns - 1),
+            checkedInPatients: previousData.stats.checkedInPatients + 1,
+          },
+          todaysSchedule: {
+            ...previousData.todaysSchedule,
+            scheduled: previousData.todaysSchedule.scheduled.filter(
+              (apt) => apt.id !== appointmentId
+            ),
+            checkedIn: [
+              ...previousData.todaysSchedule.checkedIn,
+              ...previousData.todaysSchedule.scheduled.filter(
+                (apt) => apt.id === appointmentId
+              ).map((apt) => ({ ...apt, status: 'CHECKED_IN' as const })),
+            ],
+          },
+        };
+        queryClient.setQueryData<FrontdeskDashboardData>(
+          queryKeys.frontdesk.dashboard(),
+          optimisticData
+        );
+      }
+
+      return { previousData };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData<FrontdeskDashboardData>(
+          queryKeys.frontdesk.dashboard(),
+          context.previousData
+        );
+      }
+      toast.error('Failed to check in patient');
+    },
+    onSuccess: () => {
+      revalidateFrontdeskDashboard();
       queryClient.invalidateQueries({ queryKey: queryKeys.frontdesk.dashboard() });
       queryClient.invalidateQueries({ queryKey: queryKeys.appointments.list() });
       queryClient.invalidateQueries({ queryKey: queryKeys.doctor.appointments() });
@@ -207,9 +248,6 @@ export function useCheckIn() {
       queryClient.invalidateQueries({ queryKey: queryKeys.appointments.byDate(today) });
 
       toast.success('Patient checked in successfully');
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Failed to check in patient');
     },
   });
 }

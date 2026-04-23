@@ -124,7 +124,6 @@ export default function FrontdeskDashboardPage(): React.ReactElement {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           <div className="min-w-0">
             <h2 className="text-base sm:text-lg font-bold">Quick Patient Assignment</h2>
-            <p className="text-slate-300 text-xs sm:text-sm leading-tight">Add a patient directly to a doctor&apos;s queue</p>
           </div>
           <Button
             onClick={(): void => setQuickAssignmentOpen(true)}

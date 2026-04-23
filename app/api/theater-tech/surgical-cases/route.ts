@@ -34,6 +34,9 @@ export async function GET(): Promise<NextResponse> {
             id: true,
           },
         },
+        case_procedures: {
+          include: { procedure: true },
+        },
       },
       orderBy: {
         created_at: 'desc',
@@ -46,7 +49,9 @@ export async function GET(): Promise<NextResponse> {
       data: surgicalCases.map((c) => ({
         id: c.id,
         status: c.status,
-        procedure_name: c.procedure_name,
+        procedure_name: c.case_procedures?.length > 0
+          ? c.case_procedures.map((cp) => cp.procedure.name).join(', ')
+          : c.procedure_name,
         patient: c.patient,
         primary_surgeon: c.primary_surgeon,
         created_at: c.created_at.toISOString(),

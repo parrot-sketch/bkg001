@@ -325,7 +325,7 @@ export default function TheaterTechDashboard() {
                         </div>
                         <p className="text-xs text-muted-foreground truncate">
                           {caseItem.procedure_name || 'No procedure specified'} •{' '}
-                          Dr. {caseItem.primary_surgeon?.name || '—'}
+                          {caseItem.primary_surgeon?.name || '—'}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">

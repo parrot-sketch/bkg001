@@ -51,9 +51,10 @@ const navItems: NavItem[] = [
 interface FrontdeskSidebarProps {
   isOpen?: boolean;
   onClose?: () => void;
+  onCollapse?: (collapsed: boolean) => void;
 }
 
-export function FrontdeskSidebar({ isOpen = false, onClose = () => { } }: FrontdeskSidebarProps) {
+export function FrontdeskSidebar({ isOpen = false, onClose = () => { }, onCollapse }: FrontdeskSidebarProps) {
   const { logout, user } = useAuth();
 
   const handleLogout = async () => {
@@ -62,6 +63,10 @@ export function FrontdeskSidebar({ isOpen = false, onClose = () => { } }: Frontd
     } catch (error) {
       console.error('Logout failed:', error);
     }
+  };
+
+  const handleCollapse = (collapsed: boolean) => {
+    onCollapse?.(collapsed);
   };
 
   const userInfo: UserInfo | null = user
@@ -80,6 +85,7 @@ export function FrontdeskSidebar({ isOpen = false, onClose = () => { } }: Frontd
       userInfo={userInfo}
       onLogout={handleLogout}
       dashboardHref="/frontdesk/dashboard"
+      onCollapse={handleCollapse}
     />
   );
 }

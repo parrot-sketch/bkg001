@@ -19,6 +19,8 @@ model User {
   last_name                  String?
   phone                      String?
   last_login_at              DateTime?
+  locked_at                 DateTime?
+  failed_attempts           Int                      @default(0)
   created_at                 DateTime                 @default(now())
   updated_at                 DateTime                 @updatedAt
   created_appointments       Appointment[]            @relation("AppointmentCreator")
