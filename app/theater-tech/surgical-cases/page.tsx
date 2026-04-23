@@ -15,10 +15,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { Search, Receipt, ChevronRight, User } from 'lucide-react';
+import { Search, Receipt, ChevronRight, User, MoreHorizontal, Pencil, Activity, Eye, Trash2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Config
@@ -72,6 +74,8 @@ export default function TheaterTechSurgicalCasesPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('');
+  const [caseToDelete, setCaseToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchCases = useCallback(async () => {
     setLoading(true);
@@ -103,6 +107,25 @@ export default function TheaterTechSurgicalCasesPage() {
 
   const toDetail = (id: string) => router.push(`/theater-tech/surgical-cases/${id}`);
   const toCharges = (id: string) => router.push(`/theater-tech/surgical-cases/${id}/charges`);
+  const toEdit = (id: string) => router.push(`/theater-tech/surgical-cases/${id}/edit`);
+
+  const handleDelete = async (id: string) => {
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/theater-tech/surgical-cases/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        await fetchCases();
+      } else {
+        const errorData = await res.json();
+        console.error('Failed to delete case:', errorData.error);
+      }
+    } catch (err) {
+      console.error('Error deleting surgical case:', err);
+    } finally {
+      setIsDeleting(false);
+      setCaseToDelete(null);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -111,11 +134,15 @@ export default function TheaterTechSurgicalCasesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Surgical Cases</h1>
-          <p className="text-sm text-slate-500">Track each case from planning through booking and live theater flow.</p>
+          <p className="text-sm text-slate-500 mt-1">Track each case from planning through booking and live theater flow.</p>
         </div>
         <span className="text-xs bg-white border border-slate-200 text-slate-500 px-2.5 py-1 rounded-full tabular-nums">
           {filtered.length} {filtered.length === 1 ? 'case' : 'cases'}
         </span>
+      </div>
+
+      {/* Header Actions Placeholder (Removed mockup buttons) */}
+      <div className="flex gap-2">
       </div>
 
       {/* ── Status Tabs (horizontal scroll, no wrap) ── */}
@@ -194,15 +221,38 @@ export default function TheaterTechSurgicalCasesPage() {
                     </p>
                   </button>
 
-                  {/* Charges icon */}
-                  <button
-                    type="button"
-                    onClick={() => toCharges(c.id)}
-                    className="h-9 w-9 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors touch-manipulation shrink-0"
-                    title="Charge Sheet"
-                  >
-                    <Receipt className="h-4 w-4" />
-                  </button>
+                  {/* Row Actions Dropdown */}
+                  <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-9 w-9 text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={() => toDetail(c.id)} className="gap-2">
+                          <Eye className="h-4 w-4 text-muted-foreground" /> View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => toEdit(c.id)} className="gap-2">
+                          <Pencil className="h-4 w-4 text-muted-foreground" /> Edit Case
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => toCharges(c.id)} className="gap-2">
+                          <Receipt className="h-4 w-4 text-muted-foreground" /> Charges
+                        </DropdownMenuItem>
+                        {c.status === 'DRAFT' && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => setCaseToDelete(c.id)} 
+                              className="gap-2 text-destructive focus:bg-destructive/10 focus:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" /> Delete Draft
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
               );
             })}
@@ -276,25 +326,35 @@ export default function TheaterTechSurgicalCasesPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-2 text-xs text-slate-500 hover:text-slate-800 gap-1"
-                            onClick={() => toCharges(c.id)}
-                          >
-                            <Receipt className="h-3.5 w-3.5" />
-                            Charges
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-slate-400 hover:text-slate-700"
-                            onClick={() => toDetail(c.id)}
-                          >
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-700">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem onClick={() => toDetail(c.id)} className="gap-2">
+                              <Eye className="h-4 w-4 text-muted-foreground" /> View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => toEdit(c.id)} className="gap-2">
+                              <Pencil className="h-4 w-4 text-muted-foreground" /> Edit Case
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => toCharges(c.id)} className="gap-2">
+                              <Receipt className="h-4 w-4 text-muted-foreground" /> Charges
+                            </DropdownMenuItem>
+                            {c.status === 'DRAFT' && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                  onClick={() => setCaseToDelete(c.id)} 
+                                  className="gap-2 text-destructive focus:bg-destructive/10 focus:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" /> Delete Draft
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </td>
                     </tr>
                   );
@@ -310,6 +370,31 @@ export default function TheaterTechSurgicalCasesPage() {
           </div>
         )}
       </div>
+
+      <AlertDialog open={!!caseToDelete} onOpenChange={(open) => !open && setCaseToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Surgical Case</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this draft case? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault();
+                if (caseToDelete) handleDelete(caseToDelete);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={isDeleting}
+            >
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isDeleting ? 'Deleting...' : 'Delete Case'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </div>
   );
