@@ -98,6 +98,28 @@ const mockPrismaClient = {
       onboarding_status: 'ACTIVE',
     }),
   },
+  user: {
+    findUnique: async (query: any) => {
+      // Mock user lookup - in tests this will be handled by the mock repository
+      // but for failed login attempts, we need to return user data
+      if (query.where.email) {
+        // For login tests, return mock user data for failed attempts tracking
+        return {
+          id: 'user-123',
+          failed_login_attempts: 0,
+        };
+      }
+      return null;
+    },
+    update: async (data: any) => {
+      // Mock update - just return the data for successful login reset
+      return {
+        id: data.where.id,
+        ...data.data,
+      };
+    },
+  },
+
 };
 
 describe('JwtAuthService', () => {
