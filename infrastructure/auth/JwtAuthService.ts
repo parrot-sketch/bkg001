@@ -137,8 +137,8 @@ export class JwtAuthService implements IAuthService {
     await this.prisma.user.update({
       where: { id: user.getId() },
       data: {
-        failed_attempts: 0,
-        locked_at: null,
+        failed_login_attempts: 0,
+        locked_until: null,
       },
     }).catch(() => {}); // Fire-and-forget
 
