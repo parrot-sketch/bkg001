@@ -1,7 +1,7 @@
 'use client';
 
 import { useBookAppointmentStore } from '@/hooks/frontdesk/useBookAppointmentStore';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { AppointmentBookingWizard } from './AppointmentBookingWizard';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -32,11 +32,9 @@ export function BookAppointmentDialog() {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={closeBookingDialog}>
-      <DialogContent 
-        className="max-w-2xl w-[95vw] max-h-[85vh] p-0 border-none bg-white rounded-2xl shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200"
-      >
-        <DialogTitle className="sr-only">Book Appointment</DialogTitle>
+    <Sheet open={isOpen} onOpenChange={(open) => (!open ? closeBookingDialog() : undefined)}>
+      <SheetContent side="right" className="p-0 sm:max-w-[560px] w-[95vw] bg-white">
+        <SheetTitle className="sr-only">Book Appointment</SheetTitle>
         <AppointmentBookingWizard
           initialPatientId={initialPatientId}
           initialPatient={initialPatient}
@@ -49,10 +47,11 @@ export function BookAppointmentDialog() {
           parentAppointmentId={parentAppointmentId}
           parentConsultationId={parentConsultationId}
           userRole="frontdesk"
+          variant="sheet"
           onSuccess={handleSuccess}
           onCancel={closeBookingDialog}
         />
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

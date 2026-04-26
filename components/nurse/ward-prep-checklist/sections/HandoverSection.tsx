@@ -1,29 +1,15 @@
 'use client';
 
+import { useState } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { TimeField } from '../fields';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { PenLine } from 'lucide-react';
+import type { WardChecklistSectionProps } from '@/components/nurse/ward-prep-checklist/types';
+import { ServerSignatureDialog } from '@/components/nurse/ward-prep-checklist/components/ServerSignatureDialog';
 
-interface HandoverSectionProps {
-    data: any;
-    onChange: (data: any) => void;
-    disabled: boolean;
-    currentUser?: {
-        firstName?: string;
-        lastName?: string;
-        email?: string;
-        id?: string;
-    } | null;
-}
-
-export function HandoverSection({ data, onChange, disabled, currentUser }: HandoverSectionProps) {
+export function HandoverSection({ data, onChange, disabled, currentUser, onPersistSignature }: WardChecklistSectionProps) {
     const d = data.handover ?? {};
     const set = (field: string, value: any) => onChange({ ...data, handover: { ...d, [field]: value } });
 
@@ -31,14 +17,39 @@ export function HandoverSection({ data, onChange, disabled, currentUser }: Hando
         ? `${currentUser.firstName} ${currentUser.lastName || ''}`.trim()
         : currentUser?.email || '';
 
-    const nursingStaff = [
-        { id: 'current', name: userName || 'Current Nurse' },
-        { id: 'theater-nurse-1', name: 'Theater Nurse 1' },
-        { id: 'theater-nurse-2', name: 'Theater Nurse 2' },
-        { id: 'scrub-nurse-1', name: 'Scrub Nurse 1' },
-        { id: 'scrub-nurse-2', name: 'Scrub Nurse 2' },
-        { id: 'circulating-nurse', name: 'Circulating Nurse' },
-    ];
+    const [signTarget, setSignTarget] = useState<'PREPARED_BY' | 'RECEIVED_BY' | 'HANDED_OVER_BY' | null>(null);
+
+    const openSignature = (target: NonNullable<typeof signTarget>) => setSignTarget(target);
+    const closeSignature = () => setSignTarget(null);
+
+    const handleSign = async (args: { signerName: string }) => {
+        if (!signTarget) return;
+        if (onPersistSignature) {
+            await onPersistSignature({
+                role: signTarget,
+                value: { signerName: args.signerName, signatureDataUrl: '' },
+            });
+            return;
+        }
+
+        // Fallback: local-only update (requires manual "Save Draft" on the page)
+        if (signTarget === 'PREPARED_BY') {
+            onChange({
+                ...data,
+                handover: { ...d, preparedByName: args.signerName, preparedBySignature: { signerName: args.signerName, signatureDataUrl: '' } },
+            });
+        } else if (signTarget === 'RECEIVED_BY') {
+            onChange({
+                ...data,
+                handover: { ...d, receivedByName: args.signerName, receivedBySignature: { signerName: args.signerName, signatureDataUrl: '' } },
+            });
+        } else {
+            onChange({
+                ...data,
+                handover: { ...d, handedOverByName: args.signerName, handedOverBySignature: { signerName: args.signerName, signatureDataUrl: '' } },
+            });
+        }
+    };
 
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -52,29 +63,64 @@ export function HandoverSection({ data, onChange, disabled, currentUser }: Hando
                     className="h-9"
                 />
             </div>
+            <div className="space-y-1.5">
+                <Label className="text-sm">Prepared by (signature)</Label>
+                <div className="flex items-center gap-2">
+                    {d.preparedBySignature?.signatureDataUrl ? (
+                        <img
+                            src={d.preparedBySignature.signatureDataUrl}
+                            alt="Prepared by signature"
+                            className="h-9 w-28 border border-slate-200 rounded-md bg-white object-contain"
+                        />
+                    ) : (
+                        <div className="h-9 w-28 border border-dashed border-slate-200 rounded-md bg-slate-50" />
+                    )}
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="h-9 rounded-xl gap-2"
+                        onClick={() => openSignature('PREPARED_BY')}
+                        disabled={disabled}
+                    >
+                        <PenLine className="h-4 w-4" />
+                        {d.preparedBySignature ? 'Re-sign' : 'Sign'}
+                    </Button>
+                </div>
+            </div>
             <TimeField label="Time arrived in theatre" value={d.timeArrivedInTheatre} onChange={(v) => set('timeArrivedInTheatre', v)} disabled={disabled} />
             <div className="space-y-1.5">
-                <Label className="text-sm flex items-center gap-1.5">
-                    Received by (name)
-                    <span className="text-xs text-muted-foreground font-normal">(optional - fill after theater booking)</span>
-                </Label>
-                <Select
+                <Label className="text-sm">Received by (name)</Label>
+                <Input
                     value={d.receivedByName || ''}
-                    onValueChange={(value) => set('receivedByName', value === '__none__' ? '' : value)}
+                    onChange={(e) => set('receivedByName', e.target.value)}
                     disabled={disabled}
-                >
-                    <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Select receiving nurse..." />
-                    </SelectTrigger>
-                    <SelectContent className="z-50 max-h-60">
-                        <SelectItem value="__none__">— Not yet assigned —</SelectItem>
-                        {nursingStaff.map((staff) => (
-                            <SelectItem key={staff.id} value={staff.name}>
-                                {staff.name}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                    placeholder="Enter name"
+                    className="h-9"
+                />
+            </div>
+            <div className="space-y-1.5">
+                <Label className="text-sm">Received by (signature)</Label>
+                <div className="flex items-center gap-2">
+                    {d.receivedBySignature?.signatureDataUrl ? (
+                        <img
+                            src={d.receivedBySignature.signatureDataUrl}
+                            alt="Received by signature"
+                            className="h-9 w-28 border border-slate-200 rounded-md bg-white object-contain"
+                        />
+                    ) : (
+                        <div className="h-9 w-28 border border-dashed border-slate-200 rounded-md bg-slate-50" />
+                    )}
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="h-9 rounded-xl gap-2"
+                        onClick={() => openSignature('RECEIVED_BY')}
+                        disabled={disabled}
+                    >
+                        <PenLine className="h-4 w-4" />
+                        {d.receivedBySignature ? 'Re-sign' : 'Sign'}
+                    </Button>
+                </div>
             </div>
             <div className="space-y-1.5">
                 <Label className="text-sm">Handed over by (name)</Label>
@@ -86,6 +132,51 @@ export function HandoverSection({ data, onChange, disabled, currentUser }: Hando
                     className="h-9"
                 />
             </div>
+            <div className="space-y-1.5">
+                <Label className="text-sm">Handed over by (signature)</Label>
+                <div className="flex items-center gap-2">
+                    {d.handedOverBySignature?.signatureDataUrl ? (
+                        <img
+                            src={d.handedOverBySignature.signatureDataUrl}
+                            alt="Handed over by signature"
+                            className="h-9 w-28 border border-slate-200 rounded-md bg-white object-contain"
+                        />
+                    ) : (
+                        <div className="h-9 w-28 border border-dashed border-slate-200 rounded-md bg-slate-50" />
+                    )}
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="h-9 rounded-xl gap-2"
+                        onClick={() => openSignature('HANDED_OVER_BY')}
+                        disabled={disabled}
+                    >
+                        <PenLine className="h-4 w-4" />
+                        {d.handedOverBySignature ? 'Re-sign' : 'Sign'}
+                    </Button>
+                </div>
+            </div>
+
+            <ServerSignatureDialog
+                open={signTarget !== null}
+                onOpenChange={(v) => { if (!v) closeSignature(); }}
+                title={
+                    signTarget === 'PREPARED_BY'
+                        ? 'Prepared By — Sign'
+                        : signTarget === 'RECEIVED_BY'
+                        ? 'Received By — Sign'
+                        : 'Handed Over By — Sign'
+                }
+                defaultSignerName={
+                    signTarget === 'RECEIVED_BY'
+                        ? (d.receivedByName || '')
+                        : signTarget === 'PREPARED_BY'
+                        ? (d.preparedByName || userName)
+                        : (d.handedOverByName || userName)
+                }
+                onSign={handleSign}
+                disabled={disabled}
+            />
         </div>
     );
 }

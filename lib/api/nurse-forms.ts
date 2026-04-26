@@ -43,6 +43,8 @@ export interface PreopWardFormPatient {
     last_name: string;
     file_number: string;
     allergies: string | null;
+    date_of_birth?: string;
+    gender?: string;
 }
 
 export interface PreopWardFormResponse {
@@ -52,6 +54,7 @@ export interface PreopWardFormResponse {
     procedureName: string | null;
     side: string | null;
     surgeonName: string | null;
+    anaesthesiologistName?: string | null;
     casePlan?: {
         procedure_plan: string | null;
         pre_op_notes: string | null;

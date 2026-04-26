@@ -400,6 +400,7 @@ model Appointment {
   patient_queue                 PatientQueue[]
   payments                      Payment?
   surgical_outcome              SurgicalOutcome?
+  surgical_case                 SurgicalCase?              @relation("AppointmentSurgicalCase")
   vital_signs                   VitalSign[]                @relation("VitalSignAppointment")
 
   @@unique([doctor_id, scheduled_at], map: "unique_doctor_scheduled_slot")
@@ -1715,6 +1716,7 @@ model SurgicalCase {
   id                    String                     @id @default(uuid())
   patient_id            String
   primary_surgeon_id    String?
+  appointment_id        Int?                       @unique
   consultation_id       Int?                       @unique
   urgency               SurgicalUrgency            @default(ELECTIVE)
   status                SurgicalCaseStatus         @default(DRAFT)
@@ -1750,12 +1752,14 @@ model SurgicalCase {
   procedure_record      SurgicalProcedureRecord?
   theater_booking       TheaterBooking?
   case_procedures       SurgicalCaseProcedure[]
+  appointment           Appointment?               @relation("AppointmentSurgicalCase", fields: [appointment_id], references: [id], onDelete: SetNull)
 
   @@index([patient_id])
   @@index([primary_surgeon_id])
   @@index([status])
   @@index([created_at])
   @@index([primary_surgeon_id, status, updated_at])
+  @@index([appointment_id])
 }
 
 model TheaterBooking {

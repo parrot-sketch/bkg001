@@ -52,9 +52,10 @@ const navItems: NavItem[] = [
 interface DoctorSidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  onCollapse?: (collapsed: boolean) => void;
 }
 
-export function DoctorSidebar({ isOpen, onClose }: DoctorSidebarProps) {
+export function DoctorSidebar({ isOpen, onClose, onCollapse }: DoctorSidebarProps) {
   const { logout, user } = useAuth();
 
   const handleLogout = async () => {
@@ -81,6 +82,7 @@ export function DoctorSidebar({ isOpen, onClose }: DoctorSidebarProps) {
       userInfo={userInfo}
       onLogout={handleLogout}
       dashboardHref="/doctor/dashboard"
+      onCollapse={onCollapse}
     />
   );
 }

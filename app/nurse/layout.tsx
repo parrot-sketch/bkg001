@@ -20,7 +20,8 @@ interface NurseLayoutProps {
 }
 
 export default function NurseLayout({ children }: NurseLayoutProps) {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
   const { user, isLoading } = useAuth();
@@ -57,40 +58,29 @@ export default function NurseLayout({ children }: NurseLayoutProps) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-stone-50">
-      {/* Desktop Sidebar - Hidden on mobile */}
-      <div className="hidden lg:block w-72 flex-shrink-0">
-        <NurseSidebar isOpen={true} onClose={() => {}} />
-      </div>
-
-      {/* Mobile overlay for sidebar */}
-      {mobileMenuOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
-          onClick={() => setMobileMenuOpen(false)}
-        />
-      )}
-
-      {/* Mobile sidebar */}
-      <div
-        className={`fixed top-0 left-0 h-screen w-72 z-50 lg:hidden transition-transform duration-300 ${
-          mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        <NurseSidebar isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
-      </div>
+      <NurseSidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onCollapse={setSidebarCollapsed}
+      />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div
+        className="flex-1 flex flex-col min-w-0 transition-all duration-300 lg:ml-[var(--sidebar-offset)]"
+        style={
+          { '--sidebar-offset': sidebarCollapsed ? '4rem' : '280px' } as React.CSSProperties
+        }
+      >
         {/* Mobile Header */}
         <div className="lg:hidden sticky top-0 z-20 bg-white/95 backdrop-blur-md border-b border-slate-200/50 px-4 py-3 flex items-center justify-between">
           <h1 className="font-semibold text-slate-900">Nurse Dashboard</h1>
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            onClick={() => setSidebarOpen(!sidebarOpen)}
             className="h-9 w-9 p-0"
           >
-            {mobileMenuOpen ? (
+            {sidebarOpen ? (
               <X className="h-5 w-5" />
             ) : (
               <Menu className="h-5 w-5" />

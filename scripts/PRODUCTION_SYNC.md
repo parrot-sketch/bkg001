@@ -1,6 +1,10 @@
 # Production Database Sync Guide
 
-This guide will help you sync your production database with the latest schema and seed it with test data for your demo.
+This repo contains scripts that were originally written for **demo seeding** (data-loss) and **production patching** (no data loss).
+
+If your production database contains real client data, follow the **no data loss** runbook:
+
+- `scripts/production/PRODUCTION_DB_RUNBOOK.md`
 
 ## Prerequisites
 
@@ -8,7 +12,17 @@ This guide will help you sync your production database with the latest schema an
 2. ✅ You have network access to the production database
 3. ✅ You have the necessary permissions to modify the production database
 
-## Quick Sync (Recommended)
+## Quick Sync (NO DATA LOSS — Recommended for real production)
+
+Run the safe production patch runner:
+
+```bash
+pnpm tsx scripts/apply-production-migrations.ts
+```
+
+This will **not** truncate or seed data. It only applies explicit allowlisted idempotent patches required by the current release.
+
+## Demo Sync (DATA LOSS — For fresh demo environments only)
 
 ### Option 1: Automated TypeScript Script (Handles Existing Database)
 
@@ -30,7 +44,7 @@ npx tsx scripts/baseline-and-sync-production.ts
 bash scripts/baseline-production.sh
 ```
 
-Both scripts will:
+Both demo scripts will:
 1. Generate Prisma Client
 2. Handle existing database schema (baseline if needed)
 3. Deploy all migrations
@@ -115,9 +129,9 @@ The seed script creates:
 
 ## Important Notes
 
-⚠️ **Data Loss Warning**: The seed script uses `TRUNCATE` which will **delete all existing data**. This is intentional for a clean demo setup.
+⚠️ **Data Loss Warning**: The demo seed script uses `TRUNCATE` which will **delete all existing data**. Do not run on a production database that contains real client data.
 
-✅ **Safe to Run**: The `prisma migrate deploy` command is safe - it only applies migrations that haven't been run yet.
+⚠️ **Production Drift Warning**: If production has **no** `public._prisma_migrations` table, `prisma migrate deploy` is *not* safe to run without a verified baseline plan.
 
 🔒 **Production Safety**: Always verify your `.env` file points to the correct database before running.
 

@@ -14,9 +14,12 @@ import { toast } from 'sonner';
 import { useCreateStaff } from '@/hooks/staff/useStaff';
 import type { CreateStaffDto } from '@/application/dtos/CreateStaffDto';
 import { Role } from '@/domain/enums/Role';
+import { ADMIN_MANAGED_ROLES, DOCTOR_SPECIALIZATION_PRESETS, ROLE_LABELS } from '@/features/admin/staff/staffRoles';
 
 const EMPTY_FORM: Partial<CreateStaffDto> = {
   email: '', password: '', role: Role.DOCTOR, firstName: '', lastName: '', phone: '',
+  doctorSpecialization: 'General Practice',
+  allowAdmin: false,
 };
 
 export default function NewStaffPage() {
@@ -27,9 +30,6 @@ export default function NewStaffPage() {
 
   const validatePassword = (password: string): string | null => {
     if (password.length < 8) return 'Password must be at least 8 characters';
-    if (!/[A-Z]/.test(password)) return 'Password must contain at least one uppercase letter';
-    if (!/[a-z]/.test(password)) return 'Password must contain at least one lowercase letter';
-    if (!/[0-9]/.test(password)) return 'Password must contain at least one number';
     return null;
   };
 
@@ -52,6 +52,8 @@ export default function NewStaffPage() {
         firstName: formData.firstName || undefined,
         lastName: formData.lastName || undefined,
         phone: formData.phone || undefined,
+        doctorSpecialization: formData.role === Role.DOCTOR ? (formData.doctorSpecialization || undefined) : undefined,
+        allowAdmin: formData.role === Role.ADMIN ? !!formData.allowAdmin : undefined,
       });
       toast.success('Staff member onboarded successfully');
       router.push('/admin/staff');
@@ -129,19 +131,68 @@ export default function NewStaffPage() {
                 <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Institutional Role *</Label>
                 <Select
                   value={formData.role}
-                  onValueChange={(val) => setFormData({ ...formData, role: val as Role })}
+                  onValueChange={(val) => {
+                    const nextRole = val as CreateStaffDto['role'];
+                    setFormData((prev) => ({
+                      ...prev,
+                      role: nextRole,
+                      doctorSpecialization:
+                        nextRole === Role.DOCTOR ? (prev.doctorSpecialization || 'General Practice') : undefined,
+                      allowAdmin: nextRole === Role.ADMIN ? prev.allowAdmin ?? false : false,
+                    }));
+                  }}
                   disabled={createMutation.isPending}
                 >
                   <SelectTrigger className="rounded-xl border-slate-200 bg-slate-50/50 h-10">
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl">
-                    <SelectItem value={Role.DOCTOR} className="rounded-lg">Surgeon / Doctor</SelectItem>
-                    <SelectItem value={Role.NURSE} className="rounded-lg">Clinical Nurse</SelectItem>
-                    <SelectItem value={Role.FRONTDESK} className="rounded-lg">Frontdesk / Coordinator</SelectItem>
+                    {ADMIN_MANAGED_ROLES.map((r) => (
+                      <SelectItem key={r} value={r} className="rounded-lg">
+                        {r === Role.DOCTOR ? 'Doctor (Surgeon/Anaesthesiologist)' : (ROLE_LABELS[r] || r)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
+
+              {formData.role === Role.DOCTOR && (
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Doctor Specialization</Label>
+                  <Select
+                    value={formData.doctorSpecialization || 'General Practice'}
+                    onValueChange={(val) => setFormData({ ...formData, doctorSpecialization: val })}
+                    disabled={createMutation.isPending}
+                  >
+                    <SelectTrigger className="rounded-xl border-slate-200 bg-slate-50/50 h-10">
+                      <SelectValue placeholder="Select specialization" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      {DOCTOR_SPECIALIZATION_PRESETS.map((s) => (
+                        <SelectItem key={s} value={s} className="rounded-lg">{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {formData.role === Role.ADMIN && (
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-rose-600 uppercase tracking-wider">Admin Safety</Label>
+                  <label className="flex items-start gap-3 rounded-2xl border border-rose-100 bg-rose-50/50 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4"
+                      checked={!!formData.allowAdmin}
+                      onChange={(e) => setFormData({ ...formData, allowAdmin: e.target.checked })}
+                      disabled={createMutation.isPending}
+                    />
+                    <span className="text-sm font-medium text-rose-700">
+                      I confirm this user should have full administrator access.
+                    </span>
+                  </label>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Temporary Password *</Label>
                 <div className="relative">
@@ -162,7 +213,7 @@ export default function NewStaffPage() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                <p className="text-xs text-slate-400">Min. 8 characters, uppercase, lowercase, and number</p>
+                <p className="text-xs text-slate-400">Min. 8 characters</p>
               </div>
             </div>
 

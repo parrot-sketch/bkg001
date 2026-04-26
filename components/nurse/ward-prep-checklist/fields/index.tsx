@@ -127,3 +127,6 @@ export function SelectField({ label, value, onChange, options, placeholder, disa
         </div>
     );
 }
+
+export { RedAllergyField } from './RedAllergyField';
+export { SelectOrCustomField } from './SelectOrCustomField';

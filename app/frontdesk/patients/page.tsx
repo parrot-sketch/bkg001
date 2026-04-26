@@ -123,6 +123,19 @@ function EmptyState({ hasSearch, onClear, onRegister }: { hasSearch: boolean; on
   );
 }
 
+function SearchPromptState() {
+  return (
+    <div className="flex flex-col items-center justify-center py-20 px-6">
+      <div className="h-16 w-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-5">
+        <Search className="h-8 w-8 text-slate-300" />
+      </div>
+      <h3 className="text-base font-semibold text-slate-700">
+        Search to Begin
+      </h3>
+    </div>
+  );
+}
+
 /* ═══════════════════ Main Content ═══════════════════ */
 
 function FrontdeskPatientsContent() {
@@ -160,20 +173,23 @@ function FrontdeskPatientsContent() {
   // Local state for immediate input feedback
   const [searchInput, setSearchInput] = useState(urlSearch);
 
-  // Debounce: sync search input -> URL after 400ms
+  // Debounce: sync search input -> URL after 300ms
   useEffect(() => {
     if (searchInput === urlSearch) return;
 
     const timer = setTimeout(() => {
+      // Ultimate UX: Block single character API hits. Just wait for more typing quietly.
+      if (searchInput.trim().length === 1) return;
+
       const params = new URLSearchParams(searchParams.toString());
       params.set('page', '1');
       if (searchInput) {
-        params.set('q', searchInput);
+        params.set('q', searchInput.trim());
       } else {
         params.delete('q');
       }
       router.push(`${pathname}?${params.toString()}`, { scroll: false });
-    }, 400);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [searchInput, urlSearch, searchParams, pathname, router]);
@@ -194,6 +210,7 @@ function FrontdeskPatientsContent() {
     page,
     limit,
     search: urlSearch,
+    enabled: !!urlSearch,
   });
 
   const { data: stats, isLoading: isStatsLoading } = usePatientStats();
@@ -257,7 +274,7 @@ function FrontdeskPatientsContent() {
         <StatCard title="Total Patients" value={stats?.totalRecords ?? 0} loading={isStatsLoading} />
         <StatCard title="New Today" value={stats?.newToday ?? 0} loading={isStatsLoading} />
         <StatCard title="This Month" value={stats?.newThisMonth ?? 0} loading={isStatsLoading} />
-        <StatCard title="Showing" value={patients.length} loading={isLoading} />
+        <StatCard title="Showing" value={urlSearch ? patients.length : 0} loading={!!urlSearch && isLoading} />
       </section>
 
       {/* Controls Bar */}
@@ -269,26 +286,23 @@ function FrontdeskPatientsContent() {
               placeholder="Search by name, file number, phone, or email..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="pl-10 h-10 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white transition-colors"
+              className="pl-10 pr-10 h-10 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white transition-colors"
             />
-            {searchInput && (
-              <button
-                onClick={() => setSearchInput('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 text-lg leading-none"
-              >
-                x
-              </button>
-            )}
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
+              {(isLoading || isRefetching) && !!urlSearch ? (
+                <Loader2 className="h-4 w-4 text-slate-300 animate-spin" />
+              ) : searchInput ? (
+                <button
+                  onClick={() => setSearchInput('')}
+                  className="text-slate-300 hover:text-slate-500 text-lg leading-none flex items-center justify-center p-1"
+                >
+                  ×
+                </button>
+              ) : null}
+            </div>
           </div>
 
-          {isRefetching && (
-            <div className="flex items-center gap-1.5 text-xs text-slate-400 shrink-0">
-              <Loader2 className="h-3 w-3 animate-spin" />
-              Refreshing...
-            </div>
-          )}
-
-          {!isLoading && meta.totalRecords > 0 && (
+          {!!urlSearch && !isLoading && meta.totalRecords > 0 && (
             <p className="text-xs text-slate-400 shrink-0 hidden sm:block">
               {startRecord}-{endRecord} of {meta.totalRecords.toLocaleString()}
             </p>
@@ -297,11 +311,13 @@ function FrontdeskPatientsContent() {
       </div>
 
       {/* Patient Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
-        {isLoading ? (
+      <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden min-h-[400px]">
+        {!urlSearch ? (
+          <SearchPromptState />
+        ) : isLoading ? (
           <TableSkeleton />
         ) : patients.length === 0 ? (
-          <EmptyState hasSearch={!!urlSearch} onClear={() => setSearchInput('')} onRegister={() => setRegistrationOpen(true)} />
+          <EmptyState hasSearch={true} onClear={() => setSearchInput('')} onRegister={() => setRegistrationOpen(true)} />
         ) : (
           <>
             {/* Desktop Table */}
@@ -545,7 +561,7 @@ function FrontdeskPatientsContent() {
       </div>
 
       {/* Pagination */}
-      {!isLoading && meta.totalPages > 1 && (
+      {!!urlSearch && !isLoading && meta.totalPages > 1 && (
         <div className="flex items-center justify-between px-1">
           <p className="text-xs text-slate-400">
             Showing <span className="font-semibold text-slate-600">{startRecord}-{endRecord}</span> of{' '}

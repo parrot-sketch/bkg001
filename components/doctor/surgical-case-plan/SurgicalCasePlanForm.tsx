@@ -19,6 +19,10 @@ export interface SurgicalCasePlanFormProps {
   initialData?: {
     surgeonId?: string;
     surgeonIds?: string[];
+    assistantSurgeonIds?: string[];
+    anesthesiologistUserId?: string;
+    scrubNurseUserId?: string;
+    circulatingNurseUserId?: string;
     procedureDate?: Date | string | null;
     diagnosis?: string;
     procedureCategory?: string;
@@ -68,7 +72,7 @@ export function SurgicalCasePlanForm({
       router.push('/theater-tech/surgical-cases');
     } else {
       // Direct navigation to the next logical clinical step
-      router.push(`/doctor/surgical-cases/${caseId}?tab=surgical-notes`);
+      router.push(`/doctor/surgical-cases/${caseId}/surgical-notes`);
     }
   };
 
@@ -102,11 +106,16 @@ export function SurgicalCasePlanForm({
               onComplete={() => goToStep(2)}
               onError={handleError}
               onProceduresConfirmed={setConfirmedProcedures}
+              isTheaterTech={isTheaterTech}
               initialData={
                 initialData
                   ? {
                       surgeonId: initialData.surgeonId ?? '',
                       surgeonIds: initialData.surgeonIds ?? [],
+                      assistantSurgeonIds: initialData.assistantSurgeonIds ?? [],
+                      anesthesiologistUserId: initialData.anesthesiologistUserId ?? '',
+                      scrubNurseUserId: initialData.scrubNurseUserId ?? '',
+                      circulatingNurseUserId: initialData.circulatingNurseUserId ?? '',
                       procedureDate: initialData.procedureDate
                         ? new Date(initialData.procedureDate)
                         : null,

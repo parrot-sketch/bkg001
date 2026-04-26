@@ -22,12 +22,20 @@ export const createStaffDtoSchema = z.object({
     .string()
     .min(1, 'Password is required')
     .min(8, 'Password must be at least 8 characters'),
-  role: z.nativeEnum(Role, {
-    errorMap: () => ({ message: 'Invalid role' }),
-  }),
+  role: z
+    .nativeEnum(Role, {
+      errorMap: () => ({ message: 'Invalid role' }),
+    })
+    .refine((r) => r !== Role.PATIENT, { message: 'Invalid staff role' }),
   firstName: z.string().optional(),
   lastName: z.string().optional(),
   phone: z.string().optional(),
+  doctorSpecialization: z.string().trim().min(2).optional(),
+  /**
+   * Safety switch: creating/promoting ADMIN accounts should be explicit.
+   * If role === ADMIN and allowAdmin !== true, the API should reject the request.
+   */
+  allowAdmin: z.boolean().optional(),
 });
 
 export type CreateStaffDto = z.infer<typeof createStaffDtoSchema>;

@@ -3,6 +3,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { FileText, ChevronLeft, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 import { StepIndicator } from './steps/StepIndicator';
 import { DoctorSelectionStep } from './steps/DoctorSelectionStep';
@@ -29,6 +30,7 @@ interface BookingWizardProps {
   bookingChannel?: BookingChannel;
   parentAppointmentId?: number;
   parentConsultationId?: number;
+  variant?: 'dialog' | 'sheet' | 'page';
   onSuccess?: (appointmentId?: number, date?: Date) => void;
   onCancel?: () => void;
 }
@@ -47,6 +49,7 @@ export function AppointmentBookingWizard({
   bookingChannel,
   parentAppointmentId,
   parentConsultationId,
+  variant = 'dialog',
   onSuccess,
   onCancel
 }: BookingWizardProps) {
@@ -87,9 +90,14 @@ export function AppointmentBookingWizard({
   });
 
   return (
-    <div className="flex flex-col h-[85vh] max-h-[85vh]">
+    <div
+      className={cn(
+        'flex flex-col min-h-0',
+        variant === 'page' ? 'rounded-2xl border border-slate-200 bg-white shadow-sm' : 'h-full',
+      )}
+    >
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-3 border-b bg-white rounded-t-2xl">
+      <div className={cn('flex items-center justify-between px-5 py-3 border-b bg-white', variant === 'page' && 'rounded-t-2xl')}>
         <div>
           <h2 className="text-base font-bold text-slate-900">
             {isFollowUp ? 'Schedule Follow-up' : 'Book Appointment'}
@@ -167,7 +175,7 @@ export function AppointmentBookingWizard({
       </div>
 
       {/* Footer - Fixed at bottom */}
-      <div className="flex items-center justify-between px-5 py-3 border-t bg-white rounded-b-2xl">
+      <div className={cn('flex items-center justify-between px-5 py-3 border-t bg-white', variant === 'page' && 'rounded-b-2xl')}>
         <Button variant="outline" onClick={currentStep === 1 ? onCancel : handleBack} className="gap-1.5 h-8 px-3 text-xs rounded-lg">
           {currentStep === 1 ? 'Cancel' : <><ChevronLeft className="h-3.5 w-3.5" /> Back</>}
         </Button>

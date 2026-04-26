@@ -282,7 +282,7 @@ export function ReviewConsultationDialog({
                     placeholder={
                       selectedAction === 'needs_more_info'
                         ? 'What information do you need from the patient?'
-                        : 'Why is this patient not a suitable candidate?'
+                        : 'Why is this patient not suitable for the consultation?'
                     }
                     rows={4}
                     required

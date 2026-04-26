@@ -1,0 +1,471 @@
+
+> hms-video@0.1.0 build
+> prisma generate && next build --webpack
+
+Loaded Prisma config from prisma.config.ts.
+
+Prisma config detected, skipping environment variable loading.
+Prisma schema loaded from prisma/schema.prisma
+
+✔ Generated Prisma Client (v6.19.2) to ./node_modules/.pnpm/@prisma+client@6.19.2_prisma@6.19.2_typescript@5.9.3/node_modules/@prisma/client in 613ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate
+
+▲ Next.js 16.1.6 (webpack)
+- Environments: .env.local, .env.production, .env
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 46s
+  Running TypeScript ...
+  Collecting page data using 7 workers ...
+[DB] Production: Using direct Aiven Postgres connection (pool_size=3)
+[DB] Production: Using direct Aiven Postgres connection (pool_size=3)
+[DB] Production: Using direct Aiven Postgres connection (pool_size=3)
+[DB] Production: Using direct Aiven Postgres connection (pool_size=3)
+[DB] Production: Using direct Aiven Postgres connection (pool_size=3)
+[DB] Production: Using direct Aiven Postgres connection (pool_size=3)
+[DB] Production: Using direct Aiven Postgres connection (pool_size=3)
+[EmailNotificationService] No email provider configured. Using mock service. Set RESEND_API_KEY or SMTP_* variables.
+[EmailNotificationService] No email provider configured. Using mock service. Set RESEND_API_KEY or SMTP_* variables.
+[EmailNotificationService] No email provider configured. Using mock service. Set RESEND_API_KEY or SMTP_* variables.
+[EmailNotificationService] No email provider configured. Using mock service. Set RESEND_API_KEY or SMTP_* variables.
+[EmailNotificationService] No email provider configured. Using mock service. Set RESEND_API_KEY or SMTP_* variables.
+[EmailNotificationService] No email provider configured. Using mock service. Set RESEND_API_KEY or SMTP_* variables.
+[TwilioSmsService] Twilio credentials not configured. SMS sending will fail.
+[TwilioSmsService] Twilio credentials not configured. SMS sending will fail.
+[TwilioSmsService] Twilio credentials not configured. SMS sending will fail.
+[TwilioSmsService] Twilio credentials not configured. SMS sending will fail.
+[TwilioSmsService] Twilio credentials not configured. SMS sending will fail.
+  Generating static pages using 7 workers (0/209) ...
+  Generating static pages using 7 workers (52/209) 
+  Generating static pages using 7 workers (104/209) 
+  Generating static pages using 7 workers (156/209) 
+✓ Generating static pages using 7 workers (209/209) in 1962.6ms
+  Finalizing page optimization ...
+  Collecting build traces ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /admin
+├ ○ /admin/appointments
+├ ○ /admin/billing
+├ ○ /admin/clinic
+├ ○ /admin/consents
+├ ○ /admin/dashboard
+├ ○ /admin/doctors/invite
+├ ƒ /admin/inventory
+├ ƒ /admin/inventory/batches
+├ ƒ /admin/inventory/items
+├ ○ /admin/inventory/purchase-orders
+├ ○ /admin/notifications
+├ ○ /admin/patients
+├ ƒ /admin/patients/[id]
+├ ○ /admin/pre-post-op
+├ ○ /admin/procedures
+├ ƒ /admin/procedures/[id]
+├ ○ /admin/profile
+├ ○ /admin/reports
+├ ○ /admin/services
+├ ƒ /admin/services/[id]
+├ ○ /admin/staff
+├ ○ /admin/staff/new
+├ ƒ /admin/system-settings
+├ ○ /admin/theaters
+├ ƒ /api/account/email
+├ ƒ /api/account/password
+├ ƒ /api/admin/analytics/appointments/trends
+├ ƒ /api/admin/analytics/patients/intake
+├ ƒ /api/admin/appointments
+├ ƒ /api/admin/appointments/[id]/cancel
+├ ƒ /api/admin/appointments/post-op
+├ ƒ /api/admin/appointments/pre-op
+├ ƒ /api/admin/audit-logs
+├ ƒ /api/admin/billing/recompute-payment
+├ ƒ /api/admin/clinic
+├ ƒ /api/admin/consents/integrity-check
+├ ƒ /api/admin/consents/templates
+├ ƒ /api/admin/dashboard/stats
+├ ƒ /api/admin/inventory/audit
+├ ƒ /api/admin/inventory/import-source
+├ ƒ /api/admin/inventory/integrity-check
+├ ƒ /api/admin/inventory/report/consumption
+├ ƒ /api/admin/inventory/report/stock
+├ ƒ /api/admin/invite-doctor
+├ ƒ /api/admin/patients
+├ ƒ /api/admin/patients/[id]
+├ ƒ /api/admin/patients/[id]/approve
+├ ƒ /api/admin/patients/[id]/assign
+├ ƒ /api/admin/patients/[id]/reject
+├ ƒ /api/admin/procedure-categories
+├ ƒ /api/admin/procedures
+├ ƒ /api/admin/procedures/[id]
+├ ƒ /api/admin/procedures/import-source
+├ ƒ /api/admin/reports/generate
+├ ƒ /api/admin/services
+├ ƒ /api/admin/services/[id]
+├ ƒ /api/admin/staff
+├ ƒ /api/admin/staff/[id]
+├ ƒ /api/admin/staff/[id]/status
+├ ƒ /api/admin/surgical-cases
+├ ƒ /api/admin/theaters
+├ ƒ /api/admin/theaters/[id]
+├ ƒ /api/admin/theaters/schedule
+├ ƒ /api/admin/theaters/schedule/confirm
+├ ƒ /api/admin/theaters/schedule/lock
+├ ƒ /api/appointments
+├ ƒ /api/appointments/[id]
+├ ƒ /api/appointments/[id]/billing
+├ ƒ /api/appointments/[id]/check-in
+├ ƒ /api/appointments/[id]/checkin
+├ ƒ /api/appointments/[id]/confirm
+├ ƒ /api/appointments/[id]/consultation
+├ ƒ /api/appointments/[id]/consultation/draft
+├ ƒ /api/appointments/[id]/end-consultation
+├ ƒ /api/appointments/[id]/no-show
+├ ƒ /api/appointments/[id]/notes
+├ ƒ /api/appointments/[id]/reinstate
+├ ƒ /api/appointments/[id]/reschedule
+├ ƒ /api/appointments/[id]/resolve
+├ ƒ /api/appointments/[id]/start-consultation
+├ ƒ /api/appointments/doctor/[doctorId]
+├ ƒ /api/appointments/post-op
+├ ƒ /api/appointments/pre-op
+├ ƒ /api/appointments/today
+├ ƒ /api/authentication/login
+├ ƒ /api/authentication/logout
+├ ƒ /api/authentication/refresh
+├ ƒ /api/billing
+├ ƒ /api/billing/charge-sheet/[id]
+├ ƒ /api/case-plans/[id]
+├ ƒ /api/clinical-notes/[noteId]
+├ ƒ /api/clinical/dictation
+├ ƒ /api/consultations/[id]
+├ ƒ /api/consultations/[id]/accept
+├ ƒ /api/consultations/[id]/complete
+├ ƒ /api/consultations/[id]/confirm
+├ ƒ /api/consultations/[id]/decline
+├ ƒ /api/consultations/[id]/draft
+├ ƒ /api/consultations/[id]/heartbeat
+├ ƒ /api/consultations/[id]/request-info
+├ ƒ /api/consultations/[id]/review
+├ ƒ /api/consultations/[id]/start
+├ ƒ /api/consultations/doctor/[doctorId]/pending
+├ ƒ /api/consultations/frontdesk/create
+├ ƒ /api/consultations/pending
+├ ƒ /api/consultations/submit
+├ ƒ /api/cron/dispatch-notifications
+├ ƒ /api/doctor/[id]/queue
+├ ƒ /api/doctor/activate-invite
+├ ƒ /api/doctor/case-plans
+├ ƒ /api/doctor/consents/[consentId]
+├ ƒ /api/doctor/consents/[consentId]/documents
+├ ƒ /api/doctor/consents/[consentId]/generate-qr
+├ ƒ /api/doctor/consents/[consentId]/staff-verify
+├ ƒ /api/doctor/consents/[consentId]/update-document
+├ ƒ /api/doctor/consents/[consentId]/upload-signed
+├ ƒ /api/doctor/consents/templates
+├ ƒ /api/doctor/consents/templates/[templateId]
+├ ƒ /api/doctor/consents/templates/[templateId]/activate
+├ ƒ /api/doctor/consents/templates/[templateId]/approve
+├ ƒ /api/doctor/consents/templates/[templateId]/archive
+├ ƒ /api/doctor/consents/templates/[templateId]/audit
+├ ƒ /api/doctor/consents/templates/[templateId]/duplicate
+├ ƒ /api/doctor/consents/templates/[templateId]/pdf
+├ ƒ /api/doctor/consents/templates/[templateId]/reject
+├ ƒ /api/doctor/consents/templates/[templateId]/replace-pdf
+├ ƒ /api/doctor/consents/templates/[templateId]/submit-approval
+├ ƒ /api/doctor/consents/templates/[templateId]/versions
+├ ƒ /api/doctor/consents/templates/upload-pdf
+├ ƒ /api/doctor/staff/eligible
+├ ƒ /api/doctor/surgical-cases
+├ ƒ /api/doctor/surgical-cases/[caseId]
+├ ƒ /api/doctor/surgical-cases/[caseId]/consents
+├ ƒ /api/doctor/surgical-cases/[caseId]/consents/upload-signed
+├ ƒ /api/doctor/surgical-cases/[caseId]/forms/intra-op
+├ ƒ /api/doctor/surgical-cases/[caseId]/forms/operative-note
+├ ƒ /api/doctor/surgical-cases/[caseId]/forms/operative-note/finalize
+├ ƒ /api/doctor/surgical-cases/[caseId]/forms/preop-ward
+├ ƒ /api/doctor/surgical-cases/[caseId]/mark-ready
+├ ƒ /api/doctor/surgical-cases/[caseId]/notes
+├ ƒ /api/doctor/surgical-cases/[caseId]/photos
+├ ƒ /api/doctor/surgical-cases/[caseId]/plan
+├ ƒ /api/doctor/surgical-cases/[caseId]/plan/page1
+├ ƒ /api/doctor/surgical-cases/[caseId]/plan/page2
+├ ƒ /api/doctor/surgical-cases/[caseId]/planned-items
+├ ƒ /api/doctor/surgical-cases/[caseId]/procedures
+├ ƒ /api/doctor/surgical-cases/[caseId]/team
+├ ƒ /api/doctor/surgical-cases/[caseId]/team/invite
+├ ƒ /api/doctor/surgical-cases/[caseId]/team/invite/[inviteId]
+├ ƒ /api/doctor/surgical-cases/[caseId]/transition
+├ ƒ /api/doctor/surgical-cases/surgeons
+├ ƒ /api/doctors
+├ ƒ /api/doctors/[id]
+├ ƒ /api/doctors/[id]/appointments/today
+├ ƒ /api/doctors/[id]/appointments/upcoming
+├ ƒ /api/doctors/[id]/availability
+├ ƒ /api/doctors/[id]/available-dates
+├ ƒ /api/doctors/[id]/dashboard-stats
+├ ƒ /api/doctors/[id]/profile
+├ ƒ /api/doctors/[id]/slots
+├ ƒ /api/doctors/availability
+├ ƒ /api/doctors/me/assignments/[assignmentId]/discharge
+├ ƒ /api/doctors/me/assignments/[assignmentId]/transfer
+├ ƒ /api/doctors/me/availability
+├ ƒ /api/doctors/me/availability/overrides
+├ ƒ /api/doctors/me/availability/overrides/[id]
+├ ƒ /api/doctors/me/patients
+├ ƒ /api/doctors/me/patients/[patientId]/assign
+├ ƒ /api/doctors/me/profile
+├ ƒ /api/doctors/me/schedule/block
+├ ƒ /api/doctors/me/schedule/block/[id]
+├ ƒ /api/doctors/me/schedule/blocks
+├ ƒ /api/doctors/me/schedule/calendar
+├ ƒ /api/doctors/me/theatre-schedule
+├ ƒ /api/doctors/slug/[slug]
+├ ƒ /api/doctors/user/[userId]
+├ ƒ /api/files/consent-templates/[userId]/[filename]
+├ ƒ /api/files/consents/[caseId]/[filename]
+├ ƒ /api/files/signed-consents/[consentId]/[filename]
+├ ƒ /api/frontdesk/intake/[sessionId]
+├ ƒ /api/frontdesk/intake/[sessionId]/status
+├ ƒ /api/frontdesk/intake/confirm
+├ ƒ /api/frontdesk/intake/pending
+├ ƒ /api/frontdesk/intake/start
+├ ƒ /api/frontdesk/patients
+├ ƒ /api/frontdesk/patients/stats
+├ ƒ /api/frontdesk/queue/checked-in
+├ ƒ /api/frontdesk/queue/live
+├ ƒ /api/frontdesk/schedule/today
+├ ƒ /api/frontdesk/theater-booking/confirm
+├ ƒ /api/frontdesk/theater-booking/provisional
+├ ƒ /api/frontdesk/theater-scheduling
+├ ƒ /api/frontdesk/theater-scheduling/[caseId]/book
+├ ƒ /api/frontdesk/theater-scheduling/[caseId]/confirm
+├ ƒ /api/frontdesk/theater-scheduling/theaters
+├ ƒ /api/frontdesk/theaters
+├ ƒ /api/health
+├ ƒ /api/images/medical/upload
+├ ƒ /api/images/signed-url
+├ ƒ /api/inventory/batches
+├ ƒ /api/inventory/dashboard
+├ ƒ /api/inventory/items
+├ ƒ /api/inventory/summary
+├ ƒ /api/inventory/transaction
+├ ƒ /api/inventory/usage
+├ ƒ /api/notifications
+├ ƒ /api/notifications/[id]/read
+├ ƒ /api/notifications/read-all
+├ ƒ /api/nurse/intra-op
+├ ƒ /api/nurse/pre-op
+├ ƒ /api/nurse/pre-op/[id]
+├ ƒ /api/nurse/recovery
+├ ƒ /api/nurse/surgical-cases/[caseId]/billing-summary
+├ ƒ /api/nurse/surgical-cases/[caseId]/forms/immediate-recovery-care
+├ ƒ /api/nurse/surgical-cases/[caseId]/forms/immediate-recovery-care/finalize
+├ ƒ /api/nurse/surgical-cases/[caseId]/forms/intraop
+├ ƒ /api/nurse/surgical-cases/[caseId]/forms/intraop/finalize
+├ ƒ /api/nurse/surgical-cases/[caseId]/forms/preop-ward
+├ ƒ /api/nurse/surgical-cases/[caseId]/forms/preop-ward/amend
+├ ƒ /api/nurse/surgical-cases/[caseId]/forms/preop-ward/finalize
+├ ƒ /api/nurse/surgical-cases/[caseId]/forms/preop-ward/signature
+├ ƒ /api/nurse/surgical-cases/[caseId]/forms/recovery
+├ ƒ /api/nurse/surgical-cases/[caseId]/forms/recovery/finalize
+├ ƒ /api/nurse/surgical-cases/[caseId]/implants
+├ ƒ /api/nurse/surgical-cases/[caseId]/inventory-status
+├ ƒ /api/nurse/surgical-cases/[caseId]/mark-in-theater
+├ ƒ /api/nurse/surgical-cases/[caseId]/med-admin
+├ ƒ /api/nurse/surgical-cases/[caseId]/med-admin/[id]/void
+├ ƒ /api/nurse/surgical-cases/[caseId]/medications
+├ ƒ /api/nurse/surgical-cases/[caseId]/specimens
+├ ƒ /api/nurse/surgical-cases/[caseId]/usage
+├ ƒ /api/patient/intake
+├ ƒ /api/patient/intake/validate
+├ ƒ /api/patients
+├ ƒ /api/patients/[id]
+├ ƒ /api/patients/[id]/case-plans
+├ ƒ /api/patients/[id]/clinical-notes
+├ ƒ /api/patients/[id]/consultations
+├ ƒ /api/patients/[id]/visits
+├ ƒ /api/patients/[id]/vitals
+├ ƒ /api/patients/care-notes
+├ ƒ /api/patients/search
+├ ƒ /api/patients/vitals
+├ ƒ /api/payments/[id]/record
+├ ƒ /api/payments/all
+├ ƒ /api/payments/patient/[patientId]
+├ ƒ /api/payments/pending
+├ ƒ /api/pdf-proxy
+├ ƒ /api/public/consent/sign/[qrCode]
+├ ƒ /api/public/consent/sign/[qrCode]/otp
+├ ƒ /api/public/consent/sign/[qrCode]/verify
+├ ƒ /api/scheduling/queue
+├ ƒ /api/scheduling/timeline
+├ ƒ /api/services
+├ ƒ /api/staff/invites
+├ ƒ /api/staff/invites/[inviteId]/respond
+├ ƒ /api/stores/inventory/[id]/adjust
+├ ƒ /api/stores/purchase-orders
+├ ƒ /api/stores/purchase-orders/[id]
+├ ƒ /api/stores/purchase-orders/[id]/approve
+├ ƒ /api/stores/purchase-orders/[id]/receive
+├ ƒ /api/stores/purchase-orders/[id]/reject
+├ ƒ /api/stores/purchase-orders/[id]/submit
+├ ƒ /api/stores/receipts
+├ ƒ /api/stores/vendors
+├ ƒ /api/stores/vendors/[id]
+├ ƒ /api/surgical-cases/[caseId]/billing
+├ ƒ /api/surgical-cases/[caseId]/usage-variance
+├ ƒ /api/theater-tech/cases/[id]/transition
+├ ƒ /api/theater-tech/dayboard
+├ ƒ /api/theater-tech/inventory/consume
+├ ƒ /api/theater-tech/inventory/picklist
+├ ƒ /api/theater-tech/patients
+├ ƒ /api/theater-tech/recent-consultations
+├ ƒ /api/theater-tech/recent-consultations/[consultationId]/create-surgical-case
+├ ƒ /api/theater-tech/staff
+├ ƒ /api/theater-tech/surgery-candidates
+├ ƒ /api/theater-tech/surgery-candidates/[consultationId]/create-case
+├ ƒ /api/theater-tech/surgical-cases
+├ ƒ /api/theater-tech/surgical-cases/[caseId]
+├ ƒ /api/theater-tech/surgical-cases/[caseId]/checklist
+├ ƒ /api/theater-tech/surgical-cases/[caseId]/checklist/sign-in/finalize
+├ ƒ /api/theater-tech/surgical-cases/[caseId]/checklist/sign-out/finalize
+├ ƒ /api/theater-tech/surgical-cases/[caseId]/checklist/time-out/finalize
+├ ƒ /api/theater-tech/surgical-cases/[caseId]/theater-prep
+├ ƒ /api/theater-tech/surgical-cases/[caseId]/timeline
+├ ƒ /api/theater-tech/surgical-cases/consultations
+├ ƒ /api/theater-tech/surgical-cases/list
+├ ƒ /api/theater-tech/theater-scheduling
+├ ƒ /api/theater-tech/theater-scheduling/[caseId]/book
+├ ƒ /api/theater-tech/theater-scheduling/[caseId]/confirm
+├ ƒ /api/theater-tech/theater-scheduling/theaters
+├ ƒ /api/theater-tech/theaters
+├ ƒ /api/theater-tech/theaters/[id]
+├ ƒ /api/theater-tech/upcoming-procedures
+├ ƒ /api/theater-tech/upcoming-procedures/[appointmentId]/create-surgical-case
+├ ƒ /api/upload
+├ ƒ /api/users
+├ ƒ /api/users/me
+├ ○ /apple-icon.png
+├ ƒ /consent/sign/[qrCode]
+├ ○ /doctor/activate
+├ ○ /doctor/appointments
+├ ƒ /doctor/appointments/[id]
+├ ○ /doctor/appointments/new
+├ ƒ /doctor/case-plans/[id]
+├ ƒ /doctor/cases/[appointmentId]
+├ ○ /doctor/consents/templates
+├ ƒ /doctor/consultations
+├ ƒ /doctor/consultations/[consultationId]
+├ ƒ /doctor/consultations/session/[appointmentId]
+├ ○ /doctor/dashboard
+├ ○ /doctor/notifications
+├ ƒ /doctor/operative/plan/[appointmentId]/new
+├ ○ /doctor/patients
+├ ƒ /doctor/patients/[patientId]
+├ ƒ /doctor/patients/[patientId]/case-plans
+├ ○ /doctor/profile
+├ ƒ /doctor/schedule
+├ ○ /doctor/surgical-cases
+├ ƒ /doctor/surgical-cases/[caseId]
+├ ƒ /doctor/surgical-cases/[caseId]/case-plan
+├ ƒ /doctor/surgical-cases/[caseId]/charge-sheet
+├ ƒ /doctor/surgical-cases/[caseId]/notes/print
+├ ƒ /doctor/surgical-cases/[caseId]/operative-record
+├ ƒ /doctor/surgical-cases/[caseId]/operative-record/print
+├ ƒ /doctor/surgical-cases/[caseId]/preop-ward-checklist
+├ ƒ /doctor/surgical-cases/[caseId]/preop-ward-checklist/print
+├ ƒ /doctor/surgical-cases/[caseId]/surgical-notes
+├ ○ /doctor/theater
+├ ƒ /doctors/[slug]
+├ ○ /frontdesk/appointments
+├ ƒ /frontdesk/appointments/[id]
+├ ○ /frontdesk/billing
+├ ○ /frontdesk/booking
+├ ○ /frontdesk/consultations
+├ ○ /frontdesk/dashboard
+├ ○ /frontdesk/intake/pending
+├ ƒ /frontdesk/intake/review/[sessionId]
+├ ○ /frontdesk/intake/start
+├ ○ /frontdesk/notifications
+├ ○ /frontdesk/patient-intake
+├ ƒ /frontdesk/patient/[patientId]
+├ ○ /frontdesk/patients
+├ ○ /frontdesk/profile
+├ ○ /frontdesk/theater-scheduling
+├ ƒ /frontdesk/theater-scheduling/[caseId]/book
+├ ○ /icon.png
+├ ƒ /intake/[sessionId]
+├ ○ /inventory/dashboard
+├ ○ /inventory/items
+├ ○ /inventory/purchase-orders
+├ ○ /inventory/receipts
+├ ○ /inventory/vendors
+├ ○ /login
+├ ○ /nurse/dashboard
+├ ƒ /nurse/immediate-recovery/[caseId]
+├ ƒ /nurse/intra-op-cases/[caseId]/record
+├ ƒ /nurse/intra-op-cases/[caseId]/record/print
+├ ○ /nurse/notifications
+├ ○ /nurse/patients
+├ ƒ /nurse/patients/[patientId]
+├ ○ /nurse/pre-post-op
+├ ○ /nurse/profile
+├ ƒ /nurse/recovery-cases/[caseId]/record
+├ ○ /nurse/recovery-discharge
+├ ○ /nurse/theatre-support
+├ ○ /nurse/ward-prep
+├ ƒ /nurse/ward-prep/[id]
+├ ƒ /nurse/ward-prep/[id]/checklist
+├ ƒ /nurse/ward-prep/[id]/checklist/print
+├ ○ /patient/appointments
+├ ○ /patient/consultations
+├ ○ /patient/consultations/request
+├ ○ /patient/dashboard
+├ ○ /patient/intake
+├ ○ /patient/intake/success
+├ ○ /patient/notifications
+├ ○ /patient/profile
+├ ○ /portal/book-consultation
+├ ○ /portal/doctors
+├ ƒ /portal/doctors/[id]
+├ ○ /portal/profile
+├ ○ /portal/welcome
+├ ○ /theater-tech
+├ ○ /theater-tech/consultations
+├ ○ /theater-tech/dashboard
+├ ƒ /theater-tech/dashboard/[caseId]
+├ ○ /theater-tech/dayboard
+├ ○ /theater-tech/inventory/batches
+├ ○ /theater-tech/inventory/items
+├ ○ /theater-tech/inventory/purchase-orders
+├ ○ /theater-tech/inventory/receipts
+├ ○ /theater-tech/inventory/vendors
+├ ○ /theater-tech/patients
+├ ○ /theater-tech/procedures
+├ ƒ /theater-tech/procedures/[id]
+├ ○ /theater-tech/profile
+├ ○ /theater-tech/recent-consultations
+├ ○ /theater-tech/services
+├ ƒ /theater-tech/services/[id]
+├ ○ /theater-tech/surgery-candidates
+├ ○ /theater-tech/surgical-cases
+├ ƒ /theater-tech/surgical-cases/[caseId]
+├ ƒ /theater-tech/surgical-cases/[caseId]/charges
+├ ƒ /theater-tech/surgical-cases/[caseId]/edit
+├ ƒ /theater-tech/surgical-cases/[caseId]/plan
+├ ƒ /theater-tech/surgical-cases/[caseId]/print
+├ ○ /theater-tech/theater-scheduling
+├ ○ /theater-tech/theaters
+└ ○ /theater-tech/upcoming-procedures
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

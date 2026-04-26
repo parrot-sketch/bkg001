@@ -20,6 +20,7 @@ interface TheaterTechLayoutProps {
 
 export default function TheaterTechLayout({ children }: TheaterTechLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const router = useRouter();
   const { user, isLoading } = useAuth();
   const [mounted, setMounted] = useState(false);
@@ -56,9 +57,18 @@ export default function TheaterTechLayout({ children }: TheaterTechLayoutProps) 
 
   return (
     <div className="flex h-screen overflow-hidden bg-stone-50">
-        <TheaterTechSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <TheaterTechSidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onCollapse={setSidebarCollapsed}
+      />
 
-        <div className="flex-1 lg:ml-[280px] flex flex-col min-w-0 h-full overflow-hidden">
+      <div
+        className="flex-1 flex flex-col min-w-0 h-full overflow-hidden transition-all duration-300 lg:ml-[var(--sidebar-offset)]"
+        style={
+          { '--sidebar-offset': sidebarCollapsed ? '4rem' : '280px' } as React.CSSProperties
+        }
+      >
         <TheaterTechHeader onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="flex-1 relative overflow-hidden focus:outline-none bg-white overflow-y-auto overscroll-contain scroll-smooth">

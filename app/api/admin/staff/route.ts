@@ -18,8 +18,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { JwtMiddleware } from '@/lib/auth/middleware';
-import { Role } from '@prisma/client';
+import { Role as PrismaRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { createStaffDtoSchema } from '@/application/dtos/CreateStaffDto';
+import { Role as DomainRole } from '@/domain/enums/Role';
+import { randomUUID } from 'crypto';
+
+function getStaffRoles(): PrismaRole[] {
+  return Object.values(PrismaRole).filter((r) => r !== PrismaRole.PATIENT);
+}
+
+function generateTempLicenseNumber(): string {
+  return `TEMP-${randomUUID().split('-')[0].toUpperCase()}`;
+}
 
 /**
  * GET /api/admin/staff
@@ -76,12 +87,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // 5. Build where clause
     const where: any = {
       role: {
-        in: [Role.DOCTOR, Role.NURSE, Role.FRONTDESK],
+        in: getStaffRoles(),
       },
     };
 
-    if (roleParam && Object.values(Role).includes(roleParam as Role)) {
-      where.role = roleParam as Role;
+    if (roleParam && Object.values(PrismaRole).includes(roleParam as PrismaRole) && roleParam !== PrismaRole.PATIENT) {
+      where.role = roleParam as PrismaRole;
     }
 
     // 6. Fetch staff with pagination
@@ -100,9 +111,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           phone: true,
           role: true,
           status: true,
+          mfa_enabled: true,
           last_login_at: true,
           created_at: true,
           updated_at: true,
+          doctor_profile: {
+            select: {
+              specialization: true,
+            },
+          },
         },
         take: limit, // REFACTORED: Bounded query
         skip: skip,  // REFACTORED: Pagination offset
@@ -119,6 +136,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       phone: user.phone,
       role: user.role,
       status: user.status,
+      doctorSpecialization: user.doctor_profile?.specialization ?? undefined,
+      mfaEnabled: user.mfa_enabled,
       lastLoginAt: user.last_login_at,
       createdAt: user.created_at,
       updatedAt: user.updated_at,
@@ -198,51 +217,31 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const { email, password, firstName, lastName, phone, role } = body;
-
-    // 4. Validate required fields
-    if (!email || typeof email !== 'string' || !email.includes('@')) {
+    const parsed = createStaffDtoSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Valid email is required',
+          error: parsed.error.issues[0]?.message || 'Invalid request',
         },
         { status: 400 }
       );
     }
 
-    if (!password || typeof password !== 'string' || password.length < 6) {
+    const { email, password, firstName, lastName, phone, role, doctorSpecialization, allowAdmin } = parsed.data;
+
+    // 4. Safety: ADMIN creation must be explicit
+    if (role === DomainRole.ADMIN && allowAdmin !== true) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Password is required and must be at least 6 characters',
+          error: 'Creating ADMIN accounts requires allowAdmin=true',
         },
         { status: 400 }
       );
     }
 
-    if (!role || !Object.values(Role).includes(role)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Valid role is required (DOCTOR, NURSE, or FRONTDESK)',
-        },
-        { status: 400 }
-      );
-    }
-
-    // 5. Prevent creating admin users
-    if (role === 'ADMIN') {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Cannot create admin users through this endpoint',
-        },
-        { status: 400 }
-      );
-    }
-
-    // 6. Check if user already exists
+    // 5. Check if user already exists
     const existingUser = await db.user.findUnique({
       where: { email },
     });
@@ -257,17 +256,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // 7. Hash password
+    // 6. Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // 8. Create user and profile in transaction
+    const prismaRole = role as unknown as PrismaRole;
+
+    // 7. Create user and profile in transaction
     const newUser = await db.$transaction(async (tx) => {
       // Create the User
       const user = await tx.user.create({
         data: {
           email,
           password_hash: passwordHash,
-          role: role as Role,
+          role: prismaRole,
           status: 'ACTIVE',
           first_name: firstName || null,
           last_name: lastName || null,
@@ -281,14 +282,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           phone: true,
           role: true,
           status: true,
+          mfa_enabled: true,
           created_at: true,
           updated_at: true,
         },
       });
 
       // If role is DOCTOR, create the required Doctor profile
-      if (role === 'DOCTOR') {
-        const tempLicense = `TEMP-${Date.now().toString().slice(-6)}`;
+      if (prismaRole === PrismaRole.DOCTOR) {
+        const tempLicense = generateTempLicenseNumber();
 
         await tx.doctor.create({
           data: {
@@ -298,7 +300,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             last_name: user.last_name || 'User',
             name: `${user.first_name || 'Dr.'} ${user.last_name || 'User'}`,
             phone: user.phone || '0000000000',
-            specialization: 'General Practice', // Default
+            specialization: doctorSpecialization || 'General Practice',
             license_number: tempLicense,
             address: 'Clinic Address', // Default
             onboarding_status: 'ACTIVE', // Critical: Allows immediate login
@@ -315,7 +317,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return user;
     });
 
-    // 9. Create audit log entry (outside transaction to avoid blocking if audit fails)
+    // 8. Create audit log entry (outside transaction to avoid blocking if audit fails)
     try {
       await db.auditLog.create({
         data: {
@@ -333,7 +335,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       // Don't fail the request if audit logging fails
     }
 
-    // 10. Return created user
+    // 9. Return created user
     return NextResponse.json(
       {
         success: true,
@@ -345,6 +347,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           phone: newUser.phone,
           role: newUser.role,
           status: newUser.status,
+          doctorSpecialization: newUser.role === PrismaRole.DOCTOR ? (doctorSpecialization || 'General Practice') : undefined,
+          mfaEnabled: newUser.mfa_enabled,
           createdAt: newUser.created_at,
           updatedAt: newUser.updated_at,
         },

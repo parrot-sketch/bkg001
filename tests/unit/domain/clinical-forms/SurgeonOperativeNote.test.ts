@@ -53,6 +53,11 @@ const VALID_FINAL_DATA: SurgeonOperativeNoteData = {
         findings: 'Indirect inguinal hernia with intact sac. No bowel involvement.',
         operativeSteps: 'Skin incision made over the inguinal canal. Dissection carried down to external oblique aponeurosis. Sac identified and reduced. Mesh placed tension-free. Wound closed in layers.',
     },
+    operativeRecord: {
+        operationRecord: 'Operation record narrative with adequate detail for printing.',
+        postOperativeInstructions: 'Keep wound clean and dry. Return for review in 7 days.',
+        surgeonSignaturePng: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==',
+    },
     intraOpMetrics: {
         estimatedBloodLossMl: 50,
         fluidsGivenMl: 1000,

@@ -20,6 +20,7 @@ interface DoctorLayoutProps {
 
 export default function DoctorLayout({ children }: DoctorLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const { user, isLoading, logout } = useAuth();
@@ -60,10 +61,19 @@ export default function DoctorLayout({ children }: DoctorLayoutProps) {
   return (
     <div className="flex h-screen overflow-hidden bg-stone-50">
       {/* Sidebar */}
-      <DoctorSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <DoctorSidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onCollapse={setSidebarCollapsed}
+      />
 
       {/* Content Area */}
-      <div className="flex-1 lg:ml-[280px] flex flex-col min-w-0 h-full overflow-hidden">
+      <div
+        className="flex-1 flex flex-col min-w-0 h-full overflow-hidden transition-all duration-300 lg:ml-[var(--sidebar-offset)]"
+        style={
+          { '--sidebar-offset': sidebarCollapsed ? '4rem' : '280px' } as React.CSSProperties
+        }
+      >
         <DoctorHeader />
         <main className="flex-1 relative overflow-hidden focus:outline-none bg-gradient-to-b from-stone-50/80 via-white to-stone-50/40 overflow-y-auto overscroll-contain scroll-smooth">
           <div className="w-full min-h-full mx-auto max-w-[1600px] px-4 py-5 sm:px-5 sm:py-6 lg:px-8 lg:py-7 xl:px-10 xl:py-8">

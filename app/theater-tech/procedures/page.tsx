@@ -113,13 +113,23 @@ export default function TheaterTechProceduresPage() {
   const [pendingDeleteName, setPendingDeleteName] = useState('');
   const [pendingIsActive, setPendingIsActive] = useState(true);
 
+  const queryReady = searchQuery.trim().length >= 2 || categoryFilter !== 'all' || statusFilter !== 'all';
+
   const fetchProcedures = useCallback(async () => {
+    if (!queryReady) {
+      setProcedures([]);
+      setTotalPages(1);
+      setTotalCount(0);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const params = new URLSearchParams();
       params.set('page', page.toString());
       params.set('limit', '15');
-      if (searchQuery) params.set('search', searchQuery);
+      if (searchQuery.trim().length >= 2) params.set('search', searchQuery.trim());
       if (categoryFilter !== 'all') params.set('category', categoryFilter);
       if (statusFilter !== 'all') params.set('is_active', statusFilter === 'active' ? 'true' : 'false');
 
@@ -130,15 +140,26 @@ export default function TheaterTechProceduresPage() {
         setProcedures(data.data || []);
         setTotalPages(data.pagination.totalPages);
         setTotalCount(data.pagination.totalCount);
+      } else {
+        throw new Error(data.error || 'Failed to fetch procedures');
       }
     } catch (error) {
       console.error('Error fetching procedures:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to fetch procedures');
     } finally {
       setLoading(false);
     }
-  }, [page, searchQuery, categoryFilter, statusFilter]);
+  }, [page, searchQuery, categoryFilter, statusFilter, queryReady]);
 
   useEffect(() => {
+    if (!queryReady) {
+      setProcedures([]);
+      setTotalPages(1);
+      setTotalCount(0);
+      setPage(1);
+      setLoading(false);
+      return;
+    }
     fetchProcedures();
   }, [fetchProcedures]);
 
@@ -244,9 +265,13 @@ export default function TheaterTechProceduresPage() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
               <CardTitle>Procedures</CardTitle>
-              <CardDescription>
-                {loading ? 'Loading...' : `${totalCount} procedure(s)`}
-              </CardDescription>
+	              <CardDescription>
+	                {loading
+	                  ? 'Loading...'
+	                  : !queryReady
+	                    ? 'Search or filter to view procedures'
+	                    : `${totalCount} procedure(s)`}
+	              </CardDescription>
             </div>
             <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
               <div className="relative w-full sm:w-64">
@@ -315,14 +340,14 @@ export default function TheaterTechProceduresPage() {
                   <TableCell colSpan={7}>
                     <div className="flex flex-col items-center justify-center py-16 text-center">
                       <Scissors className="h-10 w-10 text-muted-foreground/40 mb-3" />
-                      <p className="text-sm font-medium text-muted-foreground">
-                        {searchQuery || categoryFilter !== 'all' || statusFilter !== 'all'
-                          ? 'No procedures match your filters'
-                          : 'No procedures found. Click "Add Procedure" to create one.'}
-                      </p>
-                    </div>
-                  </TableCell>
-                </TableRow>
+	                      <p className="text-sm font-medium text-muted-foreground">
+	                        {!queryReady
+	                          ? 'Search or filter to view procedures'
+	                          : 'No procedures match your filters'}
+	                      </p>
+	                    </div>
+	                  </TableCell>
+	                </TableRow>
               ) : (
                 procedures.map((procedure) => (
                   <TableRow key={procedure.id}>
@@ -424,9 +449,9 @@ export default function TheaterTechProceduresPage() {
             </TableBody>
           </Table>
 
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-4 pt-4 border-t">
-              <p className="text-xs text-muted-foreground">Page {page} of {totalPages}</p>
+	          {queryReady && totalPages > 1 && (
+	            <div className="flex items-center justify-between mt-4 pt-4 border-t">
+	              <p className="text-xs text-muted-foreground">Page {page} of {totalPages}</p>
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>
                   <ChevronLeft className="h-4 w-4" />

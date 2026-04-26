@@ -13,10 +13,6 @@ import db from '@/lib/db';
 import {
     UrinalysisResult,
     URINALYSIS_LABELS,
-    SKIN_PREP_AGENT_LABELS,
-    SKIN_PREP_AREA_LABELS,
-    SkinPrepAgent,
-    SkinPrepArea,
     normalizeLegacyChecklistData,
 } from '@/domain/clinical-forms/NursePreopWardChecklist';
 import type { NursePreopWardChecklistDraft } from '@/domain/clinical-forms/NursePreopWardChecklist';
@@ -34,6 +30,9 @@ async function getChecklistPrintData(caseId: string) {
             patient: true,
             primary_surgeon: {
                 include: { user: true },
+            },
+            staff_invites: {
+                include: { invited_user: { select: { first_name: true, last_name: true } } },
             },
             clinical_forms: {
                 where: { template_key: 'NURSE_PREOP_WARD_CHECKLIST' },
@@ -61,6 +60,7 @@ async function getChecklistPrintData(caseId: string) {
         surgicalCase,
         patient: surgicalCase.patient,
         surgeon: surgicalCase.primary_surgeon,
+        staffInvites: surgicalCase.staff_invites,
         formResponse,
         checklistData,
         isFinalized: formResponse?.status === 'FINAL',
@@ -80,6 +80,38 @@ async function getChecklistPrintData(caseId: string) {
 // ──────────────────────────────────────────────────────────────────────
 // Helper renderers
 // ──────────────────────────────────────────────────────────────────────
+
+function getAgeYears(dateOfBirth?: string | Date | null): string {
+    if (!dateOfBirth) return '—';
+    const dob = typeof dateOfBirth === 'string' ? new Date(dateOfBirth) : dateOfBirth;
+    if (Number.isNaN(dob.getTime())) return '—';
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const m = today.getMonth() - dob.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age -= 1;
+    if (age < 0) return '—';
+    return `${age}`;
+}
+
+function formatSex(gender?: string | null) {
+    if (!gender) return '—';
+    return gender.toUpperCase().startsWith('M') ? 'M' : gender.toUpperCase().startsWith('F') ? 'F' : gender;
+}
+
+function getInviteDisplayName(invite: any): string {
+    const userName = invite?.invited_user
+        ? `${invite.invited_user.first_name || ''} ${invite.invited_user.last_name || ''}`.trim()
+        : '';
+    return userName || invite?.external_name || '—';
+}
+
+function getAnaesthesiologistName(invites: any[] | undefined): string {
+    if (!invites?.length) return '—';
+    const matchesRole = (i: any) => i?.invited_role === 'ANESTHESIOLOGIST' || i?.invited_role === 'ANESTHETIST_NURSE';
+    const ana = invites.find((i) => matchesRole(i) && i.status === 'ACCEPTED') || invites.find((i) => matchesRole(i));
+    if (!ana) return '—';
+    return getInviteDisplayName(ana);
+}
 
 function Bool({ value }: { value: boolean | undefined }) {
     if (value === true) return <span style={{ fontWeight: 600, color: '#166534' }}>&#10003; Yes</span>;
@@ -103,21 +135,6 @@ function UrinalysisVal({ value }: { value: unknown }) {
         return <span>{(value as { custom: string }).custom}</span>;
     }
     return <span>{String(value)}</span>;
-}
-
-function SkinPrepVal({ value }: { value: unknown }) {
-    if (!value || typeof value !== 'object') {
-        return <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>&mdash;</span>;
-    }
-    const sp = value as Record<string, string>;
-    const agent = sp.agent in SKIN_PREP_AGENT_LABELS
-        ? SKIN_PREP_AGENT_LABELS[sp.agent as SkinPrepAgent] + (sp.agentOther ? ` (${sp.agentOther})` : '')
-        : (sp.agent ?? '—');
-    const area = sp.area in SKIN_PREP_AREA_LABELS
-        ? SKIN_PREP_AREA_LABELS[sp.area as SkinPrepArea] + (sp.areaOther ? ` (${sp.areaOther})` : '')
-        : (sp.area ?? '');
-    const performer = sp.performerName ? `by ${sp.performerName}` : '';
-    return <span>{[agent, area, performer].filter(Boolean).join(' — ')}</span>;
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -184,14 +201,20 @@ export default async function ChecklistPrintPage({
     const data = await getChecklistPrintData(caseId);
     if (!data) notFound();
 
-    const { patient, surgeon, formResponse, checklistData: d, isFinalized, surgicalCase, clinic } = data;
+    const { patient, surgeon, staffInvites, formResponse, checklistData: d, isFinalized, clinic } = data as any;
 
     const printDate = format(new Date(), 'dd MMM yyyy, HH:mm');
     const patientName = [patient.first_name, patient.last_name].filter(Boolean).join(' ');
     const surgeonName = surgeon?.user
         ? [surgeon.user.first_name, surgeon.user.last_name].filter(Boolean).join(' ')
         : '—';
+    const anaesthName = getAnaesthesiologistName(staffInvites);
 
+    const header = (d as any).header ?? {};
+    const headerDate =
+        (typeof header.date === 'string' && header.date.trim().length >= 10)
+            ? header.date
+            : (formResponse?.signed_at ? format(new Date(formResponse.signed_at), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'));
     const doc = d.documentation ?? {};
     const labs = d.bloodResults ?? {};
     const meds = d.medications ?? {};
@@ -259,50 +282,29 @@ export default async function ChecklistPrintPage({
                         gap: 16,
                     }}>
                         <div style={{ flex: 1 }}>
-                            {/* Logo and Clinic Name */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                                {clinic.logo_url && (
-                                    <img
-                                        src={clinic.logo_url}
-                                        alt={clinic.name}
-                                        style={{
-                                            height: 48,
-                                            maxWidth: 200,
-                                            objectFit: 'contain',
-                                        }}
-                                    />
-                                )}
-                                <div>
-                                    <div style={{
-                                        fontSize: 20,
-                                        fontWeight: 700,
-                                        color: clinic.primary_color || '#1e40af',
-                                        letterSpacing: '-0.5px',
-                                        lineHeight: 1.2,
-                                    }}>
-                                        {clinic.name}
-                                    </div>
-                                    {clinic.address && (
-                                        <div style={{ fontSize: 9, color: '#64748b', marginTop: 2 }}>
-                                            {clinic.address}
-                                        </div>
-                                    )}
-                                    {(clinic.phone || clinic.email) && (
-                                        <div style={{ fontSize: 9, color: '#64748b', marginTop: 1 }}>
-                                            {[clinic.phone, clinic.email].filter(Boolean).join(' • ')}
-                                        </div>
-                                    )}
-                                </div>
+                            {/* Facility + title (paper-accurate) */}
+                            <div style={{
+                                fontSize: 14,
+                                fontWeight: 800,
+                                color: '#0f172a',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.02em',
+                                lineHeight: 1.2,
+                            }}>
+                                NAIROBI SCULPT AESTHETIC CENTRE
                             </div>
                             <div style={{
-                                fontSize: 11,
-                                fontWeight: 600,
-                                color: '#475569',
+                                fontSize: 12,
+                                fontWeight: 800,
+                                color: '#0f172a',
                                 textTransform: 'uppercase',
-                                letterSpacing: '0.05em',
-                                marginTop: 4,
+                                letterSpacing: '0.06em',
+                                marginTop: 6,
                             }}>
-                                Pre-Operative Ward Check-List
+                                PRE-OPERATIVE WARD CHECK-LIST
+                            </div>
+                            <div style={{ fontSize: 10, color: '#475569', marginTop: 6, lineHeight: 1.4 }}>
+                                All information should be filled in clearly before the patient is received in theatre
                             </div>
                         </div>
                         <div style={{ textAlign: 'right', minWidth: 120 }}>
@@ -336,12 +338,13 @@ export default async function ChecklistPrintPage({
                         marginBottom: 24,
                     }} className="avoid-break">
                         {([
-                            ['Patient', patientName],
-                            ['File No.', patient.file_number],
-                            ['Case ID', surgicalCase.id.slice(0, 8).toUpperCase()],
-                            ['DOB', patient.date_of_birth ? format(new Date(patient.date_of_birth), 'dd MMM yyyy') : '—'],
-                            ['Surgeon', surgeonName],
-                            ['Procedure', surgicalCase.procedure_name ?? '—'],
+                            ['PATIENT FILE NO.', patient.file_number],
+                            ['NAME', patientName],
+                            ['AGE', getAgeYears(patient.date_of_birth)],
+                            ['SEX', formatSex(patient.gender)],
+                            ['DATE', headerDate],
+                            ['DOCTOR', surgeonName ? `Dr. ${surgeonName}` : '—'],
+                            ['ANAESTHESIOLOGIST', anaesthName],
                         ] as [string, string | null][]).map(([label, val]) => (
                             <div key={label}>
                                 <div style={{
@@ -361,36 +364,38 @@ export default async function ChecklistPrintPage({
                         ))}
                     </div>
 
+                    <SectionTable title="Nursing: Action / Comments / Observations" clinicColor={clinic.primary_color}>
+                        <Row label="Nursing comments"><Val value={header.nursingComments} /></Row>
+                    </SectionTable>
+
                     {/* Sections */}
 
                     <SectionTable title="1. Documentation" clinicColor={clinic.primary_color}>
+                        <Row label="Ward checklist"><Bool value={doc.wardChecklist as boolean} /></Row>
                         <Row label="Documentation complete"><Bool value={doc.documentationComplete as boolean} /></Row>
                         <Row label="Correct consent signed"><Bool value={doc.correctConsent as boolean} /></Row>
                     </SectionTable>
 
                     <SectionTable title="2. Blood & Lab Results" clinicColor={clinic.primary_color}>
-                        <Row label="Hb / PCV"><Val value={labs.hbPcv} /></Row>
-                        {labs.hbPcvNotes && <Row label="Hb/PCV Notes"><Val value={labs.hbPcvNotes} /></Row>}
+                        <Row label="Blood/results checked"><Bool value={labs.bloodResultsChecked as boolean} /></Row>
+                        <Row label="Hb"><Val value={(labs as any).hb} /></Row>
                         <Row label="UECs"><Val value={labs.uecs} /></Row>
-                        {labs.uecsNotes && <Row label="UECs Notes"><Val value={labs.uecsNotes} /></Row>}
                         <Row label="X-match units"><Val value={labs.xMatchUnitsAvailable} /></Row>
-                        <Row label="Other results"><Val value={labs.otherLabResults} /></Row>
                     </SectionTable>
 
                     <SectionTable title="3. Medications" clinicColor={clinic.primary_color}>
-                        <Row label="Pre-med given"><Bool value={meds.preMedGiven as boolean} /></Row>
-                        <Row label="Pre-med details"><Val value={meds.preMedDetails} /></Row>
-                        <Row label="Pre-med time"><Val value={meds.preMedTimeGiven} /></Row>
-                        <Row label="Peri-op meds given"><Bool value={meds.periOpMedsGiven as boolean} /></Row>
-                        <Row label="Peri-op details"><Val value={meds.periOpMedsDetails} /></Row>
-                        <Row label="Regular meds given"><Bool value={meds.regularMedsGiven as boolean} /></Row>
-                        <Row label="Regular meds details"><Val value={meds.regularMedsDetails} /></Row>
-                        <Row label="Regular meds time"><Val value={meds.regularMedsTimeGiven} /></Row>
+                        <Row label="Pre-medication given"><Bool value={meds.preMedGiven as boolean} /></Row>
+                        <Row label="Pre-medication time given"><Val value={meds.preMedTimeGiven} /></Row>
+                        <Row label="Pre-medication"><Val value={meds.preMedicationText} /></Row>
+                        <Row label="Peri-operative medication given"><Bool value={meds.periOpMedsGiven as boolean} /></Row>
+                        <Row label="Peri-operative time given"><Val value={(meds as any).periOpMedsTimeGiven} /></Row>
+                        <Row label="Peri-operative medication"><Val value={meds.periOpMedicationText} /></Row>
+                        <Row label="Regular medication (specify)"><Val value={meds.regularMedicationText} /></Row>
                     </SectionTable>
 
                     <SectionTable title="4. Allergies & NPO Status" clinicColor={clinic.primary_color}>
                         <Row label="Allergies documented"><Bool value={allerg.allergiesDocumented as boolean} /></Row>
-                        <Row label="Allergy details"><Val value={allerg.allergiesDetails} /></Row>
+                        <Row label="6. ALLERGIES (STATE IN RED)"><span className="allergy-text" style={{ color: '#b91c1c', fontWeight: 700, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}><Val value={allerg.allergiesDetails} /></span></Row>
                         <Row label="NPO status"><Bool value={allerg.npoStatus as boolean} /></Row>
                         <Row label="Fasted from"><Val value={allerg.npoFastedFromTime} /></Row>
                     </SectionTable>
@@ -398,7 +403,6 @@ export default async function ChecklistPrintPage({
                     <SectionTable title="5. Peri-Operative Preparation" clinicColor={clinic.primary_color}>
                         <Row label="Bath / shower & gown"><Bool value={prep.bathGown as boolean} /></Row>
                         <Row label="Shave / skin prep done"><Bool value={prep.shaveSkinPrep as boolean} /></Row>
-                        <Row label="Skin prep details"><SkinPrepVal value={prep.skinPrep} /></Row>
                         <Row label="ID band on"><Bool value={prep.idBandOn as boolean} /></Row>
                         <Row label="Correct positioning"><Bool value={prep.correctPositioning as boolean} /></Row>
                         <Row label="Jewelry removed"><Bool value={prep.jewelryRemoved as boolean} /></Row>
@@ -408,7 +412,7 @@ export default async function ChecklistPrintPage({
                     <SectionTable title="6. Prosthetics" clinicColor={clinic.primary_color}>
                         <Row label="Contact lenses removed"><Bool value={pros.contactLensRemoved as boolean} /></Row>
                         <Row label="Dentures removed"><Bool value={pros.denturesRemoved as boolean} /></Row>
-                        <Row label="Hearing aid removed"><Bool value={pros.hearingAidRemoved as boolean} /></Row>
+                        <Row label="Hearing Aid/Limbs"><Bool value={pros.limbsProsthesisNoted as boolean} /></Row>
                         <Row label="Crowns / bridgework noted"><Bool value={pros.crownsBridgeworkNoted as boolean} /></Row>
                         <Row label="Prosthetic notes"><Val value={pros.prostheticNotes} /></Row>
                     </SectionTable>
@@ -417,13 +421,16 @@ export default async function ChecklistPrintPage({
                         <Row label="Blood pressure">{bpStr}</Row>
                         <Row label="Pulse"><Val value={vit.pulse !== undefined ? `${vit.pulse} bpm` : undefined} /></Row>
                         <Row label="Respiratory rate"><Val value={vit.respiratoryRate !== undefined ? `${vit.respiratoryRate} /min` : undefined} /></Row>
+                        <Row label="CVP"><Val value={vit.cvp} /></Row>
                         <Row label="Temperature"><Val value={vit.temperature !== undefined ? `${vit.temperature} °C` : undefined} /></Row>
                         <Row label="SpO₂"><Val value={vit.spo2 !== undefined ? `${vit.spo2}%` : undefined} /></Row>
                         <Row label="Bladder emptied"><Bool value={vit.bladderEmptied as boolean} /></Row>
+                        <Row label="Foetal heart rate"><Val value={vit.foetalHeartRate !== undefined ? `${vit.foetalHeartRate} bpm` : undefined} /></Row>
+                        <Row label="Foetal heart rate notes"><Val value={vit.foetalHeartRateNotes} /></Row>
                         <Row label="Height"><Val value={vit.height !== undefined ? `${vit.height} cm` : undefined} /></Row>
                         <Row label="Weight"><Val value={vit.weight !== undefined ? `${vit.weight} kg` : undefined} /></Row>
+                        <Row label="Urinalysis done"><Bool value={vit.urinalysisDone as boolean} /></Row>
                         <Row label="Urinalysis"><UrinalysisVal value={vit.urinalysis} /></Row>
-                        <Row label="X-rays / scans present"><Bool value={vit.xRaysScansPresent as boolean} /></Row>
                         <Row label="Other forms"><Val value={vit.otherFormsRequired} /></Row>
                     </SectionTable>
 
@@ -444,27 +451,24 @@ export default async function ChecklistPrintPage({
                         gap: 24,
                     }} className="avoid-break">
                         {([
-                            [
-                                'Prepared by',
-                                isFinalized && formResponse?.signed_by
-                                    ? [formResponse.signed_by.first_name, formResponse.signed_by.last_name].filter(Boolean).join(' ')
-                                    : (hand.preparedByName ?? ''),
-                            ],
-                            [
-                                'Date / Time',
-                                isFinalized && formResponse?.signed_at
-                                    ? format(new Date(formResponse.signed_at), 'dd MMM yyyy HH:mm')
-                                    : '',
-                            ],
-                            ['Signature', ''],
-                        ] as [string, string][]).map(([label, val]) => (
-                            <div key={label}>
+                            { label: 'Prepared by', name: hand.preparedByName, sig: hand.preparedBySignature?.signatureDataUrl },
+                            { label: 'Received by', name: hand.receivedByName, sig: hand.receivedBySignature?.signatureDataUrl },
+                            { label: 'Handed over by', name: hand.handedOverByName, sig: hand.handedOverBySignature?.signatureDataUrl },
+                        ] as Array<{ label: string; name: string; sig?: string }>).map((item) => (
+                            <div key={item.label}>
                                 <div style={{ fontSize: 9, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                    {label}
+                                    {item.label}
                                 </div>
-                                <div style={{ marginTop: 4, fontSize: 11, minHeight: 24 }}>{val}</div>
-                                <div style={{ borderTop: '1px solid #111', marginTop: 24, fontSize: 9, color: '#94a3b8' }}>
-                                    {label}
+                                <div style={{ marginTop: 4, fontSize: 11, minHeight: 18 }}>{item.name || ''}</div>
+                                <div style={{ marginTop: 6, minHeight: 48 }}>
+                                    {item.sig ? (
+                                        <img src={item.sig} alt={`${item.label} signature`} style={{ height: 46, width: '100%', objectFit: 'contain' }} />
+                                    ) : (
+                                        <div style={{ height: 46 }} />
+                                    )}
+                                </div>
+                                <div style={{ borderTop: '1px solid #111', marginTop: 8, fontSize: 9, color: '#94a3b8' }}>
+                                    Signature
                                 </div>
                             </div>
                         ))}

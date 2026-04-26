@@ -53,6 +53,7 @@ function DoctorBookingWrapper() {
                 userRole="doctor"
                 lockDoctor
                 source={source}
+                variant="page"
                 parentAppointmentId={parentAppointmentId}
                 parentConsultationId={parentConsultationId}
                 onSuccess={() => {

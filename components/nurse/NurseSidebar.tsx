@@ -51,9 +51,10 @@ const navItems: NavItem[] = [
 interface NurseSidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  onCollapse?: (collapsed: boolean) => void;
 }
 
-export function NurseSidebar({ isOpen, onClose }: NurseSidebarProps) {
+export function NurseSidebar({ isOpen, onClose, onCollapse }: NurseSidebarProps) {
   const { logout, user } = useAuth();
 
   const handleLogout = async () => {
@@ -80,6 +81,7 @@ export function NurseSidebar({ isOpen, onClose }: NurseSidebarProps) {
       userInfo={userInfo}
       onLogout={handleLogout}
       dashboardHref="/nurse/dashboard"
+      onCollapse={onCollapse}
     />
   );
 }

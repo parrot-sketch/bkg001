@@ -7,6 +7,9 @@
  * 3. Seeds test data
  * 
  * ⚠️  WARNING: This will DELETE ALL DATA in production!
+ *
+ * Safety gate:
+ * - This script will refuse to run unless you set ALLOW_DATA_LOSS="true"
  * 
  * Run with: npx tsx scripts/reset-and-sync-production.ts
  */
@@ -17,6 +20,11 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
+  if (process.env.ALLOW_DATA_LOSS !== 'true') {
+    console.error('❌ Refusing to run: set ALLOW_DATA_LOSS="true" to confirm destructive reset.');
+    process.exit(1);
+  }
+
   console.log('🚀 Starting Production Database Reset and Sync...\n');
   console.log('⚠️  ⚠️  ⚠️  WARNING: This will DELETE ALL DATA in production! ⚠️  ⚠️  ⚠️');
   console.log('   Make sure DATABASE_URL in .env points to production.\n');

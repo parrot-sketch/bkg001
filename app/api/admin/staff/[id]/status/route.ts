@@ -116,8 +116,14 @@ export async function PUT(
         phone: true,
         role: true,
         status: true,
+        mfa_enabled: true,
         created_at: true,
         updated_at: true,
+        doctor_profile: {
+          select: {
+            specialization: true,
+          },
+        },
       },
     });
 
@@ -151,6 +157,8 @@ export async function PUT(
           phone: updatedUser.phone,
           role: updatedUser.role,
           status: updatedUser.status,
+          doctorSpecialization: updatedUser.doctor_profile?.specialization ?? undefined,
+          mfaEnabled: updatedUser.mfa_enabled,
           createdAt: updatedUser.created_at,
           updatedAt: updatedUser.updated_at,
         },

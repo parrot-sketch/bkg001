@@ -82,15 +82,41 @@ export const headerSchema = z.object({
 
 const MEANINGLESS_CONTENT = /^(n\/?a|none|nil|tbd|test|asdf|xxx+|\.+)$/i;
 
+function stripHtml(input: string) {
+    return input.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 export const findingsAndStepsSchema = z.object({
     findings: z.string().optional().default(''),
     operativeSteps: z
         .string()
-        .min(20, 'Operative steps description must be at least 20 characters')
         .refine(
-            (val) => !MEANINGLESS_CONTENT.test(val.trim()),
+            (val) => stripHtml(val).length >= 20,
+            'Operative steps description must be at least 20 characters',
+        )
+        .refine(
+            (val) => !MEANINGLESS_CONTENT.test(stripHtml(val)),
             'Operative steps must contain meaningful clinical content',
         ),
+});
+
+// ──────────────────────────────────────────────────────────────────────
+// I) Operative Record (Page 2)
+// ──────────────────────────────────────────────────────────────────────
+
+export const operativeRecordSchema = z.object({
+    operationRecord: z
+        .string()
+        .refine((val) => stripHtml(val).length >= 10, 'Operation record must be at least 10 characters'),
+    postOperativeInstructions: z
+        .string()
+        .refine(
+            (val) => stripHtml(val).length >= 10,
+            'Post-operative instructions must be at least 10 characters',
+        ),
+    surgeonSignaturePng: z
+        .string()
+        .regex(/^data:image\/png;base64,/, 'Signature must be a PNG data URL'),
 });
 
 // ──────────────────────────────────────────────────────────────────────
@@ -205,6 +231,7 @@ export const postOpPlanSchema = z.object({
 export const surgeonOperativeNoteDraftSchema = z.object({
     header: headerSchema.partial().optional().default({}),
     findingsAndSteps: findingsAndStepsSchema.partial().optional().default({}),
+    operativeRecord: operativeRecordSchema.partial().optional().default({}),
     intraOpMetrics: intraOpMetricsSchema.partial().optional().default({}),
     implantsUsed: implantsUsedSchema.partial().optional().default({}),
     specimens: specimensSchema.partial().optional().default({}),
@@ -225,6 +252,7 @@ export function buildSurgeonOperativeNoteFinalSchema(nurseHasDiscrepancy: boolea
     return z.object({
         header: headerSchema,
         findingsAndSteps: findingsAndStepsSchema,
+        operativeRecord: operativeRecordSchema,
         intraOpMetrics: intraOpMetricsSchema,
         implantsUsed: implantsUsedSchema,
         specimens: specimensSchema,
@@ -262,6 +290,7 @@ export interface OperativeNoteSectionMeta {
 export const OPERATIVE_NOTE_SECTIONS: OperativeNoteSectionMeta[] = [
     { key: 'header', title: 'Case Header', icon: 'FileText', requiredFieldCount: 4 },
     { key: 'findingsAndSteps', title: 'Findings & Operative Steps', icon: 'Stethoscope', requiredFieldCount: 1 },
+    { key: 'operativeRecord', title: 'Operative Record', icon: 'FileSignature', requiredFieldCount: 3, isCritical: true },
     { key: 'intraOpMetrics', title: 'Intra-Operative Metrics', icon: 'Activity', requiredFieldCount: 1 },
     { key: 'implantsUsed', title: 'Implants Used', icon: 'Package', requiredFieldCount: 0 },
     { key: 'specimens', title: 'Specimens', icon: 'FlaskConical', requiredFieldCount: 0 },
@@ -302,6 +331,7 @@ export function getOperativeNoteSectionCompletion(
     const schemas: Record<string, z.ZodTypeAny> = {
         header: headerSchema,
         findingsAndSteps: findingsAndStepsSchema,
+        operativeRecord: operativeRecordSchema,
         intraOpMetrics: intraOpMetricsSchema,
         implantsUsed: implantsUsedSchema,
         specimens: specimensSchema,

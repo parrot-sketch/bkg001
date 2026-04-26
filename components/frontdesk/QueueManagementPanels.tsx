@@ -31,8 +31,8 @@ type CheckedInPatient = FrontdeskCheckedInPatient;
 
 export function QueueManagementPanels() {
   const queryClient = useQueryClient();
-  const { data: checkedInAwaiting, isLoading: loadingCheckedIn, refetch: refetchCheckedIn } = useCheckedInAwaitingAssignment();
-  const { data: liveQueue, isLoading: loadingQueue, refetch: refetchQueue } = useLiveQueueBoard();
+  const { data: checkedInAwaiting, isLoading: loadingCheckedIn, error: errorCheckedIn, refetch: refetchCheckedIn } = useCheckedInAwaitingAssignment();
+  const { data: liveQueue, isLoading: loadingQueue, error: errorQueue, refetch: refetchQueue } = useLiveQueueBoard();
   const [assigningId, setAssigningId] = useState<number | null>(null);
   const [showDoctorSelect, setShowDoctorSelect] = useState<number | null>(null);
   const [selectedDoctor, setSelectedDoctor] = useState<string>('');
@@ -144,6 +144,10 @@ export function QueueManagementPanels() {
           {loadingCheckedIn ? (
             <div className="p-6 flex justify-center">
               <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+            </div>
+          ) : errorCheckedIn ? (
+            <div className="p-6 text-center">
+              <p className="text-xs text-slate-500">Unable to load. <button onClick={() => refetchCheckedIn()} className="underline hover:text-slate-700">Retry</button></p>
             </div>
           ) : checkedInAwaiting && checkedInAwaiting.length > 0 ? (
             <div className="divide-y divide-slate-100">
@@ -264,6 +268,10 @@ export function QueueManagementPanels() {
           {loadingQueue ? (
             <div className="p-6 flex justify-center">
               <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+            </div>
+          ) : errorQueue ? (
+            <div className="p-6 text-center">
+              <p className="text-xs text-slate-500">Unable to load queue. <button onClick={() => refetchQueue()} className="underline hover:text-slate-700">Retry</button></p>
             </div>
           ) : liveQueue && liveQueue.length > 0 ? (
             <div className="divide-y divide-slate-100">

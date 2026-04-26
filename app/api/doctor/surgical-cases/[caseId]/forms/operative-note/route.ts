@@ -102,6 +102,16 @@ async function getSurgicalCaseWithRelations(caseId: string) {
                     },
                 },
             },
+            staff_invites: {
+                where: { status: 'ACCEPTED' },
+                select: {
+                    invited_role: true,
+                    invited_user_id: true,
+                    invited_user: {
+                        select: { id: true, first_name: true, last_name: true },
+                    },
+                },
+            },
             checklist: {
                 select: {
                     sign_out_completed_at: true,
@@ -192,20 +202,46 @@ function buildPrefillData(
         anesthesiaType: procRecord?.anesthesia_type ?? undefined,
     };
 
-    // Assistants from procedure record staff
+    const toName = (u?: { first_name: string | null; last_name: string | null } | null) =>
+        `${u?.first_name || ''} ${u?.last_name || ''}`.trim();
+
+    // Assistants (prefer procedure record staff; otherwise use accepted staff invites)
     const assistants: Array<{ userId: string; name: string; role: string }> = [];
-    if (procRecord?.staff) {
+
+    if (procRecord?.staff && procRecord.staff.length > 0) {
         for (const s of procRecord.staff) {
-            if (s.user && s.role !== 'SURGEON') {
+            if (s.user && s.role === 'ASSISTANT_SURGEON') {
                 assistants.push({
                     userId: s.user.id,
-                    name: `${s.user.first_name} ${s.user.last_name}`.trim(),
+                    name: toName(s.user),
                     role: s.role,
                 });
             }
         }
+    } else if (surgicalCase.staff_invites?.length) {
+        for (const inv of surgicalCase.staff_invites) {
+            if (inv.invited_role === 'ASSISTANT_SURGEON' && inv.invited_user) {
+                assistants.push({
+                    userId: inv.invited_user_id,
+                    name: toName(inv.invited_user),
+                    role: inv.invited_role,
+                });
+            }
+        }
     }
+
     header.assistants = assistants;
+
+    // Anaesthesiologist (prefer procedure record; otherwise staff invites)
+    if (!header.anesthesiologistId && surgicalCase.staff_invites?.length) {
+        const anesth = surgicalCase.staff_invites.find((i) =>
+            i.invited_role === 'ANESTHESIOLOGIST' || i.invited_role === 'ANESTHETIST_NURSE',
+        );
+        if (anesth?.invited_user) {
+            header.anesthesiologistId = anesth.invited_user_id;
+            header.anesthesiologistName = toName(anesth.invited_user);
+        }
+    }
 
     // Implants + Specimens from nurse intra-op
     const implantsUsed = nurseIntraOp
@@ -224,6 +260,7 @@ function buildPrefillData(
     return {
         header,
         findingsAndSteps: {},
+        operativeRecord: {},
         intraOpMetrics: {},
         implantsUsed: { implantsUsed },
         specimens: { specimens },

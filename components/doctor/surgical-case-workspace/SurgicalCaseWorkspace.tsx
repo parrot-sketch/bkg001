@@ -28,10 +28,13 @@ import { Button } from '@/components/ui/button';
 import { SurgicalCasePlanForm } from '@/components/doctor/surgical-case-plan/SurgicalCasePlanForm';
 import { SurgicalCasePlanView } from '@/components/doctor/surgical-case-plan/SurgicalCasePlanView';
 import { SurgicalNotesEditor } from '@/components/doctor/surgical-notes/SurgicalNotesEditor';
+import { OperativeRecordEditor } from '@/components/doctor/operative-record/OperativeRecordEditor';
+import { PreopWardChecklistViewer } from '@/components/doctor/preop-ward-checklist/PreopWardChecklistViewer';
 import { ChargeSheetStep } from '@/components/theater-tech/ChargeSheetStep';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import type { NursePreopWardChecklistDraft } from '@/domain/clinical-forms/NursePreopWardChecklist';
 
 // ── Workspace Props ─────────────────────────────────────────────────────
 
@@ -39,7 +42,7 @@ interface SurgicalCasePatient {
   id: string;
   first_name: string;
   last_name: string;
-  file_number?: string | null;
+  file_number: string;
   date_of_birth?: Date | string | null;
   gender?: string | null;
   phone?: string | null;
@@ -78,13 +81,17 @@ interface Props {
   patient: SurgicalCasePatient;
   caseId: string;
   initialPlanData: InitialPlanData;
+  preopWardChecklist?: { id: string; signedAt: Date | string | null; data: NursePreopWardChecklistDraft } | null;
+  anaesthesiologistName?: string | null;
 }
 
 // ── Tab Configuration ───────────────────────────────────────────────────
 
 const TABS = [
   { id: 'case-plan', label: 'Case Plan', icon: ClipboardList },
+  { id: 'preop-ward-checklist', label: 'Pre-op Checklist', icon: ClipboardList },
   { id: 'surgical-notes', label: 'Surgical Notes', icon: FileText },
+  { id: 'operative-record', label: 'Operative Record', icon: FileText },
   { id: 'charge-sheet', label: 'Charge Sheet', icon: Receipt },
 ] as const;
 
@@ -111,6 +118,8 @@ export function SurgicalCaseWorkspace({
   patient,
   caseId,
   initialPlanData,
+  preopWardChecklist,
+  anaesthesiologistName,
 }: Props) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -281,6 +290,27 @@ export function SurgicalCaseWorkspace({
                 )}
             </div>
 
+            {/* Pre-op Ward Checklist Tab (Read-only once finalized) */}
+            <div className={cn("p-4 md:p-6 lg:p-8 max-w-5xl mx-auto w-full", activeTab !== 'preop-ward-checklist' && "hidden")}>
+                {!preopWardChecklist ? (
+                  <div className="rounded-xl border border-slate-200 bg-white p-6">
+                    <p className="text-sm font-medium text-slate-900">Pre-op ward checklist not finalized yet</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      This document becomes available here once the nurse finalizes the pre-operative ward check-list.
+                    </p>
+                  </div>
+                ) : (
+                  <PreopWardChecklistViewer
+                    caseId={caseId}
+                    patient={patient}
+                    surgeonName={surgicalCase.primary_surgeon?.name ?? null}
+                    anaesthesiologistName={anaesthesiologistName ?? null}
+                    signedAt={preopWardChecklist.signedAt}
+                    data={preopWardChecklist.data}
+                  />
+                )}
+            </div>
+
             {/* Surgical Notes Tab */}
             <div className={cn("p-4 md:p-6 lg:p-8 max-w-5xl mx-auto w-full", activeTab !== 'surgical-notes' && "hidden")}>
                 <div className="mb-4 rounded-xl border border-slate-200 bg-white px-4 py-3">
@@ -293,6 +323,11 @@ export function SurgicalCaseWorkspace({
                   caseId={caseId} 
                   onContinue={() => handleTabChange('charge-sheet')}
                 />
+            </div>
+
+            {/* Operative Record Tab */}
+            <div className={cn("p-4 md:p-6 lg:p-8 max-w-5xl mx-auto w-full", activeTab !== 'operative-record' && "hidden")}>
+                <OperativeRecordEditor caseId={caseId} />
             </div>
 
             {/* Charge Sheet Tab */}

@@ -1,29 +1,26 @@
 # Quick Production Database Sync
 
-## 🚀 One-Command Sync (Recommended)
-
-Since your production database already has a schema, run:
+## ✅ One-command patch (NO DATA LOSS — recommended for real production)
 
 ```bash
-npm run db:sync:production
+pnpm tsx scripts/apply-production-migrations.ts
 ```
 
 This will:
 1. ✅ Generate Prisma Client
-2. ✅ Baseline existing migrations (mark as applied)
-3. ✅ Deploy any new migrations
-4. ✅ Seed test data
+2. ✅ Run read-only safety checks
+3. ✅ Apply only allowlisted idempotent SQL patches (no truncation, no seeding)
 
-## 📋 What Happens
+## 🚫 Demo scripts (DATA LOSS — do not use on client data)
 
-1. **Baseline**: Marks all existing migrations as "applied" (since your DB already has the schema)
-2. **Deploy**: Applies any new migrations that don't exist yet
-3. **Seed**: Clears all data and seeds fresh test data for your demo
+These are only for fresh demo environments:
+- `npm run db:sync:production`
+- `npm run db:reset:production`
 
 ## ⚠️ Important
 
-- **Data Loss**: The seed script will DELETE all existing data
-- **Verify .env**: Make sure `DATABASE_URL` points to production
+- **Data Loss**: demo scripts will DELETE all existing data
+- **Verify**: make sure `.env.production` points to the correct database
 - **Network**: Ensure you have access to the production database
 
 ## 🔧 Alternative: Manual Steps

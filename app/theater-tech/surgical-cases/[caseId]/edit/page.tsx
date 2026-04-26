@@ -38,6 +38,10 @@ export default async function TheaterTechPlanEditPage({ params }: PageProps) {
       total_theatre_minutes: true,
       admission_type: true,
       case_procedures: { select: { procedure_id: true } },
+      staff_invites: {
+        where: { status: 'ACCEPTED' },
+        select: { invited_role: true, invited_user_id: true },
+      },
       patient: {
         select: {
           id: true,
@@ -76,6 +80,12 @@ export default async function TheaterTechPlanEditPage({ params }: PageProps) {
     procedureCategory: surgicalCase.procedure_category || '',
     primaryOrRevision: surgicalCase.primary_or_revision || '',
     procedureIds: procedureIds,
+    anesthesiologistUserId:
+      surgicalCase.staff_invites.find((i) => i.invited_role === 'ANESTHESIOLOGIST')?.invited_user_id || '',
+    scrubNurseUserId:
+      surgicalCase.staff_invites.find((i) => i.invited_role === 'SCRUB_NURSE')?.invited_user_id || '',
+    circulatingNurseUserId:
+      surgicalCase.staff_invites.find((i) => i.invited_role === 'CIRCULATING_NURSE')?.invited_user_id || '',
     // Step 2 fields
     anaesthesiaType: surgicalCase.anaesthesia_type || '',
     skinToSkinMinutes: surgicalCase.skin_to_skin_minutes,

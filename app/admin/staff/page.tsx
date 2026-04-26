@@ -25,28 +25,12 @@ import type { UserResponseDto } from '@/application/dtos/UserResponseDto';
 import { Role } from '@/domain/enums/Role';
 import { Status } from '@/domain/enums/Status';
 import { cn } from '@/lib/utils';
+import { ADMIN_MANAGED_ROLES, ROLE_COLORS, ROLE_LABELS } from '@/features/admin/staff/staffRoles';
 
 const ROLES = [
   { label: 'All Staff', value: 'ALL' },
-  { label: 'Doctors', value: Role.DOCTOR },
-  { label: 'Nurses', value: Role.NURSE },
-  { label: 'Frontdesk', value: Role.FRONTDESK },
-  { label: 'Admins', value: Role.ADMIN },
+  ...ADMIN_MANAGED_ROLES.map((r) => ({ label: ROLE_LABELS[r] || r, value: r })),
 ];
-
-const ROLE_COLORS: Record<string, string> = {
-  [Role.DOCTOR]: 'bg-indigo-50 text-indigo-700 border-indigo-100',
-  [Role.NURSE]: 'bg-sky-50 text-sky-700 border-sky-100',
-  [Role.FRONTDESK]: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-  [Role.ADMIN]: 'bg-amber-50 text-amber-700 border-amber-100',
-};
-
-const ROLE_LABELS: Record<string, string> = {
-  [Role.DOCTOR]: 'Doctor',
-  [Role.NURSE]: 'Nurse',
-  [Role.FRONTDESK]: 'Frontdesk',
-  [Role.ADMIN]: 'Admin',
-};
 
 export default function AdminStaffPage() {
   const { user, isAuthenticated } = useAuth();
@@ -77,12 +61,12 @@ export default function AdminStaffPage() {
     return list;
   }, [staff, roleFilter, searchQuery]);
 
-  const counts = useMemo(() => ({
+  const counts = useMemo<Record<string, number>>(() => ({
     ALL: (staff as UserResponseDto[]).length,
-    [Role.DOCTOR]: (staff as UserResponseDto[]).filter((s) => s.role === Role.DOCTOR).length,
-    [Role.NURSE]: (staff as UserResponseDto[]).filter((s) => s.role === Role.NURSE).length,
-    [Role.FRONTDESK]: (staff as UserResponseDto[]).filter((s) => s.role === Role.FRONTDESK).length,
-    [Role.ADMIN]: (staff as UserResponseDto[]).filter((s) => s.role === Role.ADMIN).length,
+    ...ADMIN_MANAGED_ROLES.reduce((acc, r) => {
+      acc[r] = (staff as UserResponseDto[]).filter((s) => s.role === r).length;
+      return acc;
+    }, {} as Record<string, number>),
   }), [staff]);
 
   const activeCount = (staff as UserResponseDto[]).filter((s) => s.status === Status.ACTIVE).length;
@@ -154,13 +138,13 @@ export default function AdminStaffPage() {
         {/* Toolbar: Role Tabs + Search */}
         <div className="flex flex-col lg:flex-row gap-4">
           {/* Role Tabs */}
-          <div className="flex gap-1.5 bg-slate-100 p-1.5 rounded-2xl">
+          <div className="flex gap-1.5 bg-slate-100 p-1.5 rounded-2xl overflow-x-auto">
             {ROLES.map((r) => (
               <button
                 key={r.value}
                 onClick={() => setRoleFilter(r.value)}
                 className={cn(
-                  'flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all',
+                  'flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap',
                   roleFilter === r.value
                     ? 'bg-white text-slate-900 shadow-sm'
                     : 'text-slate-500 hover:text-slate-900'
@@ -252,7 +236,12 @@ export default function AdminStaffPage() {
                           <p className="font-bold text-slate-900 leading-none">
                             {s.firstName ? `${s.firstName} ${s.lastName || ''}`.trim() : '—'}
                           </p>
-                          <p className="text-xs text-slate-400 font-medium mt-1">{s.email}</p>
+                          <p className="text-xs text-slate-400 font-medium mt-1">
+                            {s.email}
+                            {s.role === Role.DOCTOR && s.doctorSpecialization ? (
+                              <span className="text-slate-300"> • {s.doctorSpecialization}</span>
+                            ) : null}
+                          </p>
                         </div>
                       </div>
                     </TableCell>

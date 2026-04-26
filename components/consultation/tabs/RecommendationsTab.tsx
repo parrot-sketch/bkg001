@@ -58,7 +58,7 @@ const OUTCOME_OPTIONS = [
   {
     value: ConsultationOutcomeType.PROCEDURE_RECOMMENDED,
     label: 'Procedure Recommended',
-    description: 'Patient is a candidate for a procedure',
+    description: 'Procedure is recommended for the patient',
     color: 'text-blue-700 bg-blue-50 border-blue-200',
   },
   {

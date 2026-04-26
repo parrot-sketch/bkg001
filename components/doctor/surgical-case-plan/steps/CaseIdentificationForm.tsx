@@ -5,12 +5,18 @@ import { Loader2, CheckCircle2, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { StepProps, Surgeon, Procedure } from './types';
+import { TeamSelectionPanel } from './TeamSelectionPanel';
 
 export interface CaseIdentificationFormProps extends StepProps {
+  isTheaterTech?: boolean;
   initialData?: {
     procedureDate: Date | null;
     surgeonId: string;
     surgeonIds?: string[];
+    assistantSurgeonIds?: string[];
+    anesthesiologistUserId?: string;
+    scrubNurseUserId?: string;
+    circulatingNurseUserId?: string;
     diagnosis: string;
     procedureCategory: string;
     primaryOrRevision: string;
@@ -25,23 +31,41 @@ export function CaseIdentificationForm({
   onError,
   initialData,
   onProceduresConfirmed,
+  isTheaterTech = false,
 }: CaseIdentificationFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [surgeons, setSurgeons] = useState<Surgeon[]>([]);
   const [isLoadingSurgeons, setIsLoadingSurgeons] = useState(true);
+  const [staffDoctors, setStaffDoctors] = useState<Array<{ id: string; fullName: string; email: string; role: string }>>([]);
+  const [staffNurses, setStaffNurses] = useState<Array<{ id: string; fullName: string; email: string; role: string }>>([]);
+  const [isLoadingStaff, setIsLoadingStaff] = useState(false);
   const [procedures, setProcedures] = useState<Procedure[]>([]);
   const [isLoadingProcedures, setIsLoadingProcedures] = useState(false);
+
+  const initialPrimary =
+    initialData?.surgeonId ||
+    initialData?.surgeonIds?.[0] ||
+    '';
+  const initialAssistants =
+    initialData?.assistantSurgeonIds && initialData.assistantSurgeonIds.length > 0
+      ? initialData.assistantSurgeonIds
+      : (initialData?.surgeonIds ?? []).filter((id) => id !== initialPrimary);
 
   const [formData, setFormData] = useState({
     procedureDate:
       initialData?.procedureDate?.toISOString().split('T')[0] ?? '',
-    surgeonIds: initialData?.surgeonIds ?? ([] as string[]),
-    surgeonId: initialData?.surgeonId ?? '',
+    primarySurgeonId: initialPrimary,
+    assistantSurgeonIds: initialAssistants ?? ([] as string[]),
+    anesthesiologistUserId: initialData?.anesthesiologistUserId ?? '',
+    scrubNurseUserId: initialData?.scrubNurseUserId ?? '',
+    circulatingNurseUserId: initialData?.circulatingNurseUserId ?? '',
     diagnosis: initialData?.diagnosis ?? '',
     procedureCategory: initialData?.procedureCategory ?? '',
     primaryOrRevision: initialData?.primaryOrRevision ?? '',
     procedureIds: initialData?.procedureIds ?? ([] as string[]),
   });
+
+  const isTeamLocked = !isTheaterTech && !!initialPrimary;
 
   // Fetch surgeons once
   useEffect(() => {
@@ -51,6 +75,31 @@ export function CaseIdentificationForm({
       .catch((err) => console.error('Error fetching surgeons:', err))
       .finally(() => setIsLoadingSurgeons(false));
   }, []);
+
+  // Fetch staff lists for theater-tech team selection
+  useEffect(() => {
+    if (!isTheaterTech) return;
+
+    const load = async () => {
+      setIsLoadingStaff(true);
+      try {
+        const [doctorsRes, nursesRes] = await Promise.all([
+          fetch('/api/theater-tech/staff?role=DOCTOR'),
+          fetch('/api/theater-tech/staff?role=NURSE'),
+        ]);
+        const doctorsJson = await doctorsRes.json();
+        const nursesJson = await nursesRes.json();
+        setStaffDoctors(doctorsJson?.data ?? []);
+        setStaffNurses(nursesJson?.data ?? []);
+      } catch (err) {
+        console.error('Error fetching staff:', err);
+      } finally {
+        setIsLoadingStaff(false);
+      }
+    };
+
+    load();
+  }, [isTheaterTech]);
 
   // Fetch procedures when category is available on mount or changes
   const fetchProcedures = useCallback(
@@ -110,8 +159,11 @@ export function CaseIdentificationForm({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             procedureDate: formData.procedureDate,
-            surgeonId: formData.surgeonIds[0] ?? formData.surgeonId,
-            surgeonIds: formData.surgeonIds,
+            primarySurgeonId: formData.primarySurgeonId,
+            assistantSurgeonIds: formData.assistantSurgeonIds,
+            anesthesiologistUserId: formData.anesthesiologistUserId || null,
+            scrubNurseUserId: formData.scrubNurseUserId || null,
+            circulatingNurseUserId: formData.circulatingNurseUserId || null,
             diagnosis: formData.diagnosis,
             procedureCategory: formData.procedureCategory,
             primaryOrRevision: formData.primaryOrRevision,
@@ -179,7 +231,58 @@ export function CaseIdentificationForm({
       {/* Surgeons */}
       <div>
         <p className="block text-sm font-medium text-slate-700 mb-2">
-          Select Surgeons <span className="text-rose-500">*</span>
+          Primary Surgeon <span className="text-rose-500">*</span>
+        </p>
+        {isTeamLocked && (
+          <p className="text-xs text-slate-500 mb-2">
+            Assigned during case planning (theater tech). Editing is locked.
+          </p>
+        )}
+        {isLoadingSurgeons ? (
+          <div className="flex items-center gap-2 py-2 text-slate-500">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Loading surgeons…</span>
+          </div>
+        ) : (
+          <div className="border rounded-lg p-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 md:max-h-64 overflow-y-auto">
+              {surgeons.map((surgeon) => (
+                <label
+                  key={surgeon.id}
+                  className="flex items-start gap-2 p-2.5 md:p-2 rounded hover:bg-slate-50 cursor-pointer touch-manipulation"
+                >
+                  <input
+                    type="radio"
+                    name="primarySurgeon"
+                    checked={formData.primarySurgeonId === surgeon.id}
+                    disabled={isTeamLocked}
+                    onChange={() =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        primarySurgeonId: surgeon.id,
+                        assistantSurgeonIds: prev.assistantSurgeonIds.filter((id) => id !== surgeon.id),
+                      }))
+                    }
+                    className="h-5 w-5 md:h-4 md:w-4 rounded-full border-slate-300 text-slate-800 focus:ring-slate-800 mt-0.5"
+                  />
+                  <div>
+                    <p className="text-sm font-medium">{surgeon.name}</p>
+                    <p className="text-xs text-slate-500">Primary surgeon</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+        {!formData.primarySurgeonId && (
+          <p className="text-xs text-rose-500 mt-1">Select a primary surgeon</p>
+        )}
+      </div>
+
+      {/* Assistant Surgeons */}
+      <div>
+        <p className="block text-sm font-medium text-slate-700 mb-2">
+          Assistant Surgeons <span className="text-slate-400 font-normal text-xs">(optional)</span>
         </p>
         {isLoadingSurgeons ? (
           <div className="flex items-center gap-2 py-2 text-slate-500">
@@ -188,35 +291,57 @@ export function CaseIdentificationForm({
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 md:max-h-64 overflow-y-auto border rounded-lg p-2">
-            {surgeons.map((surgeon) => (
-              <label
-                key={surgeon.id}
-                className="flex items-start gap-2 p-2.5 md:p-2 rounded hover:bg-slate-50 cursor-pointer touch-manipulation"
-              >
-                <input
-                  type="checkbox"
-                  checked={formData.surgeonIds.includes(surgeon.id)}
-                  onChange={() =>
-                    setFormData((prev) => {
-                      const ids = prev.surgeonIds.includes(surgeon.id)
-                        ? prev.surgeonIds.filter((id) => id !== surgeon.id)
-                        : [...prev.surgeonIds, surgeon.id];
-                      return { ...prev, surgeonIds: ids };
-                    })
-                  }
-                  className="h-5 w-5 md:h-4 md:w-4 rounded border-slate-300 text-slate-800 focus:ring-slate-800 mt-0.5"
-                />
-                <div>
-                  <p className="text-sm font-medium">{surgeon.name}</p>
-                </div>
-              </label>
-            ))}
+            {surgeons
+              .filter((s) => s.id !== formData.primarySurgeonId)
+              .map((surgeon) => (
+                <label
+                  key={surgeon.id}
+                  className="flex items-start gap-2 p-2.5 md:p-2 rounded hover:bg-slate-50 cursor-pointer touch-manipulation"
+                >
+                  <input
+                    type="checkbox"
+                    checked={formData.assistantSurgeonIds.includes(surgeon.id)}
+                    disabled={isTeamLocked}
+                    onChange={() =>
+                      setFormData((prev) => {
+                        const ids = prev.assistantSurgeonIds.includes(surgeon.id)
+                          ? prev.assistantSurgeonIds.filter((id) => id !== surgeon.id)
+                          : [...prev.assistantSurgeonIds, surgeon.id];
+                        return { ...prev, assistantSurgeonIds: ids };
+                      })
+                    }
+                    className="h-5 w-5 md:h-4 md:w-4 rounded border-slate-300 text-slate-800 focus:ring-slate-800 mt-0.5"
+                  />
+                  <div>
+                    <p className="text-sm font-medium">{surgeon.name}</p>
+                  </div>
+                </label>
+              ))}
           </div>
         )}
-        {formData.surgeonIds.length === 0 && (
-          <p className="text-xs text-rose-500 mt-1">Select at least one surgeon</p>
-        )}
       </div>
+
+      {/* Team Selection (Theater Tech) */}
+      {isTheaterTech && (
+        <TeamSelectionPanel
+          staffDoctors={staffDoctors}
+          staffNurses={staffNurses}
+          isLoading={isLoadingStaff}
+          value={{
+            anesthesiologistUserId: formData.anesthesiologistUserId,
+            scrubNurseUserId: formData.scrubNurseUserId,
+            circulatingNurseUserId: formData.circulatingNurseUserId,
+          }}
+          onChange={(next) =>
+            setFormData((p) => ({
+              ...p,
+              anesthesiologistUserId: next.anesthesiologistUserId,
+              scrubNurseUserId: next.scrubNurseUserId,
+              circulatingNurseUserId: next.circulatingNurseUserId,
+            }))
+          }
+        />
+      )}
 
       {/* Diagnosis */}
       <div>
@@ -434,7 +559,7 @@ export function CaseIdentificationForm({
           disabled={
             isLoading ||
             formData.procedureIds.length === 0 ||
-            formData.surgeonIds.length === 0
+            !formData.primarySurgeonId
           }
         >
           {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}

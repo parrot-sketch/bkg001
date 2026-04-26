@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { JwtMiddleware } from '@/lib/auth/middleware';
+import { Role } from '@/domain/enums/Role';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
@@ -16,12 +17,26 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (!authResult.success || !authResult.user) {
       return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
     }
+    if (authResult.user.role !== Role.THEATER_TECHNICIAN && authResult.user.role !== Role.ADMIN) {
+      return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
+    }
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
-    const search = searchParams.get('search') || '';
+    const search = (searchParams.get('search') || '').trim();
     const limit = 20;
     const skip = (page - 1) * limit;
+
+    // Privacy & performance: do not return the full patient registry without an explicit search.
+    if (search.length < 2) {
+      return NextResponse.json({
+        success: true,
+        data: [],
+        total: 0,
+        totalPages: 1,
+        page: 1,
+      });
+    }
 
     const where = search
       ? {
@@ -29,7 +44,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             { first_name: { contains: search, mode: 'insensitive' as const } },
             { last_name: { contains: search, mode: 'insensitive' as const } },
             { file_number: { contains: search, mode: 'insensitive' as const } },
-            { phone: { contains: search, mode: 'insensitive' as const } },
           ],
         }
       : {};
@@ -42,7 +56,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           first_name: true,
           last_name: true,
           file_number: true,
-          phone: true,
           date_of_birth: true,
           gender: true,
         },

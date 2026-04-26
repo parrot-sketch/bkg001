@@ -16,6 +16,7 @@ import { useUpdateStaff } from '@/hooks/staff/useStaff';
 import type { UserResponseDto } from '@/application/dtos/UserResponseDto';
 import type { CreateStaffDto } from '@/application/dtos/CreateStaffDto';
 import { Role } from '@/domain/enums/Role';
+import { ADMIN_MANAGED_ROLES, DOCTOR_SPECIALIZATION_PRESETS, ROLE_LABELS } from '@/features/admin/staff/staffRoles';
 
 interface UpdateStaffDialogProps {
   open: boolean;
@@ -27,22 +28,26 @@ interface UpdateStaffDialogProps {
 export function UpdateStaffDialog({ open, onOpenChange, onSuccess, staff }: UpdateStaffDialogProps) {
   const [formData, setFormData] = useState<Partial<CreateStaffDto>>({
     email: staff.email,
-    role: staff.role,
+    role: staff.role as CreateStaffDto['role'],
     firstName: staff.firstName || '',
     lastName: staff.lastName || '',
     phone: staff.phone || '',
     password: '',
+    doctorSpecialization: staff.doctorSpecialization || (staff.role === Role.DOCTOR ? 'General Practice' : undefined),
+    allowAdmin: false,
   });
 
   useEffect(() => {
     if (open) {
       setFormData({
         email: staff.email,
-        role: staff.role,
+        role: staff.role as CreateStaffDto['role'],
         firstName: staff.firstName || '',
         lastName: staff.lastName || '',
         phone: staff.phone || '',
         password: '',
+        doctorSpecialization: staff.doctorSpecialization || (staff.role === Role.DOCTOR ? 'General Practice' : undefined),
+        allowAdmin: false,
       });
     }
   }, [open, staff]);
@@ -55,14 +60,31 @@ export function UpdateStaffDialog({ open, onOpenChange, onSuccess, staff }: Upda
       toast.error('Email and role are required');
       return;
     }
+
+    const roleChangeInvolvesAdmin =
+      (staff.role === Role.ADMIN && formData.role !== Role.ADMIN) ||
+      (staff.role !== Role.ADMIN && formData.role === Role.ADMIN);
+    if (roleChangeInvolvesAdmin && !formData.allowAdmin) {
+      toast.error('Confirm admin role change to proceed');
+      return;
+    }
+
     const updates: Partial<CreateStaffDto> = {
       email: formData.email,
       role: formData.role,
       firstName: formData.firstName || undefined,
       lastName: formData.lastName || undefined,
       phone: formData.phone || undefined,
+      doctorSpecialization: formData.role === Role.DOCTOR ? (formData.doctorSpecialization || undefined) : undefined,
+      allowAdmin: roleChangeInvolvesAdmin ? true : undefined,
     };
-    if (formData.password?.trim()) updates.password = formData.password;
+    if (formData.password?.trim()) {
+      if (formData.password.trim().length < 8) {
+        toast.error('Password must be at least 8 characters');
+        return;
+      }
+      updates.password = formData.password;
+    }
 
     try {
       await updateMutation.mutateAsync({ id: staff.id, updates });
@@ -130,19 +152,69 @@ export function UpdateStaffDialog({ open, onOpenChange, onSuccess, staff }: Upda
                 <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Institutional Role *</Label>
                 <Select
                   value={formData.role}
-                  onValueChange={(val) => setFormData({ ...formData, role: val as Role })}
+                  onValueChange={(val) => {
+                    const nextRole = val as CreateStaffDto['role'];
+                    setFormData((prev) => ({
+                      ...prev,
+                      role: nextRole,
+                      doctorSpecialization:
+                        nextRole === Role.DOCTOR ? (prev.doctorSpecialization || 'General Practice') : undefined,
+                      allowAdmin: false,
+                    }));
+                  }}
                   disabled={updateMutation.isPending}
                 >
                   <SelectTrigger className="rounded-xl border-slate-200 bg-slate-50/50 h-10">
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl">
-                    <SelectItem value={Role.DOCTOR} className="rounded-lg">Surgeon / Doctor</SelectItem>
-                    <SelectItem value={Role.NURSE} className="rounded-lg">Clinical Nurse</SelectItem>
-                    <SelectItem value={Role.FRONTDESK} className="rounded-lg">Frontdesk / Coordinator</SelectItem>
+                    {ADMIN_MANAGED_ROLES.map((r) => (
+                      <SelectItem key={r} value={r} className="rounded-lg">
+                        {r === Role.DOCTOR ? 'Doctor (Surgeon/Anaesthesiologist)' : (ROLE_LABELS[r] || r)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
+
+              {formData.role === Role.DOCTOR && (
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Doctor Specialization</Label>
+                  <Select
+                    value={formData.doctorSpecialization || 'General Practice'}
+                    onValueChange={(val) => setFormData({ ...formData, doctorSpecialization: val })}
+                    disabled={updateMutation.isPending}
+                  >
+                    <SelectTrigger className="rounded-xl border-slate-200 bg-slate-50/50 h-10">
+                      <SelectValue placeholder="Select specialization" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      {DOCTOR_SPECIALIZATION_PRESETS.map((s) => (
+                        <SelectItem key={s} value={s} className="rounded-lg">{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {((staff.role === Role.ADMIN && formData.role !== Role.ADMIN) || (staff.role !== Role.ADMIN && formData.role === Role.ADMIN)) && (
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-rose-600 uppercase tracking-wider">Admin Safety</Label>
+                  <label className="flex items-start gap-3 rounded-2xl border border-rose-100 bg-rose-50/50 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4"
+                      checked={!!formData.allowAdmin}
+                      onChange={(e) => setFormData({ ...formData, allowAdmin: e.target.checked })}
+                      disabled={updateMutation.isPending}
+                    />
+                    <span className="text-sm font-medium text-rose-700">
+                      I confirm this role change should grant/remove administrator access.
+                    </span>
+                  </label>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   New Password <span className="font-medium text-slate-400 normal-case">(leave blank to keep)</span>
@@ -150,7 +222,7 @@ export function UpdateStaffDialog({ open, onOpenChange, onSuccess, staff }: Upda
                 <Input
                   type="password"
                   className="rounded-xl border-slate-200 bg-slate-50/50"
-                  placeholder="Enter new password to change"
+                  placeholder="Min. 8 characters"
                   value={formData.password || ''}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   disabled={updateMutation.isPending}

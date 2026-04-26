@@ -24,6 +24,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface DashboardStats {
   total: number;
@@ -50,6 +51,21 @@ interface RecentCase {
   primary_surgeon: {
     name: string;
   } | null;
+}
+
+interface RecentConsultation {
+  consultationId: number;
+  updatedAt: string;
+  completedAt: string | null;
+  patient: {
+    first_name: string;
+    last_name: string;
+    file_number: string | null;
+  };
+  doctor: {
+    name: string;
+  };
+  casePlan: { id: number; readinessStatus: string; readyForSurgery: boolean; updatedAt: string } | null;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
@@ -80,16 +96,21 @@ export default function TheaterTechDashboard() {
     completed: 0,
   });
   const [recentCases, setRecentCases] = useState<RecentCase[]>([]);
+  const [recentConsultations, setRecentConsultations] = useState<RecentConsultation[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const res = await fetch('/api/theater-tech/surgical-cases');
-        const data = await res.json();
-        
-        if (data.success && data.data) {
-          const cases = data.data as RecentCase[];
+        const [casesRes, consultationsRes] = await Promise.all([
+          fetch('/api/theater-tech/surgical-cases'),
+          fetch('/api/theater-tech/recent-consultations?recent=1'),
+        ]);
+        const casesJson = await casesRes.json();
+        const consultationsJson = await consultationsRes.json();
+
+        if (casesJson.success && casesJson.data) {
+          const cases = casesJson.data as RecentCase[];
           
           const newStats: DashboardStats = {
             total: cases.length,
@@ -105,6 +126,13 @@ export default function TheaterTechDashboard() {
           
           setStats(newStats);
           setRecentCases(cases.slice(0, 5));
+        }
+
+        if (consultationsJson.success && consultationsJson.data) {
+          const consultations = consultationsJson.data as RecentConsultation[];
+          setRecentConsultations(consultations.slice(0, 5));
+        } else {
+          setRecentConsultations([]);
         }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -223,52 +251,122 @@ export default function TheaterTechDashboard() {
               <CardTitle className="text-base">Quick Actions</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-1">
             <Button
-              variant="outline"
-              className="w-full justify-start h-11"
+              size="sm"
+              variant="ghost"
+              className="w-full justify-start h-9"
               onClick={() => router.push('/theater-tech/dayboard')}
             >
               <LayoutDashboard className="h-4 w-4 mr-3" />
               <span className="flex-1 text-left">Operations Dayboard</span>
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </Button>
             <Button
-              variant="outline"
-              className="w-full justify-start h-11"
+              size="sm"
+              variant="ghost"
+              className="w-full justify-start h-9"
               onClick={() => router.push('/theater-tech/patients')}
             >
               <Users className="h-4 w-4 mr-3" />
               <span className="flex-1 text-left">New Surgical Case</span>
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </Button>
             <Button
-              variant="outline"
-              className="w-full justify-start h-11"
-              onClick={() => router.push('/theater-tech/patients')}
+              size="sm"
+              variant="ghost"
+              className="w-full justify-start h-9"
+              onClick={() => router.push('/theater-tech/recent-consultations')}
             >
               <Stethoscope className="h-4 w-4 mr-3" />
-              <span className="flex-1 text-left">From Patients</span>
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              <span className="flex-1 text-left">Recent Consultations</span>
             </Button>
             <Button
-              variant="outline"
-              className="w-full justify-start h-11"
+              size="sm"
+              variant="ghost"
+              className="w-full justify-start h-9"
               onClick={() => router.push('/theater-tech/surgical-cases')}
             >
               <ClipboardList className="h-4 w-4 mr-3" />
               <span className="flex-1 text-left">All Cases</span>
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </Button>
             <Button
-              variant="outline"
-              className="w-full justify-start h-11"
+              size="sm"
+              variant="ghost"
+              className="w-full justify-start h-9"
               onClick={() => router.push('/theater-tech/inventory/items')}
             >
               <Package className="h-4 w-4 mr-3" />
               <span className="flex-1 text-left">Inventory</span>
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="md:col-span-2">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Recent Consultations</CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push('/theater-tech/recent-consultations')}
+              >
+                View All
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+            <CardDescription>Completed consultations across the system</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {recentConsultations.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Stethoscope className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p>No recent consultations yet</p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Patient</TableHead>
+                    <TableHead>Surgeon</TableHead>
+                    <TableHead className="w-[120px]">Plan</TableHead>
+                    <TableHead className="w-[150px] text-right">Updated</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {recentConsultations.map((c) => (
+                    <TableRow
+                      key={c.consultationId}
+                      className="cursor-pointer"
+                      onClick={() => router.push('/theater-tech/recent-consultations')}
+                    >
+                      <TableCell className="py-3">
+                        <div className="text-sm font-medium">
+                          {c.patient.first_name} {c.patient.last_name}
+                        </div>
+                        {c.patient.file_number ? (
+                          <div className="text-xs font-mono text-muted-foreground">{c.patient.file_number}</div>
+                        ) : null}
+                      </TableCell>
+                      <TableCell className="py-3 text-sm text-slate-800">{c.doctor.name}</TableCell>
+                      <TableCell className="py-3">
+                        <span
+                          className={cn(
+                            'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-normal border',
+                            c.casePlan?.readyForSurgery
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                              : 'border-slate-200 bg-slate-50 text-slate-700',
+                          )}
+                        >
+                          {c.casePlan?.readyForSurgery ? 'Ready' : c.casePlan?.readinessStatus || 'None'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="py-3 text-right text-xs text-muted-foreground">
+                        {format(new Date(c.updatedAt), 'MMM d')}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
 

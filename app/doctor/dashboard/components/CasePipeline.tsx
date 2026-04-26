@@ -66,16 +66,16 @@ export function CasePipeline({ isLoading }: CasePipelineProps) {
   const handleCaseAction = (caseId: string, tab: TabValue) => {
     switch (tab) {
       case 'planning':
-        router.push(`/doctor/surgical-cases/${caseId}?tab=case-plan`);
+        router.push(`/doctor/surgical-cases/${caseId}/case-plan`);
         break;
       case 'scheduled':
-        router.push(`/doctor/surgical-cases/${caseId}`);
+        router.push(`/doctor/surgical-cases/${caseId}/case-plan`);
         break;
       case 'theater':
-        router.push(`/doctor/surgical-cases/${caseId}?tab=surgical-notes`);
+        router.push(`/doctor/surgical-cases/${caseId}/surgical-notes`);
         break;
       case 'recovery':
-        router.push(`/doctor/surgical-cases/${caseId}`);
+        router.push(`/doctor/surgical-cases/${caseId}/case-plan`);
         break;
     }
   };

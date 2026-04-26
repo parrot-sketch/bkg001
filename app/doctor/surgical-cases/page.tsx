@@ -137,7 +137,7 @@ export default function DoctorSurgicalCasesPage() {
     }, []);
 
     const navigateToCase = useCallback(
-        (caseId: string) => router.push(`/doctor/surgical-cases/${caseId}`),
+        (caseId: string) => router.push(`/doctor/surgical-cases/${caseId}/case-plan`),
         [router],
     );
 
@@ -362,15 +362,15 @@ export default function DoctorSurgicalCasesPage() {
                                                     <DropdownMenuContent align="end" className="w-44">
                                                         <DropdownMenuLabel className="text-xs">Jump to</DropdownMenuLabel>
                                                         <DropdownMenuSeparator />
-                                                        <DropdownMenuItem onClick={() => router.push(`/doctor/surgical-cases/${sc.id}?tab=case-plan`)}>
+                                                        <DropdownMenuItem onClick={() => router.push(`/doctor/surgical-cases/${sc.id}/case-plan`)}>
                                                             <ClipboardList className="h-3.5 w-3.5 mr-2" />
                                                             Case Plan
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => router.push(`/doctor/surgical-cases/${sc.id}?tab=surgical-notes`)}>
+                                                        <DropdownMenuItem onClick={() => router.push(`/doctor/surgical-cases/${sc.id}/surgical-notes`)}>
                                                             <FileText className="h-3.5 w-3.5 mr-2" />
                                                             Surgical Notes
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => router.push(`/doctor/surgical-cases/${sc.id}?tab=charge-sheet`)}>
+                                                        <DropdownMenuItem onClick={() => router.push(`/doctor/surgical-cases/${sc.id}/charge-sheet`)}>
                                                             <Receipt className="h-3.5 w-3.5 mr-2" />
                                                             Charge Sheet
                                                         </DropdownMenuItem>

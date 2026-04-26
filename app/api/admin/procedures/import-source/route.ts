@@ -6,9 +6,20 @@
 
 import { NextResponse } from 'next/server';
 import { readFileSync, existsSync } from 'fs';
+import { NextRequest } from 'next/server';
+import { JwtMiddleware } from '@/lib/auth/middleware';
+import { Role } from '@/domain/enums/Role';
 
-export async function GET(): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
+    const authResult = await JwtMiddleware.authenticate(request);
+    if (!authResult.success || !authResult.user) {
+      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    }
+    if (authResult.user.role !== Role.ADMIN && authResult.user.role !== Role.THEATER_TECHNICIAN) {
+      return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
+    }
+
     const filePath = process.cwd() + '/NS REVENUE.xlsx';
     
     if (!existsSync(filePath)) {

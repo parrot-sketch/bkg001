@@ -88,6 +88,14 @@ const optionalTime = z
     .optional()
     .or(z.literal(''));
 
+// YYYY-MM-DD date pattern (header "DATE")
+const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+const optionalDate = z
+    .string()
+    .regex(datePattern, 'Must be in YYYY-MM-DD format')
+    .optional()
+    .or(z.literal(''));
+
 // ──────────────────────────────────────────────────────────────────────
 // Skin Prep Sub-Schema
 // ──────────────────────────────────────────────────────────────────────
@@ -144,6 +152,8 @@ export type UrinalysisValue = z.infer<typeof urinalysisValueSchema>;
 // ──────────────────────────────────────────────────────────────────────
 
 export const documentationSchema = z.object({
+    /** Paper item: "WARD CHECKLIST" */
+    wardChecklist: z.boolean().optional().default(false),
     documentationComplete: z.boolean(),
     correctConsent: z.boolean(),
 });
@@ -192,20 +202,26 @@ export const UECS_LABELS: Record<UecsValue, string> = {
 };
 
 export const bloodResultsSchema = z.object({
-    hbPcv: z.string().optional().default(''),
-    hbPcvNotes: z.string().optional().default(''),
+    /** Paper item: "BLOOD/RESULTS (Hb, UECs, X-Match)" tick */
+    bloodResultsChecked: z.boolean().optional().default(false),
+    hb: z.string().optional().default(''),
     uecs: z.string().optional().default(''),
-    uecsNotes: z.string().optional().default(''),
     xMatchUnitsAvailable: z.number().int().min(0).optional(),
-    otherLabResults: z.string().optional().default(''),
 });
 
 export const medicationsSchema = z.object({
-    preMedGiven: z.boolean(),
+    // Paper requires free-text medication fields. Keep legacy booleans for backward compat.
+    preMedicationText: z.string().optional().default(''),
+    periOpMedicationText: z.string().optional().default(''),
+    regularMedicationText: z.string().optional().default(''),
+
+    // Legacy flags (not on paper form). Optional so they don't block completion/finalization.
+    preMedGiven: z.boolean().optional().default(false),
     preMedDetails: z.string().optional().default(''),
     preMedTimeGiven: optionalTime.default(''),
     periOpMedsGiven: z.boolean().optional().default(false),
     periOpMedsDetails: z.string().optional().default(''),
+    periOpMedsTimeGiven: optionalTime.default(''),
     regularMedsGiven: z.boolean().optional().default(false),
     regularMedsDetails: z.string().optional().default(''),
     regularMedsTimeGiven: optionalTime.default(''),
@@ -213,6 +229,8 @@ export const medicationsSchema = z.object({
 
 export const allergiesNpoSchema = z.object({
     allergiesDocumented: z.boolean(),
+    // Paper: "ALLERGIES (STATE IN RED)" — required at finalization.
+    // NOTE: red rendering/enforcement is a UI + print constraint; schema ensures presence.
     allergiesDetails: z.string().optional().default(''),
     npoStatus: z.boolean(),
     npoFastedFromTime: optionalTime.default(''),
@@ -234,6 +252,8 @@ export const prostheticsSchema = z.object({
     contactLensRemoved: z.boolean().optional().default(false),
     denturesRemoved: z.boolean().optional().default(false),
     hearingAidRemoved: z.boolean().optional().default(false),
+    /** Paper: "Hearing Aid/Limbs" */
+    limbsProsthesisNoted: z.boolean().optional().default(false),
     crownsBridgeworkNoted: z.boolean().optional().default(false),
     prostheticNotes: z.string().optional().default(''),
 });
@@ -243,16 +263,48 @@ export const vitalsSchema = z.object({
     bpDiastolic: z.number().int().min(30, 'BP diastolic must be ≥ 30').max(160, 'BP diastolic must be ≤ 160'),
     pulse: z.number().int().min(30, 'Pulse must be ≥ 30').max(220, 'Pulse must be ≤ 220'),
     respiratoryRate: z.number().int().min(6, 'RR must be ≥ 6').max(120, 'RR must be ≤ 120'),
+    /** Paper: CVP */
+    cvp: z.string().optional().default(''),
     temperature: z.number().min(34.0, 'Temp must be ≥ 34°C').max(42.0, 'Temp must be ≤ 42°C'),
     /** SpO₂ (peripheral oxygen saturation) — optional at finalization */
     spo2: z.number().int().min(50, 'SpO₂ must be ≥ 50%').max(100, 'SpO₂ must be ≤ 100%').optional(),
     bladderEmptied: z.boolean(),
+    /** Paper: Foetal Heart Rate */
+    foetalHeartRate: z.number().int().min(30).max(260).optional(),
+    foetalHeartRateNotes: z.string().optional().default(''),
     height: z.number().min(50).max(250).optional(),
     weight: z.number().min(2, 'Weight must be ≥ 2 kg').max(350, 'Weight must be ≤ 350 kg'),
+    /** Paper: Urinalysis Done (tick) */
+    urinalysisDone: z.boolean().optional().default(false),
     /** Structured urinalysis result */
     urinalysis: urinalysisValueSchema.optional(),
-    xRaysScansPresent: z.boolean().optional().default(false),
     otherFormsRequired: z.string().optional().default(''),
+});
+
+export const headerSchema = z.object({
+    /** Paper header field: DATE */
+    date: optionalDate.default(''),
+    /** Paper header: NURSING: ACTION/COMMENTS/OBSERVATIONS */
+    nursingComments: z.string().optional().default(''),
+});
+
+export const signatureValueSchema = z.object({
+    signerName: z.string().min(2, 'Signer name is required'),
+    // For server-side signatures this may be generated as an SVG data URL.
+    signatureDataUrl: z.string().optional().default(''),
+    signedAt: z.string().datetime().optional(),
+    signerUserId: z.string().optional(),
+    proof: z
+        .object({
+            version: z.literal(1),
+            algorithm: z.literal('sha256'),
+            hash: z.string().min(1),
+            signedByUserId: z.string().min(1),
+            signedAt: z.string().datetime(),
+            userAgent: z.string().optional(),
+            ip: z.string().optional(),
+        })
+        .optional(),
 });
 
 export const handoverSchema = z.object({
@@ -260,6 +312,9 @@ export const handoverSchema = z.object({
     timeArrivedInTheatre: optionalTime.default(''),
     receivedByName: z.string().optional().default(''),
     handedOverByName: z.string().optional().default(''),
+    preparedBySignature: signatureValueSchema.optional(),
+    receivedBySignature: signatureValueSchema.optional(),
+    handedOverBySignature: signatureValueSchema.optional(),
 });
 
 // ──────────────────────────────────────────────────────────────────────
@@ -270,6 +325,7 @@ export const handoverSchema = z.object({
  * Draft schema — all sections optional (allows partial saves).
  */
 export const nursePreopWardChecklistDraftSchema = z.object({
+    header: headerSchema.partial().optional().default({}),
     documentation: documentationSchema.partial().optional().default({}),
     bloodResults: bloodResultsSchema.partial().optional().default({}),
     medications: medicationsSchema.partial().optional().default({}),
@@ -285,10 +341,27 @@ export const nursePreopWardChecklistDraftSchema = z.object({
  * Used at finalization to ensure the checklist is complete.
  */
 export const nursePreopWardChecklistFinalSchema = z.object({
+    header: headerSchema.superRefine((val, ctx) => {
+        if (!val.date || val.date.trim().length < 10) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['date'],
+                message: 'Date is required',
+            });
+        }
+    }),
     documentation: documentationSchema,
     bloodResults: bloodResultsSchema,
     medications: medicationsSchema,
-    allergiesNpo: allergiesNpoSchema,
+    allergiesNpo: allergiesNpoSchema.superRefine((val, ctx) => {
+        if (!val.allergiesDetails || val.allergiesDetails.trim().length < 1) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['allergiesDetails'],
+                message: 'Allergies field is required',
+            });
+        }
+    }),
     preparation: preparationSchema,
     prosthetics: prostheticsSchema,
     vitals: vitalsSchema,
@@ -369,9 +442,38 @@ export function normalizeLegacyChecklistData(raw: unknown): NursePreopWardCheckl
         }
     }
 
+    const bloodResults = (() => {
+        const b = (data.bloodResults ?? {}) as Record<string, unknown>;
+        const hb = typeof b.hb === 'string' ? b.hb : '';
+        const legacyHbPcv = typeof b.hbPcv === 'string' ? b.hbPcv : '';
+        return {
+            ...b,
+            hb: hb || legacyHbPcv,
+        };
+    })();
+
     return {
         ...data,
         vitals,
+        bloodResults,
+        medications: (() => {
+            const m = (data.medications ?? {}) as Record<string, unknown>;
+            const preMedicationText = typeof m.preMedicationText === 'string' ? m.preMedicationText : '';
+            const periOpMedicationText = typeof m.periOpMedicationText === 'string' ? m.periOpMedicationText : '';
+            const regularMedicationText = typeof m.regularMedicationText === 'string' ? m.regularMedicationText : '';
+
+            // If new fields are empty but legacy detail fields exist, preserve in the new text areas.
+            const legacyPre = typeof m.preMedDetails === 'string' ? m.preMedDetails : '';
+            const legacyPeri = typeof m.periOpMedsDetails === 'string' ? m.periOpMedsDetails : '';
+            const legacyReg = typeof m.regularMedsDetails === 'string' ? m.regularMedsDetails : '';
+
+            return {
+                ...m,
+                preMedicationText: preMedicationText || legacyPre,
+                periOpMedicationText: periOpMedicationText || legacyPeri,
+                regularMedicationText: regularMedicationText || legacyReg,
+            };
+        })(),
     } as NursePreopWardChecklistDraft;
 }
 
@@ -400,6 +502,7 @@ export function getMissingChecklistItems(data: Partial<NursePreopWardChecklistDr
  */
 export function getSectionCompletion(data: Partial<NursePreopWardChecklistDraft> | Record<string, unknown>): Record<string, { complete: boolean; errors: string[] }> {
     const schemas: Record<string, z.ZodTypeAny> = {
+        header: headerSchema,
         documentation: documentationSchema,
         bloodResults: bloodResultsSchema,
         medications: medicationsSchema,

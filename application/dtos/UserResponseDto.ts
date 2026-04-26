@@ -16,6 +16,7 @@ export interface UserResponseDto {
   readonly firstName?: string;
   readonly lastName?: string;
   readonly phone?: string;
+  readonly doctorSpecialization?: string;
   readonly mfaEnabled: boolean;
   readonly lastLoginAt?: Date;
   readonly createdAt?: Date;

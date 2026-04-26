@@ -65,10 +65,19 @@ async function getSurgicalCaseWithPatient(caseId: string) {
                     last_name: true,
                     file_number: true,
                     allergies: true,
+                    date_of_birth: true,
+                    gender: true,
                 },
             },
             primary_surgeon: {
                 select: { name: true },
+            },
+            staff_invites: {
+                select: {
+                    status: true,
+                    invited_role: true,
+                    invited_user: { select: { first_name: true, last_name: true } },
+                },
             },
             case_plan: {
                 select: {
@@ -86,6 +95,32 @@ async function getSurgicalCaseWithPatient(caseId: string) {
             },
         },
     });
+}
+
+function getInviteDisplayName(invite: { invited_user: { first_name: string | null; last_name: string | null } | null }) {
+    const userName = invite.invited_user
+        ? `${invite.invited_user.first_name || ''} ${invite.invited_user.last_name || ''}`.trim()
+        : '';
+    return userName || '—';
+}
+
+function getAnaesthesiologistName(
+    invites:
+        | Array<{
+              status: string;
+              invited_role: string;
+              invited_user: { first_name: string | null; last_name: string | null } | null;
+          }>
+        | undefined,
+): string | null {
+    if (!invites?.length) return null;
+    const matchesRole = (i: { invited_role: string }) =>
+        i.invited_role === 'ANESTHESIOLOGIST' || i.invited_role === 'ANESTHETIST_NURSE';
+    const ana =
+        invites.find((i) => matchesRole(i) && i.status === 'ACCEPTED') ??
+        invites.find((i) => matchesRole(i));
+    if (!ana) return null;
+    return getInviteDisplayName(ana) || null;
 }
 
 function mapResponseDto(response: {
@@ -184,6 +219,10 @@ export async function GET(
 
             // Create empty DRAFT with enhanced pre-population
             const emptyData = {
+                header: {
+                    date: new Date().toISOString().slice(0, 10), // YYYY-MM-DD
+                    nursingComments: '',
+                },
                 documentation: {},
                 bloodResults: {},
                 medications: {},
@@ -227,6 +266,7 @@ export async function GET(
         }
 
         timer.end({ caseId });
+        const anaesthesiologistName = getAnaesthesiologistName(surgicalCase.staff_invites);
         return NextResponse.json({
             success: true,
             data: {
@@ -236,6 +276,7 @@ export async function GET(
                 procedureName: surgicalCase.procedure_name,
                 side: surgicalCase.side,
                 surgeonName: surgicalCase.primary_surgeon?.name,
+                anaesthesiologistName,
                 casePlan: surgicalCase.case_plan,
             },
         });

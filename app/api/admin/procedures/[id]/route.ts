@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import db from '@/lib/db';
+import { Role } from '@/domain/enums/Role';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
+    const authResult = await JwtMiddleware.authenticate(request);
+    if (!authResult.success || !authResult.user) {
+      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    }
+    if (authResult.user.role !== Role.ADMIN && authResult.user.role !== Role.THEATER_TECHNICIAN) {
+      return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
+    }
+
     const { id } = await params;
 
     const procedure = await db.surgicalProcedureOption.findUnique({
@@ -53,6 +62,9 @@ export async function PUT(
     
     if (!authResult.success || !authResult.user) {
       return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    }
+    if (authResult.user.role !== Role.ADMIN && authResult.user.role !== Role.THEATER_TECHNICIAN) {
+      return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
     }
 
     const { id } = await params;
@@ -138,6 +150,9 @@ export async function DELETE(
     
     if (!authResult.success || !authResult.user) {
       return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    }
+    if (authResult.user.role !== Role.ADMIN && authResult.user.role !== Role.THEATER_TECHNICIAN) {
+      return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
     }
 
     const { id } = await params;

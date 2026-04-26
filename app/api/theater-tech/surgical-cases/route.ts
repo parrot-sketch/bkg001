@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import db from '@/lib/db';
+import { createSurgicalCaseFromPatient } from '@/application/services/theater-tech/CreateSurgicalCaseFromPatientService';
 
 /**
  * GET /api/theater-tech/surgical-cases
@@ -84,76 +85,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!patientId) {
       return NextResponse.json({ success: false, error: 'Patient ID required' }, { status: 400 });
     }
-
-    const patient = await db.patient.findUnique({
-      where: { id: patientId },
-      select: { id: true, first_name: true, last_name: true },
+    const primarySurgeonDoctorId: string | undefined = typeof surgeonId === 'string' && surgeonId.trim() ? surgeonId.trim() : undefined;
+    const created = await createSurgicalCaseFromPatient(db, {
+      patientId,
+      createdByUserId: authResult.user.userId,
+      primarySurgeonDoctorId,
     });
-
-    if (!patient) {
-      return NextResponse.json({ success: false, error: 'Patient not found' }, { status: 404 });
-    }
-
-    const primarySurgeonId: string | undefined = surgeonId || undefined;
-
-    // Create the surgical case - only include primary_surgeon_id if provided
-    const surgicalCase = await db.surgicalCase.create({
-      data: {
-        patient_id: patientId,
-        ...(primarySurgeonId && { primary_surgeon_id: primarySurgeonId }),
-        status: 'DRAFT',
-        created_by: authResult.user.userId,
-      },
-    });
-
-    // ── If a surgeon was specified at creation time, bootstrap the invite ────
-    if (primarySurgeonId) {
-      const doctor = await db.doctor.findUnique({
-        where: { id: primarySurgeonId },
-        select: { user_id: true, name: true },
-      });
-
-      if (doctor?.user_id) {
-        const patientName = `${patient.first_name} ${patient.last_name}`;
-        const invitorUserId = authResult.user.userId;
-
-        // Create ACCEPTED StaffInvite so the case surfaces on the doctor's list
-        await db.staffInvite.create({
-          data: {
-            surgical_case_id: surgicalCase.id,
-            invited_user_id: doctor.user_id,
-            invited_role: 'SURGEON' as any,
-            invited_by_user_id: invitorUserId,
-            status: 'ACCEPTED' as any,
-            acknowledged_at: new Date(),
-          },
-        });
-
-        // Send an IN_APP notification
-        await db.notification.create({
-          data: {
-            user_id: doctor.user_id,
-            sender_id: invitorUserId,
-            type: 'IN_APP',
-            status: 'PENDING',
-            subject: 'New Surgical Case',
-            message: `A new surgical case has been created for patient ${patientName} and assigned to you.`,
-            metadata: JSON.stringify({
-              surgicalCaseId: surgicalCase.id,
-              patientName,
-              role: 'SURGEON',
-              event: 'SURGICAL_CASE_ASSIGNMENT'
-            }),
-          },
-        });
-      }
-    }
 
     return NextResponse.json({
       success: true,
-      surgicalCaseId: surgicalCase.id,
+      surgicalCaseId: created.surgicalCaseId,
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to create case';
+    if (message === 'Patient not found') {
+      return NextResponse.json({ success: false, error: message }, { status: 404 });
+    }
+    if (message === 'Patient ID required' || message === 'Invalid appointment ID') {
+      return NextResponse.json({ success: false, error: message }, { status: 400 });
+    }
     console.error('Error creating surgical case:', error);
     return NextResponse.json({ success: false, error: 'Failed to create case' }, { status: 500 });
   }

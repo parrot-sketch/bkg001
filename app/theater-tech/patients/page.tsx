@@ -9,7 +9,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, User, Scissors, ChevronLeft, ChevronRight, Phone, FileText } from 'lucide-react';
+import { Search, User, Scissors, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,12 +22,9 @@ interface Patient {
   first_name: string;
   last_name: string;
   file_number: string | null;
-  phone: string | null;
   date_of_birth: string | null;
   gender: string | null;
 }
-
-const PAGE_SIZE = 15;
 
 export default function TheaterTechPatientsPage() {
   const router = useRouter();
@@ -40,18 +37,30 @@ export default function TheaterTechPatientsPage() {
 
   useEffect(() => {
     const fetchPatients = async () => {
+      const q = searchQuery.trim();
+      if (q.length < 2) {
+        setPatients([]);
+        setTotalPages(1);
+        setPage(1);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
         const res = await fetch(
-          `/api/theater-tech/patients?page=${page}&search=${encodeURIComponent(searchQuery)}`
+          `/api/theater-tech/patients?page=${page}&search=${encodeURIComponent(q)}`
         );
         const data = await res.json();
         if (data.success) {
           setPatients(data.data || []);
           setTotalPages(data.totalPages || 1);
+        } else {
+          throw new Error(data.error || 'Failed to fetch patients');
         }
       } catch (error) {
         console.error('Error fetching patients:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to fetch patients');
       } finally {
         setLoading(false);
       }
@@ -90,10 +99,10 @@ export default function TheaterTechPatientsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold text-slate-900">Patients</h1>
-          <p className="text-sm text-slate-500">Select patient for surgical planning</p>
+          <p className="text-sm text-slate-500">Search for a patient to start surgical planning</p>
         </div>
         <Badge variant="outline" className="text-xs">
-          {patients.length} records
+          {searchQuery.trim().length < 2 ? 'Search required' : `${patients.length} results`}
         </Badge>
       </div>
 
@@ -122,7 +131,9 @@ export default function TheaterTechPatientsPage() {
             </div>
           ) : patients.length === 0 ? (
             <div className="text-center py-12 text-slate-500">
-              {searchQuery ? 'No patients match your search' : 'No patients found'}
+              {searchQuery.trim().length < 2
+                ? 'Type at least 2 characters to search patients.'
+                : 'No patients match your search.'}
             </div>
           ) : (
             <div className="w-full">
@@ -133,12 +144,17 @@ export default function TheaterTechPatientsPage() {
                     <tr>
                       <th className="text-left text-xs font-medium text-slate-500 px-4 py-2.5">Patient</th>
                       <th className="text-left text-xs font-medium text-slate-500 px-4 py-2.5">File #</th>
-                      <th className="text-left text-xs font-medium text-slate-500 px-4 py-2.5 hidden lg:table-cell">Contact</th>
+                      <th className="text-left text-xs font-medium text-slate-500 px-4 py-2.5">Age / Sex</th>
                       <th className="text-right text-xs font-medium text-slate-500 px-4 py-2.5">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {patients.map((patient) => (
+                    {patients.map((patient) => {
+                      const age = patient.date_of_birth
+                        ? Math.floor((Date.now() - new Date(patient.date_of_birth).getTime()) / (365.25 * 86400000))
+                        : null;
+                      const sex = patient.gender ? patient.gender.toUpperCase() : '—';
+                      return (
                       <tr key={patient.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-4 py-2.5">
                           <div className="flex items-center gap-2.5">
@@ -158,11 +174,10 @@ export default function TheaterTechPatientsPage() {
                             <span className="text-sm">{patient.file_number || '—'}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-2.5 hidden lg:table-cell">
-                          <div className="flex items-center gap-1.5 text-slate-500">
-                            <Phone className="h-3.5 w-3.5" />
-                            <span className="text-sm">{patient.phone || '—'}</span>
-                          </div>
+                        <td className="px-4 py-2.5">
+                          <span className="text-sm text-slate-700">
+                            {age !== null ? `${age}y` : '—'} / {sex}
+                          </span>
                         </td>
                         <td className="px-4 py-2.5">
                           <div className="flex justify-end">
@@ -183,14 +198,19 @@ export default function TheaterTechPatientsPage() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
               </div>
               
               {/* Mobile Card View (flex columns) */}
               <div className="md:hidden flex flex-col divide-y divide-slate-100">
-                {patients.map((patient) => (
+                {patients.map((patient) => {
+                  const age = patient.date_of_birth
+                    ? Math.floor((Date.now() - new Date(patient.date_of_birth).getTime()) / (365.25 * 86400000))
+                    : null;
+                  const sex = patient.gender ? patient.gender.toUpperCase() : '—';
+                  return (
                   <div key={patient.id} className="p-4 bg-white flex flex-col gap-3">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 shrink-0 rounded-full bg-slate-100 flex items-center justify-center">
@@ -205,12 +225,11 @@ export default function TheaterTechPatientsPage() {
                             <FileText className="h-3 w-3" />
                             <span>{patient.file_number || '—'}</span>
                           </div>
-                          {patient.phone && (
-                            <div className="flex items-center gap-1">
-                              <Phone className="h-3 w-3" />
-                              <span>{patient.phone}</span>
-                            </div>
-                          )}
+                          <div className="flex items-center gap-1">
+                            <span>
+                              {age !== null ? `${age}y` : '—'} / {sex}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -231,7 +250,7 @@ export default function TheaterTechPatientsPage() {
                         </Button>
                     </div>
                   </div>
-                ))}
+                )})}
               </div>
             </div>
           )}
@@ -239,7 +258,7 @@ export default function TheaterTechPatientsPage() {
       </Card>
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {searchQuery.trim().length >= 2 && totalPages > 1 && (
         <div className="flex items-center justify-between">
           <Button
             variant="ghost"

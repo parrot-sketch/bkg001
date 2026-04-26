@@ -26,6 +26,8 @@ export interface NavItem {
     icon: React.ComponentType<{ className?: string }>;
     description?: string;
     badge?: string | number;
+    /** Optional grouping label (renders section headers when multiple groups exist) */
+    section?: string;
 }
 
 export interface UserInfo {
@@ -152,6 +154,37 @@ export function UnifiedSidebar({
 
     const roleInfo = userInfo ? roleConfig[userInfo.role] : null;
 
+    const getSectionAccent = (title: string): { dotClassName: string } => {
+        switch (title) {
+            case 'Overview':
+                return { dotClassName: 'bg-slate-500/60' };
+            case 'Planning':
+                return { dotClassName: 'bg-cyan-400/70' };
+            case 'Operations':
+                return { dotClassName: 'bg-emerald-400/70' };
+            case 'Catalog':
+                return { dotClassName: 'bg-amber-400/70' };
+            case 'Inventory':
+                return { dotClassName: 'bg-indigo-400/70' };
+            case 'Account':
+                return { dotClassName: 'bg-rose-400/70' };
+            default:
+                return { dotClassName: roleInfo ? roleInfo.iconBg : 'bg-slate-500/60' };
+        }
+    };
+
+    const navGroups = navItems.reduce<Array<{ title: string; items: NavItem[] }>>((acc, item) => {
+        const title = (item.section || '').trim();
+        const existing = acc.find((g) => g.title === title);
+        if (existing) {
+            existing.items.push(item);
+            return acc;
+        }
+        acc.push({ title, items: [item] });
+        return acc;
+    }, []);
+    const hasMultipleGroups = navGroups.filter((g) => g.items.length > 0).length > 1;
+
     // Get initials from name
     const getInitials = (name: string) => {
         const parts = name.split(' ');
@@ -260,68 +293,91 @@ export function UnifiedSidebar({
 
                     {/* Navigation Section */}
                     <nav className="flex-1 overflow-y-auto pt-6">
-                        <div className={cn('space-y-1', collapsed ? 'px-2' : 'px-3')}>
-                            {navItems.map((item) => {
-                                const Icon = item.icon;
-                                const isActive =
-                                    pathname === item.href || pathname?.startsWith(item.href + '/');
-
-                                return (
-                                    <Link
-                                        key={item.href}
-                                        href={item.href}
-                                        onClick={onClose}
-                                        title={collapsed ? item.name : undefined}
-                                        className={cn(
-                                            'group flex items-center rounded-xl transition-all duration-200 relative overflow-hidden',
-                                            collapsed ? 'justify-center p-3' : 'gap-3 px-4 py-3',
-                                            'text-sm font-medium',
-                                            isActive
-                                                ? 'bg-gradient-to-r from-slate-800/80 to-slate-800/40 text-white shadow-lg shadow-black/10'
-                                                : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
-                                        )}
-                                    >
-                                        {/* Active indicator */}
-                                        {isActive && (
-                                            <div className={cn(
-                                                "absolute bg-gradient-to-b from-blue-500 to-violet-500 rounded-r-full",
-                                                collapsed ? 'left-0 top-0 w-1 h-full' : 'left-0 top-1/2 -translate-y-1/2 w-1 h-6'
-                                            )} />
-                                        )}
-                                        
-                                        <div className={cn(
-                                            "rounded-lg flex-shrink-0 transition-all duration-200",
-                                            collapsed ? 'p-2' : 'p-2',
-                                            isActive
-                                                ? "bg-white/10 text-white"
-                                                : "bg-slate-800/50 text-slate-500 group-hover:text-white group-hover:bg-slate-700/50"
-                                        )}>
-                                            <Icon className={cn('transition-all', collapsed ? 'h-5 w-5' : 'h-4 w-4')} />
+                        <div className={cn(collapsed ? 'px-2' : 'px-3')}>
+                            {navGroups.map((group) => (
+                                <div
+                                    key={group.title || '__default__'}
+                                    className={cn('space-y-1', !collapsed && hasMultipleGroups ? 'mb-5 last:mb-0' : 'mb-0')}
+                                >
+                                    {!collapsed && hasMultipleGroups && group.title ? (
+                                        <div className="px-4 pt-1 pb-2 flex items-center gap-2">
+                                            <span
+                                                aria-hidden="true"
+                                                className={cn('h-1.5 w-1.5 rounded-full', getSectionAccent(group.title).dotClassName)}
+                                            />
+                                            <p className="text-[10px] font-medium tracking-wider uppercase text-slate-600">
+                                                {group.title}
+                                            </p>
                                         </div>
-                                        
-                                        {!collapsed && (
-                                            <>
-                                                <span className="flex-1">{item.name}</span>
-                                                
-                                                {item.badge && (
-                                                    <span className={cn(
-                                                        "px-2 py-0.5 rounded-full text-xs font-medium",
-                                                        isActive
-                                                            ? "bg-white/10 text-white"
-                                                            : "bg-slate-800 text-slate-400"
-                                                    )}>
-                                                        {item.badge}
-                                                    </span>
+                                    ) : null}
+
+                                    {group.items.map((item) => {
+                                        const Icon = item.icon;
+                                        const isActive =
+                                            pathname === item.href || pathname?.startsWith(item.href + '/');
+
+                                        return (
+                                            <Link
+                                                key={item.href}
+                                                href={item.href}
+                                                onClick={onClose}
+                                                title={collapsed ? item.name : undefined}
+                                                className={cn(
+                                                    'group flex items-center rounded-xl transition-all duration-200 relative overflow-hidden',
+                                                    collapsed ? 'justify-center p-3' : 'gap-3 px-4 py-3',
+                                                    'text-sm font-medium',
+                                                    isActive
+                                                        ? 'bg-gradient-to-r from-slate-800/80 to-slate-800/40 text-white shadow-lg shadow-black/10'
+                                                        : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
                                                 )}
-                                                
+                                            >
+                                                {/* Active indicator */}
                                                 {isActive && (
-                                                    <ChevronRight className="h-4 w-4 text-slate-400" />
+                                                    <div
+                                                        className={cn(
+                                                            'absolute bg-gradient-to-b from-blue-500 to-violet-500 rounded-r-full',
+                                                            collapsed
+                                                                ? 'left-0 top-0 w-1 h-full'
+                                                                : 'left-0 top-1/2 -translate-y-1/2 w-1 h-6'
+                                                        )}
+                                                    />
                                                 )}
-                                            </>
-                                        )}
-                                    </Link>
-                                );
-                            })}
+
+                                                <div
+                                                    className={cn(
+                                                        'rounded-lg flex-shrink-0 transition-all duration-200',
+                                                        collapsed ? 'p-2' : 'p-2',
+                                                        isActive
+                                                            ? 'bg-white/10 text-white'
+                                                            : 'bg-slate-800/50 text-slate-500 group-hover:text-white group-hover:bg-slate-700/50'
+                                                    )}
+                                                >
+                                                    <Icon className={cn('transition-all', collapsed ? 'h-5 w-5' : 'h-4 w-4')} />
+                                                </div>
+
+                                                {!collapsed && (
+                                                    <>
+                                                        <span className="flex-1">{item.name}</span>
+
+                                                        {item.badge && (
+                                                            <span
+                                                                className={cn(
+                                                                    'px-2 py-0.5 rounded-full text-xs font-medium',
+                                                                    isActive ? 'bg-white/10 text-white' : 'bg-slate-800 text-slate-400'
+                                                                )}
+                                                            >
+                                                                {item.badge}
+                                                            </span>
+                                                        )}
+
+                                                        {isActive && <ChevronRight className="h-4 w-4 text-slate-400" />}
+                                                    </>
+                                                )}
+                                            </Link>
+                                        );
+                                    })}
+                                </div>
+                            ))}
                         </div>
                     </nav>
 
