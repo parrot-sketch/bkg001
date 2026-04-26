@@ -4,47 +4,55 @@
  * Frontdesk Sidebar Navigation
  * 
  * Uses the UnifiedSidebar component for consistent design.
+ * Enhanced with proper section grouping for better organization.
  */
 
 import { LayoutDashboard, Calendar, Users, UserPlus, User, Receipt, Building2, ClipboardList, Bell } from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { useAuth } from '@/hooks/patient/useAuth';
 
-const navItems: NavItem[] = [
+const baseNavItems: NavItem[] = [
   {
     name: 'Dashboard',
     href: '/frontdesk/dashboard',
     icon: LayoutDashboard,
+    section: 'Overview',
   },
   {
     name: 'Appointments',
     href: '/frontdesk/appointments',
     icon: Calendar,
+    section: 'Patient Care',
   },
   {
     name: 'Patients',
     href: '/frontdesk/patients',
     icon: Users,
+    section: 'Patient Care',
   },
   {
     name: 'New Patient Intake',
     href: '/frontdesk/intake/start',
     icon: ClipboardList,
+    section: 'Patient Care',
   },
   {
     name: 'Theater Scheduling',
     href: '/frontdesk/theater-scheduling',
     icon: Building2,
+    section: 'Scheduling',
   },
   {
     name: 'Billing',
     href: '/frontdesk/billing',
     icon: Receipt,
+    section: 'Billing & Finance',
   },
   {
     name: 'My Profile',
     href: '/frontdesk/profile',
     icon: User,
+    section: 'Account',
   },
 ];
 
@@ -81,7 +89,7 @@ export function FrontdeskSidebar({ isOpen = false, onClose = () => { }, onCollap
     <UnifiedSidebar
       isOpen={isOpen}
       onClose={onClose}
-      navItems={navItems}
+      navItems={baseNavItems}
       userInfo={userInfo}
       onLogout={handleLogout}
       dashboardHref="/frontdesk/dashboard"
