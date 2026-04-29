@@ -16,13 +16,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import db from '@/lib/db';
-import { ClinicalFormStatus, SurgicalRole } from '@prisma/client';
+import { ClinicalFormStatus, Gender, SurgicalRole } from '@prisma/client';
 import { endpointTimer } from '@/lib/observability/endpointLogger';
 import { GateBlockedError } from '@/application/errors/GateBlockedError';
 import {
     INTRAOP_TEMPLATE_KEY,
     INTRAOP_TEMPLATE_VERSION,
     nurseIntraOpRecordDraftSchema,
+    createEmptyIntraOpDraft,
     getIntraOpSectionCompletion,
 } from '@/domain/clinical-forms/NurseIntraOpRecord';
 import { PatientVerificationService } from '@/domain/services/PatientVerificationService';
@@ -141,6 +142,10 @@ function buildSuggestedStaffing(surgicalCase: {
     return staffing;
 }
 
+function yesNoFromAutoTrue(value: boolean | null | undefined): 'Y' | undefined {
+    return value ? 'Y' : undefined;
+}
+
 function mapResponseDto(response: {
     id: string;
     template_key: string;
@@ -227,58 +232,42 @@ export async function GET(
                 caseId,
             );
 
+            const staffing = buildSuggestedStaffing(surgicalCase);
+            const patientName = `${surgicalCase.patient.first_name} ${surgicalCase.patient.last_name}`.trim();
+            const age = surgicalCase.patient.date_of_birth
+                ? new Date().getFullYear() - new Date(surgicalCase.patient.date_of_birth).getFullYear()
+                : undefined;
+
+            const sex =
+                surgicalCase.patient.gender === Gender.MALE
+                    ? 'Male'
+                    : surgicalCase.patient.gender === Gender.FEMALE
+                        ? 'Female'
+                        : surgicalCase.patient.gender === Gender.OTHER
+                            ? 'Other'
+                            : undefined;
+
             const emptyData = {
-                entry: {
-                    arrivalMethod: 'STRETCHER',
-                    timeIn: '',
-                    asaClass: '1',
-                    allergies: autoPopulatedChecks.allergies || surgicalCase.patient.allergies || ''
-                },
-                safety: {
-                    patientIdVerified: autoPopulatedChecks.patientIdVerified,
-                    informedConsentSigned: autoPopulatedChecks.informedConsentSigned,
-                    preOpChecklistCompleted: autoPopulatedChecks.preOpChecklistCompleted,
-                    whoChecklistCompleted: false,
-                    arrivedWithIvInfusing: false,
-                    antibioticOrdered: false
-                },
-                timings: { timeIntoTheatre: '', timeOutOfTheatre: '', operationStart: '', operationFinish: '' },
-                diagnoses: {
-                    preOpDiagnosis: surgicalCase.diagnosis || '',
-                    intraOpDiagnosis: '',
-                    operationPerformed: surgicalCase.procedure_name || ''
-                },
-                positioning: { position: 'SUPINE', safetyBeltApplied: false, armsSecured: false, bodyAlignmentCorrect: false },
-                catheter: { inSitu: false, insertedInTheatre: false },
-                skinPrep: { prepAgent: 'HIBITANE_SPIRIT' },
-                surgicalDetails: { woundClass: 'CLEAN', woundIrrigation: [], drainType: [] },
-                equipment: {
-                    electrosurgical: { cauteryUsed: false, cutSet: '30', coagSet: '30', skinCheckedBefore: false, skinCheckedAfter: false },
-                    tourniquet: { tourniquetUsed: false, laterality: 'N/A', skinCheckedBefore: false, skinCheckedAfter: false }
-                },
-                staffing: buildSuggestedStaffing(surgicalCase),
-                anaesthesia: { type: 'GENERAL' },
-                counts: {
-                    items: [
-                        { name: 'Abdominal Swabs', preliminary: 0, woundClosure: 0, final: 0 },
-                        { name: 'Raytec Swabs', preliminary: 0, woundClosure: 0, final: 0 },
-                        { name: 'Throat Packs', preliminary: 0, woundClosure: 0, final: 0 },
-                        { name: 'Sharps', preliminary: 0, woundClosure: 0, final: 0 },
-                        { name: 'Instruments', preliminary: 0, woundClosure: 0, final: 0 },
-                    ],
-                    countCorrect: true
-                },
-                closure: { skinClosure: '', dressingApplied: '' },
-                fluids: {
-                    bloodTransfusionPackedCellsMl: 0, bloodTransfusionWholeMl: 0,
-                    bloodTransfusionOtherMl: 0, ivInfusionTotalMl: 0,
-                    estimatedBloodLossMl: 0, urinaryOutputMl: 0
-                },
-                medications: [],
-                implants: [],
-                specimens: [],
-                itemsToReturnToTheatre: '',
-                billing: { anaestheticMaterialsCharge: '', theatreFee: '' }
+                ...createEmptyIntraOpDraft(),
+                patientFileNo: surgicalCase.patient.file_number || '',
+                patientName,
+                age,
+                sex,
+                doctor: surgicalCase.primary_surgeon?.name || '',
+                allergies: autoPopulatedChecks.allergies || surgicalCase.patient.allergies || '',
+                // Auto-populate safety checks only when we have a positive verification signal
+                patientIdVerified: yesNoFromAutoTrue(autoPopulatedChecks.patientIdVerified),
+                informedConsentSigned: yesNoFromAutoTrue(autoPopulatedChecks.informedConsentSigned),
+                preOpChecklistCompleted: yesNoFromAutoTrue(autoPopulatedChecks.preOpChecklistCompleted),
+                // Case context
+                preOpDiagnosis: surgicalCase.diagnosis || '',
+                operationsPerformed: surgicalCase.procedure_name || '',
+                // Suggested staffing snapshot
+                surgeon: staffing.surgeon || '',
+                assistant: staffing.assistant || '',
+                anaesthesiologist: staffing.anaesthesiologist || '',
+                scrubNurse: staffing.scrubNurse || '',
+                circulatingNurse: staffing.circulatingNurse || '',
             };
 
             response = await db.clinicalFormResponse.create({
@@ -392,8 +381,8 @@ export async function PUT(
             });
 
             // Sync structured data to SurgicalProcedureRecord for real-time dashboard
-            const fluids = parsed.data.fluids || {};
-            if (fluids.estimatedBloodLossMl !== undefined || fluids.urinaryOutputMl !== undefined) {
+            const { estimatedBloodLossML, urinaryOutputML } = parsed.data;
+            if (estimatedBloodLossML !== undefined || urinaryOutputML !== undefined) {
                 const procedureRecord = await tx.surgicalProcedureRecord.findUnique({
                     where: { surgical_case_id: caseId },
                 });
@@ -402,8 +391,8 @@ export async function PUT(
                     await tx.surgicalProcedureRecord.update({
                         where: { id: procedureRecord.id },
                         data: {
-                            estimated_blood_loss: fluids.estimatedBloodLossMl ?? null,
-                            urine_output: fluids.urinaryOutputMl ?? null,
+                            estimated_blood_loss: estimatedBloodLossML ?? null,
+                            urine_output: urinaryOutputML ?? null,
                         },
                     });
                 }

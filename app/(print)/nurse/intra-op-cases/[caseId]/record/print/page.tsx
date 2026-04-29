@@ -1,15 +1,11 @@
 /**
- * Print View: Intra-Operative Nursing Record
- *
- * Placed in the (print) route group to escape the nurse layout
- * and prevent HTML nesting errors.
+ * Print View: Nursing Operation Record (2 pages)
  *
  * URL: /nurse/intra-op-cases/[caseId]/record/print
- * Uses: force-dynamic, PDF-ready layout, DRAFT/FINAL watermark,
- *       PrintButton client component, ?autoprint=1 support.
  */
 
 import { notFound } from 'next/navigation';
+import type { ReactNode } from 'react';
 import db from '@/lib/db';
 import { INTRAOP_TEMPLATE_KEY, INTRAOP_TEMPLATE_VERSION } from '@/domain/clinical-forms/NurseIntraOpRecord';
 import { format } from 'date-fns';
@@ -20,453 +16,593 @@ export const dynamic = 'force-dynamic';
 
 type Params = { params: Promise<{ caseId: string }>; searchParams: Promise<{ autoprint?: string }> };
 
-export default async function PrintIntraOpRecordPage({ params, searchParams }: Params) {
-    const { caseId } = await params;
-    const { autoprint: autoprintParam } = await searchParams;
+function ynTick(v: unknown, expected: 'Y' | 'N') {
+  return v === expected ? '☑' : '☐';
+}
 
-    // Precise select for performance
-    const surgicalCase = await db.surgicalCase.findUnique({
-        where: { id: caseId },
-        select: {
-            id: true,
-            procedure_name: true,
-            side: true,
-            created_at: true,
-            patient: {
-                select: {
-                    first_name: true,
-                    last_name: true,
-                    file_number: true,
-                },
-            },
-            primary_surgeon: {
-                select: { name: true },
-            },
-            theater_booking: {
-                select: { start_time: true },
-            },
-        },
-    });
+function tick(v: boolean) {
+  return v ? '☑' : '☐';
+}
 
-    if (!surgicalCase) notFound();
+function val(v: unknown) {
+  if (v === null || v === undefined) return '—';
+  const s = String(v);
+  return s.trim() ? s : '—';
+}
 
-    const record = await db.clinicalFormResponse.findUnique({
-        where: {
-            template_key_template_version_surgical_case_id: {
-                template_key: INTRAOP_TEMPLATE_KEY,
-                template_version: INTRAOP_TEMPLATE_VERSION,
-                surgical_case_id: caseId,
-            },
-        },
-        select: {
-            id: true,
-            status: true,
-            data_json: true,
-            signed_at: true,
-            signed_by: {
-                select: { first_name: true, last_name: true },
-            },
-        },
-    });
+function Field(props: { label: string; value: unknown }) {
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
+      <div style={{ width: 210, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', color: '#475569' }}>
+        {props.label}
+      </div>
+      <div style={{ flex: 1, borderBottom: '1px solid #cbd5e1', minHeight: 16, paddingBottom: 1 }}>
+        {val(props.value)}
+      </div>
+    </div>
+  );
+}
 
-    if (!record) {
-        return (
-            <div style={{ padding: 32, textAlign: 'center', fontFamily: 'Arial, sans-serif' }}>
-                <h1 style={{ color: '#dc2626' }}>Record Not Found</h1>
-                <p>No intra-operative record has been started for this case.</p>
-            </div>
-        );
-    }
+function Section(props: { title: string; children: ReactNode }) {
+  return (
+    <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 10 }}>
+      <div style={{ fontSize: 10, fontWeight: 900, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 8 }}>
+        {props.title}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>{props.children}</div>
+    </div>
+  );
+}
 
-    const d = JSON.parse(record.data_json);
-    const isFinalized = record.status === 'FINAL';
-    const isAmendment = record.status === 'AMENDMENT';
+function TickRow(props: { label: string; options: Array<{ label: string; checked: boolean }> }) {
+  return (
+    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div style={{ width: 210, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', color: '#475569' }}>
+        {props.label}
+      </div>
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+        {props.options.map((o) => (
+          <div key={o.label} style={{ fontSize: 11 }}>
+            {o.checked ? '☑' : '☐'} {o.label}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-    const caseDate = surgicalCase.theater_booking?.start_time || surgicalCase.created_at;
-    const formatDate = (date: Date | null | undefined) =>
-        date ? format(new Date(date), 'dd MMM yyyy') : '—';
-    const formatDateTime = (date: Date | null | undefined) =>
-        date ? format(new Date(date), 'dd MMM yyyy HH:mm') : '—';
+export default async function PrintNursingOperationRecordPage({ params, searchParams }: Params) {
+  const { caseId } = await params;
+  const { autoprint } = await searchParams;
 
-    const watermarkText = isFinalized ? 'FINAL' : isAmendment ? 'AMENDMENT' : 'DRAFT';
+  const surgicalCase = await db.surgicalCase.findUnique({
+    where: { id: caseId },
+    select: {
+      id: true,
+      created_at: true,
+      patient: { select: { first_name: true, last_name: true, file_number: true } },
+    },
+  });
+  if (!surgicalCase) notFound();
 
+  const record = await db.clinicalFormResponse.findUnique({
+    where: {
+      template_key_template_version_surgical_case_id: {
+        template_key: INTRAOP_TEMPLATE_KEY,
+        template_version: INTRAOP_TEMPLATE_VERSION,
+        surgical_case_id: caseId,
+      },
+    },
+    select: {
+      id: true,
+      status: true,
+      data_json: true,
+      signed_at: true,
+    },
+  });
+  if (!record) {
     return (
-        <>
-            <style>{`
-                @media print {
-                    body > *:not(#intraop-print-root) { display: none !important; }
-                    #intraop-print-root { display: block !important; }
-                    .no-print { display: none !important; }
-                }
-                .watermark {
-                    position: fixed; top: 50%; left: 50%;
-                    transform: translate(-50%, -50%) rotate(-30deg);
-                    font-size: 80px; font-weight: 900;
-                    color: rgba(0,0,0,0.04);
-                    pointer-events: none; z-index: 0; white-space: nowrap;
-                }
-                @page { size: A4; margin: 15mm; }
-            `}</style>
+      <div style={{ padding: 32, textAlign: 'center', fontFamily: 'Arial, sans-serif' }}>
+        <h1 style={{ color: '#dc2626' }}>Record Not Found</h1>
+        <p>No nursing operation record has been started for this case.</p>
+      </div>
+    );
+  }
 
-            {autoprintParam === '1' && <AutoPrint />}
-            <PrintButton />
+  const d = JSON.parse(record.data_json) as any;
+  const isFinal = record.status === 'FINAL';
+  const watermarkText = isFinal ? 'FINAL' : record.status === 'AMENDMENT' ? 'AMENDMENT' : 'DRAFT';
 
-            <div className="watermark">{watermarkText}</div>
+  const today = format(new Date(), 'dd MMM yyyy, HH:mm');
 
-            <div
-                id="intraop-print-root"
-                style={{
-                    position: 'fixed', inset: 0, zIndex: 9999,
-                    background: '#fff', overflowY: 'auto',
-                    fontFamily: 'Arial, sans-serif', fontSize: 11,
-                }}
-            >
-                <div style={{ maxWidth: 794, margin: '0 auto', padding: '24px 32px' }}>
+  const meds = Array.isArray(d.medications) ? d.medications : [];
+  const implants = Array.isArray(d.implants) ? d.implants : [];
+  const specimens = Array.isArray(d.specimens) ? d.specimens : [];
 
-                    {/* ─── PAGE 1 ─────────────────────────────────────────── */}
+  return (
+    <>
+      <style>{`
+        @media print {
+          body > *:not(#nursing-op-print-root) { display: none !important; }
+          #nursing-op-print-root { display: block !important; }
+          .no-print { display: none !important; }
+        }
+        .watermark {
+          position: fixed; top: 50%; left: 50%;
+          transform: translate(-50%, -50%) rotate(-30deg);
+          font-size: 80px; font-weight: 900;
+          color: rgba(0,0,0,0.04);
+          pointer-events: none; z-index: 0; white-space: nowrap;
+        }
+        @page { size: A4; margin: 12mm; }
+      `}</style>
 
-                    {/* Header */}
-                    <header style={{ borderBottom: '2px solid #000', paddingBottom: 12, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <Image src="/assets/images/logo-black.png" alt="NSAC Logo" width={44} height={44} style={{ objectFit: 'contain' }} />
-                            <div>
-                                <h1 style={{ margin: 0, fontSize: 15, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 1 }}>Intra-Operative Nursing Record</h1>
-                                <p style={{ margin: 0, fontSize: 9, fontWeight: 600 }}>Nairobi Sculpt Aesthetic Centre</p>
-                            </div>
-                        </div>
-                        <div style={{ textAlign: 'right', fontSize: 9 }}>
-                            <p style={{ margin: 0 }}><strong>Case ID:</strong> {surgicalCase.id.slice(0, 8).toUpperCase()}</p>
-                            <p style={{ margin: 0 }}><strong>Date:</strong> {formatDate(caseDate)}</p>
-                            <p style={{ margin: '2px 0 0', padding: '2px 6px', background: isFinalized ? '#d1fae5' : isAmendment ? '#fef3c7' : '#f1f5f9', borderRadius: 4, fontWeight: 700, fontSize: 8, textTransform: 'uppercase' }}>
-                                {watermarkText}
-                            </p>
-                        </div>
-                    </header>
+      {autoprint === '1' && <AutoPrint />}
+      <PrintButton />
+      <div className="watermark">{watermarkText}</div>
 
-                    {/* Patient Info */}
-                    <section style={{ marginBottom: 12, border: '1px solid #000', padding: 8, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px', fontSize: 10 }}>
-                        <div>
-                            <span style={{ fontWeight: 700, display: 'block', fontSize: 8, color: '#475569', textTransform: 'uppercase' }}>Patient Name</span>
-                            <span style={{ fontSize: 13, fontWeight: 700 }}>{surgicalCase.patient.first_name} {surgicalCase.patient.last_name}</span>
-                        </div>
-                        <div>
-                            <span style={{ fontWeight: 700, display: 'block', fontSize: 8, color: '#475569', textTransform: 'uppercase' }}>File Number</span>
-                            <span style={{ fontSize: 13 }}>{surgicalCase.patient.file_number}</span>
-                        </div>
-                        <div style={{ gridColumn: '1/-1' }}>
-                            <span style={{ fontWeight: 700, display: 'block', fontSize: 8, color: '#475569', textTransform: 'uppercase' }}>Procedure</span>
-                            <span>{surgicalCase.procedure_name}{surgicalCase.side ? ` (${surgicalCase.side})` : ''} {surgicalCase.primary_surgeon ? `— Dr. ${surgicalCase.primary_surgeon.name}` : ''}</span>
-                        </div>
-                    </section>
-
-                    {/* Two-column layout */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                        {/* LEFT */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                            <Section title="1. Arrival &amp; Entry">
-                                <Row label="Arrival Method" value={d.entry?.arrivalMethod} />
-                                <Row label="Time In" value={d.entry?.timeIn} />
-                                <Row label="ASA Class" value={d.entry?.asaClass} />
-                                {d.entry?.allergies && <Note label="Allergies" value={d.entry.allergies} />}
-                                {d.entry?.comments && <Note label="Comments" value={d.entry.comments} />}
-                            </Section>
-
-                            <Section title="2. Safety Checks &amp; IV">
-                                <Row label="ID Verified" value={d.safety?.patientIdVerified ? 'Yes' : 'No'} />
-                                <Row label="Consent Signed" value={d.safety?.informedConsentSigned ? 'Yes' : 'No'} />
-                                <Row label="Pre-Op Complete" value={d.safety?.preOpChecklistCompleted ? 'Yes' : 'No'} />
-                                <Row label="WHO Complete" value={d.safety?.whoChecklistCompleted ? 'Yes' : 'No'} />
-                                <Row label="IV Infusing" value={d.safety?.arrivedWithIvInfusing ? 'Yes' : 'No'} />
-                                {d.safety?.arrivedWithIvInfusing && <>
-                                    <Row label="IV Started By" value={d.safety.ivStartedBy} />
-                                    <Row label="IV Start Time" value={d.safety.ivStartTime} />
-                                </>}
-                                <Row label="Antibiotic Ordered" value={d.safety?.antibioticOrdered ? 'Yes' : 'No'} />
-                                {d.safety?.antibioticOrdered && <>
-                                    <Row label="Type" value={d.safety.antibioticType} />
-                                    <Row label="Ordered by" value={d.safety.antibioticOrderedBy} />
-                                    <Row label="Time" value={d.safety.antibioticTime} />
-                                </>}
-                            </Section>
-
-                            <Section title="3. Theatrical Timings">
-                                <Row label="Into Theatre" value={d.timings?.timeIntoTheatre} />
-                                <Row label="Operation Start" value={d.timings?.operationStart} />
-                                <Row label="Operation Finish" value={d.timings?.operationFinish} />
-                                <Row label="Out of Theatre" value={d.timings?.timeOutOfTheatre} />
-                            </Section>
-
-                            <Section title="8. Skin Preparation">
-                                <Row label="Shaved By" value={d.skinPrep?.shavedBy} />
-                                <Row label="Prep Agent" value={d.skinPrep?.prepAgent === 'OTHER' ? d.skinPrep?.otherPrepAgent : d.skinPrep?.prepAgent} />
-                            </Section>
-
-                            <Section title="11. Closure &amp; Dressing">
-                                <Row label="Skin Closure" value={d.closure?.skinClosure || d.closure?.skinClosureMethod} />
-                                <Row label="Dressing" value={d.closure?.dressingApplied || d.closure?.dressingType} />
-                                <Row label="Count Verified By" value={d.closure?.countVerifiedBy} />
-                            </Section>
-                        </div>
-
-                        {/* RIGHT */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                            <Section title="4. Surgical Team">
-                                <Row label="Surgeon" value={d.staffing?.surgeon} />
-                                <Row label="Assistant" value={d.staffing?.assistant} />
-                                <Row label="Anaesthesiologist" value={d.staffing?.anaesthesiologist} />
-                                <Row label="Scrub Nurse" value={d.staffing?.scrubNurse} />
-                                <Row label="Circulating Nurse" value={d.staffing?.circulatingNurse} />
-                                {d.staffing?.observers && <Note label="Observers" value={d.staffing.observers} />}
-                            </Section>
-
-                            <Section title="5. Diagnoses &amp; Operation">
-                                {d.diagnoses?.preOpDiagnosis && <Note label="Pre-Op Dx" value={d.diagnoses.preOpDiagnosis} />}
-                                {d.diagnoses?.intraOpDiagnosis && <Note label="Intra-Op Dx" value={d.diagnoses.intraOpDiagnosis} />}
-                                {d.diagnoses?.operationPerformed && <Note label="Operation" value={d.diagnoses.operationPerformed} />}
-                            </Section>
-
-                            <Section title="6. Positioning &amp; Alignment">
-                                <Row label="Position" value={d.positioning?.position === 'OTHER' ? d.positioning?.otherPosition : d.positioning?.position} />
-                                <Row label="Safety Belt" value={d.positioning?.safetyBeltApplied ? `Applied${d.positioning.safetyBeltPosition ? ` (${d.positioning.safetyBeltPosition})` : ''}` : 'No'} />
-                                <Row label="Arms Secured" value={d.positioning?.armsSecured ? `Yes${d.positioning.armsPosition ? ` (${d.positioning.armsPosition})` : ''}` : 'No'} />
-                                <Row label="Alignment Correct" value={d.positioning?.bodyAlignmentCorrect ? 'Yes' : 'No'} />
-                                {d.positioning?.pressurePointsDescribe && <Note label="Pressure Points" value={d.positioning.pressurePointsDescribe} />}
-                            </Section>
-
-                            <Section title="7. Catheterization">
-                                <Row label="In Situ" value={d.catheter?.inSitu ? 'Yes' : 'No'} />
-                                <Row label="Inserted in Theatre" value={d.catheter?.insertedInTheatre ? 'Yes' : 'No'} />
-                                <Row label="Type / Size" value={`${d.catheter?.type || '—'} / ${d.catheter?.size || '—'}`} />
-                            </Section>
-
-                            <Section title="9. Equipment">
-                                <span style={{ fontWeight: 700, fontSize: 8, textTransform: 'uppercase', color: '#64748b' }}>Electrosurgical</span>
-                                <Row label="Used" value={d.equipment?.electrosurgical?.cauteryUsed ? 'Yes' : 'No'} />
-                                {d.equipment?.electrosurgical?.cauteryUsed && <>
-                                    <Row label="Unit / Mode" value={`${d.equipment.electrosurgical.unitNo || '—'} / ${d.equipment.electrosurgical.mode || '—'}`} />
-                                    <Row label="Cut / Coag" value={`${d.equipment.electrosurgical.cutSet || '—'} / ${d.equipment.electrosurgical.coagSet || '—'}`} />
-                                    <Row label="Skin B/A" value={`${d.equipment.electrosurgical.skinCheckedBefore ? 'Yes' : 'No'} / ${d.equipment.electrosurgical.skinCheckedAfter ? 'Yes' : 'No'}`} />
-                                </>}
-                                <span style={{ fontWeight: 700, fontSize: 8, textTransform: 'uppercase', color: '#64748b', marginTop: 4, display: 'block' }}>Tourniquet</span>
-                                <Row label="Used" value={d.equipment?.tourniquet?.tourniquetUsed ? 'Yes' : 'No'} />
-                                {d.equipment?.tourniquet?.tourniquetUsed && <>
-                                    <Row label="Type/Site/Side" value={`${d.equipment.tourniquet.type || '—'} / ${d.equipment.tourniquet.site || '—'} (${d.equipment.tourniquet.laterality || '—'})`} />
-                                    <Row label="Pressure" value={d.equipment.tourniquet.pressure} />
-                                    <Row label="On/Off" value={`${d.equipment.tourniquet.timeOn || '—'} → ${d.equipment.tourniquet.timeOff || '—'}`} />
-                                </>}
-                            </Section>
-
-                            <Section title="10. Surgical Details">
-                                <Row label="Wound Class" value={d.surgicalDetails?.woundClass} />
-                                <Row label="Irrigation" value={d.surgicalDetails?.woundIrrigation?.join(', ') || 'None'} />
-                                <Row label="Drains" value={d.surgicalDetails?.drainType?.join(', ') || 'None'} />
-                                <Row label="Wound Pack" value={`${d.surgicalDetails?.woundPackType || '—'} @ ${d.surgicalDetails?.woundPackSite || '—'}`} />
-                                {d.surgicalDetails?.intraOpXraysTaken && <Note label="X-Rays" value={d.surgicalDetails.intraOpXraysTaken} />}
-                            </Section>
-                        </div>
-                    </div>
-
-                    {/* Counts Table */}
-                    <Section title="12. Instruments &amp; Sharps Count">
-                        <table style={{ width: '100%', fontSize: 9, borderCollapse: 'collapse', border: '1px solid #cbd5e1' }}>
-                            <thead>
-                                <tr style={{ background: '#f8fafc' }}>
-                                    {['Item', 'Preliminary', 'Wound Closure', 'Final Count'].map(h => (
-                                        <th key={h} style={{ padding: '3px 6px', border: '1px solid #cbd5e1', textAlign: h === 'Item' ? 'left' : 'center' }}>{h}</th>
-                                    ))}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {(d.counts?.items || []).map((item: any, i: number) => (
-                                    <tr key={i}>
-                                        <td style={{ padding: '3px 6px', border: '1px solid #cbd5e1' }}>{item.name}</td>
-                                        <td style={{ padding: '3px 6px', border: '1px solid #cbd5e1', textAlign: 'center' }}>{item.preliminary ?? 0}</td>
-                                        <td style={{ padding: '3px 6px', border: '1px solid #cbd5e1', textAlign: 'center' }}>{item.woundClosure ?? 0}</td>
-                                        <td style={{ padding: '3px 6px', border: '1px solid #cbd5e1', textAlign: 'center', fontWeight: 700 }}>{item.final ?? 0}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        <div style={{ display: 'flex', gap: 32, marginTop: 6 }}>
-                            <Row label="Count Correct?" value={d.counts?.countCorrect ? 'Yes ✓' : 'No ✗'} />
-                            {!d.counts?.countCorrect && d.counts?.actionIfIncorrect && <Note label="Action" value={d.counts.actionIfIncorrect} />}
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 6, paddingTop: 6, borderTop: '1px solid #e2e8f0' }}>
-                            <div>
-                                <span style={{ fontWeight: 700, fontSize: 8, textTransform: 'uppercase', display: 'block' }}>Scrub Nurse Signature</span>
-                                <span style={{ fontStyle: 'italic' }}>{d.counts?.scrubNurseSignature || '—'}</span>
-                            </div>
-                            <div>
-                                <span style={{ fontWeight: 700, fontSize: 8, textTransform: 'uppercase', display: 'block' }}>Circulating Nurse Signature</span>
-                                <span style={{ fontStyle: 'italic' }}>{d.counts?.circulatingNurseSignature || '—'}</span>
-                            </div>
-                        </div>
-                    </Section>
-
-                    {/* Fluids */}
-                    <Section title="13. Fluids &amp; Transfusions">
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
-                            {[
-                                { label: 'Est. Blood Loss', value: `${d.fluids?.estimatedBloodLossMl ?? 0} mL` },
-                                { label: 'Urine Output', value: `${d.fluids?.urinaryOutputMl ?? 0} mL` },
-                                { label: 'Packed Cells', value: `${d.fluids?.bloodTransfusionPackedCellsMl ?? 0} mL` },
-                                { label: 'Whole Blood', value: `${d.fluids?.bloodTransfusionWholeMl ?? 0} mL` },
-                                { label: 'IV Fluids Total', value: `${d.fluids?.ivInfusionTotalMl ?? 0} mL` },
-                            ].map(({ label, value }) => (
-                                <div key={label} style={{ border: '1px solid #e2e8f0', padding: '4px 6px', borderRadius: 4 }}>
-                                    <span style={{ fontSize: 8, color: '#64748b', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>{label}</span>
-                                    <span style={{ fontWeight: 700, fontSize: 12 }}>{value}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </Section>
-
-                    {/* Medications */}
-                    {d.medications?.length > 0 && (
-                        <Section title="Medications">
-                            <table style={{ width: '100%', fontSize: 9, borderCollapse: 'collapse', border: '1px solid #cbd5e1' }}>
-                                <thead>
-                                    <tr style={{ background: '#f8fafc' }}>
-                                        {['Drug', 'Route', 'Time', 'Sign'].map(h => (
-                                            <th key={h} style={{ padding: '3px 6px', border: '1px solid #cbd5e1', textAlign: 'left' }}>{h}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {d.medications.map((m: any, i: number) => (
-                                        <tr key={i}>
-                                            <td style={{ padding: '3px 6px', border: '1px solid #cbd5e1' }}>{m.drug || m.name}</td>
-                                            <td style={{ padding: '3px 6px', border: '1px solid #cbd5e1' }}>{m.route}</td>
-                                            <td style={{ padding: '3px 6px', border: '1px solid #cbd5e1' }}>{m.time}</td>
-                                            <td style={{ padding: '3px 6px', border: '1px solid #cbd5e1', fontStyle: 'italic' }}>{m.sign || m.administeredBy}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </Section>
-                    )}
-
-                    {/* Implants */}
-                    {d.implants?.length > 0 && (
-                        <Section title="Implants / Prosthesis">
-                            <table style={{ width: '100%', fontSize: 9, borderCollapse: 'collapse', border: '1px solid #cbd5e1' }}>
-                                <thead>
-                                    <tr style={{ background: '#f8fafc' }}>
-                                        {['Item', 'Lot No.', 'Size'].map(h => (
-                                            <th key={h} style={{ padding: '3px 6px', border: '1px solid #cbd5e1', textAlign: 'left' }}>{h}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {d.implants.map((imp: any, i: number) => (
-                                        <tr key={i}>
-                                            <td style={{ padding: '3px 6px', border: '1px solid #cbd5e1' }}>{imp.item || imp.name}</td>
-                                            <td style={{ padding: '3px 6px', border: '1px solid #cbd5e1' }}>{imp.lotNo}</td>
-                                            <td style={{ padding: '3px 6px', border: '1px solid #cbd5e1' }}>{imp.size}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </Section>
-                    )}
-
-                    {/* Specimens */}
-                    {d.specimens?.length > 0 && (
-                        <Section title="Specimens">
-                            <table style={{ width: '100%', fontSize: 9, borderCollapse: 'collapse', border: '1px solid #cbd5e1' }}>
-                                <thead>
-                                    <tr style={{ background: '#f8fafc' }}>
-                                        {['Type', 'Hist', 'Cyto', 'NA', 'Disposition'].map(h => (
-                                            <th key={h} style={{ padding: '3px 6px', border: '1px solid #cbd5e1', textAlign: 'left' }}>{h}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {d.specimens.map((s: any, i: number) => (
-                                        <tr key={i}>
-                                            <td style={{ padding: '3px 6px', border: '1px solid #cbd5e1' }}>{s.type}</td>
-                                            <td style={{ padding: '3px 6px', border: '1px solid #cbd5e1', textAlign: 'center' }}>{s.histology ? '✓' : ''}</td>
-                                            <td style={{ padding: '3px 6px', border: '1px solid #cbd5e1', textAlign: 'center' }}>{s.cytology ? '✓' : ''}</td>
-                                            <td style={{ padding: '3px 6px', border: '1px solid #cbd5e1', textAlign: 'center' }}>{s.notForAnalysis ? '✓' : ''}</td>
-                                            <td style={{ padding: '3px 6px', border: '1px solid #cbd5e1' }}>{s.disposition}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </Section>
-                    )}
-
-                    {/* Items to Return */}
-                    {d.itemsToReturnToTheatre && (
-                        <Section title="Items to Return to Theatre">
-                            <p style={{ margin: '4px 0', padding: '4px 8px', border: '1px solid #e2e8f0', borderRadius: 4 }}>
-                                {d.itemsToReturnToTheatre}
-                            </p>
-                        </Section>
-                    )}
-
-                    {/* Signature Footer */}
-                    <footer style={{ marginTop: 24, paddingTop: 12, borderTop: '2px solid #000', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', fontSize: 10 }}>
-                        <div>
-                            {isFinalized && record.signed_by ? (
-                                <>
-                                    <p style={{ margin: 0, fontWeight: 700, fontSize: 8, color: '#475569', textTransform: 'uppercase' }}>Electronically Signed By</p>
-                                    <p style={{ margin: '2px 0 0', fontSize: 14, fontWeight: 700 }}>{record.signed_by.first_name} {record.signed_by.last_name}</p>
-                                    <p style={{ margin: 0, fontSize: 8, color: '#475569', textTransform: 'uppercase' }}>Nurse Circulator / Final Sign-off</p>
-                                </>
-                            ) : (
-                                <>
-                                    <p style={{ margin: 0, fontWeight: 700, color: '#d97706' }}>⚠ {isAmendment ? 'Amendment in progress — not yet re-finalized' : 'Draft — not yet finalized'}</p>
-                                    <div style={{ marginTop: 16, borderBottom: '1px solid #000', width: 200 }}></div>
-                                    <p style={{ margin: '2px 0 0', fontSize: 8, color: '#64748b' }}>Signature</p>
-                                </>
-                            )}
-                        </div>
-                        <div style={{ textAlign: 'right', fontSize: 9 }}>
-                            {record.signed_at && <p style={{ margin: 0, fontWeight: 600 }}>Signed: {formatDateTime(record.signed_at)}</p>}
-                            <p style={{ margin: '2px 0 0', color: '#94a3b8', fontStyle: 'italic' }}>
-                                Generated: {formatDateTime(new Date())} · Case {caseId.slice(0, 8).toUpperCase()}
-                            </p>
-                        </div>
-                    </footer>
+      <div
+        id="nursing-op-print-root"
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 9999,
+          background: '#fff',
+          overflowY: 'auto',
+          fontFamily: 'Arial, sans-serif',
+          fontSize: 11,
+        }}
+      >
+        <div style={{ maxWidth: 794, margin: '0 auto', padding: '20px 28px' }}>
+          {/* PAGE 1 */}
+          <header style={{ borderBottom: '2px solid #000', paddingBottom: 10, marginBottom: 12, display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <Image src="/assets/images/logo-black.png" alt="Logo" width={48} height={48} />
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 900, letterSpacing: 0.6 }}>
+                  NAIROBI SCULPT AESTHETIC CENTRE
                 </div>
+                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.8 }}>
+                  NURSING OPERATION RECORD
+                </div>
+              </div>
             </div>
-        </>
-    );
-}
-
-// ──────────────────────────────────────────────────────────────────────
-// Helper components (PDF-safe inline styles)
-// ──────────────────────────────────────────────────────────────────────
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-    return (
-        <div style={{ marginBottom: 8 }}>
-            <h3 style={{ margin: 0, fontSize: 9, fontWeight: 900, textTransform: 'uppercase', borderBottom: '1px solid #000', paddingBottom: 2, marginBottom: 4, letterSpacing: 0.5 }}>
-                {title}
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {children}
+            <div style={{ fontSize: 9, color: '#475569', textAlign: 'right' }}>
+              <div>Generated: {today}</div>
+              {record.signed_at && <div>Signed: {format(new Date(record.signed_at), 'dd MMM yyyy, HH:mm')}</div>}
             </div>
-        </div>
-    );
-}
+          </header>
 
-function Row({ label, value }: { label: string; value?: React.ReactNode }) {
-    return (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', fontSize: 9 }}>
-            <span style={{ color: '#475569', fontWeight: 500, paddingRight: 8, flexShrink: 0 }}>{label}:</span>
-            <span style={{ fontWeight: 700, textAlign: 'right' }}>{value || '—'}</span>
-        </div>
-    );
-}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
+            <Section title="Patient Identification">
+              <Field label="Patient file no." value={d.patientFileNo} />
+              <Field label="Name" value={d.patientName} />
+              <Field label="Age" value={d.age} />
+              <Field label="Sex" value={d.sex} />
+              <Field label="Date" value={d.date} />
+              <Field label="Doctor" value={d.doctor} />
+            </Section>
 
-function Note({ label, value }: { label: string; value?: string }) {
-    if (!value) return null;
-    return (
-        <div style={{ marginTop: 2, fontSize: 9, padding: '2px 4px', background: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0' }}>
-            <span style={{ fontWeight: 700, color: '#374151', textTransform: 'uppercase' }}>{label}: </span>
-            <span style={{ fontStyle: 'italic' }}>{value}</span>
+            <Section title="Arrival Details">
+              <Field label="Date" value={d.arrivalDate} />
+              <Field label="Time in" value={d.timeIn} />
+              <TickRow
+                label="Mode"
+                options={[
+                  { label: 'Stretcher', checked: d.arrivalMode === 'Stretcher' },
+                  { label: 'Wheelchair', checked: d.arrivalMode === 'Wheelchair' },
+                  { label: 'Walking', checked: d.arrivalMode === 'Walking' },
+                ]}
+              />
+              <Field label="Allergies" value={d.allergies} />
+              <TickRow
+                label="ASA Class"
+                options={[
+                  { label: '1', checked: d.asaClass === 1 },
+                  { label: '2', checked: d.asaClass === 2 },
+                  { label: '3', checked: d.asaClass === 3 },
+                  { label: '4', checked: d.asaClass === 4 },
+                ]}
+              />
+              <Field label="Comments" value={d.comments} />
+            </Section>
+
+            <Section title="Pre-op Checklist (Y/N)">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 8, fontSize: 11 }}>
+                <div />
+                <div style={{ fontWeight: 800 }}>Y</div>
+                <div style={{ fontWeight: 800 }}>N</div>
+
+                <div>Patient ID verified with Reg No.</div>
+                <div>{ynTick(d.patientIdVerified, 'Y')}</div>
+                <div>{ynTick(d.patientIdVerified, 'N')}</div>
+
+                <div>Informed consent signed</div>
+                <div>{ynTick(d.informedConsentSigned, 'Y')}</div>
+                <div>{ynTick(d.informedConsentSigned, 'N')}</div>
+
+                <div>Pre-op checklist completed</div>
+                <div>{ynTick(d.preOpChecklistCompleted, 'Y')}</div>
+                <div>{ynTick(d.preOpChecklistCompleted, 'N')}</div>
+
+                <div>WHO checklist completed</div>
+                <div>{ynTick(d.whoChecklistCompleted, 'Y')}</div>
+                <div>{ynTick(d.whoChecklistCompleted, 'N')}</div>
+
+                <div>Arrived with IV infusing</div>
+                <div>{ynTick(d.arrivedWithIVInfusing, 'Y')}</div>
+                <div>{ynTick(d.arrivedWithIVInfusing, 'N')}</div>
+              </div>
+
+              <Field label="IV started by" value={d.ivStartedBy} />
+              <Field label="Time" value={d.ivStartTime} />
+              <TickRow
+                label="Position"
+                options={[
+                  { label: 'RA', checked: d.cannulaPosition === 'RA' },
+                  { label: 'LA', checked: d.cannulaPosition === 'LA' },
+                  { label: 'RL', checked: d.cannulaPosition === 'RL' },
+                  { label: 'LL', checked: d.cannulaPosition === 'LL' },
+                  { label: `Other ${d.cannulaPosition === 'Other' ? `(${d.cannulaPositionOther || ''})` : ''}`, checked: d.cannulaPosition === 'Other' },
+                ]}
+              />
+            </Section>
+
+            <Section title="Theatre Timing & Safety">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 8, fontSize: 11 }}>
+                <div>Antibiotic ordered</div>
+                <div>{ynTick(d.antibioticOrdered, 'Y')} Y</div>
+                <div>{ynTick(d.antibioticOrdered, 'N')} N</div>
+              </div>
+              <Field label="Type" value={d.antibioticType} />
+              <Field label="Ordered by" value={d.antibioticOrderedBy} />
+              <Field label="Time" value={d.antibioticTime} />
+              <Field label="Time in theatre" value={d.timeInTheatre} />
+              <Field label="Time out of theatre" value={d.timeOutOfTheatre} />
+              <Field label="Operation start" value={d.operationStart} />
+              <Field label="Finish" value={d.operationFinish} />
+              <Field label="Safety belt applied (Y/N)" value={d.safetyBeltApplied} />
+              <Field label="Position" value={d.safetyBeltPosition} />
+              <Field label="Arms secured (Y/N)" value={d.armsSecured} />
+              <Field label="Position" value={d.armsPosition} />
+              <Field label="Patient in proper body alignment (Y/N)" value={d.properBodyAlignment} />
+              <Field label="Pressure points (describe)" value={d.pressurePointsDescription} />
+            </Section>
+
+            <Section title="Urinary Catheter & Intra-op Imaging">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 8, fontSize: 11 }}>
+                <div>Urinary catheter in-situ</div>
+                <div>{ynTick(d.urinaryCatheterInSitu, 'Y')} Y</div>
+                <div>{ynTick(d.urinaryCatheterInSitu, 'N')} N</div>
+                <div>Urinary catheter inserted in theatre</div>
+                <div>{ynTick(d.urinaryCatheterInsertedInTheatre, 'Y')} Y</div>
+                <div>{ynTick(d.urinaryCatheterInsertedInTheatre, 'N')} N</div>
+              </div>
+              <Field label="Type" value={d.catheterType} />
+              <Field label="Size" value={d.catheterSize} />
+              <Field label="Intra-op X-Rays taken" value={d.intraOpXRays} />
+            </Section>
+
+            <Section title="Patient Position (tick)">
+              <TickRow
+                label="Position"
+                options={[
+                  { label: 'Prone', checked: d.patientPosition === 'Prone' },
+                  { label: 'Supine', checked: d.patientPosition === 'Supine' },
+                  { label: 'Lateral', checked: d.patientPosition === 'Lateral' },
+                  { label: 'Lithotomy', checked: d.patientPosition === 'Lithotomy' },
+                  { label: `Other ${d.patientPosition === 'Other' ? `(${d.patientPositionOther || ''})` : ''}`, checked: d.patientPosition === 'Other' },
+                ]}
+              />
+            </Section>
+
+            <Section title="Skin Prep">
+              <Field label="Shaved by" value={d.shavedBy} />
+              <TickRow
+                label="Prep"
+                options={[
+                  { label: 'Hibitane in spirit', checked: (d.skinPrepAgents || []).includes('Hibitane in Spirit') },
+                  { label: 'Povidone iodine', checked: (d.skinPrepAgents || []).includes('Povidone Iodine') },
+                  { label: 'Hibitane in water', checked: (d.skinPrepAgents || []).includes('Hibitane in Water') },
+                  { label: `Other ${((d.skinPrepAgents || []).includes('Other') && d.skinPrepOther) ? `(${d.skinPrepOther})` : ''}`, checked: (d.skinPrepAgents || []).includes('Other') },
+                ]}
+              />
+            </Section>
+
+            <Section title="Electrosurgical Unit">
+              <Field label="Unit No." value={d.electrosurgicalUnitNo} />
+              <Field label="Mode" value={d.electrosurgicalMode} />
+              <Field label="Coat. set" value={d.coatSet} />
+              <Field label="Cut set" value={d.cutSet} />
+              <Field label="Skin checked before" value={d.electrosurgicalSkinCheckedBefore} />
+              <Field label="Skin checked after" value={d.electrosurgicalSkinCheckedAfter} />
+            </Section>
+
+            <Section title="Tourniquet">
+              <Field label="Type" value={d.tourniquetType} />
+              <Field label="Site" value={d.tourniquetSite} />
+              <TickRow
+                label="Rt./Lt."
+                options={[
+                  { label: 'Rt.', checked: d.tourniquetSide === 'Rt.' },
+                  { label: 'Lt.', checked: d.tourniquetSide === 'Lt.' },
+                ]}
+              />
+              <Field label="Pressure" value={d.tourniquetPressure} />
+              <Field label="Time on" value={d.tourniquetTimeOn} />
+              <Field label="Time off" value={d.tourniquetTimeOff} />
+              <Field label="Skin checked before" value={d.tourniquetSkinCheckedBefore} />
+              <Field label="Skin checked after" value={d.tourniquetSkinCheckedAfter} />
+            </Section>
+
+            <Section title="Drain Type / Wound Irrigation / Wound Pack / Wound Class">
+              <TickRow
+                label="Drain type"
+                options={[
+                  { label: 'Corrugated', checked: (d.drainTypes || []).includes('Corrugated') },
+                  { label: 'Portovac', checked: (d.drainTypes || []).includes('Portovac') },
+                  { label: 'UWS', checked: (d.drainTypes || []).includes('UWS') },
+                  { label: 'NG', checked: (d.drainTypes || []).includes('NG') },
+                  { label: `Other ${((d.drainTypes || []).includes('Other') && d.drainTypeOther) ? `(${d.drainTypeOther})` : ''}`, checked: (d.drainTypes || []).includes('Other') },
+                ]}
+              />
+              <TickRow
+                label="Wound irrigation"
+                options={[
+                  { label: 'Saline', checked: (d.woundIrrigation || []).includes('Saline') },
+                  { label: 'Water', checked: (d.woundIrrigation || []).includes('Water') },
+                  { label: 'Povidone iodine', checked: (d.woundIrrigation || []).includes('Povidone Iodine') },
+                  { label: 'Antibiotic', checked: (d.woundIrrigation || []).includes('Antibiotic') },
+                  { label: `Other ${((d.woundIrrigation || []).includes('Other') && d.woundIrrigationOther) ? `(${d.woundIrrigationOther})` : ''}`, checked: (d.woundIrrigation || []).includes('Other') },
+                ]}
+              />
+              <Field label="Wound pack type" value={d.woundPackType} />
+              <Field label="Wound pack site" value={d.woundPackSite} />
+              <TickRow
+                label="Wound class"
+                options={[
+                  { label: 'Clean', checked: d.woundClass === 'Clean' },
+                  { label: 'Clean contaminated', checked: d.woundClass === 'Clean Contaminated' },
+                  { label: 'Contaminated', checked: d.woundClass === 'Contaminated' },
+                  { label: 'Infected', checked: d.woundClass === 'Infected' },
+                ]}
+              />
+            </Section>
+
+            <Section title="Surgical Team & Anaesthesia">
+              <Field label="Surgeon" value={d.surgeon} />
+              <Field label="Assistant" value={d.assistant} />
+              <Field label="Anaesthesiologist" value={d.anaesthesiologist} />
+              <Field label="Scrub nurse" value={d.scrubNurse} />
+              <Field label="Circulating nurse" value={d.circulatingNurse} />
+              <Field label="Observers / other" value={d.observers} />
+              <TickRow
+                label="Type of anaesthesia"
+                options={[
+                  { label: 'General', checked: d.anaesthesiaType === 'General' },
+                  { label: 'Spinal', checked: d.anaesthesiaType === 'Spinal' },
+                  { label: 'Regional', checked: d.anaesthesiaType === 'Regional' },
+                  { label: 'Local', checked: d.anaesthesiaType === 'Local' },
+                ]}
+              />
+              {d.anaesthesiaDetail && <Field label="Detail" value={d.anaesthesiaDetail} />}
+            </Section>
+
+            <Section title="Diagnosis & Operation">
+              <Field label="Pre-op diagnosis" value={d.preOpDiagnosis} />
+              <Field label="Intra-op diagnosis" value={d.intraOpDiagnosis} />
+              <Field label="Operation(s)" value={d.operationsPerformed} />
+            </Section>
+
+            <div style={{ textAlign: 'center', fontSize: 10, marginTop: 6, fontWeight: 700 }}>
+              — Nursing Operation Record (continues on page 2) —
+            </div>
+          </div>
+
+          {/* PAGE 2 */}
+          <div style={{ breakBefore: 'page', marginTop: 18 }}>
+            <header style={{ borderBottom: '2px solid #000', paddingBottom: 10, marginBottom: 12, display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <Image src="/assets/images/logo-black.png" alt="Logo" width={42} height={42} />
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 900, letterSpacing: 0.6 }}>
+                    NAIROBI SCULPT AESTHETIC CENTRE
+                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.8 }}>
+                    NURSING OPERATION RECORD (CONT.)
+                  </div>
+                </div>
+              </div>
+              <div style={{ fontSize: 9, color: '#475569', textAlign: 'right' }}>
+                <div>Case: {surgicalCase.id}</div>
+                <div>Patient: {surgicalCase.patient.file_number}</div>
+              </div>
+            </header>
+
+            <Section title="Swabs, Instruments & Sharps Count">
+              <div style={{ border: '1px solid #cbd5e1', borderRadius: 6, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+                  <thead style={{ background: '#f8fafc' }}>
+                    <tr>
+                      <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #cbd5e1' }}>Check point</th>
+                      <th style={{ textAlign: 'center', padding: 8, borderBottom: '1px solid #cbd5e1' }}>Abdominal swabs</th>
+                      <th style={{ textAlign: 'center', padding: 8, borderBottom: '1px solid #cbd5e1' }}>Raytec swabs</th>
+                      <th style={{ textAlign: 'center', padding: 8, borderBottom: '1px solid #cbd5e1' }}>Throat packs</th>
+                      <th style={{ textAlign: 'center', padding: 8, borderBottom: '1px solid #cbd5e1' }}>Other</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['Preliminary check', d.swabsCount?.preliminaryCheck],
+                      ['Wound closure', d.swabsCount?.woundClosure],
+                      ['Final count', d.swabsCount?.finalCount],
+                    ].map(([label, row]: any) => (
+                      <tr key={label}>
+                        <td style={{ padding: 8, borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>{label}</td>
+                        <td style={{ padding: 8, borderBottom: '1px solid #e2e8f0', textAlign: 'center' }}>{val(row?.abdominalSwabs)}</td>
+                        <td style={{ padding: 8, borderBottom: '1px solid #e2e8f0', textAlign: 'center' }}>{val(row?.raytecSwabs)}</td>
+                        <td style={{ padding: 8, borderBottom: '1px solid #e2e8f0', textAlign: 'center' }}>{val(row?.throatPacks)}</td>
+                        <td style={{ padding: 8, borderBottom: '1px solid #e2e8f0', textAlign: 'center' }}>{val(row?.other)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginTop: 10 }}>
+                <div style={{ fontWeight: 800 }}>Count correct</div>
+                <div>{ynTick(d.countCorrect, 'Y')} Y</div>
+                <div>{ynTick(d.countCorrect, 'N')} N</div>
+              </div>
+              {d.countCorrect === 'N' && <Field label="Action taken if not" value={d.countActionTaken} />}
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 10 }}>
+                <div>
+                  <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', marginBottom: 4 }}>
+                    Scrub nurse signature
+                  </div>
+                  <div style={{ height: 80, border: '1px solid #cbd5e1', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {d.scrubNurseSignature ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img alt="Scrub nurse signature" src={d.scrubNurseSignature} style={{ maxHeight: 72, maxWidth: '100%', objectFit: 'contain' }} />
+                    ) : (
+                      <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>—</span>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', marginBottom: 4 }}>
+                    Circulating nurse signature
+                  </div>
+                  <div style={{ height: 80, border: '1px solid #cbd5e1', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {d.circulatingNurseSignature ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img alt="Circulating nurse signature" src={d.circulatingNurseSignature} style={{ maxHeight: 72, maxWidth: '100%', objectFit: 'contain' }} />
+                    ) : (
+                      <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>—</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Section>
+
+            <Section title="Wound Closure">
+              <Field label="Non-absorbable" value={d.nonAbsorbableSuture} />
+              <Field label="Absorbable" value={d.absorbableSuture} />
+              <Field label="Other" value={d.otherClosure} />
+              <Field label="Dressing applied" value={d.dressingApplied} />
+            </Section>
+
+            <Section title="Intravenous Infusion / Transfusions (mL)">
+              <Field label="Packed cells (mL)" value={d.packedCellsML} />
+              <Field label="Whole (mL)" value={d.wholeBloodML} />
+              <Field label="Others (mL)" value={d.otherBloodProductsML} />
+              <Field label="Intravenous infusion (mL)" value={d.ivInfusionML} />
+              <Field label="Estimated blood loss (mL)" value={d.estimatedBloodLossML} />
+              <Field label="Urinary output (mL)" value={d.urinaryOutputML} />
+            </Section>
+
+            <Section title="Medication">
+              <div style={{ border: '1px solid #cbd5e1', borderRadius: 6, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+                  <thead style={{ background: '#f8fafc' }}>
+                    <tr>
+                      <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #cbd5e1' }}>Medication / drug</th>
+                      <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #cbd5e1' }}>Route</th>
+                      <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #cbd5e1' }}>Time</th>
+                      <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #cbd5e1' }}>Sign</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: 5 }).map((_, i) => {
+                      const row = meds[i] || {};
+                      return (
+                        <tr key={i}>
+                          <td style={{ padding: 8, borderBottom: '1px solid #e2e8f0' }}>{val(row.drug)}</td>
+                          <td style={{ padding: 8, borderBottom: '1px solid #e2e8f0' }}>{val(row.route)}</td>
+                          <td style={{ padding: 8, borderBottom: '1px solid #e2e8f0' }}>{val(row.time)}</td>
+                          <td style={{ padding: 8, borderBottom: '1px solid #e2e8f0' }}>{val(row.sign)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Section>
+
+            <Section title="Surgical Implants / Prosthesis">
+              <div style={{ border: '1px solid #cbd5e1', borderRadius: 6, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+                  <thead style={{ background: '#f8fafc' }}>
+                    <tr>
+                      <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #cbd5e1' }}>Item</th>
+                      <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #cbd5e1' }}>Lot No.</th>
+                      <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #cbd5e1' }}>Size</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: 5 }).map((_, i) => {
+                      const row = implants[i] || {};
+                      return (
+                        <tr key={i}>
+                          <td style={{ padding: 8, borderBottom: '1px solid #e2e8f0' }}>{val(row.item)}</td>
+                          <td style={{ padding: 8, borderBottom: '1px solid #e2e8f0' }}>{val(row.lotNo)}</td>
+                          <td style={{ padding: 8, borderBottom: '1px solid #e2e8f0' }}>{val(row.size)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Section>
+
+            <Section title="Specimens">
+              <div style={{ border: '1px solid #cbd5e1', borderRadius: 6, overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+                  <thead style={{ background: '#f8fafc' }}>
+                    <tr>
+                      <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #cbd5e1' }}>Type</th>
+                      <th style={{ textAlign: 'center', padding: 8, borderBottom: '1px solid #cbd5e1' }}>Histology</th>
+                      <th style={{ textAlign: 'center', padding: 8, borderBottom: '1px solid #cbd5e1' }}>Cytology</th>
+                      <th style={{ textAlign: 'center', padding: 8, borderBottom: '1px solid #cbd5e1' }}>Not for analysis</th>
+                      <th style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #cbd5e1' }}>Disposition</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: 4 }).map((_, i) => {
+                      const row = specimens[i] || {};
+                      return (
+                        <tr key={i}>
+                          <td style={{ padding: 8, borderBottom: '1px solid #e2e8f0' }}>{val(row.type)}</td>
+                          <td style={{ padding: 8, borderBottom: '1px solid #e2e8f0', textAlign: 'center' }}>{tick(row.histology === true)}</td>
+                          <td style={{ padding: 8, borderBottom: '1px solid #e2e8f0', textAlign: 'center' }}>{tick(row.cytology === true)}</td>
+                          <td style={{ padding: 8, borderBottom: '1px solid #e2e8f0', textAlign: 'center' }}>{tick(row.notForAnalysis === true)}</td>
+                          <td style={{ padding: 8, borderBottom: '1px solid #e2e8f0' }}>{val(row.disposition)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Section>
+
+            <Section title="Items to be returned to theatre">
+              <div style={{ border: '1px solid #cbd5e1', borderRadius: 6, padding: 10, minHeight: 60 }}>
+                {val(d.itemsToBeReturnedToTheatre)}
+              </div>
+            </Section>
+
+            <Section title="Charges">
+              <Field label="Anaesthetic materials charge (amount)" value={d.anaestheticMaterialsCharge} />
+              <Field label="Theatre fee (amount)" value={d.theatreFee} />
+            </Section>
+
+            <div style={{ marginTop: 10, textAlign: 'center', fontSize: 10, fontWeight: 800 }}>
+              End of Nursing Operation Record — Nairobi Sculpt Aesthetic Centre
+            </div>
+          </div>
         </div>
-    );
+      </div>
+    </>
+  );
 }

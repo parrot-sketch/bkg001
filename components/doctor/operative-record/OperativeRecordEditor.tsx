@@ -12,8 +12,6 @@ import { Loader2, Printer, Save, CheckCircle2, AlertTriangle } from 'lucide-reac
 import Link from 'next/link';
 import { HeaderSection } from '@/components/doctor/operative-record/sections/HeaderSection';
 import { ProcedureNotesSection } from '@/components/doctor/operative-record/sections/ProcedureNotesSection';
-import { MetricsSection } from '@/components/doctor/operative-record/sections/MetricsSection';
-import { ComplicationsSection } from '@/components/doctor/operative-record/sections/ComplicationsSection';
 import { CountsSection } from '@/components/doctor/operative-record/sections/CountsSection';
 import { Page2Section } from '@/components/doctor/operative-record/sections/Page2Section';
 
@@ -22,15 +20,38 @@ interface Props {
 }
 
 const EMPTY_DRAFT: SurgeonOperativeNoteDraft = {
-  header: {},
+  header: {
+    diagnosisPreOp: '',
+    diagnosisPostOp: '',
+    procedurePlanned: '',
+    procedurePerformed: '',
+    side: '',
+    surgeonId: '',
+    surgeonName: '',
+    assistants: [],
+    anesthesiologistId: '',
+    anesthesiologistName: '',
+    anesthesiaType: 'GENERAL',
+    shavingY: false,
+    shavingN: false,
+    shavingExtent: '',
+    skinPrepY: false,
+    skinPrepN: false,
+  },
+  intraOpMetrics: {},
+  implantsUsed: {},
+  specimens: {},
+  complications: {},
+  postOpPlan: {},
   findingsAndSteps: {},
   operativeRecord: {},
-  intraOpMetrics: { estimatedBloodLossMl: 0 },
-  implantsUsed: { implantsUsed: [] },
-  specimens: { specimens: [] },
-  complications: { complicationsOccurred: false, complicationsDetails: '' },
-  countsConfirmation: { countsCorrect: true, countsExplanation: '' },
-  postOpPlan: {},
+  countsConfirmation: {
+    countsCorrectY: false,
+    countsCorrectN: false,
+    countsExplanation: '',
+    scrubNurseSignaturePng: '',
+    surgeonSignaturePage1Png: '',
+  },
 };
 
 export function OperativeRecordEditor({ caseId }: Props) {
@@ -212,38 +233,14 @@ export function OperativeRecordEditor({ caseId }: Props) {
             value={formData.header}
             disabled={isDisabled || !canEdit}
             onChange={(next) => setField('header', next as any)}
+            caseProcedureName={data?.procedureName}
           />
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="py-3">
-          <CardTitle className="text-sm">Intra-Operative Metrics</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <MetricsSection
-            value={formData.intraOpMetrics}
-            disabled={isDisabled || !canEdit}
-            onChange={(next) => setField('intraOpMetrics', next as any)}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="py-3">
-          <CardTitle className="text-sm">Complications</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ComplicationsSection
-            value={formData.complications}
-            disabled={isDisabled || !canEdit}
-            onChange={(next) => setField('complications', next as any)}
-          />
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="py-3">
-          <CardTitle className="text-sm">Operations & Procedure Notes</CardTitle>
+          <CardTitle className="text-sm">Operation Notes</CardTitle>
         </CardHeader>
         <CardContent>
           <ProcedureNotesSection

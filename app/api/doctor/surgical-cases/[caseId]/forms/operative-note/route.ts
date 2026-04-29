@@ -243,18 +243,9 @@ function buildPrefillData(
         }
     }
 
-    // Implants + Specimens from nurse intra-op
-    const implantsUsed = nurseIntraOp
-        ? prefillImplantsFromIntraOp(nurseIntraOp.data?.implantsUsed)
-        : [];
-
-    const specimens = nurseIntraOp
-        ? prefillSpecimensFromIntraOp(nurseIntraOp.data?.specimens)
-        : [];
-
     // Counts discrepancy from nurse
     const nurseHasDiscrepancy = nurseIntraOp
-        ? getNurseCountDiscrepancy(nurseIntraOp.data?.counts)
+        ? getNurseCountDiscrepancy(nurseIntraOp.data)
         : false;
 
     return {
@@ -262,12 +253,15 @@ function buildPrefillData(
         findingsAndSteps: {},
         operativeRecord: {},
         intraOpMetrics: {},
-        implantsUsed: { implantsUsed },
-        specimens: { specimens },
+        implantsUsed: {},
+        specimens: {},
         complications: { complicationsOccurred: false },
         countsConfirmation: {
-            countsCorrect: !nurseHasDiscrepancy,
+            countsCorrectY: !nurseHasDiscrepancy,
+            countsCorrectN: nurseHasDiscrepancy,
             countsExplanation: '',
+            scrubNurseSignaturePng: '',
+            surgeonSignaturePage1Png: '',
         },
         postOpPlan: {},
     };
@@ -294,9 +288,7 @@ export async function GET(
 
         // Fetch nurse intra-op data for prefills + discrepancy check
         const nurseIntraOp = await getNurseIntraOpData(caseId);
-        const nurseHasDiscrepancy = nurseIntraOp
-            ? getNurseCountDiscrepancy(nurseIntraOp.data?.counts)
-            : false;
+        const nurseHasDiscrepancy = nurseIntraOp ? getNurseCountDiscrepancy(nurseIntraOp.data) : false;
 
         let response = await db.clinicalFormResponse.findUnique({
             where: {
@@ -520,20 +512,14 @@ export async function POST(
         }
 
         const currentData = JSON.parse(existing.data_json);
-        const nurseHasDiscrepancy = getNurseCountDiscrepancy(nurseIntraOp.data?.counts);
+        const nurseHasDiscrepancy = getNurseCountDiscrepancy(nurseIntraOp.data);
 
-        // Merge: overwrite implants and specimens from nurse record
-        currentData.implantsUsed = {
-            implantsUsed: prefillImplantsFromIntraOp(nurseIntraOp.data?.implantsUsed),
-        };
-        currentData.specimens = {
-            specimens: prefillSpecimensFromIntraOp(nurseIntraOp.data?.specimens),
-        };
         // Update counts if nurse flagged discrepancy
         if (nurseHasDiscrepancy) {
             currentData.countsConfirmation = {
                 ...currentData.countsConfirmation,
-                countsCorrect: false,
+                countsCorrectY: false,
+                countsCorrectN: true,
             };
         }
 

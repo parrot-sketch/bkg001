@@ -56,35 +56,26 @@ export function OperativeRecordPrintDocument(props: {
             </h1>
             <p className="text-sm text-slate-500 mt-1">Generated on {today}</p>
           </div>
-          <Button
-            onClick={() => {
-              if (typeof window !== 'undefined') window.print();
-            }}
-            className="hidden sm:flex bg-slate-900 text-white"
-          >
-            <Printer className="mr-2 h-4 w-4" />
-            Print Document
-          </Button>
         </div>
 
-        {/* Page 1 */}
-        <div className="print-area">
-          <header className="border-b-2 border-slate-900 pb-6 mb-8 flex justify-between items-start">
-            <div>
-              <h2 className="text-3xl font-extrabold tracking-tight text-slate-900">
-                Nairobi Sculpt
-              </h2>
-              <p className="text-sm text-slate-500 font-medium tracking-wide">
-                OPERATIVE RECORD
-              </p>
-            </div>
-            <div className="text-right text-xs text-slate-500 space-y-1">
-              <p>Status: {operativeStatus}</p>
-              {operativeSignedAt && (
-                <p>Signed: {format(new Date(operativeSignedAt), 'dd MMM yyyy, HH:mm')}</p>
-              )}
-            </div>
-          </header>
+      {/* Page 1 */}
+      <div className="print-area">
+        <header className="border-b-2 border-slate-900 pb-6 mb-8 flex justify-between items-start">
+          <div>
+            <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 uppercase">
+              NAIROBI SCULPT AESTHETIC CENTRE
+            </h2>
+            <p className="text-sm text-slate-500 font-medium tracking-wide uppercase">
+              OPERATION RECORD
+            </p>
+          </div>
+          <div className="text-right text-xs text-slate-500 space-y-1">
+            <p>Status: {operativeStatus}</p>
+            {operativeSignedAt && (
+              <p>Signed: {format(new Date(operativeSignedAt), 'dd MMM yyyy, HH:mm')}</p>
+            )}
+          </div>
+        </header>
 
           <div className="grid grid-cols-2 gap-6 mb-8 text-sm border-b border-slate-200 pb-8">
             <div className="space-y-3">
@@ -118,56 +109,48 @@ export function OperativeRecordPrintDocument(props: {
           <div className="grid grid-cols-2 gap-6 mb-8 text-sm">
             <div className="space-y-3">
               <div>
-                <span className="block text-xs font-bold text-slate-400 uppercase">Anaesthesiologist</span>
+                <span className="block text-xs font-bold text-slate-400 uppercase">ANAESTHESIOLOGIST</span>
                 <span className="text-slate-800">{anesth || '—'}</span>
               </div>
               <div>
-                <span className="block text-xs font-bold text-slate-400 uppercase">Scrub Nurse</span>
+                <span className="block text-xs font-bold text-slate-400 uppercase">ASSISTANT(S)</span>
+                <span className="text-slate-800">{assistants.join(', ') || '—'}</span>
+              </div>
+              <div>
+                <span className="block text-xs font-bold text-slate-400 uppercase">SCRUB NURSE</span>
                 <span className="text-slate-800">{scrubNurse || '—'}</span>
               </div>
               <div>
-                <span className="block text-xs font-bold text-slate-400 uppercase">Circulating Nurse</span>
+                <span className="block text-xs font-bold text-slate-400 uppercase">CIRCULATING NURSE</span>
                 <span className="text-slate-800">{circulatingNurse || '—'}</span>
               </div>
             </div>
             <div className="space-y-3">
               <div>
-                <span className="block text-xs font-bold text-slate-400 uppercase">Pre-operative diagnosis</span>
+                <span className="block text-xs font-bold text-slate-400 uppercase">PRE-OPERATIVE DIAGNOSIS</span>
                 <span className="text-slate-800">{header.diagnosisPreOp || '—'}</span>
               </div>
               <div>
-                <span className="block text-xs font-bold text-slate-400 uppercase">Operative diagnosis</span>
+                <span className="block text-xs font-bold text-slate-400 uppercase">OPERATIVE DIAGNOSIS</span>
                 <span className="text-slate-800">{header.diagnosisPostOp || '—'}</span>
               </div>
               <div>
-                <span className="block text-xs font-bold text-slate-400 uppercase">Procedure performed</span>
+                <span className="block text-xs font-bold text-slate-400 uppercase">OPERATION(S)</span>
                 <span className="text-slate-800">{header.procedurePerformed || '—'}</span>
               </div>
             </div>
           </div>
 
-          <section className="break-inside-avoid border border-slate-100 rounded-md p-5 print:border-none print:p-0">
-            <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-3 pb-2 border-b border-slate-200">
-              Operations / Procedure Notes
-            </h4>
-            {stripHtml(procedureNotesHtml) ? (
-              <div
-                className="prose prose-sm max-w-none prose-slate"
-                dangerouslySetInnerHTML={{ __html: procedureNotesHtml }}
-              />
-            ) : (
-              <p className="text-slate-500 italic">—</p>
-            )}
-          </section>
+
 
           <div className="mt-8 break-inside-avoid border border-slate-100 rounded-md p-5 print:border-none print:p-0">
             <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-3 pb-2 border-b border-slate-200">
               Swab & Instrument Count Correct
             </h4>
             <p className="text-sm">
-              {counts.countsCorrect === true ? 'Yes' : counts.countsCorrect === false ? 'No' : '—'}
+              {counts.countsCorrectY ? "Yes" : counts.countsCorrectN ? "No" : "—"}
             </p>
-            {counts.countsCorrect === false && counts.countsExplanation && (
+            {counts.countsCorrectN && counts.countsExplanation && (
               <p className="text-xs text-slate-600 mt-1">{counts.countsExplanation}</p>
             )}
           </div>
@@ -176,18 +159,23 @@ export function OperativeRecordPrintDocument(props: {
             <div className="grid grid-cols-2 gap-16">
               <div className="text-center">
                 <div className="h-20 border-b border-slate-400 mb-2 flex items-end justify-center">
-                  {opRec.surgeonSignaturePng && (
+                  {counts.surgeonSignaturePage1Png && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img alt="Surgeon signature" src={opRec.surgeonSignaturePng} className="h-14 object-contain" />
+                    <img alt="Surgeon signature" src={counts.surgeonSignaturePage1Png} className="h-14 object-contain" />
                   )}
                 </div>
-                <p className="text-sm text-slate-800 font-bold">{surgeonName || 'Surgeon'}</p>
-                <p className="text-xs text-slate-500">Surgeon Signature</p>
+                <p className="uppercase text-sm text-slate-800 font-bold">{surgeonName || 'Surgeon'}</p>
+                <p className="uppercase text-xs text-slate-500">Surgeon Signature</p>
               </div>
               <div className="text-center">
-                <div className="h-20 border-b border-slate-400 mb-2" />
-                <p className="text-sm text-slate-800 font-bold">{scrubNurse || 'Scrub Nurse'}</p>
-                <p className="text-xs text-slate-500">Scrub Nurse Signature</p>
+                <div className="h-20 border-b border-slate-400 mb-2 flex items-end justify-center">
+                  {counts.scrubNurseSignaturePng && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img alt="Scrub nurse signature" src={counts.scrubNurseSignaturePng} className="h-14 object-contain" />
+                  )}
+                </div>
+                <p className="uppercase text-sm text-slate-800 font-bold">{scrubNurse || 'Scrub Nurse'}</p>
+                <p className="uppercase text-xs text-slate-500">Scrub Nurse Signature</p>
               </div>
             </div>
           </div>
@@ -197,11 +185,11 @@ export function OperativeRecordPrintDocument(props: {
         <div className="break-before-page mt-16 print:mt-0">
           <div className="text-center mb-6">
             <h3 className="text-xl font-bold text-slate-800 uppercase tracking-widest bg-slate-100 print:bg-slate-100 py-2">
-              Operation Record
+              OPERATION RECORD (CONT.)
             </h3>
           </div>
 
-          <section className="break-inside-avoid border border-slate-100 rounded-md p-5 print:border-none print:p-0">
+          <section className="break-inside-avoid p-5 print:p-0">
             {stripHtml(operationRecordHtml) ? (
               <div
                 className="prose prose-sm max-w-none prose-slate"
@@ -212,18 +200,7 @@ export function OperativeRecordPrintDocument(props: {
             )}
           </section>
 
-          <div className="mt-10 break-inside-avoid">
-            <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-3 pb-2 border-b border-slate-200">
-              Surgeon Signature
-            </h4>
-            <div className="h-20 border-b border-slate-400 mb-2 flex items-end justify-start">
-              {opRec.surgeonSignaturePng && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img alt="Surgeon signature" src={opRec.surgeonSignaturePng} className="h-14 object-contain" />
-              )}
-            </div>
-            <p className="text-xs text-slate-500">Name: {surgeonName || '—'}</p>
-          </div>
+
 
           <div className="mt-10 break-inside-avoid">
             <h4 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-3 pb-2 border-b border-slate-200">
@@ -238,9 +215,27 @@ export function OperativeRecordPrintDocument(props: {
               <p className="text-slate-500 italic">—</p>
             )}
           </div>
+
+          <div className="mt-14 pt-6 break-inside-avoid">
+            <div className="text-center">
+              <div className="h-24 border-b border-slate-400 mb-2 flex items-end justify-center">
+                {opRec.surgeonOrAnesthesiologistSignaturePng && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    alt="Surgeon/anaesthesiologist signature"
+                    src={opRec.surgeonOrAnesthesiologistSignaturePng}
+                    className="h-16 object-contain"
+                  />
+                )}
+              </div>
+              <p className="uppercase text-sm text-slate-800 font-bold">
+                {(surgeonName || 'Surgeon') + (anesth ? ` / ${anesth}` : '')}
+              </p>
+              <p className="uppercase text-xs text-slate-500">Surgeon / Anaesthesiologist Signature</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-

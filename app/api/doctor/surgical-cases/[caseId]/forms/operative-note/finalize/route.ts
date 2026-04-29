@@ -25,11 +25,20 @@ import {
     buildSurgeonOperativeNoteFinalSchema,
     getMissingOperativeNoteItems,
     getNurseCountDiscrepancy,
+    surgeonOperativeNoteDraftSchema,
 } from '@/domain/clinical-forms/SurgeonOperativeNote';
 import {
     INTRAOP_TEMPLATE_KEY,
     INTRAOP_TEMPLATE_VERSION,
 } from '@/domain/clinical-forms/NurseIntraOpRecord';
+import { makeServerSignatureSvgDataUrl } from '@/lib/crypto/makeServerSignatureSvgDataUrl';
+import { computeSignatureProof } from '@/lib/crypto/signatureProof';
+
+function getClientIp(request: NextRequest): string | undefined {
+    const forwarded = request.headers.get('x-forwarded-for');
+    if (forwarded) return forwarded.split(',')[0]?.trim() || undefined;
+    return request.headers.get('x-real-ip') || undefined;
+}
 
 export async function POST(
     request: NextRequest,
@@ -52,7 +61,11 @@ export async function POST(
         // 2. Verify case ownership
         const surgicalCase = await db.surgicalCase.findUnique({
             where: { id: caseId },
-            select: { primary_surgeon_id: true },
+            select: {
+                primary_surgeon_id: true,
+                primary_surgeon: { select: { name: true } },
+                team_members: { select: { role: true, name: true } },
+            },
         });
         if (!surgicalCase) {
             return NextResponse.json({ success: false, error: 'Surgical case not found' }, { status: 404 });
@@ -60,7 +73,7 @@ export async function POST(
 
         const doctor = await db.doctor.findFirst({
             where: { user_id: userId },
-            select: { id: true },
+            select: { id: true, name: true },
         });
         if (!doctor || doctor.id !== surgicalCase.primary_surgeon_id) {
             return NextResponse.json(
@@ -110,7 +123,7 @@ export async function POST(
         if (nurseIntraOp) {
             try {
                 const nurseData = JSON.parse(nurseIntraOp.data_json);
-                nurseHasDiscrepancy = getNurseCountDiscrepancy(nurseData?.counts);
+                nurseHasDiscrepancy = getNurseCountDiscrepancy(nurseData);
             } catch {
                 // Ignore parse errors on nurse record
             }
@@ -127,10 +140,58 @@ export async function POST(
             );
         }
 
+        const normalizedDraft = surgeonOperativeNoteDraftSchema.safeParse(currentData);
+        if (!normalizedDraft.success) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: 'Stored form data failed draft validation.',
+                    details: normalizedDraft.error.issues.map((i) => ({
+                        path: i.path.join('.'),
+                        message: i.message,
+                    })),
+                },
+                { status: 422 },
+            );
+        }
+
+        const now = new Date();
+        const signedAtIso = now.toISOString();
+
+        const scrubNurseName =
+            surgicalCase.team_members.find((m) => m.role === 'SCRUB_NURSE')?.name?.trim() ||
+            'Scrub Nurse';
+        const anesthName =
+            normalizedDraft.data.header?.anesthesiologistName?.trim() ||
+            surgicalCase.team_members.find((m) => m.role === 'ANAESTHESIOLOGIST')?.name?.trim() ||
+            surgicalCase.team_members.find((m) => m.role === 'ANESTHETIST_NURSE')?.name?.trim() ||
+            '';
+        const surgeonName =
+            normalizedDraft.data.header?.surgeonName?.trim() ||
+            surgicalCase.primary_surgeon?.name?.trim() ||
+            doctor.name?.trim() ||
+            'Surgeon';
+
+        const nextData: any = {
+            ...normalizedDraft.data,
+            countsConfirmation: {
+                ...(normalizedDraft.data.countsConfirmation ?? {}),
+                scrubNurseSignaturePng: makeServerSignatureSvgDataUrl(scrubNurseName, signedAtIso),
+                surgeonSignaturePage1Png: makeServerSignatureSvgDataUrl(surgeonName, signedAtIso),
+            },
+            operativeRecord: {
+                ...(normalizedDraft.data.operativeRecord ?? {}),
+                surgeonOrAnesthesiologistSignaturePng: makeServerSignatureSvgDataUrl(
+                    anesthName ? `${surgeonName} / ${anesthName}` : surgeonName,
+                    signedAtIso,
+                ),
+            },
+        };
+
         const finalSchema = buildSurgeonOperativeNoteFinalSchema(nurseHasDiscrepancy);
-        const parsed = finalSchema.safeParse(currentData);
+        const parsed = finalSchema.safeParse(nextData);
         if (!parsed.success) {
-            const missingItems = getMissingOperativeNoteItems(currentData as any, nurseHasDiscrepancy);
+            const missingItems = getMissingOperativeNoteItems(nextData as any, nurseHasDiscrepancy);
             return NextResponse.json(
                 {
                     success: false,
@@ -145,15 +206,32 @@ export async function POST(
             );
         }
 
+        const userAgent = request.headers.get('user-agent') || undefined;
+        const ip = getClientIp(request);
+
+        const proof = computeSignatureProof({
+            payload: {
+                caseId,
+                formResponseId: existing.id,
+                data: parsed.data,
+                nurseHasDiscrepancy,
+            },
+            signedByUserId: userId,
+            signedAtIso,
+            userAgent,
+            ip,
+        });
+
+        const finalizedData = { ...(parsed.data as any), signatureProof: proof };
+
         // 6. Transaction: finalize + audit
-        const now = new Date();
 
         const finalized = await db.$transaction(async (tx) => {
             const updated = await tx.clinicalFormResponse.update({
                 where: { id: existing.id },
                 data: {
                     status: ClinicalFormStatus.FINAL,
-                    data_json: JSON.stringify(parsed.data),
+                    data_json: JSON.stringify(finalizedData),
                     signed_by_user_id: userId,
                     signed_at: now,
                     updated_by_user_id: userId,
@@ -171,14 +249,16 @@ export async function POST(
                         templateKey: OPERATIVE_NOTE_TEMPLATE_KEY,
                         templateVersion: OPERATIVE_NOTE_TEMPLATE_VERSION,
                         nurseHasDiscrepancy,
-                        complicationsOccurred: parsed.data.complications.complicationsOccurred,
+                        signatureHash: proof.hash,
+                        algorithm: proof.algorithm,
+                        complicationsOccurred: finalizedData.complications?.complicationsOccurred || false,
                     }),
                 },
             });
 
             // Sync to SurgicalProcedureRecord (Medico-Legal Snapshot)
             // Extract snapshot data from finalized form
-            const header = parsed.data.header;
+            const header = finalizedData.header;
             const assistantIds = header.assistants.map((a: any) => a.userId).filter(Boolean);
 
             await tx.surgicalProcedureRecord.upsert({

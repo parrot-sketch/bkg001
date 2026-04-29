@@ -1,21 +1,4 @@
-/**
- * Domain: Surgeon Operative Note & Procedure Summary
- *
- * Strict TypeScript types and Zod validation for the doctor-owned
- * intra/post-operative operative note document.
- *
- * Sections:
- *   A) Header — diagnosis, procedure, side, surgeon, assistants, anesthesia (mostly prefilled)
- *   B) Findings & Operative Steps — surgeon's narrative
- *   C) Intra-Op Metrics — EBL, fluids, urine output, tourniquet time
- *   D) Implants Used — prefilled from Nurse IntraOpRecord (used=true)
- *   E) Specimens — prefilled from Nurse IntraOpRecord
- *   F) Complications — occurred flag + details
- *   G) Counts Confirmation — must agree with nurse record, enforced discrepancy
- *   H) Post-Op Plan — dressings, drains, meds, follow-up, discharge destination
- *
- * Source of truth: ClinicalFormTemplate key = "SURGEON_OPERATIVE_NOTE"
- */
+
 
 import { z } from 'zod';
 
@@ -53,6 +36,20 @@ const optionalTime = z
     .optional()
     .or(z.literal(''));
 
+const signatureDataUrlSchema = z
+    .string()
+    .regex(/^data:image\/(png|svg\+xml)/, 'Signature must be an image data URL');
+
+const signatureProofSchema = z.object({
+    version: z.literal(1),
+    algorithm: z.literal('sha256'),
+    hash: z.string().regex(/^[a-f0-9]{64}$/i, 'Invalid SHA256 hash'),
+    signedByUserId: z.string().min(1),
+    signedAt: z.string().min(10),
+    userAgent: z.string().optional(),
+    ip: z.string().optional(),
+});
+
 // ──────────────────────────────────────────────────────────────────────
 // A) Header Section (mostly auto-prefilled)
 // ──────────────────────────────────────────────────────────────────────
@@ -64,16 +61,23 @@ export const assistantSchema = z.object({
 });
 
 export const headerSchema = z.object({
-    diagnosisPreOp: z.string().min(3, 'Pre-operative diagnosis is required'),
-    diagnosisPostOp: z.string().optional().default(''),
-    procedurePerformed: z.string().min(3, 'Procedure performed is required'),
-    side: z.string().optional().default(''),
-    surgeonId: z.string().min(1, 'Surgeon ID is required'),
-    surgeonName: z.string().optional().default(''),
-    assistants: z.array(assistantSchema).default([]),
-    anesthesiologistId: z.string().optional().default(''),
-    anesthesiologistName: z.string().optional().default(''),
-    anesthesiaType: anesthesiaTypeEnum,
+  diagnosisPreOp: z.string().min(3, 'Pre-operative diagnosis is required'),
+  diagnosisPostOp: z.string().min(3, 'Operative diagnosis is required'),
+  procedurePlanned: z.string().optional().default(''),
+  procedurePerformed: z.string().min(3, 'Operation(s) is required'),
+  side: z.string().optional().default(''),
+  surgeonId: z.string().min(1, 'Surgeon ID is required'),
+  surgeonName: z.string().optional().default(''),
+  assistants: z.array(assistantSchema).default([]),
+  anesthesiologistId: z.string().optional().default(''),
+  anesthesiologistName: z.string().optional().default(''),
+  anesthesiaType: anesthesiaTypeEnum,
+  // Page 1 - Preparation fields
+  shavingY: z.boolean().optional().default(false),
+  shavingN: z.boolean().optional().default(false),
+  shavingExtent: z.string().optional().default(''),
+  skinPrepY: z.boolean().optional().default(false),
+  skinPrepN: z.boolean().optional().default(false),
 });
 
 // ──────────────────────────────────────────────────────────────────────
@@ -105,21 +109,19 @@ export const findingsAndStepsSchema = z.object({
 // ──────────────────────────────────────────────────────────────────────
 
 export const operativeRecordSchema = z.object({
-    operationRecord: z
-        .string()
-        .refine((val) => stripHtml(val).length >= 10, 'Operation record must be at least 10 characters'),
-    postOperativeInstructions: z
-        .string()
-        .refine(
-            (val) => stripHtml(val).length >= 10,
-            'Post-operative instructions must be at least 10 characters',
-        ),
-    surgeonSignaturePng: z
-        .string()
-        .regex(/^data:image\/png;base64,/, 'Signature must be a PNG data URL'),
+  operationRecord: z
+    .string()
+    .refine((val) => stripHtml(val).length >= 10, 'Operation record must be at least 10 characters'),
+  postOperativeInstructions: z
+    .string()
+    .refine(
+      (val) => stripHtml(val).length >= 10,
+      'Post-operative instructions must be at least 10 characters',
+    ),
+  // Page 2 signature (combined surgeon/anaesthesiologist)
+  surgeonOrAnesthesiologistSignaturePng: signatureDataUrlSchema,
 });
 
-// ──────────────────────────────────────────────────────────────────────
 // C) Intra-Op Metrics
 // ──────────────────────────────────────────────────────────────────────
 
@@ -183,33 +185,85 @@ export const complicationsSchemaFinal = complicationsSchema.refine(
 // ──────────────────────────────────────────────────────────────────────
 
 export const countsConfirmationSchema = z.object({
-    countsCorrect: z.boolean(),
-    countsExplanation: z.string().optional().default(''),
+  countsCorrectY: z.boolean().optional().default(false),
+  countsCorrectN: z.boolean().optional().default(false),
+  countsExplanation: z.string().optional().default(''),
+  scrubNurseSignaturePng: z.string().optional().default(''),
+  surgeonSignaturePage1Png: z.string().optional().default(''),
 });
 
 /**
- * If nurse record indicates discrepancy → countsCorrect MUST be false.
- * If countsCorrect is false → explanation required.
+ * Validate that Y/N checkboxes are mutually exclusive for counts
+ */
+export function validateCountsCheckboxes(data: z.infer<typeof countsConfirmationSchema>): string | null {
+  const y = data.countsCorrectY === true;
+  const n = data.countsCorrectN === true;
+  if (y && n) return 'Please select only one option for counts confirmation';
+  if (!y && !n) return 'Please select an option for counts confirmation';
+  if (n && (!data.countsExplanation || data.countsExplanation.trim().length < 5)) {
+    return 'Explanation required when counts are not correct (min 5 chars)';
+  }
+  return null;
+}
+
+/**
+ * If nurse record indicates discrepancy → countsCorrectN MUST be selected.
+ * If countsCorrectN is selected → explanation required.
+ * Y/N checkboxes must be mutually exclusive.
  */
 export function buildCountsConfirmationFinalSchema(nurseHasDiscrepancy: boolean) {
-    return countsConfirmationSchema
-        .refine(
-            (d) => {
-                if (nurseHasDiscrepancy && d.countsCorrect) return false;
-                return true;
-            },
-            {
-                message: 'Nurse intra-op record reports a count discrepancy. Counts cannot be marked correct.',
-                path: ['countsCorrect'],
-            },
-        )
-        .refine(
-            (d) => d.countsCorrect || (d.countsExplanation && d.countsExplanation.trim().length >= 5),
-            {
-                message: 'Explanation required when counts are not correct (min 5 chars)',
-                path: ['countsExplanation'],
-            },
-        );
+  return countsConfirmationSchema
+    .superRefine((d, ctx) => {
+      // Check mutual exclusivity
+      if (d.countsCorrectY && d.countsCorrectN) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['countsCorrectN'],
+          message: 'Please select only one option for counts confirmation',
+        });
+      }
+      if (!d.countsCorrectY && !d.countsCorrectN) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['countsCorrectY'],
+          message: 'Please select an option for counts confirmation',
+        });
+      }
+
+      // Nurse discrepancy check
+      if (nurseHasDiscrepancy && d.countsCorrectY) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['countsCorrectY'],
+          message: 'Nurse intra-op record reports a count discrepancy. Counts cannot be marked correct.',
+        });
+      }
+
+      // Explanation required when N is selected
+      if (d.countsCorrectN && (!d.countsExplanation || d.countsExplanation.trim().length < 5)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['countsExplanation'],
+          message: 'Explanation required when counts are not correct (min 5 chars)',
+        });
+      }
+
+      // Server-side signatures must exist on finalization
+      if (!d.scrubNurseSignaturePng || !/^data:image\//.test(d.scrubNurseSignaturePng)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['scrubNurseSignaturePng'],
+          message: 'Scrub nurse signature is required on finalization',
+        });
+      }
+      if (!d.surgeonSignaturePage1Png || !/^data:image\//.test(d.surgeonSignaturePage1Png)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['surgeonSignaturePage1Png'],
+          message: 'Surgeon signature is required on finalization',
+        });
+      }
+    });
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -238,6 +292,7 @@ export const surgeonOperativeNoteDraftSchema = z.object({
     complications: complicationsSchema.partial().optional().default({}),
     countsConfirmation: countsConfirmationSchema.partial().optional().default({}),
     postOpPlan: postOpPlanSchema.partial().optional().default({}),
+    signatureProof: signatureProofSchema.optional(),
 });
 
 // ──────────────────────────────────────────────────────────────────────
@@ -253,12 +308,16 @@ export function buildSurgeonOperativeNoteFinalSchema(nurseHasDiscrepancy: boolea
         header: headerSchema,
         findingsAndSteps: findingsAndStepsSchema,
         operativeRecord: operativeRecordSchema,
-        intraOpMetrics: intraOpMetricsSchema,
-        implantsUsed: implantsUsedSchema,
-        specimens: specimensSchema,
-        complications: complicationsSchemaFinal,
+        intraOpMetrics: intraOpMetricsSchema.partial().optional().default({}),
+        implantsUsed: implantsUsedSchema.partial().optional().default({}),
+        specimens: specimensSchema.partial().optional().default({}),
+        complications: z.object({
+      complicationsOccurred: z.boolean().optional().default(false),
+      complicationsDetails: z.string().optional().default(''),
+    }).optional().default({}),
         countsConfirmation: buildCountsConfirmationFinalSchema(nurseHasDiscrepancy),
-        postOpPlan: postOpPlanSchema,
+        postOpPlan: postOpPlanSchema.partial().optional().default({}),
+        signatureProof: signatureProofSchema.optional(),
     });
 }
 
@@ -399,7 +458,25 @@ export function prefillSpecimensFromIntraOp(
  * Check if nurse intra-op record has a count discrepancy.
  */
 export function getNurseCountDiscrepancy(
-    nurseCountsData: { countDiscrepancy?: boolean } | null | undefined,
+    nurseIntraOpData: unknown,
 ): boolean {
-    return nurseCountsData?.countDiscrepancy === true;
+    if (!nurseIntraOpData || typeof nurseIntraOpData !== 'object') return false;
+    const root = nurseIntraOpData as Record<string, unknown>;
+
+    // New nursing operation record model (flat)
+    if (root.countCorrect === 'N') return true;
+
+    // Older call sites sometimes passed `data.counts` directly (or legacy shapes)
+    if (root.countDiscrepancy === true) return true;
+    if (root.countCorrect === false) return true;
+
+    // Older models (nested)
+    const counts = root.counts;
+    if (counts && typeof counts === 'object') {
+        const c = counts as Record<string, unknown>;
+        if (c.countDiscrepancy === true) return true;
+        if (c.countCorrect === false) return true;
+    }
+
+    return false;
 }

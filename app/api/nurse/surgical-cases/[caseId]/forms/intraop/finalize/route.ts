@@ -4,10 +4,23 @@ import { Role } from '@/domain/enums/Role';
 import db from '@/lib/db';
 import { ClinicalFormStatus } from '@prisma/client';
 import {
+    INTRAOP_TEMPLATE_KEY,
+    INTRAOP_TEMPLATE_VERSION,
+    nurseIntraOpRecordDraftSchema,
     nurseIntraOpRecordFinalSchema,
     checkNurseRecoveryGateCompliance,
+    type NurseIntraOpRecordDraft,
+    type NurseIntraOpRecordData,
 } from '@/domain/clinical-forms/NurseIntraOpRecord';
 import { SurgicalCaseStatusTransitionService } from '@/application/services/SurgicalCaseStatusTransitionService';
+import { makeServerSignatureSvgDataUrl } from '@/lib/crypto/makeServerSignatureSvgDataUrl';
+import { computeSignatureProof } from '@/lib/crypto/signatureProof';
+
+function getClientIp(request: NextRequest): string | undefined {
+    const forwarded = request.headers.get('x-forwarded-for');
+    if (forwarded) return forwarded.split(',')[0]?.trim() || undefined;
+    return request.headers.get('x-real-ip') || undefined;
+}
 
 export async function POST(
     request: NextRequest,
@@ -29,8 +42,8 @@ export async function POST(
         const record = await db.clinicalFormResponse.findUnique({
             where: {
                 template_key_template_version_surgical_case_id: {
-                    template_key: 'NURSE_INTRAOP_RECORD',
-                    template_version: 2,
+                    template_key: INTRAOP_TEMPLATE_KEY,
+                    template_version: INTRAOP_TEMPLATE_VERSION,
                     surgical_case_id: caseId,
                 }
             }
@@ -45,48 +58,96 @@ export async function POST(
         }
 
         // 3. Validate for finalization
-        let currentData: any;
+        let currentData: unknown;
         try {
-            currentData = JSON.parse(record.data_json);
-        } catch (e) {
+            currentData = JSON.parse(record.data_json) as unknown;
+        } catch {
             return NextResponse.json({ success: false, error: 'Corrupted form data' }, { status: 500 });
         }
 
-        // Domain validation (Zod)
-        const validation = nurseIntraOpRecordFinalSchema.safeParse(currentData);
-        if (!validation.success) {
-            return NextResponse.json({
-                success: false,
-                error: 'Validation failed',
-                details: validation.error.format()
-            }, { status: 400 });
+        const draftParsed = nurseIntraOpRecordDraftSchema.safeParse(currentData);
+        if (!draftParsed.success) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: 'Validation failed',
+                    missingItems: draftParsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`),
+                },
+                { status: 422 },
+            );
+        }
+
+        const now = new Date();
+        const signedAtIso = now.toISOString();
+
+        const scrubName = (draftParsed.data.scrubNurse || '').trim() || 'Scrub Nurse';
+        const circulatingName = (draftParsed.data.circulatingNurse || '').trim() || 'Circulating Nurse';
+
+        const nextData: NurseIntraOpRecordDraft = {
+            ...draftParsed.data,
+            scrubNurseSignature: makeServerSignatureSvgDataUrl(scrubName, signedAtIso),
+            circulatingNurseSignature: makeServerSignatureSvgDataUrl(circulatingName, signedAtIso),
+        };
+
+        const finalParsed = nurseIntraOpRecordFinalSchema.safeParse(nextData);
+        if (!finalParsed.success) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: 'Cannot finalize: required fields are missing.',
+                    missingItems: finalParsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`),
+                    details: finalParsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+                },
+                { status: 422 },
+            );
         }
 
         // Custom clinical gates (e.g. counts must be correct)
-        const missingItems = checkNurseRecoveryGateCompliance(currentData as any);
-        if (missingItems.length > 0) {
-            return NextResponse.json({
-                success: false,
-                error: 'Clinical gate failure',
-                missingItems
-            }, { status: 400 });
+        const gateMissing = checkNurseRecoveryGateCompliance(finalParsed.data);
+        if (gateMissing.length > 0) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: 'Clinical gate failure',
+                    missingItems: gateMissing,
+                },
+                { status: 422 },
+            );
         }
 
-        // 4. Update to FINAL status and Record Signature
+        const userAgent = request.headers.get('user-agent') || undefined;
+        const ip = getClientIp(request);
+
+        const proof = computeSignatureProof({
+            payload: {
+                caseId,
+                formResponseId: record.id,
+                data: finalParsed.data,
+            },
+            signedByUserId: authResult.user.userId,
+            signedAtIso,
+            userAgent,
+            ip,
+        });
+
+        const finalizedData: NurseIntraOpRecordData = { ...finalParsed.data, signatureProof: proof };
+
+        // 4. Update to FINAL status and persist signed data
         await db.$transaction(async (tx) => {
             await tx.clinicalFormResponse.update({
                 where: { id: record.id },
                 data: {
                     status: ClinicalFormStatus.FINAL,
+                    data_json: JSON.stringify(finalizedData),
                     signed_by_user_id: authResult.user?.userId,
-                    signed_at: new Date(),
+                    signed_at: now,
                     updated_by_user_id: authResult.user?.userId,
                 }
             });
 
             // 5. Sync fluid totals to SurgicalProcedureRecord
-            const fluids = currentData.fluids || {};
-            if (fluids.estimatedBloodLossMl !== undefined || fluids.urinaryOutputMl !== undefined) {
+            const { estimatedBloodLossML, urinaryOutputML } = finalizedData;
+            if (estimatedBloodLossML !== undefined || urinaryOutputML !== undefined) {
                 const procedureRecord = await tx.surgicalProcedureRecord.findUnique({
                     where: { surgical_case_id: caseId },
                 });
@@ -95,8 +156,8 @@ export async function POST(
                     await tx.surgicalProcedureRecord.update({
                         where: { id: procedureRecord.id },
                         data: {
-                            estimated_blood_loss: fluids.estimatedBloodLossMl ?? null,
-                            urine_output: fluids.urinaryOutputMl ?? null,
+                            estimated_blood_loss: estimatedBloodLossML ?? null,
+                            urine_output: urinaryOutputML ?? null,
                         },
                     });
                 }
@@ -110,9 +171,12 @@ export async function POST(
                     entity_type: 'ClinicalFormResponse',
                     entity_id: record.id,
                     metadata: JSON.stringify({
-                        template: 'NURSE_INTRAOP_RECORD',
-                        version: 2,
-                        caseId
+                        template: INTRAOP_TEMPLATE_KEY,
+                        version: INTRAOP_TEMPLATE_VERSION,
+                        caseId,
+                        signatureHash: proof.hash,
+                        algorithm: proof.algorithm,
+                        signedAt: signedAtIso,
                     }),
                 }
             });
@@ -129,7 +193,7 @@ export async function POST(
 
         return NextResponse.json({ success: true });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('[API] POST intraop finalize error:', error);
         return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
     }

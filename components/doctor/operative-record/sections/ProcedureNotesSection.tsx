@@ -14,8 +14,8 @@ export function ProcedureNotesSection({ value, disabled, onChange }: Props) {
 
   return (
     <div>
-      <label className="block text-xs font-medium text-slate-600 mb-2">
-        Procedure notes
+      <label className="block text-xs font-medium uppercase tracking-wide text-slate-600 mb-2">
+        OPERATIONS / PROCEDURE NOTES
       </label>
       <RichTextEditor
         content={v.operativeSteps ?? ''}

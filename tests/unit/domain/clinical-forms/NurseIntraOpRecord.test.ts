@@ -5,88 +5,22 @@ describe('NurseIntraOpRecord Schema', () => {
     describe('Final Schema Validation', () => {
         it('should validate a complete record', () => {
             const validData = {
-                patient: {
-                    patientFileNo: 'F12345',
-                    patientName: 'John Doe',
-                    age: 45,
-                    sex: 'Male',
-                },
-                entry: {
-                    timeIn: '10:00',
-                    arrivalMethod: 'STRETCHER',
-                    identityChecked: true,
-                    consentFormChecked: true,
-                    siteMarked: true,
-                },
-                safety: {
-                    whoSignIndone: true,
-                    whoTimeOutDone: true,
-                    whoSignOutDone: true,
-                    whoChecklistCompleted: true,
-                    patientIdVerified: true,
-                },
-                timings: {
-                    anaesthesiaStart: '10:15',
-                    surgeryStart: '10:30',
-                },
-                staffing: {
-                    surgeon: 'Dr. Smith',
-                    scrubNurse: 'Nurse A',
-                },
-                diagnoses: {
-                    preOpDiagnosis: 'Appendicitis',
-                    operationPerformed: 'Appendectomy',
-                    side: 'N/A',
-                },
-                positioning: {
-                    position: 'SUPINE',
-                    armsSecured: true,
-                    safetyBeltApplied: true,
-                    bodyAlignmentCorrect: true,
-                },
-                catheter: {
-                    catheterInserted: false,
-                },
-                skinPrep: {
-                    agentUsed: 'Betadine',
-                    preppedBy: 'Nurse A',
-                },
-                equipment: {
-                    electrosurgical: {
-                        cauteryUsed: true,
-                        unitNo: 'E-123',
-                        cutSet: '30',
-                        coagSet: '30',
-                    },
-                    tourniquet: {
-                        tourniquetUsed: false,
-                    },
-                },
-                surgicalDetails: {
-                    woundClassification: 'CLEAN',
-                    implantsUsed: false,
-                },
-                counts: {
-                    countCorrect: true,
-                    scrubNurseSignature: 'Nurse A',
-                    circulatingNurseSignature: 'Nurse B',
-                },
-                closure: {
-                    skinClosure: 'Staples',
-                    dressingApplied: 'Gauze',
-                },
-                fluids: {
-                    estimatedBloodLossMl: 50,
-                    urinaryOutputMl: 200,
-                },
-                medications: [],
-                implants: [],
-                specimens: [],
-                itemsToReturnToTheatre: '',
-                billing: {
-                    anaestheticMaterialsCharge: '',
-                    theatreFee: '',
-                },
+                patientFileNo: 'F12345',
+                patientName: 'John Doe',
+                age: 45,
+                sex: 'Male',
+                date: '2026-04-27',
+                doctor: 'Dr. Smith',
+                patientIdVerified: 'Y',
+                informedConsentSigned: 'Y',
+                preOpChecklistCompleted: 'Y',
+                whoChecklistCompleted: 'Y',
+                arrivedWithIVInfusing: 'N',
+                countCorrect: 'Y',
+                scrubNurse: 'Nurse A',
+                circulatingNurse: 'Nurse B',
+                scrubNurseSignature: 'data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%2F%3E',
+                circulatingNurseSignature: 'data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%2F%3E',
             };
 
             const result = nurseIntraOpRecordFinalSchema.safeParse(validData);
@@ -98,10 +32,7 @@ describe('NurseIntraOpRecord Schema', () => {
 
         it('should fail validation if required fields are missing in final schema', () => {
             const invalidData = {
-                positioning: {
-                    // Missing required fields
-                    position: 'SUPINE',
-                },
+                patientFileNo: '',
             };
             const result = nurseIntraOpRecordFinalSchema.safeParse(invalidData);
             expect(result.success).toBe(false);
@@ -111,9 +42,8 @@ describe('NurseIntraOpRecord Schema', () => {
     describe('Draft Schema Validation', () => {
         it('should allow partial data', () => {
             const partialData = {
-                positioning: {
-                    position: 'SUPINE',
-                },
+                patientFileNo: 'F12345',
+                patientName: '',
             };
             const result = nurseIntraOpRecordDraftSchema.safeParse(partialData);
             expect(result.success).toBe(true);

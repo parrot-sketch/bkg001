@@ -34,6 +34,8 @@ import {
 // Complete valid dataset for finalization
 // ──────────────────────────────────────────────────────────────────────
 
+const TEST_SIG = 'data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%2F%3E';
+
 const VALID_FINAL_DATA: SurgeonOperativeNoteData = {
     header: {
         diagnosisPreOp: 'Right inguinal hernia',
@@ -56,7 +58,7 @@ const VALID_FINAL_DATA: SurgeonOperativeNoteData = {
     operativeRecord: {
         operationRecord: 'Operation record narrative with adequate detail for printing.',
         postOperativeInstructions: 'Keep wound clean and dry. Return for review in 7 days.',
-        surgeonSignaturePng: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg==',
+        surgeonOrAnesthesiologistSignaturePng: TEST_SIG,
     },
     intraOpMetrics: {
         estimatedBloodLossMl: 50,
@@ -90,8 +92,11 @@ const VALID_FINAL_DATA: SurgeonOperativeNoteData = {
         complicationsDetails: '',
     },
     countsConfirmation: {
-        countsCorrect: true,
+        countsCorrectY: true,
+        countsCorrectN: false,
         countsExplanation: '',
+        scrubNurseSignaturePng: TEST_SIG,
+        surgeonSignaturePage1Png: TEST_SIG,
     },
     postOpPlan: {
         dressingInstructions: 'Waterproof dressing, change in 48 hours',
@@ -309,36 +314,63 @@ describe('Complications Schema', () => {
 // ──────────────────────────────────────────────────────────────────────
 
 describe('Counts Confirmation Schema', () => {
-    it('accepts countsCorrect=true when no nurse discrepancy', () => {
+    it('accepts Y when no nurse discrepancy', () => {
         const schema = buildCountsConfirmationFinalSchema(false);
-        const result = schema.safeParse({ countsCorrect: true, countsExplanation: '' });
+        const result = schema.safeParse({
+            countsCorrectY: true,
+            countsCorrectN: false,
+            countsExplanation: '',
+            scrubNurseSignaturePng: TEST_SIG,
+            surgeonSignaturePage1Png: TEST_SIG,
+        });
         expect(result.success).toBe(true);
     });
 
-    it('rejects countsCorrect=true when nurse has discrepancy', () => {
-        const schema = buildCountsConfirmationFinalSchema(true);
-        const result = schema.safeParse({ countsCorrect: true, countsExplanation: '' });
-        expect(result.success).toBe(false);
-    });
-
-    it('requires explanation when countsCorrect=false', () => {
-        const schema = buildCountsConfirmationFinalSchema(false);
-        const result = schema.safeParse({ countsCorrect: false, countsExplanation: '' });
-        expect(result.success).toBe(false);
-    });
-
-    it('accepts countsCorrect=false with explanation when nurse has discrepancy', () => {
+    it('rejects Y when nurse has discrepancy', () => {
         const schema = buildCountsConfirmationFinalSchema(true);
         const result = schema.safeParse({
-            countsCorrect: false,
+            countsCorrectY: true,
+            countsCorrectN: false,
+            countsExplanation: '',
+            scrubNurseSignaturePng: TEST_SIG,
+            surgeonSignaturePage1Png: TEST_SIG,
+        });
+        expect(result.success).toBe(false);
+    });
+
+    it('requires explanation when N is selected', () => {
+        const schema = buildCountsConfirmationFinalSchema(false);
+        const result = schema.safeParse({
+            countsCorrectY: false,
+            countsCorrectN: true,
+            countsExplanation: '',
+            scrubNurseSignaturePng: TEST_SIG,
+            surgeonSignaturePage1Png: TEST_SIG,
+        });
+        expect(result.success).toBe(false);
+    });
+
+    it('accepts N with explanation when nurse has discrepancy', () => {
+        const schema = buildCountsConfirmationFinalSchema(true);
+        const result = schema.safeParse({
+            countsCorrectY: false,
+            countsCorrectN: true,
             countsExplanation: 'Nurse reported missing sponge, resolved after re-count',
+            scrubNurseSignaturePng: TEST_SIG,
+            surgeonSignaturePage1Png: TEST_SIG,
         });
         expect(result.success).toBe(true);
     });
 
     it('rejects short explanation', () => {
         const schema = buildCountsConfirmationFinalSchema(false);
-        const result = schema.safeParse({ countsCorrect: false, countsExplanation: 'abc' });
+        const result = schema.safeParse({
+            countsCorrectY: false,
+            countsCorrectN: true,
+            countsExplanation: 'abc',
+            scrubNurseSignaturePng: TEST_SIG,
+            surgeonSignaturePage1Png: TEST_SIG,
+        });
         expect(result.success).toBe(false);
     });
 });
@@ -360,16 +392,18 @@ describe('getMissingOperativeNoteItems', () => {
 
     it('returns items when nurse discrepancy forces countsCorrect=false', () => {
         const data = structuredClone(VALID_FINAL_DATA);
-        // countsCorrect=true but nurse has discrepancy
-        data.countsConfirmation.countsCorrect = true;
+        // Marking Y but nurse has discrepancy
+        data.countsConfirmation.countsCorrectY = true;
+        data.countsConfirmation.countsCorrectN = false;
         const items = getMissingOperativeNoteItems(data, true);
         expect(items.length).toBeGreaterThan(0);
-        expect(items.some((i) => i.includes('countsCorrect'))).toBe(true);
+        expect(items.some((i) => i.includes('countsCorrectY'))).toBe(true);
     });
 
     it('returns no counts error when discrepancy acknowledged with explanation', () => {
         const data = structuredClone(VALID_FINAL_DATA);
-        data.countsConfirmation.countsCorrect = false;
+        data.countsConfirmation.countsCorrectY = false;
+        data.countsConfirmation.countsCorrectN = true;
         data.countsConfirmation.countsExplanation = 'Nurse found one missing sponge, located after X-ray';
         const items = getMissingOperativeNoteItems(data, true);
         expect(items).toHaveLength(0);
@@ -398,7 +432,8 @@ describe('getOperativeNoteSectionCompletion', () => {
 
     it('countsConfirmation incomplete when nurse discrepancy and countsCorrect=true', () => {
         const data = structuredClone(VALID_FINAL_DATA);
-        data.countsConfirmation.countsCorrect = true;
+        data.countsConfirmation.countsCorrectY = true;
+        data.countsConfirmation.countsCorrectN = false;
         const result = getOperativeNoteSectionCompletion(data, true);
         expect(result.countsConfirmation.complete).toBe(false);
     });
@@ -479,10 +514,12 @@ describe('getNurseCountDiscrepancy', () => {
 
     it('returns false when no discrepancy', () => {
         expect(getNurseCountDiscrepancy({ countDiscrepancy: false })).toBe(false);
+        expect(getNurseCountDiscrepancy({ countCorrect: 'Y' })).toBe(false);
     });
 
     it('returns true when discrepancy flagged', () => {
         expect(getNurseCountDiscrepancy({ countDiscrepancy: true })).toBe(true);
+        expect(getNurseCountDiscrepancy({ countCorrect: 'N' })).toBe(true);
     });
 });
 
@@ -491,24 +528,38 @@ describe('getNurseCountDiscrepancy', () => {
 // ──────────────────────────────────────────────────────────────────────
 
 describe('buildSurgeonOperativeNoteFinalSchema', () => {
-    it('with discrepancy=false, accepts countsCorrect=true', () => {
+    it('with discrepancy=false, accepts Y', () => {
         const schema = buildSurgeonOperativeNoteFinalSchema(false);
         const result = schema.safeParse(VALID_FINAL_DATA);
         expect(result.success).toBe(true);
     });
 
-    it('with discrepancy=true, rejects countsCorrect=true', () => {
+    it('accepts finalization when optional sections are absent', () => {
+        const schema = buildSurgeonOperativeNoteFinalSchema(false);
+        const minimal: any = {
+            header: VALID_FINAL_DATA.header,
+            findingsAndSteps: VALID_FINAL_DATA.findingsAndSteps,
+            operativeRecord: VALID_FINAL_DATA.operativeRecord,
+            countsConfirmation: VALID_FINAL_DATA.countsConfirmation,
+        };
+        const result = schema.safeParse(minimal);
+        expect(result.success).toBe(true);
+    });
+
+    it('with discrepancy=true, rejects Y', () => {
         const schema = buildSurgeonOperativeNoteFinalSchema(true);
         const data = structuredClone(VALID_FINAL_DATA);
-        data.countsConfirmation.countsCorrect = true;
+        data.countsConfirmation.countsCorrectY = true;
+        data.countsConfirmation.countsCorrectN = false;
         const result = schema.safeParse(data);
         expect(result.success).toBe(false);
     });
 
-    it('with discrepancy=true, accepts countsCorrect=false + explanation', () => {
+    it('with discrepancy=true, accepts N + explanation', () => {
         const schema = buildSurgeonOperativeNoteFinalSchema(true);
         const data = structuredClone(VALID_FINAL_DATA);
-        data.countsConfirmation.countsCorrect = false;
+        data.countsConfirmation.countsCorrectY = false;
+        data.countsConfirmation.countsCorrectN = true;
         data.countsConfirmation.countsExplanation = 'Sponge found after additional cavity check';
         const result = schema.safeParse(data);
         expect(result.success).toBe(true);
