@@ -9,8 +9,7 @@ import {
   MapPin, 
   Heart, 
   AlertCircle, 
-  CheckCircle2, 
-  Shield 
+  CheckCircle2
 } from 'lucide-react';
 import { ProfileImage } from '@/components/profile-image';
 import { calculateAge } from '@/lib/utils';
@@ -98,33 +97,7 @@ export function PatientInfoSidebar({
           </div>
 
           {/* Consent Status */}
-          <div className="pt-4 border-t space-y-2">
-            <p className="text-sm font-semibold text-foreground mb-2">Consent Status</p>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Privacy</span>
-                <Badge variant={patient.hasPrivacyConsent ? "default" : "destructive"}>
-                  {patient.hasPrivacyConsent ? 'Granted' : 'Pending'}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Medical</span>
-                <Badge variant={patient.hasMedicalConsent ? "default" : "destructive"}>
-                  {patient.hasMedicalConsent ? 'Granted' : 'Pending'}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Service</span>
-                <Badge variant={patient.hasServiceConsent ? "default" : "destructive"}>
-                  {patient.hasServiceConsent ? 'Granted' : 'Pending'}
-                </Badge>
-              </div>
-            </div>
-            <Button variant="outline" size="sm" className="w-full mt-3">
-              <Shield className="h-4 w-4 mr-2" />
-              Manage Consent
-            </Button>
-          </div>
+          {/* Consent intentionally not shown on doctor patient profile (handled in dedicated consent flows). */}
         </CardContent>
       </Card>
 
@@ -140,7 +113,7 @@ export function PatientInfoSidebar({
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Upcoming</span>
-            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+            <Badge variant="outline" className="bg-slate-100 text-slate-700 border border-slate-300">
               {upcomingCount}
             </Badge>
           </div>

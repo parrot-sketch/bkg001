@@ -109,10 +109,10 @@ export function NotificationBell() {
             router.push('/doctor/appointments');
         } else if (eventType === 'PREOP_CHECKLIST_COMPLETED' && metadata?.surgicalCaseId) {
             // Navigate to surgical case
-            router.push(`/doctor/surgical-cases/${metadata.surgicalCaseId}`);
+            router.push(`/doctor/surgical-cases/${metadata.surgicalCaseId}/case-plan`);
         } else if (eventType === 'SURGICAL_CASE_ASSIGNMENT' && metadata?.surgicalCaseId) {
             // Navigate to surgical case details view so the doctor can review/accept the invite
-            router.push(`/doctor/surgical-cases/${metadata.surgicalCaseId}`);
+            router.push(`/doctor/surgical-cases/${metadata.surgicalCaseId}/case-plan`);
         } else if (eventType === 'THEATER_BOOKED' && metadata?.surgicalCaseId) {
             // Navigate to surgical cases with scheduled tab
             router.push('/doctor/surgical-cases?status=SCHEDULED');

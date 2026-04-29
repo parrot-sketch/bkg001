@@ -11,7 +11,6 @@ import { useState } from 'react';
 import type { VisitResponseDto } from '@/application/dtos/VisitResponseDto';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import {
@@ -27,25 +26,17 @@ import {
   CheckCircle,
   AlertCircle,
   XCircle,
-  Play,
   Thermometer,
   CreditCard,
   Pill,
 } from 'lucide-react';
-import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 
 interface AppointmentsTabProps {
   visits: VisitResponseDto[];
-  hasActiveConsultation: (id: number) => boolean;
-  onStartConsultation: (appointment: AppointmentResponseDto) => void;
-  onContinueConsultation: (id: number) => void;
 }
 
 export function AppointmentsTab({
   visits,
-  hasActiveConsultation,
-  onStartConsultation,
-  onContinueConsultation,
 }: AppointmentsTabProps) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
@@ -138,29 +129,8 @@ export function AppointmentsTab({
             {/* Expanded detail */}
             {isExpanded && (
               <div className="border-t border-stone-100 px-4 py-4 space-y-4 bg-stone-50/50">
-                {/* Quick actions for active/scheduled */}
-                {(isScheduled || isCheckedIn) && (
-                  <div className="flex items-center gap-2">
-                    {hasActiveConsultation(visit.id) ? (
-                      <Button size="sm" onClick={() => onContinueConsultation(visit.id)}>
-                        <Play className="h-3.5 w-3.5 mr-1.5" /> Continue Consultation
-                      </Button>
-                    ) : isScheduled ? (
-                      <Button size="sm" onClick={() => onStartConsultation({
-                        id: visit.id,
-                        patientId: '',
-                        doctorId: visit.doctor?.id || '',
-                        appointmentDate: new Date(visit.date),
-                        time: visit.time,
-                        status: visit.status as any,
-                        type: visit.type,
-                        note: visit.note || undefined,
-                      } as AppointmentResponseDto)}>
-                        <Play className="h-3.5 w-3.5 mr-1.5" /> Start Consultation
-                      </Button>
-                    ) : null}
-                  </div>
-                )}
+                {/* Consult actions intentionally removed from patient profile.
+                   Consultations should be started/continued from the doctor queue/workspace. */}
 
                 {/* Vitals + Consultation side by side */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -318,13 +288,13 @@ export function AppointmentsTab({
 function StatusBadge({ status }: { status: string }) {
   const config: Record<string, { label: string; color: string; icon: typeof CheckCircle }> = {
     COMPLETED: { label: 'Completed', color: 'bg-emerald-50 text-emerald-700', icon: CheckCircle },
-    IN_CONSULTATION: { label: 'In Progress', color: 'bg-violet-50 text-violet-700', icon: Play },
-    CHECKED_IN: { label: 'Checked In', color: 'bg-sky-50 text-sky-700', icon: CheckCircle },
-    READY_FOR_CONSULTATION: { label: 'Ready', color: 'bg-teal-50 text-teal-700', icon: CheckCircle },
+    IN_CONSULTATION: { label: 'In Consultation', color: 'bg-amber-50 text-amber-700', icon: Activity },
+    CHECKED_IN: { label: 'Checked In', color: 'bg-slate-100 text-slate-700', icon: CheckCircle },
+    READY_FOR_CONSULTATION: { label: 'Ready', color: 'bg-emerald-50 text-emerald-700', icon: CheckCircle },
     SCHEDULED: { label: 'Scheduled', color: 'bg-amber-50 text-amber-700', icon: Clock },
     CONFIRMED: { label: 'Confirmed', color: 'bg-emerald-50 text-emerald-700', icon: CheckCircle },
     PENDING: { label: 'Pending', color: 'bg-amber-50 text-amber-700', icon: Clock },
-    PENDING_DOCTOR_CONFIRMATION: { label: 'Awaiting MD', color: 'bg-indigo-50 text-indigo-700', icon: Clock },
+    PENDING_DOCTOR_CONFIRMATION: { label: 'Awaiting MD', color: 'bg-amber-50 text-amber-700', icon: Clock },
     CANCELLED: { label: 'Cancelled', color: 'bg-slate-50 text-slate-500', icon: XCircle },
     NO_SHOW: { label: 'No Show', color: 'bg-rose-50 text-rose-700', icon: AlertCircle },
   };
