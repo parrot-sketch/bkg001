@@ -8,13 +8,12 @@ version: '3.8'
 #   docker compose -f docker-compose.test.yml up -d   (manual start)
 #   docker compose -f docker-compose.test.yml down     (manual teardown)
 #
-# Uses port 5434 to avoid conflict with dev postgres on 5433.
+# Uses port 5444 to avoid conflict with dev postgres on 5433.
 # ─────────────────────────────────────────────────────────────────────────────
 
 services:
   postgres-test:
     image: postgres:16-alpine
-    container_name: healthcare-test-db
     restart: "no"
     environment:
       POSTGRES_USER: postgres

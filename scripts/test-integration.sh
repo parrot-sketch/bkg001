@@ -2,7 +2,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Integration Test Runner
 #
-# 1. Starts a temporary Postgres container (port 5434, tmpfs for speed)
+# 1. Starts a temporary Postgres container (port 5444, tmpfs for speed)
 # 2. Pushes the Prisma schema to it
 # 3. Runs integration tests
 # 4. Tears down the container
@@ -12,12 +12,14 @@
 set -euo pipefail
 
 COMPOSE_FILE="docker-compose.test.yml"
+COMPOSE_PROJECT_NAME="hms-integration-test"
 TEST_DB_URL="postgresql://postgres:postgres@localhost:5444/test_db"
 
 cleanup() {
   echo ""
   echo "🧹 Tearing down test database..."
-  docker compose -f "$COMPOSE_FILE" down --volumes --remove-orphans 2>/dev/null || true
+  # Use a dedicated compose project name so we never interfere with the dev stack.
+  docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" down --volumes --remove-orphans 2>/dev/null || true
   
   if [ -f ".env.tmp" ]; then
     mv .env.tmp .env
@@ -30,7 +32,7 @@ if [ -f ".env" ]; then
 fi
 
 echo "🐳 Starting test Postgres container..."
-docker compose -f "$COMPOSE_FILE" up -d --wait
+docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" up -d --wait
 
 echo "📦 Pushing Prisma schema to test database..."
 # Use TEST_DATABASE_URL and DATABASE_URL to ensure both Prisma and Vitest use the local DB

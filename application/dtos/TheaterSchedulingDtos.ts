@@ -22,6 +22,16 @@ export const CancelTheaterBookingDto = z.object({
 
 export type CancelTheaterBookingDto = z.infer<typeof CancelTheaterBookingDto>;
 
+export const RescheduleTheaterBookingDto = z.object({
+    bookingId: z.string().uuid(),
+    theaterId: z.string().uuid(),
+    startTime: z.string().datetime(),
+    endTime: z.string().datetime(),
+    reason: z.string().optional(),
+});
+
+export type RescheduleTheaterBookingDto = z.infer<typeof RescheduleTheaterBookingDto>;
+
 export interface TheaterSlotLockResult {
     bookingId: string;
     status: string;
@@ -62,6 +72,28 @@ export interface TheaterBookingCancelledResult {
     caseStatus: string;
     billingReversed: boolean;
     reversedAmount: number;
+}
+
+export interface TheaterBookingRescheduledResult {
+    bookingId: string;
+    status: string;
+    theaterId: string;
+    theaterName: string;
+    startTime: Date;
+    endTime: Date;
+    rescheduledAt: Date;
+    caseId: string;
+    caseStatus: string;
+    billing: {
+        reversed: boolean;
+        reversedAmount: number;
+        created: boolean;
+        theaterFee: {
+            amount: number;
+            serviceName: string;
+            hours: number;
+        } | null;
+    };
 }
 
 export interface TheaterSchedulingQueueItem {

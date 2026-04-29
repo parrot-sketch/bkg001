@@ -161,7 +161,7 @@ export class TheaterDashboardService {
             if (form.template_key === INTRAOP_TEMPLATE_KEY) {
                 try {
                     const d = parseIntraOpRecordData(form.data_json, false);
-                    entry.intraOpDiscrepancy = d.counts?.countCorrect === false;
+                    entry.intraOpDiscrepancy = d.countCorrect === 'N';
                 } catch {
                     // Invalid data - skip this form, leave defaults
                 }

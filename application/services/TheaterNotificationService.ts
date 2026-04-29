@@ -64,6 +64,47 @@ export class TheaterNotificationService {
     }
 
     /**
+     * Notify relevant parties when a booking is rescheduled
+     */
+    async notifyBookingRescheduled(booking: any, userId: string): Promise<void> {
+        const patientName = booking.surgical_case?.patient
+            ? `${booking.surgical_case.patient.first_name} ${booking.surgical_case.patient.last_name}`.trim()
+            : 'Patient';
+        const procedureName = booking.surgical_case?.procedure_name || 'Surgical procedure';
+        const bookingDate = format(booking.start_time, 'MMM d, yyyy');
+        const bookingTime = format(booking.start_time, 'HH:mm');
+
+        // Notify surgeon
+        if (booking.surgical_case?.primary_surgeon?.user_id) {
+            await createNotification({
+                userId: booking.surgical_case.primary_surgeon.user_id,
+                type: 'IN_APP',
+                subject: 'Theater Booking Rescheduled',
+                message: `${patientName} - ${procedureName} rescheduled to ${bookingDate} at ${bookingTime} in ${booking.theater.name}.`,
+                metadata: {
+                    surgicalCaseId: booking.surgical_case_id,
+                    bookingId: booking.id,
+                    event: 'THEATER_RESCHEDULED',
+                },
+                senderId: userId,
+            });
+        }
+
+        // Notify nurses
+        await createNotificationForRole(Role.NURSE, {
+            type: 'IN_APP',
+            subject: 'Theater Booking Rescheduled',
+            message: `${patientName} - ${procedureName} rescheduled to ${bookingDate} at ${bookingTime} in ${booking.theater.name}.`,
+            metadata: {
+                surgicalCaseId: booking.surgical_case_id,
+                bookingId: booking.id,
+                event: 'THEATER_RESCHEDULED',
+            },
+            senderId: userId,
+        });
+    }
+
+    /**
      * Notify when a slot is locked (optional - for real-time updates)
      */
     async notifySlotLocked(booking: any, userId: string): Promise<void> {

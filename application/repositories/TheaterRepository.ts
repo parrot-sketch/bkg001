@@ -258,10 +258,11 @@ export class TheaterRepository {
     /**
      * Find overlapping bookings for a theater
      */
-    async findOverlappingBookings(theaterId: string, start: Date, end: Date) {
+    async findOverlappingBookings(theaterId: string, start: Date, end: Date, excludeBookingId?: string) {
         const now = new Date();
         return this.prisma.theaterBooking.findFirst({
             where: {
+                ...(excludeBookingId ? { id: { not: excludeBookingId } } : {}),
                 theater_id: theaterId,
                 status: { not: TheaterBookingStatus.CANCELLED },
                 start_time: { lt: end },

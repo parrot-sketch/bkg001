@@ -7,7 +7,7 @@
  * Provides navigation for theater technician operations.
  */
 
-import { Activity, LayoutDashboard, User, Package, Boxes, Truck, ShoppingCart, FileText, Scissors, ClipboardCheck, Users, Stethoscope, Building2, Calendar } from 'lucide-react';
+import { Activity, LayoutDashboard, User, Package, Boxes, Truck, ShoppingCart, FileText, Scissors, ClipboardCheck, Users, Stethoscope, Building2, Calendar, CalendarClock } from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { useAuth } from '@/hooks/patient/useAuth';
 
@@ -17,6 +17,12 @@ const baseNavItems: NavItem[] = [
     href: '/theater-tech/dashboard',
     icon: LayoutDashboard,
     section: 'Overview',
+  },
+  {
+    name: 'Theater Schedule',
+    href: '/theater-tech/theater-schedule',
+    icon: CalendarClock,
+    section: 'Operations',
   },
   {
     name: 'Theater Scheduling',

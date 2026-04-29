@@ -11,6 +11,8 @@ import {
     TheaterSlotLockResult,
     TheaterBookingConfirmedResult,
     TheaterBookingCancelledResult,
+    RescheduleTheaterBookingDto,
+    TheaterBookingRescheduledResult,
     TheaterSchedulingQueueItem,
     TheaterWithBookings,
 } from '../dtos/TheaterSchedulingDtos';
@@ -298,6 +300,98 @@ export class TheaterSchedulingUseCase {
             caseStatus: SurgicalCaseStatus.READY_FOR_THEATER_BOOKING,
             billingReversed,
             reversedAmount,
+        };
+    }
+
+    /**
+     * Reschedule an existing confirmed booking (updates the existing booking row).
+     *
+     * Notes:
+     * - TheaterBooking is unique per surgical case, so rescheduling must update in place.
+     * - Case status remains SCHEDULED (this is a scheduling action, not a clinical rollback).
+     * - Billing is recalculated by reversing existing theater fee and re-applying based on new slot.
+     */
+    async rescheduleBooking(dto: RescheduleTheaterBookingDto, userId: string): Promise<TheaterBookingRescheduledResult> {
+        const { bookingId, theaterId, startTime, endTime, reason } = dto;
+        const start = new Date(startTime);
+        const end = new Date(endTime);
+        const now = new Date();
+
+        const existing = await this.theaterRepository.findBookingById(bookingId);
+        if (!existing) {
+            throw new Error('Theater booking not found');
+        }
+
+        if (existing.status !== TheaterBookingStatus.CONFIRMED) {
+            throw new Error(`Only CONFIRMED bookings can be rescheduled (current: ${existing.status})`);
+        }
+
+        const overlap = await this.theaterRepository.findOverlappingBookings(theaterId, start, end, bookingId);
+        if (overlap) {
+            throw new Error('The selected theater slot is not available');
+        }
+
+        const prisma = (this.theaterRepository as any).prisma as PrismaClient;
+
+        const from = {
+            theaterName: existing.theater.name,
+            startTime: existing.start_time,
+            endTime: existing.end_time,
+        };
+
+        const updated = await prisma.theaterBooking.update({
+            where: { id: bookingId },
+            data: {
+                theater_id: theaterId,
+                start_time: start,
+                end_time: end,
+                version: { increment: 1 },
+                confirmed_by: userId,
+                confirmed_at: now,
+            },
+            include: {
+                theater: true,
+                surgical_case: {
+                    include: {
+                        patient: { select: { id: true, first_name: true, last_name: true, file_number: true } },
+                        primary_surgeon: { select: { id: true, name: true, user_id: true } },
+                    },
+                },
+            },
+        });
+
+        // Billing: remove prior theater fee then re-apply based on updated slot.
+        const reversal = await this.billingService.reverseTheaterFee(updated.surgical_case_id);
+        const billing = await this.billingService.createTheaterFeeForBooking(updated, updated);
+
+        // Notifications + audit
+        await this.notificationService.notifyBookingRescheduled(updated, userId);
+        await this.auditService.logBookingRescheduled(
+            userId,
+            updated.surgical_case_id,
+            from,
+            { theaterName: updated.theater.name, startTime: updated.start_time, endTime: updated.end_time },
+            reason,
+        );
+
+        await syncDoctorCalendarEventsForSurgicalCase(prisma, updated.surgical_case_id);
+
+        return {
+            bookingId: updated.id,
+            status: updated.status,
+            theaterId: updated.theater_id,
+            theaterName: updated.theater.name,
+            startTime: updated.start_time,
+            endTime: updated.end_time,
+            rescheduledAt: now,
+            caseId: updated.surgical_case_id,
+            caseStatus: updated.surgical_case.status,
+            billing: {
+                reversed: reversal.reversed,
+                reversedAmount: reversal.amount,
+                created: billing.created,
+                theaterFee: billing.theaterFee,
+            },
         };
     }
 }

@@ -67,6 +67,28 @@ export class TheaterAuditService {
     }
 
     /**
+     * Log booking reschedule
+     */
+    async logBookingRescheduled(
+        userId: string,
+        caseId: string,
+        from: { theaterName: string; startTime: Date; endTime: Date },
+        to: { theaterName: string; startTime: Date; endTime: Date },
+        reason: string | undefined,
+    ): Promise<void> {
+        const { format } = await import('date-fns');
+        await this.prisma.auditLog.create({
+            data: {
+                user_id: userId,
+                record_id: caseId,
+                action: 'THEATER_BOOKING_RESCHEDULED',
+                model: 'SurgicalCase',
+                details: `Theater booking rescheduled. From: ${from.theaterName} (${format(from.startTime, 'yyyy-MM-dd HH:mm')} - ${format(from.endTime, 'HH:mm')}) → To: ${to.theaterName} (${format(to.startTime, 'yyyy-MM-dd HH:mm')} - ${format(to.endTime, 'HH:mm')}). Reason: ${reason || 'Not provided'}.`,
+            },
+        });
+    }
+
+    /**
      * Log surgical case status transition
      */
     async logStatusTransition(

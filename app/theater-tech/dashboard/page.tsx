@@ -25,6 +25,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { TodayScheduleCard } from '@/components/theater-tech/schedule/TodayScheduleCard';
 
 interface DashboardStats {
   total: number;
@@ -245,6 +246,7 @@ export default function TheaterTechDashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <TodayScheduleCard />
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
@@ -300,7 +302,7 @@ export default function TheaterTechDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="md:col-span-2">
+        <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">Recent Consultations</CardTitle>
