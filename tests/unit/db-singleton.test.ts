@@ -12,6 +12,16 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { vi } from 'vitest';
+
+vi.mock('@prisma/client', () => {
+  class PrismaClientMock {
+    $connect = vi.fn(async () => undefined);
+    $disconnect = vi.fn(async () => undefined);
+    $queryRaw = vi.fn(async () => undefined);
+  }
+  return { PrismaClient: PrismaClientMock };
+});
 
 describe('PrismaClient Singleton', () => {
   it('default export and named export should be the same instance', async () => {
