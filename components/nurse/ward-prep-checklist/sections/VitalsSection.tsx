@@ -7,13 +7,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { BooleanField, TextField, SelectOrCustomField } from '@/components/nurse/ward-prep-checklist/fields';
 import { NumberField } from '@/components/nurse/ward-prep-checklist/fields/NumberField';
 import { getVitalsWarningMap } from '@/domain/helpers/vitalsWarnings';
+import { formatSex } from '@/components/nurse/ward-prep-checklist/utils';
 import {
   UrinalysisResult,
   URINALYSIS_LABELS,
   type UrinalysisValue,
 } from '@/domain/clinical-forms/NursePreopWardChecklist';
 
-export function VitalsSection({ data, onChange, disabled }: WardChecklistSectionProps) {
+export function VitalsSection({ data, onChange, disabled, patient }: WardChecklistSectionProps) {
   const d = data.vitals ?? {};
   const set = (field: string, value: unknown) => onChange({ ...data, vitals: { ...d, [field]: value } });
   const warningMap = getVitalsWarningMap({
@@ -25,6 +26,7 @@ export function VitalsSection({ data, onChange, disabled }: WardChecklistSection
     spo2: d.spo2,
   });
   const urinalysisOptions = Object.values(UrinalysisResult).map((r) => ({ value: r, label: URINALYSIS_LABELS[r] }));
+  const showFoetalFields = formatSex(patient?.gender) === 'F';
 
   return (
     <div className="space-y-5">
@@ -41,10 +43,12 @@ export function VitalsSection({ data, onChange, disabled }: WardChecklistSection
 
       <BooleanField label="Bladder Emptied" value={d.bladderEmptied} onChange={(v) => set('bladderEmptied', v)} disabled={disabled} />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <NumberField label="Foetal Heart Rate" value={d.foetalHeartRate} onChange={(v) => set('foetalHeartRate', v)} min={30} max={260} unit="bpm" disabled={disabled} />
-        <TextField label="Foetal Heart Rate notes" value={d.foetalHeartRateNotes} onChange={(v) => set('foetalHeartRateNotes', v)} disabled={disabled} />
-      </div>
+      {showFoetalFields ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <NumberField label="Foetal Heart Rate" value={d.foetalHeartRate} onChange={(v) => set('foetalHeartRate', v)} min={30} max={260} unit="bpm" disabled={disabled} />
+          <TextField label="Foetal Heart Rate notes" value={d.foetalHeartRateNotes} onChange={(v) => set('foetalHeartRateNotes', v)} disabled={disabled} />
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <NumberField label="Height" value={d.height} onChange={(v) => set('height', v)} min={50} max={250} unit="cm" disabled={disabled} />

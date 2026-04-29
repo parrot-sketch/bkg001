@@ -145,7 +145,9 @@ export default function NursePreopWardChecklistPage() {
         if (e instanceof FinalizeValidationError) {
           setMissingItemsList(e.missingItems);
           setShowMissingItems(true);
+          return;
         }
+        toast.error(e instanceof Error ? e.message : 'Failed to finalize checklist');
       },
     });
   };

@@ -9,6 +9,12 @@ export interface ApiError {
   success: false;
   error: string;
   message?: string;
+  /**
+   * Many endpoints return additional structured error metadata (e.g. `missingItems`,
+   * `details`, `code`, `metadata`). Preserve these fields so UIs can present
+   * actionable error messages instead of a generic failure.
+   */
+  [key: string]: unknown;
 }
 
 export interface ApiSuccess<T> {
@@ -225,10 +231,14 @@ class ApiClient {
         }
 
         if (!retryResponse.ok) {
+          // Preserve structured error payloads when present.
+          if (retryData && typeof retryData === 'object' && (retryData as any).success === false) {
+            return retryData as ApiError;
+          }
           return {
             success: false,
-            error: retryData.error || `Request failed with status ${retryResponse.status}`,
-            message: retryData.message,
+            error: retryData?.error || `Request failed with status ${retryResponse.status}`,
+            message: retryData?.message,
           };
         }
 
@@ -247,11 +257,16 @@ class ApiClient {
         };
       }
 
+      // Preserve structured API error payloads even when status is non-2xx.
+      if (data && typeof data === 'object' && (data as any).success === false) {
+        return data as ApiError;
+      }
+
       if (!response.ok) {
         return {
           success: false,
-          error: data.error || `Request failed with status ${response.status}`,
-          message: data.message,
+          error: (data as any)?.error || `Request failed with status ${response.status}`,
+          message: (data as any)?.message,
         };
       }
 
