@@ -10,19 +10,23 @@ interface BookAppointmentState {
   initialPatient?: PatientResponseDto;
   initialDoctorId?: string;
   initialDoctor?: DoctorResponseDto;
+  lockDoctor?: boolean;
   initialDate?: string;
   initialTime?: string;
   source?: AppointmentSource | string;
   bookingChannel?: BookingChannel;
   parentAppointmentId?: number;
   parentConsultationId?: number;
+  lastSuccessNonce: number;
 
   openBookingDialog: (params?: Partial<Omit<BookAppointmentState, 'isOpen' | 'openBookingDialog' | 'closeBookingDialog'>>) => void;
   closeBookingDialog: () => void;
+  markBookingSuccess: () => void;
 }
 
 export const useBookAppointmentStore = create<BookAppointmentState>((set) => ({
   isOpen: false,
+  lastSuccessNonce: 0,
 
   openBookingDialog: (params) => set({
     isOpen: true,
@@ -30,6 +34,7 @@ export const useBookAppointmentStore = create<BookAppointmentState>((set) => ({
     initialPatient: undefined,
     initialDoctorId: undefined,
     initialDoctor: undefined,
+    lockDoctor: undefined,
     initialDate: undefined,
     initialTime: undefined,
     source: undefined,
@@ -40,4 +45,6 @@ export const useBookAppointmentStore = create<BookAppointmentState>((set) => ({
   }),
 
   closeBookingDialog: () => set({ isOpen: false }),
+
+  markBookingSuccess: () => set((s) => ({ lastSuccessNonce: s.lastSuccessNonce + 1 })),
 }));

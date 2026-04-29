@@ -12,13 +12,15 @@ export function BookAppointmentDialog() {
     initialPatient,
     initialDoctorId,
     initialDoctor,
+    lockDoctor,
     initialDate,
     initialTime,
     source,
     bookingChannel,
     parentAppointmentId,
     parentConsultationId,
-    closeBookingDialog
+    closeBookingDialog,
+    markBookingSuccess,
   } = useBookAppointmentStore();
 
   const queryClient = useQueryClient();
@@ -29,6 +31,7 @@ export function BookAppointmentDialog() {
     queryClient.invalidateQueries({ queryKey: ['frontdesk-patients'] });
     queryClient.invalidateQueries({ queryKey: ['patient'] });
     closeBookingDialog();
+    markBookingSuccess();
   };
 
   return (
@@ -40,6 +43,7 @@ export function BookAppointmentDialog() {
           initialPatient={initialPatient}
           initialDoctorId={initialDoctorId}
           initialDoctor={initialDoctor}
+          lockDoctor={lockDoctor}
           initialDate={initialDate}
           initialTime={initialTime}
           source={source}

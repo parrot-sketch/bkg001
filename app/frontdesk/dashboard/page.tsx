@@ -28,6 +28,7 @@ import { QuickActionBtn } from '@/components/frontdesk/QuickActionBtn';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useBookAppointmentStore } from '@/hooks/frontdesk/useBookAppointmentStore';
+import { QuickBookAppointmentDialog } from '@/components/frontdesk/dashboard/QuickBookAppointmentDialog';
 import { AppointmentSource } from '@/domain/enums/AppointmentSource';
 import { BookingChannel } from '@/domain/enums/BookingChannel';
 import { triggerAppointmentExpiry } from '@/app/actions/appointment-expiry';
@@ -46,6 +47,7 @@ import {
 export default function FrontdeskDashboardPage(): React.ReactElement {
   const { openBookingDialog } = useBookAppointmentStore();
   const [quickAssignmentOpen, setQuickAssignmentOpen] = useState<boolean>(false);
+  const [quickBookOpen, setQuickBookOpen] = useState(false);
 
   // Background expiry check — fire and forget, never blocks UI
   useEffect(() => {
@@ -103,9 +105,7 @@ export default function FrontdeskDashboardPage(): React.ReactElement {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-2 sm:p-3 space-y-1">
-              <div onClick={handleOpenBooking}>
-                <QuickActionBtn href="#" icon={Plus} label="New Appointment" />
-              </div>
+              <QuickActionBtn onClick={() => setQuickBookOpen(true)} icon={Plus} label="Book Appointment" />
               <QuickActionBtn href="/frontdesk/intake/start" icon={QrCode} label="Walk-in Intake" />
               <QuickActionBtn href="/frontdesk/theater-scheduling" icon={Building2} label="Theater Scheduling" />
               <QuickActionBtn href="/frontdesk/patients" icon={Users} label="Patient Registry" />
@@ -163,6 +163,8 @@ export default function FrontdeskDashboardPage(): React.ReactElement {
           // No refetch needed here — child containers manage their own cache
         }}
       />
+
+      <QuickBookAppointmentDialog open={quickBookOpen} onOpenChange={setQuickBookOpen} />
     </div>
   );
 }

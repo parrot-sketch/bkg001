@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { Calendar, Loader2, Search, Scissors } from 'lucide-react';
 import { toast } from 'sonner';
+import type { DateRange } from 'react-day-picker';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Calendar as RangeCalendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 type UpcomingProcedure = {
   appointmentId: number;
@@ -39,6 +42,13 @@ function addDays(date: Date, days: number): Date {
   return d;
 }
 
+function parseYmd(value: string): Date | null {
+  const trimmed = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return null;
+  const d = new Date(`${trimmed}T00:00:00.000Z`);
+  return Number.isFinite(d.getTime()) ? d : null;
+}
+
 function computeAgeAt(dobIso: string | null, atIso: string): string {
   if (!dobIso) return '—';
   const dob = new Date(dobIso);
@@ -57,6 +67,14 @@ export default function TheaterTechUpcomingProceduresPage() {
   const [from, setFrom] = useState<string>(toDateOnlyInputValue(today));
   const [to, setTo] = useState<string>(toDateOnlyInputValue(addDays(today, 14)));
   const [q, setQ] = useState<string>('');
+  const [rangeOpen, setRangeOpen] = useState(false);
+
+  const selectedRange: DateRange | undefined = useMemo(() => {
+    const fromDate = parseYmd(from);
+    const toDate = parseYmd(to);
+    if (!fromDate || !toDate) return undefined;
+    return { from: fromDate, to: toDate };
+  }, [from, to]);
 
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState<number | null>(null);
@@ -68,9 +86,18 @@ export default function TheaterTechUpcomingProceduresPage() {
     const t = setTimeout(async () => {
       setLoading(true);
       try {
+        // Normalize range defensively (avoid invalid/empty dates)
+        const fromDate = parseYmd(from) ?? new Date();
+        const toDate = parseYmd(to) ?? addDays(fromDate, 14);
+        const normalizedFrom = toDateOnlyInputValue(fromDate);
+        const normalizedTo = toDateOnlyInputValue(toDate < fromDate ? fromDate : toDate);
+
+        if (normalizedFrom !== from) setFrom(normalizedFrom);
+        if (normalizedTo !== to) setTo(normalizedTo);
+
         const sp = new URLSearchParams();
-        sp.set('from', from);
-        sp.set('to', to);
+        sp.set('from', normalizedFrom);
+        sp.set('to', normalizedTo);
         if (debounced.length >= 2) sp.set('q', debounced);
         const res = await fetch(`/api/theater-tech/upcoming-procedures?${sp.toString()}`);
         const json: unknown = await res.json();
@@ -91,6 +118,13 @@ export default function TheaterTechUpcomingProceduresPage() {
 
     return () => clearTimeout(t);
   }, [from, to, debounced]);
+
+  const applyPreset = (days: number) => {
+    const f = new Date();
+    const t = addDays(f, days);
+    setFrom(toDateOnlyInputValue(f));
+    setTo(toDateOnlyInputValue(t));
+  };
 
   const createCase = async (appointmentId: number) => {
     setCreating(appointmentId);
@@ -137,23 +171,67 @@ export default function TheaterTechUpcomingProceduresPage() {
             className="pl-9 h-9 bg-white"
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-2 text-sm text-slate-600">
             <Calendar className="h-4 w-4" />
             <span className="text-xs text-slate-500">Date range</span>
           </div>
-          <Input
-            type="date"
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-            className="h-9 w-[150px] bg-white"
-          />
-          <Input
-            type="date"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            className="h-9 w-[150px] bg-white"
-          />
+
+          <Popover open={rangeOpen} onOpenChange={setRangeOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 bg-white text-xs">
+                {selectedRange?.from ? format(selectedRange.from, 'MMM d, yyyy') : 'Start'}{' '}
+                <span className="text-slate-400 mx-1">→</span>{' '}
+                {selectedRange?.to ? format(selectedRange.to, 'MMM d, yyyy') : 'End'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-auto p-3">
+              <div className="flex items-center gap-2 pb-3">
+                <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => applyPreset(7)}>
+                  Next 7d
+                </Button>
+                <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => applyPreset(14)}>
+                  Next 14d
+                </Button>
+                <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => applyPreset(30)}>
+                  Next 30d
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs ml-auto"
+                  onClick={() => {
+                    const f = toDateOnlyInputValue(new Date());
+                    const t = toDateOnlyInputValue(addDays(new Date(), 14));
+                    setFrom(f);
+                    setTo(t);
+                  }}
+                >
+                  Reset
+                </Button>
+              </div>
+
+              <RangeCalendar
+                mode="range"
+                selected={selectedRange}
+                onSelect={(range) => {
+                  if (!range?.from) return;
+                  const fromYmd = toDateOnlyInputValue(range.from);
+                  const toYmd = toDateOnlyInputValue(range.to ?? range.from);
+                  setFrom(fromYmd);
+                  setTo(toYmd);
+                }}
+                numberOfMonths={2}
+              />
+
+              <div className="pt-3 flex items-center justify-end gap-2">
+                <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => setRangeOpen(false)}>
+                  Close
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
@@ -238,4 +316,3 @@ export default function TheaterTechUpcomingProceduresPage() {
     </div>
   );
 }
-
