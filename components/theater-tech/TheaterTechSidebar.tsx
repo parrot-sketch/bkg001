@@ -1,64 +1,50 @@
 'use client';
 
-/**
- * Theater Tech Sidebar Navigation
- *
- * Uses the UnifiedSidebar component for consistent design.
- * Provides navigation for theater technician operations.
- */
-
-import { Activity, LayoutDashboard, User, Package, Boxes, Truck, ShoppingCart, FileText, Scissors, ClipboardCheck, Users, Stethoscope, Building2, Calendar, CalendarClock } from 'lucide-react';
+import {
+  Activity, Building2, LayoutDashboard, Scissors, User, Users,
+} from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { useAuth } from '@/hooks/patient/useAuth';
 
-const baseNavItems: NavItem[] = [
+/**
+ * Theater Tech Sidebar
+ *
+ * Navigation structure (post-consolidation):
+ *
+ * OVERVIEW
+ *   Dashboard
+ *
+ * OPERATIONS
+ *   Theater       → /theater-tech/theater  (Schedule + Booking Queue + Suites)
+ *   Dayboard      → /theater-tech/dayboard
+ *   Surgical Cases → /theater-tech/surgical-cases
+ *
+ * PATIENTS
+ *   Patients      → /theater-tech/patients (Search + Upcoming Procedures + Consultations)
+ *
+ * INVENTORY
+ *   Item Catalog, Batches & Stock, Vendors, Purchase Orders, Goods Receipts
+ *   (kept for backward-compat, can be collapsed further in a future iteration)
+ *
+ * ACCOUNT
+ *   My Profile
+ */
+
+const navItems: NavItem[] = [
+  // ── Overview ──────────────────────────────────────────────────────────────
   {
     name: 'Dashboard',
     href: '/theater-tech/dashboard',
     icon: LayoutDashboard,
     section: 'Overview',
   },
+
+  // ── Operations ────────────────────────────────────────────────────────────
   {
-    name: 'Theater Schedule',
-    href: '/theater-tech/theater-schedule',
-    icon: CalendarClock,
-    section: 'Operations',
-  },
-  {
-    name: 'Theater Scheduling',
-    href: '/theater-tech/theater-scheduling',
-    icon: ClipboardCheck,
-    section: 'Operations',
-  },
-  {
-    name: 'Theaters',
-    href: '/theater-tech/theaters',
+    name: 'Theater',
+    href: '/theater-tech/theater',
     icon: Building2,
     section: 'Operations',
-  },
-  {
-    name: 'Surgical Cases',
-    href: '/theater-tech/surgical-cases',
-    icon: Scissors,
-    section: 'Planning',
-  },
-  {
-    name: 'Upcoming Procedures',
-    href: '/theater-tech/upcoming-procedures',
-    icon: Calendar,
-    section: 'Planning',
-  },
-  {
-    name: 'Recent Consultations',
-    href: '/theater-tech/recent-consultations',
-    icon: FileText,
-    section: 'Planning',
-  },
-  {
-    name: 'Patients',
-    href: '/theater-tech/patients',
-    icon: Users,
-    section: 'Planning',
   },
   {
     name: 'Dayboard',
@@ -67,47 +53,21 @@ const baseNavItems: NavItem[] = [
     section: 'Operations',
   },
   {
-    name: 'Services',
-    href: '/theater-tech/services',
-    icon: Stethoscope,
-    section: 'Catalog',
-  },
-  {
-    name: 'Procedures',
-    href: '/theater-tech/procedures',
+    name: 'Surgical Cases',
+    href: '/theater-tech/surgical-cases',
     icon: Scissors,
-    section: 'Catalog',
+    section: 'Operations',
   },
+
+  // ── Patients ──────────────────────────────────────────────────────────────
   {
-    name: 'Item Catalog',
-    href: '/theater-tech/inventory/items',
-    icon: Package,
-    section: 'Inventory',
+    name: 'Patients',
+    href: '/theater-tech/patients',
+    icon: Users,
+    section: 'Patients',
   },
-  {
-    name: 'Batches & Stock',
-    href: '/theater-tech/inventory/batches',
-    icon: Boxes,
-    section: 'Inventory',
-  },
-  {
-    name: 'Vendors',
-    href: '/theater-tech/inventory/vendors',
-    icon: Truck,
-    section: 'Inventory',
-  },
-  {
-    name: 'Purchase Orders',
-    href: '/theater-tech/inventory/purchase-orders',
-    icon: ShoppingCart,
-    section: 'Inventory',
-  },
-  {
-    name: 'Goods Receipts',
-    href: '/theater-tech/inventory/receipts',
-    icon: FileText,
-    section: 'Inventory',
-  },
+
+  // ── Account ───────────────────────────────────────────────────────────────
   {
     name: 'My Profile',
     href: '/theater-tech/profile',
@@ -125,22 +85,12 @@ interface TheaterTechSidebarProps {
 export function TheaterTechSidebar({ isOpen, onClose, onCollapse }: TheaterTechSidebarProps) {
   const { logout, user } = useAuth();
 
-  const navItems = baseNavItems;
-
   const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
+    try { await logout(); } catch (e) { console.error('Logout failed:', e); }
   };
 
   const userInfo: UserInfo | null = user
-    ? {
-        name: user.firstName || user.email,
-        email: user.email,
-        role: 'THEATER_TECHNICIAN',
-      }
+    ? { name: user.firstName || user.email, email: user.email, role: 'THEATER_TECHNICIAN' }
     : null;
 
   return (
