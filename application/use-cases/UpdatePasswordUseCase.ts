@@ -3,16 +3,23 @@ import { IAuditService } from '../../domain/interfaces/services/IAuditService';
 import { UpdatePasswordDto } from '../dtos/UpdatePasswordDto';
 import { DomainException } from '../../domain/exceptions/DomainException';
 import bcrypt from 'bcrypt';
+import { PrismaClient } from '@prisma/client';
 
 /**
  * Use Case: UpdatePasswordUseCase
- * 
+ *
  * Handles secure password updates with current password verification and audit logging.
+ *
+ * Security (P0-2): On success, ALL existing refresh tokens are revoked and
+ * token_version is incremented so that stolen tokens cannot be replayed after
+ * a password change. Without this, an attacker who obtained a refresh token
+ * before the password change could retain access for up to 7 days.
  */
 export class UpdatePasswordUseCase {
     constructor(
         private readonly userRepository: IUserRepository,
-        private readonly auditService: IAuditService
+        private readonly auditService: IAuditService,
+        private readonly prisma: PrismaClient,
     ) {
         if (!userRepository || !auditService) {
             throw new Error('UserRepository and AuditService are required');
@@ -48,8 +55,20 @@ export class UpdatePasswordUseCase {
         // Step 4: Hash new password
         const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
 
-        // Step 5: Update password
-        await this.userRepository.updatePassword(dto.userId, hashedPassword);
+        // Step 5: Update password + revoke all sessions + bump token_version in parallel.
+        // Revoking sessions ensures stolen refresh tokens cannot be replayed after a
+        // password change (P0-2 fix: session fixation post-compromise).
+        await Promise.all([
+            this.userRepository.updatePassword(dto.userId, hashedPassword),
+            this.prisma.refreshToken.updateMany({
+                where: { user_id: dto.userId, revoked: false },
+                data:  { revoked: true, revoked_at: new Date() },
+            }),
+            this.prisma.user.update({
+                where: { id: dto.userId },
+                data:  { token_version: { increment: 1 } },
+            }),
+        ]);
 
         // Step 6: Record audit event
         await this.auditService.recordEvent({
@@ -59,10 +78,8 @@ export class UpdatePasswordUseCase {
             model: 'User',
             details: JSON.stringify({
                 timestamp: new Date().toISOString(),
+                sessions_revoked: true,
             }),
         });
-
-        // TODO: Invalidate all sessions except current one
-        // This would require session management implementation
     }
 }

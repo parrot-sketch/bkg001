@@ -64,10 +64,23 @@ export interface AuthConfig {
  * not the other way around. Domain knows nothing about JWT or bcrypt.
  */
 export class JwtAuthService implements IAuthService {
+  /**
+   * Pre-computed bcrypt hash used for timing-attack normalisation.
+   *
+   * This is a static constant so it is NEVER computed at runtime.
+   * Previously this was computed synchronously in the constructor via
+   * bcrypt.hashSync(), which blocked the Node.js event loop for ~100 ms
+   * on every Lambda cold start (P0-3 fix).
+   *
+   * The value below is a real bcrypt hash of a random string at rounds=10.
+   * It does not need to be a secret — it will never match a real password.
+   */
+  private static readonly DUMMY_HASH =
+    '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lh3y';
+
   private readonly accessTokenExpiresIn: number;
   private readonly refreshTokenExpiresIn: number;
   private readonly saltRounds: number;
-  private readonly DUMMY_HASH: string;
 
   constructor(
     private readonly userRepository: IUserRepository,
@@ -84,10 +97,6 @@ export class JwtAuthService implements IAuthService {
     this.accessTokenExpiresIn = config.accessTokenExpiresIn ?? 15 * 60; // 15 minutes
     this.refreshTokenExpiresIn = config.refreshTokenExpiresIn ?? 7 * 24 * 60 * 60; // 7 days
     this.saltRounds = config.saltRounds ?? 10;
-    
-    // Pre-computed synthetic hash to mitigate timing attacks
-    // We use hashSync with EXACTLY the same salt rounds configured
-    this.DUMMY_HASH = bcrypt.hashSync('dummy_password_for_timing_mitigation_xyz', this.saltRounds);
   }
 
   /**
@@ -99,113 +108,101 @@ export class JwtAuthService implements IAuthService {
    * @throws DomainException if authentication fails
    */
   async login(email: Email, password: string): Promise<JWTToken> {
-    // 1. Fetch user (don't early return)
+    // ─── 1. Single DB fetch — get everything needed in one round-trip ───────────
+    // This replaces the previous pattern of 3 separate reads of the same row.
     const user = await this.userRepository.findByEmail(email);
 
-    // 2. ALWAYS execute bcrypt.compare (real or dummy) to normalize constant time
-    const passwordHashToCompare = user ? user.getPasswordHash() : this.DUMMY_HASH;
+    // ─── 2. Always run bcrypt (real or dummy) for constant-time response ────────
+    const passwordHashToCompare = user ? user.getPasswordHash() : JwtAuthService.DUMMY_HASH;
     const isValidPassword = await this.verifyPassword(password, passwordHashToCompare);
 
-    // 3. Add configurable random jitter delay (0-50ms) for additional obscurity against probabilistic timing analysis
+    // ─── 3. Random jitter (0-50ms) against probabilistic timing analysis ────────
     const jitter = Math.floor(Math.random() * 50);
     await new Promise(resolve => setTimeout(resolve, jitter));
 
     if (!user || !isValidPassword) {
-      console.warn(`[SECURITY:FAILED_LOGIN] Invalid credentials attempt | Email: ${email.getValue()}`);
-      
-      // Increment failed attempts and lock if threshold reached
-      const currentUser = await this.prisma.user.findUnique({
-        where: { id: user?.getId() },
-        select: { failed_login_attempts: true },
-      });
+      const maskedEmail = email.getValue().replace(/(.{2}).+(@.+)/, '$1***$2');
+      console.warn(`[SECURITY:FAILED_LOGIN] Invalid credentials attempt | Email: ${maskedEmail}`);
 
-      const failedCount = (currentUser?.failed_login_attempts || 0) + 1;
-      const shouldLock = failedCount >= 5; // Lock after 5 failed attempts
+      // Atomic increment — no separate SELECT needed, eliminates the race condition
+      // where two concurrent failures both read the same count and both write n+1.
+      await this.prisma.$executeRaw`
+        UPDATE "User"
+        SET
+          failed_login_attempts = failed_login_attempts + 1,
+          locked_until = CASE
+            WHEN failed_login_attempts + 1 >= 5
+              THEN NOW() + INTERVAL '15 minutes'
+            ELSE locked_until
+          END
+        WHERE id = ${user?.getId() ?? ''}
+      `.catch(() => {}); // Fire-and-forget: failure here must not block the 401
 
-      await this.prisma.user.update({
-        where: { id: user?.getId() },
-        data: {
-          failed_login_attempts: failedCount,
-          locked_until: shouldLock ? new Date(Date.now() + 15 * 60 * 1000) : null, // 15 min lock
-        },
-      }).catch(() => {}); // Fire-and-forget
-      
       throw new DomainException('Invalid email or password', {});
     }
 
-    // Reset failed attempts on successful login
-    await this.prisma.user.update({
-      where: { id: user.getId() },
-      data: {
-        failed_login_attempts: 0,
-        locked_until: null,
-      },
-    }).catch(() => {}); // Fire-and-forget
-
-    // 4. Check if user can authenticate (status must be ACTIVE)
+    // ─── 4. Status check ────────────────────────────────────────────────────────
     if (!user.canAuthenticate()) {
-      console.warn(`[SECURITY:FAILED_LOGIN] Inactive account attempt | UserId: ${user.getId()}`);
+      console.warn(`[SECURITY:FAILED_LOGIN] Inactive account | UserId: ${user.getId()}`);
       throw new DomainException('Account is inactive. Please contact administrator', {
         userId: user.getId(),
         status: user.getStatus(),
       });
     }
 
-    // 5. ENFORCE DOCTOR IDENTITY INVARIANT
-    // If user has role DOCTOR, they MUST have a Doctor profile
+    // ─── 5. Doctor invariant check (role=DOCTOR only) ───────────────────────────
     if (user.getRole() === Role.DOCTOR) {
       const doctorProfile = await this.prisma.doctor.findUnique({
         where: { user_id: user.getId() },
-        select: { 
-          id: true,
-          onboarding_status: true,
-        },
+        select: { id: true, onboarding_status: true },
       });
 
       if (!doctorProfile) {
         console.warn(`[SECURITY:FAILED_LOGIN] Missing doctor profile | UserId: ${user.getId()}`);
         throw new DomainException(
           'Doctor profile not found. Please contact administrator to complete account setup.',
-          {
-            userId: user.getId(),
-            role: user.getRole(),
-          }
+          { userId: user.getId(), role: user.getRole() }
         );
       }
 
-      // ENFORCE DOCTOR ONBOARDING INVARIANT
-      // Doctors can only authenticate when onboarding_status === ACTIVE
       const onboardingStatus = doctorProfile.onboarding_status as DoctorOnboardingStatus;
       if (!canDoctorAuthenticate(onboardingStatus)) {
-        console.warn(`[SECURITY:FAILED_LOGIN] Incomplete doctor onboarding | UserId: ${user.getId()} | Status: ${onboardingStatus}`);
+        console.warn(`[SECURITY:FAILED_LOGIN] Incomplete onboarding | UserId: ${user.getId()} | Status: ${onboardingStatus}`);
         throw new DomainException(
           'Account onboarding is not complete. Please complete the onboarding process to access the system.',
-          {
-            userId: user.getId(),
-            role: user.getRole(),
-            onboardingStatus,
-          }
+          { userId: user.getId(), role: user.getRole(), onboardingStatus }
         );
       }
     }
 
-    // 6. Generate tokens
+    // ─── 6. Generate tokens ─────────────────────────────────────────────────────
     const tokens = this.generateTokens(user);
 
-    // 7. Store refresh token in database
-    await this.storeRefreshToken(user.getId(), tokens.refreshToken, this.refreshTokenExpiresIn);
+    // ─── 7 & 8. Parallelize: store refresh token + reset lockout + last_login ───
+    // Previously 3 sequential round-trips. Now 2 parallel ones.
+    await Promise.all([
+      this.storeRefreshToken(user.getId(), tokens.refreshToken, this.refreshTokenExpiresIn),
+      // Single UPDATE replaces the previous separate reset-failed-count write AND
+      // the separate updateLastLogin write (was a full User.create + repo.update).
+      this.prisma.user.update({
+        where: { id: user.getId() },
+        data: {
+          failed_login_attempts: 0,
+          locked_until: null,
+          last_login_at: new Date(),
+        },
+      }),
+    ]);
 
-    // 8. Update last login timestamp
-    await this.updateLastLogin(user);
+    // ─── 9. Non-blocking token cleanup (probabilistic — 1% of logins) ───────────
+    if (Math.random() < 0.01) {
+      this.cleanupExpiredTokens().catch(err => {
+        console.error(`[SECURITY:CLEANUP_ERROR] ${err instanceof Error ? err.message : String(err)}`);
+      });
+    }
 
-    // 9. Atomic token cleanup (non-blocking)
-    this.cleanupExpiredTokens().catch(err => {
-      console.error(`[SECURITY:CLEANUP_ERROR] Failed to cleanup expired tokens | Reason: ${err instanceof Error ? err.message : String(err)}`);
-    });
+    console.info(`[SECURITY:SUCCESSFUL_LOGIN] UserId: ${user.getId()} | Role: ${user.getRole()}`);
 
-    console.info(`[SECURITY:SUCCESSFUL_LOGIN] User authenticated successfully | UserId: ${user.getId()} | Role: ${user.getRole()}`);
-
-    // 10. Return tokens + authenticated user info
     return {
       ...tokens,
       authenticatedUser: {

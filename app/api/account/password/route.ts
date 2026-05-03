@@ -7,7 +7,8 @@ import { getCurrentUserFull } from '@/lib/auth/server-auth';
 
 const userRepository = new PrismaUserRepository(db);
 const auditService = new PrismaAuditService(db);
-const updatePasswordUseCase = new UpdatePasswordUseCase(userRepository, auditService);
+const updatePasswordUseCase = new UpdatePasswordUseCase(userRepository, auditService, db);
+
 
 export async function PUT(request: NextRequest) {
     try {

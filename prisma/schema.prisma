@@ -81,6 +81,9 @@ model LoginAttempt {
   @@index([ip_address])
   @@index([attempt_at])
   @@index([user_id])
+  @@index([ip_address, attempt_at])   // covering index for sliding-window IP rate-limit COUNT
+  @@index([email, attempt_at])        // covering index for sliding-window email rate-limit COUNT
+
 }
 
 model RefreshToken {

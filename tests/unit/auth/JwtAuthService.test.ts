@@ -119,8 +119,12 @@ const mockPrismaClient = {
       };
     },
   },
-
+  // Required by JwtAuthService.login() for the atomic failed_login_attempts
+  // increment (raw SQL UPDATE). Returns a resolved promise — same fire-and-forget
+  // behaviour as in production.
+  $executeRaw: async (_query: any, ..._values: any[]) => 0,
 };
+
 
 describe('JwtAuthService', () => {
   let authService: JwtAuthService;

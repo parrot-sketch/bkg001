@@ -17,6 +17,9 @@ import db from '@/lib/db';
 import { RefreshTokenDto, refreshTokenDtoSchema, RefreshTokenResponseDto } from '@/application/dtos/RefreshTokenDto';
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { AuthFactory } from '@/infrastructure/auth/AuthFactory';
+
+// Module-level singleton — avoids re-allocating service instances per request.
+const { refreshTokenUseCase } = AuthFactory.create(db);
 import type { ApiResponse } from '@/lib/api/client';
 
 /**
@@ -35,8 +38,6 @@ type ApiErrorResponse = ApiResponse<never>;
  * - 500: Internal server error
  */
 export async function POST(request: NextRequest): Promise<NextResponse<ApiErrorResponse | ApiResponse<RefreshTokenResponseDto>>> {
-  // Initialize authentication use cases using factory lazily inside handler
-  const { refreshTokenUseCase } = AuthFactory.create(db);
 
   try {
     // Parse request body

@@ -1,15 +1,16 @@
 /**
- * API Route: POST /api/auth/login
- * 
+ * API Route: POST /api/authentication/login
+ *
  * User authentication endpoint.
- * 
+ *
  * Authenticates a user with email and password, returning JWT tokens.
- * 
+ *
  * Security:
  * - Generic error messages (no user enumeration)
- * - Password verification via secure hashing
+ * - Password verification via secure hashing (bcrypt)
  * - JWT tokens with proper expiration
- * - Audit logging for all login attempts
+ * - DB-backed rate limiting (survives Lambda restarts)
+ * - All login attempts recorded in LoginAttempt table for audit + rate limiting
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -17,256 +18,242 @@ import db, { withRetry } from '@/lib/db';
 import { LoginDto, loginDtoSchema, LoginResponseDto } from '@/application/dtos/LoginDto';
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { AuthFactory } from '@/infrastructure/auth/AuthFactory';
-import type { ApiResponse } from '@/lib/api/client';
-
-/**
- * Standardized API error response
- */
-type ApiErrorResponse = ApiResponse<never>;
-
-/**
- * POST /api/auth/login
- * 
- * Handles user login request with Zod validation and standardized response.
- * 
- * Error Codes:
- * - 400: Invalid request (malformed JSON, validation errors)
- * - 401: Invalid credentials (generic message to prevent user enumeration)
- * - 429: Rate limit exceeded (if implemented)
- * - 500: Internal server error
- */
-import { InMemoryRateLimiter } from '@/infrastructure/rate-limiting/InMemoryRateLimiter';
 import { NodeSecurityEventEmitter } from '@/infrastructure/events/NodeSecurityEventEmitter';
 import { SecurityEventType } from '@/domain/interfaces/events/ISecurityEventEmitter';
+import { getDbRateLimiter } from '@/infrastructure/rate-limiting/DbRateLimiter';
+import type { ApiResponse } from '@/lib/api/client';
+
+type ApiErrorResponse = ApiResponse<never>;
 
 const emitter = NodeSecurityEventEmitter.getInstance();
 
-// Initialize global sliding window rate limiters (persists in warm lambdas/local dev)
-// IP Rate limiter allows 20 rapid bursts per 15 mins across all accounts
-const ipRateLimiter = new InMemoryRateLimiter({ maxRequests: 20, windowMs: 15 * 60 * 1000 });
-// Email Rate limiter tightly restricts attacks on specific accounts (5 attempts per 15 mins)
-const emailRateLimiter = new InMemoryRateLimiter({ maxRequests: 5, windowMs: 15 * 60 * 1000 });
+// Module-level singletons — allocated once per Lambda instance.
+const rateLimiter = getDbRateLimiter(db);
+const { loginUseCase } = AuthFactory.create(db);
 
-export async function POST(request: NextRequest): Promise<NextResponse<ApiErrorResponse | ApiResponse<LoginResponseDto>>> {
-  // Implement unique Correlation ID for request lifecycle tracing across distributed systems
-  const correlationId = request.headers.get('x-correlation-id') || crypto.randomUUID();
+export async function POST(
+  request: NextRequest,
+): Promise<NextResponse<ApiErrorResponse | ApiResponse<LoginResponseDto>>> {
+  const correlationId =
+    request.headers.get('x-correlation-id') || crypto.randomUUID();
 
-  // Extract client IP for rate limiting protection
-  const ip = request.headers.get('x-forwarded-for') || 'unknown';
-  
-  // Dual-Layer Defense 1: IP Rate Limiting
-  const ipKey = `ip:${ip}`;
-  await ipRateLimiter.recordAttempt(ipKey);
-  const ipLimit = await ipRateLimiter.isRateLimited(ipKey);
-  
-  if (ipLimit.isLimited) {
+  // Take only the first IP from x-forwarded-for (the real client IP on Vercel)
+  const rawIp = request.headers.get('x-forwarded-for') || 'unknown';
+  const ip = rawIp.split(',')[0].trim();
+  const userAgent = request.headers.get('user-agent') || undefined;
+
+  // ─── Layer 1: IP rate limit ────────────────────────────────────────────────
+  // Checked BEFORE parsing the body so attackers can't bypass by sending garbage.
+  // Uses the LoginAttempt table — shared across all Lambda instances.
+  const ipCheck = await rateLimiter.isIpRateLimited(ip);
+  if (ipCheck.isLimited) {
     emitter.emit(SecurityEventType.RATE_LIMIT_EXCEEDED, {
       ipAddress: ip,
-      reason: 'IP brute force limit reached',
+      reason: `IP rate limit exceeded (${ipCheck.attemptCount} attempts in window)`,
       correlationId,
-      timestamp: new Date()
+      timestamp: new Date(),
     });
-    return NextResponse.json({
-      success: false,
-      error: 'Too many requests from this IP. Please try again later.',
-    }, { 
-      status: 429,
-      headers: { 'Retry-After': String(Math.ceil((ipLimit.retryAfterMs || 0) / 1000)) }
-    });
+    return NextResponse.json(
+      { success: false, error: 'Too many requests from this IP. Please try again later.' },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(ipCheck.retryAfterSeconds ?? 900) },
+      },
+    );
   }
 
-  // Initialize authentication use cases using factory lazily inside handler
-  const { loginUseCase } = AuthFactory.create(db);
-
   try {
-    // Parse request body
+    // ─── Parse & validate body ───────────────────────────────────────────────
     let rawBody: unknown;
     try {
       rawBody = await request.json();
-    } catch (error) {
-      const errorResponse: ApiErrorResponse = {
-        success: false,
-        error: 'Invalid JSON in request body',
-      };
-      return NextResponse.json(errorResponse, { status: 400 });
+    } catch {
+      return NextResponse.json(
+        { success: false, error: 'Invalid JSON in request body' },
+        { status: 400 },
+      );
     }
 
-    // Validate with Zod schema
     const validationResult = loginDtoSchema.safeParse(rawBody);
     if (!validationResult.success) {
       const firstError = validationResult.error.errors[0];
-      const errorResponse: ApiErrorResponse = {
-        success: false,
-        error: firstError?.message || 'Invalid request data',
-      };
-      return NextResponse.json(errorResponse, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: firstError?.message || 'Invalid request data' },
+        { status: 400 },
+      );
     }
 
     const body: LoginDto = validationResult.data;
+    const emailLower = body.email.toLowerCase();
 
-     // Dual-Layer Defense 2: Check for locked/stopped account BEFORE rate limiting
-     const accountCheck = await db.user.findUnique({
-       where: { email: body.email.toLowerCase() },
-       select: { 
-         id: true, 
-         locked_until: true, 
-         failed_login_attempts: true,
-         status: true,
-       },
-     });
+    // ─── Layer 2: DB lock/status check + attempt record in parallel ──────────
+    // The findUnique hits the email unique index (fast).
+    // recordAttempt is fire-and-forget via .catch() — never blocks login.
+    const [accountCheck] = await Promise.all([
+      db.user.findUnique({
+        where: { email: emailLower },
+        select: { id: true, locked_until: true, status: true },
+      }),
+      // Record this attempt now (before we know the outcome) so the IP rate
+      // limit window is accurate. We'll update success=true on the record after
+      // a successful login via a separate fire-and-forget call.
+      rateLimiter.recordAttempt({
+        ip,
+        email: emailLower,
+        success: false,  // pessimistic — updated below on success
+        userAgent,
+        userId: undefined,
+        reason: 'attempt_started',
+      }).catch(() => {}),
+    ]);
 
-     if (accountCheck?.locked_until && accountCheck.locked_until > new Date()) {
-       emitter.emit(SecurityEventType.ACCOUNT_LOCKED, {
-         ipAddress: ip,
-         email: body.email.toLowerCase(),
-         reason: 'Account locked - too many failed attempts',
-         correlationId,
-         timestamp: new Date()
-       });
-       return NextResponse.json({
-         success: false,
-         error: 'Account is temporarily locked due to multiple failed login attempts. Please try again later or contact support.',
-       }, { status: 423 });
-     }
-
-    if (accountCheck?.status === 'INACTIVE') {
-      return NextResponse.json({
-        success: false,
-        error: 'Account is inactive. Please contact administrator.',
-      }, { status: 403 });
-    }
-
-    // Dual-Layer Defense 3: Email Rate Limiting (Account targeted lockouts)
-    const emailKey = `email:${body.email.toLowerCase()}`;
-    await emailRateLimiter.recordAttempt(emailKey);
-    const emailLimit = await emailRateLimiter.isRateLimited(emailKey);
-
-    if (emailLimit.isLimited) {
-      // Lock the account in database
-      await db.user.update({
-        where: { email: body.email.toLowerCase() },
-         data: { 
-           locked_until: new Date(Date.now() + 15 * 60 * 1000), // 15 minute lock
-           failed_login_attempts: { increment: 1 },
-         },
-       }).catch(() => {});
-
+    // Short-circuit: account locked in DB (cross-instance, persists across restarts)
+    if (accountCheck?.locked_until && accountCheck.locked_until > new Date()) {
+      const retryAfterSec = Math.ceil(
+        (accountCheck.locked_until.getTime() - Date.now()) / 1000,
+      );
       emitter.emit(SecurityEventType.ACCOUNT_LOCKED, {
         ipAddress: ip,
-        email: body.email.toLowerCase(),
-        reason: 'Account login attempts maxed out natively',
+        email: emailLower,
+        reason: 'Account locked — too many failed attempts',
         correlationId,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
-      return NextResponse.json({
-        success: false,
-        error: 'Account is temporarily locked due to multiple failed login attempts. Please try again in 15 minutes.',
-      }, { 
-        status: 423,
-        headers: { 'Retry-After': '900' }
-      });
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            'Account is temporarily locked due to multiple failed login attempts. Please try again later or contact support.',
+        },
+        { status: 423, headers: { 'Retry-After': String(retryAfterSec) } },
+      );
     }
 
-    // Execute login use case with retry logic for connection errors
-    const response = await withRetry(async () => {
-      return await loginUseCase.execute({
-        email: body.email,
-        password: body.password,
-      });
-    });
-
-    // Validate response structure
-    if (!response || !response.accessToken || !response.refreshToken) {
-      const errorResponse: ApiErrorResponse = {
-        success: false,
-        error: 'Internal server error: Invalid response from authentication service',
-      };
-      return NextResponse.json(errorResponse, { status: 500 });
+    // Short-circuit: account inactive
+    if (accountCheck?.status === 'INACTIVE') {
+      return NextResponse.json(
+        { success: false, error: 'Account is inactive. Please contact administrator.' },
+        { status: 403 },
+      );
     }
 
-    // Create success response with standardized ApiResponse format
-    const successResponse: ApiResponse<LoginResponseDto> = {
+    // ─── Execute login use case ──────────────────────────────────────────────
+    // withRetry handles transient Aiven connection blips (max 2 retries, 200ms delay)
+    const response = await withRetry(
+      () => loginUseCase.execute({ email: body.email, password: body.password }),
+      2,   // fewer retries than default — login is not fully idempotent
+      200, // short initial delay — surface failure fast
+    );
+
+    if (!response?.accessToken || !response?.refreshToken) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Internal server error: Invalid response from authentication service',
+        },
+        { status: 500 },
+      );
+    }
+
+    // ─── Record successful attempt (fire-and-forget) ─────────────────────────
+    rateLimiter.recordAttempt({
+      ip,
+      email: emailLower,
       success: true,
-      data: response,
-    };
+      userAgent,
+      userId: response.user.id,
+      reason: undefined,
+    }).catch(() => {});
+
+    // Probabilistic cleanup of old LoginAttempt rows (1% of logins)
+    if (Math.random() < 0.01) {
+      rateLimiter.cleanupOldAttempts().catch(() => {});
+    }
 
     emitter.emit(SecurityEventType.SUCCESSFUL_LOGIN, {
       ipAddress: ip,
       email: response.user.email,
       userId: response.user.id,
       correlationId,
-      timestamp: new Date()
+      timestamp: new Date(),
     });
 
-    const nextResponse = NextResponse.json(successResponse, { status: 200 });
+    // ─── Build response + set cookies ────────────────────────────────────────
+    const nextResponse = NextResponse.json(
+      { success: true, data: response } satisfies ApiResponse<LoginResponseDto>,
+      { status: 200 },
+    );
 
-    // Set access token cookie on the response
     const safeExpiresIn = typeof response.expiresIn === 'number' ? response.expiresIn : 900;
+    const cookieBase = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax' as const,
+      path: '/',
+    };
 
     nextResponse.cookies.set('accessToken', response.accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
+      ...cookieBase,
       maxAge: safeExpiresIn,
     });
-
-    // Also persist refresh token as httpOnly cookie for server-side silent refresh
     nextResponse.cookies.set('refreshToken', response.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60, // 7 days (matches refresh token lifetime)
+      ...cookieBase,
+      maxAge: 7 * 24 * 60 * 60,
     });
 
     return nextResponse;
+
   } catch (error: unknown) {
-    // Check if this is a database connection error
-    const isConnectionError = 
-      error instanceof Error && 
-      ((error as any).isConnectionError || 
-       error.message.includes('fetch failed') ||
-       error.message.includes('Cannot fetch data from service') ||
-       error.message.includes('Connection') ||
-       error.message.includes("Can't reach database"));
+    // ─── Connection error ────────────────────────────────────────────────────
+    const isConnectionError =
+      error instanceof Error &&
+      ((error as any).isConnectionError ||
+        error.message.includes('fetch failed') ||
+        error.message.includes('Cannot fetch data from service') ||
+        error.message.includes('Connection') ||
+        error.message.includes("Can't reach database"));
 
     if (isConnectionError) {
-      // Database connection error - show appropriate message
-      const errorMessage = error instanceof Error ? error.message : 'Database connection failed';
-      console.error('[API] /api/auth/login - Database connection error:', errorMessage, error);
-      
-      const errorResponse: ApiErrorResponse = {
-        success: false,
-        error: 'Unable to connect to the database. Please try again in a moment or contact support if the problem persists.',
-      };
-      return NextResponse.json(errorResponse, { status: 503 }); // 503 Service Unavailable
+      console.error(
+        `[API] /api/authentication/login [${correlationId}] DB connection error:`,
+        (error as Error).message,
+      );
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            'Unable to connect to the database. Please try again in a moment or contact support if the problem persists.',
+        },
+        { status: 503, headers: { 'Retry-After': '10' } },
+      );
     }
 
-    // Handle domain exceptions (e.g., invalid credentials)
+    // ─── Invalid credentials (DomainException) ───────────────────────────────
     if (error instanceof DomainException) {
       emitter.emit(SecurityEventType.FAILED_LOGIN, {
         ipAddress: ip,
         reason: 'Invalid credentials',
         correlationId,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
-      // Generic error message - prevents user enumeration
-      const errorResponse: ApiErrorResponse = {
-        success: false,
-        error: 'Invalid email or password. Please try again.',
-      };
-      return NextResponse.json(errorResponse, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: 'Invalid email or password. Please try again.' },
+        { status: 401 },
+      );
     }
 
-    // Unexpected error - log and return generic error
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error(`[API] /api/auth/login [${correlationId}] - Unexpected error:`, errorMessage, error);
-    
-    const errorResponse: ApiErrorResponse = {
-      success: false,
-      error: 'An unexpected error occurred. Please try again or contact support if the problem persists.',
-    };
-    return NextResponse.json(errorResponse, { status: 500 });
+    // ─── Unexpected error ────────────────────────────────────────────────────
+    console.error(
+      `[API] /api/authentication/login [${correlationId}] Unexpected error:`,
+      error instanceof Error ? error.message : error,
+    );
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          'An unexpected error occurred. Please try again or contact support if the problem persists.',
+      },
+      { status: 500 },
+    );
   }
 }
