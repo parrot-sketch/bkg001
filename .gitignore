@@ -60,3 +60,6 @@ next-env.d.ts
 *_TRACE.md
 *_SUMMARY.md
 /brain/
+
+# editors
+.vscode/
