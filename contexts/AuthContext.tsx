@@ -107,22 +107,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, []);
 
-    // Logout function - Fixed to prevent flicker
+    // Logout function - Fixed to prevent flicker and 401s
     const logout = useCallback(async () => {
         // 1. IMMEDIATELY clear state to prevent flash
         setIsLoggingOut(true);
         setUser(null);
         
-        // 2. Clear token storage synchronously
+        // 2. Fire server-side revocation FIRST (fire and forget - don't await)
+        // Must be done before clearing tokenStorage so apiClient can read the token
         const hadToken = tokenStorage.isAuthenticated();
-        tokenStorage.clear();
-        
-        // 3. Fire server-side revocation (fire and forget - don't await)
         if (hadToken) {
             authApi.logout().catch(() => {
-                // Silently fail - token is already cleared locally
+                // Silently fail - token will be cleared locally anyway
             });
         }
+        
+        // 3. Clear token storage synchronously
+        tokenStorage.clear();
         
         // 4. Navigate immediately using window.location to bypass React render cycle
         // This prevents the brief flash of unauthenticated UI before redirect
