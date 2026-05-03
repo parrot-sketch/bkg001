@@ -11,40 +11,54 @@ import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSi
 import { useAuth } from '@/hooks/patient/useAuth';
 
 const navItems: NavItem[] = [
+  // ── Overview ──────────────────────────────────────────────────────────────
   {
     name: 'Dashboard',
     href: '/nurse/dashboard',
     icon: LayoutDashboard,
+    section: 'Overview',
   },
-  {
-    name: 'Patients',
-    href: '/nurse/patients',
-    icon: Users,
-  },
+  
+  // ── Clinical Care ─────────────────────────────────────────────────────────
   {
     name: 'Ward Prep',
     href: '/nurse/ward-prep',
     icon: ClipboardCheck,
+    section: 'Clinical Care',
   },
   {
     name: 'Theatre Support',
     href: '/nurse/theatre-support',
     icon: Activity,
+    section: 'Clinical Care',
   },
   {
     name: 'Recovery & Discharge',
     href: '/nurse/recovery-discharge',
     icon: HeartPulse,
+    section: 'Clinical Care',
   },
+
+  // ── Patients ──────────────────────────────────────────────────────────────
+  {
+    name: 'Patients',
+    href: '/nurse/patients',
+    icon: Users,
+    section: 'Patients',
+  },
+
+  // ── Account ───────────────────────────────────────────────────────────────
   {
     name: 'Notifications',
     href: '/nurse/notifications',
     icon: Bell,
+    section: 'Account',
   },
   {
     name: 'My Profile',
     href: '/nurse/profile',
     icon: User,
+    section: 'Account',
   },
 ];
 
