@@ -17,6 +17,8 @@ import { Page2Section } from '@/components/doctor/operative-record/sections/Page
 
 interface Props {
   caseId: string;
+  caseProcedureNames?: string;
+  initialDiagnosis?: string;
 }
 
 const EMPTY_DRAFT: SurgeonOperativeNoteDraft = {
@@ -54,7 +56,7 @@ const EMPTY_DRAFT: SurgeonOperativeNoteDraft = {
   },
 };
 
-export function OperativeRecordEditor({ caseId }: Props) {
+export function OperativeRecordEditor({ caseId, caseProcedureNames, initialDiagnosis }: Props) {
   const { isAuthenticated, user } = useAuth();
   const { data, isLoading, error } = useOperativeNote(caseId);
   const saveMutation = useSaveOperativeNote(caseId);
@@ -233,7 +235,8 @@ export function OperativeRecordEditor({ caseId }: Props) {
             value={formData.header}
             disabled={isDisabled || !canEdit}
             onChange={(next) => setField('header', next as any)}
-            caseProcedureName={data?.procedureName}
+            caseProcedureName={caseProcedureNames || data?.procedureName}
+            initialDiagnosis={initialDiagnosis}
           />
         </CardContent>
       </Card>

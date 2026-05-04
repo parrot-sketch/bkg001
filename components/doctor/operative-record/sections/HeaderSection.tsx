@@ -7,11 +7,12 @@ interface Props {
   disabled: boolean;
   onChange: (next: NonNullable<SurgeonOperativeNoteDraft['header']>) => void;
   caseProcedureName?: string | null;
+  initialDiagnosis?: string;
 }
 
 const ANESTHESIA_TYPE_OPTIONS = ['GENERAL', 'REGIONAL', 'LOCAL', 'SEDATION', 'TIVA', 'MAC'] as const;
 
-export function HeaderSection({ value, disabled, onChange, caseProcedureName }: Props) {
+export function HeaderSection({ value, disabled, onChange, caseProcedureName, initialDiagnosis }: Props) {
   const v: any = value ?? {};
 
   const handleCheckboxChange = (field: 'shavingY' | 'shavingN' | 'skinPrepY' | 'skinPrepN') => {
@@ -39,7 +40,8 @@ export function HeaderSection({ value, disabled, onChange, caseProcedureName }: 
         </label>
         <input
           className="w-full h-10 px-3 border rounded-md text-sm"
-          value={v.diagnosisPreOp ?? ''}
+          value={v.diagnosisPreOp || initialDiagnosis || ''}
+          placeholder={initialDiagnosis ? `From case plan: ${initialDiagnosis}` : undefined}
           disabled={disabled}
           onChange={(e) => onChange({ ...(value ?? {}), diagnosisPreOp: e.target.value } as any)}
         />
