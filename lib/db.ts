@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { withAccelerate } from "@prisma/extension-accelerate";
 
 /**
  * Prisma Client Singleton — Connection Strategy
@@ -36,6 +37,12 @@ const prismaClientSingleton = () => {
   const logConfig: Array<'query' | 'error' | 'warn'> = isProduction ? ['error'] : ['query', 'error', 'warn'];
 
   if (isProduction) {
+    // Automatically use Prisma Accelerate if the connection string is a Prisma URL
+    if (databaseUrl.startsWith('prisma://')) {
+      console.log(`${LOG_PREFIX} Production: Using Prisma Accelerate pooler`);
+      return new PrismaClient({ log: logConfig }).$extends(withAccelerate()) as any;
+    }
+
     // Cap connection pool to 1 — Aiven limits us to 25 connections.
     // In Vercel serverless, every lambda grabs its own connection pool.
     // Limiting to 1 ensures 25 concurrent lambdas can execute safely.
@@ -51,7 +58,7 @@ const prismaClientSingleton = () => {
           url: pooledUrl
         }
       }
-    });
+    }) as any;
   }
 
   // Local/Dev Environment
