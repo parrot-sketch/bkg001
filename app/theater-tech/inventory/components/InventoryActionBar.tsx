@@ -2,7 +2,7 @@
 
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Plus, ShoppingCart, ArrowDownToLine } from 'lucide-react';
+import { Search, ShoppingCart, ArrowDownToLine } from 'lucide-react';
 import Link from 'next/link';
 
 interface InventoryActionBarProps {
@@ -24,22 +24,16 @@ export function InventoryActionBar({ searchQuery, onSearchChange }: InventoryAct
       </div>
       
       <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-        <Button variant="outline" className="bg-white" asChild>
-          <Link href="/theater-tech/inventory/receipts/new">
+        <Button variant="outline" className="bg-white text-slate-700" asChild>
+          <Link href="/theater-tech/inventory/receipts">
             <ArrowDownToLine className="w-4 h-4 mr-2" />
-            Receive Goods
-          </Link>
-        </Button>
-        <Button variant="outline" className="bg-white" asChild>
-          <Link href="/theater-tech/inventory/purchase-orders/new">
-            <ShoppingCart className="w-4 h-4 mr-2" />
-            Create PO
+            Manage Receipts
           </Link>
         </Button>
         <Button className="bg-brand-primary hover:bg-brand-primary/90 text-white shadow-sm" asChild>
-          <Link href="/theater-tech/inventory/items/new">
-            <Plus className="w-4 h-4 mr-2" />
-            New Item
+          <Link href="/theater-tech/inventory/purchase-orders">
+            <ShoppingCart className="w-4 h-4 mr-2" />
+            Purchase Orders
           </Link>
         </Button>
       </div>

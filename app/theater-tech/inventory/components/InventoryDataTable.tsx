@@ -56,7 +56,6 @@ export function InventoryDataTable({ items, isLoading, isEmpty }: InventoryDataT
               <TableHead>Status</TableHead>
               <TableHead>Nearest Expiry</TableHead>
               <TableHead>Vendor</TableHead>
-              <TableHead className="w-[80px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -68,7 +67,6 @@ export function InventoryDataTable({ items, isLoading, isEmpty }: InventoryDataT
                 <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
                 <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                 <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                <TableCell><Skeleton className="h-8 w-8 rounded-md" /></TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -100,7 +98,6 @@ export function InventoryDataTable({ items, isLoading, isEmpty }: InventoryDataT
             <TableHead className="font-semibold text-slate-700">Status</TableHead>
             <TableHead className="font-semibold text-slate-700">Nearest Expiry</TableHead>
             <TableHead className="font-semibold text-slate-700">Vendor</TableHead>
-            <TableHead className="w-[80px]"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -129,30 +126,6 @@ export function InventoryDataTable({ items, isLoading, isEmpty }: InventoryDataT
                 </TableCell>
                 <TableCell className="text-slate-500">
                   {item.supplier || '-'}
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="h-8 w-8 p-0">
-                        <span className="sr-only">Open menu</span>
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem asChild>
-                        <Link href={`/theater-tech/inventory/items/${item.id}`}>
-                          <Eye className="mr-2 h-4 w-4 text-slate-500" />
-                          View Details
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href={`/theater-tech/inventory/items/${item.id}/edit`}>
-                          <FileEdit className="mr-2 h-4 w-4 text-slate-500" />
-                          Edit Item
-                        </Link>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </TableCell>
               </TableRow>
             );
