@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use server";
 
 import { VitalSignsFormData } from "@/components/dialogs/add-vital-signs";

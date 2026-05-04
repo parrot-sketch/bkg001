@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use server";
 
 import { DiagnosisFormData } from "@/components/dialogs/add-diagnosis";

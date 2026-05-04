@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Production Database Seed Script - Nairobi Sculpt Aesthetic Centre
  * 

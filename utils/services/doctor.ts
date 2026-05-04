@@ -201,7 +201,7 @@ export async function getDoctorDashboardStats() {
     // Transform database aggregation results to match UI expectations
     // Status counts: { PENDING: 0, SCHEDULED: 0, COMPLETED: 0, CANCELLED: 0 }
     const appointmentCounts = appointmentCountsResult.reduce(
-      (acc, item) => {
+      (acc: Record<string, number>, item: any) => {
         acc[item.status] = item._count;
         return acc;
       },
@@ -216,7 +216,7 @@ export async function getDoctorDashboardStats() {
     // Monthly data: lightweight aggregation by month (current year only, max ~365 records)
     const monthlyDataMap = new Map<number, { appointment: number; completed: number }>();
 
-    monthlyAppointments.forEach((apt) => {
+    monthlyAppointments.forEach((apt: any) => {
       const monthIndex = getMonth(apt.appointment_date);
       const current = monthlyDataMap.get(monthIndex) || { appointment: 0, completed: 0 };
       current.appointment += 1;
@@ -297,7 +297,7 @@ export async function getDoctorById(id: string) {
 
     // Map active template slots to legacy working_days structure
     const activeSlots = doctorRaw.availability_templates[0]?.slots || [];
-    const workingDays = activeSlots.map(slot => ({
+    const workingDays = activeSlots.map((slot: any) => ({
       day: daysOfWeek[slot.day_of_week],
       start_time: slot.start_time,
       end_time: slot.end_time,

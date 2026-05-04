@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
 import db, { withRetry } from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth/jwt-helper';

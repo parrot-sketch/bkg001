@@ -186,7 +186,7 @@ export async function getPatientDashboardStatistics(id: string) {
 
     // Transform database aggregation results to match UI expectations
     const appointmentCounts = appointmentCountsResult.reduce(
-      (acc, item) => {
+      (acc: Record<string, number>, item: any) => {
         acc[item.status] = item._count;
         return acc;
       },
@@ -201,7 +201,7 @@ export async function getPatientDashboardStatistics(id: string) {
     // Monthly data: lightweight aggregation by month (current year only, max ~365 records)
     const monthlyDataMap = new Map<number, { appointment: number; completed: number }>();
 
-    monthlyAppointments.forEach((apt) => {
+    monthlyAppointments.forEach((apt: any) => {
       const monthIndex = getMonth(apt.appointment_date);
       const current = monthlyDataMap.get(monthIndex) || { appointment: 0, completed: 0 };
       current.appointment += 1;
@@ -263,9 +263,9 @@ export async function getPatientDashboardStatistics(id: string) {
     });
 
     // Map to legacy structure for frontend compatibility
-    const availableDoctor = doctorsWithAvailability.map(doc => {
+    const availableDoctor = doctorsWithAvailability.map((doc: any) => {
       // Flatten slots from the active template (should be only one active template)
-      const slots = doc.availability_templates.flatMap(t => t.slots);
+      const slots = doc.availability_templates.flatMap((t: any) => t.slots);
 
       return {
         id: doc.id,
@@ -273,7 +273,7 @@ export async function getPatientDashboardStatistics(id: string) {
         specialization: doc.specialization,
         img: doc.img,
         colorCode: doc.colorCode,
-        working_days: slots.map(slot => ({
+        working_days: slots.map((slot: any) => ({
           day: daysOfWeek[slot.day_of_week], // Convert int back to string name
           start_time: slot.start_time,
           end_time: slot.end_time,

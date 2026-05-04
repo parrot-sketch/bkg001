@@ -25,16 +25,16 @@ export const getVitalSignData = async (id: string) => {
   // 56 - 60 - Filter out null values and ensure type safety
   const formatVitals: { label: string; systolic: number; diastolic: number }[] = 
     data
-      ?.filter((record): record is typeof record & { systolic: number; diastolic: number } => 
+      ?.filter((record: any): record is typeof record & { systolic: number; diastolic: number } => 
         record.systolic !== null && record.diastolic !== null
       )
-      .map((record) => ({
+      .map((record: any) => ({
         label: format(new Date(record.created_at), "MMM d"),
         systolic: record.systolic,
         diastolic: record.diastolic,
       })) || [];
 
-  const formattedData = data.map((record) => {
+  const formattedData = data.map((record: any) => {
     const heartRates = (record.heart_rate || "")
       .split("-")
       .map((rate: string) => parseInt(rate.trim()));
@@ -46,11 +46,11 @@ export const getVitalSignData = async (id: string) => {
     };
   });
 
-  const totalSystolic = data?.reduce((sum, acc) => sum + (acc.systolic || 0), 0);
-  const totalDiastolic = data?.reduce((sum, acc) => sum + (acc.diastolic || 0), 0);
+  const totalSystolic = data?.reduce((sum: number, acc: any) => sum + (acc.systolic || 0), 0);
+  const totalDiastolic = data?.reduce((sum: number, acc: any) => sum + (acc.diastolic || 0), 0);
 
-  const totalValue1 = formattedData?.reduce((sum, acc) => sum + acc.value1, 0);
-  const totalValue2 = formattedData?.reduce((sum, acc) => sum + acc.value2, 0);
+  const totalValue1 = formattedData?.reduce((sum: number, acc: any) => sum + acc.value1, 0);
+  const totalValue2 = formattedData?.reduce((sum: number, acc: any) => sum + acc.value2, 0);
 
   const count = data?.length;
 

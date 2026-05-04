@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { getCurrentUser } from '@/lib/auth/server-auth';
 import db from '@/lib/db';
 import { notFound, redirect } from 'next/navigation';

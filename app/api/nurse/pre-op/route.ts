@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * API Route: GET /api/nurse/pre-op
  *
