@@ -14,7 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getFileUrl, downloadResource } from '@/lib/cloudinary';
-import * as jwt from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 
 /** Verify a raw JWT token string against the server secret. */
 function verifyToken(token: string): boolean {
