@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  Activity, Building2, LayoutDashboard, Scissors, User, Users,
+  Activity, Building2, LayoutDashboard, Scissors, User, Users, Package, Stethoscope
 } from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { useAuth } from '@/hooks/patient/useAuth';
@@ -22,9 +22,12 @@ import { useAuth } from '@/hooks/patient/useAuth';
  * PATIENTS
  *   Patients      → /theater-tech/patients (Search + Upcoming Procedures + Consultations)
  *
+ * CATALOG
+ *   Services      → /theater-tech/services
+ *   Procedures    → /theater-tech/procedures
+ *
  * INVENTORY
- *   Item Catalog, Batches & Stock, Vendors, Purchase Orders, Goods Receipts
- *   (kept for backward-compat, can be collapsed further in a future iteration)
+ *   Inventory Hub → /theater-tech/inventory (Items, Batches, Vendors, POs, Receipts)
  *
  * ACCOUNT
  *   My Profile
@@ -65,6 +68,28 @@ const navItems: NavItem[] = [
     href: '/theater-tech/patients',
     icon: Users,
     section: 'Patients',
+  },
+
+  // ── Catalog ───────────────────────────────────────────────────────────────
+  {
+    name: 'Services',
+    href: '/theater-tech/services',
+    icon: Stethoscope,
+    section: 'Catalog',
+  },
+  {
+    name: 'Procedures',
+    href: '/theater-tech/procedures',
+    icon: Scissors,
+    section: 'Catalog',
+  },
+
+  // ── Inventory ─────────────────────────────────────────────────────────────
+  {
+    name: 'Inventory Hub',
+    href: '/theater-tech/inventory',
+    icon: Package,
+    section: 'Inventory',
   },
 
   // ── Account ───────────────────────────────────────────────────────────────
