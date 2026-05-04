@@ -8,7 +8,7 @@
   "scripts": {
     "postinstall": "prisma generate && bash scripts/copy-pdf-worker.sh",
     "dev": "next dev",
-    "build": "prisma generate && next build --webpack",
+    "build": "npm run type-check && prisma generate && next build --webpack",
     "start": "next start",
     "lint": "npm run -s type-check",
     "seed": "tsx prisma/seed.ts",
