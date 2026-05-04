@@ -127,16 +127,37 @@ export function OperativeRecordPrintDocument(props: {
             </div>
             <div className="space-y-3">
               <div>
-                <span className="block text-xs font-bold text-slate-400 uppercase">PRE-OPERATIVE DIAGNOSIS</span>
-                <span className="text-slate-800">{header.diagnosisPreOp || '—'}</span>
+                <span className="block text-xs font-bold text-slate-400 uppercase mb-1">PRE-OPERATIVE DIAGNOSIS</span>
+                {stripHtml(header.diagnosisPreOp) ? (
+                  <div
+                    className="prose prose-sm max-w-none prose-slate text-slate-800"
+                    dangerouslySetInnerHTML={{ __html: header.diagnosisPreOp }}
+                  />
+                ) : (
+                  <span className="text-slate-800">—</span>
+                )}
               </div>
               <div>
-                <span className="block text-xs font-bold text-slate-400 uppercase">OPERATIVE DIAGNOSIS</span>
-                <span className="text-slate-800">{header.diagnosisPostOp || '—'}</span>
+                <span className="block text-xs font-bold text-slate-400 uppercase mb-1">OPERATIVE DIAGNOSIS</span>
+                {stripHtml(header.diagnosisPostOp) ? (
+                  <div
+                    className="prose prose-sm max-w-none prose-slate text-slate-800"
+                    dangerouslySetInnerHTML={{ __html: header.diagnosisPostOp }}
+                  />
+                ) : (
+                  <span className="text-slate-800">—</span>
+                )}
               </div>
               <div>
-                <span className="block text-xs font-bold text-slate-400 uppercase">OPERATION(S)</span>
-                <span className="text-slate-800">{header.procedurePerformed || '—'}</span>
+                <span className="block text-xs font-bold text-slate-400 uppercase mb-1">OPERATION(S)</span>
+                {stripHtml(header.procedurePerformed) ? (
+                  <div
+                    className="prose prose-sm max-w-none prose-slate text-slate-800"
+                    dangerouslySetInnerHTML={{ __html: header.procedurePerformed }}
+                  />
+                ) : (
+                  <span className="text-slate-800">—</span>
+                )}
               </div>
             </div>
           </div>
@@ -151,7 +172,10 @@ export function OperativeRecordPrintDocument(props: {
               {counts.countsCorrectY ? "Yes" : counts.countsCorrectN ? "No" : "—"}
             </p>
             {counts.countsCorrectN && counts.countsExplanation && (
-              <p className="text-xs text-slate-600 mt-1">{counts.countsExplanation}</p>
+              <div
+                className="prose prose-sm max-w-none prose-slate text-slate-800 mt-2"
+                dangerouslySetInnerHTML={{ __html: counts.countsExplanation }}
+              />
             )}
           </div>
 

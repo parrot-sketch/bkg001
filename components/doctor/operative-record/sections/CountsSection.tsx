@@ -1,6 +1,7 @@
 'use client';
 
 import type { SurgeonOperativeNoteDraft } from '@/domain/clinical-forms/SurgeonOperativeNote';
+import { RichTextEditor } from '@/components/consultation/RichTextEditor';
 
 interface Props {
   value: SurgeonOperativeNoteDraft['countsConfirmation'];
@@ -63,15 +64,15 @@ export function CountsSection({ value, disabled, nurseHasDiscrepancy, onChange }
 
       {v.countsCorrectN === true && (
         <div>
-          <label className="block text-xs font-medium uppercase tracking-wide text-slate-600 mb-1">
+          <label className="block text-xs font-medium uppercase tracking-wide text-slate-600 mb-2">
             Explanation
           </label>
-          <textarea
-            rows={3}
-            className="w-full px-3 py-2 border rounded-md text-sm"
-            value={v.countsExplanation ?? ''}
-            disabled={disabled}
-            onChange={(e) => onChange({ ...(value ?? {}), countsExplanation: e.target.value } as any)}
+          <RichTextEditor
+            content={v.countsExplanation ?? ''}
+            onChange={(html) => onChange({ ...(value ?? {}), countsExplanation: html } as any)}
+            readOnly={disabled}
+            minHeight="100px"
+            placeholder="Document explanation for incorrect counts..."
           />
         </div>
       )}

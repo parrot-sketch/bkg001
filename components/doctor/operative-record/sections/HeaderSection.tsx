@@ -2,6 +2,8 @@
 
 import type { SurgeonOperativeNoteDraft } from '@/domain/clinical-forms/SurgeonOperativeNote';
 
+import { RichTextEditor } from '@/components/consultation/RichTextEditor';
+
 interface Props {
   value: SurgeonOperativeNoteDraft['header'];
   disabled: boolean;
@@ -35,55 +37,57 @@ export function HeaderSection({ value, disabled, onChange, caseProcedureName, in
     <div className="space-y-6">
       {/* Pre-operative Diagnosis */}
       <div>
-        <label className="block text-xs font-medium uppercase tracking-wide text-slate-600 mb-1">
+        <label className="block text-xs font-medium uppercase tracking-wide text-slate-600 mb-2">
           PRE-OPERATIVE DIAGNOSIS
         </label>
-        <input
-          className="w-full h-10 px-3 border rounded-md text-sm"
-          value={v.diagnosisPreOp || initialDiagnosis || ''}
-          placeholder={initialDiagnosis ? `From case plan: ${initialDiagnosis}` : undefined}
-          disabled={disabled}
-          onChange={(e) => onChange({ ...(value ?? {}), diagnosisPreOp: e.target.value } as any)}
+        <RichTextEditor
+          content={v.diagnosisPreOp || initialDiagnosis || ''}
+          placeholder={initialDiagnosis ? `From case plan: ${initialDiagnosis}` : 'Document pre-operative diagnosis...'}
+          readOnly={disabled}
+          onChange={(html) => onChange({ ...(value ?? {}), diagnosisPreOp: html } as any)}
+          minHeight="100px"
         />
       </div>
 
       {/* Operative Diagnosis */}
       <div>
-        <label className="block text-xs font-medium uppercase tracking-wide text-slate-600 mb-1">
+        <label className="block text-xs font-medium uppercase tracking-wide text-slate-600 mb-2">
           OPERATIVE DIAGNOSIS
         </label>
-        <input
-          className="w-full h-10 px-3 border rounded-md text-sm"
-          value={v.diagnosisPostOp ?? ''}
-          disabled={disabled}
-          onChange={(e) => onChange({ ...(value ?? {}), diagnosisPostOp: e.target.value } as any)}
+        <RichTextEditor
+          content={v.diagnosisPostOp ?? ''}
+          placeholder="Document operative diagnosis..."
+          readOnly={disabled}
+          onChange={(html) => onChange({ ...(value ?? {}), diagnosisPostOp: html } as any)}
+          minHeight="100px"
         />
       </div>
 
       {/* Procedure Planned */}
       <div>
-        <label className="block text-xs font-medium uppercase tracking-wide text-slate-600 mb-1">
+        <label className="block text-xs font-medium uppercase tracking-wide text-slate-600 mb-2">
           PROCEDURE(S) PLANNED
         </label>
-        <input
-          className="w-full h-10 px-3 border rounded-md text-sm"
-          value={v.procedurePlanned || caseProcedureName || ''}
-          placeholder={caseProcedureName ? `From case plan: ${caseProcedureName}` : undefined}
-          disabled={disabled}
-          onChange={(e) => onChange({ ...(value ?? {}), procedurePlanned: e.target.value } as any)}
+        <RichTextEditor
+          content={v.procedurePlanned || caseProcedureName || ''}
+          placeholder={caseProcedureName ? `From case plan: ${caseProcedureName}` : 'Document planned procedures...'}
+          readOnly={disabled}
+          onChange={(html) => onChange({ ...(value ?? {}), procedurePlanned: html } as any)}
+          minHeight="100px"
         />
       </div>
 
       {/* Operation(s) */}
       <div>
-        <label className="block text-xs font-medium uppercase tracking-wide text-slate-600 mb-1">
-          OPERATION(S)
+        <label className="block text-xs font-medium uppercase tracking-wide text-slate-600 mb-2">
+          OPERATION(S) PERFORMED
         </label>
-        <input
-          className="w-full h-10 px-3 border rounded-md text-sm"
-          value={v.procedurePerformed ?? ''}
-          disabled={disabled}
-          onChange={(e) => onChange({ ...(value ?? {}), procedurePerformed: e.target.value } as any)}
+        <RichTextEditor
+          content={v.procedurePerformed ?? ''}
+          placeholder="Document procedures performed..."
+          readOnly={disabled}
+          onChange={(html) => onChange({ ...(value ?? {}), procedurePerformed: html } as any)}
+          minHeight="100px"
         />
       </div>
 
