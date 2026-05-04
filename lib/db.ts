@@ -28,7 +28,12 @@ const prismaClientSingleton = () => {
     process.env.VERCEL_ENV === 'production';
 
   const isBuilding = process.env.NEXT_PHASE === 'phase-production-build';
-  const databaseUrl = process.env.DATABASE_URL || (isBuilding ? 'postgresql://dummy:dummy@localhost:5432/dummy' : '');
+  let databaseUrl = process.env.DATABASE_URL || (isBuilding ? 'postgresql://dummy:dummy@localhost:5432/dummy' : '');
+  
+  // Clean up potential double quotes accidentally added in Vercel env vars
+  if (databaseUrl.startsWith('"') && databaseUrl.endsWith('"')) {
+    databaseUrl = databaseUrl.slice(1, -1);
+  }
 
   if (!databaseUrl && !isBuilding) {
     console.error(`${LOG_PREFIX} DATABASE_URL is not defined`);
