@@ -36,15 +36,14 @@ const prismaClientSingleton = () => {
   const logConfig: Array<'query' | 'error' | 'warn'> = isProduction ? ['error'] : ['query', 'error', 'warn'];
 
   if (isProduction) {
-    // Cap connection pool to 3 — Aiven allows only ~12 non-superuser slots
-    // out of 15 max_connections. This leaves headroom for concurrent
-    // serverless instances and prevents pool exhaustion during
-    // concurrent polling from multiple hooks.
+    // Cap connection pool to 1 — Aiven limits us to 25 connections.
+    // In Vercel serverless, every lambda grabs its own connection pool.
+    // Limiting to 1 ensures 25 concurrent lambdas can execute safely.
     const pooledUrl = databaseUrl.includes('?')
-      ? `${databaseUrl}&connection_limit=3`
-      : `${databaseUrl}?connection_limit=3`;
+      ? `${databaseUrl}&connection_limit=1&pool_timeout=10`
+      : `${databaseUrl}?connection_limit=1&pool_timeout=10`;
 
-    console.log(`${LOG_PREFIX} Production: Using direct Aiven Postgres connection (pool_size=3)`);
+    console.log(`${LOG_PREFIX} Production: Using direct Aiven Postgres connection (pool_size=1)`);
     return new PrismaClient({
       log: logConfig,
       datasources: {
