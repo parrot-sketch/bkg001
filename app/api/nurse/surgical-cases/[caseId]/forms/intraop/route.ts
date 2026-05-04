@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * API Routes: Nurse Intra-Op Record
  *
@@ -403,7 +403,7 @@ export async function PUT(
         });
 
         // Apply inventory usage events (if any)
-        let usageResult = null;
+        let usageResult: any = null;
         try {
             const { getClinicalInventoryIntegrationService } = await import('@/lib/factories/clinicalInventoryIntegrationFactory');
             const integrationService = getClinicalInventoryIntegrationService();

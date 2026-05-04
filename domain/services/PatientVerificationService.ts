@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * Patient Verification Service
  * 
@@ -93,7 +93,7 @@ export class PatientVerificationService {
             },
         });
 
-        let checkInVerification = null;
+        let checkInVerification: any = null;
         if (surgicalCase?.consultation_id) {
             const consultation = await this.db.consultation.findUnique({
                 where: { id: surgicalCase.consultation_id },

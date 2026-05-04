@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { PrismaClient } from '@prisma/client';
 import { InventoryCategory } from '@/domain/enums/InventoryCategory';
 import {
@@ -213,7 +213,7 @@ export class MedicationService {
 
         return this.db.$transaction(async (tx) => {
             // 1. Get Inventory Item if applicable
-            let inventoryItem = null;
+            let inventoryItem: any = null;
             if (inventoryItemId) {
                 inventoryItem = await tx.inventoryItem.findUnique({
                     where: { id: inventoryItemId },

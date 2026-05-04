@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * Service: ConsentFormDocumentService
  * 
@@ -150,7 +150,7 @@ export class ConsentFormDocumentService {
      */
     async verifyAllDocuments(): Promise<Array<{ id: string; fileName: string; status: 'VALID' | 'INVALID' | 'MISSING_CHECKSUM' }>> {
         const docs = await (this.prisma as any).consentFormDocument.findMany();
-        const results = [];
+        const results: Array<{ id: string; fileName: string; status: 'VALID' | 'INVALID' | 'MISSING_CHECKSUM' }> = [];
 
         for (const doc of docs) {
             if (!doc.checksum_sha256) {

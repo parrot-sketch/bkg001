@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * API Route: GET /api/nurse/pre-op
  *
@@ -186,7 +186,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // 9. Calculate readiness information for each case
     const casesWithReadiness = surgicalCases.map((surgicalCase) => {
       const casePlan = surgicalCase.case_plan;
-      const form = checklistMap.get(surgicalCase.id);
+      const form: any = checklistMap.get(surgicalCase.id);
       const wardChecklistComplete = form?.status === 'FINAL';
 
       return {

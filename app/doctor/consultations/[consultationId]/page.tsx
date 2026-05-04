@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { getCurrentUser } from '@/lib/auth/server-auth';
 import db from '@/lib/db';
 import { notFound, redirect } from 'next/navigation';
@@ -100,7 +100,7 @@ async function getConsultationRecord(consultationId: number, doctorId: string) {
     hasSurgicalCase: !!consultation.surgical_case,
   };
 
-  let paymentData = null;
+  let paymentData: any = null;
   if (payment) {
     const billItems = payment.bill_items.map((item: any) => ({
       id: item.id,

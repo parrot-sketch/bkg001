@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 "use server";
 
 import { VitalSignsFormData } from "@/components/dialogs/add-vital-signs";
@@ -147,7 +147,7 @@ export async function addVitalSigns(
 
     const validatedData = VitalSignsSchema.parse(data);
 
-    let medicalRecord = null;
+    let medicalRecord: any = null;
 
     if (!validatedData.medical_id) {
       medicalRecord = await db.medicalRecord.create({

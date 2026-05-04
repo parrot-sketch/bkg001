@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * Doctor-Patient Assignment Service
  * 
@@ -84,7 +84,7 @@ export class DoctorPatientAssignmentService {
     if (!patient) throw new Error(`Patient not found: ${request.patientId}`);
 
     // Check if assignment already exists
-    let existingAssignment = null;
+    let existingAssignment: any = null;
     try {
       existingAssignment = await this.repository.findByDoctorAndPatient(doctorId, request.patientId);
     } catch (error) {

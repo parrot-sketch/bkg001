@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * Utility Functions
  * 
@@ -149,7 +149,7 @@ export function generateTimes(
   close_hour: number,
   interval_in_minutes: number
 ) {
-  const times = [];
+  const times: { label: string; value: string }[] = [];
   const startHour = start_hour;
   const endHour = close_hour;
   const intervalMinutes = interval_in_minutes;

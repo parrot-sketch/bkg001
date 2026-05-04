@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 'use client';
 
 /**
@@ -65,7 +65,7 @@ export function RescheduleDialog({
     };
 
     // Generate time slots
-    const timeSlots = [];
+    const timeSlots: string[] = [];
     for (let hour = 8; hour < 18; hour++) {
         for (let minute = 0; minute < 60; minute += 30) {
             const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;

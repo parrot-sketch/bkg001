@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { IAppointmentRepository } from '../../domain/interfaces/repositories/IAppointmentRepository';
 import { IConsultationRepository } from '../../domain/interfaces/repositories/IConsultationRepository';
 import { IAuditService } from '../../domain/interfaces/services/IAuditService';
@@ -94,7 +94,7 @@ export class StartConsultationUseCase {
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
 
-    const trulyActive = [];
+    const trulyActive: any[] = [];
     for (const apt of staleOrActive) {
       const aptDate = new Date(apt.appointment_date);
       const isFromToday = aptDate >= todayStart && aptDate < todayEnd;

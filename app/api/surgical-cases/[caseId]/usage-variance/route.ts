@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 /**
  * Usage Variance Endpoint
  * 
@@ -86,7 +86,7 @@ export async function GET(
     });
 
     // Calculate variance
-    const plannedMap = new Map(
+    const plannedMap = new Map<number, { quantity: number; unitPrice: number }>(
       plannedItems
         .filter((p) => p.inventory_item_id !== null)
         .map((p) => [p.inventory_item_id!, { quantity: p.planned_quantity, unitPrice: p.planned_unit_price }])
@@ -113,7 +113,7 @@ export async function GET(
       isBillable: boolean;
     }> = [];
 
-    const allItemIds = new Set([...plannedMap.keys(), ...usedMap.keys()]);
+    const allItemIds = new Set<number>([...plannedMap.keys(), ...usedMap.keys()]);
 
     let plannedTotalCost = 0;
     let actualBilledCost = 0;

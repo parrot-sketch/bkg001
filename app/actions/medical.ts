@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 "use server";
 
 import { DiagnosisFormData } from "@/components/dialogs/add-diagnosis";
@@ -17,7 +17,7 @@ export const addDiagnosis = async (
   try {
     const validatedData = DiagnosisSchema.parse(data);
 
-    let medicalRecord = null;
+    let medicalRecord: any = null;
 
     if (!validatedData.medical_id) {
       medicalRecord = await db.medicalRecord.create({
@@ -71,7 +71,7 @@ export async function addNewBill(data: any) {
     const isValidData = PatientBillSchema.safeParse(data);
 
     const validatedData = isValidData.data;
-    let bill_info = null;
+    let bill_info: any = null;
 
     if (!data?.bill_id || data?.bill_id === "undefined") {
       const info = await db.appointment.findUnique({

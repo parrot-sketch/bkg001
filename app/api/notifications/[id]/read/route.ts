@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { NextRequest, NextResponse } from 'next/server';
 import db, { withRetry } from '@/lib/db';
 import { authenticateRequest } from '@/lib/auth/jwt-helper';
@@ -35,7 +35,7 @@ export async function POST(
 
         // 2. Update notification in database
         // Ensure the notification belongs to the user
-        const notification = await withRetry(() => db.notification.findUnique({
+        const notification: any = await withRetry(() => db.notification.findUnique({
             where: { id: notificationId },
         }));
 

@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticateRequest } from '@/lib/auth/jwt-helper';
 import db, { withRetry } from '@/lib/db';
@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     const userId = authResult.user.userId;
 
     // Update all unread notifications for this user
-    const result = await withRetry(() => db.notification.updateMany({
+    const result: any = await withRetry(() => db.notification.updateMany({
       where: {
         user_id: userId,
         status: { not: 'READ' },

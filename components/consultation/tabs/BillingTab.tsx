@@ -1,4 +1,4 @@
-// @ts-nocheck
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -119,7 +119,7 @@ export function BillingTab({ appointmentId, isReadOnly = false }: { appointmentI
     const saveItems = items;
     const saveDiscount = discount;
 
-    const billItems = [];
+    const billItems: { serviceId: number; quantity: number; unitCost: number }[] = [];
     
     if (saveFee > 0) {
       billItems.push({ serviceId: 1, quantity: 1, unitCost: saveFee });
