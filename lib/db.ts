@@ -38,7 +38,7 @@ const prismaClientSingleton = () => {
 
   if (isProduction) {
     // Automatically use Prisma Accelerate if the connection string is a Prisma URL
-    if (databaseUrl.startsWith('prisma://')) {
+    if (databaseUrl.startsWith('prisma://') || databaseUrl.startsWith('prisma+postgres://')) {
       console.log(`${LOG_PREFIX} Production: Using Prisma Accelerate pooler`);
       return new PrismaClient({ log: logConfig }).$extends(withAccelerate()) as any;
     }
