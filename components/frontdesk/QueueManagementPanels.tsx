@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,8 +21,7 @@ import type { FrontdeskCheckedInPatient } from '@/hooks/frontdesk/use-frontdesk-
 import { assignPatientToQueue, removeFromQueue, reassignQueue } from '@/app/actions/appointment';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { patientApi } from '@/lib/api/patient';
-import { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';
+import { useDoctors } from '@/hooks/doctors/useDoctors';
 import { queryKeys } from '@/lib/constants/queryKeys';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -106,24 +105,9 @@ export function QueueManagementPanels() {
     }
   };
 
-  const [doctors, setDoctors] = useState<DoctorResponseDto[]>([]);
-  const [loadingDoctors, setLoadingDoctors] = useState(true);
+  // Use shared React Query hook — deduped, cached, no extra requests
+  const { data: doctors = [], isLoading: loadingDoctors } = useDoctors();
 
-  useEffect(() => {
-    async function fetchDoctors() {
-      try {
-        const response = await patientApi.getAllDoctors();
-        if (response.success && response.data) {
-          setDoctors(response.data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch doctors:', error);
-      } finally {
-        setLoadingDoctors(false);
-      }
-    }
-    fetchDoctors();
-  }, []);
 
   return (
     <div className="space-y-6">
@@ -184,10 +168,9 @@ export function QueueManagementPanels() {
                           >
                             <option value="">{loadingDoctors ? 'Loading...' : 'Select doctor...'}</option>
                             {doctors.map((doc) => {
-                              const docName = doc.name || `${doc.firstName} ${doc.lastName}`;
-                              const displayName = doc.title && !docName.toLowerCase().startsWith(doc.title.toLowerCase())
-                                ? `${doc.title} ${docName}`
-                                : docName;
+                              const displayName = doc.title && !doc.name.toLowerCase().startsWith(doc.title.toLowerCase())
+                                ? `${doc.title} ${doc.name}`
+                                : doc.name;
                               return (
                                 <option key={doc.id} value={doc.id}>
                                   {displayName}

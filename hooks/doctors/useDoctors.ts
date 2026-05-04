@@ -45,20 +45,15 @@ interface DoctorsResponse {
  * 3. Adding cache-busting query parameter for production
  */
 async function fetchDoctors(): Promise<Doctor[]> {
-  // Add cache-busting parameter for production to prevent stale cached responses
-  const cacheBuster = Date.now();
-  const url = `/api/doctors?_t=${cacheBuster}`;
-  
-  const response = await fetch(url, {
+  const response = await fetch('/api/doctors', {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
       'Cache-Control': 'no-store, no-cache, must-revalidate',
       'Pragma': 'no-cache',
     },
-    // CRITICAL: Prevent any caching that could cause "Connection closed" errors
+    // Prevent browser from serving stale cached responses
     cache: 'no-store',
-    // Prevent credentials from being sent (not needed for public endpoint)
     credentials: 'omit',
   });
 

@@ -194,6 +194,7 @@ export function UnifiedSidebar({
       <Link
         key={item.href}
         href={item.href}
+        prefetch={false}
         onClick={onClose}
         aria-current={isActive ? 'page' : undefined}
         aria-label={collapsed ? item.name : undefined}
@@ -290,6 +291,7 @@ export function UnifiedSidebar({
         >
           <Link
             href={dashboardHref}
+            prefetch={false}
             onClick={onClose}
             className={cn(
               'flex items-center gap-3 min-w-0 rounded-lg',

@@ -24,15 +24,10 @@ export default function PatientLayout({ children }: PatientLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const router = useRouter();
   const { user, isLoading, logout } = useAuth();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Auth validation
   useEffect(() => {
-    if (mounted && !isLoading) {
+    if (!isLoading) {
       if (!user) {
         router.replace('/login');
       } else if (user.role !== 'PATIENT') {
@@ -43,9 +38,9 @@ export default function PatientLayout({ children }: PatientLayoutProps) {
         }
       }
     }
-  }, [mounted, isLoading, user, router]);
+  }, [isLoading, user, router]);
 
-  if (isLoading || !mounted) {
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="animate-pulse flex flex-col items-center">

@@ -23,14 +23,9 @@ export default function TheaterTechLayout({ children }: TheaterTechLayoutProps) 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const router = useRouter();
   const { user, isLoading } = useAuth();
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (mounted && !isLoading) {
+    if (!isLoading) {
       if (!user) {
         router.replace('/login');
       } else if (user.role !== 'THEATER_TECHNICIAN' && user.role !== 'ADMIN') {
@@ -38,9 +33,9 @@ export default function TheaterTechLayout({ children }: TheaterTechLayoutProps) 
         router.replace('/patient/dashboard');
       }
     }
-  }, [mounted, isLoading, user, router]);
+  }, [isLoading, user, router]);
 
-  if (isLoading || !mounted) {
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-stone-50">
         <div className="animate-pulse flex flex-col items-center">

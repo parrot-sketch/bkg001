@@ -73,27 +73,22 @@ interface AdminLayoutProps {
 export default function AdminLayout({ children }: AdminLayoutProps) {
   const { user, isLoading, logout } = useAuth();
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   // Redirect if not authenticated or not admin
   useEffect(() => {
-    if (mounted && !isLoading) {
+    if (!isLoading) {
         if (!user) {
             router.replace('/login');
         } else if (user.role !== 'ADMIN') {
             toast.error('Access Denied: Administrative privileges required');
-            router.replace('/frontdesk/patients'); 
+            router.replace('/frontdesk/patients');
         }
     }
-  }, [mounted, isLoading, user, router]);
+  }, [isLoading, user, router]);
 
-  if (isLoading || !mounted) {
+  if (isLoading) {
     return (
         <div className="flex h-screen items-center justify-center bg-background">
             <div className="animate-pulse flex flex-col items-center">

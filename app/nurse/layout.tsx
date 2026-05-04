@@ -22,16 +22,12 @@ interface NurseLayoutProps {
 export default function NurseLayout({ children }: NurseLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const router = useRouter();
   const { user, isLoading } = useAuth();
+  const router = useRouter();
+
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (mounted && !isLoading) {
+    if (!isLoading) {
       if (!user) {
         router.replace('/login');
       } else if (user.role !== 'NURSE' && user.role !== 'ADMIN') {
@@ -39,9 +35,9 @@ export default function NurseLayout({ children }: NurseLayoutProps) {
         router.replace('/patient/dashboard');
       }
     }
-  }, [mounted, isLoading, user, router]);
+  }, [isLoading, user, router]);
 
-  if (isLoading || !mounted) {
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-stone-50">
         <div className="animate-pulse flex flex-col items-center">

@@ -117,11 +117,13 @@ export function useFrontdeskDashboard(): UseFrontdeskDashboardReturn {
 
   const isEnabled = isAuthenticated && !!user;
 
-  // Invalidate server-side cache when auth transitions to authenticated
-  // This ensures fresh data is fetched after login, not stale cached data
+  // Invalidate client-side cache when auth transitions to authenticated.
+  // React Query's refetchOnMount will handle fresh data fetch automatically.
+  // NOTE: We deliberately do NOT call revalidateFrontdeskDashboard() here —
+  // that Server Action bypasses RQ deduplication and caused 5-7 redundant
+  // POST /frontdesk/dashboard requests on every login.
   useEffect(() => {
     if (isEnabled && !prevEnabledRef.current) {
-      revalidateFrontdeskDashboard();
       queryClient.invalidateQueries({ queryKey: queryKeys.frontdesk.dashboard() });
     }
     prevEnabledRef.current = isEnabled;

@@ -24,16 +24,11 @@ export default function DoctorLayout({ children }: DoctorLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isLoading, logout } = useAuth();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const isConsultationSession = pathname?.includes('/consultations/') && pathname?.includes('/session');
 
   useEffect(() => {
-    if (mounted && !isLoading) {
+    if (!isLoading) {
       if (!user) {
         router.replace('/login');
       } else if (user.role !== 'DOCTOR' && user.role !== 'ADMIN') {
@@ -41,9 +36,9 @@ export default function DoctorLayout({ children }: DoctorLayoutProps) {
         router.replace('/patient/dashboard');
       }
     }
-  }, [mounted, isLoading, user, router]);
+  }, [isLoading, user, router]);
 
-  if (isLoading || !mounted) {
+  if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-stone-50">
         <div className="animate-pulse flex flex-col items-center">
