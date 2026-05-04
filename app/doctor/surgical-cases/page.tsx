@@ -41,6 +41,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { DatePicker } from '@/components/ui/date-picker';
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
     DRAFT: { label: 'Draft', className: 'border border-slate-200 bg-slate-100 text-slate-700' },
@@ -93,6 +94,7 @@ export default function DoctorSurgicalCasesPage() {
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [urgencyFilter, setUrgencyFilter] = useState('');
+    const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
     const [page, setPage] = useState(1);
     const pageSize = 20;
 
@@ -114,10 +116,11 @@ export default function DoctorSurgicalCasesPage() {
             q: debouncedSearch || undefined,
             status: statusFilter || undefined,
             urgency: urgencyFilter || undefined,
+            date: dateFilter ? format(dateFilter, 'yyyy-MM-dd') : undefined,
             page,
             pageSize,
         }),
-        [debouncedSearch, statusFilter, urgencyFilter, page, pageSize],
+        [debouncedSearch, statusFilter, urgencyFilter, dateFilter, page, pageSize],
     );
 
     const { data, isLoading, isFetching, error } = useDoctorSurgicalCases(queryParams);
@@ -133,6 +136,11 @@ export default function DoctorSurgicalCasesPage() {
 
     const handleUrgencyChange = useCallback((value: string) => {
         setUrgencyFilter(value === 'ALL' ? '' : value);
+        setPage(1);
+    }, []);
+
+    const handleDateChange = useCallback((date: Date | undefined) => {
+        setDateFilter(date);
         setPage(1);
     }, []);
 
@@ -215,16 +223,27 @@ export default function DoctorSurgicalCasesPage() {
                     />
                 </div>
 
-                <select
-                    className="h-9 px-3 text-sm border rounded-md bg-background"
-                    value={urgencyFilter || 'ALL'}
-                    onChange={(e) => handleUrgencyChange(e.target.value)}
-                >
-                    <option value="ALL">All Urgencies</option>
-                    <option value="ELECTIVE">Elective</option>
-                    <option value="URGENT">Urgent</option>
-                    <option value="EMERGENCY">Emergency</option>
-                </select>
+                <div className="w-full sm:w-[160px]">
+                    <select
+                        className="w-full h-9 px-3 text-sm border rounded-md bg-background"
+                        value={urgencyFilter || 'ALL'}
+                        onChange={(e) => handleUrgencyChange(e.target.value)}
+                    >
+                        <option value="ALL">All Urgencies</option>
+                        <option value="ELECTIVE">Elective</option>
+                        <option value="URGENT">Urgent</option>
+                        <option value="EMERGENCY">Emergency</option>
+                    </select>
+                </div>
+
+                <div className="w-full sm:w-[180px]">
+                    <DatePicker
+                        value={dateFilter}
+                        onChange={handleDateChange}
+                        placeholder="Filter by date..."
+                        className="h-9"
+                    />
+                </div>
 
                 {isFetching && !isLoading && (
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground animate-pulse self-center">
@@ -261,19 +280,19 @@ export default function DoctorSurgicalCasesPage() {
                 </Card>
             ) : (
                 <div className="border rounded-lg overflow-hidden">
-                    <table className="w-full text-sm">
-                        <thead className="bg-slate-50 border-b">
-                            <tr>
-                                <th className="text-left px-4 py-3 font-medium text-slate-500">Status</th>
-                                <th className="text-left px-4 py-3 font-medium text-slate-500">Patient</th>
-                                <th className="text-left px-4 py-3 font-medium text-slate-500">Procedure</th>
-                                <th className="text-left px-4 py-3 font-medium text-slate-500">Diagnosis</th>
-                                <th className="text-left px-4 py-3 font-medium text-slate-500">Surgeon</th>
-                                <th className="text-left px-4 py-3 font-medium text-slate-500">Date</th>
-                                <th className="text-left px-4 py-3 font-medium text-slate-500">Urgency</th>
-                                <th className="text-center px-4 py-3 font-medium text-slate-500">Action</th>
-                            </tr>
-                        </thead>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm min-w-[800px]">
+                            <thead className="bg-slate-50 border-b">
+                                <tr>
+                                    <th className="text-left px-4 py-3 font-medium text-slate-500 w-[120px]">Status</th>
+                                    <th className="text-left px-4 py-3 font-medium text-slate-500 w-[200px]">Patient</th>
+                                    <th className="text-left px-4 py-3 font-medium text-slate-500 min-w-[150px]">Procedure</th>
+                                    <th className="text-left px-4 py-3 font-medium text-slate-500">Diagnosis</th>
+                                    <th className="text-left px-4 py-3 font-medium text-slate-500">Surgeon</th>
+                                    <th className="text-left px-4 py-3 font-medium text-slate-500 w-[100px]">Urgency</th>
+                                    <th className="text-center px-4 py-3 font-medium text-slate-500 w-[120px]">Action</th>
+                                </tr>
+                            </thead>
                         <tbody className="divide-y">
                             {items.map((sc) => {
                                 const status = STATUS_CONFIG[sc.status] ?? STATUS_CONFIG.DRAFT;
@@ -325,15 +344,6 @@ export default function DoctorSurgicalCasesPage() {
                                             <span className="text-sm">{sc.primarySurgeon?.name || '—'}</span>
                                         </td>
                                         <td className="px-4 py-3">
-                                            {sc.procedureDate ? (
-                                                <span className="text-sm text-slate-600">
-                                                    {format(new Date(sc.procedureDate), 'MMM d, yyyy')}
-                                                </span>
-                                            ) : (
-                                                <span className="text-sm text-slate-400">—</span>
-                                            )}
-                                        </td>
-                                        <td className="px-4 py-3">
                                             <span className={cn('text-xs font-medium', urgency.className)}>
                                                 {urgency.label}
                                             </span>
@@ -383,6 +393,7 @@ export default function DoctorSurgicalCasesPage() {
                             })}
                         </tbody>
                     </table>
+                    </div>
                 </div>
             )}
 
@@ -425,26 +436,28 @@ export default function DoctorSurgicalCasesPage() {
 function TableSkeleton() {
     return (
         <div className="border rounded-lg overflow-hidden">
-            <table className="w-full text-sm">
-                <thead className="bg-slate-50 border-b">
-                    <tr>
-                        {['Status', 'Patient', 'Procedure', 'Diagnosis', 'Surgeon', 'Date', 'Urgency', 'Action'].map((h) => (
-                            <th key={h} className="text-left px-4 py-3 font-medium text-slate-500">{h}</th>
-                        ))}
-                    </tr>
-                </thead>
-                <tbody className="divide-y">
-                    {Array.from({ length: 5 }).map((_, i) => (
-                        <tr key={i}>
-                            {Array.from({ length: 8 }).map((_, j) => (
-                                <td key={j} className="px-4 py-3">
-                                    <Skeleton className="h-5 w-full" />
-                                </td>
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[800px]">
+                    <thead className="bg-slate-50 border-b">
+                        <tr>
+                            {['Status', 'Patient', 'Procedure', 'Diagnosis', 'Surgeon', 'Urgency', 'Action'].map((h) => (
+                                <th key={h} className="text-left px-4 py-3 font-medium text-slate-500">{h}</th>
                             ))}
                         </tr>
-                    ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody className="divide-y">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                            <tr key={i}>
+                                {Array.from({ length: 7 }).map((_, j) => (
+                                    <td key={j} className="px-4 py-3">
+                                        <Skeleton className="h-5 w-full" />
+                                    </td>
+                                ))}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 }

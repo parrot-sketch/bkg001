@@ -1,10 +1,8 @@
 'use client';
 
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Users, Clock, Play, ArrowRight, Activity, Calendar } from 'lucide-react';
+import { Clock, Play, Activity } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { useStartConsultation } from '@/hooks/doctor/useConsultation';
@@ -45,94 +43,83 @@ export function WaitingQueue({ appointments, onStartConsultation: externalStartH
     if (appointments.length === 0) return null;
 
     return (
-        <Card className="border-emerald-100 bg-emerald-50/30 overflow-hidden shadow-sm">
-            <CardHeader className="border-b border-emerald-100/50 pb-4 bg-emerald-50/50">
-                <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg font-bold text-emerald-900 flex items-center gap-2">
-                        <Users className="h-5 w-5 text-emerald-600" />
-                        Waiting Queue
-                        <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white border-0 shadow-sm shadow-emerald-200">
-                            {appointments.length} Patient{appointments.length !== 1 ? 's' : ''}
-                        </Badge>
-                    </CardTitle>
-                    {sortedAppointments.length > 0 && (
-                        <span className="text-xs font-semibold text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full animate-pulse">
-                            Next: {sortedAppointments[0].patient?.firstName}
-                        </span>
-                    )}
-                </div>
-            </CardHeader>
-            <CardContent className="p-0">
-                <div className="divide-y divide-emerald-100/50">
-                    {sortedAppointments.map((apt, index) => {
-                        const patientName = apt.patient
-                            ? `${apt.patient.firstName} ${apt.patient.lastName}`
-                            : 'Unknown Patient';
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                    <thead className="border-b border-slate-200 bg-slate-50">
+                        <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-[0.16em] text-slate-500 w-[40px]">#</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Patient</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Wait</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Type</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                        {sortedAppointments.map((apt, index) => {
+                            const patientName = apt.patient
+                                ? `${apt.patient.firstName} ${apt.patient.lastName}`
+                                : 'Unknown Patient';
 
-                        const waitTime = apt.checkedInAt
-                            ? formatDistanceToNow(new Date(apt.checkedInAt))
-                            : 'Unknown';
+                            const waitTime = apt.checkedInAt
+                                ? formatDistanceToNow(new Date(apt.checkedInAt))
+                                : 'Unknown';
 
-                        return (
-                            <div
-                                key={apt.id}
-                                className="group flex items-center justify-between p-4 hover:bg-white transition-colors duration-200"
-                            >
-                                <div className="flex items-center gap-4">
-                                    <div className="relative">
-                                        <Avatar className="h-12 w-12 border-2 border-white shadow-sm group-hover:border-emerald-100 transition-colors">
-                                            <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${patientName}`} />
-                                            <AvatarFallback className="bg-emerald-100 text-emerald-700 font-bold">
-                                                {patientName.substring(0, 2).toUpperCase()}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
-                                            <div className="bg-emerald-500 h-3 w-3 rounded-full border-2 border-white animate-pulse" />
+                            return (
+                                <tr key={apt.id} className="transition-colors hover:bg-slate-50/70">
+                                    <td className="px-4 py-3 text-xs font-medium text-slate-400">
+                                        {index + 1}
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <div className="min-w-0">
+                                            <p className="truncate text-sm font-semibold text-slate-900">{patientName}</p>
                                         </div>
-                                    </div>
-
-                                    <div>
-                                        <h4 className="font-bold text-slate-900 group-hover:text-emerald-800 transition-colors">
-                                            {patientName}
-                                        </h4>
-                                        <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                                            <span className="flex items-center gap-1.5 text-emerald-700 font-medium bg-emerald-100/50 px-2 py-0.5 rounded-md">
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <div className="flex items-center gap-1.5 text-xs font-medium text-slate-600">
+                                            <Clock className="h-3 w-3 text-slate-400" />
+                                            {waitTime}
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <Badge variant="outline" className="border-slate-200 bg-white text-[10px] uppercase tracking-[0.14em] text-slate-500 font-normal">
+                                            {apt.type || 'Consultation'}
+                                        </Badge>
+                                    </td>
+                                    <td className="px-4 py-3 text-right">
+                                        {apt.status === 'IN_CONSULTATION' ? (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => router.push(`/doctor/consultations/session/${apt.id}`)}
+                                                className="h-8 text-xs font-medium text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 border-emerald-200"
+                                            >
+                                                <Activity className="h-3.5 w-3.5 mr-1.5 animate-pulse" />
+                                                Resume
+                                            </Button>
+                                        ) : apt.status === 'READY_FOR_CONSULTATION' ? (
+                                            <Button
+                                                variant="default"
+                                                size="sm"
+                                                onClick={() => handleStart(apt)}
+                                                className="h-8 text-xs font-medium bg-slate-900 hover:bg-slate-800 text-white"
+                                            >
+                                                {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5 mr-1.5" />}
+                                                Start
+                                            </Button>
+                                        ) : (
+                                            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-600">
                                                 <Clock className="h-3 w-3" />
-                                                Waited {waitTime}
+                                                Triage
                                             </span>
-                                            <span className="text-slate-400">•</span>
-                                            <span>{apt.type || 'Consultation'}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {apt.status === 'IN_CONSULTATION' ? (
-                                    <Button
-                                        onClick={() => router.push(`/doctor/consultations/session/${apt.id}`)}
-                                        className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm font-semibold rounded-xl group-hover:shadow-md transition-all duration-200"
-                                    >
-                                        <Activity className="h-4 w-4 mr-2 animate-pulse" />
-                                        Resume
-                                    </Button>
-                                ) : apt.status === 'READY_FOR_CONSULTATION' ? (
-                                    <Button
-                                        onClick={() => handleStart(apt)}
-                                        className="bg-white hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200 hover:border-emerald-600 shadow-sm font-semibold rounded-xl group-hover:shadow-md transition-all duration-200"
-                                    >
-                                        {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
-                                        Start
-                                    </Button>
-                                ) : (
-                                    <Badge variant="outline" className="text-amber-600 border-amber-200 bg-amber-50 font-medium px-3 py-1.5 rounded-xl">
-                                        <Clock className="h-3 w-3 mr-1.5" />
-                                        Awaiting Triage
-                                    </Badge>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
-            </CardContent>
-        </Card>
+                                        )}
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     );
 }

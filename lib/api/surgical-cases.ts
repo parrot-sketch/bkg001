@@ -98,11 +98,11 @@ export interface SurgicalCaseListResponse {
     metrics: SurgicalCaseMetrics;
 }
 
-/** Query params for the surgical cases list */
 export interface SurgicalCaseQueryParams {
     q?: string;
     status?: string;
     urgency?: string;
+    date?: string;
     page?: number;
     pageSize?: number;
 }
@@ -154,6 +154,7 @@ export const surgicalCasesApi = {
         if (params.q) qs.set('q', params.q);
         if (params.status) qs.set('status', params.status);
         if (params.urgency) qs.set('urgency', params.urgency);
+        if (params.date) qs.set('date', params.date);
         if (params.page) qs.set('page', String(params.page));
         if (params.pageSize) qs.set('pageSize', String(params.pageSize));
 

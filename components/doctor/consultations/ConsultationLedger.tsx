@@ -68,7 +68,7 @@ export function ConsultationLedger({ consultations }: Props) {
 
   if (consultations.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white py-16 text-center shadow-sm">
+      <div className="flex flex-col items-center justify-center rounded-lg border border-slate-200 bg-white py-16 text-center shadow-sm">
         <ClipboardCheck className="mb-2 h-6 w-6 text-slate-300" />
         <p className="text-sm font-medium text-slate-700">No completed consultations</p>
         <p className="mt-1 text-xs text-slate-400">Finalized sessions appear here</p>
@@ -77,16 +77,16 @@ export function ConsultationLedger({ consultations }: Props) {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
       <div className="hidden overflow-x-auto md:block">
         <table className="w-full min-w-[860px]">
           <thead className="border-b border-slate-200 bg-slate-50">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Patient</th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Consultation</th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Completed</th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Charges</th>
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Actions</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">Patient</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">Consultation</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">Completed</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">Charges</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-slate-500">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -186,7 +186,7 @@ function ConsultationTableRow({
     <tr className="transition-colors hover:bg-slate-50/70">
       <td className="px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">
             {firstName[0]}{lastName[0]}
           </div>
           <div className="min-w-0">
@@ -198,11 +198,11 @@ function ConsultationTableRow({
       <td className="px-4 py-3">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="border-slate-200 bg-white text-[10px] uppercase tracking-[0.14em] text-slate-500">
+            <Badge variant="outline" className="border-slate-200 bg-white text-[10px] font-normal text-slate-500 uppercase tracking-wider">
               {appointmentType}
             </Badge>
             {hasSurgicalCase && (
-              <Badge className="border border-emerald-200 bg-emerald-50 text-[10px] font-medium uppercase tracking-[0.14em] text-emerald-700">
+              <Badge className="border border-emerald-200 bg-emerald-50 text-[10px] font-medium text-emerald-700 uppercase tracking-wider">
                 Surgical Case
               </Badge>
             )}
@@ -243,7 +243,7 @@ function ConsultationTableRow({
             <Button
               variant="outline"
               size="sm"
-              className="h-8 border-slate-200 bg-white text-xs"
+              className="h-7 text-xs"
               onClick={() => onOpenChargeSheet(item.appointment!.id!, patientName)}
             >
               <Banknote className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
@@ -256,7 +256,7 @@ function ConsultationTableRow({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 w-8 p-0 text-slate-400 hover:text-slate-700"
+                className="h-7 w-7 p-0 text-slate-400 hover:text-slate-700"
               >
                 <MoreVertical className="h-3.5 w-3.5" />
               </Button>
@@ -327,7 +327,7 @@ function ConsultationMobileRow({
           <p className="text-sm font-semibold text-slate-900">{patientName}</p>
           <p className="text-xs font-mono text-slate-500">{fileNumber || 'No file number'}</p>
         </div>
-        <Badge variant="outline" className="border-slate-200 bg-white text-[10px] uppercase tracking-[0.14em] text-slate-500">
+        <Badge variant="outline" className="border-slate-200 bg-white text-[10px] font-normal text-slate-500 uppercase tracking-wider">
           {appointmentType}
         </Badge>
       </div>

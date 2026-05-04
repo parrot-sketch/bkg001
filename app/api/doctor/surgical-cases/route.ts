@@ -170,6 +170,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const q = searchParams.get('q')?.trim() || '';
         const statusFilter = searchParams.get('status') || '';
         const urgencyFilter = searchParams.get('urgency') || '';
+        const dateFilter = searchParams.get('date') || '';
         const page = parseIntParam(searchParams.get('page'), DEFAULT_PAGE);
         const rawPageSize = parseIntParam(searchParams.get('pageSize'), DEFAULT_PAGE_SIZE);
         const pageSize = Math.min(rawPageSize, MAX_PAGE_SIZE);
@@ -203,6 +204,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         // Urgency filter
         if (urgencyFilter && isValidUrgency(urgencyFilter)) {
             where.urgency = urgencyFilter as SurgicalUrgency;
+        }
+
+        // Date filter (filters procedure_date within the selected day)
+        if (dateFilter) {
+            const dateObj = new Date(dateFilter);
+            if (!isNaN(dateObj.getTime())) {
+                const startOfDay = new Date(dateObj);
+                startOfDay.setUTCHours(0, 0, 0, 0);
+                const endOfDay = new Date(dateObj);
+                endOfDay.setUTCHours(23, 59, 59, 999);
+                where.procedure_date = {
+                    gte: startOfDay,
+                    lte: endOfDay,
+                };
+            }
         }
 
         // Search — patient name, procedure name, or diagnosis
