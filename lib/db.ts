@@ -30,8 +30,15 @@ const prismaClientSingleton = () => {
   const isBuilding = process.env.NEXT_PHASE === 'phase-production-build';
   let databaseUrl = process.env.DATABASE_URL || (isBuilding ? 'postgresql://dummy:dummy@localhost:5432/dummy' : '');
   
-  // Clean up potential double quotes accidentally added in Vercel env vars
+  // Clean up potential copy-paste errors in Vercel env vars
+  // E.g., if user pasted `DATABASE_URL="prisma://..."` as the value
+  if (databaseUrl.startsWith('DATABASE_URL=')) {
+    databaseUrl = databaseUrl.replace('DATABASE_URL=', '');
+  }
   if (databaseUrl.startsWith('"') && databaseUrl.endsWith('"')) {
+    databaseUrl = databaseUrl.slice(1, -1);
+  }
+  if (databaseUrl.startsWith("'") && databaseUrl.endsWith("'")) {
     databaseUrl = databaseUrl.slice(1, -1);
   }
 
