@@ -55,12 +55,10 @@ export default function FrontdeskLayout({ children }: FrontdeskLayoutProps) {
     <div className="flex h-screen overflow-hidden bg-stone-50">
       <FrontdeskSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} onCollapse={setSidebarCollapsed} />
 
-      {/* Main content area - responsive margin based on sidebar state */}
-      <div 
-        className="flex-1 flex flex-col min-w-0 h-full overflow-hidden transition-all duration-300"
-        style={{ 
-          marginLeft: sidebarCollapsed ? '4rem' : '280px'
-        }}
+      {/* Main content area — zero margin on mobile, sidebar-offset on lg+ */}
+      <div
+        className="flex-1 flex flex-col min-w-0 h-full overflow-hidden transition-all duration-300 lg:ml-[var(--sidebar-offset)]"
+        style={{ '--sidebar-offset': sidebarCollapsed ? '4rem' : '280px' } as React.CSSProperties}
       >
         <FrontdeskHeader onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
         

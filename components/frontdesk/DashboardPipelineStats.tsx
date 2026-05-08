@@ -25,7 +25,7 @@ export function DashboardPipelineStats() {
   ] as const;
 
   return (
-    <section className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
+    <section className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
       {pipelineData.map((item) => (
         <PipelineCard
           key={item.label}

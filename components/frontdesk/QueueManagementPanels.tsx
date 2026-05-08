@@ -157,11 +157,11 @@ export function QueueManagementPanels() {
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-2 ml-4">
+                    <div className="flex items-center gap-2 ml-4 flex-wrap">
                       {showDoctorSelect === patient.id ? (
                         <div className="flex items-center gap-2">
                           <select
-                            className="text-sm border border-slate-200 rounded-md px-2 py-1 max-w-[140px]"
+                            className="text-sm border border-slate-200 rounded-md px-2 py-1 min-w-0 flex-1 max-w-[160px]"
                             value={selectedDoctor}
                             onChange={(e) => setSelectedDoctor(e.target.value)}
                             disabled={loadingDoctors}

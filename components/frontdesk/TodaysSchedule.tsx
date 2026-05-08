@@ -161,7 +161,7 @@ export function TodaysSchedule() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                         <ScheduleSummaryTile
                             label="Total"
                             value={totalAppointments}
@@ -183,7 +183,7 @@ export function TodaysSchedule() {
             </CardHeader>
 
             <CardContent className="p-4 sm:p-5 lg:p-6">
-                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                     {sections.map((section) => (
                         <ScheduleLane
                             key={section.key}
