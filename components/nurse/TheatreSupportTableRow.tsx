@@ -5,93 +5,64 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TableRow, TableCell } from '@/components/ui/table';
 import {
-    Clock,
     Stethoscope,
     MapPin,
-    ClipboardList,
-    FileText,
+    ChevronRight,
 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
 import type { IntraOpSurgicalCase } from '@/lib/api/nurse';
+
+const INTRA_OP_STATUS_CONFIG: Record<string, { label: string }> = {
+    SCHEDULED: { label: 'Scheduled' },
+    IN_PREP: { label: 'In Prep' },
+    IN_THEATER: { label: 'In Theater' },
+};
 
 interface TheatreSupportTableRowProps {
     surgicalCase: IntraOpSurgicalCase;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-    SCHEDULED: { label: 'Scheduled', color: 'bg-slate-100 text-slate-700 border-slate-300' },
-    IN_PREP: { label: 'Awaiting Theater Entry', color: 'bg-amber-50 text-amber-700 border-amber-200' },
-    IN_THEATER: { label: 'In Theater', color: 'bg-red-50 text-red-700 border-red-200 font-semibold' },
-};
-
 export function TheatreSupportTableRow({ surgicalCase }: TheatreSupportTableRowProps) {
     const router = useRouter();
-
-    const status = STATUS_CONFIG[surgicalCase.status] ?? STATUS_CONFIG.SCHEDULED;
-    const canOpenIntraOpRecord = true;
+    const status = INTRA_OP_STATUS_CONFIG[surgicalCase.status] ?? INTRA_OP_STATUS_CONFIG.SCHEDULED;
 
     return (
-        <TableRow className="hover:bg-stone-50/50 cursor-pointer group transition-colors">
-            <TableCell className="font-medium" onClick={() => canOpenIntraOpRecord && router.push(`/nurse/intra-op-cases/${surgicalCase.id}/record`)}>
-                <div className="flex flex-col">
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-stone-900">{surgicalCase.patient?.fullName || 'Unknown'}</span>
-                        {surgicalCase.patient?.fileNumber && (
-                            <span className="text-[10px] text-stone-400">#{surgicalCase.patient.fileNumber}</span>
-                        )}
+        <TableRow className="group hover:bg-slate-50/50 cursor-pointer transition-colors" onClick={() => router.push(`/nurse/intra-op-cases/${surgicalCase.id}/record`)}>
+            <TableCell className="py-3">
+                <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600">
+                        {surgicalCase.patient?.fullName?.split(' ').map(n => n[0]).join('').substring(0, 2) || 'P'}
                     </div>
-                    <span className="text-[11px] text-stone-500 line-clamp-1">{surgicalCase.procedureName || 'Unspecified Procedure'}</span>
+                    <div>
+                        <p className="text-sm font-medium text-slate-900">{surgicalCase.patient?.fullName || 'Unknown'}</p>
+                        <p className="text-[10px] text-slate-500 line-clamp-1">{surgicalCase.procedureName || '—'}</p>
+                    </div>
                 </div>
             </TableCell>
 
             <TableCell>
-                    <Badge variant="outline" className={`text-[10px] px-1.5 py-0 h-5 ${status.color}`}>
-                        {status.label}
-                    </Badge>
+                <Badge variant="secondary" className="text-[10px] px-2 py-0.5 h-5 bg-slate-100 text-slate-600 border-slate-200">
+                    {status.label}
+                </Badge>
             </TableCell>
 
-            <TableCell onClick={() => canOpenIntraOpRecord && router.push(`/nurse/intra-op-cases/${surgicalCase.id}/record`)}>
-                <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2 text-xs text-stone-700 font-medium">
-                        <MapPin className="h-3.5 w-3.5 text-stone-400" />
-                        {surgicalCase.theaterName || 'Theater TBD'}
-                    </div>
-                    {surgicalCase.startTime && (
-                        <div className="flex items-center gap-2 text-[10px] text-stone-400">
-                            <Clock className="h-3 w-3" />
-                            {formatDistanceToNow(new Date(surgicalCase.startTime), { addSuffix: true })}
-                        </div>
-                    )}
+            <TableCell className="text-[13px] text-slate-600">
+                <div className="flex items-center gap-2">
+                    <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                    {surgicalCase.theaterName || 'TBD'}
                 </div>
             </TableCell>
 
-            <TableCell onClick={() => canOpenIntraOpRecord && router.push(`/nurse/intra-op-cases/${surgicalCase.id}/record`)}>
-                <div className="flex items-center gap-2 text-xs text-stone-600">
-                    <Stethoscope className="h-3.5 w-3.5 text-stone-400" />
-                    {surgicalCase.primarySurgeon?.name || 'Unassigned'}
+            <TableCell className="text-[13px] text-slate-500">
+                <div className="flex items-center gap-2">
+                    <Stethoscope className="h-3.5 w-3.5 text-slate-400" />
+                    {surgicalCase.primarySurgeon?.name || '—'}
                 </div>
             </TableCell>
 
             <TableCell className="text-right">
-                <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => router.push(`/nurse/ward-prep/${surgicalCase.id}/checklist?returnTo=${encodeURIComponent('/nurse/theatre-support')}`)}
-                        className="h-8 text-xs"
-                    >
-                        <ClipboardList className="h-3.5 w-3.5 mr-1.5" />
-                        Ward Checklist
-                    </Button>
-                    <Button
-                        size="sm"
-                        onClick={() => router.push(`/nurse/intra-op-cases/${surgicalCase.id}/record`)}
-                        className="h-8 text-xs bg-stone-900 hover:bg-black"
-                    >
-                        <FileText className="h-3.5 w-3.5 mr-1.5" />
-                        Intra-Op Record
-                    </Button>
-                </div>
+                <Button size="sm" variant="ghost" className="h-8 text-[11px] text-slate-600">
+                  Open <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                </Button>
             </TableCell>
         </TableRow>
     );

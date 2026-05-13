@@ -39,7 +39,6 @@ import {
 } from "@/components/ui/table";
 import Link from 'next/link';
 
-import { NursePageHeader } from '@/components/nurse/NursePageHeader';
 import { NurseStatCard } from '@/components/nurse/NurseStatCard';
 import { WardPrepTableRow } from '@/components/nurse/WardPrepTableRow';
 
@@ -94,8 +93,6 @@ export default function PreOpCasesPage() {
 
   return (
     <div className="animate-in fade-in duration-500 pb-10">
-
-      <NursePageHeader />
 
       <div className="space-y-6">
 

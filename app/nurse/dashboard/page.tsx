@@ -1,382 +1,523 @@
 'use client';
 
 /**
- * Nurse Dashboard Overview
+ * Nurse Dashboard — Consolidated Command Center
  *
- * Main dashboard page showing Work Queues for the surgical workflow.
- * Refactored for modern, professional aesthetic consistent with Doctor dashboard.
+ * Clean, minimal design with calm neutral palette.
+ * Provides unified view of all nurse workflows without visual noise.
  */
 
+import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { format, formatDistanceToNow } from 'date-fns';
+import { cn } from '@/lib/utils';
+import {
+  Users,
+  Clock,
+  CheckCircle2,
+  ClipboardList,
+  Activity,
+  HeartPulse,
+  Calendar,
+  ChevronRight,
+  FileText,
+  DoorOpen,
+  Stethoscope,
+  ArrowRight,
+} from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { useTodayCheckedInPatients } from '@/hooks/nurse/useNurseDashboard';
 import { usePreOpSummary, usePreOpCases } from '@/hooks/nurse/usePreOpCases';
+import { useMarkInTheater } from '@/hooks/nurse/useMarkInTheater';
 import { useIntraOpCases } from '@/hooks/nurse/useIntraOpCases';
 import { useRecoveryCases } from '@/hooks/nurse/useRecoveryCases';
-import { useMarkInTheater } from '@/hooks/nurse/useMarkInTheater';
-
-import { Button } from '@/components/ui/button';
-import {
-  ArrowRight,
-  Clock,
-  Calendar
-} from 'lucide-react';
+import { WardPrepTableRow } from '@/components/nurse/WardPrepTableRow';
+import { TheatreSupportTableRow } from '@/components/nurse/TheatreSupportTableRow';
+import { RecoveryCaseTableRow } from '@/components/nurse/RecoveryCaseTableRow';
 import Link from 'next/link';
-import { NursePageHeader } from '@/components/nurse/NursePageHeader';
-import { NurseStatCard } from '@/components/nurse/NurseStatCard';
-import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
 
-export default function NurseDashboardPage() {
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+// ─── Types ─────────────────────────────────────────────────────────────────────
 
-  // 1. Clinic Patients (Appointments)
-  const {
-    data: checkedInPatients = [],
-    isLoading: loadingCheckedIn
-  } = useTodayCheckedInPatients(isAuthenticated && !!user);
+interface WardPrepCase {
+  id: string;
+  patient?: { fullName?: string; fileNumber?: string };
+  procedureName?: string;
+  primarySurgeon?: { name?: string };
+  status: string;
+  wardChecklist?: { isComplete: boolean; isStarted: boolean };
+  createdAt: string;
+  urgency?: string;
+}
 
-  // 2. Ward Prep (Pre-Op Cases)
-  const {
-    summary: preOpSummary,
-    isLoading: loadingPreOp
-  } = usePreOpSummary();
+interface IntraOpCase {
+  id: string;
+  patient?: { fullName?: string };
+  procedureName?: string;
+  primarySurgeon?: { name?: string };
+  status: string;
+  theaterName?: string;
+  startTime?: string;
+}
 
-  // Pre-op cases for the final nurse-controlled step before theater entry
-  const {
-    data: preOpCasesData,
-    isLoading: loadingPreOpCases
-  } = usePreOpCases();
+interface RecoveryCase {
+  id: string;
+  patient?: { fullName?: string; fileNumber?: string };
+  procedureName?: string;
+  primarySurgeon?: { name?: string };
+  status: string;
+  hasIntraOpRecord?: boolean;
+  createdAt: string;
+  urgency?: string;
+}
 
-  // Cases already booked and waiting to be physically moved into theater
-  const readyForTheaterCases = preOpCasesData?.cases.filter(
-    (c) => c.status === 'IN_PREP'
-  ) || [];
+interface CheckedInAppointment {
+  id: number;
+  patientId?: string;
+  patient?: { firstName?: string; lastName?: string; fileNumber?: string };
+  appointmentDate?: Date | string;
+  type?: string;
+}
 
-  // 3. Theatre Support (Intra-Op Cases)
-  const {
-    data: intraOpData,
-    isLoading: loadingIntraOp
-  } = useIntraOpCases();
+// ─── Status Config (monochrome) ────────────────────────────────────────────────
 
-  // 4. Recovery (Post-Op Cases)
-  const {
-    data: recoveryData,
-    isLoading: loadingRecovery
-  } = useRecoveryCases();
+const WARD_STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' }> = {
+  DRAFT: { label: 'Draft', variant: 'secondary' },
+  PLANNING: { label: 'Planning', variant: 'secondary' },
+  READY_FOR_WARD_PREP: { label: 'Ready for Ward Prep', variant: 'secondary' },
+  IN_WARD_PREP: { label: 'In Ward Prep', variant: 'secondary' },
+  READY_FOR_THEATER_BOOKING: { label: 'Ready for Booking', variant: 'outline' },
+  SCHEDULED: { label: 'Scheduled', variant: 'outline' },
+  IN_PREP: { label: 'Awaiting Theater Entry', variant: 'outline' },
+  IN_THEATER: { label: 'In Theater', variant: 'outline' },
+  RECOVERY: { label: 'In Recovery', variant: 'outline' },
+  COMPLETED: { label: 'Completed', variant: 'outline' },
+};
 
-  // Mark in theater mutation
-  const markInTheater = useMarkInTheater();
+const INTRA_OP_STATUS_CONFIG: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' }> = {
+  SCHEDULED: { label: 'Scheduled', variant: 'outline' },
+  IN_PREP: { label: 'In Prep', variant: 'secondary' },
+  IN_THEATER: { label: 'In Theater', variant: 'secondary' },
+};
 
-  if (authLoading) {
+const URGENCY_CONFIG: Record<string, { label: string }> = {
+  ELECTIVE: { label: 'Elective' },
+  URGENT: { label: 'Urgent' },
+  EMERGENCY: { label: 'Emergency' },
+};
+
+// ─── Helper: Monochrome Stat Card ─────────────────────────────────────────────
+
+function StatCard({
+  title,
+  value,
+  subtitle,
+  onClick,
+  loading,
+}: {
+  title: string;
+  value: number;
+  subtitle: string;
+  onClick?: () => void;
+  loading?: boolean;
+}) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center h-[80vh]">
-        <div className="text-center">
-          <div className="h-16 w-16 rounded-full border-4 border-slate-100 border-t-teal-500 animate-spin mx-auto mb-4" />
-          <p className="text-sm font-medium text-slate-500">Loading workspace...</p>
-        </div>
-      </div>
+      <Card className="border-slate-200">
+        <CardContent className="p-4">
+          <Skeleton className="h-4 w-20 mb-2" />
+          <Skeleton className="h-8 w-12 mb-1" />
+          <Skeleton className="h-3 w-24" />
+        </CardContent>
+      </Card>
     );
   }
 
+  return (
+    <Card
+      className={cn(
+        'border border-slate-200 transition-all duration-200 cursor-pointer',
+        onClick && 'hover:bg-slate-50 hover:border-slate-300'
+      )}
+      onClick={onClick}
+    >
+      <CardContent className="p-4">
+        <p className="text-[11px] font-medium text-slate-500 uppercase tracking-wider mb-2">{title}</p>
+        <p className="text-2xl font-bold text-slate-900">{value}</p>
+        <p className="text-[11px] text-slate-500 mt-1">{subtitle}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Row Components ────────────────────────────────────────────────────────────
+
+function PatientQueueRow({ appointment }: { appointment: CheckedInAppointment }) {
+  const router = useRouter();
+  const patientName = appointment.patient
+    ? `${appointment.patient.firstName || ''} ${appointment.patient.lastName || ''}`.trim()
+    : 'Unknown';
+
+  return (
+    <TableRow className="group hover:bg-slate-50/50 cursor-pointer" onClick={() => router.push('/nurse/patients')}>
+      <TableCell className="py-3">
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">
+            {patientName.split(' ').map(n => n[0]).join('').substring(0, 2) || 'P'}
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-900">{patientName}</p>
+            <p className="text-[10px] text-slate-400">#{appointment.patient?.fileNumber || '—'}</p>
+          </div>
+        </div>
+      </TableCell>
+
+      <TableCell className="text-[13px] text-slate-600">
+        <div className="flex items-center gap-2">
+          <Calendar className="h-3.5 w-3.5 text-slate-400" />
+          {appointment.appointmentDate ? format(new Date(appointment.appointmentDate as string | Date), 'h:mm a') : '—'}
+        </div>
+      </TableCell>
+
+      <TableCell>
+        <Badge variant="secondary" className="text-[10px] px-2 py-0.5 h-5 bg-slate-100 text-slate-700 border-slate-200">
+          {appointment.type || 'Consultation'}
+        </Badge>
+      </TableCell>
+
+      <TableCell className="text-right">
+        <Button size="sm" variant="ghost" className="h-7 text-[11px] text-slate-600">
+          Record <ChevronRight className="h-3.5 w-3.5 ml-1" />
+        </Button>
+      </TableCell>
+    </TableRow>
+  );
+}
+
+// ─── Main Component ────────────────────────────────────────────────────────────
+
+export default function NurseDashboardPage() {
+  const router = useRouter();
+  const { user, isAuthenticated } = useAuth();
+
+  // Data hooks
+  const { data: checkedInPatients = [], isLoading: loadingCheckedIn } = useTodayCheckedInPatients(isAuthenticated && !!user);
+  const { summary: preOpSummary, isLoading: loadingPreOp } = usePreOpSummary();
+  const { data: preOpCasesData, isLoading: loadingPreOpCases } = usePreOpCases();
+  const { data: intraOpData, isLoading: loadingIntraOp } = useIntraOpCases();
+  const { data: recoveryData, isLoading: loadingRecovery } = useRecoveryCases();
+  const markInTheater = useMarkInTheater();
+
+  // Derived data
+  const wardPrepCases = (preOpCasesData?.cases || []).filter(
+    (c: any) => c.status === 'READY_FOR_WARD_PREP' || c.status === 'IN_WARD_PREP'
+  ).slice(0, 5);
+
+  const activeIntraOpCases = (intraOpData?.cases || []).slice(0, 5);
+  const activeRecoveryCases = (recoveryData?.cases || []).slice(0, 5);
+  const todayPatients = (checkedInPatients || []).slice(0, 5);
+
   if (!isAuthenticated || !user) {
     return (
-      <div className="flex items-center justify-center h-[60vh] flex-col gap-4">
-        <p className="text-muted-foreground">Please log in to access your dashboard</p>
-        <Link href="/login">
-          <Button>Go to Login</Button>
-        </Link>
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <p className="text-slate-500">Please log in to access your dashboard</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="animate-in fade-in duration-500 pb-10">
+    <div className="space-y-6 pb-10 animate-in fade-in duration-300">
 
-      <NursePageHeader />
+      {/* ── QUICK STATS ────────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <StatCard
+          title="Ward Prep"
+          value={preOpSummary?.total || 0}
+          subtitle="Pending checklists"
+          loading={loadingPreOp}
+          onClick={() => router.push('/nurse/ward-prep')}
+        />
+        <StatCard
+          title="In Theater"
+          value={intraOpData?.cases.length || 0}
+          subtitle="Active surgeries"
+          loading={loadingIntraOp}
+          onClick={() => router.push('/nurse/theatre-support')}
+        />
+        <StatCard
+          title="Recovery"
+          value={recoveryData?.cases.length || 0}
+          subtitle="PACU monitoring"
+          loading={loadingRecovery}
+          onClick={() => router.push('/nurse/recovery-discharge')}
+        />
+        <StatCard
+          title="Clinic Queue"
+          value={checkedInPatients.length}
+          subtitle="Awaiting vitals"
+          loading={loadingCheckedIn}
+          onClick={() => router.push('/nurse/patients')}
+        />
+      </div>
 
-      <div className="space-y-8">
-
-        {/* Stats Grid */}
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-          <Link href="/nurse/ward-prep" className="block transition-transform hover:-translate-y-1 duration-200">
-            <NurseStatCard
-              title="Ward Prep"
-              value={preOpSummary?.total || 0}
-              subtitle="Pending admission/prep"
-              color="amber"
-              loading={loadingPreOp}
-              pulse={(preOpSummary?.total || 0) > 0}
-            />
-          </Link>
-
-          <Link href="/nurse/theatre-support" className="block transition-transform hover:-translate-y-1 duration-200">
-            <NurseStatCard
-              title="In Theater"
-              value={intraOpData?.cases.length || 0}
-              subtitle="Active surgeries"
-              color="blue"
-              loading={loadingIntraOp}
-              pulse={(intraOpData?.cases.length || 0) > 0}
-            />
-          </Link>
-
-          <Link href="/nurse/recovery-discharge" className="block transition-transform hover:-translate-y-1 duration-200">
-            <NurseStatCard
-              title="Recovery"
-              value={recoveryData?.cases.length || 0}
-              subtitle="PACU monitoring"
-              color="emerald"
-              loading={loadingRecovery}
-            />
-          </Link>
-
-          <Link href="/nurse/patients" className="block transition-transform hover:-translate-y-1 duration-200">
-            <NurseStatCard
-              title="Clinic Queue"
-              value={checkedInPatients.length}
-              subtitle="Waiting for consultation"
-              color="purple"
-              loading={loadingCheckedIn}
-            />
-          </Link>
+      {/* ── WARD PREP PRIORITY QUEUE ───────────────────────────────────────────── */}
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">Ward Prep — Checklist Required</h2>
+            <p className="text-[12px] text-slate-500">Patients awaiting pre-operative nursing assessment</p>
+          </div>
+          <Button variant="ghost" size="sm" className="text-[12px] text-slate-600 h-8" asChild>
+            <Link href="/nurse/ward-prep">
+              View All <ArrowRight className="h-3.5 w-3.5 ml-1" />
+            </Link>
+          </Button>
         </div>
 
-        {/* Main Content Layout */}
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+        <Card className="border-slate-200">
+          {loadingPreOpCases ? (
+            <div className="p-6 space-y-3">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-14 bg-slate-50 animate-pulse rounded-lg border border-slate-100" />
+              ))}
+            </div>
+          ) : wardPrepCases.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center bg-slate-50/50 rounded-xl border border-dashed">
+              <CheckCircle2 className="h-10 w-10 text-slate-300 mb-3" />
+              <h3 className="text-sm font-medium text-slate-900">All caught up!</h3>
+              <p className="text-xs text-slate-500 mt-1 max-w-xs">No ward prep checklists pending.</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader className="bg-slate-50/80">
+                <TableRow>
+                  <TableHead className="w-[200px]">Patient</TableHead>
+                  <TableHead>Case</TableHead>
+                  <TableHead>Surgeon</TableHead>
+                  <TableHead className="w-[100px]">Created</TableHead>
+                  <TableHead className="w-[130px]">Checklist</TableHead>
+                  <TableHead className="text-right w-[120px]" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {wardPrepCases.map((caseItem: any) => (
+                  <WardPrepTableRow key={caseItem.id} surgicalCase={caseItem} />
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </Card>
+      </section>
 
-          {/* Left Column: Active Surgeries & Clinic Flow (8 cols) */}
-          <div className="xl:col-span-8 space-y-6">
+      {/* ── THREE-COLUMN WORKFLOW GRID ─────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-            {/* Awaiting Theater Entry */}
-            {readyForTheaterCases.length > 0 && (
-              <section className="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <h2 className="text-sm font-semibold text-slate-900">Awaiting Theater Entry</h2>
-                    <Badge variant="outline" className="text-slate-700 border-slate-300 text-[10px]">
-                      {readyForTheaterCases.length}
-                    </Badge>
-                  </div>
-                </div>
-
-                <div className="p-4 space-y-3">
-                  {readyForTheaterCases.slice(0, 3).map((c) => (
-                    <div
-                      key={c.id}
-                      className="bg-white rounded-lg border border-amber-200/50 p-3 hover:shadow-sm transition-all"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-start gap-3">
-                          <div className="h-9 w-9 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-xs">
-                            {c.patient?.fullName?.split(' ').map(n => n[0]).join('').substring(0, 2) || 'P'}
-                          </div>
-                          <div>
-                            <h3 className="text-sm font-medium text-slate-900">
-                              {c.patient?.fullName || 'Unknown Patient'}
-                            </h3>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-normal bg-slate-100 text-slate-600">
-                                {c.procedureName}
-                              </Badge>
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 text-slate-700 border-slate-200">
-                                Booked and prepped
-                              </Badge>
-                            </div>
-                          </div>
-                        </div>
-                        <Button
-                          size="sm"
-                          className="h-8 text-xs"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            markInTheater.mutate(c.id);
-                          }}
-                          disabled={markInTheater.isPending}
-                        >
-                          {markInTheater.isPending ? (
-                            <>
-                              <Clock className="h-3 w-3 mr-1 animate-spin" />
-                              Marking...
-                            </>
-                          ) : (
-                            "Mark in Theater"
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                  {readyForTheaterCases.length > 3 && (
-                    <div className="text-center pt-2">
-                      <Button variant="ghost" size="sm" className="text-xs" asChild>
-                        <Link href="/nurse/ward-prep">
-                          View {readyForTheaterCases.length - 3} more <ArrowRight className="ml-1 h-3 w-3" />
-                        </Link>
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </section>
-            )}
-
-            {/* Active Surgeries Section */}
-            <section className="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-slate-900">Active Theater Cases</h2>
-                <Button variant="ghost" size="sm" asChild className="h-8 text-xs font-medium text-slate-600 hover:text-slate-900">
-                  <Link href="/nurse/theatre-support">
-                    View Board <ArrowRight className="ml-1 h-3 w-3" />
-                  </Link>
-                </Button>
+        {/* ── Column 1: In‑Theater Cases ───────────────────────────────────────── */}
+        <Card className="border-slate-200">
+          <CardHeader className="pb-3 border-b border-slate-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-semibold text-slate-900">In Theater</CardTitle>
+                <CardDescription className="text-[11px] mt-0.5">Active surgeries</CardDescription>
               </div>
-
-              <div className="p-0">
-                {loadingIntraOp ? (
-                  <div className="p-6 space-y-3">
-                    <div className="h-16 bg-slate-50 animate-pulse rounded-lg border border-slate-100" />
-                    <div className="h-16 bg-slate-50 animate-pulse rounded-lg border border-slate-100" />
-                  </div>
-                ) : intraOpData?.cases.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center bg-white">
-                    <p className="text-sm font-medium text-slate-900">No active surgeries</p>
-                    <p className="text-xs text-slate-500 max-w-xs mt-1">Theater is currently clear. Check Ward Prep for upcoming cases.</p>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-slate-100">
-                    {intraOpData?.cases.map((c) => (
-                      <Link key={c.id} href={`/nurse/intra-op-cases/${c.id}/record`} className="block hover:bg-slate-50/80 transition-colors group">
-                        <div className="p-4 flex items-center justify-between">
-                          <div className="flex items-start gap-4">
-                            <div className="h-10 w-10 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs ring-4 ring-white">
-                              {c.patient?.fullName.split(' ').map(n => n[0]).join('').substring(0, 2)}
-                            </div>
-                            <div>
-                              <h3 className="text-sm font-medium text-slate-900 group-hover:text-slate-700 transition-colors">
-                                {c.patient?.fullName}
-                              </h3>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 font-normal bg-slate-100 text-slate-600 border-slate-200">
-                                  {c.procedureName}
-                                </Badge>
-                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 text-slate-700 border-slate-200">
-                                  IN_THEATER
-                                </Badge>
-                                <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                                  <Clock className="h-3 w-3" /> Started {c.startTime ? format(new Date(c.startTime), 'HH:mm') : '--:--'}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex flex-col items-end gap-1">
-                            <Badge variant="outline" className="text-slate-700 border-slate-200 uppercase text-[10px] tracking-wider font-bold">
-                              {c.theaterName || 'OR Main'}
-                            </Badge>
-                            <span className="text-[10px] text-slate-400 font-medium">Click to manage</span>
-                          </div>
-                        </div>
-                      </Link>
+              <div className="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                <Activity className="h-4 w-4 text-slate-600" />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {loadingIntraOp ? (
+              <div className="p-4 space-y-3">
+                {[1, 2].map(i => <div key={i} className="h-12 bg-slate-50 animate-pulse rounded-lg" />)}
+              </div>
+            ) : activeIntraOpCases.length === 0 ? (
+              <div className="py-10 text-center">
+                <Activity className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-xs font-medium text-slate-600">No active surgeries</p>
+                <p className="text-[10px] text-slate-400 mt-1">Theater is currently clear</p>
+              </div>
+            ) : (
+              <>
+                <Table>
+                  <TableHeader className="bg-slate-50/80">
+                    <TableRow>
+                      <TableHead>Patient</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Theater</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {activeIntraOpCases.map((c) => (
+                      <TheatreSupportTableRow key={c.id} surgicalCase={c} />
                     ))}
-                  </div>
-                )}
-              </div>
-            </section>
-
-            {/* Clinic Queue Section */}
-            <section className="bg-white border border-slate-200/80 rounded-xl shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-slate-900">Clinic Waiting Room</h2>
-                <Button variant="ghost" size="sm" asChild className="h-8 text-xs font-medium text-slate-600 hover:text-slate-900">
-                  <Link href="/nurse/patients">
-                    View All <ArrowRight className="ml-1 h-3 w-3" />
-                  </Link>
-                </Button>
-              </div>
-
-              <div className="p-4 grid gap-3 sm:grid-cols-2">
-                {loadingCheckedIn ? (
-                  <>
-                    <div className="h-20 bg-slate-50 animate-pulse rounded-lg border border-slate-100" />
-                    <div className="h-20 bg-slate-50 animate-pulse rounded-lg border border-slate-100" />
-                  </>
-                ) : checkedInPatients.length === 0 ? (
-                  <div className="col-span-full py-8 text-center text-slate-400 text-sm">
-                    No patients waiting in the clinic area.
-                  </div>
-                ) : (
-                  checkedInPatients.slice(0, 6).map((apt) => (
-                    <Link key={apt.id} href="/nurse/patients" className="group">
-                      <div className="bg-white border border-slate-200 rounded-lg p-3 hover:border-slate-300 hover:shadow-sm transition-all relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-2">
-                          <div className="h-2 w-2 rounded-full bg-green-500 ring-2 ring-white" />
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-xs font-bold">
-                            P
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-slate-900">Patient #{apt.patientId?.substring(0, 6)}</p>
-                            <p className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1">
-                              <Calendar className="h-3 w-3" /> {format(new Date(apt.appointmentDate), 'h:mm a')} • {apt.type}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
+                  </TableBody>
+                </Table>
+                <div className="p-3 border-t border-slate-100">
+                  <Button variant="ghost" size="sm" className="w-full text-[11px] text-slate-600 h-8" asChild>
+                    <Link href="/nurse/theatre-support">
+                      View Theatre Board <ChevronRight className="h-3.5 w-3.5 ml-1" />
                     </Link>
-                  ))
-                )}
-              </div>
-            </section>
-
-          </div>
-
-          {/* Right Column: Quick Actions & Status (4 cols) */}
-          <div className="xl:col-span-4 space-y-6">
-
-            {/* Ward Prep Status Summary */}
-            <div className="bg-white border border-slate-200/80 rounded-xl shadow-sm p-5">
-              <h3 className="text-sm font-semibold text-slate-900 mb-4">
-                Ward Efficiency
-              </h3>
-
-              <div className="space-y-4">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500">Pending Prep</span>
-                  <span className="font-medium text-slate-900">{preOpSummary?.total || 0}</span>
-                </div>
-                <div className="w-full bg-slate-200 rounded-full h-1.5">
-                  <div
-                    className="bg-slate-900 h-1.5 rounded-full"
-                    style={{ width: `${Math.min(((preOpSummary?.total || 0) / 10) * 100, 100)}%` }}
-                  />
-                </div>
-
-                <div className="pt-2">
-                  <Button variant="outline" size="sm" className="w-full text-xs" asChild>
-                    <Link href="/nurse/ward-prep">Go to Ward Checklist</Link>
                   </Button>
                 </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ── Column 2: Recovery Cases ──────────────────────────────────────────── */}
+        <Card className="border-slate-200">
+          <CardHeader className="pb-3 border-b border-slate-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-semibold text-slate-900">Recovery</CardTitle>
+                <CardDescription className="text-[11px] mt-0.5">PACU patients</CardDescription>
+              </div>
+              <div className="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                <HeartPulse className="h-4 w-4 text-slate-600" />
               </div>
             </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {loadingRecovery ? (
+              <div className="p-4 space-y-3">
+                {[1, 2].map(i => <div key={i} className="h-12 bg-slate-50 animate-pulse rounded-lg" />)}
+              </div>
+            ) : activeRecoveryCases.length === 0 ? (
+              <div className="py-10 text-center">
+                <HeartPulse className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-xs font-medium text-slate-600">No patients in recovery</p>
+              </div>
+            ) : (
+              <>
+                <Table>
+                  <TableHeader className="bg-slate-50/80">
+                    <TableRow>
+                      <TableHead>Patient</TableHead>
+                      <TableHead>Procedure</TableHead>
+                      <TableHead>Surgeon</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {activeRecoveryCases.map((c) => (
+                      <RecoveryCaseTableRow key={c.id} surgicalCase={c} />
+                    ))}
+                  </TableBody>
+                </Table>
+                <div className="p-3 border-t border-slate-100">
+                  <Button variant="ghost" size="sm" className="w-full text-[11px] text-slate-600 h-8" asChild>
+                    <Link href="/nurse/recovery-discharge">
+                      View All <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                    </Link>
+                  </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
 
-            {/* Quick Actions Panel */}
-            <div className="bg-white border border-slate-200/80 rounded-xl p-5 shadow-sm overflow-hidden">
-              <h3 className="text-xs font-semibold mb-4 text-slate-600 uppercase tracking-wide">
-                Quick Launch
-              </h3>
-              <div className="grid grid-cols-2 gap-3">
-                <Link href="/nurse/patients" className="flex flex-col items-center justify-center p-3 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all text-slate-700 hover:text-slate-900">
-                  <span className="text-[10px] font-medium">Record Vitals</span>
-                </Link>
-                <Link href="/nurse/ward-prep" className="flex flex-col items-center justify-center p-3 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all text-slate-700 hover:text-slate-900">
-                  <span className="text-[10px] font-medium">Admit Patient</span>
-                </Link>
+        {/* ── Column 3: Clinic Patients ────────────────────────────────────────── */}
+        <Card className="border-slate-200">
+          <CardHeader className="pb-3 border-b border-slate-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-semibold text-slate-900">Clinic Queue</CardTitle>
+                <CardDescription className="text-[11px] mt-0.5">Checked-in patients</CardDescription>
+              </div>
+              <div className="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                <Users className="h-4 w-4 text-slate-600" />
               </div>
             </div>
-
-          </div>
-
-        </div>
-
+          </CardHeader>
+          <CardContent className="p-0">
+            {loadingCheckedIn ? (
+              <div className="p-4 space-y-3">
+                {[1, 2].map(i => <div key={i} className="h-12 bg-slate-50 animate-pulse rounded-lg" />)}
+              </div>
+            ) : todayPatients.length === 0 ? (
+              <div className="py-10 text-center">
+                <Users className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-xs font-medium text-slate-600">No patients waiting</p>
+              </div>
+            ) : (
+              <>
+                <Table>
+                  <TableHeader className="bg-slate-50/80">
+                    <TableRow>
+                      <TableHead>Patient</TableHead>
+                      <TableHead>Time</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {todayPatients.map((apt) => (
+                      <PatientQueueRow key={apt.id} appointment={apt} />
+                    ))}
+                  </TableBody>
+                </Table>
+                <div className="p-3 border-t border-slate-100">
+                  <Button variant="ghost" size="sm" className="w-full text-[11px] text-slate-600 h-8" asChild>
+                    <Link href="/nurse/patients">
+                      View All <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                    </Link>
+                  </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      {/* ── QUICK ACTIONS BAR ───────────────────────────────────────────────────── */}
+      <Card className="border-slate-200">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900">Quick Actions</h3>
+              <p className="text-[11px] text-slate-500">Common nursing workflows</p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button size="sm" variant="outline" className="h-8 text-[11px] border-slate-200" asChild>
+                <Link href="/nurse/ward-prep">
+                  <ClipboardList className="h-3.5 w-3.5 mr-1.5" />
+                  Ward Checklists
+                </Link>
+              </Button>
+              <Button size="sm" variant="outline" className="h-8 text-[11px] border-slate-200" asChild>
+                <Link href="/nurse/theatre-support">
+                  <Activity className="h-3.5 w-3.5 mr-1.5" />
+                  Theatre Board
+                </Link>
+              </Button>
+              <Button size="sm" variant="outline" className="h-8 text-[11px] border-slate-200" asChild>
+                <Link href="/nurse/recovery-discharge">
+                  <HeartPulse className="h-3.5 w-3.5 mr-1.5" />
+                  Recovery
+                </Link>
+              </Button>
+              <Button size="sm" variant="outline" className="h-8 text-[11px] border-slate-200" asChild>
+                <Link href="/nurse/patients">
+                  <Users className="h-3.5 w-3.5 mr-1.5" />
+                  Patients
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
     </div>
   );
 }

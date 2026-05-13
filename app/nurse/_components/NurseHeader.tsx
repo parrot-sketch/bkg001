@@ -1,6 +1,10 @@
 'use client';
 import { UnifiedHeader } from '@/components/shared/UnifiedHeader';
-interface NurseHeaderProps { onMenuClick?: () => void; }
+
+interface NurseHeaderProps {
+  onMenuClick?: () => void;
+}
+
 export function NurseHeader({ onMenuClick }: NurseHeaderProps) {
   return (
     <UnifiedHeader

@@ -18,7 +18,6 @@ import type { AppointmentResponseDto } from '@/application/dtos/AppointmentRespo
 import { RecordVitalsDialog } from '@/components/nurse/RecordVitalsDialog';
 import { AddCareNoteDialog } from '@/components/nurse/AddCareNoteDialog';
 import { PatientTableRow } from '@/components/nurse/PatientTableRow';
-import { NursePageHeader } from '@/components/nurse/NursePageHeader';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -127,8 +126,6 @@ export default function NursePatientsPage() {
 
   return (
     <div className="animate-in fade-in duration-500 pb-10">
-
-      <NursePageHeader />
 
       <div className="space-y-6">
         {/* Header & Controls */}

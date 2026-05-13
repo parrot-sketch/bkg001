@@ -6,7 +6,6 @@ import { usePreOpCaseDetails, useUpdatePreOpCase } from '@/hooks/nurse/usePreOpC
 import { Button } from '@/components/ui/button';
 import { User2, AlertCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { NursePageHeader } from '@/components/nurse/NursePageHeader';
 
 import { WardPrepCaseHeader } from '@/components/nurse/ward-prep-detail/WardPrepCaseHeader';
 import { WardChecklistPanel } from '@/components/nurse/ward-prep-detail/WardChecklistPanel';
@@ -36,33 +35,31 @@ export default function PreOpCaseDetailPage() {
     );
   }
 
-  if (isLoading) {
-    return (
-      <div className="animate-in fade-in space-y-6 pb-10">
-        <NursePageHeader />
-        <PreOpCaseDetailSkeleton />
-      </div>
-    );
-  }
+if (isLoading) {
+  return (
+    <div className="animate-in fade-in space-y-6 pb-10">
+      <PreOpCaseDetailSkeleton />
+    </div>
+  );
+}
 
-  if (error || !caseData) {
-    return (
-      <div className="animate-in fade-in space-y-6 pb-10">
-        <NursePageHeader />
-        <Button variant="ghost" size="sm" asChild className="text-slate-500">
-          <Link href="/nurse/ward-prep">
-            Back to List
-          </Link>
-        </Button>
-        <div className="rounded-xl border border-rose-100 bg-rose-50/30 p-12 text-center">
-          <AlertCircle className="h-12 w-12 text-rose-500 mx-auto mb-4" />
-          <h3 className="font-semibold text-lg text-rose-900 mb-2">Failed to load case</h3>
-          <p className="text-rose-600 mb-6">{(error as Error)?.message || 'Case not found'}</p>
-          <Button onClick={() => router.push('/nurse/ward-prep')}>Return to Ward Prep</Button>
-        </div>
+if (error || !caseData) {
+  return (
+    <div className="animate-in fade-in space-y-6 pb-10">
+      <Button variant="ghost" size="sm" asChild className="text-slate-500">
+        <Link href="/nurse/ward-prep">
+          Back to List
+        </Link>
+      </Button>
+      <div className="rounded-xl border border-rose-100 bg-rose-50/30 p-12 text-center">
+        <AlertCircle className="h-12 w-12 text-rose-500 mx-auto mb-4" />
+        <h3 className="font-semibold text-lg text-rose-900 mb-2">Failed to load case</h3>
+        <p className="text-rose-600 mb-6">{(error as Error)?.message || 'Case not found'}</p>
+        <Button onClick={() => router.push('/nurse/ward-prep')}>Return to Ward Prep</Button>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   const patient = caseData.patient;
   const surgeon = caseData.primarySurgeon;
@@ -88,8 +85,6 @@ export default function PreOpCaseDetailPage() {
 
   return (
     <div className="animate-in fade-in duration-500 pb-10">
-
-      <NursePageHeader />
 
       <div className="space-y-6">
 

@@ -14,7 +14,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { User, Mail, Phone, Shield, Calendar } from 'lucide-react';
 import Link from 'next/link';
-import { NursePageHeader } from '@/components/nurse/NursePageHeader';
 import { format } from 'date-fns';
 
 export default function NurseProfilePage() {
@@ -36,12 +35,10 @@ export default function NurseProfilePage() {
     );
   }
 
-  return (
+return (
     <div className="animate-in fade-in duration-500 pb-10">
 
-      <NursePageHeader />
-
-      <div className="space-y-6 max-w-5xl mx-auto">
+        <div className="space-y-6 max-w-5xl mx-auto">
 
         <div className="flex flex-col md:flex-row gap-6">
 

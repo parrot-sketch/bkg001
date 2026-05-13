@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TableRow, TableCell } from '@/components/ui/table';
-import { Progress } from '@/components/ui/progress';
 import {
     ClipboardList,
     Clock,
@@ -27,6 +26,7 @@ import { useMarkInTheater } from '@/hooks/nurse/useMarkInTheater';
 import type { PreOpSurgicalCase } from '@/lib/api/nurse';
 import { InventoryReadinessIndicator } from './InventoryReadinessIndicator';
 import { DoorOpen } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface WardPrepTableRowProps {
     surgicalCase: PreOpSurgicalCase;
@@ -53,120 +53,87 @@ export function WardPrepTableRow({ surgicalCase }: WardPrepTableRowProps) {
         router.push(`/nurse/ward-prep/${surgicalCase.id}`);
     };
 
-    const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive'; className?: string }> = {
-        DRAFT: { label: 'Draft', variant: 'secondary' },
-        PLANNING: { label: 'Planning', variant: 'default', className: 'bg-amber-50 text-amber-700 border-amber-200' },
-        READY_FOR_WARD_PREP: { label: 'Ready for Ward Prep', variant: 'default', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-        IN_WARD_PREP: { label: 'In Ward Prep', variant: 'default', className: 'bg-amber-50 text-amber-700 border-amber-200' },
-        READY_FOR_THEATER_BOOKING: { label: 'Ready for Booking', variant: 'default', className: 'bg-slate-100 text-slate-700 border-slate-300' },
-        SCHEDULED: { label: 'Scheduled', variant: 'outline', className: 'bg-slate-100 text-slate-700 border-slate-300' },
-        IN_PREP: { label: 'Awaiting Theater Entry', variant: 'outline', className: 'bg-amber-50 text-amber-700 border-amber-200' },
-        IN_THEATER: { label: 'In Theater', variant: 'outline', className: 'bg-red-50 text-red-700 border-red-200' },
-        RECOVERY: { label: 'Recovery', variant: 'outline', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-        COMPLETED: { label: 'Completed', variant: 'outline', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-    };
-
-    const urgencyConfig: Record<string, { label: string; className: string }> = {
-        ELECTIVE: { label: 'Elective', className: 'bg-slate-100 text-slate-700' },
-        URGENT: { label: 'Urgent', className: 'bg-amber-100 text-amber-700' },
-        EMERGENCY: { label: 'Emergency', className: 'bg-rose-100 text-rose-700' },
-    };
-
-    const status = statusConfig[surgicalCase.status] || { label: surgicalCase.status, variant: 'secondary' };
-    const urgency = urgencyConfig[surgicalCase.urgency] || { label: surgicalCase.urgency, className: 'bg-slate-100' };
-
     const wardChecklistDone = surgicalCase.wardChecklist?.isComplete;
     const wardChecklistStarted = surgicalCase.wardChecklist?.isStarted;
-    
-    const showCompleteChecklist = !wardChecklistDone && (surgicalCase.status === 'IN_PREP' || surgicalCase.status === 'SCHEDULED' || surgicalCase.status === 'READY_FOR_WARD_PREP' || surgicalCase.status === 'IN_WARD_PREP' || surgicalCase.status === 'READY_FOR_THEATER_BOOKING');
+    const showCompleteChecklist = !wardChecklistDone && ['IN_PREP', 'SCHEDULED', 'READY_FOR_WARD_PREP', 'IN_WARD_PREP', 'READY_FOR_THEATER_BOOKING'].includes(surgicalCase.status);
+    const canEnterTheater = surgicalCase.status === 'IN_PREP';
 
     return (
         <TableRow
-            className="hover:bg-slate-50/50 cursor-pointer group"
+            className="hover:bg-slate-50/50 cursor-pointer group transition-colors"
             onClick={handleViewDetails}
         >
-            <TableCell className="font-medium py-4">
-                <div className="flex flex-col">
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-slate-900">{surgicalCase.patient?.fullName || 'Unknown'}</span>
-                        {surgicalCase.patient?.fileNumber && (
-                            <span className="text-[10px] text-slate-400">#{surgicalCase.patient.fileNumber}</span>
-                        )}
+            <TableCell className="py-3">
+                <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">
+                        {surgicalCase.patient?.fullName?.split(' ').map(n => n[0]).join('').substring(0, 2) || 'P'}
                     </div>
-                    <span className="text-[11px] text-slate-500 line-clamp-1">
-                        {surgicalCase.procedures && surgicalCase.procedures.length > 0
-                            ? surgicalCase.procedures.map(p => p.name).join(', ')
-                            : surgicalCase.procedureName || 'Unspecified Procedure'}
-                    </span>
+                    <div>
+                        <p className="text-sm font-medium text-slate-900">{surgicalCase.patient?.fullName || 'Unknown'}</p>
+                        <p className="text-[10px] text-slate-400">#{surgicalCase.patient?.fileNumber || '—'}</p>
+                    </div>
                 </div>
             </TableCell>
 
             <TableCell>
                 <div className="flex flex-col gap-1.5">
-                    <div className="flex items-center gap-1.5">
-                        <Badge 
-                            variant={status.variant} 
-                            className={`text-[10px] px-1.5 py-0 h-5 font-medium ${status.className || 'border-slate-200'}`}
-                        >
-                            {status.label}
+                    <span className="text-sm text-slate-700 line-clamp-1">{surgicalCase.procedureName || '—'}</span>
+                    <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 font-normal bg-slate-100 text-slate-600 border-slate-200">
+                            {surgicalCase.status.replace(/_/g, ' ')}
                         </Badge>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${urgency.className}`}>
-                            {urgency.label}
-                        </span>
                     </div>
                 </div>
             </TableCell>
 
-            <TableCell>
-                <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2 text-xs text-slate-600">
-                        <Stethoscope className="h-3.5 w-3.5 text-slate-400" />
-                        {surgicalCase.primarySurgeon?.name || 'Unassigned'}
-                    </div>
-                    <div className="flex items-center gap-2 text-[10px] text-slate-400">
-                        <Clock className="h-3 w-3" />
-                        {formatDistanceToNow(new Date(surgicalCase.createdAt), { addSuffix: true })}
-                    </div>
-                </div>
-            </TableCell>
-
-            <TableCell>
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-slate-600">Ward Checklist</span>
-                        <span className={`text-xs font-bold ${wardChecklistDone ? 'text-emerald-600' : 'text-amber-600'}`}>
-                            {wardChecklistDone ? '100%' : wardChecklistStarted ? 'In Progress' : '0%'}
-                        </span>
-                    </div>
-                    <Progress 
-                        value={wardChecklistDone ? 100 : 0} 
-                        className={`h-2 ${wardChecklistDone ? '[&>div]:bg-emerald-500' : '[&>div]:bg-amber-400'}`}
-                    />
-                </div>
-            </TableCell>
-
-            <TableCell>
+            <TableCell className="text-[13px] text-slate-500">
                 <div className="flex items-center gap-2">
+                    <Stethoscope className="h-3.5 w-3.5 text-slate-400" />
+                    {surgicalCase.primarySurgeon?.name || '—'}
+                </div>
+            </TableCell>
+
+            <TableCell className="text-[12px] text-slate-500">
+                {formatDistanceToNow(new Date(surgicalCase.createdAt), { addSuffix: true })}
+            </TableCell>
+
+            <TableCell>
+                <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500">Checklist</span>
+                        <span className={cn('font-semibold', wardChecklistDone ? 'text-slate-700' : 'text-slate-600')}>
+                          {wardChecklistDone ? 'Complete' : wardChecklistStarted ? 'In Progress' : 'Not Started'}
+                        </span>
+                    </div>
+                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-slate-600 transition-all" style={{ width: wardChecklistDone ? '100%' : '30%' }} />
+                    </div>
+                </div>
+            </TableCell>
+
+            <TableCell className="text-right">
+                <div className="flex items-center justify-end gap-1">
                     {showCompleteChecklist && (
                         <Button
                             size="sm"
-                            variant={wardChecklistStarted ? "outline" : "default"}
-                            className={`h-8 text-xs ${wardChecklistStarted ? 'border-amber-300 text-amber-700 hover:bg-amber-50' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                            variant="ghost"
+                            className="h-7 w-7 p-0 text-slate-500 hover:text-slate-900 hover:bg-slate-100"
                             onClick={handleGoToChecklist}
+                            title="Checklist"
                         >
-                            <CheckSquare className="h-3 w-3 mr-1" />
-                            {wardChecklistStarted ? 'Continue' : 'Complete'} Checklist
+                            <ClipboardList className="h-4 w-4" />
                         </Button>
                     )}
-                    {wardChecklistDone && (
+                    {canEnterTheater && (
                         <Button
                             size="sm"
                             variant="ghost"
-                            className="h-8 text-xs text-emerald-600 hover:text-emerald-700"
-                            onClick={handleGoToChecklist}
+                            className="h-7 w-7 p-0 text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                            onClick={handleMarkInTheater}
+                            disabled={markInTheater.isPending}
+                            title="Mark In Theater"
                         >
-                            <FileText className="h-3 w-3 mr-1" />
-                            View
+                            <DoorOpen className="h-4 w-4" />
                         </Button>
                     )}
                     <div onClick={(e) => e.stopPropagation()}>
@@ -175,42 +142,25 @@ export function WardPrepTableRow({ surgicalCase }: WardPrepTableRowProps) {
                             isLoading={isLoadingInventory}
                         />
                     </div>
-                </div>
-            </TableCell>
-
-            <TableCell className="text-right">
-                <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                    {surgicalCase.status === 'IN_PREP' && (
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8 text-xs border-amber-300 text-amber-700 hover:bg-amber-50"
-                            onClick={handleMarkInTheater}
-                            disabled={markInTheater.isPending}
-                        >
-                            <DoorOpen className="h-3 w-3 mr-1" />
-                            {markInTheater.isPending ? '...' : 'Enter Theater'}
-                        </Button>
-                    )}
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400">
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-slate-600">
                                 <MoreHorizontal className="h-4 w-4" />
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
                             <DropdownMenuItem onClick={handleViewDetails}>
-                                <ClipboardList className="mr-2 h-4 w-4" /> View Details
+                                <FileText className="mr-2 h-4 w-4" /> View Details
                             </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleGoToChecklist}>
-                        <CheckSquare className="mr-2 h-4 w-4" /> 
-                        {wardChecklistDone ? 'View Checklist' : wardChecklistStarted ? 'Continue Checklist' : 'Complete Checklist'}
-                    </DropdownMenuItem>
-                    {surgicalCase.status === 'IN_PREP' && (
+                            <DropdownMenuItem onClick={handleGoToChecklist}>
+                                <ClipboardList className="mr-2 h-4 w-4" />
+                                {wardChecklistDone ? 'View Checklist' : wardChecklistStarted ? 'Continue Checklist' : 'Complete Checklist'}
+                            </DropdownMenuItem>
+                            {canEnterTheater && (
                                 <>
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={handleMarkInTheater} className="text-amber-600 focus:text-amber-700 focus:bg-amber-50">
+                                    <DropdownMenuItem onClick={handleMarkInTheater}>
                                         <DoorOpen className="mr-2 h-4 w-4" /> Mark in Theater
                                     </DropdownMenuItem>
                                 </>

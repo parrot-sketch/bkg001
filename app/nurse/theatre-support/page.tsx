@@ -14,14 +14,13 @@ import { Button } from '@/components/ui/button';
 import { Activity, RefreshCw, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import {
-    Table,
-    TableBody,
-    TableHead,
-    TableHeader,
-    TableRow,
+  Table,
+  TableBody,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 
-import { NursePageHeader } from '@/components/nurse/NursePageHeader';
 import { TheatreSupportTableRow } from '@/components/nurse/TheatreSupportTableRow';
 
 export default function TheatreSupportPage() {
@@ -41,12 +40,10 @@ export default function TheatreSupportPage() {
         );
     }
 
-    return (
-        <div className="animate-in fade-in duration-500 pb-10">
+return (
+    <div className="animate-in fade-in duration-500 pb-10">
 
-            <NursePageHeader />
-
-            <div className="space-y-6">
+        <div className="space-y-6">
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-lg font-bold tracking-tight text-slate-900">Theatre Support Queue</h1>
