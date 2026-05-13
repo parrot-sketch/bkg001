@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Eye, EyeOff, Lock, CheckCircle, AlertCircle } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
@@ -12,6 +12,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import { useUpdateStaff } from '@/hooks/staff/useStaff';
 import type { UserResponseDto } from '@/application/dtos/UserResponseDto';
 import type { CreateStaffDto } from '@/application/dtos/CreateStaffDto';
@@ -26,13 +27,18 @@ interface UpdateStaffDialogProps {
 }
 
 export function UpdateStaffDialog({ open, onOpenChange, onSuccess, staff }: UpdateStaffDialogProps) {
-  const [formData, setFormData] = useState<Partial<CreateStaffDto>>({
+  const [formData, setFormData] = useState<Partial<CreateStaffDto> & { 
+    confirmPassword?: string; 
+    showPassword?: boolean;
+  }>({
     email: staff.email,
     role: staff.role as CreateStaffDto['role'],
     firstName: staff.firstName || '',
     lastName: staff.lastName || '',
     phone: staff.phone || '',
     password: '',
+    confirmPassword: '',
+    showPassword: false,
     doctorSpecialization: staff.doctorSpecialization || (staff.role === Role.DOCTOR ? 'General Practice' : undefined),
     allowAdmin: false,
   });
@@ -46,11 +52,34 @@ export function UpdateStaffDialog({ open, onOpenChange, onSuccess, staff }: Upda
         lastName: staff.lastName || '',
         phone: staff.phone || '',
         password: '',
+        confirmPassword: '',
+        showPassword: false,
         doctorSpecialization: staff.doctorSpecialization || (staff.role === Role.DOCTOR ? 'General Practice' : undefined),
         allowAdmin: false,
       });
     }
   }, [open, staff]);
+
+  // Calculate password strength
+  const getPasswordStrength = (pwd: string): { score: number; label: string; color: string } => {
+    let score = 0;
+    if (pwd.length >= 8) score += 25;
+    if (pwd.length >= 12) score += 15;
+    if (/[a-z]/.test(pwd)) score += 15;
+    if (/[A-Z]/.test(pwd)) score += 15;
+    if (/[0-9]/.test(pwd)) score += 15;
+    if (/[^a-zA-Z0-9]/.test(pwd)) score += 15;
+
+    if (score >= 80) return { score, label: 'Strong', color: 'bg-emerald-500' };
+    if (score >= 60) return { score, label: 'Good', color: 'bg-lime-500' };
+    if (score >= 40) return { score, label: 'Fair', color: 'bg-amber-500' };
+    if (score > 0) return { score, label: 'Weak', color: 'bg-orange-500' };
+    return { score: 0, label: '', color: '' };
+  };
+
+  const passwordStrength = formData.password ? getPasswordStrength(formData.password) : null;
+  const passwordMismatch = formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword;
+  const isPasswordValid = formData.password && formData.password.length >= 8 && !passwordMismatch;
 
   const updateMutation = useUpdateStaff();
 
@@ -69,6 +98,18 @@ export function UpdateStaffDialog({ open, onOpenChange, onSuccess, staff }: Upda
       return;
     }
 
+    // Password validation
+    if (formData.password?.trim()) {
+      if (formData.password.length < 8) {
+        toast.error('Password must be at least 8 characters');
+        return;
+      }
+      if (formData.password !== formData.confirmPassword) {
+        toast.error('Passwords do not match');
+        return;
+      }
+    }
+
     const updates: Partial<CreateStaffDto> = {
       email: formData.email,
       role: formData.role,
@@ -79,10 +120,6 @@ export function UpdateStaffDialog({ open, onOpenChange, onSuccess, staff }: Upda
       allowAdmin: roleChangeInvolvesAdmin ? true : undefined,
     };
     if (formData.password?.trim()) {
-      if (formData.password.trim().length < 8) {
-        toast.error('Password must be at least 8 characters');
-        return;
-      }
       updates.password = formData.password;
     }
 
@@ -197,7 +234,7 @@ export function UpdateStaffDialog({ open, onOpenChange, onSuccess, staff }: Upda
                 </div>
               )}
 
-              {((staff.role === Role.ADMIN && formData.role !== Role.ADMIN) || (staff.role !== Role.ADMIN && formData.role === Role.ADMIN)) && (
+               {((staff.role === Role.ADMIN && formData.role !== Role.ADMIN) || (staff.role !== Role.ADMIN && formData.role === Role.ADMIN)) && (
                 <div className="space-y-2">
                   <Label className="text-xs font-bold text-rose-600 uppercase tracking-wider">Admin Safety</Label>
                   <label className="flex items-start gap-3 rounded-2xl border border-rose-100 bg-rose-50/50 px-4 py-3">
@@ -216,17 +253,103 @@ export function UpdateStaffDialog({ open, onOpenChange, onSuccess, staff }: Upda
               )}
 
               <div className="space-y-2">
-                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  New Password <span className="font-medium text-slate-400 normal-case">(leave blank to keep)</span>
+                <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                  <Lock className="h-3 w-3" />
+                  Password
                 </Label>
-                <Input
-                  type="password"
-                  className="rounded-xl border-slate-200 bg-slate-50/50"
-                  placeholder="Min. 8 characters"
-                  value={formData.password || ''}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  disabled={updateMutation.isPending}
-                />
+                
+                <div className="space-y-3">
+                  {/* New Password Field */}
+                  <div className="relative">
+                    <Input
+                      type={formData.showPassword ? 'text' : 'password'}
+                      className="rounded-xl border-slate-200 bg-slate-50/50 pr-10"
+                      placeholder="Leave blank to keep current password (min. 8 characters)"
+                      value={formData.password || ''}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value, confirmPassword: '' })}
+                      disabled={updateMutation.isPending}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, showPassword: !formData.showPassword })}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      tabIndex={-1}
+                    >
+                      {formData.showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+
+                  {/* Password Strength Indicator */}
+                  {passwordStrength && formData.password && (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-500">Strength</span>
+                        <span className={cn(
+                          'font-medium',
+                          passwordStrength.score >= 80 ? 'text-emerald-600' :
+                          passwordStrength.score >= 60 ? 'text-lime-600' :
+                          passwordStrength.score >= 40 ? 'text-amber-600' : 'text-orange-600'
+                        )}>
+                          {passwordStrength.label}
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                        <div
+                          className={cn(
+                            'h-full transition-all duration-200',
+                            passwordStrength.color
+                          )}
+                          style={{ width: `${passwordStrength.score}%` }}
+                        />
+                      </div>
+                      <div className="flex flex-wrap gap-1 text-[10px] text-slate-400">
+                        {!/([a-z])/.test(formData.password) && <span className="text-red-500">lowercase</span>}
+                        {!/([A-Z])/.test(formData.password) && <span className="text-red-500">uppercase</span>}
+                        {!/([0-9])/.test(formData.password) && <span className="text-red-500">number</span>}
+                        {!/[^a-zA-Z0-9]/.test(formData.password) && <span className="text-red-500">symbol</span>}
+                        {formData.password.length < 8 && <span className="text-red-500">min 8 chars</span>}
+                        {formData.password.length >= 8 && <span className="text-slate-400">length ✓</span>}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Confirm Password Field (only if password entered) */}
+                  {formData.password && (
+                    <div className="relative">
+                      <Input
+                        type={formData.showPassword ? 'text' : 'password'}
+                        className="rounded-xl border-slate-200 bg-slate-50/50"
+                        placeholder="Confirm new password"
+                        value={formData.confirmPassword || ''}
+                        onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                        disabled={updateMutation.isPending}
+                      />
+                      {formData.confirmPassword && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          {passwordMismatch ? (
+                            <AlertCircle className="h-4 w-4 text-red-500" />
+                          ) : (
+                            <CheckCircle className="h-4 w-4 text-emerald-500" />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {passwordMismatch && (
+                    <p className="text-xs text-red-500 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      Passwords do not match
+                    </p>
+                  )}
+                  
+                  {/* Info text */}
+                  {!formData.password && (
+                    <p className="text-[11px] text-slate-400 flex items-center gap-1.5">
+                      <Lock className="h-3 w-3" />
+                      Leave blank to keep the current password unchanged
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 

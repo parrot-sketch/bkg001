@@ -104,13 +104,16 @@ const roleConfig: Record<
 // ─── Section dot colour ────────────────────────────────────────────────────────
 
 const sectionDot: Record<string, string> = {
-  Overview:   'bg-slate-500',
-  Operations: 'bg-emerald-400',
-  Planning:   'bg-cyan-400',
-  Catalog:    'bg-amber-400',
-  Inventory:  'bg-indigo-400',
-  Clinical:   'bg-violet-400',
-  Account:    'bg-rose-400',
+  Overview:        'bg-slate-500',
+  'Patient Care':  'bg-blue-400',
+  Staff:           'bg-teal-400',
+  Operations:      'bg-emerald-400',
+  Planning:        'bg-cyan-400',
+  Catalog:         'bg-amber-400',
+  Inventory:       'bg-indigo-400',
+  Clinical:        'bg-violet-400',
+  Analytics:       'bg-purple-400',
+  Account:         'bg-rose-400',
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────

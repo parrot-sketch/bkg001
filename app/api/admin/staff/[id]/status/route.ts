@@ -102,11 +102,15 @@ export async function PUT(
       );
     }
 
-    // 6. Update user status
+    // 6. Update user status (and reset security lockout if activating)
     const updatedUser = await db.user.update({
       where: { id },
       data: {
         status: status as Status,
+        ...(status === Status.ACTIVE ? {
+          failed_login_attempts: 0,
+          locked_until: null,
+        } : {}),
       },
       select: {
         id: true,

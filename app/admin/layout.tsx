@@ -2,7 +2,7 @@
 
 /**
  * Admin Dashboard Layout
- * 
+ *
  * Main layout for all admin dashboard pages.
  * Uses UnifiedDashboardLayout for consistent design.
  */
@@ -11,60 +11,10 @@ import { ReactNode, useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { LayoutDashboard, Settings, Users, BarChart3, Calendar, FileText, Package, CreditCard, Shield, Stethoscope, Scissors } from 'lucide-react';
+import { Settings, Users, BarChart3, Calendar, FileText, Package, CreditCard, Stethoscope, Scissors, ShieldCheck } from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { AdminHeader } from './_components/AdminHeader';
-
-const baseNavItems: NavItem[] = [
-  {
-    name: 'Dashboard',
-    href: '/admin/dashboard',
-    icon: BarChart3,
-  },
-  {
-    name: 'Appointments',
-    href: '/admin/appointments',
-    icon: Calendar,
-  },
-  {
-    name: 'Patients',
-    href: '/admin/patients',
-    icon: Users,
-  },
-  {
-    name: 'Staff',
-    href: '/admin/staff',
-    icon: Shield,
-  },
-  {
-    name: 'Inventory',
-    href: '/admin/inventory',
-    icon: Package,
-  },
-  {
-    name: 'Billing',
-    href: '/admin/billing',
-    icon: CreditCard,
-  },
-  {
-    name: 'Reports',
-    href: '/admin/reports',
-    icon: FileText,
-  },
-];
-
-const masterDataNavItems: NavItem[] = [
-  {
-    name: 'Services',
-    href: '/admin/services',
-    icon: Stethoscope,
-  },
-  {
-    name: 'Procedures',
-    href: '/admin/procedures',
-    icon: Scissors,
-  },
-];
+import { AdminSidebar } from '@/components/admin/AdminSidebar';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -103,12 +53,6 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     return null;
   }
 
-  const userInfo: UserInfo = {
-    name: user.firstName || user.email,
-    email: user.email,
-    role: 'ADMIN',
-  };
-
   const handleLogout = async () => {
     try {
       await logout();
@@ -125,7 +69,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         className="fixed top-4 left-4 z-50 lg:hidden p-2.5 rounded-lg bg-card border border-border shadow-lg hover:bg-muted transition-colors"
         aria-label="Open sidebar"
       >
-        <Settings className="h-5 w-5 text-foreground" />
+        <ShieldCheck className="h-5 w-5 text-foreground" />
       </button>
 
       {/* Sidebar */}
@@ -150,48 +94,5 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </main>
       </div>
     </div>
-  );
-}
-
-// Admin Sidebar Wrapper
-function AdminSidebar({
-  isOpen,
-  onClose,
-  onCollapse,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  onCollapse?: (collapsed: boolean) => void;
-}) {
-  const { logout, user } = useAuth();
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
-  };
-
-  const userInfo: UserInfo | null = user
-    ? {
-        name: user.firstName || user.email,
-        email: user.email,
-        role: 'ADMIN',
-      }
-    : null;
-
-  const allNavItems = [...baseNavItems, ...masterDataNavItems];
-
-  return (
-    <UnifiedSidebar
-      isOpen={isOpen}
-      onClose={onClose}
-      navItems={allNavItems}
-      userInfo={userInfo}
-      onLogout={handleLogout}
-      dashboardHref="/admin/dashboard"
-      onCollapse={onCollapse}
-    />
   );
 }

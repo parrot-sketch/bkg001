@@ -2,8 +2,9 @@
 
 /**
  * Admin Sidebar Navigation
- * 
+ *
  * Uses the UnifiedSidebar component for consistent design.
+ * Structured sections: Overview | Patient Care | Staff | Operations | Analytics | Account
  */
 
 import { useEffect, useState } from 'react';
@@ -17,66 +18,106 @@ import {
   User,
   Building2,
   Syringe,
-  ShieldCheck,
-  Package,
+  CreditCard,
+  Stethoscope,
+  Scissors,
 } from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { useAuth } from '@/hooks/patient/useAuth';
 
 const navItems: NavItem[] = [
+  // ── Overview ────────────────────────────────────────────────────────────────
   {
     name: 'Dashboard',
     href: '/admin/dashboard',
     icon: LayoutDashboard,
+    section: 'Overview',
   },
+
+  // ── Patient Care ─────────────────────────────────────────────────────────────
   {
     name: 'Patients',
     href: '/admin/patients',
     icon: Users,
-  },
-  {
-    name: 'Staff',
-    href: '/admin/staff',
-    icon: UserCheck,
+    section: 'Patient Care',
   },
   {
     name: 'Appointments',
     href: '/admin/appointments',
     icon: Calendar,
+    section: 'Patient Care',
   },
   {
     name: 'Recovery Care',
     href: '/admin/pre-post-op',
     icon: FileText,
+    section: 'Patient Care',
   },
+
+  // ── Staff Administration ─────────────────────────────────────────────────────
   {
-    name: 'Reports',
-    href: '/admin/reports',
-    icon: BarChart3,
+    name: 'Staff',
+    href: '/admin/staff',
+    icon: UserCheck,
+    section: 'Staff',
   },
+
+  // ── Operations ────────────────────────────────────────────────────────────────
   {
     name: 'Inventory',
     href: '/admin/inventory',
-    icon: Package,
+    icon: Building2,
+    section: 'Operations',
   },
   {
     name: 'Theaters',
     href: '/admin/theaters',
     icon: Syringe,
+    section: 'Operations',
   },
   {
-    name: 'Profile',
+    name: 'Services',
+    href: '/admin/services',
+    icon: Stethoscope,
+    section: 'Operations',
+  },
+  {
+    name: 'Procedures',
+    href: '/admin/procedures',
+    icon: Scissors,
+    section: 'Operations',
+  },
+
+  // ── Analytics & Finance ──────────────────────────────────────────────────────
+  {
+    name: 'Reports',
+    href: '/admin/reports',
+    icon: BarChart3,
+    section: 'Analytics',
+  },
+  {
+    name: 'Billing',
+    href: '/admin/billing',
+    icon: CreditCard,
+    section: 'Analytics',
+  },
+
+  // ── Account ──────────────────────────────────────────────────────────────────
+  {
+    name: 'My Profile',
     href: '/admin/profile',
     icon: User,
+    section: 'Account',
   },
 ];
 
 interface AdminSidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  onCollapse?: (collapsed: boolean) => void;
 }
 
-export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
+export function AdminSidebar({ isOpen, onClose, onCollapse }: AdminSidebarProps) {
   const { logout, user } = useAuth();
   const [mounted, setMounted] = useState(false);
 
@@ -94,10 +135,10 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
 
   const userInfo: UserInfo | null = mounted && user
     ? {
-      name: user.firstName ? `${user.firstName} ${user.lastName || ''}` : user.email,
-      email: user.email,
-      role: user.role as any, // Cast to any to satisfy the complex role enum mapping in UnifiedSidebar
-    }
+        name: user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.email,
+        email: user.email,
+        role: 'ADMIN',
+      }
     : null;
 
   return (
@@ -108,6 +149,7 @@ export function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
       userInfo={userInfo}
       onLogout={handleLogout}
       dashboardHref="/admin/dashboard"
+      onCollapse={onCollapse}
     />
   );
 }
