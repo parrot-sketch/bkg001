@@ -56,7 +56,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         appointment_date: { gte: from, lte: to },
         status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED] },
         type: { equals: 'Procedure', mode: 'insensitive' },
-        surgical_case: { is: null },
         ...(q.length >= 2
           ? {
               patient: {
@@ -75,6 +74,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         time: true,
         status: true,
         type: true,
+        surgical_case: { select: { id: true } },
         patient: {
           select: {
             id: true,
@@ -98,6 +98,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         appointmentDate: a.appointment_date.toISOString(),
         time: a.time,
         status: a.status,
+        surgicalCaseId: a.surgical_case?.id ?? null,
         patient: a.patient,
         surgeon: a.doctor,
       })),
@@ -113,4 +114,3 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ success: false, error: 'Failed to load upcoming procedures' }, { status: 500 });
   }
 }
-

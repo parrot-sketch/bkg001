@@ -280,7 +280,6 @@ export default async function PrintNursingOperationRecordPage({ params, searchPa
               </div>
               <Field label="Type" value={d.catheterType} />
               <Field label="Size" value={d.catheterSize} />
-              <Field label="Intra-op X-Rays taken" value={d.intraOpXRays} />
             </Section>
 
             <Section title="Patient Position (tick)">

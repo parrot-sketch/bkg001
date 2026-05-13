@@ -23,6 +23,8 @@ import { ConfirmAppointmentDto } from '@/application/dtos/ConfirmAppointmentDto'
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { revalidateFrontdeskDashboard } from '@/actions/frontdesk/get-dashboard-data';
+import { createSurgicalCaseFromPatient } from '@/application/services/theater-tech/CreateSurgicalCaseFromPatientService';
+import { SurgicalCaseStatus } from '@prisma/client';
 
 // Initialize dependencies (singleton pattern)
 const appointmentRepository = new PrismaAppointmentRepository(db);
@@ -117,6 +119,42 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
 
     // 4. Execute confirm appointment use case
     const response = await confirmAppointmentUseCase.execute(body, userId);
+
+    // 4.5 Surgical workflow: auto-create SurgicalCase for doctor-confirmed procedure appointments
+    // This removes the Theater Tech "create case" gate for the Nurse ward-prep checklist.
+    if (body.action === 'confirm') {
+      try {
+        const appointment = await db.appointment.findUnique({
+          where: { id: appointmentId },
+          select: {
+            id: true,
+            type: true,
+            reason: true,
+            note: true,
+            patient_id: true,
+            doctor_id: true,
+            appointment_date: true,
+            surgical_case: { select: { id: true } },
+          },
+        });
+
+        const isProcedureType = (appointment?.type ?? '').trim().toLowerCase() === 'procedure';
+        if (appointment && isProcedureType && !appointment.surgical_case?.id) {
+          await createSurgicalCaseFromPatient(db, {
+            patientId: appointment.patient_id,
+            createdByUserId: userId,
+            primarySurgeonDoctorId: appointment.doctor_id,
+            appointmentId: appointment.id,
+            procedureDate: appointment.appointment_date,
+            procedureName: (appointment.reason ?? appointment.note ?? '').trim() || undefined,
+            status: SurgicalCaseStatus.READY_FOR_WARD_PREP,
+          });
+        }
+      } catch (error) {
+        // Best-effort: never fail appointment confirmation due to surgical case creation.
+        console.error('[appointments/confirm] Failed to auto-create SurgicalCase:', error);
+      }
+    }
 
     // 5. Invalidate frontdesk dashboard cache so status change is visible
     try { await revalidateFrontdeskDashboard(); } catch (_) { /* non-critical */ }

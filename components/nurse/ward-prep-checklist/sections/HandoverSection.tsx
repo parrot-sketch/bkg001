@@ -17,7 +17,7 @@ export function HandoverSection({ data, onChange, disabled, currentUser, onPersi
         ? `${currentUser.firstName} ${currentUser.lastName || ''}`.trim()
         : currentUser?.email || '';
 
-    const [signTarget, setSignTarget] = useState<'PREPARED_BY' | 'RECEIVED_BY' | 'HANDED_OVER_BY' | null>(null);
+    const [signTarget, setSignTarget] = useState<'PREPARED_BY' | 'HANDED_OVER_BY' | null>(null);
 
     const openSignature = (target: NonNullable<typeof signTarget>) => setSignTarget(target);
     const closeSignature = () => setSignTarget(null);
@@ -37,11 +37,6 @@ export function HandoverSection({ data, onChange, disabled, currentUser, onPersi
             onChange({
                 ...data,
                 handover: { ...d, preparedByName: args.signerName, preparedBySignature: { signerName: args.signerName, signatureDataUrl: '' } },
-            });
-        } else if (signTarget === 'RECEIVED_BY') {
-            onChange({
-                ...data,
-                handover: { ...d, receivedByName: args.signerName, receivedBySignature: { signerName: args.signerName, signatureDataUrl: '' } },
             });
         } else {
             onChange({
@@ -88,39 +83,11 @@ export function HandoverSection({ data, onChange, disabled, currentUser, onPersi
                 </div>
             </div>
             <TimeField label="Time arrived in theatre" value={d.timeArrivedInTheatre} onChange={(v) => set('timeArrivedInTheatre', v)} disabled={disabled} />
-            <div className="space-y-1.5">
-                <Label className="text-sm">Received by (name)</Label>
-                <Input
-                    value={d.receivedByName || ''}
-                    onChange={(e) => set('receivedByName', e.target.value)}
-                    disabled={disabled}
-                    placeholder="Enter name"
-                    className="h-9"
-                />
-            </div>
-            <div className="space-y-1.5">
-                <Label className="text-sm">Received by (signature)</Label>
-                <div className="flex items-center gap-2">
-                    {d.receivedBySignature?.signatureDataUrl ? (
-                        <img
-                            src={d.receivedBySignature.signatureDataUrl}
-                            alt="Received by signature"
-                            className="h-9 w-28 border border-slate-200 rounded-md bg-white object-contain"
-                        />
-                    ) : (
-                        <div className="h-9 w-28 border border-dashed border-slate-200 rounded-md bg-slate-50" />
-                    )}
-                    <Button
-                        type="button"
-                        variant="outline"
-                        className="h-9 rounded-xl gap-2"
-                        onClick={() => openSignature('RECEIVED_BY')}
-                        disabled={disabled}
-                    >
-                        <PenLine className="h-4 w-4" />
-                        {d.receivedBySignature ? 'Re-sign' : 'Sign'}
-                    </Button>
-                </div>
+            <div className="sm:col-span-2 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-3">
+                <p className="text-xs font-medium text-slate-700">Received by (signature)</p>
+                <p className="text-xs text-slate-500 mt-1">
+                    Leave blank — this is signed by the receiving party on the printed form.
+                </p>
             </div>
             <div className="space-y-1.5">
                 <Label className="text-sm">Handed over by (name)</Label>
@@ -163,17 +130,14 @@ export function HandoverSection({ data, onChange, disabled, currentUser, onPersi
                 title={
                     signTarget === 'PREPARED_BY'
                         ? 'Prepared By — Sign'
-                        : signTarget === 'RECEIVED_BY'
-                        ? 'Received By — Sign'
                         : 'Handed Over By — Sign'
                 }
                 defaultSignerName={
-                    signTarget === 'RECEIVED_BY'
-                        ? (d.receivedByName || '')
-                        : signTarget === 'PREPARED_BY'
+                    signTarget === 'PREPARED_BY'
                         ? (d.preparedByName || userName)
                         : (d.handedOverByName || userName)
                 }
+                lockSignerName
                 onSign={handleSign}
                 disabled={disabled}
             />

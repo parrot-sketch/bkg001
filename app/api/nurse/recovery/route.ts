@@ -11,6 +11,7 @@ import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import db from '@/lib/db';
 import { SurgicalCaseStatus } from '@prisma/client';
+import { INTRAOP_TEMPLATE_KEY, INTRAOP_TEMPLATE_VERSION } from '@/domain/clinical-forms/NurseIntraOpRecord';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
     try {
@@ -51,6 +52,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             },
         });
 
+        const caseIds = surgicalCases.map((c) => c.id);
+        const intraOpForms = caseIds.length
+            ? await db.clinicalFormResponse.findMany({
+                where: {
+                    surgical_case_id: { in: caseIds },
+                    template_key: INTRAOP_TEMPLATE_KEY,
+                    template_version: INTRAOP_TEMPLATE_VERSION,
+                },
+                select: { surgical_case_id: true, status: true },
+            })
+            : [];
+
+        const intraOpByCaseId = new Map<string, { status: string }>();
+        for (const f of intraOpForms) intraOpByCaseId.set(f.surgical_case_id, { status: f.status });
+
         const cases = surgicalCases.map((c) => ({
             id: c.id,
             status: c.status,
@@ -67,6 +83,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             primarySurgeon: c.primary_surgeon
                 ? { id: c.primary_surgeon.id, name: c.primary_surgeon.name }
                 : null,
+            hasIntraOpRecord: intraOpByCaseId.has(c.id),
+            intraOpRecordStatus: intraOpByCaseId.get(c.id)?.status,
         }));
 
         return NextResponse.json({

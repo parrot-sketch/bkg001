@@ -9,6 +9,7 @@ import { getTestDatabase, resetTestDatabase } from '../setup/test-database';
 import { TheaterService } from '@/application/services/TheaterService';
 import { SurgicalCaseStatusTransitionService } from '@/application/services/SurgicalCaseStatusTransitionService';
 import { SurgicalCaseStatus, TheaterBookingStatus, ClinicalFormStatus } from '@prisma/client';
+import { TEMPLATE_KEY as PREOP_WARD_TEMPLATE_KEY, TEMPLATE_VERSION as PREOP_WARD_TEMPLATE_VERSION } from '@/domain/clinical-forms/NursePreopWardChecklist';
 
 describe('Integration: Frontdesk Theater Booking Workflow', () => {
     const db = getTestDatabase();
@@ -91,11 +92,11 @@ describe('Integration: Frontdesk Theater Booking Workflow', () => {
 
         // Create or get template
         const template = await db.clinicalFormTemplate.upsert({
-            where: { key_version: { key: 'nurse_preop_ward_checklist', version: 1 } },
+            where: { key_version: { key: PREOP_WARD_TEMPLATE_KEY, version: PREOP_WARD_TEMPLATE_VERSION } },
             update: {},
             create: {
-                key: 'nurse_preop_ward_checklist',
-                version: 1,
+                key: PREOP_WARD_TEMPLATE_KEY,
+                version: PREOP_WARD_TEMPLATE_VERSION,
                 title: 'Pre-op Ward Checklist',
                 role_owner: 'NURSE',
                 schema_json: '{}',
@@ -108,8 +109,8 @@ describe('Integration: Frontdesk Theater Booking Workflow', () => {
         await db.clinicalFormResponse.create({
             data: {
                 template_id: template.id,
-                template_key: 'nurse_preop_ward_checklist',
-                template_version: 1,
+                template_key: PREOP_WARD_TEMPLATE_KEY,
+                template_version: PREOP_WARD_TEMPLATE_VERSION,
                 surgical_case_id: surgicalCase.id,
                 patient_id: patient.id,
                 status: ClinicalFormStatus.FINAL,
@@ -237,11 +238,11 @@ describe('Integration: Frontdesk Theater Booking Workflow', () => {
 
         // Create or get template
         const template = await db.clinicalFormTemplate.upsert({
-            where: { key_version: { key: 'nurse_preop_ward_checklist', version: 1 } },
+            where: { key_version: { key: PREOP_WARD_TEMPLATE_KEY, version: PREOP_WARD_TEMPLATE_VERSION } },
             update: {},
             create: {
-                key: 'nurse_preop_ward_checklist',
-                version: 1,
+                key: PREOP_WARD_TEMPLATE_KEY,
+                version: PREOP_WARD_TEMPLATE_VERSION,
                 title: 'Pre-op Ward Checklist',
                 role_owner: 'NURSE',
                 schema_json: '{}',
@@ -253,8 +254,8 @@ describe('Integration: Frontdesk Theater Booking Workflow', () => {
         await db.clinicalFormResponse.create({
             data: {
                 template_id: template.id,
-                template_key: 'nurse_preop_ward_checklist',
-                template_version: 1,
+                template_key: PREOP_WARD_TEMPLATE_KEY,
+                template_version: PREOP_WARD_TEMPLATE_VERSION,
                 surgical_case_id: surgicalCase.id,
                 patient_id: patient.id,
                 status: ClinicalFormStatus.DRAFT, // Not finalized

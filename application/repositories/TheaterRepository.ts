@@ -1,5 +1,6 @@
-import { PrismaClient, SurgicalCaseStatus, TheaterBookingStatus } from '@prisma/client';
+import { PrismaClient, SurgicalCaseStatus, TheaterBookingStatus, ClinicalFormStatus } from '@prisma/client';
 import { TheaterSchedulingQueueItem, TheaterWithBookings, TheaterBookingSlot } from '../dtos/TheaterSchedulingDtos';
+import { TEMPLATE_KEY as PREOP_WARD_TEMPLATE_KEY, TEMPLATE_VERSION as PREOP_WARD_TEMPLATE_VERSION } from '@/domain/clinical-forms/NursePreopWardChecklist';
 
 function stripHtmlToText(html: string): string {
     return html
@@ -33,15 +34,37 @@ export class TheaterRepository {
     /**
      * Get surgical cases ready for theater booking with pagination
      */
-    async findCasesForScheduling(options?: { page?: number; limit?: number }): Promise<{ cases: TheaterSchedulingQueueItem[]; total: number }> {
+    async findCasesForScheduling(options?: { page?: number; limit?: number; from?: Date; to?: Date }): Promise<{ cases: TheaterSchedulingQueueItem[]; total: number }> {
         const page = options?.page ?? 1;
         const limit = options?.limit ?? 20;
         const skip = (page - 1) * limit;
+        const from = options?.from;
+        const to = options?.to;
+
+        // Filter by "readiness event" (ward checklist finalization time) rather than case updated_at.
+        // This keeps the booking queue focused on recently-cleared cases, not older backlog.
+        const readinessWhere =
+            from || to
+                ? {
+                      clinical_forms: {
+                          some: {
+                              template_key: PREOP_WARD_TEMPLATE_KEY,
+                              template_version: PREOP_WARD_TEMPLATE_VERSION,
+                              status: ClinicalFormStatus.FINAL,
+                              signed_at: {
+                                  ...(from ? { gte: from } : {}),
+                                  ...(to ? { lte: to } : {}),
+                              },
+                          },
+                      },
+                  }
+                : {};
 
         const [cases, total] = await Promise.all([
             this.prisma.surgicalCase.findMany({
                 where: {
                     status: SurgicalCaseStatus.READY_FOR_THEATER_BOOKING,
+                    ...readinessWhere,
                 },
                 select: {
                     id: true,
@@ -83,8 +106,9 @@ export class TheaterRepository {
                     },
                     clinical_forms: {
                         where: {
-                            template_key: 'nurse_preop_ward_checklist',
-                            status: 'FINAL',
+                            template_key: PREOP_WARD_TEMPLATE_KEY,
+                            template_version: PREOP_WARD_TEMPLATE_VERSION,
+                            status: ClinicalFormStatus.FINAL,
                         },
                         select: {
                             id: true,
@@ -101,7 +125,7 @@ export class TheaterRepository {
                 take: limit,
             }),
             this.prisma.surgicalCase.count({
-                where: { status: SurgicalCaseStatus.READY_FOR_THEATER_BOOKING },
+                where: { status: SurgicalCaseStatus.READY_FOR_THEATER_BOOKING, ...readinessWhere },
             }),
         ]);
 

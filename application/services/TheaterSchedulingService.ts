@@ -14,6 +14,7 @@ import {
 import { createNotification, createNotificationForRole } from '@/lib/notifications/createNotification';
 import { Role } from '@prisma/client';
 import { format } from 'date-fns';
+import { TEMPLATE_KEY as PREOP_WARD_TEMPLATE_KEY, TEMPLATE_VERSION as PREOP_WARD_TEMPLATE_VERSION } from '@/domain/clinical-forms/NursePreopWardChecklist';
 
 export class TheaterSchedulingService {
     public readonly prisma: PrismaClient;
@@ -99,7 +100,8 @@ export class TheaterSchedulingService {
                 },
                 clinical_forms: {
                     where: {
-                        template_key: 'nurse_preop_ward_checklist',
+                        template_key: PREOP_WARD_TEMPLATE_KEY,
+                        template_version: PREOP_WARD_TEMPLATE_VERSION,
                         status: 'FINAL',
                     },
                     select: {

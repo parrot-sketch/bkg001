@@ -146,6 +146,10 @@ export interface PreOpCasesSummary {
 export interface PreOpCasesResponse {
   cases: PreOpSurgicalCase[];
   summary: PreOpCasesSummary;
+  metrics?: {
+    newToday: number;
+    dueNext7Days: number;
+  };
 }
 
 export interface UpdatePreOpCaseDto {
@@ -351,6 +355,8 @@ export interface IntraOpSurgicalCase {
   primarySurgeon: PreOpCaseSurgeon | null;
   theaterName?: string;
   startTime?: Date;
+  hasIntraOpRecord?: boolean;
+  intraOpRecordStatus?: string;
 }
 
 export interface IntraOpCasesResponse {
@@ -371,6 +377,8 @@ export interface RecoverySurgicalCase {
   procedureName?: string;
   patient: PreOpCasePatient | null;
   primarySurgeon: PreOpCaseSurgeon | null;
+  hasIntraOpRecord?: boolean;
+  intraOpRecordStatus?: string;
 }
 
 export interface RecoveryCasesResponse {

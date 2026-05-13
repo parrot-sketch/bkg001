@@ -14,7 +14,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -67,9 +67,14 @@ const SECTION_RENDERERS: Record<string, React.FC<WardChecklistSectionProps>> = {
 export default function NursePreopWardChecklistPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { user, isAuthenticated } = useAuth();
   const caseId = params?.id as string;
+
+  const returnTo = searchParams.get('returnTo');
+  const safeReturnTo = returnTo && returnTo.startsWith('/') ? returnTo : '/nurse/ward-prep';
+  const backLabel = safeReturnTo === '/nurse/theatre-support' ? 'Back to Theatre Support' : 'Back to Ward List';
 
   const { data: response, isLoading, error } = usePreopWardChecklist(caseId);
   const saveMutation = useSavePreopWardChecklist(caseId);
@@ -138,7 +143,7 @@ export default function NursePreopWardChecklistPage() {
     finalizeMutation.mutate(undefined, {
       onSuccess: () => {
         setShowFinalizeDialog(false);
-        router.push('/nurse/ward-prep');
+        router.push(safeReturnTo);
       },
       onError: (e) => {
         setShowFinalizeDialog(false);
@@ -245,8 +250,8 @@ export default function NursePreopWardChecklistPage() {
     return (
       <div className="space-y-6 max-w-4xl mx-auto">
         <Button variant="ghost" size="sm" asChild>
-          <Link href={`/nurse/ward-prep`}>
-            <ArrowLeft className="w-4 h-4 mr-2" /> Back to Ward List
+          <Link href={safeReturnTo}>
+            <ArrowLeft className="w-4 h-4 mr-2" /> {backLabel}
           </Link>
         </Button>
         <Card>
@@ -266,8 +271,8 @@ export default function NursePreopWardChecklistPage() {
       {/* Navigation */}
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="sm" asChild>
-          <Link href={`/nurse/ward-prep`}>
-            <ArrowLeft className="w-4 h-4 mr-2" /> Back to Ward List
+          <Link href={safeReturnTo}>
+            <ArrowLeft className="w-4 h-4 mr-2" /> {backLabel}
           </Link>
         </Button>
       </div>

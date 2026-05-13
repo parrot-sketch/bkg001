@@ -128,6 +128,7 @@ export async function saveSurgicalCasePlanPage1(
     where: { id: input.caseId },
     select: {
       id: true,
+      status: true,
       patient: { select: { first_name: true, last_name: true } },
     },
   });
@@ -219,7 +220,8 @@ export async function saveSurgicalCasePlanPage1(
         diagnosis,
         procedure_category: procedureCategory,
         primary_or_revision: primaryOrRevision,
-        status: 'PLANNING',
+        // Never regress a case that already progressed beyond planning (e.g., READY_FOR_THEATER_BOOKING).
+        ...(surgicalCase.status === 'DRAFT' ? { status: 'PLANNING' } : {}),
       },
     });
 

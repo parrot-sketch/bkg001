@@ -89,7 +89,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         ...statusWhere,
         ...(procedureSearch ? { procedure_name: procedureSearch.procedure_name } : {}),
       },
-      orderBy: [{ created_at: 'asc' }],
+      // Newest first so newly confirmed cases show up immediately on page 1.
+      orderBy: [{ created_at: 'desc' }],
       skip,
       take: limit,
       include: {
@@ -273,12 +274,45 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       },
     };
 
+    // 9. Lightweight aggregation metrics for a less "static" dashboard feel.
+    // These run on the full filtered dataset (not paged).
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const in7Days = new Date(startOfToday.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+    const [newToday, dueNext7Days] = await Promise.all([
+      db.surgicalCase.count({
+        where: {
+          ...statusWhere,
+          ...(procedureSearch ? { procedure_name: procedureSearch.procedure_name } : {}),
+          created_at: { gte: startOfToday },
+        },
+      }),
+      db.surgicalCase.count({
+        where: {
+          ...statusWhere,
+          ...(procedureSearch ? { procedure_name: procedureSearch.procedure_name } : {}),
+          procedure_date: { gte: startOfToday, lt: in7Days },
+        },
+      }),
+    ]);
+
     return NextResponse.json(
       {
         success: true,
         data: {
           cases: filteredCases,
           summary,
+          metrics: {
+            newToday,
+            dueNext7Days,
+          },
+        },
+        meta: {
+          totalRecords: total,
+          totalPages: Math.max(1, Math.ceil(total / limit)),
+          currentPage: page,
+          limit,
         },
       },
       { status: 200 }

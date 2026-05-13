@@ -12,8 +12,9 @@
  * Old URLs are kept as redirect pages so existing bookmarks still work.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { format } from 'date-fns';
 import {
   AlertCircle, Building2, Calendar, CalendarClock,
@@ -165,12 +166,21 @@ function ScheduleTab() {
 }
 
 // ─── Booking Queue tab ────────────────────────────────────────────────────────
-function BookingQueueTab() {
+function BookingQueueTab({ initialCaseId }: { initialCaseId?: string }) {
   const { user, isAuthenticated } = useAuth();
   const { data, isLoading, error } = useTheaterSchedulingQueue({ enabled: isAuthenticated && !!user });
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCase, setSelectedCase] = useState<QueueCase | null>(null);
   const [isBookingOpen, setIsBookingOpen] = useState(false);
+
+  useEffect(() => {
+    if (!initialCaseId) return;
+    const cases = data?.cases ?? [];
+    const found = cases.find((c) => c.id === initialCaseId);
+    if (!found) return;
+    setSelectedCase(found);
+    setIsBookingOpen(true);
+  }, [data?.cases, initialCaseId]);
 
   const filtered = useMemo(() => {
     const cases = data?.cases ?? [];
@@ -313,7 +323,21 @@ function SuitesTab() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function TheaterHubPage() {
-  const [tab, setTab] = useState<Tab>('schedule');
+  const searchParams = useSearchParams();
+  const paramTab = (searchParams.get('tab') || '').toLowerCase();
+  const caseId = searchParams.get('caseId') || undefined;
+
+  const initialTab: Tab = caseId
+    ? 'queue'
+    : paramTab === 'queue' || paramTab === 'suites' || paramTab === 'schedule'
+      ? (paramTab as Tab)
+      : 'schedule';
+
+  const [tab, setTab] = useState<Tab>(initialTab);
+
+  useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab]);
 
   return (
     <div className="space-y-5">
@@ -346,7 +370,7 @@ export default function TheaterHubPage() {
 
       {/* Tab panels */}
       {tab === 'schedule' && <ScheduleTab />}
-      {tab === 'queue'    && <BookingQueueTab />}
+      {tab === 'queue'    && <BookingQueueTab initialCaseId={caseId} />}
       {tab === 'suites'   && <SuitesTab />}
     </div>
   );

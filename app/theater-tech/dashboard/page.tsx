@@ -20,12 +20,14 @@ import {
   ClipboardList,
   Package,
   LayoutDashboard,
+  CalendarCheck2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { TodayScheduleCard } from '@/components/theater-tech/schedule/TodayScheduleCard';
+import type { TheaterSchedulingQueueItem } from '@/application/dtos/TheaterSchedulingDtos';
 
 interface DashboardStats {
   total: number;
@@ -52,21 +54,6 @@ interface RecentCase {
   primary_surgeon: {
     name: string;
   } | null;
-}
-
-interface RecentConsultation {
-  consultationId: number;
-  updatedAt: string;
-  completedAt: string | null;
-  patient: {
-    first_name: string;
-    last_name: string;
-    file_number: string | null;
-  };
-  doctor: {
-    name: string;
-  };
-  casePlan: { id: number; readinessStatus: string; readyForSurgery: boolean; updatedAt: string } | null;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
@@ -97,18 +84,18 @@ export default function TheaterTechDashboard() {
     completed: 0,
   });
   const [recentCases, setRecentCases] = useState<RecentCase[]>([]);
-  const [recentConsultations, setRecentConsultations] = useState<RecentConsultation[]>([]);
+  const [readyForBookingCases, setReadyForBookingCases] = useState<TheaterSchedulingQueueItem[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [casesRes, consultationsRes] = await Promise.all([
+        const [casesRes, readyRes] = await Promise.all([
           fetch('/api/theater-tech/surgical-cases'),
-          fetch('/api/theater-tech/recent-consultations?recent=1'),
+          fetch('/api/theater-tech/theater-scheduling?page=1&limit=5'),
         ]);
         const casesJson = await casesRes.json();
-        const consultationsJson = await consultationsRes.json();
+        const readyJson = await readyRes.json();
 
         if (casesJson.success && casesJson.data) {
           const cases = casesJson.data as RecentCase[];
@@ -129,11 +116,10 @@ export default function TheaterTechDashboard() {
           setRecentCases(cases.slice(0, 5));
         }
 
-        if (consultationsJson.success && consultationsJson.data) {
-          const consultations = consultationsJson.data as RecentConsultation[];
-          setRecentConsultations(consultations.slice(0, 5));
+        if (readyJson.success && readyJson.data?.cases) {
+          setReadyForBookingCases(readyJson.data.cases as TheaterSchedulingQueueItem[]);
         } else {
-          setRecentConsultations([]);
+          setReadyForBookingCases([]);
         }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -276,10 +262,10 @@ export default function TheaterTechDashboard() {
               size="sm"
               variant="ghost"
               className="w-full justify-start h-9"
-              onClick={() => router.push('/theater-tech/recent-consultations')}
+              onClick={() => router.push('/theater-tech/theater?tab=queue')}
             >
-              <Stethoscope className="h-4 w-4 mr-3" />
-              <span className="flex-1 text-left">Recent Consultations</span>
+              <CalendarCheck2 className="h-4 w-4 mr-3" />
+              <span className="flex-1 text-left">Booking Queue</span>
             </Button>
             <Button
               size="sm"
@@ -305,64 +291,67 @@ export default function TheaterTechDashboard() {
         <Card>
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Recent Consultations</CardTitle>
+              <CardTitle className="text-base">Ready for Theater Booking</CardTitle>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => router.push('/theater-tech/recent-consultations')}
+                onClick={() => router.push('/theater-tech/theater?tab=queue')}
               >
                 View All
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             </div>
-            <CardDescription>Completed consultations across the system</CardDescription>
+            <CardDescription>Ward prep completed — book a theater slot</CardDescription>
           </CardHeader>
           <CardContent>
-            {recentConsultations.length === 0 ? (
+            {readyForBookingCases.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                <Stethoscope className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>No recent consultations yet</p>
+                <Calendar className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p>No cases ready for booking</p>
               </div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Patient</TableHead>
-                    <TableHead>Surgeon</TableHead>
-                    <TableHead className="w-[120px]">Plan</TableHead>
-                    <TableHead className="w-[150px] text-right">Updated</TableHead>
+                    <TableHead>Procedure</TableHead>
+                    <TableHead className="w-[120px]">Checklist</TableHead>
+                    <TableHead className="w-[120px] text-right">Created</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {recentConsultations.map((c) => (
+                  {readyForBookingCases.map((c) => (
                     <TableRow
-                      key={c.consultationId}
+                      key={c.id}
                       className="cursor-pointer"
-                      onClick={() => router.push('/theater-tech/recent-consultations')}
+                      onClick={() => router.push(`/theater-tech/theater?tab=queue&caseId=${encodeURIComponent(c.id)}`)}
                     >
                       <TableCell className="py-3">
                         <div className="text-sm font-medium">
-                          {c.patient.first_name} {c.patient.last_name}
+                          {c.patient.name}
                         </div>
-                        {c.patient.file_number ? (
-                          <div className="text-xs font-mono text-muted-foreground">{c.patient.file_number}</div>
+                        {c.patient.fileNumber ? (
+                          <div className="text-xs font-mono text-muted-foreground">{c.patient.fileNumber}</div>
                         ) : null}
                       </TableCell>
-                      <TableCell className="py-3 text-sm text-slate-800">{c.doctor.name}</TableCell>
+                      <TableCell className="py-3 text-sm text-slate-800">
+                        <div className="line-clamp-1">{c.procedure}</div>
+                        <div className="text-xs text-muted-foreground line-clamp-1">{c.surgeon?.name || '—'}</div>
+                      </TableCell>
                       <TableCell className="py-3">
                         <span
                           className={cn(
                             'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-normal border',
-                            c.casePlan?.readyForSurgery
+                            c.preOpChecklistFinalized
                               ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                              : 'border-slate-200 bg-slate-50 text-slate-700',
+                              : 'border-amber-200 bg-amber-50 text-amber-700',
                           )}
                         >
-                          {c.casePlan?.readyForSurgery ? 'Ready' : c.casePlan?.readinessStatus || 'None'}
+                          {c.preOpChecklistFinalized ? 'Finalized' : 'Pending'}
                         </span>
                       </TableCell>
                       <TableCell className="py-3 text-right text-xs text-muted-foreground">
-                        {format(new Date(c.updatedAt), 'MMM d')}
+                        {format(new Date(c.createdAt), 'MMM d')}
                       </TableCell>
                     </TableRow>
                   ))}

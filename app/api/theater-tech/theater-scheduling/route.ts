@@ -18,9 +18,26 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const fromParam = searchParams.get('from');
+    const toParam = searchParams.get('to');
 
     const safePage = Math.max(1, page);
     const safeLimit = Math.min(100, Math.max(1, limit));
+
+    // Default date window (to avoid "all time" noise): last 7 days.
+    const now = new Date();
+    const defaultFrom = new Date(now);
+    defaultFrom.setDate(defaultFrom.getDate() - 7);
+    defaultFrom.setHours(0, 0, 0, 0);
+    const defaultTo = new Date(now);
+    defaultTo.setHours(23, 59, 59, 999);
+
+    const from = fromParam ? new Date(fromParam) : defaultFrom;
+    const to = toParam ? new Date(toParam) : defaultTo;
+
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+      return NextResponse.json({ success: false, error: 'Invalid date range. Use ISO dates for from/to.' }, { status: 400 });
+    }
 
     const authResult = await JwtMiddleware.authenticate(request);
     if (!authResult.success || !authResult.user) {
@@ -36,7 +53,7 @@ export async function GET(request: NextRequest) {
     }
 
     const useCase = TheaterSchedulingFactory.getInstance();
-    const result = await useCase.getSchedulingQueue({ page: safePage, limit: safeLimit });
+    const result = await useCase.getSchedulingQueue({ page: safePage, limit: safeLimit, from, to });
 
     return NextResponse.json({
       success: true,
@@ -57,4 +74,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

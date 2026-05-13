@@ -11,10 +11,11 @@ export function ServerSignatureDialog(props: {
   onOpenChange: (open: boolean) => void;
   title: string;
   defaultSignerName?: string;
+  lockSignerName?: boolean;
   onSign: (args: { signerName: string }) => void | Promise<void>;
   disabled?: boolean;
 }) {
-  const { open, onOpenChange, title, defaultSignerName, onSign, disabled } = props;
+  const { open, onOpenChange, title, defaultSignerName, lockSignerName, onSign, disabled } = props;
   const [signerName, setSignerName] = useState(defaultSignerName || '');
   const [isSigning, setIsSigning] = useState(false);
   const [error, setError] = useState('');
@@ -52,7 +53,14 @@ export function ServerSignatureDialog(props: {
         <div className="space-y-3">
           <div className="space-y-1.5">
             <Label className="text-sm">Full name</Label>
-            <Input value={signerName} onChange={(e) => setSignerName(e.target.value)} disabled={disabled} />
+            <Input
+              value={signerName}
+              onChange={(e) => {
+                if (lockSignerName) return;
+                setSignerName(e.target.value);
+              }}
+              disabled={disabled || lockSignerName}
+            />
             <p className="text-xs text-slate-500">
               Clicking “Sign” records your user ID, timestamp, and a tamper-evident hash for this document snapshot.
             </p>
@@ -72,4 +80,3 @@ export function ServerSignatureDialog(props: {
     </Dialog>
   );
 }
-

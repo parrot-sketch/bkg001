@@ -27,6 +27,7 @@ interface RecoveryCaseTableRowProps {
 
 export function RecoveryCaseTableRow({ surgicalCase }: RecoveryCaseTableRowProps) {
     const router = useRouter();
+    const hasIntraOpRecord = Boolean(surgicalCase.hasIntraOpRecord);
 
     const urgencyConfig: Record<string, { label: string; className: string }> = {
         ELECTIVE: { label: 'Elective', className: 'bg-slate-100 text-slate-700' },
@@ -102,6 +103,11 @@ export function RecoveryCaseTableRow({ surgicalCase }: RecoveryCaseTableRowProps
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            {hasIntraOpRecord && (
+                                <DropdownMenuItem onClick={() => router.push(`/nurse/intra-op-cases/${surgicalCase.id}/record`)}>
+                                    <LogOut className="mr-2 h-4 w-4" /> Intra-Op Record
+                                </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem onClick={() => router.push(`/nurse/recovery-cases/${surgicalCase.id}/record`)}>
                                 <HeartPulse className="mr-2 h-4 w-4" /> Recovery Record
                             </DropdownMenuItem>

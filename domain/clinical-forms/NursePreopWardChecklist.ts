@@ -273,7 +273,8 @@ export const vitalsSchema = z.object({
     foetalHeartRate: z.number().int().min(30).max(260).optional(),
     foetalHeartRateNotes: z.string().optional().default(''),
     height: z.number().min(50).max(250).optional(),
-    weight: z.number().min(2, 'Weight must be ≥ 2 kg').max(350, 'Weight must be ≤ 350 kg'),
+    // Vitals are optional for finalization (not all patients will have full measurements recorded here).
+    weight: z.number().min(2, 'Weight must be ≥ 2 kg').max(350, 'Weight must be ≤ 350 kg').optional(),
     /** Paper: Urinalysis Done (tick) */
     urinalysisDone: z.boolean().optional().default(false),
     /** Structured urinalysis result */
@@ -364,7 +365,8 @@ export const nursePreopWardChecklistFinalSchema = z.object({
     }),
     preparation: preparationSchema,
     prosthetics: prostheticsSchema,
-    vitals: vitalsSchema,
+    // Vitals are optional to allow finalization when this section is not required/available.
+    vitals: vitalsSchema.partial().optional().default({}),
     handover: handoverSchema,
 });
 
@@ -393,7 +395,7 @@ export const CHECKLIST_SECTIONS: ChecklistSectionMeta[] = [
     { key: 'allergiesNpo', title: 'Allergies & NPO Status', icon: 'AlertTriangle', requiredFieldCount: 2 },
     { key: 'preparation', title: 'Peri-Operative Preparation', icon: 'Scissors', requiredFieldCount: 4 },
     { key: 'prosthetics', title: 'Prosthetics Checks', icon: 'Eye', requiredFieldCount: 0 },
-    { key: 'vitals', title: 'Immediate Pre-Op Observations', icon: 'Activity', requiredFieldCount: 7 },
+    { key: 'vitals', title: 'Immediate Pre-Op Observations', icon: 'Activity', requiredFieldCount: 0 },
     { key: 'handover', title: 'Handover', icon: 'ArrowRightLeft', requiredFieldCount: 1 },
 ];
 
@@ -509,7 +511,7 @@ export function getSectionCompletion(data: Partial<NursePreopWardChecklistDraft>
         allergiesNpo: allergiesNpoSchema,
         preparation: preparationSchema,
         prosthetics: prostheticsSchema,
-        vitals: vitalsSchema,
+        vitals: vitalsSchema.partial(),
         handover: handoverSchema,
     };
 

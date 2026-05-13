@@ -7,7 +7,6 @@ import type {
   ImplantRow,
   SpecimenRow,
 } from '@/domain/clinical-forms/NurseIntraOpRecord';
-import { YnCheckboxPair } from './shared';
 import { MedicationSearchModal } from '@/components/nurse/MedicationSearchModal';
 import { ImplantSearchModal } from '@/components/nurse/ImplantSearchModal';
 import { SpecimenSearchModal } from '@/components/nurse/SpecimenSearchModal';
@@ -15,6 +14,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Search } from 'lucide-react';
+
+import {
+  FieldGroup,
+  NumberField,
+  TextAreaField,
+  TextField,
+  TimeField,
+  YesNoField,
+} from '../components/fields';
 
 function ensureRows<T>(rows: T[], count: number, factory: () => T): T[] {
   const next = [...rows];
@@ -51,15 +59,7 @@ export function Page2IntraOpSection(props: {
       finalCount: { ...emptySwabRow },
     };
 
-  const preliminary = swabs.preliminaryCheck;
-  const woundClosure = swabs.woundClosure;
-  const finalCount = swabs.finalCount;
-
-  const setSwab = (
-    row: SwabsRowKey,
-    col: SwabsColKey,
-    value: number,
-  ) => {
+  const setSwab = (row: SwabsRowKey, col: SwabsColKey, value: number) => {
     const next: SwabsTable = {
       ...swabs,
       [row]: { ...swabs[row], [col]: value },
@@ -77,6 +77,7 @@ export function Page2IntraOpSection(props: {
       })),
     [data.medications],
   );
+
   const implants = useMemo(
     () =>
       ensureRows<ImplantRow>(data.implants ?? [], 5, () => ({
@@ -86,6 +87,7 @@ export function Page2IntraOpSection(props: {
       })),
     [data.implants],
   );
+
   const specimens = useMemo(
     () =>
       ensureRows<SpecimenRow>(data.specimens ?? [], 4, () => ({
@@ -102,170 +104,134 @@ export function Page2IntraOpSection(props: {
   const [implantRowIndex, setImplantRowIndex] = useState<number | null>(null);
   const [specimenRowIndex, setSpecimenRowIndex] = useState<number | null>(null);
 
+  const preliminary = swabs.preliminaryCheck;
+  const woundClosure = swabs.woundClosure;
+  const finalCount = swabs.finalCount;
+
   return (
-    <div className="space-y-10">
-      {/* Counts table */}
-      <div className="space-y-4">
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-700">
-          Swabs, instruments &amp; sharps count
-        </div>
+    <div className="space-y-4">
+      <FieldGroup
+        title="Counts"
+        description="Complete the count and mark whether it is correct. Signatures are applied on finalization."
+      >
+        <div className="space-y-4">
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider">
+                <tr>
+                  <th className="px-3 py-2 text-left font-semibold">Check point</th>
+                  <th className="px-3 py-2 text-center font-semibold">Abdominal swabs</th>
+                  <th className="px-3 py-2 text-center font-semibold">Raytec swabs</th>
+                  <th className="px-3 py-2 text-center font-semibold">Throat packs</th>
+                  <th className="px-3 py-2 text-center font-semibold">Other</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                <tr>
+                  <td className="px-3 py-2 font-medium text-slate-700">Preliminary check</td>
+                  <td className="px-3 py-2">
+                    <Input type="number" className="h-8 w-24 mx-auto text-center bg-white" disabled={disabled} value={preliminary.abdominalSwabs ?? 0} onChange={(e) => setSwab('preliminaryCheck', 'abdominalSwabs', Number(e.target.value) || 0)} />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Input type="number" className="h-8 w-24 mx-auto text-center bg-white" disabled={disabled} value={preliminary.raytecSwabs ?? 0} onChange={(e) => setSwab('preliminaryCheck', 'raytecSwabs', Number(e.target.value) || 0)} />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Input type="number" className="h-8 w-24 mx-auto text-center bg-white" disabled={disabled} value={preliminary.throatPacks ?? 0} onChange={(e) => setSwab('preliminaryCheck', 'throatPacks', Number(e.target.value) || 0)} />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Input type="number" className="h-8 w-24 mx-auto text-center bg-white" disabled={disabled} value={preliminary.other ?? 0} onChange={(e) => setSwab('preliminaryCheck', 'other', Number(e.target.value) || 0)} />
+                  </td>
+                </tr>
+                <tr>
+                  <td className="px-3 py-2 font-medium text-slate-700">Wound closure</td>
+                  <td className="px-3 py-2">
+                    <Input type="number" className="h-8 w-24 mx-auto text-center bg-white" disabled={disabled} value={woundClosure.abdominalSwabs ?? 0} onChange={(e) => setSwab('woundClosure', 'abdominalSwabs', Number(e.target.value) || 0)} />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Input type="number" className="h-8 w-24 mx-auto text-center bg-white" disabled={disabled} value={woundClosure.raytecSwabs ?? 0} onChange={(e) => setSwab('woundClosure', 'raytecSwabs', Number(e.target.value) || 0)} />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Input type="number" className="h-8 w-24 mx-auto text-center bg-white" disabled={disabled} value={woundClosure.throatPacks ?? 0} onChange={(e) => setSwab('woundClosure', 'throatPacks', Number(e.target.value) || 0)} />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Input type="number" className="h-8 w-24 mx-auto text-center bg-white" disabled={disabled} value={woundClosure.other ?? 0} onChange={(e) => setSwab('woundClosure', 'other', Number(e.target.value) || 0)} />
+                  </td>
+                </tr>
+                <tr>
+                  <td className="px-3 py-2 font-medium text-slate-700">Final count</td>
+                  <td className="px-3 py-2">
+                    <Input type="number" className="h-8 w-24 mx-auto text-center font-semibold bg-white" disabled={disabled} value={finalCount.abdominalSwabs ?? 0} onChange={(e) => setSwab('finalCount', 'abdominalSwabs', Number(e.target.value) || 0)} />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Input type="number" className="h-8 w-24 mx-auto text-center font-semibold bg-white" disabled={disabled} value={finalCount.raytecSwabs ?? 0} onChange={(e) => setSwab('finalCount', 'raytecSwabs', Number(e.target.value) || 0)} />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Input type="number" className="h-8 w-24 mx-auto text-center font-semibold bg-white" disabled={disabled} value={finalCount.throatPacks ?? 0} onChange={(e) => setSwab('finalCount', 'throatPacks', Number(e.target.value) || 0)} />
+                  </td>
+                  <td className="px-3 py-2">
+                    <Input type="number" className="h-8 w-24 mx-auto text-center font-semibold bg-white" disabled={disabled} value={finalCount.other ?? 0} onChange={(e) => setSwab('finalCount', 'other', Number(e.target.value) || 0)} />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-        <div className="overflow-x-auto rounded-lg border border-slate-200">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider">
-              <tr>
-                <th className="px-3 py-2 text-left font-semibold">Check point</th>
-                <th className="px-3 py-2 text-center font-semibold">Abdominal swabs</th>
-                <th className="px-3 py-2 text-center font-semibold">Raytec swabs</th>
-                <th className="px-3 py-2 text-center font-semibold">Throat packs</th>
-                <th className="px-3 py-2 text-center font-semibold">Other</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              <tr>
-                <td className="px-3 py-2 font-medium text-slate-700">Preliminary check</td>
-                <td className="px-3 py-2"><Input type="number" className="h-8 w-24 mx-auto text-center" disabled={disabled} value={preliminary.abdominalSwabs ?? 0} onChange={(e) => setSwab('preliminaryCheck', 'abdominalSwabs', Number(e.target.value) || 0)} /></td>
-                <td className="px-3 py-2"><Input type="number" className="h-8 w-24 mx-auto text-center" disabled={disabled} value={preliminary.raytecSwabs ?? 0} onChange={(e) => setSwab('preliminaryCheck', 'raytecSwabs', Number(e.target.value) || 0)} /></td>
-                <td className="px-3 py-2"><Input type="number" className="h-8 w-24 mx-auto text-center" disabled={disabled} value={preliminary.throatPacks ?? 0} onChange={(e) => setSwab('preliminaryCheck', 'throatPacks', Number(e.target.value) || 0)} /></td>
-                <td className="px-3 py-2"><Input type="number" className="h-8 w-24 mx-auto text-center" disabled={disabled} value={preliminary.other ?? 0} onChange={(e) => setSwab('preliminaryCheck', 'other', Number(e.target.value) || 0)} /></td>
-              </tr>
-              <tr>
-                <td className="px-3 py-2 font-medium text-slate-700">Wound closure</td>
-                <td className="px-3 py-2"><Input type="number" className="h-8 w-24 mx-auto text-center" disabled={disabled} value={woundClosure.abdominalSwabs ?? 0} onChange={(e) => setSwab('woundClosure', 'abdominalSwabs', Number(e.target.value) || 0)} /></td>
-                <td className="px-3 py-2"><Input type="number" className="h-8 w-24 mx-auto text-center" disabled={disabled} value={woundClosure.raytecSwabs ?? 0} onChange={(e) => setSwab('woundClosure', 'raytecSwabs', Number(e.target.value) || 0)} /></td>
-                <td className="px-3 py-2"><Input type="number" className="h-8 w-24 mx-auto text-center" disabled={disabled} value={woundClosure.throatPacks ?? 0} onChange={(e) => setSwab('woundClosure', 'throatPacks', Number(e.target.value) || 0)} /></td>
-                <td className="px-3 py-2"><Input type="number" className="h-8 w-24 mx-auto text-center" disabled={disabled} value={woundClosure.other ?? 0} onChange={(e) => setSwab('woundClosure', 'other', Number(e.target.value) || 0)} /></td>
-              </tr>
-              <tr>
-                <td className="px-3 py-2 font-medium text-slate-700">Final count</td>
-                <td className="px-3 py-2"><Input type="number" className="h-8 w-24 mx-auto text-center font-semibold" disabled={disabled} value={finalCount.abdominalSwabs ?? 0} onChange={(e) => setSwab('finalCount', 'abdominalSwabs', Number(e.target.value) || 0)} /></td>
-                <td className="px-3 py-2"><Input type="number" className="h-8 w-24 mx-auto text-center font-semibold" disabled={disabled} value={finalCount.raytecSwabs ?? 0} onChange={(e) => setSwab('finalCount', 'raytecSwabs', Number(e.target.value) || 0)} /></td>
-                <td className="px-3 py-2"><Input type="number" className="h-8 w-24 mx-auto text-center font-semibold" disabled={disabled} value={finalCount.throatPacks ?? 0} onChange={(e) => setSwab('finalCount', 'throatPacks', Number(e.target.value) || 0)} /></td>
-                <td className="px-3 py-2"><Input type="number" className="h-8 w-24 mx-auto text-center font-semibold" disabled={disabled} value={finalCount.other ?? 0} onChange={(e) => setSwab('finalCount', 'other', Number(e.target.value) || 0)} /></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-4 space-y-3">
+            <YesNoField label="Count correct" value={data.countCorrect} disabled={disabled} onChange={(v) => set('countCorrect', v)} />
+            {data.countCorrect === 'N' && (
+              <TextField label="Action taken (required if count is not correct)" value={data.countActionTaken ?? ''} disabled={disabled} onChange={(v) => set('countActionTaken', v)} />
+            )}
 
-        <div className="border border-slate-200 rounded-md p-4 bg-slate-50/30 space-y-3">
-          <YnCheckboxPair
-            label="Count correct"
-            value={data.countCorrect}
-            disabled={disabled}
-            onChange={(v) => set('countCorrect', v)}
-          />
-          {data.countCorrect === 'N' && (
-            <div>
-              <label className="block text-xs font-medium uppercase tracking-wide text-slate-600 mb-1">
-                Action taken if not
-              </label>
-              <input
-                className="w-full h-10 px-3 border rounded-md text-sm"
-                value={data.countActionTaken ?? ''}
-                disabled={disabled}
-                onChange={(e) => set('countActionTaken', e.target.value)}
-              />
-            </div>
-          )}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-            <div>
-              <label className="block text-xs font-medium uppercase tracking-wide text-slate-600 mb-2">
-                Scrub nurse signature
-              </label>
-              {data.scrubNurseSignature ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  alt="Scrub nurse signature"
-                  src={data.scrubNurseSignature}
-                  className="max-w-[320px] border rounded-md bg-white"
-                  style={{ height: '80px' }}
-                />
-              ) : (
-                <p className="text-xs text-slate-500 italic">Signature captured upon finalization</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-xs font-medium uppercase tracking-wide text-slate-600 mb-2">
-                Circulating nurse signature
-              </label>
-              {data.circulatingNurseSignature ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  alt="Circulating nurse signature"
-                  src={data.circulatingNurseSignature}
-                  className="max-w-[320px] border rounded-md bg-white"
-                  style={{ height: '80px' }}
-                />
-              ) : (
-                <p className="text-xs text-slate-500 italic">Signature captured upon finalization</p>
-              )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              <div className="space-y-2">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">Scrub nurse signature</div>
+                {data.scrubNurseSignature ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img alt="Scrub nurse signature" src={data.scrubNurseSignature} className="h-20 max-w-[320px] border border-slate-200 rounded-md bg-white object-contain" />
+                ) : (
+                  <div className="text-xs text-slate-500">
+                    Signature captured upon finalization (name: <span className="font-medium">{data.scrubNurse?.trim() || 'Scrub Nurse'}</span>)
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-600">Circulating nurse signature</div>
+                {data.circulatingNurseSignature ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img alt="Circulating nurse signature" src={data.circulatingNurseSignature} className="h-20 max-w-[320px] border border-slate-200 rounded-md bg-white object-contain" />
+                ) : (
+                  <div className="text-xs text-slate-500">
+                    Signature captured upon finalization (name: <span className="font-medium">{data.circulatingNurse?.trim() || 'Circulating Nurse'}</span>)
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </FieldGroup>
 
-      {/* Wound closure */}
-      <div className="space-y-4">
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-700">
-          Wound Closure
-        </div>
+      <FieldGroup title="Wound closure">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Non-absorbable</label>
-            <Input className="h-10" disabled={disabled} value={data.nonAbsorbableSuture ?? ''} onChange={(e) => set('nonAbsorbableSuture', e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Absorbable</label>
-            <Input className="h-10" disabled={disabled} value={data.absorbableSuture ?? ''} onChange={(e) => set('absorbableSuture', e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Other</label>
-            <Input className="h-10" disabled={disabled} value={data.otherClosure ?? ''} onChange={(e) => set('otherClosure', e.target.value)} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Dressing applied</label>
-            <Input className="h-10" disabled={disabled} value={data.dressingApplied ?? ''} onChange={(e) => set('dressingApplied', e.target.value)} />
-          </div>
+          <TextField label="Non-absorbable" value={data.nonAbsorbableSuture ?? ''} disabled={disabled} onChange={(v) => set('nonAbsorbableSuture', v)} />
+          <TextField label="Absorbable" value={data.absorbableSuture ?? ''} disabled={disabled} onChange={(v) => set('absorbableSuture', v)} />
+          <TextField label="Other" value={data.otherClosure ?? ''} disabled={disabled} onChange={(v) => set('otherClosure', v)} />
+          <TextField label="Dressing applied" value={data.dressingApplied ?? ''} disabled={disabled} onChange={(v) => set('dressingApplied', v)} />
         </div>
-      </div>
+      </FieldGroup>
 
-      {/* IV infusion / transfusions */}
-      <div className="space-y-4">
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-700">
-          Intravenous Infusion / Transfusions (mL)
-        </div>
+      <FieldGroup title="Fluids & outputs (mL)">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Packed cells</label>
-            <Input type="number" className="h-10" disabled={disabled} value={data.packedCellsML ?? ''} onChange={(e) => set('packedCellsML', e.target.value === '' ? undefined : Number(e.target.value))} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Whole</label>
-            <Input type="number" className="h-10" disabled={disabled} value={data.wholeBloodML ?? ''} onChange={(e) => set('wholeBloodML', e.target.value === '' ? undefined : Number(e.target.value))} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Others</label>
-            <Input type="number" className="h-10" disabled={disabled} value={data.otherBloodProductsML ?? ''} onChange={(e) => set('otherBloodProductsML', e.target.value === '' ? undefined : Number(e.target.value))} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Intravenous infusion</label>
-            <Input type="number" className="h-10" disabled={disabled} value={data.ivInfusionML ?? ''} onChange={(e) => set('ivInfusionML', e.target.value === '' ? undefined : Number(e.target.value))} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Estimated blood loss</label>
-            <Input type="number" className="h-10" disabled={disabled} value={data.estimatedBloodLossML ?? ''} onChange={(e) => set('estimatedBloodLossML', e.target.value === '' ? undefined : Number(e.target.value))} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Urinary output (amount)</label>
-            <Input type="number" className="h-10" disabled={disabled} value={data.urinaryOutputML ?? ''} onChange={(e) => set('urinaryOutputML', e.target.value === '' ? undefined : Number(e.target.value))} />
-          </div>
+          <NumberField label="Packed cells" value={data.packedCellsML} disabled={disabled} onChange={(v) => set('packedCellsML', v)} />
+          <NumberField label="Whole blood" value={data.wholeBloodML} disabled={disabled} onChange={(v) => set('wholeBloodML', v)} />
+          <NumberField label="Other blood products" value={data.otherBloodProductsML} disabled={disabled} onChange={(v) => set('otherBloodProductsML', v)} />
+          <NumberField label="IV infusion" value={data.ivInfusionML} disabled={disabled} onChange={(v) => set('ivInfusionML', v)} />
+          <NumberField label="Estimated blood loss" value={data.estimatedBloodLossML} disabled={disabled} onChange={(v) => set('estimatedBloodLossML', v)} />
+          <NumberField label="Urinary output" value={data.urinaryOutputML} disabled={disabled} onChange={(v) => set('urinaryOutputML', v)} />
         </div>
-      </div>
+      </FieldGroup>
 
-      {/* Medication table */}
-      <div className="space-y-4">
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-700">Medication</div>
-        <div className="border rounded-lg overflow-hidden">
+      <FieldGroup title="Medication">
+        <div className="rounded-xl border border-slate-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 h-10">
               <tr>
@@ -288,7 +254,7 @@ export function Page2IntraOpSection(props: {
                         next[idx] = { ...next[idx], drug: e.target.value };
                         set('medications', next);
                       }}
-                      className="h-8"
+                      className="h-8 bg-white"
                     />
                   </td>
                   <td className="p-2">
@@ -300,7 +266,7 @@ export function Page2IntraOpSection(props: {
                         next[idx] = { ...next[idx], route: e.target.value };
                         set('medications', next);
                       }}
-                      className="h-8"
+                      className="h-8 bg-white"
                     />
                   </td>
                   <td className="p-2">
@@ -313,7 +279,7 @@ export function Page2IntraOpSection(props: {
                         next[idx] = { ...next[idx], time: e.target.value };
                         set('medications', next);
                       }}
-                      className="h-8"
+                      className="h-8 bg-white"
                     />
                   </td>
                   <td className="p-2">
@@ -325,7 +291,7 @@ export function Page2IntraOpSection(props: {
                         next[idx] = { ...next[idx], sign: e.target.value };
                         set('medications', next);
                       }}
-                      className="h-8"
+                      className="h-8 bg-white"
                     />
                   </td>
                   <td className="p-2 text-right">
@@ -344,19 +310,15 @@ export function Page2IntraOpSection(props: {
             </tbody>
           </table>
         </div>
-      </div>
+      </FieldGroup>
 
-      {/* Implants table */}
-      <div className="space-y-4">
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-700">
-          Surgical implants / prosthesis
-        </div>
-        <div className="border rounded-lg overflow-hidden">
+      <FieldGroup title="Implants / prosthetics">
+        <div className="rounded-xl border border-slate-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 h-10">
               <tr>
                 <th className="px-3 font-medium text-left">Item</th>
-                <th className="px-3 font-medium text-left">Lot No.</th>
+                <th className="px-3 font-medium text-left">Lot no.</th>
                 <th className="px-3 font-medium text-left">Size</th>
                 <th className="w-12"></th>
               </tr>
@@ -373,7 +335,7 @@ export function Page2IntraOpSection(props: {
                         next[idx] = { ...next[idx], item: e.target.value };
                         set('implants', next);
                       }}
-                      className="h-8"
+                      className="h-8 bg-white"
                     />
                   </td>
                   <td className="p-2">
@@ -385,7 +347,7 @@ export function Page2IntraOpSection(props: {
                         next[idx] = { ...next[idx], lotNo: e.target.value };
                         set('implants', next);
                       }}
-                      className="h-8"
+                      className="h-8 bg-white"
                     />
                   </td>
                   <td className="p-2">
@@ -397,7 +359,7 @@ export function Page2IntraOpSection(props: {
                         next[idx] = { ...next[idx], size: e.target.value };
                         set('implants', next);
                       }}
-                      className="h-8"
+                      className="h-8 bg-white"
                     />
                   </td>
                   <td className="p-2 text-right">
@@ -416,12 +378,10 @@ export function Page2IntraOpSection(props: {
             </tbody>
           </table>
         </div>
-      </div>
+      </FieldGroup>
 
-      {/* Specimens table */}
-      <div className="space-y-4">
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-700">Specimens</div>
-        <div className="border rounded-lg overflow-hidden">
+      <FieldGroup title="Specimens">
+        <div className="rounded-xl border border-slate-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 h-10">
               <tr>
@@ -445,7 +405,7 @@ export function Page2IntraOpSection(props: {
                         next[idx] = { ...next[idx], type: e.target.value };
                         set('specimens', next);
                       }}
-                      className="h-8"
+                      className="h-8 bg-white"
                     />
                   </td>
                   <td className="p-2 text-center">
@@ -490,7 +450,7 @@ export function Page2IntraOpSection(props: {
                         next[idx] = { ...next[idx], disposition: e.target.value };
                         set('specimens', next);
                       }}
-                      className="h-8"
+                      className="h-8 bg-white"
                     />
                   </td>
                   <td className="p-2 text-right">
@@ -509,52 +469,19 @@ export function Page2IntraOpSection(props: {
             </tbody>
           </table>
         </div>
-      </div>
+      </FieldGroup>
 
-      {/* Items to be returned */}
-      <div className="space-y-3">
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-700">
-          Items to be returned to theatre
-        </div>
-        <textarea
-          rows={3}
-          className="w-full px-3 py-2 border rounded-md text-sm"
-          value={data.itemsToBeReturnedToTheatre ?? ''}
-          disabled={disabled}
-          onChange={(e) => set('itemsToBeReturnedToTheatre', e.target.value)}
-        />
-      </div>
+      <FieldGroup title="Items to be returned to theatre">
+        <TextAreaField label="Notes" value={data.itemsToBeReturnedToTheatre ?? ''} disabled={disabled} onChange={(v) => set('itemsToBeReturnedToTheatre', v)} rows={3} />
+      </FieldGroup>
 
-      {/* Charges */}
-      <div className="space-y-3">
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-700">
-          Charges
-        </div>
+      <FieldGroup title="Charges">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Anaesthetic materials charge (amount)</label>
-            <Input
-              type="number"
-              className="h-10"
-              disabled={disabled}
-              value={data.anaestheticMaterialsCharge ?? ''}
-              onChange={(e) => set('anaestheticMaterialsCharge', e.target.value === '' ? undefined : Number(e.target.value))}
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Theatre fee (amount)</label>
-            <Input
-              type="number"
-              className="h-10"
-              disabled={disabled}
-              value={data.theatreFee ?? ''}
-              onChange={(e) => set('theatreFee', e.target.value === '' ? undefined : Number(e.target.value))}
-            />
-          </div>
+          <NumberField label="Anaesthetic materials charge" value={data.anaestheticMaterialsCharge} disabled={disabled} onChange={(v) => set('anaestheticMaterialsCharge', v)} />
+          <NumberField label="Theatre fee" value={data.theatreFee} disabled={disabled} onChange={(v) => set('theatreFee', v)} />
         </div>
-      </div>
+      </FieldGroup>
 
-      {/* Inventory modals */}
       {medRowIndex !== null && (
         <MedicationSearchModal
           caseId={caseId}
@@ -619,3 +546,4 @@ export function Page2IntraOpSection(props: {
     </div>
   );
 }
+

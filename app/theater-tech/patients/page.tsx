@@ -33,7 +33,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Patient { id: string; first_name: string; last_name: string; file_number: string | null; date_of_birth: string | null; gender: string | null; }
-type UpcomingProcedure = { appointmentId: number; appointmentDate: string; time: string; status: string; patient: { id: string; first_name: string; last_name: string; file_number: string | null; date_of_birth: string | null; gender: 'MALE' | 'FEMALE' | 'OTHER' | null }; surgeon: { id: string; name: string }; };
+type UpcomingProcedure = { appointmentId: number; appointmentDate: string; time: string; status: string; surgicalCaseId: string | null; patient: { id: string; first_name: string; last_name: string; file_number: string | null; date_of_birth: string | null; gender: 'MALE' | 'FEMALE' | 'OTHER' | null }; surgeon: { id: string; name: string }; };
 type RecentConsultation = { consultationId: number; appointmentId: number; completedAt: string | null; updatedAt: string; patient: { id: string; first_name: string; last_name: string; file_number: string | null }; doctor: { id: string; name: string }; casePlan: { id: number; readinessStatus: string; readyForSurgery: boolean; updatedAt: string } | null; };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -176,7 +176,14 @@ function UpcomingTab() {
     return () => clearTimeout(tid);
   }, [from, to, debounced]);
 
-  const createCase = async (appointmentId: number) => {
+  const openOrCreateCase = async (appointment: UpcomingProcedure) => {
+    const appointmentId = appointment.appointmentId;
+    if (appointment.surgicalCaseId) {
+      // Open the case detail view (booking + summary). Editing/planning remains available from there.
+      router.push(`/theater-tech/surgical-cases/${appointment.surgicalCaseId}`);
+      return;
+    }
+
     setCreating(appointmentId);
     try {
       const res = await fetch(`/api/theater-tech/upcoming-procedures/${appointmentId}/create-surgical-case`, { method: 'POST' });
@@ -212,14 +219,24 @@ function UpcomingTab() {
           {loading ? <div className="p-4 space-y-2">{[1,2,3,4,5].map(i=><Skeleton key={i} className="h-10"/>)}</div>
           : items.length === 0 ? <div className="p-10 text-center text-sm text-slate-500">{debounced.length >= 2 ? 'No procedures match your search.' : 'No upcoming procedures in this date range.'}</div>
           : <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Patient</TableHead><TableHead className="hidden sm:table-cell">File No.</TableHead><TableHead>Date / Time</TableHead><TableHead className="hidden md:table-cell">Surgeon</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader><TableBody>
-            {items.map(a => { const name = `${a.patient.first_name} ${a.patient.last_name}`.trim(); const age = ageAt(a.patient.date_of_birth, a.appointmentDate); return (
+            {items.map(a => { const name = `${a.patient.first_name} ${a.patient.last_name}`.trim(); const age = ageAt(a.patient.date_of_birth, a.appointmentDate); const hasCase = !!a.surgicalCaseId; return (
               <TableRow key={a.appointmentId}>
                 <TableCell className="py-3"><div className="font-medium text-slate-900">{name}</div><div className="text-xs text-slate-500">Age {age} · {a.patient.gender ?? '—'}</div></TableCell>
                 <TableCell className="hidden sm:table-cell py-3 text-xs font-mono text-slate-600">{a.patient.file_number || '—'}</TableCell>
                 <TableCell className="py-3 text-sm text-slate-700">{format(new Date(a.appointmentDate),'MMM d, yyyy')}<div className="text-xs text-slate-400">{a.time}</div></TableCell>
                 <TableCell className="hidden md:table-cell py-3 text-sm text-slate-800">{a.surgeon.name}</TableCell>
                 <TableCell className="py-3"><Badge variant="outline" className="text-[10px]">{a.status}</Badge></TableCell>
-                <TableCell className="py-3 text-right"><Button size="sm" variant="outline" className="h-8" onClick={() => createCase(a.appointmentId)} disabled={creating === a.appointmentId}>{creating === a.appointmentId ? <Loader2 className="h-4 w-4 animate-spin"/> : 'Create case'}</Button></TableCell>
+                <TableCell className="py-3 text-right">
+                  <Button
+                    size="sm"
+                    variant={hasCase ? "default" : "outline"}
+                    className={cn("h-8", hasCase && "bg-slate-900 hover:bg-slate-800")}
+                    onClick={() => openOrCreateCase(a)}
+                    disabled={creating === a.appointmentId}
+                  >
+                    {creating === a.appointmentId ? <Loader2 className="h-4 w-4 animate-spin"/> : hasCase ? 'Open case' : 'Create case'}
+                  </Button>
+                </TableCell>
               </TableRow>
             ); })}
           </TableBody></Table></div>}

@@ -7,6 +7,7 @@ export type CreateSurgicalCaseFromPatientInput = {
   primarySurgeonDoctorId?: string;
   appointmentId?: number;
   procedureDate?: Date;
+  procedureName?: string;
   status?: SurgicalCaseStatus;
 };
 
@@ -51,6 +52,7 @@ export async function createSurgicalCaseFromPatient(
       ...(input.primarySurgeonDoctorId ? { primary_surgeon_id: input.primarySurgeonDoctorId } : {}),
       ...(input.appointmentId !== undefined ? { appointment_id: input.appointmentId } : {}),
       ...(input.procedureDate ? { procedure_date: input.procedureDate } : {}),
+      ...(input.procedureName ? { procedure_name: input.procedureName } : {}),
       status: input.status ?? SurgicalCaseStatus.DRAFT,
       created_by: input.createdByUserId,
     },

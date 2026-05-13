@@ -419,7 +419,8 @@ describe('getMissingChecklistItems', () => {
             vitals: { ...VALID_FINAL_DATA.vitals, bpSystolic: undefined as any },
         };
         const missing = getMissingChecklistItems(partial);
-        expect(missing.some(m => m.includes('bpSystolic'))).toBe(true);
+        // Vitals are optional for finalization; missing vitals fields must not block finalization.
+        expect(missing.some(m => m.includes('bpSystolic'))).toBe(false);
     });
 });
 
@@ -439,7 +440,8 @@ describe('getSectionCompletion', () => {
     it('returns incomplete sections for empty data', () => {
         const completion = getSectionCompletion({});
         expect(completion.documentation.complete).toBe(false);
-        expect(completion.vitals.complete).toBe(false);
+        // Vitals are optional; section completion treats it as complete even when empty.
+        expect(completion.vitals.complete).toBe(true);
         expect(completion.handover.complete).toBe(false);
     });
 

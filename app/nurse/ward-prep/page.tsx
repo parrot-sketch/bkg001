@@ -110,6 +110,14 @@ export default function PreOpCasesPage() {
               loading={isLoading}
             />
             <NurseStatCard
+              title="New Today"
+              value={data.metrics?.newToday ?? 0}
+              subtitle="Added to ward prep"
+              color="blue"
+              loading={isLoading}
+              pulse={(data.metrics?.newToday ?? 0) > 0}
+            />
+            <NurseStatCard
               title="Ready for Booking"
               value={data.summary.ready}
               subtitle="All checks passed"
@@ -125,17 +133,18 @@ export default function PreOpCasesPage() {
               loading={isLoading}
             />
             <NurseStatCard
+              title="Due Next 7d"
+              value={data.metrics?.dueNext7Days ?? 0}
+              subtitle="Upcoming procedures"
+              color="slate"
+              loading={isLoading}
+              pulse={(data.metrics?.dueNext7Days ?? 0) > 0}
+            />
+            <NurseStatCard
               title="Checklists Completed"
               value={completedChecklistsCount}
               subtitle="Ward checklists done"
               color="emerald"
-              loading={isLoading}
-            />
-            <NurseStatCard
-              title="Planning Phase"
-              value={data.summary.byStatus.planning}
-              subtitle="Initial Workup"
-              color="blue"
               loading={isLoading}
             />
           </div>

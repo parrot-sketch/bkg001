@@ -5,25 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TableRow, TableCell } from '@/components/ui/table';
 import {
-    Activity,
     Clock,
-    MoreHorizontal,
     Stethoscope,
-    ChevronRight,
     MapPin,
-    Loader2,
+    ClipboardList,
+    FileText,
 } from 'lucide-react';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { formatDistanceToNow } from 'date-fns';
 import type { IntraOpSurgicalCase } from '@/lib/api/nurse';
-import { useMarkInTheater } from '@/hooks/nurse/useMarkInTheater';
-import { toast } from 'sonner';
 
 interface TheatreSupportTableRowProps {
     surgicalCase: IntraOpSurgicalCase;
@@ -37,25 +26,13 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
 
 export function TheatreSupportTableRow({ surgicalCase }: TheatreSupportTableRowProps) {
     const router = useRouter();
-    const { mutate: markInTheater, isPending } = useMarkInTheater();
 
     const status = STATUS_CONFIG[surgicalCase.status] ?? STATUS_CONFIG.SCHEDULED;
-    const isInTheater = surgicalCase.status === 'IN_THEATER';
-    const canMarkInTheater = surgicalCase.status === 'SCHEDULED' || surgicalCase.status === 'IN_PREP';
-
-    const handleMarkInTheater = () => {
-        markInTheater(surgicalCase.id, {
-            onSuccess: () => {
-                toast.success('Patient marked in theater');
-                router.push(`/nurse/intra-op-cases/${surgicalCase.id}/record`);
-            },
-            onError: () => toast.error('Failed to mark in theater'),
-        });
-    };
+    const canOpenIntraOpRecord = true;
 
     return (
         <TableRow className="hover:bg-stone-50/50 cursor-pointer group transition-colors">
-            <TableCell className="font-medium" onClick={() => isInTheater && router.push(`/nurse/intra-op-cases/${surgicalCase.id}/record`)}>
+            <TableCell className="font-medium" onClick={() => canOpenIntraOpRecord && router.push(`/nurse/intra-op-cases/${surgicalCase.id}/record`)}>
                 <div className="flex flex-col">
                     <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold text-stone-900">{surgicalCase.patient?.fullName || 'Unknown'}</span>
@@ -73,7 +50,7 @@ export function TheatreSupportTableRow({ surgicalCase }: TheatreSupportTableRowP
                     </Badge>
             </TableCell>
 
-            <TableCell onClick={() => isInTheater && router.push(`/nurse/intra-op-cases/${surgicalCase.id}/record`)}>
+            <TableCell onClick={() => canOpenIntraOpRecord && router.push(`/nurse/intra-op-cases/${surgicalCase.id}/record`)}>
                 <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2 text-xs text-stone-700 font-medium">
                         <MapPin className="h-3.5 w-3.5 text-stone-400" />
@@ -88,7 +65,7 @@ export function TheatreSupportTableRow({ surgicalCase }: TheatreSupportTableRowP
                 </div>
             </TableCell>
 
-            <TableCell onClick={() => isInTheater && router.push(`/nurse/intra-op-cases/${surgicalCase.id}/record`)}>
+            <TableCell onClick={() => canOpenIntraOpRecord && router.push(`/nurse/intra-op-cases/${surgicalCase.id}/record`)}>
                 <div className="flex items-center gap-2 text-xs text-stone-600">
                     <Stethoscope className="h-3.5 w-3.5 text-stone-400" />
                     {surgicalCase.primarySurgeon?.name || 'Unassigned'}
@@ -97,27 +74,23 @@ export function TheatreSupportTableRow({ surgicalCase }: TheatreSupportTableRowP
 
             <TableCell className="text-right">
                 <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                    {canMarkInTheater && (
-                        <Button
-                            size="sm"
-                            onClick={handleMarkInTheater}
-                            disabled={isPending}
-                            className="h-8 text-xs bg-stone-900 hover:bg-black"
-                        >
-                            {isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Mark In Theater'}
-                        </Button>
-                    )}
-                    {isInTheater && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => router.push(`/nurse/intra-op-cases/${surgicalCase.id}/record`)}
-                            className="h-8 text-xs"
-                        >
-                            <Activity className="h-3.5 w-3.5 mr-1.5" />
-                            Intra-Op Record
-                        </Button>
-                    )}
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => router.push(`/nurse/ward-prep/${surgicalCase.id}/checklist?returnTo=${encodeURIComponent('/nurse/theatre-support')}`)}
+                        className="h-8 text-xs"
+                    >
+                        <ClipboardList className="h-3.5 w-3.5 mr-1.5" />
+                        Ward Checklist
+                    </Button>
+                    <Button
+                        size="sm"
+                        onClick={() => router.push(`/nurse/intra-op-cases/${surgicalCase.id}/record`)}
+                        className="h-8 text-xs bg-stone-900 hover:bg-black"
+                    >
+                        <FileText className="h-3.5 w-3.5 mr-1.5" />
+                        Intra-Op Record
+                    </Button>
                 </div>
             </TableCell>
         </TableRow>
