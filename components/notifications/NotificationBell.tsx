@@ -126,6 +126,7 @@ export function NotificationBell() {
 
     const handleMarkAllAsRead = () => {
         markAllAsRead();
+        setIsOpen(false);
         toast.success('All notifications marked as read');
     };
 
