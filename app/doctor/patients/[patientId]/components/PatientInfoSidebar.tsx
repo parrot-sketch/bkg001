@@ -17,13 +17,13 @@ import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 
 interface PatientInfoSidebarProps {
   patient: PatientResponseDto;
-  appointmentCount: number;
+  visitCount: number;
   upcomingCount: number;
 }
 
 export function PatientInfoSidebar({
   patient,
-  appointmentCount,
+  visitCount,
   upcomingCount,
 }: PatientInfoSidebarProps) {
   const patientName = `${patient.firstName} ${patient.lastName}`;
@@ -108,8 +108,8 @@ export function PatientInfoSidebar({
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Total Appointments</span>
-            <Badge variant="outline">{appointmentCount}</Badge>
+            <span className="text-sm text-muted-foreground">Total Visits</span>
+            <Badge variant="outline">{visitCount}</Badge>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Upcoming</span>

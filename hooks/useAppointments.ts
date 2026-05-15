@@ -126,22 +126,17 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
             newTime: string;
             reason?: string;
         }) => {
-            // Combine date and time
-            const [hours, minutes] = newTime.split(':');
-            const scheduledAt = new Date(newDate);
-            scheduledAt.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-
-            // Use PUT to update appointment
-            const response = await fetch(`/api/appointments/${appointmentId}`, {
-                method: 'PUT',
+            const response = await fetch(`/api/appointments/${appointmentId}/reschedule`, {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ scheduledAt, notes: reason }),
+                body: JSON.stringify({ newDate, newTime, reason }),
             });
             return response.json();
         },
-        onSuccess: () => {
+        onSuccess: (_, variables) => {
             toast.success('Appointment rescheduled successfully');
             queryClient.invalidateQueries({ queryKey: appointmentKeys.all });
+            queryClient.invalidateQueries({ queryKey: appointmentKeys.detail(variables.appointmentId) });
             queryClient.invalidateQueries({ queryKey: queryKeys.doctors.availability() });
             queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
             queryClient.invalidateQueries({ queryKey: queryKeys.doctor.dashboard() });

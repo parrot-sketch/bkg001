@@ -103,7 +103,7 @@ export function AppointmentsTab({
                 <div className="flex items-center gap-2 mt-0.5">
                   {visit.consultation?.chiefComplaint && (
                     <span className="text-xs text-stone-400 truncate max-w-[200px]">
-                      {visit.consultation.chiefComplaint}
+                      {visit.consultation.chiefComplaint.replace(/<[^>]*>/g, '')}
                     </span>
                   )}
                 </div>
@@ -343,7 +343,10 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="text-[10px] font-medium text-stone-400 uppercase tracking-wider">{label}</p>
-      <p className="text-xs text-stone-700 mt-0.5">{value}</p>
+      <div
+        className="text-xs text-stone-700 mt-0.5 prose prose-xs prose-stone max-w-none [&>p]:my-0.5"
+        dangerouslySetInnerHTML={{ __html: value }}
+      />
     </div>
   );
 }

@@ -53,14 +53,61 @@ export class PrismaAppointmentRepository implements IAppointmentRepository, IDoc
   }
 
   /**
+   * Finds all appointments for a specific patient, filtered by doctor.
+   *
+   * Used when a doctor is viewing a patient profile — ensures only appointments
+   * that belong to this specific doctor are returned, preventing cross-doctor data leak.
+   *
+   * The `userId` parameter is the doctor's User.id (not Doctor.id). We JOIN through
+   * the Doctor table to enforce that only appointments assigned specifically to this
+   * doctor are visible.
+   *
+   * Applies a 12-month date-range filter and 100-row take limit for safety.
+   *
+   * @param patientId - The patient's unique identifier
+   * @param userId     - The authenticated doctor's user_id
+   * @param txClient   - Optional Prisma transaction client
+   * @returns Promise resolving to an array of Appointment entities
+   *          Returns empty array if no appointments found
+   */
+  async findByPatientAndDoctor(
+    patientId: string,
+    userId: string,
+    txClient?: unknown,
+  ): Promise<Appointment[]> {
+    try {
+      const client = (txClient as PrismaClient) || this.prisma;
+      const since = subMonths(new Date(), 12);
+      const DEFAULT_LIMIT = 100;
+
+      const prismaAppointments = await client.appointment.findMany({
+        where: {
+          patient_id: patientId,
+          // ── security filter: only this doctor's own appointments ──────────
+          doctor: { user_id: userId },
+          appointment_date: { gte: since },
+        },
+        orderBy: { appointment_date: 'desc' },
+        take: DEFAULT_LIMIT,
+      });
+
+      return prismaAppointments.map((appt) => AppointmentMapper.fromPrisma(appt));
+    } catch (error) {
+      throw new Error(
+        `Failed to find appointments for patient ${patientId} (doctor ${userId}). ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  /**
    * Finds all appointments for a specific patient
-   * 
+   *
    * REFACTORED: Added date range filter (last 12 months) and take limit (100)
    * This prevents unbounded queries that could return thousands of historical appointments.
    * Clinical workflow preserved: Recent appointments are sufficient for conflict detection
    * and consultation history. Historical data beyond 12 months should be accessed via
    * paginated endpoints if needed.
-   * 
+   *
    * @param patientId - The patient's unique identifier
    * @returns Promise resolving to an array of Appointment entities
    *          Returns empty array if no appointments found

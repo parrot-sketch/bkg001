@@ -143,6 +143,54 @@ describe('PrismaAppointmentRepository', () => {
     });
   });
 
+  describe('findByPatientAndDoctor', () => {
+    const since = subMonths(new Date(), 12);
+
+    it('should return only this doctor\'s appointments for the given patient', async () => {
+      const prismaAppointments = [
+        {
+          id: 1,
+          patient_id: 'patient-1',
+          doctor_id: 'doctor-1',
+          appointment_date: new Date('2025-02-01'),
+          time: '10:00 AM',
+          status: AppointmentStatus.SCHEDULED,
+          type: 'Consultation',
+          note: 'First visit',
+          reason: null,
+          created_at: new Date('2024-01-01'),
+          updated_at: new Date('2024-01-01'),
+        },
+      ];
+
+      mockPrisma.appointment.findMany.mockResolvedValue(prismaAppointments);
+
+      const result = await repository.findByPatientAndDoctor('patient-1', 'doctor-user-1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].getId()).toBe(1);
+      // Must pass the user_id (not doctor_id) through the Doctor relation
+      expect(mockPrisma.appointment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            patient_id: 'patient-1',
+            doctor: { user_id: 'doctor-user-1' },
+          }),
+          orderBy: { appointment_date: 'desc' },
+          take: 100,
+        })
+      );
+    });
+
+    it('should return empty array when patient has no appointments for this doctor', async () => {
+      mockPrisma.appointment.findMany.mockResolvedValue([]);
+
+      const result = await repository.findByPatientAndDoctor('patient-x', 'doctor-user-1');
+
+      expect(result).toEqual([]);
+    });
+  });
+
   describe('findByDoctor', () => {
     it('should find appointments by doctor with default date range', async () => {
       const prismaAppointments = [

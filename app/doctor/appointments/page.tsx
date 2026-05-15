@@ -1,28 +1,29 @@
 'use client';
 
 /**
- * Doctor Appointments - SIMPLIFIED PAGE
+ * Doctor Appointments Page — Clean Workflow-Oriented Design
  * 
- * Simplified view focused on:
- * - Today's appointments (default view)
- * - Upcoming appointments
- * - Pending confirmations (action required)
- * 
- * Queue management is handled on the dashboard.
+ * Features:
+ * - Pending confirmations prominently surfaced
+ * - Clear status-driven action buttons
+ * - Patient context always visible
+ * - Tab-based navigation with smart defaults
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { doctorApi } from '@/lib/api/doctor';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Play, CheckCircle, Clock, Calendar, AlertTriangle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { RefreshCw, Play, CheckCircle, Clock, Calendar as CalendarIcon, 
+         AlertTriangle, User, Stethoscope, ChevronRight, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { useDoctorAppointments } from '@/hooks/doctor/useDoctorAppointments';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { ClinicalDashboardShell } from '@/components/layouts/ClinicalDashboardShell';
-import { format, isToday, startOfDay, isTomorrow } from 'date-fns';
+import { format, isToday, startOfDay } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -57,7 +58,6 @@ export default function DoctorAppointmentsPage() {
         const today: AppointmentResponseDto[] = [];
         const upcoming: AppointmentResponseDto[] = [];
         const pending: AppointmentResponseDto[] = [];
-        
         let completedToday = 0;
 
         for (const apt of appointments) {
@@ -76,7 +76,6 @@ export default function DoctorAppointmentsPage() {
             }
         }
 
-        // Sort by time
         const sortByTime = (a: AppointmentResponseDto, b: AppointmentResponseDto) => 
             (a.time || '').localeCompare(b.time || '');
 
@@ -95,12 +94,16 @@ export default function DoctorAppointmentsPage() {
         };
     }, [appointments]);
 
-    const initialTab = searchParams.get('tab');
-    const resolvedInitialTab: TabKey =
-        initialTab === 'upcoming' || initialTab === 'pending' || initialTab === 'today'
-            ? initialTab
-            : 'today';
-    const [activeTab, setActiveTab] = useState<TabKey>(resolvedInitialTab);
+    // Default to 'pending' tab if there are pending confirmations
+    const initialTab: TabKey = pendingConfirmations.length > 0 ? 'pending' : 
+        (searchParams.get('tab') as TabKey) || 'today';
+    const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
+
+    // Refetch data periodically for status updates
+    useEffect(() => {
+        const interval = setInterval(() => refetch(), 60000);
+        return () => clearInterval(interval);
+    }, [refetch]);
 
     const handleCheckIn = async (appointmentId: number) => {
         if (!user) return;
@@ -166,34 +169,35 @@ export default function DoctorAppointmentsPage() {
     return (
         <ClinicalDashboardShell>
             <div className="space-y-6 pb-8">
-                {/* Header */}
-                <div className="flex items-center justify-between">
+                {/* Page Header */}
+                <div className="flex items-start justify-between mb-6">
                     <div>
-                        <p className="text-xs text-stone-500 font-medium">
+                        <h1 className="text-2xl font-semibold tracking-tight">Appointments</h1>
+                        <p className="text-sm text-muted-foreground mt-1">
                             {format(new Date(), 'EEEE, MMMM d, yyyy')}
                         </p>
-                        <h1 className="text-xl font-semibold text-stone-900">Appointments</h1>
                     </div>
                     <Button
-                        variant="ghost" size="sm"
-                        onClick={() => refetch()} disabled={refreshing}
-                        className="text-stone-500 gap-1.5"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => refetch()}
+                        disabled={refreshing}
                     >
-                        <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
+                        <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
                         Refresh
                     </Button>
                 </div>
 
-                {/* Quick Stats */}
-                <div className="grid grid-cols-4 gap-3">
-                    <StatCard label="Today" value={stats.today} />
-                    <StatCard label="Pending" value={stats.pending} />
-                    <StatCard label="Completed" value={stats.completed} />
-                    <StatCard label="Upcoming" value={stats.upcoming} />
+                {/* Stats Overview */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <StatCard label="Today" value={stats.today} variant="default" />
+                    <StatCard label="Pending" value={stats.pending} variant="warning" />
+                    <StatCard label="Completed" value={stats.completed} variant="success" />
+                    <StatCard label="Upcoming" value={stats.upcoming} variant="default" />
                 </div>
 
                 {/* Tabs */}
-                <div className="flex gap-1 border-b border-stone-200">
+                <div className="flex gap-1 border-b border-slate-200">
                     {(['today', 'pending', 'upcoming'] as TabKey[]).map((tab) => (
                         <button
                             key={tab}
@@ -201,34 +205,46 @@ export default function DoctorAppointmentsPage() {
                             className={cn(
                                 "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
                                 activeTab === tab
-                                    ? "border-stone-900 text-stone-900"
-                                    : "border-transparent text-stone-500 hover:text-stone-700"
+                                    ? "border-slate-900 text-slate-900"
+                                    : "border-transparent text-slate-500 hover:text-slate-700"
                             )}
                         >
                             {tab === 'today' ? "Today's Schedule" 
                                 : tab === 'pending' ? "Pending Confirmations" 
                                 : "Upcoming"}
                             {tab === 'pending' && stats.pending > 0 && (
-                                <span className="ml-2 px-1.5 py-0.5 text-xs bg-stone-100 text-stone-600 rounded-full">
+                                <Badge className="ml-2 bg-amber-100 text-amber-700" variant="secondary">
                                     {stats.pending}
-                                </span>
+                                </Badge>
                             )}
                         </button>
                     ))}
                 </div>
 
+                {/* Pending Confirmations Alert */}
+                {activeTab === 'pending' && pendingConfirmations.length > 0 && (
+                    <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                        <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+                        <div className="flex-1">
+                            <p className="text-sm font-medium text-amber-800">
+                                Action Required: {pendingConfirmations.length} appointment{pendingConfirmations.length !== 1 ? 's' : ''} awaiting confirmation
+                            </p>
+                            <p className="text-xs text-amber-600 mt-0.5">
+                                Click "Confirm" to accept or "Reject" to decline with a reason.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 {/* Appointment List */}
                 {loading ? (
                     <div className="space-y-3">
                         {[1, 2, 3].map((i) => (
-                            <Skeleton key={i} className="h-16 w-full rounded-lg" />
+                            <Skeleton key={i} className="h-20 w-full rounded-lg" />
                         ))}
                     </div>
                 ) : currentList.length === 0 ? (
-                    <div className="text-center py-12 text-stone-500">
-                        <Calendar className="h-8 w-8 mx-auto mb-2 text-stone-300" />
-                        <p>No appointments</p>
-                    </div>
+                    <EmptyState tab={activeTab} />
                 ) : (
                     <div className="space-y-2">
                         {currentList.map((apt) => (
@@ -248,11 +264,35 @@ export default function DoctorAppointmentsPage() {
     );
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function StatCard({ label, value, variant = 'default' }: { label: string; value: number; variant?: 'default' | 'warning' | 'success' }) {
+    const variants = {
+        default: 'bg-white border-slate-200',
+        warning: value > 0 ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200',
+        success: 'bg-emerald-50 border-emerald-200',
+    };
+    
     return (
-        <div className="p-3 rounded-lg border border-stone-200 bg-white">
-            <p className="text-xs text-stone-400 font-medium">{label}</p>
-            <p className="text-2xl font-bold text-stone-900 tabular-nums">{value}</p>
+        <div className={cn("p-4 rounded-lg border", variants[variant])}>
+            <p className="text-xs font-medium text-slate-500">{label}</p>
+            <p className="text-2xl font-bold text-slate-900 tabular-nums">{value}</p>
+        </div>
+    );
+}
+
+function EmptyState({ tab }: { tab: string }) {
+    const messages = {
+        today: { title: "No appointments today", description: "Your schedule is clear for today." },
+        upcoming: { title: "No upcoming appointments", description: "No future appointments scheduled." },
+        pending: { title: "No pending confirmations", description: "All appointments have been confirmed or rejected." },
+    };
+    
+    const msg = messages[tab as keyof typeof messages];
+    
+    return (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+            <CalendarIcon className="h-12 w-12 text-slate-300 mb-4" />
+            <h3 className="text-lg font-medium text-slate-900">{msg.title}</h3>
+            <p className="text-sm text-slate-500 mt-1">{msg.description}</p>
         </div>
     );
 }
@@ -282,95 +322,64 @@ function AppointmentCard({
         : 'Unknown Patient';
 
     return (
-        <div className="flex items-center gap-4 p-4 bg-white border border-stone-200 rounded-lg hover:border-stone-300 transition-colors">
-            {/* Time */}
-            <div className="text-center min-w-[60px]">
-                <p className="text-lg font-semibold text-stone-900">
-                    {appointment.time || '--:--'}
-                </p>
-            </div>
+        <Link href={`/doctor/appointments/${appointment.id}`} className="block">
+            <div className="flex items-center gap-4 p-4 bg-white border border-slate-200 rounded-lg hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer">
+                {/* Time */}
+                <div className="text-center min-w-[60px]">
+                    <p className="text-lg font-semibold text-slate-900">
+                        {appointment.time || '--:--'}
+                    </p>
+                    <p className="text-xs text-slate-500 font-mono">
+                        {appointment.appointmentDate && format(new Date(appointment.appointmentDate), 'MMM d')}
+                    </p>
+                </div>
 
-            {/* Patient Info */}
-            <div className="flex-1 min-w-0">
-                <p className="font-medium text-stone-900 truncate">{patientName}</p>
-                <p className="text-sm text-stone-500 truncate">
-                    {appointment.type || 'Consultation'}
-                </p>
-            </div>
+                {/* Patient Info */}
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                        <p className="font-medium text-slate-900 truncate">{patientName}</p>
+                        {appointment.patient?.fileNumber && (
+                            <span className="text-xs font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                                #{appointment.patient.fileNumber}
+                            </span>
+                        )}
+                    </div>
+                    <p className="text-sm text-slate-500 truncate">
+                        {appointment.type || 'Consultation'}
+                    </p>
+                    {appointment.note && (
+                        <p className="text-xs text-slate-400 truncate mt-0.5 max-w-md">
+                            {appointment.note}
+                        </p>
+                    )}
+                </div>
 
-            {/* Status Badge */}
-            <div>
-                {isPending && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 border border-stone-200 text-stone-600 text-xs rounded-md">
-                        <AlertTriangle className="h-3 w-3" />
-                        Pending
-                    </span>
-                )}
-                {isScheduled && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 border border-stone-200 text-stone-600 text-xs rounded-md">
-                        <Clock className="h-3 w-3" />
-                        Scheduled
-                    </span>
-                )}
-                {isCheckedIn && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 border border-stone-200 text-stone-700 text-xs rounded-md font-medium">
-                        Waiting
-                    </span>
-                )}
-                {isInConsultation && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 border border-stone-200 text-stone-700 text-xs rounded-md font-medium">
-                        <Play className="h-3 w-3" />
-                        In Progress
-                    </span>
-                )}
-                {isCompleted && (
-                    <span className="inline-flex items-center gap-1 px-2 py-1 border border-stone-200 text-stone-500 text-xs rounded-md">
-                        <CheckCircle className="h-3 w-3" />
-                        Completed
-                    </span>
-                )}
-            </div>
+                {/* Status Badge */}
+                <BadgeStatus status={status} />
 
-            {/* Actions */}
-            <div className="flex gap-2">
-                {isPending && (
-                    <>
-                        <Button 
-                            size="sm" 
-                            className="text-xs bg-stone-900 hover:bg-black"
-                            onClick={() => onConfirm(appointment.id)}
-                        >
-                            Confirm
-                        </Button>
-                        <Button 
-                            size="sm" 
-                            variant="outline"
-                            className="text-xs text-stone-500 border-stone-200 hover:bg-stone-50"
-                            onClick={() => onReject(appointment.id)}
-                        >
-                            Reject
-                        </Button>
-                    </>
-                )}
-                {isScheduled && (
-                    <Button 
-                        size="sm" 
-                        className="text-xs bg-stone-900 hover:bg-black"
-                        onClick={() => onCheckIn(appointment.id)}
-                    >
-                        Check In
-                    </Button>
-                )}
-                {isCheckedIn && (
-                    <Button 
-                        size="sm" 
-                        className="text-xs bg-stone-900 hover:bg-black"
-                        onClick={() => onStart(appointment.id)}
-                    >
-                        Start
-                    </Button>
-                )}
+                {/* Action Indicator */}
+                <ChevronRight className="h-4 w-4 text-slate-300" />
             </div>
-        </div>
+        </Link>
+    );
+}
+
+function BadgeStatus({ status }: { status: string }) {
+    const statusConfig = {
+        [AppointmentStatus.PENDING_DOCTOR_CONFIRMATION]: { label: 'Pending', className: 'bg-amber-50 text-amber-700 border-amber-200' },
+        [AppointmentStatus.SCHEDULED]: { label: 'Scheduled', className: 'bg-slate-100 text-slate-700 border-slate-300' },
+        [AppointmentStatus.CONFIRMED]: { label: 'Confirmed', className: 'bg-slate-100 text-slate-700 border-slate-300' },
+        [AppointmentStatus.CHECKED_IN]: { label: 'Waiting', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+        [AppointmentStatus.READY_FOR_CONSULTATION]: { label: 'Ready', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+        [AppointmentStatus.IN_CONSULTATION]: { label: 'In Session', className: 'bg-violet-50 text-violet-700 border-violet-200' },
+        [AppointmentStatus.COMPLETED]: { label: 'Completed', className: 'bg-slate-100 text-slate-500 border-slate-200' },
+    };
+
+    const config = statusConfig[status as keyof typeof statusConfig] || { label: status, className: 'bg-slate-100' };
+
+    return (
+        <span className={cn("px-2.5 py-1 text-xs font-medium rounded-md border", config.className)}>
+            {config.label}
+        </span>
     );
 }

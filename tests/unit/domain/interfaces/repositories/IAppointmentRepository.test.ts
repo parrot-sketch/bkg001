@@ -30,6 +30,17 @@ describe('IAppointmentRepository Interface', () => {
       return this.appointmentsByPatient.get(patientId) || [];
     }
 
+    async findByPatientAndDoctor(
+      patientId: string,
+      userId: string,
+      txClient?: unknown,
+    ): Promise<Appointment[]> {
+      const allForPatient = this.appointmentsByPatient.get(patientId) || [];
+      // The mock stores appointments indexed by doctor_id (not user_id),
+      // so we filter by doctorId == userId for test consistency.
+      return allForPatient.filter((apt) => apt.getDoctorId() === userId);
+    }
+
     async findByDoctor(
       doctorId: string,
       filters?: {
@@ -162,6 +173,12 @@ describe('IAppointmentRepository Interface', () => {
       const repository: IAppointmentRepository = new MockAppointmentRepository();
       expect(typeof repository.findByPatient).toBe('function');
       expect(repository.findByPatient.length).toBe(1); // Takes 1 parameter (string)
+    });
+
+    it('should have findByPatientAndDoctor method with correct signature', () => {
+      const repository: IAppointmentRepository = new MockAppointmentRepository();
+      expect(typeof repository.findByPatientAndDoctor).toBe('function');
+      expect(repository.findByPatientAndDoctor.length).toBe(2); // Takes 2 parameters (patientId, userId)
     });
 
     it('should have save method with correct signature', () => {

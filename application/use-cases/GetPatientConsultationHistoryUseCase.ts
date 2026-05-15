@@ -57,12 +57,19 @@ export class GetPatientConsultationHistoryUseCase {
 
   /**
    * Executes the get patient consultation history use case
-   * 
-   * @param patientId - Patient ID to get consultation history for
+   *
+   * @param patientId   - Patient ID to get consultation history for
+   * @param doctorId    - Optional doctor userId filter.
+   *                     When provided, only consultations for appointments
+   *                     belonging to this doctor are returned.
+   *                     Pass null/undefined for admin / frontdesk views.
    * @returns Promise resolving to PatientConsultationHistoryDto
    * @throws DomainException if patient not found
    */
-  async execute(patientId: string): Promise<PatientConsultationHistoryDto> {
+  async execute(
+    patientId: string,
+    doctorId?: string,
+  ): Promise<PatientConsultationHistoryDto> {
     // Step 1: Validate patient exists
     const patient = await this.patientRepository.findById(patientId);
 
@@ -72,8 +79,10 @@ export class GetPatientConsultationHistoryUseCase {
       });
     }
 
-    // Step 2: Get all appointments for patient
-    const appointments = await this.appointmentRepository.findByPatient(patientId);
+    // Step 2: Get appointments for patient, filtered by doctor when requested
+    const appointments = doctorId
+      ? await this.appointmentRepository.findByPatientAndDoctor(patientId, doctorId)
+      : await this.appointmentRepository.findByPatient(patientId);
 
     // Step 3: Get consultations for each appointment (in parallel)
     const consultationPromises = appointments.map((apt) =>

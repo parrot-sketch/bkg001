@@ -37,6 +37,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useRouter, usePathname } from 'next/navigation';
 import { useNotifications } from '@/hooks/useNotifications';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';

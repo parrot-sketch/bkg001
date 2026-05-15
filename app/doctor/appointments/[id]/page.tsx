@@ -51,7 +51,6 @@ import { useAppointment, useAppointments } from '@/hooks/useAppointments';
 import { format, formatDistanceToNow, isPast, isToday } from 'date-fns';
 import { toast } from 'sonner';
 import { AppointmentStatus, isAwaitingConfirmation } from '@/domain/enums/AppointmentStatus';
-import { ConfirmAppointmentDialog } from '@/components/appointments/ConfirmAppointmentDialog';
 import { RescheduleDialog } from '@/components/appointments/RescheduleDialog';
 import { CancelAppointmentDialog } from '@/components/appointments/CancelAppointmentDialog';
 import { cn } from '@/lib/utils';
@@ -204,7 +203,6 @@ export default function AppointmentDetailPage({ params }: PageProps) {
   const { appointment, isLoading, error, refetch } = useAppointment(appointmentId);
   const { isConfirming, isRescheduling, isCancelling } = useAppointments();
 
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
 
@@ -322,6 +320,25 @@ export default function AppointmentDetailPage({ params }: PageProps) {
     router.push(`/doctor/consultations/session/${appointment.id}`);
   };
 
+  const handleConfirm = async () => {
+    try {
+      const response = await fetch(`/api/appointments/${appointment.id}/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'confirm', notes: '' }),
+      });
+      const result = await response.json();
+      if (result.success) {
+        toast.success('Appointment confirmed');
+        refetch();
+      } else {
+        toast.error(result.error || 'Failed to confirm');
+      }
+    } catch (error) {
+      toast.error('Error confirming appointment');
+    }
+  };
+
   const isBusy = isConfirming || isRescheduling || isCancelling;
 
   return (
@@ -370,7 +387,7 @@ export default function AppointmentDetailPage({ params }: PageProps) {
           <div className="shrink-0">
             {canConfirm && (
               <Button
-                onClick={() => setShowConfirmDialog(true)}
+                onClick={handleConfirm}
                 disabled={isBusy}
                 size="lg"
                 className="bg-white text-indigo-700 hover:bg-white/90 font-bold shadow-xl rounded-xl"
@@ -794,36 +811,26 @@ export default function AppointmentDetailPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* ═══ Dialogs ═══ */}
-      <ConfirmAppointmentDialog
-        open={showConfirmDialog}
-        onOpenChange={setShowConfirmDialog}
-        appointmentId={appointment.id}
-        onSuccess={() => {
-          setRecentAction({ type: 'confirmed', timestamp: Date.now() });
-          refetch();
-        }}
-      />
+       {/* ═══ Dialogs ═══ */}
+       <RescheduleDialog
+         open={showRescheduleDialog}
+         onOpenChange={setShowRescheduleDialog}
+         appointment={appointment}
+         onSuccess={() => {
+           setRecentAction({ type: 'rescheduled', timestamp: Date.now() });
+           refetch();
+         }}
+       />
 
-      <RescheduleDialog
-        open={showRescheduleDialog}
-        onOpenChange={setShowRescheduleDialog}
-        appointment={appointment}
-        onSuccess={() => {
-          setRecentAction({ type: 'rescheduled', timestamp: Date.now() });
-          refetch();
-        }}
-      />
-
-      <CancelAppointmentDialog
-        open={showCancelDialog}
-        onOpenChange={setShowCancelDialog}
-        appointmentId={appointment.id}
-        onSuccess={() => {
-          setRecentAction({ type: 'cancelled', timestamp: Date.now() });
-          refetch();
-        }}
-      />
+       <CancelAppointmentDialog
+         open={showCancelDialog}
+         onOpenChange={setShowCancelDialog}
+         appointmentId={appointment.id}
+         onSuccess={() => {
+           setRecentAction({ type: 'cancelled', timestamp: Date.now() });
+           refetch();
+         }}
+       />
     </div>
   );
 }

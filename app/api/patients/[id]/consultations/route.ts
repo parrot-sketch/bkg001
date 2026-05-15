@@ -81,10 +81,10 @@ export async function GET(
     }
 
     // 3. Check permissions (RBAC)
-    // - DOCTOR: Can access any patient's consultation history
-    // - PATIENT: Can only access own consultation history
+    // - DOCTOR: scoped to their own consultations only (doctor_id = userId)
+    // - ADMIN/FRONTDESK: all patient consultations visible
+    // - PATIENT: own consultations only
     if (userRole === Role.PATIENT) {
-      // Patient can only access their own consultation history
       if (userId !== patientId) {
         return NextResponse.json(
           {
@@ -95,7 +95,6 @@ export async function GET(
         );
       }
     } else if (userRole !== Role.DOCTOR && userRole !== Role.ADMIN) {
-      // Only DOCTOR and ADMIN can access patient consultation history
       return NextResponse.json(
         {
           success: false,
@@ -106,7 +105,9 @@ export async function GET(
     }
 
     // 4. Execute get patient consultation history use case
-    const response = await getPatientConsultationHistoryUseCase.execute(patientId);
+    // Pass userId to enforce doctor-isolation at the query level (prevents data leak
+    // even if the RBAC guard above were bypassed).
+    const response = await getPatientConsultationHistoryUseCase.execute(patientId, userId);
 
     // 5. Return success response
     return NextResponse.json(

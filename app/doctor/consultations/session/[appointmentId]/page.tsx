@@ -238,6 +238,8 @@ function ConsultationSessionContent() {
     autoSaveStatus,
   } = state;
 
+  const patientName = patient ? `${patient.firstName} ${patient.lastName}` : 'Unknown Patient';
+
   // Loading state
   if (isLoading && !appointment) {
     return <LoadingState />;
@@ -279,18 +281,21 @@ function ConsultationSessionContent() {
         {/* Queue Panel */}
         <Suspense fallback={null}>
           <ConsultationQueuePanel
+            currentAppointmentId={appointment?.id}
+            currentPatientName={patientName}
+            currentAppointmentStatus={appointment?.status}
             appointments={waitingQueue}
             onSwitchPatient={switchToPatient}
+            onSaveDraft={saveDraft}
+            hasDrafts={state.workflow.isDirty}
             onRefresh={refetchQueue}
             isRefreshing={isQueueRefetching}
-            defaultCollapsed={false}
+            defaultCollapsed={true}
           />
         </Suspense>
       </div>
     );
   }
-
-  const patientName = `${patient.firstName} ${patient.lastName}`;
 
   return (
     <div className="flex flex-col h-screen bg-white text-slate-900">
@@ -333,8 +338,11 @@ function ConsultationSessionContent() {
         {/* Right: Queue (260px) */}
         <ConsultationQueuePanel
           currentAppointmentId={appointment.id}
+          currentPatientName={patientName}
           appointments={waitingQueue}
           onSwitchPatient={switchToPatient}
+          onSaveDraft={saveDraft}
+          hasDrafts={state.workflow.isDirty}
           onRefresh={refetchQueue}
           isRefreshing={isQueueRefetching}
           defaultCollapsed={true}

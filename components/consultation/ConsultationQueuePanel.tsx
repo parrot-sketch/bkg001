@@ -27,6 +27,7 @@ import { CollapsedRail } from './queue/CollapsedRail';
 interface ConsultationQueuePanelProps {
   currentAppointmentId?: number;
   currentPatientName?: string;
+  currentAppointmentStatus?: string;
   appointments: AppointmentResponseDto[];
   onSwitchPatient?: (appointmentId: number) => void;
   onSaveDraft?: () => Promise<void>;
@@ -40,6 +41,7 @@ interface ConsultationQueuePanelProps {
 export function ConsultationQueuePanel({
   currentAppointmentId,
   currentPatientName = 'Current Patient',
+  currentAppointmentStatus,
   appointments,
   onSwitchPatient,
   onSaveDraft,
@@ -53,10 +55,14 @@ export function ConsultationQueuePanel({
   const { user } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   const [startingId, setStartingId] = useState<number | null>(null);
-  
+
   // Confirmation modal state
   const [switchConfirmOpen, setSwitchConfirmOpen] = useState(false);
   const [selectedForSwitch, setSelectedForSwitch] = useState<AppointmentResponseDto | null>(null);
+
+   // Check if doctor has an active consultation (current appointment status)
+   // NOTE: This is now just informational — we ALLOW switching even with active consultation
+   const hasActiveConsultation = currentAppointmentStatus === AppointmentStatus.IN_CONSULTATION;
 
   const resolveDoctorId = useCallback(async () => {
     if (!user) return null;
@@ -64,24 +70,30 @@ export function ConsultationQueuePanel({
     return doctorResponse.success && doctorResponse.data ? doctorResponse.data.id : null;
   }, [user]);
 
-  // Filter & Sort Queue
-  const sortedQueue = useMemo(() => {
-    return appointments
-      .filter(apt =>
-        apt.id !== currentAppointmentId &&
-        (apt.status === AppointmentStatus.CHECKED_IN ||
-          apt.status === AppointmentStatus.READY_FOR_CONSULTATION)
-      )
-      .sort((a, b) => {
-        const timeA = a.checkedInAt ? new Date(a.checkedInAt).getTime() : Date.now();
-        const timeB = b.checkedInAt ? new Date(b.checkedInAt).getTime() : Date.now();
-        return timeA - timeB;
-      });
-  }, [appointments, currentAppointmentId]);
+   // Filter & Sort Queue — show all actionable appointments (excluding current)
+   const sortedQueue = useMemo(() => {
+     return appointments
+       .filter(apt =>
+         apt.id !== currentAppointmentId && // exclude current patient
+         (apt.status === AppointmentStatus.CHECKED_IN ||
+          apt.status === AppointmentStatus.READY_FOR_CONSULTATION ||
+          apt.status === AppointmentStatus.IN_CONSULTATION) // allow resuming incomplete sessions
+       )
+       .sort((a, b) => {
+         // Priority: IN_CONSULTATION first (to resume), then by check-in time
+         if (a.status === AppointmentStatus.IN_CONSULTATION && b.status !== AppointmentStatus.IN_CONSULTATION) return -1;
+         if (a.status !== AppointmentStatus.IN_CONSULTATION && b.status === AppointmentStatus.IN_CONSULTATION) return 1;
+         const timeA = a.checkedInAt ? new Date(a.checkedInAt).getTime() : Date.now();
+         const timeB = b.checkedInAt ? new Date(b.checkedInAt).getTime() : Date.now();
+         return timeA - timeB;
+       });
+   }, [appointments, currentAppointmentId]);
 
-  const queueCount = sortedQueue.length;
+    const queueCount = sortedQueue.length;
 
-  const handleInitiateSwitchClick = (apt: AppointmentResponseDto) => {
+    const handleInitiateSwitchClick = (apt: AppointmentResponseDto) => {
+    // Allow switching even if current consultation is active
+    // The backend will handle the transition appropriately
     setSelectedForSwitch(apt);
     setSwitchConfirmOpen(true);
   };
@@ -96,8 +108,14 @@ export function ConsultationQueuePanel({
     setStartingId(apt.id);
 
     try {
-      if (onSaveDraft) await onSaveDraft();
+      // Step 1: Auto-save draft of current consultation (if dirty)
+      if (onSaveDraft) {
+        await onSaveDraft();
+      }
 
+      // Step 2: Start consultation for the next patient
+      // Note: We do NOT auto-complete the current session.
+      // The doctor can have multiple IN_CONSULTATION sessions and return to them later.
       const doctorId = await resolveDoctorId();
       if (!doctorId) {
         toast.error('Unable to resolve doctor profile');
@@ -116,12 +134,12 @@ export function ConsultationQueuePanel({
         } else {
           router.push(`/doctor/consultations/session/${apt.id}`);
         }
-        toast.success(`Starting consultation with ${apt.patient?.firstName}`);
+        toast.success(`Now consulting ${apt.patient?.firstName}`);
       } else {
-        toast.error(response.error || 'Failed to start consultation');
+        toast.error(response.error || 'Failed to admit patient');
       }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to start consultation');
+      toast.error(error.message || 'Failed to switch to patient');
     } finally {
       setStartingId(null);
       setSwitchConfirmOpen(false);
@@ -156,17 +174,17 @@ export function ConsultationQueuePanel({
             <QueueEmptyState />
           ) : (
             <div className="space-y-2 py-3">
-              <AnimatePresence mode="popLayout">
-                {sortedQueue.map((apt, index) => (
-                  <QueuePatientCard
-                    key={apt.id}
-                    appointment={apt}
-                    isNext={index === 0}
-                    isStarting={startingId === apt.id}
-                    onInitiateSwitch={handleInitiateSwitchClick}
-                  />
-                ))}
-              </AnimatePresence>
+                <AnimatePresence mode="popLayout">
+                  {sortedQueue.map((apt, index) => (
+                    <QueuePatientCard
+                      key={apt.id}
+                      appointment={apt}
+                      isNext={index === 0}
+                      isStarting={startingId === apt.id}
+                      onInitiateSwitch={handleInitiateSwitchClick}
+                    />
+                  ))}
+                </AnimatePresence>
             </div>
           )}
         </div>

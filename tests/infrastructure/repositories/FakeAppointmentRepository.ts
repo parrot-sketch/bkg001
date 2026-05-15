@@ -29,6 +29,26 @@ export class FakeAppointmentRepository implements IAppointmentRepository {
     return results;
   }
 
+  /**
+   * Filters appointments by both patient and doctor (userId),
+   * mirroring the secure query used in production code.
+   */
+  async findByPatientAndDoctor(
+    patientId: string,
+    userId: string,
+    txClient?: unknown,
+  ): Promise<Appointment[]> {
+    const results: Appointment[] = [];
+    this.appointments.forEach((apt) => {
+      const aptPatientId = (apt as any).patient_id || (apt as any).getPatientId?.();
+      const aptDoctorUserId = (apt as any).doctor_user_id;
+      if (aptPatientId === patientId && aptDoctorUserId === userId) {
+        results.push(apt);
+      }
+    });
+    return results;
+  }
+
   async findByDoctor(
     doctorId: string,
     filters?: {

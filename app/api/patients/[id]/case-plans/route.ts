@@ -85,6 +85,9 @@ export async function GET(
       );
     }
 
+    // Build case-plan doctor filter (initially unrestricted)
+    let casePlanDoctorFilter: any = {};
+
     // 3. Check permissions
     if (userRole === 'DOCTOR') {
       // Doctors can only view case plans for their own patients
@@ -121,6 +124,11 @@ export async function GET(
           { status: 403 }
         );
       }
+
+      // ── SECURITY FIX: filter case plans to this doctor only ──────────────
+      // Without this filter the API was returning every doctor's case plans
+      // for the patient — a direct data breach.
+      casePlanDoctorFilter = { doctor_id: doctor.id };
     }
     // FRONTDESK and ADMIN can view any patient's case plans (no additional check needed)
 
@@ -129,6 +137,7 @@ export async function GET(
       return db.casePlan.findMany({
         where: {
           patient_id: patientId,
+          ...casePlanDoctorFilter,
         },
         include: {
           appointment: {

@@ -104,10 +104,15 @@ export function NotificationBell() {
         if (eventType === 'PATIENT_ADDED_TO_QUEUE') {
             // Navigate to doctor dashboard with queue section
             router.push('/doctor/dashboard#queue');
-        } else if (eventType === 'APPOINTMENT_PENDING_CONFIRMATION') {
-            // Navigate to appointments page for pending confirmations
-            router.push('/doctor/appointments');
-        } else if (eventType === 'PREOP_CHECKLIST_COMPLETED' && metadata?.surgicalCaseId) {
+         } else if (eventType === 'APPOINTMENT_PENDING_CONFIRMATION') {
+             // Navigate directly to the appointment detail page
+             const resourceId = metadata?.resourceId;
+             if (resourceId) {
+                 router.push(`/doctor/appointments/${resourceId}`);
+             } else {
+                 router.push('/doctor/appointments');
+             }
+         } else if (eventType === 'PREOP_CHECKLIST_COMPLETED' && metadata?.surgicalCaseId) {
             // Navigate to surgical case
             router.push(`/doctor/surgical-cases/${metadata.surgicalCaseId}/case-plan`);
         } else if (eventType === 'SURGICAL_CASE_ASSIGNMENT' && metadata?.surgicalCaseId) {

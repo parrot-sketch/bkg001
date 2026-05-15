@@ -103,7 +103,7 @@ export function SessionRecoveryModal({
             </DialogTitle>
           </div>
 
-          <DialogDescription className="space-y-3 text-sm">
+          <div className="space-y-3 text-sm">
             {/* Patient and timing info */}
             <div className="rounded-lg bg-slate-50 p-3">
               <p className="font-medium text-slate-900">{patientName}</p>
@@ -134,7 +134,7 @@ export function SessionRecoveryModal({
                 <p className="text-xs text-red-900">{retryError}</p>
               </div>
             )}
-          </DialogDescription>
+          </div>
         </DialogHeader>
 
         {/* Action buttons */}

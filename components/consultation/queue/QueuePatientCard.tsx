@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 
 interface QueuePatientCardProps {
   appointment: AppointmentResponseDto;
@@ -29,6 +30,14 @@ export function QueuePatientCard({
   const waitTime = appointment.checkedInAt
     ? formatDistanceToNow(new Date(appointment.checkedInAt), { addSuffix: false })
     : 'Just arrived';
+
+  // Determine button text based on appointment status
+  const getButtonLabel = () => {
+    if (isStarting) return 'Starting...';
+    if (appointment.status === AppointmentStatus.IN_CONSULTATION) return 'RESUME';
+    if (isNext) return 'ADMIT PATIENT';
+    return 'BEGIN SESSION';
+  };
 
   return (
     <motion.div
@@ -89,9 +98,11 @@ export function QueuePatientCard({
           disabled={isStarting}
           className={cn(
             "w-full mt-4 h-9 text-[11px] font-bold uppercase tracking-widest transition-all rounded-xl border-none",
-            isNext
-              ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm"
-              : "bg-slate-100 hover:bg-slate-200 text-slate-600"
+            appointment.status === AppointmentStatus.IN_CONSULTATION
+              ? "bg-violet-600 hover:bg-violet-500 text-white shadow-sm" // Resume style
+              : isNext
+                ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm" // Admit style
+                : "bg-slate-100 hover:bg-slate-200 text-slate-600" // Normal
           )}
         >
           {isStarting ? (
@@ -99,7 +110,7 @@ export function QueuePatientCard({
           ) : (
             <Play className="h-3 w-3 mr-2" />
           )}
-          {isNext ? 'ADMIT PATIENT' : 'BEGIN SESSION'}
+          {getButtonLabel()}
         </Button>
       </motion.div>
 

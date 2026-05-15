@@ -17,16 +17,32 @@ export interface DoctorDashboardData {
     profileImage: string | null;
     availabilityStatus: string | null;
   } | null;
-  appointments: {
+  todayAppointments: Array<{
     id: number;
     patientId: string;
-    patientName: string;
-    patientFileNumber: string;
-    appointmentDate: string;
+    patient: {
+      firstName: string;
+      lastName: string;
+      fileNumber: string;
+    };
+    appointmentDate: Date;
     time: string;
     type: string;
     status: string;
-  }[];
+  }>;
+  upcomingAppointments: Array<{
+    id: number;
+    patientId: string;
+    patient: {
+      firstName: string;
+      lastName: string;
+      fileNumber: string;
+    };
+    appointmentDate: Date;
+    time: string;
+    type: string;
+    status: string;
+  }>;
   surgicalCases: {
     id: string;
     status: string;
@@ -80,6 +96,7 @@ export interface DoctorDashboardData {
     completedConsultationsToday: number;
     activeSurgicalCases: number;
     recoveryCases: number;
+    pendingAppointments: number;
   };
 }
 
@@ -110,29 +127,51 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
-  
-  const [appointments, surgicalCases, queue, notifications] = await Promise.all([
-    db.appointment.findMany({
-      where: {
-        doctor_id: doctorId,
-        appointment_date: {
-          gte: today,
-          lt: tomorrow,
-        },
-        status: { in: ['SCHEDULED', 'CONFIRMED', 'CHECKED_IN', 'READY_FOR_CONSULTATION', 'IN_CONSULTATION', 'COMPLETED'] },
+  const dayAfter = new Date(today);
+  dayAfter.setDate(dayAfter.getDate() + 2);
+
+  // Fetch appointments: today + tomorrow (48h window), all relevant statuses including pending
+  const allAppointments = await db.appointment.findMany({
+    where: {
+      doctor_id: doctorId,
+      appointment_date: {
+        gte: today,
+        lt: dayAfter,
       },
-      include: {
-        patient: {
-          select: {
-            id: true,
-            first_name: true,
-            last_name: true,
-            file_number: true,
-          },
+      status: {
+        in: ['PENDING_DOCTOR_CONFIRMATION', 'PENDING', 'SCHEDULED', 'CONFIRMED', 'CHECKED_IN', 'READY_FOR_CONSULTATION', 'IN_CONSULTATION'],
+      },
+    },
+    include: {
+      patient: {
+        select: {
+          id: true,
+          first_name: true,
+          last_name: true,
+          file_number: true,
         },
       },
-      orderBy: { appointment_date: 'asc' },
-    }),
+    },
+    orderBy: [{ appointment_date: 'asc' }, { time: 'asc' }],
+  });
+
+  // Split into today and upcoming (tomorrow only)
+  const todayAppointments = allAppointments.filter(apt => {
+    const aptDate = new Date(apt.appointment_date);
+    return aptDate >= today && aptDate < tomorrow;
+  });
+
+  const upcomingAppointments = allAppointments.filter(apt => {
+    const aptDate = new Date(apt.appointment_date);
+    return aptDate >= tomorrow && aptDate < dayAfter;
+  });
+
+  // Count pending appointments (any date, within our fetch window)
+  const pendingCount = allAppointments.filter(apt =>
+    apt.status === 'PENDING_DOCTOR_CONFIRMATION' || apt.status === 'PENDING'
+  ).length;
+
+  const [surgicalCases, queue, notifications] = await Promise.all([
     db.surgicalCase.findMany({
       where: {
         primary_surgeon_id: doctorId,
@@ -173,7 +212,6 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
           gte: today,
           lt: tomorrow,
         },
-        // Exclude entries where the appointment is already in consultation or completed
         appointment: {
           status: { notIn: ['IN_CONSULTATION', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] },
         },
@@ -203,9 +241,8 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
     }),
   ]);
 
-  // Self-healing: create PatientQueue entries for any checked-in appointments
-  // that are missing from the queue (in case check-in failed to create one)
-  const checkedInAppointments = appointments.filter(
+  // Self-healing: create PatientQueue entries for any checked-in appointments missing from queue
+  const checkedInAppointments = todayAppointments.filter(
     a => (a.status === 'CHECKED_IN' || a.status === 'READY_FOR_CONSULTATION') &&
          !queue.some(q => q.appointment_id === a.id)
   );
@@ -222,7 +259,7 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
             added_by: userId,
             added_at: apt.checked_in_at || new Date(),
           },
-        }).catch(() => {}) // Silently ignore duplicates
+        }).catch(() => {})
       )
     );
 
@@ -252,10 +289,10 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
     queue.splice(0, queue.length, ...healedQueue as any);
   }
 
-  const completedToday = appointments.filter(a => a.status === 'COMPLETED').length;
+  const completedToday = todayAppointments.filter(a => a.status === 'COMPLETED').length;
   const activeCases = surgicalCases.filter(s => s.status !== 'COMPLETED' && s.status !== 'CANCELLED' && s.status !== 'DRAFT').length;
   const recoveryCases = surgicalCases.filter(s => s.status === 'RECOVERY').length;
-  
+
   return {
     doctor: {
       id: doctor.id,
@@ -269,17 +306,33 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
       profileImage: doctor.profile_image,
       availabilityStatus: doctor.availability_status,
     },
-    appointments: appointments.map(a => ({
-      id: a.id,
-      patientId: a.patient_id,
-      patientName: `${a.patient.first_name} ${a.patient.last_name}`,
-      patientFileNumber: a.patient.file_number,
-      appointmentDate: a.appointment_date.toISOString(),
-      time: a.time || '',
-      type: a.type,
-      status: a.status,
-    })),
-    surgicalCases: surgicalCases.map(sc => ({
+  todayAppointments: todayAppointments.map(a => ({
+    id: a.id,
+    patientId: a.patient_id,
+    patient: {
+      firstName: a.patient.first_name,
+      lastName: a.patient.last_name,
+      fileNumber: a.patient.file_number,
+    },
+    appointmentDate: a.appointment_date,
+    time: a.time || '',
+    type: a.type,
+    status: a.status,
+  })),
+  upcomingAppointments: upcomingAppointments.map(a => ({
+    id: a.id,
+    patientId: a.patient_id,
+    patient: {
+      firstName: a.patient.first_name,
+      lastName: a.patient.last_name,
+      fileNumber: a.patient.file_number,
+    },
+    appointmentDate: a.appointment_date,
+    time: a.time || '',
+    type: a.type,
+    status: a.status,
+  })),
+  surgicalCases: surgicalCases.map(sc => ({
       id: sc.id,
       status: sc.status,
       urgency: sc.urgency,
@@ -314,7 +367,7 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
       const minutes = Math.floor(diffMs / (1000 * 60));
       const hours = Math.floor(minutes / 60);
       const waitTime = hours > 0 ? `${hours}h ${minutes % 60}m` : minutes > 0 ? `${minutes}m` : 'Just now';
-      
+
       return {
         id: q.id,
         patientId: q.patient_id,
@@ -341,6 +394,7 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
       completedConsultationsToday: completedToday,
       activeSurgicalCases: activeCases,
       recoveryCases: recoveryCases,
+      pendingAppointments: pendingCount,
     },
   };
 }

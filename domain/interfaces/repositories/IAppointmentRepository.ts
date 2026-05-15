@@ -24,12 +24,27 @@ export interface IAppointmentRepository {
 
   /**
    * Finds all appointments for a specific patient
-   * 
+   *
    * @param patientId - The patient's unique identifier
    * @returns Promise resolving to an array of Appointment entities
    *          Returns empty array if no appointments found
    */
   findByPatient(patientId: string, txClient?: unknown): Promise<Appointment[]>;
+
+  /**
+   * Finds all appointments for a specific patient belonging to a specific doctor
+   *
+   * This is a filtered variant of findByPatient used when a doctor (not admin/frontdesk)
+   * is viewing a patient profile — it enforces that only appointments the doctor is
+   * personally responsible for are returned.
+   *
+   * @param patientId - The patient's unique identifier
+   * @param userId     - The authenticated doctor's user_id (maps to doctor.id)
+   * @param txClient   - Optional transaction client for use within transactions (implementation-specific)
+   * @returns Promise resolving to an array of Appointment entities
+   *          Returns empty array if no appointments found
+   */
+  findByPatientAndDoctor(patientId: string, userId: string, txClient?: unknown): Promise<Appointment[]>;
 
   /**
    * Finds all appointments for a specific doctor

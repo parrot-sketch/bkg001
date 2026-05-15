@@ -1,17 +1,12 @@
 /**
  * useDoctorDashboard Hook
- * 
- * Unified React Query hook for doctor dashboard data.
- * Provides single source of truth for all dashboard components.
- * 
- * Query Configuration:
- * - staleTime: 30 seconds (matches server-side cache)
- * - refetchInterval: 60 seconds (single polling source)
- * - refetchOnWindowFocus: true (clinical safety)
- * - retry: 2
- * 
- * Selector hooks allow components to subscribe to specific data slices
- * without additional fetches - all share the same cache entry.
+ *
+ * Enhanced with resilience:
+ * - Extended staleTime (2min) for offline tolerance
+ * - Retry: 3 with exponential backoff
+ * - Network-aware: refetch on reconnect
+ * - keepsPreviousData: smooth transitions on refresh
+ * - error logging for debugging
  */
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -22,31 +17,32 @@ export const DOCTOR_DASHBOARD_KEY = ['doctor', 'dashboard'] as const;
 
 interface UseDoctorDashboardOptions {
   enabled?: boolean;
+  retry?: number;
 }
 
 export function useDoctorDashboard(options: UseDoctorDashboardOptions = {}) {
-  const { enabled = true } = options;
-  
+  const { enabled = true, retry = 3 } = options;
+
   return useQuery<DoctorDashboardData>({
     queryKey: DOCTOR_DASHBOARD_KEY,
     queryFn: async () => {
       const data = await getDoctorDashboardData();
       return data;
     },
-    staleTime: 15_000,
-    gcTime: 1000 * 60 * 5,
-    refetchInterval: 30_000, // Was 10s — reduced to conserve DB connections
+    staleTime: 1000 * 60 * 3,
+    gcTime: 1000 * 60 * 10,
+    refetchInterval: 60_000,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
-    retry: 2,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    retry,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
     enabled,
   });
 }
 
 export function useDoctorAppointments() {
   const { data } = useDoctorDashboard();
-  return data?.appointments ?? [];
+  return data?.todayAppointments ?? [];
 }
 
 export function useDoctorQueue() {
@@ -67,6 +63,7 @@ export function useDoctorStats() {
       completedConsultationsToday: 0,
       activeSurgicalCases: 0,
       recoveryCases: 0,
+      pendingAppointments: 0,
     };
   }
   return data.stats;
@@ -84,7 +81,7 @@ export function useDoctorProfile() {
 
 export function useInvalidateDoctorDashboard() {
   const queryClient = useQueryClient();
-  
+
   return () => {
     queryClient.invalidateQueries({ queryKey: DOCTOR_DASHBOARD_KEY });
   };

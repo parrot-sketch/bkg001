@@ -80,15 +80,14 @@ export function PatientSwitchConfirmation({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onCancel()}>
       <DialogContent className="max-w-md">
-        <DialogHeader className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="rounded-full bg-blue-100 p-2">
-              <AlertCircle className="h-5 w-5 text-blue-600" />
+          <DialogHeader className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-blue-100 p-2">
+                <AlertCircle className="h-5 w-5 text-blue-600" />
+              </div>
+              <DialogTitle>Switch to Next Patient?</DialogTitle>
             </div>
-            <DialogTitle>Switch to Next Patient?</DialogTitle>
-          </div>
 
-          <DialogDescription className="space-y-4 text-sm">
             {/* Current patient info */}
             <div className="rounded-lg bg-slate-50 p-3 border border-slate-200">
               <p className="text-xs font-medium text-slate-600">COMPLETING</p>
@@ -140,8 +139,7 @@ export function PatientSwitchConfirmation({
                 </p>
               </motion.div>
             )}
-          </DialogDescription>
-        </DialogHeader>
+          </DialogHeader>
 
         {/* Actions */}
         <DialogFooter className="flex flex-col gap-2 sm:flex-col">
