@@ -20,10 +20,10 @@ import { cn } from '@/lib/utils';
 
 const BILL_TYPE_CONFIG: Record<string, { label: string; className: string }> = {
   [BillType.CONSULTATION]: { label: 'Consultation', className: 'bg-slate-100 text-slate-700 border-slate-200/60' },
-  [BillType.SURGERY]: { label: 'Surgery', className: 'bg-indigo-50 text-indigo-700 border-indigo-200/60' },
-  [BillType.LAB_TEST]: { label: 'Lab Test', className: 'bg-teal-50 text-teal-700 border-teal-200/60' },
-  [BillType.FOLLOW_UP]: { label: 'Follow-Up', className: 'bg-sky-50 text-sky-700 border-sky-200/60' },
-  [BillType.OTHER]: { label: 'Other', className: 'bg-slate-50 text-slate-700 border-slate-200/60' },
+  [BillType.SURGERY]: { label: 'Surgery', className: 'bg-slate-100 text-slate-700 border-slate-200/60' },
+  [BillType.LAB_TEST]: { label: 'Lab Test', className: 'bg-slate-100 text-slate-700 border-slate-200/60' },
+  [BillType.FOLLOW_UP]: { label: 'Follow-Up', className: 'bg-slate-100 text-slate-700 border-slate-200/60' },
+  [BillType.OTHER]: { label: 'Other', className: 'bg-slate-100 text-slate-700 border-slate-200/60' },
 };
 
 interface ChargeSheetGalleryProps {
@@ -121,7 +121,7 @@ export function ChargeSheetGallery({
                         </code>
                       )}
 
-                      <Badge variant="outline" className={cn("text-[10px] font-medium px-1.5 py-0 h-4.5 border flex-shrink-0", billTypeCfg.className)}>
+                      <Badge variant="outline" className={cn("text-[10px] font-medium px-1.5 py-0 h-4.5 border flex-shrink-0 rounded-none", billTypeCfg.className)}>
                         {billTypeCfg.label}
                       </Badge>
                     </div>
@@ -140,7 +140,7 @@ export function ChargeSheetGallery({
                       {payment.surgicalCase && (
                         <>
                           <span className="opacity-40">—</span>
-                          <span className="text-indigo-600">
+                          <span className="text-slate-700">
                             {payment.surgicalCase.procedureName || 'Surgery'}
                           </span>
                         </>
@@ -158,7 +158,7 @@ export function ChargeSheetGallery({
                       {remaining.toLocaleString()}
                     </p>
                     {payment.discount > 0 && (
-                      <p className="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-sm inline-flex items-center mt-0.5 h-max ml-auto max-w-max">
+                      <p className="text-[10px] font-medium text-slate-500 border border-slate-200 px-1.5 py-0.5 inline-flex items-center mt-0.5 h-max ml-auto max-w-max">
                         -{payment.discount.toLocaleString()} discount
                       </p>
                     )}
@@ -168,10 +168,7 @@ export function ChargeSheetGallery({
                     <Badge
                       variant="outline"
                       className={cn(
-                        "text-[10px] font-medium px-1.5 py-0",
-                        payment.status === PaymentStatus.PART && "bg-amber-50 text-amber-700 border-amber-200/60",
-                        payment.status === PaymentStatus.UNPAID && "bg-rose-50 text-rose-700 border-rose-200/60",
-                        payment.status === PaymentStatus.PAID && "bg-emerald-50 text-emerald-700 border-emerald-200/60"
+                        "text-[10px] font-medium px-1.5 py-0 rounded-none"
                       )}
                     >
                       {getPaymentStatusLabel(payment.status)}
@@ -184,7 +181,7 @@ export function ChargeSheetGallery({
                           onCollectPayment(payment);
                         }}
                         size="sm"
-                        className="bg-slate-900 hover:bg-slate-800 text-white font-medium h-7 rounded-md px-3 text-xs w-full shadow-sm"
+                        className="bg-slate-900 hover:bg-slate-800 text-white font-medium h-7 rounded-none px-3 text-xs w-full shadow-sm"
                       >
                         <CreditCard className="h-3 w-3 mr-1.5" />
                         Collect
@@ -199,7 +196,7 @@ export function ChargeSheetGallery({
                           console.log('[Gallery] after onCollectPayment call');
                         }}
                         size="sm"
-                        className="bg-slate-900 hover:bg-slate-800 text-white font-medium h-7 rounded-md px-3 text-xs w-full shadow-sm"
+                        className="bg-slate-900 hover:bg-slate-800 text-white font-medium h-7 rounded-none px-3 text-xs w-full shadow-sm"
                       >
                         <CreditCard className="h-3 w-3 mr-1.5" />
                         Collect
@@ -256,7 +253,7 @@ export function ChargeSheetGallery({
                     </div>
                     
                     {payment.discount > 0 && (
-                      <div className="flex items-center justify-end text-xs gap-6 text-emerald-600">
+                      <div className="flex items-center justify-end text-xs gap-6 text-slate-500">
                         <span>Discount</span>
                         <span className="w-20 text-right">
                           -{payment.discount.toLocaleString()}

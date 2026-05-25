@@ -3,6 +3,8 @@ import { UpdateDoctorProfileDto } from '../dtos/UpdateDoctorProfileDto';
 import { DoctorResponseDto } from '../dtos/DoctorResponseDto';
 import { DomainException } from '../../domain/exceptions/DomainException';
 import { IDoctorRepository } from '../../domain/interfaces/repositories/IDoctorRepository';
+import { DoctorOnboardingStatus } from '../../domain/enums/DoctorOnboardingStatus';
+import { transitionDoctorOnboardingStatus } from '../../domain/services/DoctorOnboardingStateMachine';
 
 /**
  * Use Case: UpdateDoctorProfileUseCase
@@ -55,7 +57,19 @@ export class UpdateDoctorProfileUseCase {
     // E.g. Check license uniqueness if license is being updated
 
     // Step 3: Update doctor profile via Repository
-    const updatedDoctor = await this.doctorRepository.update(dto.doctorId, updateData);
+    let updatedDoctor = await this.doctorRepository.update(dto.doctorId, updateData);
+
+    // Step 3b: Onboarding transition (non-aggressive)
+    // If a doctor is ACTIVATED and completes required profile fields, mark profile completed.
+    const currentStatus = doctor.onboarding_status as unknown as DoctorOnboardingStatus | null;
+    const nextStatusTarget = DoctorOnboardingStatus.PROFILE_COMPLETED;
+    if (currentStatus === DoctorOnboardingStatus.ACTIVATED && isProfileCompleteForOnboarding(updatedDoctor)) {
+      const transitioned = transitionDoctorOnboardingStatus(currentStatus, nextStatusTarget);
+      updatedDoctor = await this.doctorRepository.update(dto.doctorId, {
+        onboarding_status: transitioned as any,
+        profile_completed_at: new Date() as any,
+      } as any);
+    }
 
     // Step 4: Record audit event
     await this.auditService.recordEvent({
@@ -104,3 +118,11 @@ export class UpdateDoctorProfileUseCase {
   }
 }
 
+function isProfileCompleteForOnboarding(doctor: any): boolean {
+  const isFilled = (value: unknown) => (typeof value === 'string' ? value.trim().length > 0 : value != null);
+  const hasPositiveNumber = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && value > 0;
+  const hasAnyNarrativeField =
+    isFilled(doctor.bio) || isFilled(doctor.education) || isFilled(doctor.focus_areas) || isFilled(doctor.professional_affiliations);
+
+  return isFilled(doctor.clinic_location) && hasPositiveNumber(doctor.consultation_fee) && hasAnyNarrativeField;
+}

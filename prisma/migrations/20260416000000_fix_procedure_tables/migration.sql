@@ -114,7 +114,7 @@ END $$;
 
 -- Add OTHER to ProcedureCategory enum if needed
 DO $$ BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'OTHER' AND enumtypid = 'ProcedureCategory'::regtype) THEN
+    IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'OTHER' AND enumtypid = '"ProcedureCategory"'::regtype) THEN
         ALTER TYPE "ProcedureCategory" ADD VALUE 'OTHER';
     END IF;
 END $$;

@@ -1,8 +1,7 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { Clock, ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ConsultationState } from '@/domain/enums/ConsultationState';
 import type { ConsultationResponseDto } from '@/application/dtos/ConsultationResponseDto';
@@ -21,6 +20,8 @@ interface Props {
   isSaving?: boolean;
   slotStartTime?: Date;
   slotDurationMinutes?: number;
+  patientSidebarCollapsed?: boolean;
+  onTogglePatientSidebar?: () => void;
 }
 
 export function ConsultationSessionHeader({
@@ -34,6 +35,8 @@ export function ConsultationSessionHeader({
   isSaving = false,
   slotStartTime,
   slotDurationMinutes,
+  patientSidebarCollapsed,
+  onTogglePatientSidebar,
 }: Props) {
   const router = useRouter();
 
@@ -63,33 +66,20 @@ export function ConsultationSessionHeader({
           <ArrowLeft className="h-3.5 w-3.5" />
         </Button>
 
-        <div className={cn(
-          'h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0',
-          active ? 'bg-emerald-100 text-emerald-700' :
-          completed ? 'bg-slate-100 text-slate-500' :
-          'bg-amber-100 text-amber-700',
-        )}>
+        <div className="h-7 w-7 border border-slate-200 bg-slate-50 flex items-center justify-center text-[10px] font-bold text-slate-700 shrink-0">
           {initials}
         </div>
 
         <span className="text-sm font-semibold text-slate-900 truncate">{patientName}</span>
 
-        <span className={cn(
-          'text-[10px] font-medium px-1.5 py-0.5 rounded',
-          active ? 'bg-emerald-50 text-emerald-700' :
-          completed ? 'bg-slate-100 text-slate-500' :
-          'bg-amber-50 text-amber-700',
-        )}>
+        <span className="text-[10px] font-semibold px-1.5 py-0.5 border border-slate-200 text-slate-700">
           {active ? 'Active' : completed ? 'Done' : 'Pending'}
         </span>
       </div>
 
       {/* Center — Timer */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1.5 text-xs text-slate-500">
-          <Clock className="h-3 w-3" />
-          <span className="font-mono font-medium tabular-nums">{elapsed}</span>
-        </div>
+        <div className="text-xs text-slate-700 font-mono font-medium tabular-nums">{elapsed}</div>
         {remainingDisplay && active && (
           <span className="text-[10px] text-slate-400">
             {remainingDisplay} left
@@ -100,6 +90,16 @@ export function ConsultationSessionHeader({
 
       {/* Right — Actions */}
       <div className="flex items-center gap-2">
+        {onTogglePatientSidebar && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onTogglePatientSidebar}
+            className="h-7 px-2.5 text-xs rounded-none"
+          >
+            {patientSidebarCollapsed ? 'Patient' : 'Hide patient'}
+          </Button>
+        )}
         {active && (
           <Button
             variant="ghost"
@@ -116,7 +116,8 @@ export function ConsultationSessionHeader({
           <Button
             size="sm"
             onClick={onComplete}
-            className="h-7 px-3 text-xs bg-emerald-600 hover:bg-emerald-700"
+            variant="outline"
+            className="h-7 px-3 text-xs rounded-none"
           >
             Complete
           </Button>
@@ -130,10 +131,7 @@ function AutoSaveBadge({ status }: { status: 'idle' | 'saving' | 'saved' | 'erro
   if (status === 'idle') return null;
   return (
     <span className={cn(
-      'text-[10px] px-1.5 py-0.5 rounded font-medium',
-      status === 'saving' && 'text-blue-600 bg-blue-50',
-      status === 'saved' && 'text-emerald-600 bg-emerald-50',
-      status === 'error' && 'text-red-600 bg-red-50',
+      'text-[10px] px-1.5 py-0.5 border border-slate-200 font-semibold text-slate-700',
     )}>
       {status === 'saving' ? 'Saving…' : status === 'saved' ? 'Saved' : 'Error'}
     </span>

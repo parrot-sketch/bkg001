@@ -1,21 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { 
-  ChevronRight, 
-  Phone, 
-  Clock, 
-  Activity, 
-  Droplets, 
-  AlertTriangle, 
-  Heart, 
-  Shield 
-} from 'lucide-react';
-import { format, differenceInDays } from 'date-fns';
+import { format } from 'date-fns';
 import { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
-import { cn } from '@/lib/utils';
 
 interface PatientRowProps {
   patient: PatientResponseDto;
@@ -37,109 +24,38 @@ export function PatientRow({
   const hasAllergies = !!patient.allergies?.trim();
   const hasConditions = !!patient.medicalConditions?.trim();
 
-  const recencyLabel = lastVisit
-    ? differenceInDays(new Date(), lastVisit) <= 7
-      ? 'This week'
-      : differenceInDays(new Date(), lastVisit) <= 30
-        ? 'This month'
-        : format(lastVisit, 'MMM d, yyyy')
-    : null;
+  const lastVisitLabel = lastVisit ? format(lastVisit, 'MMM d, yyyy') : '—';
+  const flags: string[] = [];
+  if (hasAllergies) flags.push('Allergies');
+  if (hasConditions) flags.push('Conditions');
+  if (patient.insuranceProvider) flags.push('Insured');
+  const flagsLabel = flags.length ? flags.join(', ') : '—';
 
   return (
     <div
-      className="group flex items-center gap-3 px-3 py-2.5 bg-white border border-stone-100 hover:border-stone-200 hover:shadow-sm transition-all cursor-pointer"
+      className="px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer md:grid md:grid-cols-12 md:gap-4 md:items-center"
       onClick={() => router.push(`/doctor/patients/${patient.id}`)}
     >
-      {/* Avatar */}
-      <Avatar className="h-9 w-9 rounded-md flex-shrink-0">
-        <AvatarImage src={patient.profileImage ?? undefined} alt={fullName} />
-        <AvatarFallback
-          className="rounded-md text-xs font-semibold text-white"
-          style={{ backgroundColor: patient.colorCode || '#78716c' }}
-        >
+      <div className="md:col-span-4 min-w-0 flex items-center gap-3">
+        <div className="h-9 w-9 border border-slate-200 bg-slate-50 flex items-center justify-center text-xs font-semibold text-slate-700 flex-shrink-0">
           {initials}
-        </AvatarFallback>
-      </Avatar>
-
-      {/* Main Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <p className="text-sm font-medium text-stone-800 truncate">{fullName}</p>
-          {patient.fileNumber && (
-            <span className="text-[10px] font-mono font-medium text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded">
-              {patient.fileNumber}
-            </span>
-          )}
         </div>
-        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-          {patient.gender && (
-            <span className="text-[11px] text-stone-400 capitalize">{patient.gender.toLowerCase()}</span>
-          )}
-          {age !== null && (
-            <>
-              <span className="text-stone-300">·</span>
-              <span className="text-[11px] text-stone-400">{age} yrs</span>
-            </>
-          )}
-          {patient.bloodGroup && (
-            <>
-              <span className="text-stone-300">·</span>
-              <span className="text-[11px] text-stone-500 flex items-center gap-0.5">
-                <Droplets className="h-2.5 w-2.5 text-red-400" />
-                {patient.bloodGroup}
-              </span>
-            </>
-          )}
-          {patient.phone && (
-            <>
-              <span className="text-stone-300">·</span>
-              <span className="text-[11px] text-stone-400 flex items-center gap-0.5">
-                <Phone className="h-2.5 w-2.5" />
-                {patient.phone}
-              </span>
-            </>
-          )}
+        <div className="min-w-0">
+          <div className="text-sm font-medium text-slate-900 truncate">{fullName}</div>
+          <div className="text-xs text-slate-500 md:hidden mt-0.5">
+            {patient.fileNumber || '—'} • {patient.phone || '—'} • Last: {lastVisitLabel} • {appointmentCount} visit{appointmentCount !== 1 ? 's' : ''} • {flagsLabel}
+          </div>
+          <div className="hidden md:block text-xs text-slate-500 mt-0.5">
+            {[patient.gender ? patient.gender.toLowerCase() : null, age !== null ? `${age} yrs` : null].filter(Boolean).join(' · ') || '—'}
+          </div>
         </div>
       </div>
 
-      {/* Clinical Badges */}
-      <div className="hidden sm:flex items-center gap-1.5 flex-shrink-0">
-        {hasAllergies && (
-          <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] font-medium px-1.5 py-0 h-5 border gap-0.5">
-            <AlertTriangle className="h-2.5 w-2.5" />
-            Allergies
-          </Badge>
-        )}
-        {hasConditions && (
-          <Badge className="bg-rose-50 text-rose-700 border-rose-200 text-[10px] font-medium px-1.5 py-0 h-5 border gap-0.5">
-            <Heart className="h-2.5 w-2.5" />
-            Conditions
-          </Badge>
-        )}
-        {patient.insuranceProvider && (
-          <Badge className="bg-stone-50 text-stone-600 border-stone-200 text-[10px] font-medium px-1.5 py-0 h-5 border gap-0.5">
-            <Shield className="h-2.5 w-2.5" />
-            Insured
-          </Badge>
-        )}
-      </div>
-
-      {/* Visit Stats */}
-      <div className="hidden md:flex flex-col items-end gap-0.5 flex-shrink-0 min-w-[90px]">
-        {recencyLabel && (
-          <span className="text-[10px] text-stone-500 font-medium flex items-center gap-1">
-            <Clock className="h-2.5 w-2.5" />
-            {recencyLabel}
-          </span>
-        )}
-        <span className="text-[10px] text-stone-400 flex items-center gap-1">
-          <Activity className="h-2.5 w-2.5" />
-          {appointmentCount} visit{appointmentCount !== 1 ? 's' : ''}
-        </span>
-      </div>
-
-      {/* Action */}
-      <ChevronRight className="h-4 w-4 text-stone-300 group-hover:text-stone-500 transition-colors flex-shrink-0" />
+      <div className="hidden md:block md:col-span-2 text-sm text-slate-700">{patient.fileNumber || '—'}</div>
+      <div className="hidden md:block md:col-span-2 text-sm text-slate-700">{patient.phone || '—'}</div>
+      <div className="hidden md:block md:col-span-2 text-sm text-slate-700">{lastVisitLabel}</div>
+      <div className="hidden md:block md:col-span-1 text-sm text-slate-700">{appointmentCount}</div>
+      <div className="hidden md:block md:col-span-1 text-xs text-slate-700 truncate">{flagsLabel}</div>
     </div>
   );
 }

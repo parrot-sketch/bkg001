@@ -14,13 +14,7 @@ import { useDoctorAppointments } from '@/hooks/doctor/useDoctorAppointments';
 import { ClinicalDashboardShell } from '@/components/layouts/ClinicalDashboardShell';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Users,
-  AlertTriangle,
-  RefreshCw,
-} from 'lucide-react';
 import { isThisMonth } from 'date-fns';
-import { cn } from '@/lib/utils';
 
 // Modular Components
 import { PatientRow } from './components/PatientRow';
@@ -142,13 +136,14 @@ export default function DoctorPatientsPage() {
   if (patientsError) {
     return (
       <ClinicalDashboardShell>
-        <div className="flex flex-col items-center justify-center py-20">
-          <AlertTriangle className="h-8 w-8 text-red-400 mb-3" />
-          <p className="text-sm font-medium text-red-600">Failed to load patients</p>
-          <p className="text-xs text-slate-400 mt-1">Please try refreshing the page.</p>
-          <Button variant="outline" size="sm" className="mt-4" onClick={handleRefresh}>
-            <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Retry
-          </Button>
+        <div className="flex flex-col items-center justify-center py-20 px-4">
+          <div className="w-full max-w-md border border-slate-200 bg-white p-6 text-center">
+            <p className="text-sm font-semibold text-slate-900">Unable to load patient roster</p>
+            <p className="text-xs text-slate-500 mt-1">Please retry.</p>
+            <Button variant="outline" size="sm" className="mt-4 rounded-none" onClick={handleRefresh}>
+              Retry
+            </Button>
+          </div>
         </div>
       </ClinicalDashboardShell>
     );
@@ -156,22 +151,18 @@ export default function DoctorPatientsPage() {
 
   return (
     <ClinicalDashboardShell>
-      <div className="space-y-5 animate-in fade-in duration-500 pb-8">
+      <div className="space-y-5 pb-8">
 
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-          <div>
-            <p className="text-xs text-stone-500 font-medium mb-1">Your Patient Roster</p>
-            <h1 className="text-xl font-semibold tracking-tight text-stone-900">My Patients</h1>
-          </div>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <h1 className="text-base font-semibold text-slate-900">Patients</h1>
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
-            className="text-xs text-stone-500 gap-1.5 self-start sm:self-auto hover:text-stone-700"
+            className="text-xs self-start sm:self-auto rounded-none"
             onClick={handleRefresh}
             disabled={refreshing}
           >
-            <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
             Refresh
           </Button>
         </div>
@@ -193,36 +184,43 @@ export default function DoctorPatientsPage() {
         {loading ? (
           <div className="space-y-2">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-white border border-stone-100">
-                <Skeleton className="h-10 w-10 rounded-lg" />
+              <div key={i} className="flex items-center gap-4 p-4 bg-white border border-slate-200">
+                <Skeleton className="h-9 w-9 rounded-none" />
                 <div className="flex-1 space-y-1.5">
                   <Skeleton className="h-4 w-44" />
                   <Skeleton className="h-3 w-28" />
                 </div>
-                <Skeleton className="h-6 w-16 rounded-full" />
+                <Skeleton className="h-8 w-20 rounded-none" />
               </div>
             ))}
           </div>
         ) : sortedPatients.length > 0 ? (
-          <div className="space-y-1 border border-stone-100 rounded-lg bg-white/50 overflow-hidden mx-4">
-            {sortedPatients.map((patient) => (
-              <PatientRow
-                key={patient.id}
-                patient={patient}
-                appointmentCount={patientAppointmentCount[patient.id] || 0}
-                lastVisit={patientLastVisit[patient.id]}
-              />
-            ))}
+          <div className="border border-slate-200 bg-white overflow-hidden">
+            <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 border-b border-slate-200">
+              <div className="col-span-4">Patient</div>
+              <div className="col-span-2">File</div>
+              <div className="col-span-2">Phone</div>
+              <div className="col-span-2">Last visit</div>
+              <div className="col-span-1">Visits</div>
+              <div className="col-span-1">Flags</div>
+            </div>
+            <div className="divide-y divide-slate-200">
+              {sortedPatients.map((patient) => (
+                <PatientRow
+                  key={patient.id}
+                  patient={patient}
+                  appointmentCount={patientAppointmentCount[patient.id] || 0}
+                  lastVisit={patientLastVisit[patient.id]}
+                />
+              ))}
+            </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-stone-200 mx-4">
-            <div className="w-12 h-12 rounded-full bg-stone-50 flex items-center justify-center mb-3">
-              <Users className="h-5 w-5 text-stone-300" />
-            </div>
-            <h3 className="text-sm font-medium text-stone-600">
+          <div className="flex flex-col items-center justify-center py-16 bg-white border border-slate-200">
+            <h3 className="text-sm font-semibold text-slate-700">
               {searchQuery ? 'No patients match your search' : 'No patients yet'}
             </h3>
-            <p className="text-xs text-stone-400 max-w-xs text-center mt-1">
+            <p className="text-xs text-slate-500 max-w-xs text-center mt-1">
               {searchQuery
                 ? 'Try different search terms.'
                 : 'Patients will appear here after their first appointment with you.'

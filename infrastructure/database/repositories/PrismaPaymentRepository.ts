@@ -161,6 +161,10 @@ export class PrismaPaymentRepository implements IPaymentRepository {
         status: {
           in: ['UNPAID', 'PART'],
         },
+        // Only finalized charge sheets should appear in the cashier/frontdesk collection queue.
+        finalized_at: {
+          not: null,
+        },
         bill_date: {
           gte: thirtyDaysAgo,
         },
@@ -173,6 +177,10 @@ export class PrismaPaymentRepository implements IPaymentRepository {
   }
 
   async create(dto: CreatePaymentDto): Promise<Payment> {
+    const computedTotal = dto.billItems
+      ? dto.billItems.reduce((sum, item) => sum + item.quantity * item.unitCost, 0)
+      : undefined;
+
     const result = await this.prisma.payment.create({
       data: {
         patient_id: dto.patientId,
@@ -180,7 +188,9 @@ export class PrismaPaymentRepository implements IPaymentRepository {
         surgical_case_id: dto.surgicalCaseId ?? null,
         bill_type: dto.billType ?? 'CONSULTATION',
         bill_date: new Date(),
-        total_amount: dto.totalAmount,
+        // Charge sheet is the source of truth: if bill items are provided,
+        // derive total_amount from them to avoid mismatches.
+        total_amount: computedTotal ?? dto.totalAmount,
         discount: dto.discount ?? 0,
         amount_paid: 0,
         payment_method: 'CASH', // Default
@@ -205,15 +215,36 @@ export class PrismaPaymentRepository implements IPaymentRepository {
     // Get current payment
     const current = await this.prisma.payment.findUnique({
       where: { id: dto.paymentId },
+      select: {
+        id: true,
+        amount_paid: true,
+        total_amount: true,
+        discount: true,
+        status: true,
+        payment_date: true,
+        finalized_at: true,
+      },
     });
 
     if (!current) {
       throw new Error(`Payment ${dto.paymentId} not found`);
     }
 
+    if (!current.finalized_at) {
+      throw new Error('Charge sheet is not finalized. Finalize before collecting payment.');
+    }
+
     // Calculate new total paid
     const newAmountPaid = current.amount_paid + dto.amountPaid;
     const payableAmount = current.total_amount - current.discount;
+
+    if (dto.amountPaid <= 0) {
+      throw new Error('Amount paid must be a positive number');
+    }
+
+    if (newAmountPaid > payableAmount + 0.0001) {
+      throw new Error('Payment exceeds the remaining balance');
+    }
 
     // Determine new status
     let newStatus: PaymentStatus;

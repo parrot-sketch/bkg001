@@ -2,9 +2,10 @@
 
 /**
  * Doctor Dashboard Layout
- * 
+ *
  * Main layout for all doctor dashboard pages.
- * Uses UnifiedSidebar with enhanced design and DoctorHeader for consistent UX.
+ * Uses DoctorSidebar + DoctorHeader for consistent UX.
+ * Wraps all doctor routes in OnboardingTourProvider.
  */
 
 import { useState, ReactNode, useEffect } from 'react';
@@ -13,6 +14,8 @@ import { DoctorHeader } from './_components/DoctorHeader';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { toast } from 'sonner';
+import { OnboardingTourProvider } from '@/components/doctor/onboarding-tour/OnboardingTourContext';
+import { useDoctorDashboard } from '@/hooks/use-doctor-dashboard';
 
 interface DoctorLayoutProps {
   children: ReactNode;
@@ -23,9 +26,15 @@ export default function DoctorLayout({ children }: DoctorLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isLoading, logout } = useAuth();
+  const { user, isLoading } = useAuth();
 
-  const isConsultationSession = pathname?.includes('/consultations/') && pathname?.includes('/session');
+  // ── Doctor profile fetch for onboarding tour status
+  // MUST remain here — unconditionally at the top level (Rules of Hooks).
+  // The `enabled` flag prevents any fetch until auth is confirmed.
+  const isDoctorUser =
+    !isLoading && !!user && (user.role === 'DOCTOR' || user.role === 'ADMIN');
+  const { data: dashboardData } = useDoctorDashboard({ enabled: isDoctorUser });
+  const doctor = dashboardData?.doctor ?? null;
 
   useEffect(() => {
     if (!isLoading) {
@@ -38,6 +47,7 @@ export default function DoctorLayout({ children }: DoctorLayoutProps) {
     }
   }, [isLoading, user, router]);
 
+  // ── Guard: loading spinner
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-stone-50">
@@ -49,33 +59,50 @@ export default function DoctorLayout({ children }: DoctorLayoutProps) {
     );
   }
 
+  // ── Guard: unauthenticated or wrong role (redirect handled above via useEffect)
   if (!user || (user.role !== 'DOCTOR' && user.role !== 'ADMIN')) {
     return null;
   }
 
-  return (
-    <div className="flex h-screen overflow-hidden bg-stone-50">
-      {/* Sidebar */}
-      <DoctorSidebar
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onCollapse={setSidebarCollapsed}
-      />
-
-      {/* Content Area */}
-      <div
-        className="flex-1 flex flex-col min-w-0 h-full overflow-hidden transition-all duration-300 lg:ml-[var(--sidebar-offset)]"
-        style={
-          { '--sidebar-offset': sidebarCollapsed ? '4rem' : '280px' } as React.CSSProperties
-        }
-      >
-        <DoctorHeader onMenuClick={() => setSidebarOpen(true)} />
+  // ── Legacy onboarding page — render without sidebar
+  const isOnboarding = pathname === '/doctor/onboarding';
+  if (isOnboarding) {
+    return (
+      <div className="flex h-screen overflow-hidden bg-stone-50 w-full">
         <main className="flex-1 relative overflow-hidden focus:outline-none bg-gradient-to-b from-stone-50/80 via-white to-stone-50/40 overflow-y-auto overscroll-contain scroll-smooth">
-          <div className="w-full min-h-full mx-auto max-w-[1600px] px-4 py-5 sm:px-5 sm:py-6 lg:px-8 lg:py-7 xl:px-10 xl:py-8">
+          <div className="w-full min-h-full mx-auto px-4 py-6 sm:px-6 lg:px-8">
             {children}
           </div>
         </main>
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <OnboardingTourProvider onboardingStatus={doctor?.onboardingStatus ?? null}>
+      <div className="flex h-screen overflow-hidden bg-stone-50">
+        {/* Sidebar */}
+        <DoctorSidebar
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          onCollapse={setSidebarCollapsed}
+        />
+
+        {/* Content Area */}
+        <div
+          className="flex-1 flex flex-col min-w-0 h-full overflow-hidden transition-all duration-300 lg:ml-[var(--sidebar-offset)]"
+          style={
+            { '--sidebar-offset': sidebarCollapsed ? '4rem' : '280px' } as React.CSSProperties
+          }
+        >
+          <DoctorHeader onMenuClick={() => setSidebarOpen(true)} />
+          <main className="flex-1 relative overflow-hidden focus:outline-none bg-gradient-to-b from-stone-50/80 via-white to-stone-50/40 overflow-y-auto overscroll-contain scroll-smooth">
+            <div className="w-full min-h-full mx-auto max-w-[1600px] px-4 py-5 sm:px-5 sm:py-6 lg:px-8 lg:py-7 xl:px-10 xl:py-8">
+              {children}
+            </div>
+          </main>
+        </div>
+      </div>
+    </OnboardingTourProvider>
   );
 }

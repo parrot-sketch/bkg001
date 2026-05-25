@@ -148,7 +148,7 @@ export class ActivateDoctorInviteUseCase {
       await tx.doctor.update({
         where: { id: doctor.id },
         data: {
-          onboarding_status: newStatus,
+          onboarding_status: newStatus as any, // Cast to Prisma enum
           activated_at: now,
         },
       });

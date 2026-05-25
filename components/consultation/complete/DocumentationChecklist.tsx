@@ -1,8 +1,5 @@
 'use client';
 
-import { FileText, Stethoscope, ClipboardCheck, CalendarPlus, CheckCircle2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-
 interface DocumentationChecklistProps {
   hasChief: boolean;
   hasExam: boolean;
@@ -15,42 +12,33 @@ export function DocumentationChecklist({
   hasPlan,
 }: DocumentationChecklistProps) {
   return (
-    <div className="rounded-xl border border-slate-200 p-4 space-y-3">
-      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider text-black">
-        Documentation Review
-      </h3>
-      <div className="grid grid-cols-2 gap-2">
-        <ChecklistItem icon={FileText} label="Patient Concerns" complete={hasChief} />
-        <ChecklistItem icon={Stethoscope} label="Examination" complete={hasExam} />
-        <ChecklistItem icon={CalendarPlus} label="Treatment Plan" complete={hasPlan} />
+    <div className="border border-slate-200 bg-white">
+      <div className="px-4 py-3 border-b border-slate-200">
+        <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">
+          Documentation
+        </h3>
+      </div>
+      <div className="px-4 py-3 space-y-2">
+        <ChecklistRow label="Patient concerns" complete={hasChief} />
+        <ChecklistRow label="Examination" complete={hasExam} />
+        <ChecklistRow label="Treatment plan" complete={hasPlan} />
       </div>
     </div>
   );
 }
 
-function ChecklistItem({
-  icon: Icon,
+function ChecklistRow({
   label,
   complete,
 }: {
-  icon: React.ComponentType<{ className?: string }>;
   label: string;
   complete: boolean;
 }) {
   return (
-    <div className={cn(
-      'flex items-center gap-2 rounded-lg px-3 py-2 text-xs transition-colors',
-      complete
-        ? 'bg-emerald-50 text-emerald-700'
-        : 'bg-slate-50 text-slate-400',
-    )}>
-      {complete ? (
-        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-      ) : (
-        <Icon className="h-3.5 w-3.5" />
-      )}
-      <span className={cn('font-medium', complete ? '' : 'font-normal')}>
-        {label}
+    <div className="flex items-center justify-between gap-3 text-xs">
+      <span className="text-slate-700">{label}</span>
+      <span className={complete ? 'text-slate-900 font-semibold' : 'text-slate-500'}>
+        {complete ? 'Complete' : 'Missing'}
       </span>
     </div>
   );

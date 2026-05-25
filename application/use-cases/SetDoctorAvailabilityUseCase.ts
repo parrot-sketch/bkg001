@@ -61,6 +61,7 @@ export class SetDoctorAvailabilityUseCase {
         id: true,
         name: true,
         specialization: true,
+        onboarding_status: true,
       },
     });
 
@@ -285,6 +286,18 @@ export class SetDoctorAvailabilityUseCase {
       model: 'DoctorAvailability',
       details: `Doctor availability updated. Working days: ${dto.workingDays.length}`,
     });
+
+    // Step 7b: Onboarding transition
+    if (
+      doctor.onboarding_status === 'PROFILE_COMPLETED' ||
+      doctor.onboarding_status === 'SCHEDULE_SETUP' ||
+      doctor.onboarding_status === 'ACTIVATED'
+    ) {
+      await this.prisma.doctor.update({
+        where: { id: dto.doctorId },
+        data: { onboarding_status: 'ACTIVE' },
+      });
+    }
 
     // Step 8: Get updated availability and return
     const updatedAvailability = await this.availabilityRepository.getDoctorAvailability(dto.doctorId);

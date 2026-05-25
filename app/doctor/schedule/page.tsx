@@ -18,12 +18,14 @@ export default async function DoctorSchedulePage() {
     const end = new Date();
     end.setDate(end.getDate() + 60);
 
-    let scheduleData;
+    let scheduleData: any;
+    let scheduleError: string | null = null;
     try {
         scheduleData = await getDoctorSchedule(user.id, start, end);
     } catch (error) {
         console.error('Failed to load schedule data', error);
-        scheduleData = { appointments: [], workingDays: [], blocks: [], overrides: [] };
+        scheduleError = error instanceof Error ? error.message : 'Failed to load schedule data';
+        scheduleData = { appointments: [], workingDays: [], blocks: [], overrides: [], slotConfig: null };
     }
 
     const appointmentCount = scheduleData?.appointments?.length ?? 0;
@@ -46,6 +48,12 @@ export default async function DoctorSchedulePage() {
                     </p>
                 </div>
             </div>
+
+            {scheduleError ? (
+                <div className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    Unable to load schedule: <span className="font-medium">{scheduleError}</span>
+                </div>
+            ) : null}
 
             <ScheduleTabs initialSchedule={scheduleData} currentUser={user} />
         </div>

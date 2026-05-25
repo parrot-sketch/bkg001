@@ -44,7 +44,6 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAppointment, useAppointments } from '@/hooks/useAppointments';
@@ -103,21 +102,17 @@ function getActiveStep(status: string): number {
 /* ═══════════════════ Status Hero Config ═══════════════════ */
 
 interface HeroConfig {
-  gradient: string;
   icon: React.ComponentType<{ className?: string }>;
   title: string;
   subtitle: string;
-  accent: string;
 }
 
 function getHeroConfig(status: string, isOverdue: boolean, patientName: string): HeroConfig {
   if (status === AppointmentStatus.IN_CONSULTATION && isOverdue) {
     return {
-      gradient: 'from-amber-600 to-amber-800',
       icon: AlertTriangle,
       title: 'Consultation Running Overtime',
       subtitle: 'Please complete or continue this session as needed',
-      accent: 'amber',
     };
   }
 
@@ -125,69 +120,53 @@ function getHeroConfig(status: string, isOverdue: boolean, patientName: string):
     case AppointmentStatus.PENDING:
     case AppointmentStatus.PENDING_DOCTOR_CONFIRMATION:
       return {
-        gradient: 'from-indigo-600 to-indigo-800',
         icon: CalendarClock,
         title: 'Appointment Awaiting Your Confirmation',
         subtitle: `${patientName} is waiting for you to confirm or reschedule`,
-        accent: 'indigo',
       };
     case AppointmentStatus.SCHEDULED:
     case AppointmentStatus.CONFIRMED:
       return {
-        gradient: 'from-slate-700 to-slate-900',
         icon: Calendar,
         title: 'Appointment Confirmed',
         subtitle: 'Waiting for patient to arrive and check in at frontdesk',
-        accent: 'slate',
       };
     case AppointmentStatus.CHECKED_IN:
     case AppointmentStatus.READY_FOR_CONSULTATION:
       return {
-        gradient: 'from-emerald-600 to-emerald-800',
         icon: UserCheck,
         title: 'Patient is Ready',
         subtitle: `${patientName} has checked in and is waiting for you`,
-        accent: 'emerald',
       };
     case AppointmentStatus.IN_CONSULTATION:
       return {
-        gradient: 'from-violet-600 to-violet-800',
         icon: Stethoscope,
         title: 'Consultation In Progress',
         subtitle: 'Your session is active — continue in the workspace',
-        accent: 'violet',
       };
     case AppointmentStatus.COMPLETED:
       return {
-        gradient: 'from-slate-500 to-slate-700',
         icon: ClipboardCheck,
         title: 'Consultation Completed',
         subtitle: 'This appointment has been concluded',
-        accent: 'slate',
       };
     case AppointmentStatus.CANCELLED:
       return {
-        gradient: 'from-red-500 to-red-700',
         icon: Ban,
         title: 'Appointment Cancelled',
         subtitle: 'This appointment was cancelled',
-        accent: 'red',
       };
     case AppointmentStatus.NO_SHOW:
       return {
-        gradient: 'from-rose-500 to-rose-700',
         icon: UserX,
         title: 'Patient Did Not Show',
         subtitle: 'This appointment was marked as a no-show',
-        accent: 'rose',
       };
     default:
       return {
-        gradient: 'from-slate-600 to-slate-800',
         icon: Calendar,
         title: 'Appointment Details',
         subtitle: '',
-        accent: 'slate',
       };
   }
 }
@@ -299,7 +278,8 @@ export default function AppointmentDetailPage({ params }: PageProps) {
     AppointmentStatus.SCHEDULED,
     AppointmentStatus.CONFIRMED,
   ].includes(status);
-  const canCancel = canReschedule;
+  // Cancel in this UI uses the doctor "reject" path, which is valid only while awaiting confirmation.
+  const canCancel = isAwaitingConfirmation(status);
   const canStartConsultation =
     status === AppointmentStatus.CHECKED_IN ||
     status === AppointmentStatus.READY_FOR_CONSULTATION;
@@ -330,6 +310,7 @@ export default function AppointmentDetailPage({ params }: PageProps) {
       const result = await response.json();
       if (result.success) {
         toast.success('Appointment confirmed');
+        setRecentAction({ type: 'confirmed', timestamp: Date.now() });
         refetch();
       } else {
         toast.error(result.error || 'Failed to confirm');
@@ -354,115 +335,83 @@ export default function AppointmentDetailPage({ params }: PageProps) {
         Back
       </Button>
 
-      {/* ═══ Hero Status Banner ═══ */}
-      <div className={cn(
-        'relative rounded-2xl overflow-hidden p-6 sm:p-8 text-white shadow-lg',
-        `bg-gradient-to-br ${heroConfig.gradient}`
-      )}>
-        {/* Background decoration */}
-        <div className="absolute top-0 right-0 p-6 opacity-[0.08]">
-          <HeroIcon className="w-32 h-32" />
-        </div>
-
-        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-          <div className="flex items-start gap-4">
-            <div className="h-12 w-12 rounded-xl bg-white/15 backdrop-blur flex items-center justify-center shrink-0">
-              <HeroIcon className="h-6 w-6" />
-            </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold leading-tight">{heroConfig.title}</h1>
-              <p className="text-white/70 text-sm mt-0.5">{heroConfig.subtitle}</p>
-              <div className="flex items-center gap-3 mt-3">
-                <Badge className="bg-white/15 text-white border-white/20 backdrop-blur text-xs">
-                  #{appointment.id}
-                </Badge>
-                <span className="text-xs text-white/60">
-                  {isValidDate ? format(appointmentDate, 'EEE, MMM d') : ''} • {appointment.time}
-                </span>
+      <div className="border border-border bg-background">
+        <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <div className="h-9 w-9 border border-border bg-muted/30 flex items-center justify-center">
+                <HeroIcon className="h-4 w-4 text-muted-foreground" />
               </div>
+              <div className="min-w-0">
+                <h1 className="text-base font-semibold text-foreground truncate">
+                  {heroConfig.title}
+                </h1>
+                {heroConfig.subtitle ? (
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                    {heroConfig.subtitle}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 mt-3 text-xs text-muted-foreground">
+              <Badge variant="outline" className="rounded-none text-xs">
+                Appointment #{appointment.id}
+              </Badge>
+              <span className="tabular-nums">
+                {isValidDate ? format(appointmentDate, 'EEE, MMM d') : 'Date'} • {appointment.time || '--:--'}
+              </span>
+              <Badge variant="outline" className="rounded-none text-xs">
+                {status.replaceAll('_', ' ').toLowerCase()}
+              </Badge>
             </div>
           </div>
 
-          {/* Primary CTA */}
-          <div className="shrink-0">
+          <div className="flex items-center gap-2 sm:justify-end">
             {canConfirm && (
-              <Button
-                onClick={handleConfirm}
-                disabled={isBusy}
-                size="lg"
-                className="bg-white text-indigo-700 hover:bg-white/90 font-bold shadow-xl rounded-xl"
-              >
+              <Button onClick={handleConfirm} disabled={isBusy} className="h-9 rounded-none">
                 {isConfirming ? (
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
-                  <CheckCircle className="mr-2 h-5 w-5" />
+                  <CheckCircle className="mr-2 h-4 w-4" />
                 )}
-                Confirm Appointment
+                Confirm
               </Button>
             )}
-
             {canStartConsultation && (
-              <Button
-                onClick={handleStartConsultation}
-                size="lg"
-                className="bg-white text-emerald-700 hover:bg-white/90 font-bold shadow-xl rounded-xl"
-              >
-                <Stethoscope className="mr-2 h-5 w-5" />
-                Start Consultation
+              <Button onClick={handleStartConsultation} disabled={isBusy} className="h-9 rounded-none">
+                <Stethoscope className="mr-2 h-4 w-4" />
+                Start
               </Button>
             )}
-
             {canContinueConsultation && (
-              <Button
-                onClick={handleGoToConsultation}
-                size="lg"
-                className={cn(
-                  'font-bold shadow-xl rounded-xl',
-                  timeStatus.isOverdue
-                    ? 'bg-white text-amber-700 hover:bg-white/90'
-                    : 'bg-white text-violet-700 hover:bg-white/90'
-                )}
-              >
-                <Play className="mr-2 h-5 w-5" />
-                {timeStatus.isOverdue ? 'Complete Session' : 'Continue Session'}
+              <Button onClick={handleGoToConsultation} disabled={isBusy} className="h-9 rounded-none">
+                <Play className="mr-2 h-4 w-4" />
+                {timeStatus.isOverdue ? 'Complete' : 'Continue'}
               </Button>
             )}
           </div>
         </div>
       </div>
 
-      {/* ═══ Success Banners ═══ */}
-      {recentAction.type === 'confirmed' && (
-        <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl animate-in slide-in-from-top text-sm">
-          <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" />
-          <div>
-            <p className="font-semibold text-emerald-800">Appointment Confirmed</p>
-            <p className="text-emerald-600 text-xs">The patient and frontdesk have been notified.</p>
-          </div>
-        </div>
-      )}
-      {recentAction.type === 'rescheduled' && (
-        <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl animate-in slide-in-from-top text-sm">
-          <CalendarClock className="h-5 w-5 text-blue-600 shrink-0" />
-          <div>
-            <p className="font-semibold text-blue-800">Appointment Rescheduled</p>
-            <p className="text-blue-600 text-xs">All parties have been notified of the new time.</p>
-          </div>
-        </div>
-      )}
-      {recentAction.type === 'cancelled' && (
-        <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-xl animate-in slide-in-from-top text-sm">
-          <XCircle className="h-5 w-5 text-red-600 shrink-0" />
-          <div>
-            <p className="font-semibold text-red-800">Appointment Cancelled</p>
-            <p className="text-red-600 text-xs">The patient and frontdesk have been notified.</p>
+      {recentAction.type && (
+        <div className="border border-border bg-muted/30 px-4 py-3 text-sm">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-muted-foreground shrink-0" />
+            <p className="font-medium text-foreground">
+              {recentAction.type === 'confirmed'
+                ? 'Appointment confirmed'
+                : recentAction.type === 'rescheduled'
+                  ? 'Appointment rescheduled'
+                  : 'Appointment cancelled'}
+            </p>
           </div>
         </div>
       )}
 
       {/* ═══ Workflow Stepper ═══ */}
       {!isTerminal && (
-        <div className="bg-white rounded-2xl border border-slate-200/60 p-5 shadow-sm">
+        <div className="border border-border bg-background p-4">
           <div className="flex items-center justify-between overflow-x-auto gap-1">
             {WORKFLOW_STEPS.map((step, index) => {
               const StepIcon = step.icon;
@@ -476,9 +425,9 @@ export default function AppointmentDetailPage({ params }: PageProps) {
                     <div
                       className={cn(
                         'h-8 w-8 rounded-full flex items-center justify-center transition-all',
-                        isDone && 'bg-emerald-100 text-emerald-600',
-                        isActive && 'bg-slate-900 text-white shadow-md',
-                        isFuture && 'bg-slate-100 text-slate-300'
+                        isDone && 'bg-muted text-foreground',
+                        isActive && 'bg-foreground text-background',
+                        isFuture && 'bg-muted/50 text-muted-foreground'
                       )}
                     >
                       {isDone ? (
@@ -490,9 +439,9 @@ export default function AppointmentDetailPage({ params }: PageProps) {
                     <span
                       className={cn(
                         'text-[10px] font-semibold text-center leading-tight',
-                        isDone && 'text-emerald-600',
-                        isActive && 'text-slate-900',
-                        isFuture && 'text-slate-300'
+                        isDone && 'text-foreground',
+                        isActive && 'text-foreground',
+                        isFuture && 'text-muted-foreground'
                       )}
                     >
                       {step.label}
@@ -502,7 +451,7 @@ export default function AppointmentDetailPage({ params }: PageProps) {
                     <div
                       className={cn(
                         'flex-1 h-px mx-2 min-w-[16px]',
-                        isDone ? 'bg-emerald-300' : 'bg-slate-200'
+                        isDone ? 'bg-foreground/30' : 'bg-border'
                       )}
                     />
                   )}
@@ -515,9 +464,9 @@ export default function AppointmentDetailPage({ params }: PageProps) {
 
       {/* ═══ Processing Overlay ═══ */}
       {isBusy && (
-        <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl text-sm">
-          <Loader2 className="h-4 w-4 text-blue-600 animate-spin shrink-0" />
-          <p className="text-blue-700 font-medium">
+        <div className="flex items-center gap-3 p-4 border border-border bg-muted/30 text-sm">
+          <Loader2 className="h-4 w-4 text-muted-foreground animate-spin shrink-0" />
+          <p className="text-foreground font-medium">
             {isConfirming && 'Confirming appointment...'}
             {isRescheduling && 'Rescheduling appointment...'}
             {isCancelling && 'Cancelling appointment...'}
@@ -529,28 +478,28 @@ export default function AppointmentDetailPage({ params }: PageProps) {
       <div className="grid gap-5 lg:grid-cols-5">
         {/* Left: Patient Card (3 cols) */}
         <div className="lg:col-span-3 space-y-5">
-          <Card className="border-slate-200/60 shadow-sm rounded-2xl overflow-hidden">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2 text-slate-700">
-                <User className="h-4 w-4" />
+          <div className="border border-border bg-background">
+            <div className="px-4 py-3 border-b border-border">
+              <div className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <User className="h-4 w-4 text-muted-foreground" />
                 Patient
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+              </div>
+            </div>
+            <div className="p-4 space-y-4">
               <div className="flex items-center gap-4">
-                <Avatar className="h-14 w-14 border-2 border-slate-100 shadow-sm">
+                <Avatar className="h-12 w-12 rounded-md border border-border">
                   <AvatarImage src={appointment.patient?.img ?? undefined} />
-                  <AvatarFallback className="bg-slate-100 text-slate-600 text-lg font-bold">
+                  <AvatarFallback className="rounded-md bg-muted text-muted-foreground text-sm font-semibold">
                     {patientInitials}
                   </AvatarFallback>
                 </Avatar>
                 <div className="min-w-0">
-                  <h3 className="text-lg font-bold text-slate-900 truncate">{patientName}</h3>
+                  <h3 className="text-base font-semibold text-foreground truncate">{patientName}</h3>
                   {appointment.patient?.fileNumber && (
-                    <p className="text-xs text-slate-400 font-mono">File #{appointment.patient.fileNumber}</p>
+                    <p className="text-xs text-muted-foreground font-mono">File #{appointment.patient.fileNumber}</p>
                   )}
                   {appointment.patient?.dateOfBirth && (
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <p className="text-xs text-muted-foreground mt-0.5">
                       {new Date().getFullYear() - new Date(appointment.patient.dateOfBirth).getFullYear()} years old
                       {appointment.patient.gender ? ` • ${appointment.patient.gender}` : ''}
                     </p>
@@ -558,24 +507,24 @@ export default function AppointmentDetailPage({ params }: PageProps) {
                 </div>
               </div>
 
-              <Separator className="bg-slate-100" />
+              <Separator className="bg-border" />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {appointment.patient?.email && (
-                  <div className="flex items-center gap-2.5 text-sm text-slate-600">
-                    <Mail className="h-4 w-4 text-slate-400 shrink-0" />
+                  <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
+                    <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
                     <span className="truncate">{appointment.patient.email}</span>
                   </div>
                 )}
                 {appointment.patient?.phone && (
-                  <div className="flex items-center gap-2.5 text-sm text-slate-600">
-                    <Phone className="h-4 w-4 text-slate-400 shrink-0" />
+                  <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
+                    <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
                     <span>{appointment.patient.phone}</span>
                   </div>
                 )}
                 {appointment.patient?.allergies && (
-                  <div className="flex items-start gap-2.5 text-sm text-red-600 col-span-full">
-                    <AlertTriangle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+                  <div className="flex items-start gap-2.5 text-sm text-destructive col-span-full">
+                    <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
                     <span><strong>Allergies:</strong> {appointment.patient.allergies}</span>
                   </div>
                 )}
@@ -583,53 +532,53 @@ export default function AppointmentDetailPage({ params }: PageProps) {
 
               <Button
                 variant="outline"
-                className="w-full rounded-xl text-sm font-medium"
+                className="w-full rounded-none text-sm font-medium"
                 onClick={() => router.push(`/doctor/patients/${appointment.patientId}`)}
               >
                 View Full Patient Record
                 <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Notes / Reason */}
           {(appointment.note || appointment.reason) && (
-            <Card className="border-slate-200/60 shadow-sm rounded-2xl">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2 text-slate-700">
-                  <FileText className="h-4 w-4" />
+            <div className="border border-border bg-background">
+              <div className="px-4 py-3 border-b border-border">
+                <div className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
                   Notes
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+                </div>
+              </div>
+              <div className="p-4">
                 {appointment.reason && (
                   <div className="mb-3">
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Reason for Visit</p>
-                    <p className="text-sm text-slate-700">{appointment.reason}</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Reason for Visit</p>
+                    <p className="text-sm text-foreground">{appointment.reason}</p>
                   </div>
                 )}
                 {appointment.note && (
                   <div>
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Notes</p>
-                    <p className="text-sm text-slate-700 whitespace-pre-line">{appointment.note}</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Notes</p>
+                    <p className="text-sm text-foreground whitespace-pre-line">{appointment.note}</p>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
         </div>
 
         {/* Right: Details + Actions (2 cols) */}
         <div className="lg:col-span-2 space-y-5">
           {/* Appointment Details */}
-          <Card className="border-slate-200/60 shadow-sm rounded-2xl">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2 text-slate-700">
-                <Calendar className="h-4 w-4" />
+          <div className="border border-border bg-background">
+            <div className="px-4 py-3 border-b border-border">
+              <div className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
                 Details
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+              </div>
+            </div>
+            <div className="p-4 space-y-4">
               <DetailRow
                 icon={Calendar}
                 label="Date"
@@ -673,24 +622,24 @@ export default function AppointmentDetailPage({ params }: PageProps) {
                   value={`${appointment.consultationDuration} min`}
                 />
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Secondary Actions */}
           {(canReschedule || canCancel || canMarkNoShow) && (
-            <Card className="border-slate-200/60 shadow-sm rounded-2xl">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base text-slate-700">Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
+            <div className="border border-border bg-background">
+              <div className="px-4 py-3 border-b border-border">
+                <div className="text-sm font-semibold text-foreground">Actions</div>
+              </div>
+              <div className="p-4 space-y-2">
                 {canReschedule && (
                   <Button
                     onClick={() => setShowRescheduleDialog(true)}
                     variant="outline"
-                    className="w-full justify-start rounded-xl text-sm"
+                    className="w-full justify-start rounded-none text-sm"
                     disabled={isBusy}
                   >
-                    <CalendarClock className="mr-2 h-4 w-4 text-slate-500" />
+                    <CalendarClock className="mr-2 h-4 w-4 text-muted-foreground" />
                     Reschedule
                   </Button>
                 )}
@@ -699,10 +648,10 @@ export default function AppointmentDetailPage({ params }: PageProps) {
                   <Button
                     onClick={() => {/* TODO: Mark no-show */ }}
                     variant="outline"
-                    className="w-full justify-start rounded-xl text-sm"
+                    className="w-full justify-start rounded-none text-sm"
                     disabled={isBusy}
                   >
-                    <UserX className="mr-2 h-4 w-4 text-slate-500" />
+                    <UserX className="mr-2 h-4 w-4 text-muted-foreground" />
                     Mark No-Show
                   </Button>
                 )}
@@ -711,26 +660,26 @@ export default function AppointmentDetailPage({ params }: PageProps) {
                   <Button
                     onClick={() => setShowCancelDialog(true)}
                     variant="outline"
-                    className="w-full justify-start rounded-xl text-sm text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                    className="w-full justify-start rounded-none text-sm text-destructive border-destructive/30 hover:border-destructive/50 hover:text-destructive"
                     disabled={isBusy}
                   >
                     <XCircle className="mr-2 h-4 w-4" />
                     Cancel Appointment
                   </Button>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
 
           {/* Activity Timeline */}
-          <Card className="border-slate-200/60 shadow-sm rounded-2xl">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2 text-slate-700">
-                <Activity className="h-4 w-4" />
+          <div className="border border-border bg-background">
+            <div className="px-4 py-3 border-b border-border">
+              <div className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <Activity className="h-4 w-4 text-muted-foreground" />
                 Timeline
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+              </div>
+            </div>
+            <div className="p-4">
               <div className="space-y-0">
                 <TimelineItem
                   label="Appointment created"
@@ -806,8 +755,8 @@ export default function AppointmentDetailPage({ params }: PageProps) {
                   />
                 )}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -849,10 +798,10 @@ function DetailRow({
 }) {
   return (
     <div className="flex items-start gap-3">
-      <Icon className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+      <Icon className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
       <div className="min-w-0">
-        <p className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">{label}</p>
-        <p className="text-sm text-slate-700 font-medium">{value}</p>
+        <p className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">{label}</p>
+        <p className="text-sm text-foreground font-medium">{value}</p>
       </div>
     </div>
   );
@@ -882,26 +831,26 @@ function TimelineItem({
         <div
           className={cn(
             'h-2.5 w-2.5 rounded-full mt-1',
-            done && variant === 'destructive' && 'bg-red-500',
-            done && !variant && 'bg-emerald-500',
-            active && 'bg-amber-400 animate-pulse',
-            !done && !active && 'bg-slate-200'
+            done && variant === 'destructive' && 'bg-destructive',
+            done && !variant && 'bg-foreground/60',
+            active && 'bg-foreground animate-pulse',
+            !done && !active && 'bg-border'
           )}
         />
-        <div className="w-px flex-1 bg-slate-100 mt-1" />
+        <div className="w-px flex-1 bg-border mt-1" />
       </div>
       <div className="min-w-0 pb-1">
         <p className={cn(
           'text-xs font-medium',
-          done && variant === 'destructive' && 'text-red-700',
-          done && !variant && 'text-slate-700',
-          active && 'text-amber-700',
-          !done && !active && 'text-slate-400'
+          done && variant === 'destructive' && 'text-destructive',
+          done && !variant && 'text-foreground',
+          active && 'text-foreground',
+          !done && !active && 'text-muted-foreground'
         )}>
           {label}
         </p>
         {timeStr && (
-          <p className="text-[10px] text-slate-400">{timeStr}</p>
+          <p className="text-[10px] text-muted-foreground">{timeStr}</p>
         )}
       </div>
     </div>

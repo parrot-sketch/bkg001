@@ -24,6 +24,37 @@ import { chargeSheetService } from '@/application/services/ChargeSheetService';
  */
 const DEFAULT_CONSULTATION_FEE = 5000; // Should come from clinic settings
 
+async function resolveConsultationServiceId(): Promise<number> {
+  // Prefer seeded services (works in local + production). Fall back to creating a generic one.
+  const existing =
+    (await db.service.findFirst({
+      where: {
+        is_active: true,
+        OR: [
+          { service_name: 'Consultation - Initial' },
+          { service_name: 'Consultation' },
+          { category: 'Consultation' },
+        ],
+      },
+      orderBy: { id: 'asc' },
+      select: { id: true },
+    })) ?? null;
+
+  if (existing?.id) return existing.id;
+
+  const created = await db.service.create({
+    data: {
+      service_name: 'Consultation',
+      price: 0,
+      category: 'Consultation',
+      is_active: true,
+    },
+    select: { id: true },
+  });
+
+  return created.id;
+}
+
 /**
  * Use Case: CompleteConsultationUseCase
  * 
@@ -318,12 +349,15 @@ export class CompleteConsultationUseCase {
             // Custom amount without items
             totalAmount = dto.customTotalAmount;
           } else {
-            // Default: use doctor's consultation fee
+            // Default: use doctor's consultation fee as a charge-sheet line item
             const doctor = await db.doctor.findUnique({
               where: { id: appointment.getDoctorId() },
               select: { consultation_fee: true, name: true },
             });
-            totalAmount = doctor?.consultation_fee || DEFAULT_CONSULTATION_FEE;
+            const consultationFee = doctor?.consultation_fee || DEFAULT_CONSULTATION_FEE;
+            const consultationServiceId = await resolveConsultationServiceId();
+            billItems = [{ serviceId: consultationServiceId, quantity: 1, unitCost: consultationFee }];
+            totalAmount = consultationFee;
           }
           
           // Create payment record with UNPAID status

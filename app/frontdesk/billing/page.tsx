@@ -100,11 +100,11 @@ export default function FrontdeskBillingPage() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header */}
-      <section className="bg-slate-800 rounded-xl p-5 text-white">
+      <section className="border border-border bg-white p-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="text-xl font-semibold tracking-tight">Billing & Collections</h1>
-            <p className="text-slate-300 text-sm mt-1">Collect payments from patients</p>
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">Billing</h1>
+            <p className="text-muted-foreground text-sm mt-1">Collect payments from patients</p>
           </div>
           <div className="relative w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -112,7 +112,7 @@ export default function FrontdeskBillingPage() {
               placeholder="Search patient or charge sheet..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-9 bg-white/10 border-slate-600 text-white placeholder:text-slate-400 rounded-lg text-sm"
+              className="pl-9 h-9 bg-white border-slate-200 rounded-none text-sm"
             />
           </div>
         </div>
@@ -137,7 +137,7 @@ export default function FrontdeskBillingPage() {
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Collected Today</p>
             <div className="flex items-baseline gap-1">
               <span className="text-xs font-medium text-slate-400">KES</span>
-              <p className="text-2xl font-bold text-emerald-600 tabular-nums">
+              <p className="text-2xl font-bold text-slate-900 tabular-nums">
                 {(summary?.totalCollected || 0).toLocaleString()}
               </p>
             </div>
@@ -161,16 +161,16 @@ export default function FrontdeskBillingPage() {
             key={status}
             onClick={() => setStatusFilter(status)}
             className={cn(
-              "px-4 py-2 text-sm font-medium rounded-t-lg transition-colors -mb-px",
+              "px-4 py-2 text-sm font-medium transition-colors -mb-px border-b-2",
               statusFilter === status
-                ? "bg-white text-slate-900 border border-b-0 border-slate-200 border-t-slate-900"
-                : "text-slate-500 hover:text-slate-700"
+                ? "text-slate-900 border-slate-900"
+                : "text-slate-500 border-transparent hover:text-slate-700"
             )}
           >
             {status === 'all' ? 'All' : getPaymentStatusLabel(status)}
             <span className={cn(
-              "ml-2 px-2 py-0.5 rounded-full text-xs",
-              statusFilter === status ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600"
+              "ml-2 px-2 py-0.5 text-xs border border-slate-200",
+              statusFilter === status ? "bg-slate-50 text-slate-700" : "bg-white text-slate-600"
             )}>
               {statusCounts[status]}
             </span>
@@ -254,9 +254,7 @@ export default function FrontdeskBillingPage() {
                           <Badge 
                             variant="outline" 
                             className={cn(
-                              "text-[10px] font-medium px-1.5 py-0 h-5",
-                              payment.status === PaymentStatus.UNPAID && "bg-rose-50 text-rose-700 border-rose-200",
-                              payment.status === PaymentStatus.PART && "bg-amber-50 text-amber-700 border-amber-200"
+                              "text-[10px] font-medium px-1.5 py-0 h-5 rounded-none"
                             )}
                           >
                             {getPaymentStatusLabel(payment.status)}
@@ -280,7 +278,7 @@ export default function FrontdeskBillingPage() {
                           {remaining.toLocaleString()}
                         </p>
                         {payment.discount > 0 && (
-                          <p className="text-[10px] font-medium text-emerald-600">
+                          <p className="text-[10px] font-medium text-slate-500">
                             -{payment.discount.toLocaleString()} discount
                           </p>
                         )}
@@ -289,7 +287,7 @@ export default function FrontdeskBillingPage() {
                       <Button 
                         onClick={() => handleOpenPaymentDialog(payment)}
                         size="sm"
-                        className="bg-slate-900 hover:bg-slate-800 text-white font-medium h-8 rounded-md px-4 text-xs"
+                        className="bg-slate-900 hover:bg-slate-800 text-white font-medium h-8 rounded-none px-4 text-xs"
                       >
                         <CreditCard className="h-3.5 w-3.5 mr-1.5" />
                         Collect
@@ -334,7 +332,7 @@ export default function FrontdeskBillingPage() {
                           <span className="font-medium text-slate-700">{payment.totalAmount.toLocaleString()}</span>
                         </div>
                         {payment.discount > 0 && (
-                          <div className="flex items-center justify-between text-emerald-600">
+                          <div className="flex items-center justify-between text-slate-500">
                             <span>Discount</span>
                             <span>-{payment.discount.toLocaleString()}</span>
                           </div>

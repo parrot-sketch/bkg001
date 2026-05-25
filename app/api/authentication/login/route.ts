@@ -230,6 +230,39 @@ export async function POST(
 
     // ─── Invalid credentials (DomainException) ───────────────────────────────
     if (error instanceof DomainException) {
+      // NOTE: JwtAuthService throws DomainException for multiple auth failures.
+      // We keep responses safe, but we DO log the precise reason for operators.
+      console.warn(
+        `[API] /api/authentication/login [${correlationId}] Auth failure:`,
+        error.message,
+        (error as any).details ?? undefined,
+      );
+
+      const message = (error.message || '').toLowerCase();
+
+      // If the user exists + password is valid but the account is not usable,
+      // return a more accurate status to avoid confusing "invalid password".
+      if (message.includes('account is inactive')) {
+        return NextResponse.json(
+          { success: false, error: 'Account is inactive. Please contact administrator.' },
+          { status: 403 },
+        );
+      }
+
+      if (message.includes('doctor profile not found')) {
+        return NextResponse.json(
+          { success: false, error: 'Doctor profile not found. Please contact administrator to complete account setup.' },
+          { status: 409 },
+        );
+      }
+
+      if (message.includes('onboarding') && message.includes('not complete')) {
+        return NextResponse.json(
+          { success: false, error: 'Account onboarding is not complete. Please complete onboarding to access the system.' },
+          { status: 403 },
+        );
+      }
+
       emitter.emit(SecurityEventType.FAILED_LOGIN, {
         ipAddress: ip,
         reason: 'Invalid credentials',

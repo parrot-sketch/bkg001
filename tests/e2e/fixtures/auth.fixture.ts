@@ -151,7 +151,7 @@ export async function login(page: Page, email: string, password: string): Promis
   await submitButton.click();
 
   // Wait for navigation to dashboard
-  await page.waitForURL(/\/patient\/dashboard|\/doctor\/dashboard|\/frontdesk\/dashboard|\/nurse\/dashboard|\/admin\/dashboard/, {
+  await page.waitForURL(/\/patient\/dashboard|\/doctor\/dashboard|\/doctor\/schedule|\/doctor\/profile|\/doctor\/activate|\/frontdesk\/dashboard|\/nurse\/dashboard|\/admin\/dashboard/, {
     timeout: 30000,
   });
 

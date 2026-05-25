@@ -95,7 +95,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
             const response = await authApi.login({ email, password });
             if (!response.success) {
-                throw new Error(response.error || 'Login failed');
+                const err = new Error(response.error || 'Login failed');
+                (err as any).status = (response as any).status ?? 0;
+                (err as any).retryAfterSeconds = (response as any).retryAfterSeconds;
+                throw err;
             }
             tokenStorage.setAccessToken(response.data.accessToken);
             tokenStorage.setRefreshToken(response.data.refreshToken);

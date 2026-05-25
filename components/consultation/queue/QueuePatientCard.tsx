@@ -1,9 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Clock, Play, Loader2 } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -26,17 +24,14 @@ export function QueuePatientCard({
   const patientName = appointment.patient
     ? `${appointment.patient.firstName} ${appointment.patient.lastName}`
     : 'Unknown';
-  const initials = patientName.substring(0, 2).toUpperCase();
   const waitTime = appointment.checkedInAt
     ? formatDistanceToNow(new Date(appointment.checkedInAt), { addSuffix: false })
     : 'Just arrived';
 
-  // Determine button text based on appointment status
   const getButtonLabel = () => {
     if (isStarting) return 'Starting...';
-    if (appointment.status === AppointmentStatus.IN_CONSULTATION) return 'RESUME';
-    if (isNext) return 'ADMIT PATIENT';
-    return 'BEGIN SESSION';
+    if (appointment.status === AppointmentStatus.IN_CONSULTATION) return 'Resume';
+    return 'Consult';
   };
 
   return (
@@ -45,81 +40,37 @@ export function QueuePatientCard({
       initial={{ scale: 0.95, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       exit={{ scale: 0.9, opacity: 0 }}
-      transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+      transition={{ type: 'spring', stiffness: 350, damping: 28 }}
       className={cn(
-        "p-4 rounded-2xl mx-1 transition-all duration-300 group border",
-        isNext
-          ? "bg-emerald-50 border-emerald-100 shadow-sm"
-          : "bg-white border-slate-200 hover:border-indigo-200 hover:shadow-sm"
+        'px-4 py-3 mx-0 border-b border-slate-200 bg-white',
+        isNext && 'bg-slate-50',
       )}
     >
-      <div className="flex items-center gap-4">
-        <div className="relative">
-          <Avatar className={cn(
-            "h-10 w-10 border-2 transition-colors duration-300 shadow-sm",
-            isNext ? "border-emerald-200 bg-emerald-100" : "border-slate-100 bg-slate-50"
-          )}>
-            <AvatarFallback className={cn(
-              "text-xs font-bold",
-              isNext ? "text-emerald-600" : "text-slate-400"
-            )}>
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-          {isNext && (
-            <div className="absolute -top-1 -right-1 h-3 w-3 bg-emerald-500 rounded-full border-2 border-white animate-pulse shadow-sm" />
-          )}
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <p className={cn(
-            "font-bold text-[13px] truncate tracking-tight transition-colors",
-            isNext ? "text-emerald-900" : "text-slate-700"
-          )}>
-            {patientName}
-          </p>
-          <div className="flex items-center gap-2 mt-0.5">
-            <Clock className="h-3 w-3 text-slate-400" />
-            <span className={cn(
-              "text-[10px] uppercase tracking-wider font-bold",
-              isNext ? "text-emerald-600" : "text-slate-400"
-            )}>
-              {waitTime} WAIT
-            </span>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-sm font-medium text-slate-900 truncate">{patientName}</div>
+          <div className="text-xs text-slate-500 mt-0.5">
+            {appointment.patient?.fileNumber ? (
+              <span className="font-mono">{appointment.patient.fileNumber}</span>
+            ) : (
+              '—'
+            )}
+            <span className="text-slate-300"> · </span>
+            <span>{waitTime} wait</span>
+            <span className="text-slate-300"> · </span>
+            <span>{appointment.type || 'Consultation'}</span>
           </div>
         </div>
-      </div>
 
-      {/* Quick Start Button */}
-      <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
         <Button
           size="sm"
+          variant="outline"
           onClick={() => onInitiateSwitch(appointment)}
           disabled={isStarting}
-          className={cn(
-            "w-full mt-4 h-9 text-[11px] font-bold uppercase tracking-widest transition-all rounded-xl border-none",
-            appointment.status === AppointmentStatus.IN_CONSULTATION
-              ? "bg-violet-600 hover:bg-violet-500 text-white shadow-sm" // Resume style
-              : isNext
-                ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm" // Admit style
-                : "bg-slate-100 hover:bg-slate-200 text-slate-600" // Normal
-          )}
+          className="h-8 px-3 text-xs rounded-none shrink-0"
         >
-          {isStarting ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />
-          ) : (
-            <Play className="h-3 w-3 mr-2" />
-          )}
-          {getButtonLabel()}
+          {isStarting ? <Loader2 className="h-3 w-3 animate-spin" /> : getButtonLabel()}
         </Button>
-      </motion.div>
-
-      {/* Type badge */}
-      <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
-        <Badge variant="outline" className="text-[9px] h-4.5 px-2 bg-slate-50 border-slate-100 text-slate-500 font-bold uppercase tracking-[0.1em]">
-          {appointment.type || 'Consultation'}
-        </Badge>
-        <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Today</span>
       </div>
     </motion.div>
   );

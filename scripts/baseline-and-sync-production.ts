@@ -27,6 +27,13 @@ const ALLOWLISTED_IDEMPOTENT_MIGRATIONS = [
     '20260426000000_link_surgical_case_to_appointment',
     'migration.sql',
   ),
+  path.join(
+    process.cwd(),
+    'scripts',
+    'production',
+    'patches',
+    '20260522_add_schedule_setup_to_doctor_onboarding.sql',
+  ),
 ] as const;
 
 function hasPrismaMigrationsTable(databaseUrl: string): boolean {
@@ -89,4 +96,3 @@ main().catch((err) => {
   console.error('❌ SAFE production sync failed:', err instanceof Error ? err.message : err);
   process.exit(1);
 });
-

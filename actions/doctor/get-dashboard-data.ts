@@ -16,6 +16,7 @@ export interface DoctorDashboardData {
     phone: string;
     profileImage: string | null;
     availabilityStatus: string | null;
+    onboardingStatus: string | null;
   } | null;
   todayAppointments: Array<{
     id: number;
@@ -79,6 +80,8 @@ export interface DoctorDashboardData {
     appointmentId: number | null;
     type: string;
     status: string;
+    appointmentStatus: string | null;
+    appointmentTime: string | null;
     addedAt: string;
     waitTime: string;
     isWalkIn: boolean;
@@ -229,6 +232,8 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
           select: {
             id: true,
             type: true,
+            status: true,
+            time: true,
           },
         },
       },
@@ -281,7 +286,7 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
           select: { id: true, first_name: true, last_name: true, file_number: true },
         },
         appointment: {
-          select: { id: true, type: true },
+          select: { id: true, type: true, status: true, time: true },
         },
       },
       orderBy: { added_at: 'asc' },
@@ -305,6 +310,7 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
       phone: doctor.phone,
       profileImage: doctor.profile_image,
       availabilityStatus: doctor.availability_status,
+      onboardingStatus: doctor.onboarding_status ?? null,
     },
   todayAppointments: todayAppointments.map(a => ({
     id: a.id,
@@ -376,6 +382,8 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
         appointmentId: q.appointment_id,
         type: q.appointment?.type || 'Walk-in',
         status: q.status,
+        appointmentStatus: q.appointment?.status || null,
+        appointmentTime: q.appointment?.time || null,
         addedAt: q.added_at.toISOString(),
         waitTime,
         isWalkIn: !q.appointment_id,

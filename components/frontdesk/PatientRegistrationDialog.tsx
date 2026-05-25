@@ -1,42 +1,22 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { PatientIntakeFormSchema } from '@/lib/schema';
-import { apiClient } from '@/lib/api/client';
+import { Controller } from 'react-hook-form';
 import PhoneInput from 'react-phone-number-input';
-import 'react-phone-number-input/style.css';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Loader2, Check, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
+import { usePatientRegistrationDialog, type PatientRegistrationFormData } from './usePatientRegistrationDialog';
 
-type FormData = {
-  firstName: string; lastName: string; dateOfBirth: string; gender: string;
-  email: string; phone: string; whatsappPhone?: string; address?: string;
-  maritalStatus?: string; occupation?: string;
-  emergencyContactName?: string; emergencyContactNumber?: string; emergencyContactRelation?: string;
-  bloodGroup?: string; allergies?: string; medicalConditions?: string;
-  privacyConsent: boolean; serviceConsent: boolean; medicalConsent: boolean;
-};
-
-const STEPS = [
-  { id: 1, title: 'Personal Info', description: 'Tell us about the patient' },
-  { id: 2, title: 'Contact', description: 'How can we reach them?' },
-  { id: 3, title: 'Emergency', description: 'Emergency contact details' },
-  { id: 4, title: 'Medical', description: 'Medical overview' },
-];
-
-const inputClass = "w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all text-sm";
-const labelClass = "block text-sm font-medium text-slate-700 mb-2";
+const inputClass =
+  "w-full px-0 py-3 bg-transparent border-0 border-b border-slate-300 text-slate-900 placeholder:text-slate-400 " +
+  "focus:outline-none focus:border-slate-900 transition-colors text-sm";
+const labelClass = "block text-[11px] font-semibold tracking-wide uppercase text-slate-600 mb-1";
 
 interface PatientRegistrationDialogProps {
   open: boolean;
@@ -49,83 +29,32 @@ export function PatientRegistrationDialog({
   onClose,
   onSuccess,
 }: PatientRegistrationDialogProps) {
-  const [step, setStep] = useState(1);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const {
+    STEPS,
+    step,
+    currentStep,
+    stepProgress,
+    submitting,
+    submitted,
+    submitError,
+    form,
+    goNext,
+    goPrev,
+    submit,
+    close,
+  } = usePatientRegistrationDialog({ open, onClose, onSuccess });
 
-  const form = useForm<FormData>({
-    resolver: zodResolver(PatientIntakeFormSchema) as any,
-    mode: 'onBlur',
-    defaultValues: {
-      firstName: '', lastName: '', dateOfBirth: '', gender: 'FEMALE',
-      email: '', phone: '', whatsappPhone: '', address: '',
-      maritalStatus: '', occupation: '',
-      emergencyContactName: '', emergencyContactNumber: '', emergencyContactRelation: '',
-      bloodGroup: '', allergies: '', medicalConditions: '',
-      privacyConsent: true, serviceConsent: true, medicalConsent: true,
-    },
-  });
-
-  const { register, control, formState: { errors }, trigger, getValues, reset } = form;
-
-  const goNext = useCallback(async () => {
-    let fields: (keyof FormData)[] = [];
-    if (step === 1) fields = ['firstName', 'lastName', 'dateOfBirth', 'gender'];
-    else if (step === 2) fields = ['phone', 'email'];
-
-    const valid = fields.length === 0 || await trigger(fields);
-    if (valid) setStep((s) => Math.min(s + 1, STEPS.length));
-  }, [step, trigger]);
-
-  const goPrev = useCallback(() => setStep((s) => Math.max(s - 1, 1)), []);
-
-  const handleSubmit = async () => {
-    setSubmitting(true);
-    setSubmitError(null);
-    try {
-      const raw = getValues();
-      const clean = Object.fromEntries(
-        Object.entries(raw).map(([k, v]) => [k, v === '' ? undefined : v]).filter(([, v]) => v !== undefined)
-      );
-
-      const result = await apiClient.post<PatientResponseDto>('/patients', clean);
-
-      if (!result.success) {
-        throw new Error(result.error);
-      }
-
-      toast.success('Patient registered successfully');
-      onSuccess(result.data);
-      reset();
-      setStep(1);
-      setSubmitted(false);
-    } catch (e) {
-      setSubmitError(e instanceof Error ? e.message : 'Registration failed');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleClose = () => {
-    if (!submitting) {
-      onClose();
-      setStep(1);
-      setSubmitted(false);
-      setSubmitError(null);
-    }
-  };
-
-  const stepProgress = (step / STEPS.length) * 100;
+  const { register, control, formState: { errors }, getValues } = form;
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={close}>
       <DialogContent className="sm:max-w-[540px] max-h-[90vh] overflow-y-auto p-0 gap-0">
+        <DialogTitle className="sr-only">Register patient</DialogTitle>
         {submitted ? (
           /* Success Screen */
           <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-            <div className="h-20 w-20 rounded-full bg-emerald-100 flex items-center justify-center mb-6">
-              <Check className="h-10 w-10 text-emerald-600" />
+            <div className="h-20 w-20 bg-white border border-slate-200 flex items-center justify-center mb-6">
+              <Check className="h-10 w-10 text-slate-900" />
             </div>
             <h1 className="text-xl font-bold text-slate-900 mb-2">Patient Registered</h1>
             <p className="text-slate-500 text-sm">
@@ -134,25 +63,7 @@ export function PatientRegistrationDialog({
           </div>
         ) : (
           <>
-            {/* Header */}
-            <div className="px-6 pt-6 pb-4 border-b border-slate-100">
-              <DialogHeader className="mb-4">
-                <DialogTitle className="text-lg">Register New Patient</DialogTitle>
-              </DialogHeader>
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <p className="text-sm font-medium text-slate-900">{STEPS[step - 1].title}</p>
-                  <p className="text-xs text-slate-500">{STEPS[step - 1].description}</p>
-                </div>
-                <p className="text-xs text-slate-400">Step {step} of {STEPS.length}</p>
-              </div>
-              <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-rose-600 transition-all duration-300"
-                  style={{ width: `${stepProgress}%` }}
-                />
-              </div>
-            </div>
+            {/* Header removed (per request): keep form minimal and functional */}
 
             {/* Form Content */}
             <div className="px-6 py-6">
@@ -177,7 +88,7 @@ export function PatientRegistrationDialog({
                     </div>
                     <div>
                       <label className={labelClass}>Gender *</label>
-                      <select {...register('gender')} className={inputClass}>
+                      <select {...register('gender')} className={cn(inputClass, "bg-white")}>
                         <option value="FEMALE">Female</option>
                         <option value="MALE">Male</option>
                         <option value="OTHER">Other</option>
@@ -195,7 +106,13 @@ export function PatientRegistrationDialog({
                         name="phone"
                         control={control}
                         render={({ field }) => (
-                          <PhoneInput {...field} international defaultCountry="KE" className="phone-input-custom" />
+                          <PhoneInput
+                            {...field}
+                            international
+                            defaultCountry="KE"
+                            className="phone-input-custom"
+                            onChange={(value) => field.onChange(value ?? '')}
+                          />
                         )}
                       />
                       {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
@@ -206,7 +123,13 @@ export function PatientRegistrationDialog({
                         name="whatsappPhone"
                         control={control}
                         render={({ field }) => (
-                          <PhoneInput {...field} international defaultCountry="KE" className="phone-input-custom" />
+                          <PhoneInput
+                            {...field}
+                            international
+                            defaultCountry="KE"
+                            className="phone-input-custom"
+                            onChange={(value) => field.onChange(value ?? '')}
+                          />
                         )}
                       />
                     </div>
@@ -221,7 +144,7 @@ export function PatientRegistrationDialog({
                     </div>
                     <div>
                       <label className={labelClass}>Marital Status</label>
-                      <select {...register('maritalStatus')} className={inputClass}>
+                      <select {...register('maritalStatus')} className={cn(inputClass, "bg-white")}>
                         <option value="">Prefer not to say</option>
                         <option value="SINGLE">Single</option>
                         <option value="MARRIED">Married</option>
@@ -249,13 +172,19 @@ export function PatientRegistrationDialog({
                         name="emergencyContactNumber"
                         control={control}
                         render={({ field }) => (
-                          <PhoneInput {...field} international defaultCountry="KE" className="phone-input-custom" />
+                          <PhoneInput
+                            {...field}
+                            international
+                            defaultCountry="KE"
+                            className="phone-input-custom"
+                            onChange={(value) => field.onChange(value ?? '')}
+                          />
                         )}
                       />
                     </div>
                     <div>
                       <label className={labelClass}>Relationship</label>
-                      <select {...register('emergencyContactRelation')} className={inputClass}>
+                      <select {...register('emergencyContactRelation')} className={cn(inputClass, "bg-white")}>
                         <option value="">Select relationship</option>
                         <option value="SPOUSE">Spouse / Partner</option>
                         <option value="PARENT">Parent</option>
@@ -273,7 +202,7 @@ export function PatientRegistrationDialog({
                   <div className="space-y-4">
                     <div>
                       <label className={labelClass}>Blood Group</label>
-                      <select {...register('bloodGroup')} className={inputClass}>
+                      <select {...register('bloodGroup')} className={cn(inputClass, "bg-white")}>
                         <option value="">Not sure</option>
                         {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => (
                           <option key={bg} value={bg}>{bg}</option>
@@ -300,7 +229,7 @@ export function PatientRegistrationDialog({
                     </div>
 
                     {submitError && (
-                      <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex items-start gap-2">
+                      <div className="bg-red-50 border border-red-200 p-3 flex items-start gap-2">
                         <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
                         <p className="text-xs font-medium text-red-600">{submitError}</p>
                       </div>
@@ -318,7 +247,7 @@ export function PatientRegistrationDialog({
                   variant="outline"
                   onClick={goPrev}
                   disabled={submitting}
-                  className="rounded-xl"
+                  className="rounded-none h-11"
                 >
                   Back
                 </Button>
@@ -326,9 +255,9 @@ export function PatientRegistrationDialog({
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={handleClose}
+                  onClick={close}
                   disabled={submitting}
-                  className="rounded-xl"
+                  className="rounded-none h-11"
                 >
                   Cancel
                 </Button>
@@ -339,20 +268,20 @@ export function PatientRegistrationDialog({
                   type="button"
                   onClick={goNext}
                   disabled={submitting}
-                  className="flex-1 rounded-xl bg-slate-900 hover:bg-slate-800"
+                  variant="outline"
+                  className="flex-1 rounded-none h-11 border-slate-300 text-slate-900 hover:bg-slate-50"
                 >
                   Continue
                 </Button>
               ) : (
                 <Button
                   type="button"
-                  onClick={handleSubmit}
-                  disabled={submitting}
+                  onClick={submit}                  disabled={submitting}
                   className={cn(
-                    "flex-1 rounded-xl",
+                    "flex-1 rounded-none h-11",
                     submitting
                       ? "bg-slate-100 text-slate-400"
-                      : "bg-emerald-600 hover:bg-emerald-700"
+                      : "bg-slate-900 hover:bg-slate-800 text-white"
                   )}
                 >
                   {submitting ? (
@@ -361,7 +290,7 @@ export function PatientRegistrationDialog({
                       Registering...
                     </>
                   ) : (
-                    'Register Patient'
+                    'Register patient'
                   )}
                 </Button>
               )}

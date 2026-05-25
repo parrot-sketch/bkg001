@@ -229,13 +229,24 @@ export const PatientIntakeFormSchema = z.object({
     .toLowerCase(),
 
   // International phone: optional + prefix, 7-15 digits
-  phone: z
-    .string()
-    .regex(/^\+?[0-9]{7,15}$/, "Enter a valid phone number (e.g. +254712345678 or 0712345678)"),
+  phone: z.preprocess(
+    (value) => {
+      if (typeof value !== "string") return value;
+      // Accept common user formatting (spaces, hyphens, parentheses) and normalize
+      // to a bare +/digits string for validation.
+      const cleaned = value.replace(/[^\d+]/g, "");
+      return cleaned;
+    },
+    z
+      .string()
+      .regex(/^\+?[0-9]{7,15}$/, "Enter a valid phone number (e.g. +254712345678 or 0712345678)"),
+  ),
 
   whatsappPhone: z
-    .string()
-    .regex(/^\+?[0-9]{7,15}$/, "Enter a valid WhatsApp number")
+    .preprocess((value) => {
+      if (typeof value !== "string") return value;
+      return value.replace(/[^\d+]/g, "");
+    }, z.string().regex(/^\+?[0-9]{7,15}$/, "Enter a valid WhatsApp number"))
     .optional()
     .or(z.literal("")),
 
@@ -269,8 +280,10 @@ export const PatientIntakeFormSchema = z.object({
     .or(z.literal("")),
 
   emergencyContactNumber: z
-    .string()
-    .regex(/^\+?[0-9]{7,15}$/, "Enter a valid phone number")
+    .preprocess((value) => {
+      if (typeof value !== "string") return value;
+      return value.replace(/[^\d+]/g, "");
+    }, z.string().regex(/^\+?[0-9]{7,15}$/, "Enter a valid phone number"))
     .optional()
     .or(z.literal("")),
 

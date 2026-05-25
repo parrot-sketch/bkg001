@@ -15,6 +15,8 @@
 | **Frontdesk** | Any frontdesk email below | frontdesk123 | All frontdesk use same password |
 | **Patient** | See patient section below | Phone number (without +) | Each patient uses their phone as password |
 
+> Note: If your environment was seeded using `scripts/seed-staff.sql` (psql), staff passwords may be `password123` instead of the per-role passwords above.
+
 ---
 
 ## System Administrator
@@ -44,35 +46,23 @@
 
 All doctors use the password: **`doctor123`**
 
-#### 1. Dr. Mukami Gathariki
-- **Email:** `mukami.gathariki@nairobisculpt.com`
-- **Phone:** +254700000010
-- **Specialization:** Plastic, Reconstructive & Aesthetic Surgery
-- **License:** KMPDB-2020-001
+Seeded doctor accounts (via `pnpm db:seed` / `prisma/seed.ts`):
+
+#### 1. Dr. Angela Muoki
+- **Email:** `angela@nairobisculpt.com`
+- **Phone:** +254759067388
 
 #### 2. Dr. Ken Aluora
-- **Email:** `ken.aluora@nairobisculpt.com`
-- **Phone:** +254700000011
-- **Specialization:** Plastic & Reconstructive Surgery
-- **License:** KMPDB-2020-002
+- **Email:** `ken@nairobisculpt.com`
 
-#### 3. Dr. John Paul Ogalo
-- **Email:** `johnpaul.ogalo@nairobisculpt.com`
-- **Phone:** +254700000012
-- **Specialization:** Plastic & Reconstructive Surgery
-- **License:** KMPDB-2020-003
+#### 3. Dr. Dorsi Jowi
+- **Email:** `dorsi@nairobisculpt.com`
 
-#### 4. Dr. Angela Muoki
-- **Email:** `angela.muoki@nairobisculpt.com`
-- **Phone:** +254700000013
-- **Specialization:** Plastic, Reconstructive & Aesthetic Surgery
-- **License:** KMPDB-2020-004
+#### 4. Dr. Mukami Gathariki
+- **Email:** `mukami@nairobisculpt.com`
 
-#### 5. Dr. Dorsi Jowi
-- **Email:** `dorsi.jowi@nairobisculpt.com`
-- **Phone:** +254700000014
-- **Specialization:** Plastic Surgery - Hand Surgery Sub-specialization
-- **License:** KMPDB-2020-005
+#### 5. Dr. John Paul Ogalo
+- **Email:** `john@nairobisculpt.com`
 
 **Doctor Access:**
 - View own appointments

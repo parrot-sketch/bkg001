@@ -69,8 +69,16 @@ export class BillingRepository {
         this.prisma = prisma;
     }
 
+    private computeTotalFromBillItems(
+        billItems?: Array<{ serviceId: number; quantity: number; unitCost: number }>
+    ): number | undefined {
+        if (!billItems) return undefined;
+        return billItems.reduce((sum, item) => sum + item.quantity * item.unitCost, 0);
+    }
+
     async create(params: CreatePaymentParams): Promise<number> {
         const { patientId, billType, sourceId, appointmentId, surgicalCaseId, totalAmount, discount = 0, notes, billItems } = params;
+        const computedTotal = this.computeTotalFromBillItems(billItems);
 
         const payment = await this.prisma.payment.create({
             data: {
@@ -79,7 +87,9 @@ export class BillingRepository {
                 appointment_id: appointmentId,
                 surgical_case_id: surgicalCaseId,
                 bill_date: new Date(),
-                total_amount: totalAmount,
+                // Charge sheet is the source of truth: if bill items are provided,
+                // total_amount is derived from them to avoid mismatches.
+                total_amount: computedTotal ?? totalAmount,
                 discount,
                 amount_paid: 0,
                 payment_method: PaymentMethod.CASH,
@@ -102,13 +112,14 @@ export class BillingRepository {
 
     async update(paymentId: number, params: UpdatePaymentParams): Promise<void> {
         const { totalAmount, discount, notes, billItems } = params;
+        const computedTotal = this.computeTotalFromBillItems(billItems);
 
         await this.prisma.$transaction(async (tx) => {
             // Update payment
             await tx.payment.update({
                 where: { id: paymentId },
                 data: {
-                    total_amount: totalAmount,
+                    total_amount: computedTotal ?? totalAmount,
                     discount,
                     notes,
                 },

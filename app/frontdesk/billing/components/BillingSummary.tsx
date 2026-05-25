@@ -33,9 +33,9 @@ export function BillingSummary({ summary }: BillingSummaryProps) {
             </div>
             <div className={cn(
               "h-11 w-11 rounded-xl flex items-center justify-center",
-              "bg-amber-50 border border-amber-100"
+              "bg-slate-50 border border-slate-200"
             )}>
-              <Clock className="h-5 w-5 text-amber-600" />
+              <Clock className="h-5 w-5 text-slate-500" />
             </div>
           </div>
         </CardContent>
@@ -48,15 +48,15 @@ export function BillingSummary({ summary }: BillingSummaryProps) {
               <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">
                 Collected Today
               </p>
-              <p className="text-2xl font-bold text-emerald-600">
+              <p className="text-2xl font-bold text-slate-900">
                 KES {(summary?.totalCollected || 0).toLocaleString()}
               </p>
             </div>
             <div className={cn(
               "h-11 w-11 rounded-xl flex items-center justify-center",
-              "bg-emerald-50 border border-emerald-100"
+              "bg-slate-50 border border-slate-200"
             )}>
-              <DollarSign className="h-5 w-5 text-emerald-600" />
+              <DollarSign className="h-5 w-5 text-slate-500" />
             </div>
           </div>
         </CardContent>
@@ -75,9 +75,9 @@ export function BillingSummary({ summary }: BillingSummaryProps) {
             </div>
             <div className={cn(
               "h-11 w-11 rounded-xl flex items-center justify-center",
-              "bg-blue-50 border border-blue-100"
+              "bg-slate-50 border border-slate-200"
             )}>
-              <Receipt className="h-5 w-5 text-blue-600" />
+              <Receipt className="h-5 w-5 text-slate-500" />
             </div>
           </div>
         </CardContent>
@@ -96,9 +96,9 @@ export function BillingSummary({ summary }: BillingSummaryProps) {
             </div>
             <div className={cn(
               "h-11 w-11 rounded-xl flex items-center justify-center",
-              collectionRate >= 80 ? "bg-emerald-50 border border-emerald-100" : "bg-slate-50 border border-slate-100"
+              "bg-slate-50 border border-slate-200"
             )}>
-              <TrendingUp className={cn("h-5 w-5", collectionRate >= 80 ? "text-emerald-600" : "text-slate-600")} />
+              <TrendingUp className="h-5 w-5 text-slate-500" />
             </div>
           </div>
         </CardContent>

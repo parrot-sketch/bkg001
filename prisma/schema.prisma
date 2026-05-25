@@ -2240,6 +2240,7 @@ enum DoctorOnboardingStatus {
   INVITED
   ACTIVATED
   PROFILE_COMPLETED
+  SCHEDULE_SETUP
   ACTIVE
 }
 

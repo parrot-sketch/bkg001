@@ -13,8 +13,18 @@ import {
   mapAvailabilityTemplateToDomain,
 } from '@/infrastructure/mappers/ScheduleMapper';
 import { DoctorScheduleService } from '@/application/services/DoctorScheduleService';
+import { DoctorOnboardingStatus } from '@/domain/enums/DoctorOnboardingStatus';
+import { transitionDoctorOnboardingStatus as transitionStatus } from '@/domain/services/DoctorOnboardingStateMachine';
 
 const scheduleService = new DoctorScheduleService(db);
+
+async function resolveDoctorId(userIdOrDoctorId: string): Promise<string> {
+    const byUserId = await db.doctor.findUnique({ where: { user_id: userIdOrDoctorId } });
+    if (byUserId) return byUserId.id;
+    const byDoctorId = await db.doctor.findUnique({ where: { id: userIdOrDoctorId } });
+    if (byDoctorId) return byDoctorId.id;
+    throw new Error(`Doctor profile not found for identifier=${userIdOrDoctorId}`);
+}
 
 // ============================================================================
 // SCHEMAS
@@ -83,8 +93,7 @@ const UpdateSlotConfigurationSchema = z.object({
 
 export async function getDoctorSchedule(userId: string, start: Date, end: Date) {
     // RESOLVE DOCTOR ID (since input is likely User ID)
-    const doctor = await db.doctor.findUnique({ where: { user_id: userId } });
-    const doctorId = doctor ? doctor.id : userId;
+    const doctorId = await resolveDoctorId(userId);
 
     try {
         const [rawData, calendarEvents] = await Promise.all([
@@ -183,15 +192,50 @@ export async function updateAvailability(data: z.infer<typeof UpdateAvailability
     const { doctorId: userIdOrDoctorId, slots, templateName } = UpdateAvailabilitySchema.parse(data);
 
     // Resolve Doctor ID
-    const doctor = await db.doctor.findUnique({ where: { user_id: userIdOrDoctorId } });
-    const doctorId = doctor ? doctor.id : userIdOrDoctorId;
+    const doctorId = await resolveDoctorId(userIdOrDoctorId);
+
+    // Get current doctor status for potential onboarding transition
+    const doctor = await db.doctor.findUnique({
+        where: { id: doctorId },
+        select: { onboarding_status: true }
+    });
 
     try {
         await scheduleService.updateAvailability(doctorId, slots as WorkingDay[], templateName);
+
+        // Verify persistence (protects against silent no-op saves)
+        const activeTemplate = await db.availabilityTemplate.findFirst({
+            where: { doctor_id: doctorId, is_active: true },
+            include: { slots: true },
+        });
+        const persistedSlotCount = activeTemplate?.slots?.length ?? 0;
+        if (slots.length > 0 && persistedSlotCount === 0) {
+            throw new Error('Availability save failed verification (no slots persisted). Please try again.');
+        }
+
+        // Transition onboarding status if currently PROFILE_COMPLETED or SCHEDULE_SETUP and slots configured
+        if (doctor?.onboarding_status === DoctorOnboardingStatus.PROFILE_COMPLETED && slots.length > 0) {
+            const newStatus = transitionStatus(doctor.onboarding_status, DoctorOnboardingStatus.SCHEDULE_SETUP);
+            await db.doctor.update({
+                where: { id: doctorId },
+                data: { onboarding_status: newStatus as any }
+            });
+        }
+
         revalidatePath('/doctor/schedule');
         return { success: true };
     } catch (error: any) {
         console.error('[Action] updateAvailability error:', error);
+        if (
+            error?.name === 'PrismaClientValidationError' &&
+            typeof error?.message === 'string' &&
+            error.message.includes('Expected DoctorOnboardingStatus')
+        ) {
+            throw new Error(
+                'Database schema is out of sync with Prisma Client (missing enum value). ' +
+                'Run `pnpm db:migrate` then `pnpm db:generate`, restart `pnpm dev`, and try saving again.'
+            );
+        }
         throw error;
     }
 }
@@ -201,8 +245,7 @@ export async function updateSlotConfiguration(data: z.infer<typeof UpdateSlotCon
     const { doctorId: userIdOrDoctorId, defaultDuration, slotInterval, bufferTime } = validated;
 
     // Resolve Doctor ID
-    const doctor = await db.doctor.findUnique({ where: { user_id: userIdOrDoctorId } });
-    const doctorId = doctor ? doctor.id : userIdOrDoctorId;
+    const doctorId = await resolveDoctorId(userIdOrDoctorId);
 
     // Additional server-side validation
     const overlapRatio = defaultDuration / slotInterval;
@@ -215,6 +258,12 @@ export async function updateSlotConfiguration(data: z.infer<typeof UpdateSlotCon
             `Please increase interval to at least ${Math.ceil(defaultDuration * 0.3)} minutes.`
         );
     }
+
+    // Get current doctor status for potential onboarding transition
+    const doctor = await db.doctor.findUnique({
+        where: { id: doctorId },
+        select: { onboarding_status: true }
+    });
 
     // Save to database
     await db.slotConfiguration.upsert({
@@ -231,6 +280,30 @@ export async function updateSlotConfiguration(data: z.infer<typeof UpdateSlotCon
             buffer_time: bufferTime,
         },
     });
+
+    // Transition onboarding status if currently SCHEDULE_SETUP
+    try {
+        if (doctor?.onboarding_status === DoctorOnboardingStatus.SCHEDULE_SETUP) {
+            const newStatus = transitionStatus(doctor.onboarding_status, DoctorOnboardingStatus.ACTIVE);
+            await db.doctor.update({
+                where: { id: doctorId },
+                data: { onboarding_status: newStatus as any }
+            });
+        }
+    } catch (error: any) {
+        console.error('[Action] updateSlotConfiguration onboarding transition error:', error);
+        if (
+            error?.name === 'PrismaClientValidationError' &&
+            typeof error?.message === 'string' &&
+            error.message.includes('Expected DoctorOnboardingStatus')
+        ) {
+            throw new Error(
+                'Database schema is out of sync with Prisma Client (missing enum value). ' +
+                'Run `pnpm db:migrate` then `pnpm db:generate`, restart `pnpm dev`, and try saving again.'
+            );
+        }
+        throw error;
+    }
 
     revalidatePath('/doctor/schedule');
     return { success: true };

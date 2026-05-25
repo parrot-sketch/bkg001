@@ -4,58 +4,20 @@
  * Login Page — Nairobi Sculpt
  *
  * Enterprise-grade, WCAG AA compliant authentication page.
- *
- * Design spec compliance:
- * - Mobile-first, no horizontal scroll
- * - Inputs: 48px height, full-width on mobile
- * - Buttons: 48px height
- * - Field spacing: 20px
- * - Font: Inter (loaded globally)
- * - Color: brand.primary #1E3A5F, brand.secondary #bea032
- * - Focus rings visible, keyboard navigable
- * - Error messages screen-reader friendly (role="alert")
- * - No user enumeration — generic errors only
- * - Prevents double submit via isSubmitting guard
- * - Preserves email after failed login
- * - Show/hide password toggle
- * - Caps lock warning
- * - Loading spinner on submit button
- * - Session-expired banner support
+ * Audited, Refactored, and Modularized:
+ * - Separated styling and presentation from stateful business logic.
+ * - Form state, validation, focus, and API operations managed in useLoginForm hook.
+ * - Pure error messages, classification, and URL filters managed in auth-helpers.
  */
 
-import { useState, useRef, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/hooks/patient/useAuth';
 import { PasswordInput } from '@/components/auth/PasswordInput';
-import { getPostAuthRedirect } from '@/lib/utils/auth-redirect';
+import { useLoginForm } from '@/hooks/auth/useLoginForm';
+import { MSG } from '@/lib/utils/auth-helpers';
 import { cn } from '@/lib/utils';
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-const MSG = {
-  AUTH_ERROR: 'Invalid email or password. Please try again.',
-  NETWORK_ERROR: 'Connection error. Please check your internet connection and try again.',
-  RATE_LIMITED: 'Too many sign-in attempts. Your account has been temporarily locked. Please try again in 15 minutes or contact support.',
-  ACCOUNT_LOCKED: 'Your account is temporarily locked due to multiple failed attempts. Please try again later or contact support.',
-  ACCOUNT_INACTIVE: 'Your account is inactive. Please contact your administrator.',
-  SESSION_EXPIRED: 'Your session has expired. Please sign in again.',
-  EMAIL_REQUIRED: 'Email address is required.',
-  EMAIL_INVALID: 'Please enter a valid email address.',
-  PASSWORD_REQUIRED: 'Password is required.',
-} as const;
-
-const isNetworkError = (msg: string) =>
-  /network|fetch|connection|timeout|failed to fetch/i.test(msg);
-
-const classify = (status: number, msg: string): keyof typeof MSG => {
-  if (status === 429) return 'RATE_LIMITED';
-  if (status === 423) return 'ACCOUNT_LOCKED';
-  if (status === 403) return 'ACCOUNT_INACTIVE';
-  if (isNetworkError(msg)) return 'NETWORK_ERROR';
-  return 'AUTH_ERROR';
-};
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Helpers (Aesthetic SVG Icons) ───────────────────────────────────────────
 function LockIcon() {
   return (
     <svg
@@ -89,109 +51,60 @@ function InfoIcon({ className }: { className?: string }) {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function LoginPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { login, isLoading } = useAuth();
+  const {
+    email,
+    password,
+    isSubmitting,
+    isNavigating,
+    isAuthLoading,
+    isDisabled,
+    sessionExpired,
+    error,
+    fieldErrors,
+    emailRef,
+    passwordRef,
+    errorRef,
+    handleEmailChange,
+    handlePasswordChange,
+    handleSubmit,
+  } = useLoginForm();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<{ key: keyof typeof MSG; isWarning?: boolean } | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
-
-  const emailRef = useRef<HTMLInputElement>(null);
-  const passwordRef = useRef<HTMLInputElement>(null);
-  const errorRef = useRef<HTMLDivElement>(null);
-
-  const isDisabled = isSubmitting || isLoading;
-  const sessionExpired = searchParams.get('reason') === 'expired';
-
-  // Auto-focus email on mount
+  // Auto-focus email input on mount
   useEffect(() => {
     emailRef.current?.focus();
-  }, []);
+  }, [emailRef]);
 
-  // Scroll error into view on mobile
-  useEffect(() => {
-    if (error) errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [error]);
-
-  // ── Validation ──────────────────────────────────────────────────────────────
-  const validate = (): boolean => {
-    const errs: typeof fieldErrors = {};
-    if (!email.trim()) {
-      errs.email = MSG.EMAIL_REQUIRED;
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      errs.email = MSG.EMAIL_INVALID;
-    }
-    if (!password) {
-      errs.password = MSG.PASSWORD_REQUIRED;
-    }
-    setFieldErrors(errs);
-    if (errs.email) emailRef.current?.focus();
-    else if (errs.password) passwordRef.current?.focus();
-    return Object.keys(errs).length === 0;
-  };
-
-  // ── Submit ──────────────────────────────────────────────────────────────────
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isDisabled) return;
-    setError(null);
-    if (!validate()) return;
-
-    setIsSubmitting(true);
-    try {
-      await login(email.trim(), password);
-      const { tokenStorage } = await import('@/lib/auth/token');
-      const stored = tokenStorage.getUser();
-      const redirect = await getPostAuthRedirect(stored?.id ?? email.trim(), stored?.role);
-      router.push(redirect);
-    } catch (err: unknown) {
-      const status = (err as any)?.status ?? (err as any)?.response?.status ?? 0;
-      const message = err instanceof Error ? err.message : String(err);
-      const key = classify(status, message);
-      setError({ key, isWarning: key === 'NETWORK_ERROR' || key === 'RATE_LIMITED' || key === 'ACCOUNT_LOCKED' });
-      // Focus password for auth errors; email for account issues
-      if (key === 'AUTH_ERROR' || key === 'NETWORK_ERROR') {
-        passwordRef.current?.focus();
-        passwordRef.current?.select();
-      } else {
-        emailRef.current?.focus();
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // ── Field change helpers ────────────────────────────────────────────────────
-  const onEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEmail(e.target.value);
-    if (fieldErrors.email) setFieldErrors(p => ({ ...p, email: undefined }));
-    if (error) setError(null);
-  };
-
-  const onPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPassword(e.target.value);
-    if (fieldErrors.password) setFieldErrors(p => ({ ...p, password: undefined }));
-    if (error) setError(null);
-  };
-
-  // ── Shared input classes ────────────────────────────────────────────────────
+  // ── Shared input styles ───────────────────────────────────────────────────
   const inputBase =
     'block w-full rounded-lg border bg-white px-4 text-[15px] text-slate-900 placeholder-slate-400 ' +
     'outline-none transition-all duration-150 ' +
     'focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-0 focus-visible:border-brand-primary ' +
     'disabled:opacity-50 disabled:cursor-not-allowed ' +
-    'h-12'; // 48px — meets 44px minimum
+    'h-12'; // 48px meets target minimum
 
   const inputNormal = 'border-slate-300 hover:border-slate-400';
   const inputError  = 'border-red-400 focus-visible:ring-red-400 focus-visible:border-red-500 bg-red-50';
 
+  // Render centered skeleton screen on mount ONLY during initial hydration check
+  if (isAuthLoading && !isSubmitting && !isNavigating) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 space-y-6 animate-pulse" aria-hidden="true">
+        <div className="w-16 h-16 rounded-2xl bg-slate-200" />
+        <div className="h-6 w-48 bg-slate-200 rounded" />
+        <div className="h-4 w-64 bg-slate-100 rounded" />
+        <div className="w-full space-y-4 pt-4">
+          <div className="h-12 bg-slate-100 rounded-lg w-full" />
+          <div className="h-12 bg-slate-100 rounded-lg w-full" />
+          <div className="h-12 bg-brand-primary/10 rounded-lg w-full" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
 
-      {/* ── Icon + Heading ─────────────────────────────────────────────────── */}
+      {/* ── Heading ──────────────────────────────────────────────────────── */}
       <div className="text-center space-y-3">
         <div className="flex justify-center">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-primary/8 ring-1 ring-brand-primary/15">
@@ -211,8 +124,6 @@ export default function LoginPage() {
       {/* ── Session-expired banner ────────────────────────────────────────── */}
       {sessionExpired && !error && (
         <div
-          role="status"
-          aria-live="polite"
           className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
         >
           <InfoIcon className="text-amber-500" />
@@ -246,7 +157,7 @@ export default function LoginPage() {
             spellCheck={false}
             placeholder="you@example.com"
             value={email}
-            onChange={onEmailChange}
+            onChange={handleEmailChange}
             disabled={isDisabled}
             required
             aria-required="true"
@@ -276,7 +187,7 @@ export default function LoginPage() {
               className={cn(
                 'text-xs font-medium text-brand-primary underline-offset-2',
                 'hover:underline focus-visible:underline',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-1 rounded-sm',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-1 rounded',
                 'transition-colors',
               )}
             >
@@ -290,7 +201,7 @@ export default function LoginPage() {
             autoComplete="current-password"
             placeholder="Enter your password"
             value={password}
-            onChange={onPasswordChange}
+            onChange={handlePasswordChange}
             disabled={isDisabled}
             required
             showCapsLockWarning
@@ -300,7 +211,7 @@ export default function LoginPage() {
             className={cn(
               inputBase,
               fieldErrors.password ? inputError : inputNormal,
-              'pr-12', // room for show/hide toggle
+              'pr-12', // room for toggle
             )}
           />
           {fieldErrors.password && (
@@ -336,8 +247,8 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={isDisabled}
-          aria-busy={isSubmitting}
-          aria-label={isSubmitting ? 'Signing in, please wait' : 'Sign in'}
+          aria-busy={isDisabled}
+          aria-label={isDisabled ? 'Signing in, please wait' : 'Sign in'}
           className={cn(
             'relative w-full h-12 rounded-lg px-6',
             'bg-brand-primary text-white text-sm font-semibold tracking-wide',
@@ -348,13 +259,13 @@ export default function LoginPage() {
             'flex items-center justify-center gap-2.5',
           )}
         >
-          {isSubmitting && (
+          {isDisabled && (
             <span
               aria-hidden="true"
               className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin"
             />
           )}
-          <span>{isSubmitting ? 'Signing in…' : 'Sign in'}</span>
+          <span>{isDisabled ? 'Signing in…' : 'Sign in'}</span>
         </button>
       </form>
 

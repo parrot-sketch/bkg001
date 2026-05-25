@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * JWT-based middleware
+ * JWT-based proxy (formerly middleware)
  * 
  * Note: API routes handle their own JWT authentication via JwtMiddleware.
- * This middleware is simplified to avoid conflicts with Clerk (which is not used).
  * Client-side routes handle authentication through useAuth hook and redirects.
  */
-export default function middleware(request: NextRequest) {
+export default function proxy(request: NextRequest) {
   const response = NextResponse.next();
 
   // Content Security Policy configuration

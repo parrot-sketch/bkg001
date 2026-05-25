@@ -6,6 +6,7 @@
  */
 
 import { patientApi } from '../api/patient';
+import { doctorApi } from '../api/doctor';
 
 /**
  * User roles from the system
@@ -104,10 +105,17 @@ export async function getPostAuthRedirect(
  */
 async function getDoctorRedirect(userId: string): Promise<string> {
   try {
-    // Since all seeded doctors are ACTIVE with complete profiles,
-    // we can route directly to dashboard
-    // For future: if we need to check onboarding status, we'd need an API endpoint
-    // For now, all authenticated doctors go to dashboard
+    const doctorRes = await doctorApi.getDoctorByUserId(userId);
+    const onboardingStatus = (doctorRes.success ? doctorRes.data?.onboardingStatus : undefined) as
+      | 'INVITED'
+      | 'ACTIVATED'
+      | 'PROFILE_COMPLETED'
+      | 'SCHEDULE_SETUP'
+      | 'ACTIVE'
+      | undefined;
+
+    if (onboardingStatus === 'INVITED') return '/doctor/activate';
+    
     return '/doctor/dashboard';
   } catch (error) {
     console.error('Error determining doctor redirect:', error);

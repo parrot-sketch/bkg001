@@ -364,40 +364,73 @@ export function UnifiedSidebar({
         {/* ═══ NAV — scrollable middle ══════════════════════════════════════════ */}
         <nav
           aria-label="Site navigation"
-          className="flex-1 overflow-y-auto overflow-x-hidden pt-6 pb-4 space-y-7 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-slate-800"
+          className={cn(
+            'flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-transparent scrollbar-thumb-slate-800',
+            'flex flex-col py-5',
+            // More breathing room + clearer hierarchy across long menus
+            collapsed ? 'gap-4' : 'gap-9',
+          )}
         >
-          {navGroups.map(group => (
-            <div
-              key={group.title || '__default__'}
-              className={cn(collapsed ? 'px-3' : 'px-3')}
-            >
-              {/* Section label */}
-              {hasGroups && group.title && !collapsed && (
-                <div className="flex items-center gap-2 px-3 pt-1 mb-2">
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      'h-1 w-1 rounded-full shrink-0',
-                      sectionDot[group.title] ?? 'bg-slate-600',
-                    )}
-                  />
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500 leading-none">
-                    {group.title}
-                  </span>
-                </div>
-              )}
-
-              {/* Divider separator in collapsed mode */}
-              {hasGroups && group.title && collapsed && (
-                <div className="mb-1 border-t border-white/[0.05]" aria-hidden="true" />
-              )}
-
-              {/* Items */}
-              <div className="space-y-1">
-                {group.items.map(renderNavItem)}
+          {/* Single-section fallback label (e.g. Patient sidebar) */}
+          {!hasGroups && !collapsed && (
+            <div className="px-6 pt-1">
+              <div className="flex items-center gap-3">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-500 leading-none">
+                  Navigation
+                </span>
+                <span className="h-px flex-1 bg-white/[0.06]" aria-hidden="true" />
               </div>
             </div>
-          ))}
+          )}
+
+          {navGroups.map((group, idx) => {
+            const isAccount = hasGroups && group.title.trim().toLowerCase() === 'account';
+            const showGroupDivider = hasGroups && !collapsed && idx !== 0;
+
+            return (
+              <div
+                key={group.title || '__default__'}
+                className={cn(
+                  'px-3',
+                  // Use available height: keep account/actions visually anchored near the bottom
+                  isAccount && !collapsed && 'mt-auto pt-4',
+                )}
+              >
+                {showGroupDivider && (
+                  <div
+                    className={cn('h-px bg-white/[0.06]', isAccount ? 'my-3' : 'my-4')}
+                    aria-hidden="true"
+                  />
+                )}
+                {/* Section label */}
+                {hasGroups && group.title && !collapsed && (
+                  <div className="flex items-center gap-3 px-3 pt-0.5 mb-4">
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        'h-1.5 w-1.5 rounded-full shrink-0',
+                        sectionDot[group.title] ?? 'bg-slate-600',
+                      )}
+                    />
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400 leading-none">
+                      {group.title}
+                    </span>
+                    <span className="h-px flex-1 bg-white/[0.06]" aria-hidden="true" />
+                  </div>
+                )}
+
+                {/* Divider separator in collapsed mode */}
+                {hasGroups && group.title && collapsed && (
+                  <div className="mb-2 border-t border-white/[0.05]" aria-hidden="true" />
+                )}
+
+                {/* Items */}
+                <div className={cn(collapsed ? 'space-y-2' : 'space-y-2')}>
+                  {group.items.map(renderNavItem)}
+                </div>
+              </div>
+            );
+          })}
         </nav>
 
         {/* ═══ FOOTER — sticky user info + sign out ════════════════════════════ */}

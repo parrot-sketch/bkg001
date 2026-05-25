@@ -10,6 +10,16 @@ export interface ApiError {
   error: string;
   message?: string;
   /**
+   * HTTP status code from the underlying fetch response.
+   * Added so UI layers can map errors (e.g. 429) to the correct message.
+   */
+  status?: number;
+  /**
+   * Derived from `Retry-After` response header when present.
+   * Useful for rate-limit / lockout UX.
+   */
+  retryAfterSeconds?: number;
+  /**
    * Many endpoints return additional structured error metadata (e.g. `missingItems`,
    * `details`, `code`, `metadata`). Preserve these fields so UIs can present
    * actionable error messages instead of a generic failure.
@@ -108,6 +118,13 @@ class ApiClient {
         credentials: 'same-origin',
       });
 
+      const retryAfterHeader = response.headers.get('Retry-After');
+      const retryAfterSeconds = retryAfterHeader ? Number(retryAfterHeader) : undefined;
+      const safeRetryAfterSeconds =
+        typeof retryAfterSeconds === 'number' && Number.isFinite(retryAfterSeconds)
+          ? retryAfterSeconds
+          : undefined;
+
       // CRITICAL: Clone response before reading to avoid stream consumption issues
       // This is essential for production where responses might be cached
       const clonedResponse = response.clone();
@@ -129,6 +146,8 @@ class ApiClient {
             return {
               success: false,
               error: `Invalid JSON response: ${response.status} ${response.statusText}`,
+              status: response.status,
+              retryAfterSeconds: safeRetryAfterSeconds,
             };
           }
         }
@@ -139,6 +158,8 @@ class ApiClient {
           return {
             success: false,
             error: `Unexpected response format: ${response.status} ${response.statusText}`,
+            status: response.status,
+            retryAfterSeconds: safeRetryAfterSeconds,
           };
         } catch {
           // Fallback to original response
@@ -146,6 +167,8 @@ class ApiClient {
           return {
             success: false,
             error: `Unexpected response format: ${response.status} ${response.statusText}`,
+            status: response.status,
+            retryAfterSeconds: safeRetryAfterSeconds,
           };
         }
       }
@@ -172,6 +195,8 @@ class ApiClient {
             success: false,
             error: data?.error || 'Authentication failed',
             message: data?.message,
+            status: response.status,
+            retryAfterSeconds: safeRetryAfterSeconds,
           };
         } finally {
           this.isRefreshing = false;
@@ -192,6 +217,13 @@ class ApiClient {
           credentials: 'same-origin',
         });
 
+        const retryAfterRetryHeader = retryResponse.headers.get('Retry-After');
+        const retryAfterRetrySeconds = retryAfterRetryHeader ? Number(retryAfterRetryHeader) : undefined;
+        const safeRetryAfterRetrySeconds =
+          typeof retryAfterRetrySeconds === 'number' && Number.isFinite(retryAfterRetrySeconds)
+            ? retryAfterRetrySeconds
+            : undefined;
+
         // Clone retry response before reading
         const clonedRetryResponse = retryResponse.clone();
 
@@ -211,6 +243,8 @@ class ApiClient {
               return {
                 success: false,
                 error: `Invalid JSON response: ${retryResponse.status} ${retryResponse.statusText}`,
+                status: retryResponse.status,
+                retryAfterSeconds: safeRetryAfterRetrySeconds,
               };
             }
           }
@@ -220,12 +254,16 @@ class ApiClient {
             return {
               success: false,
               error: `Unexpected response format: ${retryResponse.status} ${retryResponse.statusText}`,
+              status: retryResponse.status,
+              retryAfterSeconds: safeRetryAfterRetrySeconds,
             };
           } catch {
             const text = await retryResponse.text();
             return {
               success: false,
               error: `Unexpected response format: ${retryResponse.status} ${retryResponse.statusText}`,
+              status: retryResponse.status,
+              retryAfterSeconds: safeRetryAfterRetrySeconds,
             };
           }
         }
@@ -233,12 +271,18 @@ class ApiClient {
         if (!retryResponse.ok) {
           // Preserve structured error payloads when present.
           if (retryData && typeof retryData === 'object' && (retryData as any).success === false) {
-            return retryData as ApiError;
+            return {
+              ...(retryData as ApiError),
+              status: retryResponse.status,
+              retryAfterSeconds: safeRetryAfterRetrySeconds,
+            };
           }
           return {
             success: false,
             error: retryData?.error || `Request failed with status ${retryResponse.status}`,
             message: retryData?.message,
+            status: retryResponse.status,
+            retryAfterSeconds: safeRetryAfterRetrySeconds,
           };
         }
 
@@ -259,7 +303,11 @@ class ApiClient {
 
       // Preserve structured API error payloads even when status is non-2xx.
       if (data && typeof data === 'object' && (data as any).success === false) {
-        return data as ApiError;
+        return {
+          ...(data as ApiError),
+          status: response.status,
+          retryAfterSeconds: safeRetryAfterSeconds,
+        };
       }
 
       if (!response.ok) {
@@ -267,6 +315,8 @@ class ApiClient {
           success: false,
           error: (data as any)?.error || `Request failed with status ${response.status}`,
           message: (data as any)?.message,
+          status: response.status,
+          retryAfterSeconds: safeRetryAfterSeconds,
         };
       }
 

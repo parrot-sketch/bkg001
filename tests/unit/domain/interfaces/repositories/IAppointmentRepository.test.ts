@@ -178,7 +178,8 @@ describe('IAppointmentRepository Interface', () => {
     it('should have findByPatientAndDoctor method with correct signature', () => {
       const repository: IAppointmentRepository = new MockAppointmentRepository();
       expect(typeof repository.findByPatientAndDoctor).toBe('function');
-      expect(repository.findByPatientAndDoctor.length).toBe(2); // Takes 2 parameters (patientId, userId)
+      // findByPatientAndDoctor(patientId, userId, txClient?) — 3 params total
+      expect(repository.findByPatientAndDoctor.length).toBe(3);
     });
 
     it('should have save method with correct signature', () => {

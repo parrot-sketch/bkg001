@@ -12,14 +12,13 @@ export function QueueFooter({ sortedQueue }: QueueFooterProps) {
   const avgWaitTime = getAverageWaitTime(sortedQueue);
 
   return (
-    <div className="p-4 border-t border-slate-200 bg-slate-50/80 backdrop-blur-md">
+    <div className="p-4 border-t border-slate-200 bg-white">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Efficiency Stat</span>
+        <span className="text-[11px] font-semibold text-slate-600">Average wait</span>
         <div className="flex items-center gap-1.5">
-          <span className="text-[11px] font-bold text-slate-700 tracking-tight">
+          <span className="text-sm font-semibold text-slate-900 tracking-tight tabular-nums">
             {avgWaitTime}
           </span>
-          <span className="text-[9px] text-slate-400 font-medium uppercase">Avg Wait</span>
         </div>
       </div>
     </div>

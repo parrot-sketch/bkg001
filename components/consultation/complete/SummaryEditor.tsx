@@ -28,7 +28,7 @@ export function SummaryEditor({
           <button
             type="button"
             onClick={onEditClick}
-            className="text-[11px] text-blue-600 hover:text-blue-800 font-medium"
+            className="text-[11px] text-slate-600 hover:text-slate-900 font-medium"
           >
             Edit summary
           </button>
@@ -40,11 +40,11 @@ export function SummaryEditor({
           value={summary}
           onChange={(e) => onSummaryChange(e.target.value)}
           rows={5}
-          className="text-sm font-mono"
+          className="text-sm font-mono rounded-none"
           placeholder="Consultation summary…"
         />
       ) : (
-        <div className="text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-3 leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto">
+        <div className="text-xs text-slate-700 bg-white border border-slate-200 p-3 leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto">
           {autoSummary || (
             <span className="text-slate-400 italic">No notes documented yet.</span>
           )}

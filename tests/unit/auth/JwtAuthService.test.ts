@@ -9,6 +9,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { JwtAuthService } from '@/infrastructure/auth/JwtAuthService';
 import { Email } from '@/domain/value-objects/Email';
 import { DomainException } from '@/domain/exceptions/DomainException';
+import { User } from '@/domain/entities/User';
 import { TestUserFactory, testAuthConfig, testCredentials } from './auth-test-utils';
 
 /**
@@ -159,6 +160,44 @@ describe('JwtAuthService', () => {
       expect(result.accessToken).toBeTruthy();
       expect(result.refreshToken).toBeTruthy();
       expect(result.expiresIn).toBe(15 * 60); // 15 minutes
+    });
+
+    it('should accept legacy $2y$ bcrypt hash prefixes', async () => {
+      // Arrange
+      const testUser = await TestUserFactory.createPatientUser({
+        email: 'legacy-hash@example.com',
+        password: 'password123',
+      });
+
+      // Simulate a legacy `$2y$` prefix (commonly produced by PHP bcrypt).
+      // The underlying hash bytes are identical; only the version tag differs.
+      const legacyUser = User.create({
+        id: testUser.getId(),
+        email: testUser.getEmail(),
+        passwordHash: testUser.getPasswordHash().replace(/^\$2b\$/, '$2y$'),
+        role: testUser.getRole(),
+        status: testUser.getStatus(),
+        mfaEnabled: testUser.isMfaEnabled(),
+        mfaSecret: testUser.getMfaSecret(),
+        firstName: testUser.getFirstName(),
+        lastName: testUser.getLastName(),
+        phone: testUser.getPhone(),
+        lastLoginAt: testUser.getLastLoginAt(),
+        createdAt: testUser.getCreatedAt(),
+        updatedAt: testUser.getUpdatedAt(),
+      });
+
+      mockUserRepository.setUser(legacyUser);
+
+      // Act
+      const result = await authService.login(
+        Email.create('legacy-hash@example.com'),
+        'password123',
+      );
+
+      // Assert
+      expect(result.accessToken).toBeTruthy();
+      expect(result.refreshToken).toBeTruthy();
     });
 
     it('should throw DomainException if user not found', async () => {

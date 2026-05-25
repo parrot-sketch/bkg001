@@ -106,8 +106,8 @@ export function PaymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-white border-slate-200 shadow-xl rounded-xl">
-        <div className="bg-slate-50/80 px-5 py-5 border-b border-slate-100">
+      <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-white border-slate-200 shadow-xl rounded-none">
+        <div className="bg-white px-5 py-5 border-b border-slate-200">
           <Badge variant="outline" className="mb-2 bg-white text-[10px] font-semibold text-slate-500 uppercase border-slate-200">
             Payment Collection
           </Badge>
@@ -125,7 +125,7 @@ export function PaymentDialog({
             <div className="flex items-center justify-between">
               <Label className="text-xs font-semibold text-slate-700">Amount Received</Label>
               {isFullPayment && parseFloat(paymentAmount) > 0 && (
-                <span className="flex items-center text-[10px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">
+                <span className="flex items-center text-[10px] font-medium text-slate-700 bg-slate-50 px-2 py-0.5 border border-slate-200">
                   <CheckCircle2 className="h-3 w-3 mr-1" /> Full Balance
                 </span>
               )}
@@ -139,15 +139,15 @@ export function PaymentDialog({
                 value={paymentAmount}
                 onChange={(e) => handleAmountChange(e.target.value)}
                 className={cn(
-                  "h-14 pl-14 text-2xl font-bold text-slate-900 border rounded-lg shadow-sm transition-all focus-visible:ring-1 focus-visible:ring-offset-0",
-                  error ? "border-rose-300 focus-visible:ring-rose-200" : "border-slate-200 focus-visible:border-slate-400 focus-visible:ring-slate-300"
+                  "h-14 pl-14 text-2xl font-bold text-slate-900 border rounded-none shadow-sm transition-all focus-visible:ring-1 focus-visible:ring-offset-0",
+                  error ? "border-slate-400 focus-visible:ring-slate-300" : "border-slate-200 focus-visible:border-slate-400 focus-visible:ring-slate-300"
                 )}
                 placeholder="0.00"
                 autoFocus
               />
             </div>
             {error && (
-              <p className="flex items-center text-[11px] font-medium text-rose-500 mt-1.5">
+              <p className="flex items-center text-[11px] font-medium text-slate-600 mt-1.5">
                 <AlertCircle className="h-3 w-3 mr-1" />
                 {error}
               </p>
@@ -165,7 +165,7 @@ export function PaymentDialog({
                     key={method.id}
                     onClick={() => setPaymentMethod(method.id as PaymentMethod)}
                     className={cn(
-                      "flex flex-col items-center justify-center py-2.5 px-2 rounded-lg border transition-all duration-200",
+                      "flex flex-col items-center justify-center py-2.5 px-2 rounded-none border transition-all duration-200",
                       isActive 
                         ? "border-slate-800 ring-1 ring-slate-800 bg-slate-50" 
                         : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50"
@@ -185,12 +185,12 @@ export function PaymentDialog({
           </div>
         </div>
 
-        <DialogFooter className="px-5 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end">
+        <DialogFooter className="px-5 py-4 bg-white border-t border-slate-200 flex items-center justify-end">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={isRecording}
-            className="text-slate-600 font-medium text-sm h-9 rounded-lg"
+            className="text-slate-600 font-medium text-sm h-9 rounded-none"
           >
             Cancel
           </Button>
@@ -202,7 +202,7 @@ export function PaymentDialog({
               !!error || 
               parseFloat(paymentAmount) <= 0
             }
-            className="bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm h-9 rounded-lg shadow-sm active:scale-95 transition-transform ml-2 px-5"
+            className="bg-slate-900 hover:bg-slate-800 text-white font-medium text-sm h-9 rounded-none shadow-sm active:scale-95 transition-transform ml-2 px-5"
           >
             {isRecording ? 'Processing...' : 'Confirm'}
           </Button>

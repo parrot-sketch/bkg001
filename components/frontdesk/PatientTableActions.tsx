@@ -24,7 +24,6 @@ import {
   UserPlus,
   CreditCard,
   ClipboardList,
-  Mail,
   Eye,
   MoreVertical,
 } from 'lucide-react';
@@ -80,13 +79,6 @@ export function PatientTableActions({ patient, onActionComplete }: PatientTableA
     router.push(`/frontdesk/patient/${patient.id}?tab=appointments`);
   };
 
-  const handleEmailPatient = () => {
-    setMenuOpen(false);
-    if (patient.email) {
-      window.open(`mailto:${patient.email}`, '_blank');
-    }
-  };
-
   const handleViewProfile = () => {
     setMenuOpen(false);
     router.push(`/frontdesk/patient/${patient.id}`);
@@ -112,9 +104,12 @@ export function PatientTableActions({ patient, onActionComplete }: PatientTableA
             <MoreVertical className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56 animate-in fade-in-0 zoom-in-95 duration-200">
+        <DropdownMenuContent align="end" sideOffset={8} className="w-56 z-[60]">
           {/* Primary Action: Add to Queue */}
-          <DropdownMenuItem onClick={handleAddToQueue} className="cursor-pointer focus:bg-cyan-50 focus:text-cyan-700">
+          <DropdownMenuItem
+            onClick={handleAddToQueue}
+            className="cursor-pointer data-[highlighted]:bg-slate-50 data-[highlighted]:text-slate-900"
+          >
             <UserPlus className="h-4 w-4 mr-2 text-cyan-600" />
             Add to Queue
           </DropdownMenuItem>
@@ -122,31 +117,35 @@ export function PatientTableActions({ patient, onActionComplete }: PatientTableA
           <DropdownMenuSeparator />
           
           {/* Secondary Actions */}
-          <DropdownMenuItem onClick={handleBook} className="cursor-pointer focus:bg-slate-50">
+          <DropdownMenuItem
+            onClick={handleBook}
+            className="cursor-pointer data-[highlighted]:bg-slate-50 data-[highlighted]:text-slate-900"
+          >
             <Calendar className="h-4 w-4 mr-2 text-slate-500" />
             Book Appointment
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleViewBilling} className="cursor-pointer focus:bg-slate-50">
+          <DropdownMenuItem
+            onClick={handleViewBilling}
+            className="cursor-pointer data-[highlighted]:bg-slate-50 data-[highlighted]:text-slate-900"
+          >
             <CreditCard className="h-4 w-4 mr-2 text-slate-500" />
             View Billing
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleViewAppointments} className="cursor-pointer focus:bg-slate-50">
+          <DropdownMenuItem
+            onClick={handleViewAppointments}
+            className="cursor-pointer data-[highlighted]:bg-slate-50 data-[highlighted]:text-slate-900"
+          >
             <ClipboardList className="h-4 w-4 mr-2 text-slate-500" />
             View Appointments
-          </DropdownMenuItem>
-          <DropdownMenuItem 
-            onClick={handleEmailPatient} 
-            disabled={!patient.email}
-            className="cursor-pointer focus:bg-slate-50"
-          >
-            <Mail className="h-4 w-4 mr-2 text-slate-500" />
-            Email Patient
           </DropdownMenuItem>
           
           <DropdownMenuSeparator />
           
           {/* View Action */}
-          <DropdownMenuItem onClick={handleViewProfile} className="cursor-pointer focus:bg-slate-50">
+          <DropdownMenuItem
+            onClick={handleViewProfile}
+            className="cursor-pointer data-[highlighted]:bg-slate-50 data-[highlighted]:text-slate-900"
+          >
             <Eye className="h-4 w-4 mr-2 text-slate-500" />
             View Full Profile
           </DropdownMenuItem>

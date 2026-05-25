@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { PatientProfileHero } from "@/components/patient/PatientProfileHero";
 import { PatientProfileTabs } from "@/components/patient/PatientProfileTabs";
 import { PatientOverviewPanel } from "@/components/patient/PatientOverviewPanel";
 import { FrontdeskPatientSidebar } from "@/components/patient/FrontdeskPatientSidebar";
@@ -10,7 +9,9 @@ import { getCurrentUser } from "@/lib/auth/server-auth";
 import { container } from "@/lib/container";
 import { PatientDetailActions } from "@/components/frontdesk/PatientDetailActions";
 import Link from "next/link";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { format } from "date-fns";
+import { calculateAge } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -105,6 +106,7 @@ const FrontdeskPatientProfile = async (props: ParamsProps) => {
   }
 
   const fullName = `${data.first_name} ${data.last_name}`;
+  const ageLabel = data.date_of_birth ? `${calculateAge(data.date_of_birth)} yrs` : undefined;
 
   // Build PatientDetailDto for the edit dialog
   const patientDetail = {
@@ -135,51 +137,70 @@ const FrontdeskPatientProfile = async (props: ParamsProps) => {
 
   return (
     <div className="space-y-6">
-      {/* Top bar */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Patient Profile</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Complete patient information and medical history
-          </p>
+      {/* Clinical Header */}
+      <div className="flex flex-col gap-3 border border-border bg-white p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-semibold text-foreground truncate">{fullName}</h1>
+              {data.file_number ? (
+                <span className="font-mono text-xs text-muted-foreground border border-border px-2 py-0.5">
+                  {data.file_number}
+                </span>
+              ) : null}
+            </div>
+            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              {data.gender ? <span className="capitalize">{data.gender.toLowerCase()}</span> : null}
+              {ageLabel ? <span>{ageLabel}</span> : null}
+              {data.phone ? <span>{data.phone}</span> : null}
+              {data.email ? <span className="truncate">{data.email}</span> : null}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <PatientDetailActions patient={patientDetail} />
+            <Link
+              href="/frontdesk/patients"
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft size={14} />
+              Back
+            </Link>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <PatientDetailActions patient={patientDetail} />
-          <Link
-            href="/frontdesk/patients"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft size={14} />
-            Back to Patients
-          </Link>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div className="border border-border p-3">
+            <p className="text-muted-foreground">Appointments</p>
+            <p className="mt-1 font-semibold text-foreground">{data.totalAppointments ?? 0}</p>
+          </div>
+          <div className="border border-border p-3">
+            <p className="text-muted-foreground">Last visit</p>
+            <p className="mt-1 font-semibold text-foreground">
+              {data.lastVisit ? format(data.lastVisit, "MMM d, yyyy") : "—"}
+            </p>
+          </div>
+          <div className="border border-border p-3">
+            <p className="text-muted-foreground">Blood group</p>
+            <p className="mt-1 font-semibold text-foreground">{data.blood_group ?? "—"}</p>
+          </div>
+          <div className="border border-border p-3">
+            <p className="text-muted-foreground">Registered</p>
+            <p className="mt-1 font-semibold text-foreground">
+              {data.created_at ? format(data.created_at, "MMM d, yyyy") : "—"}
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Hero Banner */}
-      <PatientProfileHero
-        patient={{
-          id: data.id,
-          first_name: data.first_name,
-          last_name: data.last_name,
-          email: data.email,
-          file_number: data.file_number,
-          img: data.img,
-          colorCode: data.colorCode,
-          blood_group: data.blood_group,
-          gender: data.gender,
-          totalAppointments: data.totalAppointments,
-          lastVisit: data.lastVisit,
-        }}
-      />
-
       {/* Tab Navigation */}
-      <div className="rounded-xl overflow-hidden border border-border shadow-sm bg-white">
+      <div className="border border-border bg-white">
         <Suspense fallback={<div className="h-12 border-b border-border" />}>
           <PatientProfileTabs patientId={id} />
         </Suspense>
 
         {/* Tab Content */}
-        <div className="grid gap-6 lg:grid-cols-3 p-6 lg:p-8" data-content-area>
+        <div className="grid gap-6 lg:grid-cols-3 p-5 lg:p-6" data-content-area>
           {/* Main Content */}
           <div className="lg:col-span-2">
             {cat === "overview" && (

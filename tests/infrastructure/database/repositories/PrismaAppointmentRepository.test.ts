@@ -3,6 +3,7 @@ import { PrismaAppointmentRepository } from '../../../../infrastructure/database
 import { Appointment } from '../../../../domain/entities/Appointment';
 import { AppointmentStatus } from '../../../../domain/enums/AppointmentStatus';
 import { Prisma, type PrismaClient } from '@prisma/client';
+import { subMonths } from 'date-fns';
 
 describe('PrismaAppointmentRepository', () => {
   let mockPrisma: {

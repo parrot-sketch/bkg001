@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,9 +24,36 @@ import { format } from 'date-fns';
 import { useDoctors } from '@/hooks/doctors/useDoctors';
 import { queryKeys } from '@/lib/constants/queryKeys';
 import { useQueryClient } from '@tanstack/react-query';
+import { useDoctorsAvailability } from '@/hooks/schedule/useDoctorAvailability';
+import type { DoctorAvailabilityResponseDto } from '@/application/dtos/DoctorAvailabilityResponseDto';
 
 // Re-export type for use in handlers
 type CheckedInPatient = FrontdeskCheckedInPatient;
+
+function timeToMinutes(time: string): number {
+  const [h, m] = time.split(':').map((v) => Number(v));
+  return (h || 0) * 60 + (m || 0);
+}
+
+type AvailabilityNowStatus = 'AVAILABLE' | 'LATER_TODAY' | 'OFF';
+
+function getNowStatus(doctor: DoctorAvailabilityResponseDto, now: Date): AvailabilityNowStatus {
+  const dayName = format(now, 'EEEE').toLowerCase();
+  const wd = doctor.workingDays?.find((d) => (d.day || '').toLowerCase() === dayName);
+  if (!wd?.isAvailable) return 'OFF';
+
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  const sessions =
+    wd.sessions?.length && wd.sessions.length > 0
+      ? wd.sessions
+      : [{ startTime: wd.startTime, endTime: wd.endTime }];
+
+  const inSession = sessions.some((s) => nowMins >= timeToMinutes(s.startTime) && nowMins < timeToMinutes(s.endTime));
+  if (inSession) return 'AVAILABLE';
+
+  const later = sessions.some((s) => nowMins < timeToMinutes(s.startTime));
+  return later ? 'LATER_TODAY' : 'OFF';
+}
 
 export function QueueManagementPanels() {
   const queryClient = useQueryClient();
@@ -107,6 +134,16 @@ export function QueueManagementPanels() {
 
   // Use shared React Query hook — deduped, cached, no extra requests
   const { data: doctors = [], isLoading: loadingDoctors } = useDoctors();
+  const today = useMemo(() => new Date(), []);
+  const { data: availabilityDoctors = [] } = useDoctorsAvailability(today, today, { enabled: true });
+  const availabilityByDoctorId = useMemo(() => {
+    const now = new Date();
+    const map = new Map<string, AvailabilityNowStatus>();
+    availabilityDoctors.forEach((d) => {
+      map.set(d.doctorId, getNowStatus(d, now));
+    });
+    return map;
+  }, [availabilityDoctors]);
 
 
   return (
@@ -171,9 +208,18 @@ export function QueueManagementPanels() {
                               const displayName = doc.title && !doc.name.toLowerCase().startsWith(doc.title.toLowerCase())
                                 ? `${doc.title} ${doc.name}`
                                 : doc.name;
+                              const status = availabilityByDoctorId.get(doc.id);
+                              const suffix =
+                                status === 'AVAILABLE'
+                                  ? ' — Available'
+                                  : status === 'LATER_TODAY'
+                                  ? ' — Later'
+                                  : status === 'OFF'
+                                  ? ' — Off'
+                                  : '';
                               return (
                                 <option key={doc.id} value={doc.id}>
-                                  {displayName}
+                                  {displayName}{suffix}
                                 </option>
                               );
                             })}

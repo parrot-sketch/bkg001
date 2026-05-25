@@ -36,8 +36,14 @@ const STEPS = [
     { id: 4, title: 'Medical', description: 'Your medical overview' },
 ];
 
-const inputClass = "w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all";
-const labelClass = "block text-sm font-medium text-slate-700 mb-2";
+const inputClass =
+    "w-full px-0 py-3 bg-transparent border-0 border-b border-slate-300 text-slate-900 placeholder:text-slate-400 " +
+    "focus:outline-none focus:border-slate-900 transition-colors";
+const labelClass = "block text-[11px] font-semibold tracking-wide uppercase text-slate-600 mb-1";
+
+function Required() {
+    return <span className="text-rose-600">*</span>;
+}
 
 export function MobileIntakeForm({
     sessionId,
@@ -156,6 +162,41 @@ export function MobileIntakeForm({
 
     const stepProgress = (step / STEPS.length) * 100;
 
+    // Session can expire while the patient is mid-form.
+    // The server will reject submission anyway; we show a clear clinical message.
+    if (!submitted && minutesLeft <= 0) {
+        return (
+            <div className="min-h-screen bg-white flex flex-col">
+                <div className="px-6 pt-10 pb-6 text-center border-b border-slate-100">
+                    <div className="inline-flex items-center gap-2 mb-1">
+                        <div className="h-8 w-8 border border-slate-300 bg-white flex items-center justify-center">
+                            <span className="text-slate-900 font-bold text-sm">NS</span>
+                        </div>
+                        <span className="font-bold text-slate-900 text-lg">Nairobi Sculpt</span>
+                    </div>
+                </div>
+
+                <div className="flex-1 flex flex-col items-center justify-center px-6 text-center max-w-sm mx-auto w-full">
+                    <div className="h-16 w-16 border border-slate-300 bg-white flex items-center justify-center mb-5">
+                        <AlertCircle className="h-7 w-7 text-slate-700" />
+                    </div>
+                    <h1 className="text-xl font-bold text-slate-900 mb-2">Session expired</h1>
+                    <p className="text-slate-500 text-sm leading-relaxed mb-4">
+                        For your privacy, this intake session has expired. Please ask the receptionist to generate a new QR code.
+                    </p>
+                    <p className="text-xs text-slate-400">No information was submitted.</p>
+                </div>
+
+                <div className="px-6 pb-8 text-center">
+                    <div className="flex items-center justify-center gap-1.5 text-xs text-slate-400">
+                        <Shield className="h-3 w-3" />
+                        <span>Your information stays private.</span>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     /* Success screen */
     if (submitted) {
         const firstName = getValues('firstName');
@@ -163,15 +204,15 @@ export function MobileIntakeForm({
             <div className="min-h-screen bg-white flex flex-col">
                 <div className="px-6 pt-12 pb-6 text-center border-b border-slate-100">
                     <div className="inline-flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-full bg-rose-600 flex items-center justify-center">
-                            <span className="text-white font-bold text-sm">NS</span>
+                        <div className="h-8 w-8 border border-slate-300 bg-white flex items-center justify-center">
+                            <span className="text-slate-900 font-bold text-sm">NS</span>
                         </div>
                         <span className="font-bold text-slate-900">Nairobi Sculpt</span>
                     </div>
                 </div>
                 <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
-                    <div className="h-24 w-24 rounded-full bg-emerald-100 flex items-center justify-center mb-6">
-                        <Check className="h-12 w-12 text-emerald-600" />
+                    <div className="h-24 w-24 border border-slate-300 bg-white flex items-center justify-center mb-6">
+                        <Check className="h-12 w-12 text-slate-900" />
                     </div>
                     <h1 className="text-2xl font-bold text-slate-900 mb-3">
                         {firstName ? `You're all set, ${firstName}!` : "You're all set!"}
@@ -194,30 +235,16 @@ export function MobileIntakeForm({
     }
 
     return (
-        <div ref={formRef} className="min-h-screen bg-slate-50">
-            {/* Header */}
+        <div ref={formRef} className="min-h-screen bg-white">
+            {/* Header (minimal, clinical) */}
             <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
-                <div className="px-5 py-4">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-rose-600 flex items-center justify-center">
-                                <span className="text-white font-bold text-sm">NS</span>
-                            </div>
-                            <div>
-                                <p className="font-semibold text-slate-900">Patient Intake</p>
-                                <p className="text-xs text-slate-500">{minutesLeft}m remaining</p>
-                            </div>
-                        </div>
-                        <div className="text-right">
-                            <p className="text-xs text-slate-500">Step {step} of {STEPS.length}</p>
-                        </div>
+                <div className="px-5 py-4 flex items-center gap-3">
+                    <div className="h-10 w-10 bg-white border border-slate-200 flex items-center justify-center">
+                        <span className="text-slate-900 font-extrabold text-sm">NS</span>
                     </div>
-                    {/* Progress bar */}
-                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div 
-                            className="h-full bg-rose-600 transition-all duration-300"
-                            style={{ width: `${stepProgress}%` }}
-                        />
+                    <div className="min-w-0">
+                        <p className="text-[11px] tracking-wide uppercase text-slate-500">Nairobi Sculpt</p>
+                        <p className="font-semibold text-slate-900 leading-tight">Patient Intake</p>
                     </div>
                 </div>
             </div>
@@ -227,17 +254,16 @@ export function MobileIntakeForm({
                 <div className="max-w-md mx-auto">
                     {/* Step title */}
                     <div className="mb-6">
-                        <h2 className="text-xl font-semibold text-slate-900">{STEPS[step - 1].title}</h2>
-                        <p className="text-sm text-slate-500 mt-1">{STEPS[step - 1].description}</p>
+                        <h2 className="text-base font-semibold text-slate-900">{STEPS[step - 1].title}</h2>
                     </div>
 
-                    {/* Form fields */}
-                    <div className="space-y-4">
+                        {/* Form fields */}
+                        <div className="space-y-4">
                         {/* Step 1: Personal */}
                         {step === 1 && (
                             <div className="space-y-4">
                                 <div>
-                                    <label className={labelClass}>First Name *</label>
+                                    <label className={labelClass}>First name <Required /></label>
                                     <input 
                                         {...register('firstName')} 
                                         placeholder="Your first name"
@@ -247,7 +273,7 @@ export function MobileIntakeForm({
                                     {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName.message}</p>}
                                 </div>
                                 <div>
-                                    <label className={labelClass}>Last Name *</label>
+                                    <label className={labelClass}>Last name <Required /></label>
                                     <input 
                                         {...register('lastName')} 
                                         placeholder="Your last name"
@@ -256,7 +282,7 @@ export function MobileIntakeForm({
                                     {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName.message}</p>}
                                 </div>
                                 <div>
-                                    <label className={labelClass}>Date of Birth *</label>
+                                    <label className={labelClass}>Date of birth <Required /></label>
                                     <input 
                                         {...register('dateOfBirth')} 
                                         type="date"
@@ -265,8 +291,8 @@ export function MobileIntakeForm({
                                     {errors.dateOfBirth && <p className="text-red-500 text-xs mt-1">{errors.dateOfBirth.message}</p>}
                                 </div>
                                 <div>
-                                    <label className={labelClass}>Gender *</label>
-                                    <select {...register('gender')} className={inputClass}>
+                                    <label className={labelClass}>Gender <Required /></label>
+                                    <select {...register('gender')} className={cn(inputClass, "bg-white")}>
                                         <option value="FEMALE">Female</option>
                                         <option value="MALE">Male</option>
                                         <option value="OTHER">Other / Prefer not to say</option>
@@ -279,7 +305,7 @@ export function MobileIntakeForm({
                         {step === 2 && (
                             <div className="space-y-4">
                                 <div>
-                                    <label className={labelClass}>Phone Number *</label>
+                                    <label className={labelClass}>Phone number <Required /></label>
                                     <Controller
                                         name="phone"
                                         control={control}
@@ -290,6 +316,7 @@ export function MobileIntakeForm({
                                                     international
                                                     defaultCountry="KE"
                                                     className="phone-input-custom"
+                                                    onChange={(value) => field.onChange(value ?? '')}
                                                 />
                                             </div>
                                         )}
@@ -308,13 +335,14 @@ export function MobileIntakeForm({
                                                     international
                                                     defaultCountry="KE"
                                                     className="phone-input-custom"
+                                                    onChange={(value) => field.onChange(value ?? '')}
                                                 />
                                             </div>
                                         )}
                                     />
                                 </div>
                                 <div>
-                                    <label className={labelClass}>Email *</label>
+                                    <label className={labelClass}>Email <Required /></label>
                                     <input 
                                         {...register('email')} 
                                         type="email"
@@ -324,7 +352,7 @@ export function MobileIntakeForm({
                                     {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
                                 </div>
                                 <div>
-                                    <label className={labelClass}>Home Address *</label>
+                                    <label className={labelClass}>Home address <Required /></label>
                                     <input 
                                         {...register('address')} 
                                         placeholder="e.g. Westlands, Nairobi"
@@ -334,7 +362,7 @@ export function MobileIntakeForm({
                                 </div>
                                 <div>
                                     <label className={labelClass}>Marital Status</label>
-                                    <select {...register('maritalStatus')} className={inputClass}>
+                                    <select {...register('maritalStatus')} className={cn(inputClass, "bg-white")}>
                                         <option value="">Prefer not to say</option>
                                         <option value="SINGLE">Single</option>
                                         <option value="MARRIED">Married</option>
@@ -376,6 +404,7 @@ export function MobileIntakeForm({
                                                     international
                                                     defaultCountry="KE"
                                                     className="phone-input-custom"
+                                                    onChange={(value) => field.onChange(value ?? '')}
                                                 />
                                             </div>
                                         )}
@@ -383,7 +412,7 @@ export function MobileIntakeForm({
                                 </div>
                                 <div>
                                     <label className={labelClass}>Relationship</label>
-                                    <select {...register('emergencyContactRelation')} className={inputClass}>
+                                    <select {...register('emergencyContactRelation')} className={cn(inputClass, "bg-white")}>
                                         <option value="">Select relationship</option>
                                         <option value="SPOUSE">Spouse / Partner</option>
                                         <option value="PARENT">Parent</option>
@@ -401,7 +430,7 @@ export function MobileIntakeForm({
                             <div className="space-y-4">
                                 <div>
                                     <label className={labelClass}>Blood Group</label>
-                                    <select {...register('bloodGroup')} className={inputClass}>
+                                    <select {...register('bloodGroup')} className={cn(inputClass, "bg-white")}>
                                         <option value="">Not sure / prefer not to say</option>
                                         {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => (
                                             <option key={bg} value={bg}>{bg}</option>
@@ -428,14 +457,14 @@ export function MobileIntakeForm({
                                 </div>
 
                                 {submitError && (
-                                    <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex items-start gap-2">
+                                    <div className="border border-red-200 bg-red-50 p-3 flex items-start gap-2">
                                         <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
                                         <p className="text-xs font-medium text-red-600">{submitError}</p>
                                     </div>
                                 )}
                             </div>
                         )}
-                    </div>
+                        </div>
                 </div>
             </div>
 
@@ -446,7 +475,7 @@ export function MobileIntakeForm({
                         <button
                             type="button"
                             onClick={goPrev}
-                            className="px-5 py-3.5 border border-slate-200 rounded-xl font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                            className="px-5 py-3 border border-slate-200 font-medium text-slate-700 hover:bg-slate-50 transition-colors"
                         >
                             Back
                         </button>
@@ -458,7 +487,7 @@ export function MobileIntakeForm({
                         <button
                             type="button"
                             onClick={goNext}
-                            className="flex-1 px-5 py-3.5 bg-slate-900 text-white rounded-xl font-medium hover:bg-slate-800 transition-colors"
+                            className="flex-1 px-5 py-3 bg-slate-900 text-white font-medium hover:bg-slate-800 transition-colors"
                         >
                             Continue
                         </button>
@@ -468,10 +497,10 @@ export function MobileIntakeForm({
                             onClick={handleSubmit}
                             disabled={submitting}
                             className={cn(
-                                "flex-1 px-5 py-3.5 rounded-xl font-medium transition-colors flex items-center justify-center gap-2",
+                                "flex-1 px-5 py-3 font-medium transition-colors flex items-center justify-center gap-2",
                                 submitting
                                     ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                                    : "bg-emerald-600 text-white hover:bg-emerald-700"
+                                    : "bg-slate-900 text-white hover:bg-slate-800"
                             )}
                         >
                             {submitting ? (

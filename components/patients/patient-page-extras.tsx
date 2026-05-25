@@ -29,9 +29,10 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import Link from 'next/link';
 import type { VisitResponseDto } from '@/application/dtos/VisitResponseDto';
+import { ConsultationDocumentViewer } from '@/components/patients/ConsultationDocumentViewer';
 
 // Re-export
-export { ConsultationDocumentViewer } from '@/components/patients/ConsultationDocumentViewer';
+export { ConsultationDocumentViewer };
 
 // ── Skeleton loaders ─────────────────────────────────────────────────
 
@@ -156,9 +157,9 @@ export function VisitCard({
       string,
       { label: string; bg: string; text: string; dot: string }
     > = {
-      COMPLETED:               { label: 'Completed',             bg: 'bg-emerald-50',    text: 'text-emerald-700',    dot: 'bg-emerald-500' },
+      COMPLETED:               { label: 'Completed',             bg: 'bg-emerald-50 text-emerald-705',    text: 'text-emerald-700',    dot: 'bg-emerald-500' },
       RELEASED:                { label: 'Released',              bg: 'bg-blue-50',       text: 'text-blue-700',       dot: 'bg-blue-500' },
-      DISCHARGED:              { label: 'Discharged',            bg: 'bg-slate-50',      text: 'text-slate-600',      dot: 'bg-slate-400' },
+      DISCHARGED:              { label: 'Discharged',            bg: 'bg-slate-50',      text: 'text-slate-650',      dot: 'bg-slate-400' },
       IN_CONSULTATION:         { label: 'In Consultation',       bg: 'bg-amber-50',      text: 'text-amber-700',      dot: 'bg-amber-500' },
       CHECKED_IN:              { label: 'Checked In',            bg: 'bg-sky-50',        text: 'text-sky-700',        dot: 'bg-sky-500' },
       READY_FOR_CONSULTATION:  { label: 'Ready',                bg: 'bg-emerald-50',    text: 'text-emerald-700',    dot: 'bg-emerald-400' },
@@ -180,65 +181,76 @@ export function VisitCard({
   return (
     <div
       className={cn(
-        'bg-white border rounded-xl overflow-hidden transition-all',
-        expanded && 'border-stone-300 shadow-md',
-        !expanded && 'border-stone-200 hover:border-stone-300 hover:shadow-sm',
-        isActive && 'border-amber-300 ring-1 ring-amber-100',
-        isCancelled && 'opacity-55',
+        'bg-white border rounded overflow-hidden transition-all',
+        expanded && 'border-slate-350 shadow-sm',
+        !expanded && 'border-slate-200 hover:border-slate-300 hover:shadow-xs',
+        isActive && 'border-amber-300 ring-1 ring-amber-50',
+        isCancelled && 'opacity-60',
       )}
     >
       {/* Header row */}
       <button
-        className="w-full text-left px-4 py-3.5 flex items-center gap-3 transition-colors"
+        className="w-full text-left px-4 py-3 flex items-center gap-3 transition-colors hover:bg-slate-50/50"
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
       >
-        <span className={cn('w-2.5 h-2.5 rounded-full shrink-0', sc.dot)} />
+        <span className={cn('w-2 h-2 rounded-full shrink-0', sc.dot)} />
 
-        <span className="shrink-0 w-28">
-          <p className="text-sm font-semibold text-stone-900">
+        <span className="shrink-0 w-28 font-mono">
+          <p className="text-xs font-bold text-slate-900">
             {format(new Date(visit.date), 'MMM d, yyyy')}
           </p>
-          <p className="text-xs text-stone-400">
+          <p className="text-[10px] text-slate-400">
             {visit.time} <span className="mx-0.5">·</span>{' '}
             <span className="capitalize">{visit.type.toLowerCase()}</span>
           </p>
         </span>
 
         <span className="flex-1 min-w-0">
-          <p className="text-sm text-stone-700 truncate">{visit.doctor?.name || '—'}</p>
-          {visit.consultation?.chiefComplaint && (
-            <p className="text-xs text-stone-400 truncate max-w-[260px]">
+          <p className="text-xs font-semibold text-slate-700 truncate">Dr. {visit.doctor?.name || '—'}</p>
+          {visit.consultation?.chiefComplaint && !expanded && (
+            <p className="text-[10px] text-slate-400 truncate max-w-[260px]">
               {visit.consultation.chiefComplaint.replace(/<[^>]*>/g, '')}
             </p>
           )}
         </span>
 
-        <Badge variant="outline" className={cn('text-[10px] font-bold py-0.5 px-2 border whitespace-nowrap', sc.bg, sc.text)}>
+        <Badge variant="outline" className={cn('text-[9px] font-extrabold uppercase py-0.5 px-2 border whitespace-nowrap rounded', sc.bg, sc.text)}>
           {sc.label}
         </Badge>
 
         {visit.consultationDuration != null && (
-          <span className="text-[10px] text-stone-400 shrink-0">{visit.consultationDuration} min</span>
+          <span className="text-[10px] text-slate-400 font-mono shrink-0">{visit.consultationDuration} min</span>
         )}
 
-        <span className="text-stone-300 shrink-0 ml-1">
+        <span className="text-slate-300 shrink-0 ml-1">
           {expanded
             ? <ArrowRight className="h-4 w-4 rotate-90" />
             : <ArrowRight className="h-4 w-4 -rotate-90" />}
         </span>
 
-        {/* View Details link */}
         <Link
           href={`/doctor/patients/${patientId}/visits/${visit.id}`}
           className="shrink-0 ml-1"
           onClick={(e) => e.stopPropagation()}
         >
-          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-600 hover:text-blue-800 hover:underline">
-            <FileText className="h-3 w-3" /> Details
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-600 hover:text-blue-800 hover:underline">
+            <FileText className="h-3 w-3" /> Full File
           </span>
         </Link>
       </button>
+
+      {/* Expanded details (Consultation note inline) */}
+      {expanded && (
+        <div className="border-t border-slate-100 bg-slate-50/30 p-4">
+          <ConsultationDocumentViewer
+            consultation={visit.consultation}
+            appointmentDate={visit.date}
+            appointmentTime={visit.time}
+            appointmentType={visit.type}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -303,7 +303,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             specialization: doctorSpecialization || 'General Practice',
             license_number: tempLicense,
             address: 'Clinic Address', // Default
-            onboarding_status: 'ACTIVE', // Critical: Allows immediate login
+            // Admin-created doctors can log in immediately, but must complete schedule setup.
+            onboarding_status: 'PROFILE_COMPLETED',
             availability_status: 'AVAILABLE',
             type: 'FULL',
           },

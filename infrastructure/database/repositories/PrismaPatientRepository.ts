@@ -186,17 +186,88 @@ export class PrismaPatientRepository implements IPatientRepository, IPatientFile
   }
 
   async findWithFilters(filters: PatientFilters): Promise<PatientListResult> {
-    const where = filters.search?.trim()
-      ? {
-          OR: [
-            { first_name: { contains: filters.search.trim(), mode: 'insensitive' as const } },
-            { last_name: { contains: filters.search.trim(), mode: 'insensitive' as const } },
-            { file_number: { contains: filters.search.trim(), mode: 'insensitive' as const } },
-            { phone: { contains: filters.search.trim(), mode: 'insensitive' as const } },
-            { email: { contains: filters.search.trim(), mode: 'insensitive' as const } },
-          ],
+    const q = filters.search?.trim();
+
+    const normalizePhoneVariants = (input: string): string[] => {
+      const raw = input.trim();
+      if (!raw) return [];
+
+      const digitsOnly = raw.replace(/[^\d]/g, '');
+      const plusDigits = raw.replace(/[^\d+]/g, '');
+
+      const variants = new Set<string>();
+      variants.add(raw);
+      variants.add(plusDigits);
+      variants.add(digitsOnly);
+
+      // Kenyan-friendly normalization (accept 07xxxxxxxx / 2547xxxxxxxx / +2547xxxxxxxx)
+      if (digitsOnly.length >= 9) {
+        if (digitsOnly.startsWith('0') && digitsOnly.length >= 10) {
+          const local = digitsOnly.slice(1);
+          variants.add(`+254${local}`);
+          variants.add(`254${local}`);
         }
-      : {};
+        if (digitsOnly.startsWith('254')) {
+          const rest = digitsOnly.slice(3);
+          variants.add(`+254${rest}`);
+          variants.add(`254${rest}`);
+          variants.add(`0${rest}`);
+        }
+        if (digitsOnly.startsWith('7') && digitsOnly.length >= 9) {
+          variants.add(`+254${digitsOnly}`);
+          variants.add(`254${digitsOnly}`);
+          variants.add(`0${digitsOnly}`);
+        }
+      }
+
+      return Array.from(variants).filter(Boolean);
+    };
+
+    const buildWhere = (search: string) => {
+      const phoneVariants = normalizePhoneVariants(search);
+      const lowered = search.toLowerCase();
+      const parts = search.split(/\s+/).filter(Boolean);
+
+      const or: any[] = [
+        { first_name: { contains: search, mode: 'insensitive' as const } },
+        { last_name: { contains: search, mode: 'insensitive' as const } },
+        { file_number: { contains: search, mode: 'insensitive' as const } },
+        { email: { contains: lowered, mode: 'insensitive' as const } },
+      ];
+
+      // Better phone search: try multiple common formats
+      for (const pv of phoneVariants) {
+        or.push({ phone: { contains: pv, mode: 'insensitive' as const } });
+      }
+
+      // Full-name search: "first last" and "last first"
+      if (parts.length >= 2) {
+        const [a, b] = [parts[0], parts.slice(1).join(' ')];
+        or.push({
+          AND: [
+            { first_name: { contains: a, mode: 'insensitive' as const } },
+            { last_name: { contains: b, mode: 'insensitive' as const } },
+          ],
+        });
+        or.push({
+          AND: [
+            { first_name: { contains: b, mode: 'insensitive' as const } },
+            { last_name: { contains: a, mode: 'insensitive' as const } },
+          ],
+        });
+      }
+
+      // Prefer exact matches when possible (still within OR)
+      or.push({ file_number: { equals: search, mode: 'insensitive' as const } });
+      or.push({ email: { equals: lowered, mode: 'insensitive' as const } });
+      for (const pv of phoneVariants) {
+        or.push({ phone: { equals: pv, mode: 'insensitive' as const } });
+      }
+
+      return { OR: or };
+    };
+
+    const where = q ? buildWhere(q) : {};
 
     const skip = (filters.page - 1) * filters.limit;
 

@@ -47,7 +47,8 @@ export function getNextOnboardingStatus(
   const nextStates: Record<DoctorOnboardingStatus, DoctorOnboardingStatus | null> = {
     [DoctorOnboardingStatus.INVITED]: DoctorOnboardingStatus.ACTIVATED,
     [DoctorOnboardingStatus.ACTIVATED]: DoctorOnboardingStatus.PROFILE_COMPLETED,
-    [DoctorOnboardingStatus.PROFILE_COMPLETED]: DoctorOnboardingStatus.ACTIVE,
+    [DoctorOnboardingStatus.PROFILE_COMPLETED]: DoctorOnboardingStatus.SCHEDULE_SETUP,
+    [DoctorOnboardingStatus.SCHEDULE_SETUP]: DoctorOnboardingStatus.ACTIVE,
     [DoctorOnboardingStatus.ACTIVE]: null, // Final state
   };
 

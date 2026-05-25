@@ -9,71 +9,40 @@
  *
  * Uses TanStack Query for all data fetching — no manual useState/useEffect.
  * Skeleton loaders replace the previous full-page spinner.
- * Consultation notes are rendered by ConsultationDocumentViewer (plain text,
- * no HTML) and are shown inline inside each visit card.
+ *
+ * This page is formatted as a structured, single-column clinical medical record chart.
  */
 
-import { useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { apiClient } from '@/lib/api/client';
 import { doctorApi } from '@/lib/api/doctor';
 import { useQuery } from '@tanstack/react-query';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { toast } from 'sonner';
-import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
-import {
-  ArrowLeft,
-  ArrowRight,
-  Calendar,
-  Clock,
-  Phone,
-  Mail,
-  MapPin,
-  Heart,
-  AlertCircle,
-  CheckCircle2,
-  Stethoscope,
-  FileText,
-  Activity,
-  Thermometer,
-  Pill,
-  DollarSign,
-  NotebookPen,
-} from 'lucide-react';
+import { FileText } from 'lucide-react';
 
 // Components
 import { PatientProfileHeader } from './components/PatientProfileHeader';
-import { PatientInfoSidebar } from './components/PatientInfoSidebar';
-import { ClinicalNotesTab } from './components/ClinicalNotesTab';
-import { ConsultationDocumentViewer } from '@/components/patients/ConsultationDocumentViewer';
+import { ClinicalPatientBanner } from './components/ClinicalPatientBanner';
+import { ClinicalDocumentTimeline } from './components/ClinicalDocumentTimeline';
 
 // DTOs
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import type { VisitResponseDto } from '@/application/dtos/VisitResponseDto';
 
-// ─── Extracted components ─────────────────────────────────────────
+// Helpers / Skeletons
 import {
   PatientHeaderSkeleton,
-  SidebarSkeleton,
   VisitSkeleton,
-  NotesSkeleton,
   PageError,
-  VisitCard,
 } from '@/components/patients/patient-page-extras';
 
 // ─── Query Keys ───────────────────────────────────────────────────
-
-const qkPatient  = (patientId: string)        => ['doctor', 'patient', patientId] as const;
-const qkVisits   = (patientId: string)        => ['doctor', 'patient', patientId, 'visits'] as const;
+const qkPatient  = (patientId: string) => ['doctor', 'patient', patientId] as const;
+const qkVisits   = (patientId: string) => ['doctor', 'patient', patientId, 'visits'] as const;
 
 // ─── Data hooks ───────────────────────────────────────────────────
-
 function usePatientDetail(patientId: string, enabled: boolean) {
   return useQuery({
     queryKey: qkPatient(patientId),
@@ -82,8 +51,8 @@ function usePatientDetail(patientId: string, enabled: boolean) {
       if (!res.success) throw new Error((res as any).error || 'Failed to load patient');
       return res.data as PatientResponseDto;
     },
-    staleTime:  30_000,     // 30 s — clinic data changes often
-    gcTime:     60_000,     // 1 min
+    staleTime:  30_000,
+    gcTime:     60_000,
     retry:      2,
     refetchOnWindowFocus: false,
     enabled,
@@ -106,8 +75,6 @@ function usePatientVisits(patientId: string, enabled: boolean) {
   });
 }
 
-// ─── Query Keys ───────────────────────────────────────────────────
-
 export default function DoctorPatientProfilePage() {
   const params   = useParams();
   const router   = useRouter();
@@ -118,7 +85,6 @@ export default function DoctorPatientProfilePage() {
   const fromConsultation           = search.get('from') === 'consultation';
   const consultationAppointmentId  = search.get('appointmentId');
 
-  // Queries run only after auth check
   const queryEnabled = !!user && isAuthenticated && !!patientId;
 
   const { data: patient,  isLoading: patientLoading,  error: patientError,  refetch: refetchPatient  } =
@@ -131,7 +97,6 @@ export default function DoctorPatientProfilePage() {
   const hasError = Boolean(patientError) || Boolean(visitsError);
 
   // ── Auth guard ─────────────────────────────────────────────────
-
   if (authLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-slate-50">
@@ -157,18 +122,15 @@ export default function DoctorPatientProfilePage() {
   }
 
   // ── Loading ────────────────────────────────────────────────────
-
   if (loading || !patient) {
     return (
-      <div className="space-y-6 animate-in fade-in duration-300">
+      <div className="max-w-5xl mx-auto space-y-6 px-4 py-8 animate-in fade-in duration-300">
         <PatientHeaderSkeleton />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <SidebarSkeleton />
-          <div className="lg:col-span-2 space-y-5">
-            <Skeleton className="h-10 w-full rounded-lg" />
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => <VisitSkeleton key={i} />)}
-            </div>
+        <Skeleton className="h-40 w-full rounded-lg" />
+        <div className="space-y-4">
+          <Skeleton className="h-6 w-48" />
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => <VisitSkeleton key={i} />)}
           </div>
         </div>
       </div>
@@ -176,41 +138,28 @@ export default function DoctorPatientProfilePage() {
   }
 
   // ── Error ──────────────────────────────────────────────────────
-
   if (hasError) {
     return (
-      <div className="animate-in fade-in duration-300">
+      <div className="max-w-5xl mx-auto px-4 py-8 animate-in fade-in duration-300 space-y-6">
         <PatientProfileHeader
           patientName={`${patient.firstName} ${patient.lastName}`}
           fromConsultation={fromConsultation}
           consultationAppointmentId={consultationAppointmentId}
           onBackToPatients={() => router.push('/doctor/patients')}
         />
-        <div className="mt-6">
-          <PageError
-            message={patientError instanceof Error ? patientError.message : 'Failed to load patient data'}
-            onRetry={() => { refetchPatient(); refetchVisits(); }}
-          />
-        </div>
+        <PageError
+          message={patientError instanceof Error ? patientError.message : 'Failed to load patient data'}
+          onRetry={() => { refetchPatient(); refetchVisits(); }}
+        />
       </div>
     );
   }
 
-  // ── Derived ────────────────────────────────────────────────────
-
   const patientName = `${patient.firstName} ${patient.lastName}`;
-  const upcomingVisits = visits
-    ? visits.filter((v) => {
-        const d = new Date(v.date); d.setHours(0, 0, 0, 0);
-        return d >= new Date(new Date().setHours(0, 0, 0, 0));
-      })
-    : [];
-
-  // ── Rendered ───────────────────────────────────────────────────
 
   return (
-    <div className="animate-in fade-in duration-300">
-      {/* Header */}
+    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6 animate-in fade-in duration-300">
+      {/* Header Row */}
       <PatientProfileHeader
         patientName={patientName}
         fromConsultation={fromConsultation}
@@ -218,51 +167,36 @@ export default function DoctorPatientProfilePage() {
         onBackToPatients={() => router.push('/doctor/patients')}
       />
 
-      {/* Body */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-        {/* ── Left: Patient Info ───────────────────────────────── */}
-        <PatientInfoSidebar
-          patient={patient}
-          visitCount={visits?.length ?? 0}
-          upcomingCount={upcomingVisits.length}
-        />
+      {/* 1. Demographics & Alerts Banner */}
+      <ClinicalPatientBanner patient={patient} />
 
-        {/* ── Right: Visit History + Notes ────────────────────── */}
-        <div className="lg:col-span-2">
-          <Tabs defaultValue="visits" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-5">
-              <TabsTrigger value="visits" className="gap-1.5">
-                <Calendar className="h-3.5 w-3.5" /> Visit History
-              </TabsTrigger>
-              <TabsTrigger value="notes" className="gap-1.5">
-                <NotebookPen className="h-3.5 w-3.5" /> Clinical Notes
-              </TabsTrigger>
-            </TabsList>
-
-            {/* ── Visits Tab ─────────────────────────────────────── */}
-            <TabsContent value="visits" className="space-y-3 mt-0">
-              {visits && visits.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 bg-white rounded-xl border border-dashed border-stone-200">
-                  <Calendar className="h-7 w-7 text-stone-300 mb-3" />
-                  <p className="text-sm font-medium text-stone-600">No visits recorded</p>
-                  <p className="text-xs text-stone-400 mt-1">Visit history will appear after appointments.</p>
-                </div>
-              ) : (
-                visits?.map((visit) => (
-                  <VisitCard key={visit.id} visit={visit} patientId={patientId} />
-                ))
-              )}
-            </TabsContent>
-
-            {/* ── Notes Tab ─────────────────────────────────────── */}
-            <TabsContent value="notes" className="mt-0" forceMount>
-              {/* The Notes tab is a server component placeholder — the actual
-                  clinical-note editor/list is managed by the NotesContext via
-                  the floating +FAB entry point when the doctor is in consultation. */}
-              <ClinicalNotesTab patientId={patientId} />
-            </TabsContent>
-          </Tabs>
+      {/* 2. Chronic Medical History & Conditions */}
+      {(patient.medicalHistory || patient.medicalConditions) && (
+        <div className="border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
+          <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
+            <FileText className="h-4 w-4 text-slate-500" />
+            Chronic Medical History & Conditions
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-slate-700">
+            {patient.medicalHistory && (
+              <div className="space-y-1">
+                <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Medical History Summary</span>
+                <p className="whitespace-pre-wrap leading-relaxed">{patient.medicalHistory}</p>
+              </div>
+            )}
+            {patient.medicalConditions && (
+              <div className="space-y-1">
+                <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Active Medical Conditions</span>
+                <p className="whitespace-pre-wrap leading-relaxed">{patient.medicalConditions}</p>
+              </div>
+            )}
+          </div>
         </div>
+      )}
+
+      {/* 3. Longitudinal Document timeline (Visits & Observation notes) */}
+      <div className="border border-slate-200 bg-white p-6 shadow-sm">
+        <ClinicalDocumentTimeline patientId={patientId} visits={visits || []} />
       </div>
     </div>
   );

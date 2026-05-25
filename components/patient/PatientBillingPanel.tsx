@@ -8,7 +8,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { CreditCard, Calendar, DollarSign, FileText, Loader2, AlertCircle, CheckCircle, Receipt } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { apiClient } from '@/lib/api/client';
@@ -53,18 +53,18 @@ interface PatientBillingPanelProps {
     patientId: string;
 }
 
-const STATUS_CONFIG: Record<PaymentStatus, { bg: string; border: string; label: string }> = {
-    [PaymentStatus.PAID]: { bg: 'bg-emerald-50', border: 'border-emerald-200', label: 'Paid' },
-    [PaymentStatus.PART]: { bg: 'bg-amber-50', border: 'border-amber-200', label: 'Partial' },
-    [PaymentStatus.UNPAID]: { bg: 'bg-red-50', border: 'border-red-200', label: 'Unpaid' },
+const STATUS_CONFIG: Record<PaymentStatus, { label: string }> = {
+    [PaymentStatus.PAID]: { label: 'Paid' },
+    [PaymentStatus.PART]: { label: 'Partial' },
+    [PaymentStatus.UNPAID]: { label: 'Unpaid' },
 };
 
-const BILL_TYPE_CONFIG: Record<string, { label: string; className: string }> = {
-    [BillType.CONSULTATION]: { label: 'Consultation', className: 'bg-blue-100 text-blue-700 border-blue-200' },
-    [BillType.SURGERY]: { label: 'Surgery', className: 'bg-purple-100 text-purple-700 border-purple-200' },
-    [BillType.LAB_TEST]: { label: 'Lab Test', className: 'bg-teal-100 text-teal-700 border-teal-200' },
-    [BillType.FOLLOW_UP]: { label: 'Follow-Up', className: 'bg-sky-100 text-sky-700 border-sky-200' },
-    [BillType.OTHER]: { label: 'Other', className: 'bg-gray-100 text-gray-700 border-gray-200' },
+const BILL_TYPE_CONFIG: Record<string, { label: string }> = {
+    [BillType.CONSULTATION]: { label: 'Consultation' },
+    [BillType.SURGERY]: { label: 'Surgery' },
+    [BillType.LAB_TEST]: { label: 'Lab Test' },
+    [BillType.FOLLOW_UP]: { label: 'Follow-Up' },
+    [BillType.OTHER]: { label: 'Other' },
 };
 
 export function PatientBillingPanel({ patientId }: PatientBillingPanelProps) {
@@ -119,80 +119,34 @@ export function PatientBillingPanel({ patientId }: PatientBillingPanelProps) {
                         <CreditCard size={16} className="text-primary" />
                         Billing & Payments
                     </h2>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                        Payment history and billing information
-                    </p>
                 </div>
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="text-xs rounded-none">
                     {payments.length} bill{payments.length !== 1 ? 's' : ''}
                 </Badge>
             </div>
 
             {/* Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <Card className="border-slate-200">
-                    <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                                    Total Billed
-                                </p>
-                                <p className="text-2xl font-bold text-foreground">
-                                    KES {totalBilled.toLocaleString()}
-                                </p>
-                            </div>
-                            <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center">
-                                <Receipt className="h-6 w-6 text-slate-600" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-slate-200">
-                    <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                                    Total Paid
-                                </p>
-                                <p className="text-2xl font-bold text-emerald-600">
-                                    KES {totalPaid.toLocaleString()}
-                                </p>
-                            </div>
-                            <div className="h-12 w-12 rounded-full bg-emerald-50 flex items-center justify-center">
-                                <CheckCircle className="h-6 w-6 text-emerald-600" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-slate-200">
-                    <CardContent className="pt-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                                    Balance Due
-                                </p>
-                                <p className="text-2xl font-bold text-amber-600">
-                                    KES {pending.toLocaleString()}
-                                </p>
-                            </div>
-                            <div className="h-12 w-12 rounded-full bg-amber-50 flex items-center justify-center">
-                                <AlertCircle className="h-6 w-6 text-amber-600" />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                <div className="border border-border bg-white p-4">
+                    <p className="text-xs text-muted-foreground">Total billed</p>
+                    <p className="mt-1 text-base font-semibold text-foreground">KES {totalBilled.toLocaleString()}</p>
+                </div>
+                <div className="border border-border bg-white p-4">
+                    <p className="text-xs text-muted-foreground">Total paid</p>
+                    <p className="mt-1 text-base font-semibold text-foreground">KES {totalPaid.toLocaleString()}</p>
+                </div>
+                <div className="border border-border bg-white p-4">
+                    <p className="text-xs text-muted-foreground">Balance due</p>
+                    <p className="mt-1 text-base font-semibold text-foreground">KES {pending.toLocaleString()}</p>
+                </div>
             </div>
 
             {/* Payment History */}
             {payments.length === 0 ? (
-                <Card className="border-slate-200 bg-slate-50/30">
+                <Card className="border-slate-200 bg-white">
                     <CardContent className="pt-6">
                         <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
-                            <div className="h-12 w-12 rounded-xl bg-slate-100 flex items-center justify-center">
-                                <CreditCard className="h-6 w-6 text-slate-400" />
-                            </div>
+                            <CreditCard className="h-6 w-6 text-slate-300" />
                             <div>
                                 <p className="text-sm font-medium text-foreground">No billing records yet</p>
                                 <p className="text-xs text-muted-foreground mt-0.5">
@@ -210,12 +164,12 @@ export function PatientBillingPanel({ patientId }: PatientBillingPanelProps) {
                         const balance = (payment.totalAmount || 0) - (payment.amountPaid || 0);
                         
                         return (
-                            <Card key={payment.id} className={cn("border-slate-200 hover:border-primary/30 transition-colors", statusCfg.bg)}>
+                            <Card key={payment.id} className="border-slate-200 hover:border-slate-300 transition-colors">
                                 <CardContent className="pt-6">
                                     <div className="flex items-start justify-between gap-4">
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-3">
-                                                <Badge className={cn("text-xs", billTypeCfg.className)}>
+                                                <Badge variant="outline" className="text-xs rounded-none">
                                                     {billTypeCfg.label}
                                                 </Badge>
                                                 <span className="text-xs text-muted-foreground">
@@ -237,13 +191,13 @@ export function PatientBillingPanel({ patientId }: PatientBillingPanelProps) {
                                                 </div>
                                                 <div>
                                                     <p className="text-xs text-muted-foreground mb-1">Paid</p>
-                                                    <p className="text-lg font-semibold text-emerald-600">
+                                                    <p className="text-lg font-semibold text-foreground">
                                                         KES {(payment.amountPaid || 0).toLocaleString()}
                                                     </p>
                                                 </div>
                                                 <div>
                                                     <p className="text-xs text-muted-foreground mb-1">Balance</p>
-                                                    <p className={cn("text-lg font-semibold", balance > 0 ? "text-amber-600" : "text-slate-600")}>
+                                                    <p className="text-lg font-semibold text-foreground">
                                                         KES {balance.toLocaleString()}
                                                     </p>
                                                 </div>
@@ -265,19 +219,12 @@ export function PatientBillingPanel({ patientId }: PatientBillingPanelProps) {
                                         </div>
                                         
                                         <div className="flex flex-col items-end gap-2">
-                                            <Badge
-                                                className={cn(
-                                                    "text-xs font-medium",
-                                                    payment.status === PaymentStatus.PAID && "bg-emerald-100 text-emerald-700 border-emerald-200",
-                                                    payment.status === PaymentStatus.PART && "bg-amber-100 text-amber-700 border-amber-200",
-                                                    payment.status === PaymentStatus.UNPAID && "bg-red-100 text-red-700 border-red-200"
-                                                )}
-                                            >
+                                            <Badge variant="outline" className="text-xs font-medium rounded-none">
                                                 {statusCfg.label}
                                             </Badge>
                                             {payment.appointmentId && (
                                                 <Link href={`/frontdesk/appointments/${payment.appointmentId}`}>
-                                                    <Button size="sm" variant="ghost" className="h-7 text-xs">
+                                                    <Button size="sm" variant="ghost" className="h-7 text-xs rounded-none">
                                                         View Details
                                                     </Button>
                                                 </Link>

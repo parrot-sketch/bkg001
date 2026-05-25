@@ -356,7 +356,15 @@ export class JwtAuthService implements IAuthService {
     }
 
     try {
-      return await bcrypt.compare(password, hash);
+      // Some legacy systems (notably PHP bcrypt) store hashes with the `$2y$`
+      // or `$2x$` prefix. Node's `bcrypt` expects `$2a$`/`$2b$`.
+      // Normalizing preserves the hash value and makes verification compatible.
+      const normalizedHash =
+        hash.startsWith('$2y$') || hash.startsWith('$2x$')
+          ? `$2b$${hash.slice(4)}`
+          : hash;
+
+      return await bcrypt.compare(password, normalizedHash);
     } catch (error) {
       // Log error but don't expose details
       console.error('Password verification error:', error);

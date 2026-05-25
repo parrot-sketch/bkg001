@@ -123,19 +123,6 @@ function EmptyState({ hasSearch, onClear, onRegister }: { hasSearch: boolean; on
   );
 }
 
-function SearchPromptState() {
-  return (
-    <div className="flex flex-col items-center justify-center py-20 px-6">
-      <div className="h-16 w-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-5">
-        <Search className="h-8 w-8 text-slate-300" />
-      </div>
-      <h3 className="text-base font-semibold text-slate-700">
-        Search to Begin
-      </h3>
-    </div>
-  );
-}
-
 /* ═══════════════════ Main Content ═══════════════════ */
 
 function FrontdeskPatientsContent() {
@@ -210,7 +197,7 @@ function FrontdeskPatientsContent() {
     page,
     limit,
     search: urlSearch,
-    enabled: !!urlSearch,
+    enabled: true,
   });
 
   const { data: stats, isLoading: isStatsLoading } = usePatientStats();
@@ -274,11 +261,11 @@ function FrontdeskPatientsContent() {
         <StatCard title="Total Patients" value={stats?.totalRecords ?? 0} loading={isStatsLoading} />
         <StatCard title="New Today" value={stats?.newToday ?? 0} loading={isStatsLoading} />
         <StatCard title="This Month" value={stats?.newThisMonth ?? 0} loading={isStatsLoading} />
-        <StatCard title="Showing" value={urlSearch ? patients.length : 0} loading={!!urlSearch && isLoading} />
+        <StatCard title="Showing" value={patients.length} loading={isLoading} />
       </section>
 
       {/* Controls Bar */}
-      <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-4">
+      <div className="bg-white border border-slate-200 p-4">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
@@ -286,7 +273,7 @@ function FrontdeskPatientsContent() {
               placeholder="Search by name, file number, phone, or email..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="pl-10 pr-10 h-10 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white transition-colors"
+              className="pl-10 pr-10 h-10 rounded-none border-slate-200 bg-white transition-colors"
             />
             <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
               {(isLoading || isRefetching) && !!urlSearch ? (
@@ -311,13 +298,11 @@ function FrontdeskPatientsContent() {
       </div>
 
       {/* Patient Table */}
-      <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden min-h-[400px]">
-        {!urlSearch ? (
-          <SearchPromptState />
-        ) : isLoading ? (
+      <div className="bg-white border border-slate-200 min-h-[400px]">
+        {isLoading ? (
           <TableSkeleton />
         ) : patients.length === 0 ? (
-          <EmptyState hasSearch={true} onClear={() => setSearchInput('')} onRegister={() => setRegistrationOpen(true)} />
+          <EmptyState hasSearch={!!urlSearch} onClear={() => setSearchInput('')} onRegister={() => setRegistrationOpen(true)} />
         ) : (
           <>
             {/* Desktop Table */}
@@ -327,11 +312,8 @@ function FrontdeskPatientsContent() {
                   <tr className="border-b border-slate-100">
                     <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[280px]">Patient</th>
                     <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[120px]">File No.</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[200px]">Contact</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[100px] hidden lg:table-cell">Visits</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[120px] hidden lg:table-cell">Status</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[140px] hidden xl:table-cell">Last Visit</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[120px] hidden xl:table-cell">Registered</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[200px]">Phone</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-slate-400 w-[140px] hidden lg:table-cell">Last Visit</th>
                     <th className="px-5 py-3 text-right text-xs font-semibold text-slate-400 w-[140px]">Actions</th>
                   </tr>
                 </thead>
@@ -379,45 +361,17 @@ function FrontdeskPatientsContent() {
                         </td>
 
                         <td className="px-5 py-3.5">
-                          <div className="space-y-1">
-                            {patient.phone && (
-                              <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                                <Phone className="h-3 w-3 text-slate-300 flex-shrink-0" />
-                                <span className="truncate max-w-[160px]">{patient.phone}</span>
-                              </div>
-                            )}
-                            {patient.email && (
-                              <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                                <Mail className="h-3 w-3 text-slate-300 flex-shrink-0" />
-                                <span className="truncate max-w-[160px]">{patient.email}</span>
-                              </div>
-                            )}
-                            {!patient.phone && !patient.email && (
-                              <span className="text-xs text-slate-300 italic">No contact</span>
-                            )}
-                          </div>
+                          {patient.phone ? (
+                            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                              <Phone className="h-3 w-3 text-slate-300 flex-shrink-0" />
+                              <span className="truncate max-w-[180px]">{patient.phone}</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-300 italic">--</span>
+                          )}
                         </td>
 
                         <td className="px-5 py-3.5 hidden lg:table-cell">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-sm font-semibold text-slate-700">
-                              {patient.totalVisits}
-                            </span>
-                            <span className="text-xs text-slate-400">visits</span>
-                          </div>
-                        </td>
-
-                        <td className="px-5 py-3.5 hidden lg:table-cell">
-                          <PatientStatusIndicator
-                            status={getPatientStatus({
-                              lastVisit: patient.lastVisitAt,
-                              currentQueueStatus: patient.queueStatus,
-                              outstandingBalance: patient.outstandingBalance,
-                            })}
-                          />
-                        </td>
-
-                        <td className="px-5 py-3.5 hidden xl:table-cell">
                           {patient.lastVisitAt ? (
                             <div className="flex items-center gap-1.5 text-xs text-slate-500">
                               <Clock className="h-3 w-3 text-slate-300" />
@@ -425,16 +379,6 @@ function FrontdeskPatientsContent() {
                             </div>
                           ) : (
                             <span className="text-xs text-slate-300 italic">No visits</span>
-                          )}
-                        </td>
-
-                        <td className="px-5 py-3.5 hidden xl:table-cell">
-                          {patient.createdAt ? (
-                            <span className="text-xs text-slate-400">
-                              {format(new Date(patient.createdAt), 'MMM d, yyyy')}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-slate-300">--</span>
                           )}
                         </td>
 
@@ -460,11 +404,6 @@ function FrontdeskPatientsContent() {
             <div className="md:hidden divide-y divide-slate-100">
               {patients.map((patient) => {
                 const patientName = `${patient.firstName} ${patient.lastName}`;
-                const patientStatus = getPatientStatus({
-                  lastVisit: patient.lastVisitAt,
-                  currentQueueStatus: patient.queueStatus,
-                  outstandingBalance: patient.outstandingBalance,
-                });
 
                 return (
                   <Link
@@ -509,36 +448,9 @@ function FrontdeskPatientsContent() {
                                 <span>{patient.phone}</span>
                               </div>
                             )}
-                            {patient.lastVisitAt && (
-                              <div className="flex items-center gap-1 text-xs text-slate-400">
-                                <Clock className="h-3 w-3" />
-                                <span>{format(new Date(patient.lastVisitAt), 'MMM d')}</span>
-                              </div>
-                            )}
-                            <div className="flex items-center gap-1 text-xs text-slate-400">
-                              <span className="font-semibold text-slate-600">{patient.totalVisits}</span>
-                              <span>visits</span>
-                            </div>
-                            <PatientStatusIndicator status={patientStatus} className="text-[10px]" />
                           </div>
 
-                          <div className="mt-3 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
-                            <Button
-                              size="sm"
-                              className="flex-1 h-8 text-xs rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white mr-2"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                openBookingDialog({
-                                  initialPatientId: patient.id,
-                                  source: AppointmentSource.FRONTDESK_SCHEDULED,
-                                  bookingChannel: BookingChannel.DASHBOARD,
-                                });
-                              }}
-                            >
-                              <Calendar className="h-3 w-3 mr-1" />
-                              {isSelectionMode ? 'Select & Book' : 'Book Appointment'}
-                            </Button>
+                          <div className="mt-3 flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
                             <PatientTableActions
                               patient={{
                                 id: patient.id,
@@ -613,7 +525,7 @@ function FrontdeskPatientsContent() {
         </div>
       )}
 
-      {/* Registration Dialog — opens in-place, no navigation */}
+      {/* Registration Dialog — intentionally kept for frontdesk-assisted registration */}
       <PatientRegistrationDialog
         open={registrationOpen}
         onClose={() => setRegistrationOpen(false)}
@@ -623,6 +535,7 @@ function FrontdeskPatientsContent() {
           queryClient.invalidateQueries({ queryKey: ['frontdesk', 'patient-stats'] });
         }}
       />
+
     </div>
   );
 }

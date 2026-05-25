@@ -188,7 +188,8 @@ export async function PUT(
             specialization,
             license_number: generateTempLicenseNumber(),
             address: 'Clinic Address',
-            onboarding_status: 'ACTIVE',
+            // If an existing staff member is promoted to DOCTOR, require schedule setup.
+            onboarding_status: 'PROFILE_COMPLETED',
             availability_status: 'AVAILABLE',
             type: 'FULL',
           },

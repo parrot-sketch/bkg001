@@ -39,6 +39,11 @@ import { cn } from '@/lib/utils';
 import { apiClient } from '@/lib/api/client';
 
 /* ── Types ── */
+interface DeskQr {
+  qrCodeUrl: string;
+  intakeFormUrl: string;
+}
+
 interface IntakeSession {
   sessionId: string;
   qrCodeUrl: string;
@@ -59,6 +64,81 @@ type StationState = 'idle' | 'active' | 'expired';
 
 const POLL_INTERVAL_MS = 4000;
 
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function printQr(params: { title: string; subtitle: string; qrDataUrl: string; url: string }) {
+  const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=900,height=700');
+  if (!printWindow) return;
+
+  const title = escapeHtml(params.title);
+  const subtitle = escapeHtml(params.subtitle);
+  const url = escapeHtml(params.url);
+
+  printWindow.document.open();
+  printWindow.document.write(`
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>${title}</title>
+        <style>
+          :root { color-scheme: light; }
+          body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; color: #0f172a; }
+          .page { padding: 32px; display: grid; gap: 18px; place-items: center; text-align: center; }
+          .brand { display: inline-flex; align-items: center; gap: 10px; }
+          .logo { height: 44px; width: 44px; border-radius: 12px; background: #e11d48; display: grid; place-items: center; color: white; font-weight: 800; }
+          h1 { margin: 0; font-size: 22px; }
+          p { margin: 0; color: #475569; font-size: 13px; line-height: 1.45; }
+          .qr { margin-top: 6px; border: 1px solid #e2e8f0; border-radius: 18px; padding: 18px; }
+          .qr img { width: 320px; height: 320px; display: block; }
+          .url { margin-top: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, monospace; font-size: 12px; color: #0f172a; word-break: break-all; }
+          .hint { margin-top: 2px; font-size: 12px; color: #64748b; }
+          @media print {
+            .page { padding: 10mm; }
+            .qr img { width: 110mm; height: 110mm; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="page">
+          <div class="brand">
+            <div class="logo">NS</div>
+            <div>
+              <h1>${title}</h1>
+              <p>${subtitle}</p>
+            </div>
+          </div>
+
+          <div class="qr">
+            <img src="${params.qrDataUrl}" alt="QR Code" />
+            <div class="url">${url}</div>
+            <div class="hint">Scan to open the secure intake form.</div>
+          </div>
+        </div>
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
+
+  const img = printWindow.document.querySelector('img');
+  if (img) {
+    img.addEventListener('load', () => {
+      printWindow.focus();
+      printWindow.print();
+    });
+    img.addEventListener('error', () => {
+      printWindow.focus();
+      printWindow.print();
+    });
+  } else {
+    printWindow.focus();
+    printWindow.print();
+  }
+}
+
 export default function StartIntakePage() {
   const router = useRouter();
 
@@ -66,6 +146,7 @@ export default function StartIntakePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [session, setSession] = useState<IntakeSession | null>(null);
+  const [deskQr, setDeskQr] = useState<DeskQr | null>(null);
   const [minutesLeft, setMinutesLeft] = useState(0);
   const [copied, setCopied] = useState(false);
 
@@ -97,11 +178,31 @@ export default function StartIntakePage() {
     try {
       setIsLoading(true);
       setError(null);
+      setDeskQr(null);
       const result = await apiClient.post<IntakeSession>('/frontdesk/intake/start');
       if (!result.success) throw new Error(result.error || 'Failed to start intake session');
       const data = result.data;
       setSession(data);
       setMinutesLeft(data.minutesRemaining);
+      setStationState('active');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /* ── Load permanent desk QR ── */
+  const handleLoadDeskQr = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      setSession(null);
+      stopCountdown();
+      stopPoll();
+      const result = await apiClient.get<DeskQr>('/frontdesk/intake/desk-qr');
+      if (!result.success) throw new Error(result.error || 'Failed to load desk QR code');
+      setDeskQr(result.data);
       setStationState('active');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -166,8 +267,9 @@ export default function StartIntakePage() {
   }, [stationState, session, stopPoll, stopCountdown, router]);
 
   const copyUrl = () => {
-    if (session?.intakeFormUrl) {
-      navigator.clipboard.writeText(session.intakeFormUrl);
+    const url = session?.intakeFormUrl ?? deskQr?.intakeFormUrl;
+    if (url) {
+      navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -221,16 +323,30 @@ export default function StartIntakePage() {
             )}
 
             <div className="px-7 pb-7">
-              <Button
-                onClick={handleStartIntake}
-                disabled={isLoading}
-                className="w-full h-11 bg-slate-900 hover:bg-black text-white text-sm font-semibold rounded-xl shadow-sm transition-all"
-              >
-                {isLoading
-                  ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating session…</>
-                  : <><QrCode className="mr-2 h-4 w-4" />Generate QR Code</>
-                }
-              </Button>
+              <div className="space-y-2">
+                <Button
+                  onClick={handleLoadDeskQr}
+                  disabled={isLoading}
+                  className="w-full h-11 bg-slate-900 hover:bg-black text-white text-sm font-semibold rounded-xl shadow-sm transition-all"
+                >
+                  {isLoading
+                    ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Loading…</>
+                    : <><QrCode className="mr-2 h-4 w-4" />Show Permanent Desk QR</>
+                  }
+                </Button>
+                <Button
+                  onClick={handleStartIntake}
+                  disabled={isLoading}
+                  variant="outline"
+                  className="w-full h-11 text-sm font-semibold rounded-xl border-slate-200"
+                >
+                  <Clock className="mr-2 h-4 w-4" />
+                  Generate Timed Session (WhatsApp)
+                </Button>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  The permanent desk QR never expires. Each patient scan creates a fresh private session automatically.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -241,8 +357,14 @@ export default function StartIntakePage() {
   /* ═══════════════════════════════════════
      STATE: ACTIVE — QR shown, polling
      ═══════════════════════════════════════ */
-  if (stationState === 'active' && session) {
-    const timerUrgent = minutesLeft <= 10 && minutesLeft > 0;
+  if (stationState === 'active' && (session || deskQr)) {
+    const timerUrgent = session ? (minutesLeft <= 10 && minutesLeft > 0) : false;
+    const title = deskQr ? 'Desk QR (Non-expiring)' : 'Session Active — Waiting for patient';
+    const subtitle = deskQr
+      ? 'Patients can scan this anytime. Each scan creates a fresh private session.'
+      : 'Ask the patient to scan this code';
+    const qrSrc = session?.qrCodeUrl ?? deskQr?.qrCodeUrl ?? '';
+    const linkUrl = session?.intakeFormUrl ?? deskQr?.intakeFormUrl ?? '';
 
     return (
       <div className="min-h-[calc(100vh-5rem)] flex flex-col items-center justify-center p-6">
@@ -257,39 +379,49 @@ export default function StartIntakePage() {
             <div className="px-5 py-3 flex items-center justify-between border-b border-emerald-200 bg-emerald-50 text-sm font-medium text-emerald-700">
               <div className="flex items-center gap-2">
                 <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                Session Active — Waiting for patient
+                {title}
               </div>
-              <span className={cn('flex items-center gap-1.5', timerUrgent && 'text-amber-600')}>
-                <Clock className="h-3.5 w-3.5" />
-                {minutesLeft} min
-              </span>
+              {session ? (
+                <span className={cn('flex items-center gap-1.5', timerUrgent && 'text-amber-600')}>
+                  <Clock className="h-3.5 w-3.5" />
+                  {minutesLeft} min
+                </span>
+              ) : (
+                <span className="text-xs text-emerald-700">Never expires</span>
+              )}
             </div>
 
             {/* QR code */}
             <div className="flex flex-col items-center px-7 py-7">
               <div className="rounded-2xl p-5">
                 <img
-                  src={session.qrCodeUrl}
+                  src={qrSrc}
                   alt="Patient Intake QR Code"
                   className="w-52 h-52"
                 />
               </div>
               <div className="text-center mt-3">
-                <p className="text-sm font-semibold text-slate-800 mb-0.5">Ask the patient to scan this code</p>
+                <p className="text-sm font-semibold text-slate-800 mb-0.5">{subtitle}</p>
                 <p className="text-xs text-slate-400">They will complete the form on their own phone.</p>
               </div>
               {/* Subtle polling indicator */}
-              <div className="flex items-center gap-1.5 mt-3 text-[10px] text-slate-300">
-                <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                Checking for submission…
-              </div>
+              {session ? (
+                <div className="flex items-center gap-1.5 mt-3 text-[10px] text-slate-300">
+                  <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                  Checking for submission…
+                </div>
+              ) : (
+                <div className="mt-3 text-[10px] text-slate-300">
+                  Tip: print and place this QR at the desk.
+                </div>
+              )}
             </div>
 
             {/* URL copy */}
             <div className="mx-5 mb-5">
               <p className="text-[11px] text-slate-400 mb-1.5">Or share this link directly:</p>
               <div className="flex items-center gap-2 bg-slate-50 rounded-xl border border-slate-200 px-3 py-2">
-                <span className="flex-1 text-xs font-mono text-slate-600 truncate">{session.intakeFormUrl}</span>
+                <span className="flex-1 text-xs font-mono text-slate-600 truncate">{linkUrl}</span>
                 <button
                   onClick={copyUrl}
                   className="shrink-0 flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 transition-colors"
@@ -302,6 +434,20 @@ export default function StartIntakePage() {
 
             {/* Actions */}
             <div className="border-t border-slate-100 px-5 py-4 flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1 h-9 rounded-xl text-sm border-slate-200"
+                onClick={() =>
+                  printQr({
+                    title: 'Patient Intake (Secure)',
+                    subtitle: deskQr ? 'Permanent desk QR — does not expire' : 'Timed intake session — expires automatically',
+                    qrDataUrl: qrSrc,
+                    url: linkUrl,
+                  })
+                }
+              >
+                Print QR
+              </Button>
               <Button
                 variant="outline"
                 className="flex-1 h-9 rounded-xl text-sm border-slate-200"
@@ -318,9 +464,11 @@ export default function StartIntakePage() {
             </div>
           </div>
 
-          <p className="text-center text-[10px] text-slate-300 font-mono">
-            Session: {session.sessionId}
-          </p>
+          {session && (
+            <p className="text-center text-[10px] text-slate-300 font-mono">
+              Session: {session.sessionId}
+            </p>
+          )}
         </div>
       </div>
     );

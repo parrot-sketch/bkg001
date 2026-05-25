@@ -16,8 +16,7 @@ import { useAuth } from '@/hooks/patient/useAuth';
 import { doctorApi } from '@/lib/api/doctor';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Play, CheckCircle, Clock, Calendar as CalendarIcon, 
-         AlertTriangle, User, Stethoscope, ChevronRight, FileText } from 'lucide-react';
+import { RefreshCw, Search, Calendar as CalendarIcon, Eye, Check, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { useDoctorAppointments } from '@/hooks/doctor/useDoctorAppointments';
@@ -26,7 +25,24 @@ import { ClinicalDashboardShell } from '@/components/layouts/ClinicalDashboardSh
 import { format, isToday, startOfDay } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import Link from 'next/link';
+import { Input } from '@/components/ui/input';
+import { useQueryClient } from '@tanstack/react-query';
+import { appointmentKeys } from '@/hooks/useAppointments';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 
 const ALL_ACTIVE_STATUSES = [
     AppointmentStatus.PENDING_DOCTOR_CONFIRMATION,
@@ -39,11 +55,13 @@ const ALL_ACTIVE_STATUSES = [
 ].join(',');
 
 type TabKey = 'today' | 'upcoming' | 'pending';
+type StatusFilter = 'ALL' | AppointmentStatus;
 
 export default function DoctorAppointmentsPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { user, isAuthenticated } = useAuth();
+    const queryClient = useQueryClient();
 
     const {
         data: appointmentData,
@@ -58,15 +76,9 @@ export default function DoctorAppointmentsPage() {
         const today: AppointmentResponseDto[] = [];
         const upcoming: AppointmentResponseDto[] = [];
         const pending: AppointmentResponseDto[] = [];
-        let completedToday = 0;
 
         for (const apt of appointments) {
             const aptDate = new Date(apt.appointmentDate);
-            
-            if (apt.status === AppointmentStatus.COMPLETED && isToday(aptDate)) {
-                completedToday++;
-            }
-            
             if (apt.status === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION) {
                 pending.push(apt);
             } else if (isToday(aptDate)) {
@@ -89,7 +101,6 @@ export default function DoctorAppointmentsPage() {
                 today: today.length,
                 upcoming: upcoming.length,
                 pending: pending.length,
-                completed: completedToday,
             }
         };
     }, [appointments]);
@@ -125,6 +136,7 @@ export default function DoctorAppointmentsPage() {
             const response = await doctorApi.confirmAppointment(appointmentId, 'confirm');
             if (response.success) {
                 toast.success('Appointment confirmed');
+                queryClient.invalidateQueries({ queryKey: appointmentKeys.detail(appointmentId) });
                 refetch();
             } else {
                 toast.error(response.error || 'Failed to confirm');
@@ -141,6 +153,7 @@ export default function DoctorAppointmentsPage() {
             const response = await doctorApi.confirmAppointment(appointmentId, 'reject', { rejectionReason: reason });
             if (response.success) {
                 toast.success('Appointment rejected');
+                queryClient.invalidateQueries({ queryKey: appointmentKeys.detail(appointmentId) });
                 refetch();
             } else {
                 toast.error(response.error || 'Failed to reject');
@@ -158,6 +171,42 @@ export default function DoctorAppointmentsPage() {
         : activeTab === 'upcoming' ? upcomingAppointments 
         : pendingConfirmations;
 
+    const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+
+    useEffect(() => {
+        // Keep filters sane when switching tabs
+        if (activeTab === 'pending') {
+            setStatusFilter(AppointmentStatus.PENDING_DOCTOR_CONFIRMATION);
+        } else if (statusFilter === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION) {
+            setStatusFilter('ALL');
+        }
+        // Clear search when switching context (reduces "empty table confusion")
+        setSearchQuery('');
+    }, [activeTab]);
+
+    const filteredList = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase();
+        return currentList.filter((apt) => {
+            if (statusFilter !== 'ALL' && apt.status !== statusFilter) return false;
+            if (!q) return true;
+            const patientName = apt.patient ? `${apt.patient.firstName} ${apt.patient.lastName}` : '';
+            const fileNumber = apt.patient?.fileNumber ? String(apt.patient.fileNumber) : '';
+            const type = apt.type ?? '';
+            const note = apt.note ?? '';
+            const date = apt.appointmentDate ? format(new Date(apt.appointmentDate), 'yyyy-MM-dd') : '';
+            const time = apt.time ?? '';
+            return (
+                patientName.toLowerCase().includes(q) ||
+                fileNumber.toLowerCase().includes(q) ||
+                type.toLowerCase().includes(q) ||
+                note.toLowerCase().includes(q) ||
+                date.toLowerCase().includes(q) ||
+                time.toLowerCase().includes(q)
+            );
+        });
+    }, [currentList, searchQuery, statusFilter]);
+
     if (!isAuthenticated || !user) {
         return (
             <div className="flex items-center justify-center h-screen bg-slate-50">
@@ -168,95 +217,132 @@ export default function DoctorAppointmentsPage() {
 
     return (
         <ClinicalDashboardShell>
-            <div className="space-y-6 pb-8">
-                {/* Page Header */}
-                <div className="flex items-start justify-between mb-6">
+            <div className="space-y-4 pb-8">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                        <h1 className="text-2xl font-semibold tracking-tight">Appointments</h1>
+                        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Appointments</h1>
                         <p className="text-sm text-muted-foreground mt-1">
                             {format(new Date(), 'EEEE, MMMM d, yyyy')}
                         </p>
                     </div>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => refetch()}
-                        disabled={refreshing}
-                    >
-                        <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
-                        Refresh
-                    </Button>
-                </div>
-
-                {/* Stats Overview */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <StatCard label="Today" value={stats.today} variant="default" />
-                    <StatCard label="Pending" value={stats.pending} variant="warning" />
-                    <StatCard label="Completed" value={stats.completed} variant="success" />
-                    <StatCard label="Upcoming" value={stats.upcoming} variant="default" />
-                </div>
-
-                {/* Tabs */}
-                <div className="flex gap-1 border-b border-slate-200">
-                    {(['today', 'pending', 'upcoming'] as TabKey[]).map((tab) => (
-                        <button
-                            key={tab}
-                            onClick={() => setActiveTab(tab)}
-                            className={cn(
-                                "px-4 py-2 text-sm font-medium border-b-2 transition-colors",
-                                activeTab === tab
-                                    ? "border-slate-900 text-slate-900"
-                                    : "border-transparent text-slate-500 hover:text-slate-700"
-                            )}
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => refetch()}
+                            disabled={refreshing}
+                            className="h-9 rounded-none"
                         >
-                            {tab === 'today' ? "Today's Schedule" 
-                                : tab === 'pending' ? "Pending Confirmations" 
-                                : "Upcoming"}
-                            {tab === 'pending' && stats.pending > 0 && (
-                                <Badge className="ml-2 bg-amber-100 text-amber-700" variant="secondary">
-                                    {stats.pending}
-                                </Badge>
-                            )}
-                        </button>
-                    ))}
+                            <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
+                            Refresh
+                        </Button>
+                    </div>
                 </div>
 
-                {/* Pending Confirmations Alert */}
-                {activeTab === 'pending' && pendingConfirmations.length > 0 && (
-                    <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                        <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
-                        <div className="flex-1">
-                            <p className="text-sm font-medium text-amber-800">
-                                Action Required: {pendingConfirmations.length} appointment{pendingConfirmations.length !== 1 ? 's' : ''} awaiting confirmation
-                            </p>
-                            <p className="text-xs text-amber-600 mt-0.5">
-                                Click "Confirm" to accept or "Reject" to decline with a reason.
-                            </p>
+                <div className="flex flex-col gap-3 border border-border bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-1 border-b border-border sm:border-b-0">
+                        {(['today', 'pending', 'upcoming'] as TabKey[]).map((tab) => {
+                            const label =
+                                tab === 'today' ? 'Today'
+                                    : tab === 'pending' ? 'Pending'
+                                        : 'Upcoming';
+                            const count =
+                                tab === 'today' ? stats.today
+                                    : tab === 'pending' ? stats.pending
+                                        : stats.upcoming;
+                            const isActive = activeTab === tab;
+                            return (
+                                <button
+                                    key={tab}
+                                    onClick={() => setActiveTab(tab)}
+                                    className={cn(
+                                        "px-3 py-2 text-xs font-medium rounded-none border-b-2 transition-colors",
+                                        isActive ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
+                                    )}
+                                >
+                                    {label}
+                                    <span className={cn(
+                                        "ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] tabular-nums",
+                                        isActive ? "bg-muted text-foreground" : "bg-muted/60 text-muted-foreground"
+                                    )}>
+                                        {count}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                        <div className="flex items-center gap-2">
+                            <div className="text-xs text-muted-foreground">Status</div>
+                            <Select
+                                value={statusFilter}
+                                onValueChange={(v) => setStatusFilter(v as StatusFilter)}
+                                disabled={activeTab === 'pending'}
+                            >
+                                <SelectTrigger className="h-9 w-[180px] rounded-none">
+                                    <SelectValue placeholder="All statuses" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">All</SelectItem>
+                                    <SelectItem value={AppointmentStatus.PENDING_DOCTOR_CONFIRMATION}>Needs confirm</SelectItem>
+                                    <SelectItem value={AppointmentStatus.SCHEDULED}>Scheduled</SelectItem>
+                                    <SelectItem value={AppointmentStatus.CONFIRMED}>Confirmed</SelectItem>
+                                    <SelectItem value={AppointmentStatus.CHECKED_IN}>Checked in</SelectItem>
+                                    <SelectItem value={AppointmentStatus.READY_FOR_CONSULTATION}>Ready</SelectItem>
+                                    <SelectItem value={AppointmentStatus.IN_CONSULTATION}>In consultation</SelectItem>
+                                    <SelectItem value={AppointmentStatus.COMPLETED}>Completed</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="relative">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search patient, file #, type…"
+                                className="h-9 pl-9 w-full sm:w-[260px] rounded-none"
+                            />
                         </div>
                     </div>
-                )}
+                </div>
 
-                {/* Appointment List */}
                 {loading ? (
                     <div className="space-y-3">
                         {[1, 2, 3].map((i) => (
                             <Skeleton key={i} className="h-20 w-full rounded-lg" />
                         ))}
                     </div>
-                ) : currentList.length === 0 ? (
-                    <EmptyState tab={activeTab} />
+                ) : filteredList.length === 0 ? (
+                    <EmptyState tab={activeTab} hasQuery={Boolean(searchQuery.trim())} />
                 ) : (
-                    <div className="space-y-2">
-                        {currentList.map((apt) => (
-                            <AppointmentCard
-                                key={apt.id}
-                                appointment={apt}
-                                onCheckIn={handleCheckIn}
-                                onStart={handleStartConsultation}
-                                onConfirm={handleConfirm}
-                                onReject={handleReject}
-                            />
-                        ))}
+                    <div className="border border-border bg-background">
+                        <Table>
+                            <TableHeader className="bg-muted/40">
+                                <TableRow>
+                                    <TableHead className="w-[110px]">When</TableHead>
+                                    <TableHead>Patient</TableHead>
+                                    <TableHead className="hidden md:table-cell">Type</TableHead>
+                                    <TableHead className="hidden lg:table-cell">Note</TableHead>
+                                    <TableHead className="w-[140px]">Status</TableHead>
+                                    <TableHead className="w-[220px] text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredList.map((apt) => (
+                                    <AppointmentsTableRow
+                                        key={apt.id}
+                                        appointment={apt}
+                                        showDate={activeTab !== 'today'}
+                                        onView={() => router.push(`/doctor/appointments/${apt.id}`)}
+                                        onStart={() => handleStartConsultation(apt.id)}
+                                        onConfirm={() => handleConfirm(apt.id)}
+                                        onReject={() => handleReject(apt.id)}
+                                    />
+                                ))}
+                            </TableBody>
+                        </Table>
                     </div>
                 )}
             </div>
@@ -264,22 +350,7 @@ export default function DoctorAppointmentsPage() {
     );
 }
 
-function StatCard({ label, value, variant = 'default' }: { label: string; value: number; variant?: 'default' | 'warning' | 'success' }) {
-    const variants = {
-        default: 'bg-white border-slate-200',
-        warning: value > 0 ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200',
-        success: 'bg-emerald-50 border-emerald-200',
-    };
-    
-    return (
-        <div className={cn("p-4 rounded-lg border", variants[variant])}>
-            <p className="text-xs font-medium text-slate-500">{label}</p>
-            <p className="text-2xl font-bold text-slate-900 tabular-nums">{value}</p>
-        </div>
-    );
-}
-
-function EmptyState({ tab }: { tab: string }) {
+function EmptyState({ tab, hasQuery }: { tab: string; hasQuery: boolean }) {
     const messages = {
         today: { title: "No appointments today", description: "Your schedule is clear for today." },
         upcoming: { title: "No upcoming appointments", description: "No future appointments scheduled." },
@@ -291,95 +362,121 @@ function EmptyState({ tab }: { tab: string }) {
     return (
         <div className="flex flex-col items-center justify-center py-16 text-center">
             <CalendarIcon className="h-12 w-12 text-slate-300 mb-4" />
-            <h3 className="text-lg font-medium text-slate-900">{msg.title}</h3>
-            <p className="text-sm text-slate-500 mt-1">{msg.description}</p>
+            <h3 className="text-lg font-medium text-slate-900">
+                {hasQuery ? 'No matching appointments' : msg.title}
+            </h3>
+            <p className="text-sm text-slate-500 mt-1">
+                {hasQuery ? 'Try a different search term or clear filters.' : msg.description}
+            </p>
         </div>
     );
 }
 
-function AppointmentCard({ 
-    appointment, 
-    onCheckIn, 
+function getStatusLabel(status: string): string {
+    switch (status) {
+        case AppointmentStatus.PENDING_DOCTOR_CONFIRMATION:
+            return 'Needs confirm';
+        case AppointmentStatus.SCHEDULED:
+            return 'Scheduled';
+        case AppointmentStatus.CONFIRMED:
+            return 'Confirmed';
+        case AppointmentStatus.CHECKED_IN:
+            return 'Checked in';
+        case AppointmentStatus.READY_FOR_CONSULTATION:
+            return 'Ready';
+        case AppointmentStatus.IN_CONSULTATION:
+            return 'In consultation';
+        case AppointmentStatus.COMPLETED:
+            return 'Completed';
+        default:
+            return status;
+    }
+}
+
+function AppointmentsTableRow({
+    appointment,
+    showDate,
+    onView,
     onStart,
     onConfirm,
     onReject,
-}: { 
+}: {
     appointment: AppointmentResponseDto;
-    onCheckIn: (id: number) => void;
-    onStart: (id: number) => void;
-    onConfirm: (id: number) => void;
-    onReject: (id: number) => void;
+    showDate: boolean;
+    onView: () => void;
+    onStart: () => void;
+    onConfirm: () => void;
+    onReject: () => void;
 }) {
-    const status = appointment.status;
-    const isPending = status === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION;
-    const isScheduled = status === AppointmentStatus.SCHEDULED || status === AppointmentStatus.CONFIRMED;
-    const isCheckedIn = status === AppointmentStatus.CHECKED_IN || status === AppointmentStatus.READY_FOR_CONSULTATION;
-    const isInConsultation = status === AppointmentStatus.IN_CONSULTATION;
-    const isCompleted = status === AppointmentStatus.COMPLETED;
-
-    const patientName = appointment.patient 
+    const patientName = appointment.patient
         ? `${appointment.patient.firstName} ${appointment.patient.lastName}`
-        : 'Unknown Patient';
+        : 'Unknown patient';
+    const fileNumber = appointment.patient?.fileNumber ? `#${appointment.patient.fileNumber}` : null;
+    const when = showDate
+        ? `${format(new Date(appointment.appointmentDate), 'MMM d')} • ${appointment.time || '--:--'}`
+        : (appointment.time || '--:--');
+
+    const needsConfirm = appointment.status === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION;
+    const canStart =
+        appointment.status === AppointmentStatus.CHECKED_IN ||
+        appointment.status === AppointmentStatus.READY_FOR_CONSULTATION ||
+        appointment.status === AppointmentStatus.IN_CONSULTATION;
 
     return (
-        <Link href={`/doctor/appointments/${appointment.id}`} className="block">
-            <div className="flex items-center gap-4 p-4 bg-white border border-slate-200 rounded-lg hover:border-slate-300 hover:shadow-sm transition-all cursor-pointer">
-                {/* Time */}
-                <div className="text-center min-w-[60px]">
-                    <p className="text-lg font-semibold text-slate-900">
-                        {appointment.time || '--:--'}
-                    </p>
-                    <p className="text-xs text-slate-500 font-mono">
-                        {appointment.appointmentDate && format(new Date(appointment.appointmentDate), 'MMM d')}
-                    </p>
-                </div>
-
-                {/* Patient Info */}
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                        <p className="font-medium text-slate-900 truncate">{patientName}</p>
-                        {appointment.patient?.fileNumber && (
-                            <span className="text-xs font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
-                                #{appointment.patient.fileNumber}
+        <TableRow className="cursor-default">
+            <TableCell className="py-3">
+                <div className="text-sm font-medium text-foreground tabular-nums">{when}</div>
+            </TableCell>
+            <TableCell className="py-3">
+                <div className="min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <div className="truncate text-sm text-foreground font-medium">{patientName}</div>
+                        {fileNumber && (
+                            <span className="shrink-0 text-[10px] font-mono text-muted-foreground">
+                                {fileNumber}
                             </span>
                         )}
                     </div>
-                    <p className="text-sm text-slate-500 truncate">
-                        {appointment.type || 'Consultation'}
-                    </p>
-                    {appointment.note && (
-                        <p className="text-xs text-slate-400 truncate mt-0.5 max-w-md">
-                            {appointment.note}
-                        </p>
-                    )}
                 </div>
-
-                {/* Status Badge */}
-                <BadgeStatus status={status} />
-
-                {/* Action Indicator */}
-                <ChevronRight className="h-4 w-4 text-slate-300" />
-            </div>
-        </Link>
-    );
-}
-
-function BadgeStatus({ status }: { status: string }) {
-    const statusConfig = {
-        [AppointmentStatus.PENDING_DOCTOR_CONFIRMATION]: { label: 'Pending', className: 'bg-amber-50 text-amber-700 border-amber-200' },
-        [AppointmentStatus.SCHEDULED]: { label: 'Scheduled', className: 'bg-slate-100 text-slate-700 border-slate-300' },
-        [AppointmentStatus.CONFIRMED]: { label: 'Confirmed', className: 'bg-slate-100 text-slate-700 border-slate-300' },
-        [AppointmentStatus.CHECKED_IN]: { label: 'Waiting', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-        [AppointmentStatus.READY_FOR_CONSULTATION]: { label: 'Ready', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-        [AppointmentStatus.IN_CONSULTATION]: { label: 'In Session', className: 'bg-violet-50 text-violet-700 border-violet-200' },
-        [AppointmentStatus.COMPLETED]: { label: 'Completed', className: 'bg-slate-100 text-slate-500 border-slate-200' },
-    };
-
-    const config = statusConfig[status as keyof typeof statusConfig] || { label: status, className: 'bg-slate-100' };
-
-    return (
-        <span className={cn("px-2.5 py-1 text-xs font-medium rounded-md border", config.className)}>
-            {config.label}
-        </span>
+            </TableCell>
+            <TableCell className="py-3 hidden md:table-cell">
+                <div className="text-sm text-muted-foreground">{appointment.type || 'Consultation'}</div>
+            </TableCell>
+            <TableCell className="py-3 hidden lg:table-cell">
+                <div className="text-sm text-muted-foreground truncate max-w-[460px]">
+                    {appointment.note || '—'}
+                </div>
+            </TableCell>
+            <TableCell className="py-3">
+                <Badge variant="outline" className="rounded-none text-xs font-medium">
+                    {getStatusLabel(appointment.status)}
+                </Badge>
+            </TableCell>
+            <TableCell className="py-3 text-right">
+                <div className="inline-flex items-center gap-2 justify-end">
+                    {needsConfirm && (
+                        <>
+                            <Button size="sm" variant="outline" className="h-8 rounded-none" onClick={onReject}>
+                                <X className="h-4 w-4 mr-1.5" />
+                                Reject
+                            </Button>
+                            <Button size="sm" className="h-8 rounded-none" onClick={onConfirm}>
+                                <Check className="h-4 w-4 mr-1.5" />
+                                Confirm
+                            </Button>
+                        </>
+                    )}
+                    {canStart && !needsConfirm && (
+                        <Button size="sm" variant="outline" className="h-8 rounded-none" onClick={onStart}>
+                            Start
+                        </Button>
+                    )}
+                    <Button size="sm" variant="outline" className="h-8 rounded-none" onClick={onView}>
+                        <Eye className="h-4 w-4 mr-1.5" />
+                        View
+                    </Button>
+                </div>
+            </TableCell>
+        </TableRow>
     );
 }

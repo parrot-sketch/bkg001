@@ -487,25 +487,25 @@ select:-webkit-autofill:focus {
   display: flex;
   align-items: center;
   width: 100%;
-  background: rgb(248 250 252);
-  border: 1px solid rgb(226 232 240);
-  border-radius: 0.75rem;
-  overflow: hidden;
-  transition: all 0.2s;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgb(203 213 225);
+  border-radius: 0;
+  transition: border-color 0.2s;
 }
 
 .PhoneInput:focus-within {
-  border-color: rgb(244 63 94);
-  box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.15);
+  border-color: rgb(15 23 42);
+  box-shadow: none;
 }
 
 .PhoneInputCountry {
   position: relative;
   display: flex;
   align-items: center;
-  padding: 0 0.5rem;
-  background: rgb(241 245 249);
-  border-right: 1px solid rgb(226 232 240);
+  padding: 0 0.5rem 0 0;
+  background: transparent;
+  border-right: 1px solid rgb(203 213 225);
 }
 
 .PhoneInputCountryIcon {
@@ -535,7 +535,7 @@ select:-webkit-autofill:focus {
 .PhoneInputInput {
   flex: 1;
   min-width: 0;
-  padding: 0.875rem 1rem;
+  padding: 0.75rem 0;
   background: transparent;
   border: none;
   font-size: 1rem;
@@ -558,16 +558,16 @@ select:-webkit-autofill:focus {
 /* Mobile-specific phone input adjustments */
 @media (max-width: 640px) {
   .PhoneInput {
-    border-radius: 0.75rem;
+    border-radius: 0;
   }
 
   .PhoneInputInput {
     font-size: 16px; /* Prevents iOS zoom on focus */
-    padding: 0.75rem 0.875rem;
+    padding: 0.75rem 0;
   }
 
   .PhoneInputCountry {
-    padding: 0 0.375rem;
+    padding: 0 0.375rem 0 0;
   }
 
   .PhoneInputCountryIcon {

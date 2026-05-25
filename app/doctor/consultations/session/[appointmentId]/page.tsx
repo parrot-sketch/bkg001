@@ -31,7 +31,7 @@ import { Button } from '@/components/ui/button';
 import { apiClient } from '@/lib/api/client';
 import { useAuth } from '@/hooks/patient/useAuth';
 import Link from 'next/link';
-import { Users, Loader2, Lock } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Role } from '@/domain/enums/Role';
 import { cn } from '@/lib/utils';
 
@@ -178,25 +178,19 @@ function NoPatientState({ waitingQueue, onRefresh, isRefreshing }: {
   return (
     <div className="flex flex-col h-screen bg-white">
       {/* Simple header */}
-      <div className="h-16 border-b border-slate-200 flex items-center justify-center px-4 bg-slate-50/50">
-        <h1 className="text-lg font-semibold text-slate-900">Consultation Room</h1>
+      <div className="h-16 border-b border-slate-200 flex items-center justify-center px-4">
+        <h1 className="text-base font-semibold text-slate-900">Consultation room</h1>
       </div>
 
       {/* Main content area - centered message */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50/30">
-        <div className="text-center max-w-sm">
-          <div className="h-16 w-16 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-4">
-            <Users className="h-8 w-8 text-emerald-500" />
-          </div>
-          <h2 className="text-xl font-semibold text-slate-900 mb-2">Waiting for Patient</h2>
-          <p className="text-sm text-slate-500 mb-4">
+      <div className="flex-1 flex flex-col items-center justify-center p-6">
+        <div className="text-center max-w-sm border border-slate-200 bg-white p-6">
+          <h2 className="text-base font-semibold text-slate-900 mb-2">Waiting for patient</h2>
+          <p className="text-sm text-slate-600 mb-4">
             {waitingQueue.length > 0 
               ? `${waitingQueue.length} patient${waitingQueue.length > 1 ? 's' : ''} waiting in queue`
               : 'No patients currently in queue'
             }
-          </p>
-          <p className="text-xs text-slate-400">
-            The queue will update automatically when new patients check in or complete triage.
           </p>
         </div>
       </div>
@@ -225,6 +219,8 @@ function ConsultationSessionContent() {
     switchToPatient,
   } = useConsultationContext();
 
+  const [isPatientSidebarCollapsed, setIsPatientSidebarCollapsed] = useState(true);
+
   const {
     appointment,
     patient,
@@ -250,18 +246,18 @@ function ConsultationSessionContent() {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-50">
         <div className="text-center space-y-4 max-w-md px-6">
-          <div className="h-16 w-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto">
-            <span className="text-2xl">⚠️</span>
-          </div>
-          <h2 className="text-base font-semibold text-slate-900">Something went wrong</h2>
+          <div className="border border-slate-200 bg-white p-6">
+            <h2 className="text-base font-semibold text-slate-900">Unable to load consultation</h2>
           <p className="text-sm text-slate-500 leading-relaxed">{state.workflow.error}</p>
           <Button
             variant="outline"
             size="sm"
             onClick={() => window.location.reload()}
+            className="mt-4 rounded-none"
           >
             Try again
           </Button>
+          </div>
         </div>
       </div>
     );
@@ -290,7 +286,7 @@ function ConsultationSessionContent() {
             hasDrafts={state.workflow.isDirty}
             onRefresh={refetchQueue}
             isRefreshing={isQueueRefetching}
-            defaultCollapsed={true}
+            defaultCollapsed={false}
           />
         </Suspense>
       </div>
@@ -310,6 +306,8 @@ function ConsultationSessionContent() {
           onComplete={openCompleteDialog}
           autoSaveStatus={autoSaveStatus}
           isSaving={isSaving}
+          patientSidebarCollapsed={isPatientSidebarCollapsed}
+          onTogglePatientSidebar={() => setIsPatientSidebarCollapsed(v => !v)}
           slotStartTime={
             appointment?.appointmentDate && appointment?.time
               ? new Date(`${new Date(appointment.appointmentDate).toISOString().split('T')[0]}T${appointment.time}`)
@@ -321,13 +319,44 @@ function ConsultationSessionContent() {
 
       {/* Main Layout — 3 columns */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left: Patient Info (280px) */}
-        <div className="w-[280px] bg-white border-r border-slate-200 shrink-0 hidden lg:flex flex-col overflow-hidden">
-          <PatientInfoSidebar
-            patient={patient}
-            appointment={appointment}
-            vitals={vitals}
-          />
+        {/* Left: Patient Info (collapsible) */}
+        <div
+          className={cn(
+            'bg-white border-r border-slate-200 shrink-0 hidden lg:flex flex-col overflow-hidden transition-[width] duration-200 ease-out',
+            isPatientSidebarCollapsed ? 'w-9' : 'w-[280px]',
+          )}
+        >
+          {isPatientSidebarCollapsed ? (
+            <button
+              type="button"
+              onClick={() => setIsPatientSidebarCollapsed(false)}
+              className="h-full w-full flex items-center justify-center text-[10px] font-semibold text-slate-500 hover:text-slate-900"
+              aria-label="Open patient panel"
+              title="Patient"
+            >
+              <span className="[writing-mode:vertical-rl] uppercase tracking-[0.2em]">Patient</span>
+            </button>
+          ) : (
+            <div className="flex h-full flex-col">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-slate-200">
+                <span className="text-xs font-semibold text-slate-700">Patient</span>
+                <button
+                  type="button"
+                  onClick={() => setIsPatientSidebarCollapsed(true)}
+                  className="text-xs text-slate-500 hover:text-slate-900"
+                >
+                  Hide
+                </button>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <PatientInfoSidebar
+                  patient={patient}
+                  appointment={appointment}
+                  vitals={vitals}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Center: Workspace (flex) */}
@@ -345,7 +374,7 @@ function ConsultationSessionContent() {
           hasDrafts={state.workflow.isDirty}
           onRefresh={refetchQueue}
           isRefreshing={isQueueRefetching}
-          defaultCollapsed={true}
+          defaultCollapsed={false}
         />
       </div>
 
@@ -398,14 +427,11 @@ export default function ConsultationSessionPageOptimized({ params }: PageProps) 
   if (!isAuthenticated || !user) {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-50">
-        <div className="text-center p-8 bg-white rounded-2xl shadow-xl border border-slate-100 max-w-md">
-          <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Lock className="h-8 w-8 text-slate-400" />
-          </div>
-          <h2 className="text-xl font-bold text-slate-900 mb-2">Authentication Required</h2>
-          <p className="text-sm text-slate-500 mb-6">Please log in to access the consultation room.</p>
+        <div className="text-center p-8 bg-white border border-slate-200 max-w-md">
+          <h2 className="text-base font-semibold text-slate-900 mb-2">Authentication required</h2>
+          <p className="text-sm text-slate-600 mb-6">Please log in to access the consultation room.</p>
           <Link href="/login">
-            <Button className="w-full bg-slate-900 hover:bg-slate-800 rounded-xl">Return to Login</Button>
+            <Button variant="outline" className="w-full rounded-none">Return to login</Button>
           </Link>
         </div>
       </div>
@@ -415,12 +441,9 @@ export default function ConsultationSessionPageOptimized({ params }: PageProps) 
   if (isNaN(appointmentId)) {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-50">
-        <div className="text-center space-y-3">
-          <div className="h-14 w-14 rounded-2xl bg-red-50 flex items-center justify-center mx-auto">
-            <span className="text-xl">🔗</span>
-          </div>
-          <p className="text-sm font-medium text-slate-600">Invalid appointment ID</p>
-          <p className="text-xs text-slate-400">Please check the URL and try again</p>
+        <div className="text-center space-y-3 border border-slate-200 bg-white p-6 max-w-md">
+          <p className="text-sm font-semibold text-slate-900">Invalid appointment ID</p>
+          <p className="text-xs text-slate-500">Please check the URL and try again.</p>
         </div>
       </div>
     );

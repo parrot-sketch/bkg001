@@ -78,11 +78,25 @@ export async function POST(
     }
 
     // 6. Record payment
-    const updatedPayment = await paymentRepository.recordPayment({
-      paymentId,
-      amountPaid: body.amountPaid,
-      paymentMethod: body.paymentMethod,
-    });
+    let updatedPayment;
+    try {
+      updatedPayment = await paymentRepository.recordPayment({
+        paymentId,
+        amountPaid: body.amountPaid,
+        paymentMethod: body.paymentMethod,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Unable to record payment';
+      // Common domain guard failures should not surface as 500s.
+      if (
+        msg.toLowerCase().includes('not finalized') ||
+        msg.toLowerCase().includes('exceeds') ||
+        msg.toLowerCase().includes('positive')
+      ) {
+        return NextResponse.json({ success: false, error: msg }, { status: 409 });
+      }
+      throw e;
+    }
 
     // 7. Generate receipt if fully paid
     if (updatedPayment.status === 'PAID' && !updatedPayment.receiptNumber) {

@@ -31,6 +31,13 @@ const PATCH_MIGRATIONS = [
     '20260426000000_link_surgical_case_to_appointment',
     'migration.sql',
   ),
+  path.join(
+    process.cwd(),
+    'scripts',
+    'production',
+    'patches',
+    '20260522_add_schedule_setup_to_doctor_onboarding.sql',
+  ),
 ] as const;
 
 function hasPrismaMigrationsTable(databaseUrl: string): boolean {
@@ -50,6 +57,20 @@ function hasSurgicalCaseAppointmentId(databaseUrl: string): boolean {
       where table_schema = 'public'
         and table_name = 'SurgicalCase'
         and column_name = 'appointment_id';
+    `,
+  ).stdout.trim();
+  return result === '1';
+}
+
+function hasDoctorOnboardingScheduleSetup(databaseUrl: string): boolean {
+  const result = runPsql(
+    databaseUrl,
+    `
+      select count(*)::int
+      from pg_enum e
+      join pg_type t on t.oid = e.enumtypid
+      where t.typname = 'DoctorOnboardingStatus'
+        and e.enumlabel = 'SCHEDULE_SETUP';
     `,
   ).stdout.trim();
   return result === '1';
@@ -92,19 +113,27 @@ async function main(): Promise<void> {
 
   ensureNoDuplicateAppointmentLinks(databaseUrl);
 
-  if (hasSurgicalCaseAppointmentId(databaseUrl)) {
-    console.log('✅ SurgicalCase.appointment_id already present. Nothing to do.');
+  const needsAppointmentLinkPatch = !hasSurgicalCaseAppointmentId(databaseUrl);
+  const needsOnboardingEnumPatch = !hasDoctorOnboardingScheduleSetup(databaseUrl);
+  if (!needsAppointmentLinkPatch && !needsOnboardingEnumPatch) {
+    console.log('✅ No allowlisted patches required.');
     return;
   }
 
   console.log('🧩 Applying idempotent patch migrations...');
   for (const filePath of PATCH_MIGRATIONS) {
+    // Apply only what is needed for this DB (avoid unnecessary DDL).
+    if (filePath.includes('link_surgical_case_to_appointment') && !needsAppointmentLinkPatch) continue;
+    if (filePath.includes('add_schedule_setup_to_doctor_onboarding') && !needsOnboardingEnumPatch) continue;
     console.log(`   ➜ ${path.relative(process.cwd(), filePath)}`);
     runPsqlFile(databaseUrl, filePath);
   }
 
-  if (!hasSurgicalCaseAppointmentId(databaseUrl)) {
+  if (needsAppointmentLinkPatch && !hasSurgicalCaseAppointmentId(databaseUrl)) {
     throw new Error('Patch applied, but SurgicalCase.appointment_id still missing');
+  }
+  if (needsOnboardingEnumPatch && !hasDoctorOnboardingScheduleSetup(databaseUrl)) {
+    throw new Error('Patch applied, but DoctorOnboardingStatus.SCHEDULE_SETUP still missing');
   }
 
   console.log('✅ Production DB patched successfully (no data loss).');

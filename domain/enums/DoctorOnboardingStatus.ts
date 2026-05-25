@@ -6,9 +6,9 @@
  * onboarding before they can use the system.
  * 
  * State Machine:
- * INVITED → ACTIVATED → PROFILE_COMPLETED → ACTIVE
+ * INVITED → ACTIVATED → PROFILE_COMPLETED → SCHEDULE_SETUP → ACTIVE
  * 
- * INVARIANT: Doctors can only authenticate when onboarding_status === ACTIVE
+ * INVARIANT: INVITED doctors cannot authenticate (must activate via invite token).
  * 
  * This is a pure TypeScript enum with no framework dependencies.
  */
@@ -17,6 +17,7 @@ export enum DoctorOnboardingStatus {
   INVITED = 'INVITED',
   ACTIVATED = 'ACTIVATED',
   PROFILE_COMPLETED = 'PROFILE_COMPLETED',
+  SCHEDULE_SETUP = 'SCHEDULE_SETUP',
   ACTIVE = 'ACTIVE',
 }
 
@@ -30,13 +31,14 @@ export function isDoctorOnboardingStatus(value: string): value is DoctorOnboardi
 /**
  * Check if a doctor onboarding status allows authentication
  * 
- * INVARIANT: Doctors can authenticate once activated (ACTIVATED, PROFILE_COMPLETED, ACTIVE)
+ * INVARIANT: Doctors can authenticate once activated (ACTIVATED, PROFILE_COMPLETED, SCHEDULE_SETUP, ACTIVE)
  * Only INVITED doctors cannot authenticate (must activate via token first)
  */
 export function canDoctorAuthenticate(status: DoctorOnboardingStatus): boolean {
   return [
     DoctorOnboardingStatus.ACTIVATED,
     DoctorOnboardingStatus.PROFILE_COMPLETED,
+    DoctorOnboardingStatus.SCHEDULE_SETUP,
     DoctorOnboardingStatus.ACTIVE,
   ].includes(status);
 }
@@ -49,6 +51,7 @@ export function requiresOnboardingAction(status: DoctorOnboardingStatus): boolea
     DoctorOnboardingStatus.INVITED,
     DoctorOnboardingStatus.ACTIVATED,
     DoctorOnboardingStatus.PROFILE_COMPLETED,
+    DoctorOnboardingStatus.SCHEDULE_SETUP,
   ].includes(status);
 }
 
@@ -58,8 +61,9 @@ export function requiresOnboardingAction(status: DoctorOnboardingStatus): boolea
  * 
  * Valid transitions:
  * - INVITED → ACTIVATED (via invite token activation)
- * - ACTIVATED → PROFILE_COMPLETED (after required fields completed)
- * - PROFILE_COMPLETED → ACTIVE (automatic/system transition)
+ * - ACTIVATED → PROFILE_COMPLETED (after completing required profile fields)
+ * - PROFILE_COMPLETED → SCHEDULE_SETUP (schedule configuration step)
+ * - SCHEDULE_SETUP → ACTIVE (schedule configured, ready for appointments)
  */
 export function isValidDoctorOnboardingTransition(
   from: DoctorOnboardingStatus | null,
@@ -79,7 +83,10 @@ export function isValidDoctorOnboardingTransition(
       DoctorOnboardingStatus.PROFILE_COMPLETED, // After completing required profile fields
     ],
     [DoctorOnboardingStatus.PROFILE_COMPLETED]: [
-      DoctorOnboardingStatus.ACTIVE, // System automatically activates after profile completion
+      DoctorOnboardingStatus.SCHEDULE_SETUP, // Schedule configuration step
+    ],
+    [DoctorOnboardingStatus.SCHEDULE_SETUP]: [
+      DoctorOnboardingStatus.ACTIVE, // Schedule configured, ready for appointments
     ],
     [DoctorOnboardingStatus.ACTIVE]: [
       // No transitions from ACTIVE - it's the final state
@@ -98,6 +105,7 @@ export function getDoctorOnboardingStatusLabel(status: DoctorOnboardingStatus): 
     [DoctorOnboardingStatus.INVITED]: 'Invited',
     [DoctorOnboardingStatus.ACTIVATED]: 'Activated',
     [DoctorOnboardingStatus.PROFILE_COMPLETED]: 'Profile Completed',
+    [DoctorOnboardingStatus.SCHEDULE_SETUP]: 'Schedule Setup',
     [DoctorOnboardingStatus.ACTIVE]: 'Active',
   };
 
@@ -111,7 +119,8 @@ export function getDoctorOnboardingStatusDescription(status: DoctorOnboardingSta
   const descriptions: Record<DoctorOnboardingStatus, string> = {
     [DoctorOnboardingStatus.INVITED]: 'You have been invited. Please check your email to activate your account.',
     [DoctorOnboardingStatus.ACTIVATED]: 'Your account has been activated. Please complete your profile to continue.',
-    [DoctorOnboardingStatus.PROFILE_COMPLETED]: 'Your profile is complete. Your account will be activated shortly.',
+    [DoctorOnboardingStatus.PROFILE_COMPLETED]: 'Your profile is complete. Please configure your schedule to start accepting appointments.',
+    [DoctorOnboardingStatus.SCHEDULE_SETUP]: 'Configure your weekly availability and appointment slots to start accepting patients.',
     [DoctorOnboardingStatus.ACTIVE]: 'Your account is active. You can now access the system.',
   };
 

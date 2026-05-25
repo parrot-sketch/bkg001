@@ -8,8 +8,7 @@ import { useDoctorDashboard, useDoctorProfile } from '@/hooks/use-doctor-dashboa
 import { DashboardStatCards } from '@/components/doctor/dashboard/DashboardStatCards';
 import { PatientQueuePanel } from '@/components/doctor/dashboard/PatientQueuePanel';
 import { CasePipeline } from '@/components/doctor/dashboard/CasePipeline';
-import { SchedulePreview } from '@/components/doctor/dashboard/SchedulePreview';
-import { useRouter } from 'next/navigation';
+import { OnboardingWidget } from '@/components/doctor/dashboard/OnboardingWidget';
 
 export default function DoctorDashboardPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -17,13 +16,6 @@ export default function DoctorDashboardPage() {
     enabled: isAuthenticated && !!user,
   });
   const doctor = useDoctorProfile();
-  const router = useRouter();
-
-  const showOnboarding = !doctor && !dashboardLoading;
-
-  const handleStartConsultation = (appointment: any) => {
-    router.push(`/doctor/consultations/session/${appointment.id}`);
-  };
 
   if (authLoading) {
     return (
@@ -56,8 +48,8 @@ export default function DoctorDashboardPage() {
   }
 
   const pendingCount = dashboardData?.stats?.pendingAppointments ?? 0;
-  const todayAppointments = dashboardData?.todayAppointments ?? [];
-  const upcomingAppointments = dashboardData?.upcomingAppointments ?? [];
+  const onboardingStatus = doctor?.onboardingStatus ?? null;
+  const showOnboarding = onboardingStatus != null && onboardingStatus !== 'ACTIVE';
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 px-4 sm:px-6 lg:px-8 py-6">
@@ -76,8 +68,13 @@ export default function DoctorDashboardPage() {
           <Link href="/doctor/appointments">
             <Button size="sm">Appointments</Button>
           </Link>
+          <Link href="/doctor/profile" id="tour-profile-link-dashboard">
+            <Button variant="outline" size="sm">Profile</Button>
+          </Link>
         </div>
       </div>
+
+      <OnboardingWidget user={doctor} show={showOnboarding} isLoading={dashboardLoading} />
 
       {/* Pending Confirmations Banner */}
       {pendingCount > 0 && (
@@ -109,12 +106,6 @@ export default function DoctorDashboardPage() {
         <div className="lg:col-span-2 space-y-6">
           {/* Today's Queue */}
           <PatientQueuePanel />
-
-          {/* Full Schedule Preview */}
-          <SchedulePreview
-            appointments={todayAppointments.length > 0 ? todayAppointments : upcomingAppointments}
-            isLoading={dashboardLoading}
-          />
         </div>
 
         {/* Right: Surgical Pipeline (1 col) */}
