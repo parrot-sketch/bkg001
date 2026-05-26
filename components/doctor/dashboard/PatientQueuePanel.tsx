@@ -5,6 +5,7 @@ import { useStartConsultation } from '@/hooks/doctor/useConsultation';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 function formatQueueStatus(item: any): string {
   const aptStatus = String(item.appointmentStatus ?? '').toUpperCase();
@@ -20,9 +21,15 @@ export function PatientQueuePanel() {
   const { mutate: startConsultation, isPending } = useStartConsultation();
 
   const handleStart = (apt: any) => {
-    startConsultation(apt.id, {
+    const appointmentId = apt.appointmentId;
+    if (!appointmentId) {
+      toast.error('Unable to start consultation: missing appointment');
+      return;
+    }
+
+    startConsultation(appointmentId, {
       onSuccess: () => {
-        router.push(`/doctor/consultations/session/${apt.id}`);
+        router.push(`/doctor/consultations/session/${appointmentId}`);
       },
     });
   };

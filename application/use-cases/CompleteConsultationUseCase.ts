@@ -18,42 +18,12 @@ import { DomainException } from '../../domain/exceptions/DomainException';
 import { ScheduleAppointmentDto } from '../dtos/ScheduleAppointmentDto';
 import db from '@/lib/db';
 import { chargeSheetService } from '@/application/services/ChargeSheetService';
+import { resolveConsultationServiceId } from '@/application/services/billing/resolveConsultationServiceId';
 
 /**
  * Default consultation fee if doctor doesn't have one set
  */
 const DEFAULT_CONSULTATION_FEE = 5000; // Should come from clinic settings
-
-async function resolveConsultationServiceId(): Promise<number> {
-  // Prefer seeded services (works in local + production). Fall back to creating a generic one.
-  const existing =
-    (await db.service.findFirst({
-      where: {
-        is_active: true,
-        OR: [
-          { service_name: 'Consultation - Initial' },
-          { service_name: 'Consultation' },
-          { category: 'Consultation' },
-        ],
-      },
-      orderBy: { id: 'asc' },
-      select: { id: true },
-    })) ?? null;
-
-  if (existing?.id) return existing.id;
-
-  const created = await db.service.create({
-    data: {
-      service_name: 'Consultation',
-      price: 0,
-      category: 'Consultation',
-      is_active: true,
-    },
-    select: { id: true },
-  });
-
-  return created.id;
-}
 
 /**
  * Use Case: CompleteConsultationUseCase
@@ -328,6 +298,40 @@ export class CompleteConsultationUseCase {
                 },
               },
             });
+          } else if (existingPayment.status !== 'PAID') {
+            // Existing payment exists but no billing items were provided at completion time.
+            // If the charge sheet is empty, auto-add the doctor's consultation fee so frontdesk
+            // can collect payment without an extra manual step in the consultations hub.
+            const existingItemsCount = await db.patientBill.count({
+              where: { payment_id: existingPayment.id },
+            });
+
+            if (existingItemsCount === 0) {
+              const doctor = await db.doctor.findUnique({
+                where: { id: appointment.getDoctorId() },
+                select: { consultation_fee: true },
+              });
+              const consultationFee = doctor?.consultation_fee || DEFAULT_CONSULTATION_FEE;
+              const consultationServiceId = await resolveConsultationServiceId();
+
+              await db.payment.update({
+                where: { id: existingPayment.id },
+                data: {
+                  total_amount: consultationFee,
+                  bill_items: {
+                    create: [
+                      {
+                        service_id: consultationServiceId,
+                        service_date: new Date(),
+                        quantity: 1,
+                        unit_cost: consultationFee,
+                        total_cost: consultationFee,
+                      },
+                    ],
+                  },
+                },
+              });
+            }
           }
         } else {
           // No existing payment — create one

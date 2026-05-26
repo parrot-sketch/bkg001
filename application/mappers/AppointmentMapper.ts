@@ -110,6 +110,28 @@ export class AppointmentMapper {
   }
 
   /**
+   * Creates a new Appointment entity with updated doctor ID
+   *
+   * Used when the clinical workflow reassigns an appointment's doctor (e.g. frontdesk queues
+   * a patient to a different doctor and that doctor starts the consult).
+   */
+  static updateDoctor(existing: Appointment, newDoctorId: string): Appointment {
+    return Appointment.create({
+      id: existing.getId(),
+      patientId: existing.getPatientId(),
+      doctorId: newDoctorId,
+      appointmentDate: existing.getAppointmentDate(),
+      time: existing.getTime(),
+      status: existing.getStatus(),
+      type: existing.getType(),
+      note: existing.getNote(),
+      reason: existing.getReason(),
+      createdAt: existing.getCreatedAt(),
+      updatedAt: existing.getUpdatedAt(),
+    });
+  }
+
+  /**
    * Creates a new Appointment entity with updated note
    * 
    * Since Appointment is immutable, we create a new instance with updated values.

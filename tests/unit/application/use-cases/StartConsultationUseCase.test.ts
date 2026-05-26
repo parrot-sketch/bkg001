@@ -16,6 +16,9 @@ vi.mock('@/lib/db', () => ({
       findMany: vi.fn().mockResolvedValue([]),
       update: vi.fn().mockResolvedValue({}),
     },
+    patientQueue: {
+      findFirst: vi.fn().mockResolvedValue(null),
+    },
   },
 }));
 

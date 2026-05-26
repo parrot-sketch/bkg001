@@ -100,7 +100,7 @@ export function ConsultationSessionHeader({
             {patientSidebarCollapsed ? 'Patient' : 'Hide patient'}
           </Button>
         )}
-        {active && (
+        {active && autoSaveStatus === 'error' && (
           <Button
             variant="ghost"
             size="sm"
@@ -109,7 +109,7 @@ export function ConsultationSessionHeader({
             className="h-7 px-2.5 text-xs text-slate-600 hover:text-slate-900"
           >
             {isSaving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-            Save
+            Retry save
           </Button>
         )}
         {active && canComplete && (

@@ -419,17 +419,22 @@ export async function assignPatientToQueue(data: {
     let finalAppointmentId = appointmentId;
     
     if (!appointmentId) {
+      const now = new Date();
       const walkInAppointment = await db.appointment.create({
         data: {
           patient_id: patientId,
           doctor_id: doctorId,
-          appointment_date: new Date(),
-          time: new Date().toTimeString().slice(0, 5),
+          appointment_date: now,
+          time: now.toTimeString().slice(0, 5),
           type: 'Walk-in',
           status: AppointmentStatus.CHECKED_IN, // Start with CHECKED_IN for triage
           source: 'FRONTDESK_SCHEDULED',
-          created_at: new Date(),
-          updated_at: new Date(),
+          checked_in_at: now,
+          checked_in_by: user.userId,
+          status_changed_at: now,
+          status_changed_by: user.userId,
+          created_at: now,
+          updated_at: now,
         },
       });
       finalAppointmentId = walkInAppointment.id;
@@ -438,12 +443,31 @@ export async function assignPatientToQueue(data: {
       // If already READY_FOR_CONSULTATION, keep as is (already triaged)
       const existingAppointment = await db.appointment.findUnique({
         where: { id: appointmentId },
-        select: { status: true },
+        select: { status: true, patient_id: true },
       });
-      if (existingAppointment && existingAppointment.status === AppointmentStatus.CONFIRMED) {
+      if (!existingAppointment) {
+        return { success: false, msg: "Appointment not found" };
+      }
+
+      if (existingAppointment.patient_id !== patientId) {
+        return {
+          success: false,
+          msg: "Appointment does not belong to the selected patient",
+        };
+      }
+
+      const shouldSetCheckedIn = existingAppointment.status === AppointmentStatus.CONFIRMED;
+      if (shouldSetCheckedIn) {
+        const now = new Date();
         await db.appointment.update({
           where: { id: appointmentId },
-          data: { status: AppointmentStatus.CHECKED_IN },
+          data: {
+            status: AppointmentStatus.CHECKED_IN,
+            checked_in_at: now,
+            checked_in_by: user.userId,
+            status_changed_at: now,
+            status_changed_by: user.userId,
+          },
         });
       }
     }

@@ -109,7 +109,7 @@ export class StartConsultationUseCase {
     }
 
     // Step 1: Find appointment
-    const appointment = await this.appointmentRepository.findById(dto.appointmentId);
+    let appointment = await this.appointmentRepository.findById(dto.appointmentId);
 
     if (!appointment) {
       throw new DomainException(`Appointment with ID ${dto.appointmentId} not found`, {
@@ -119,14 +119,38 @@ export class StartConsultationUseCase {
 
     // Step 2: Validate doctor ID matches appointment
     if (appointment.getDoctorId() !== dto.doctorId) {
-      throw new DomainException(
-        `Doctor ${dto.doctorId} is not assigned to appointment ${dto.appointmentId}`,
-        {
-          appointmentId: dto.appointmentId,
-          doctorId: dto.doctorId,
-          assignedDoctorId: appointment.getDoctorId(),
+      // If frontdesk has queued this appointment to the authenticated doctor, allow consult start
+      // and reconcile the appointment's doctor_id for downstream consistency.
+      const queueEntry = await db.patientQueue.findFirst({
+        where: {
+          appointment_id: dto.appointmentId,
+          doctor_id: dto.doctorId,
+          status: { in: ['WAITING', 'IN_CONSULTATION'] },
         },
-      );
+        select: { id: true },
+      });
+
+      if (!queueEntry) {
+        throw new DomainException(
+          `Doctor ${dto.doctorId} is not assigned to appointment ${dto.appointmentId}`,
+          {
+            appointmentId: dto.appointmentId,
+            doctorId: dto.doctorId,
+            assignedDoctorId: appointment.getDoctorId(),
+          },
+        );
+      }
+
+      await db.appointment.update({
+        where: { id: dto.appointmentId },
+        data: {
+          doctor_id: dto.doctorId,
+          status_changed_at: new Date(),
+          status_changed_by: dto.userId,
+        },
+      });
+
+      appointment = ApplicationAppointmentMapper.updateDoctor(appointment, dto.doctorId);
     }
 
     // Step 3: Validate appointment can be started using state transition service

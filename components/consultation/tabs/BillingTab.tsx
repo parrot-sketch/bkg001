@@ -10,6 +10,7 @@ import { InventoryPicker } from '@/components/inventory/InventoryPicker';
 import { ServicePicker } from './ServicePicker';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { apiClient } from '@/lib/api/client';
 
 interface ChargeItem {
   key: string;
@@ -36,6 +37,25 @@ export function BillingTab({ appointmentId, isReadOnly = false }: { appointmentI
   const [hasChanges, setHasChanges] = useState(false);
   const [pickerOpen, setPickerOpen] = useState<'procedure' | 'inventory' | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [consultationServiceId, setConsultationServiceId] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadConsultService() {
+      try {
+        const res = await apiClient.get<{ serviceId: number }>('/services/consultation');
+        if (!cancelled && res.success && res.data?.serviceId) {
+          setConsultationServiceId(res.data.serviceId);
+        }
+      } catch {
+        // Non-blocking — save will still fail fast with a helpful error.
+      }
+    }
+    if (appointmentId) loadConsultService();
+    return () => {
+      cancelled = true;
+    };
+  }, [appointmentId]);
 
   useEffect(() => {
     if (billingData?.payment?.billItems?.length) {
@@ -53,6 +73,9 @@ export function BillingTab({ appointmentId, isReadOnly = false }: { appointmentI
       setDiscount(billingData.payment.discount || 0);
       setIsDirty(false);
       setLastSaved(new Date());
+    } else if (billingData?.appointment && !isDirty && !hasChanges) {
+      // Default consultation fee comes from the doctor's profile (doctor-specific pricing).
+      setConsultationFee(billingData.appointment.consultationFee || 0);
     }
   }, [billingData]);
 
@@ -114,6 +137,10 @@ export function BillingTab({ appointmentId, isReadOnly = false }: { appointmentI
 
   const handleSave = useCallback(async () => {
     if (!appointmentId) return;
+    if (!consultationServiceId) {
+      toast.error('Unable to save: consultation service not available');
+      return;
+    }
     
     const saveFee = consultationFee;
     const saveItems = items;
@@ -122,7 +149,7 @@ export function BillingTab({ appointmentId, isReadOnly = false }: { appointmentI
     const billItems: { serviceId: number; quantity: number; unitCost: number }[] = [];
     
     if (saveFee > 0) {
-      billItems.push({ serviceId: 1, quantity: 1, unitCost: saveFee });
+      billItems.push({ serviceId: consultationServiceId, quantity: 1, unitCost: saveFee });
     }
     
     // Only save service items - inventory items need different API handling
@@ -154,7 +181,7 @@ export function BillingTab({ appointmentId, isReadOnly = false }: { appointmentI
     } catch (error) {
       console.error('[BILLING] Save error:', error);
     }
-  }, [appointmentId, consultationFee, items, discount, saveBilling]);
+  }, [appointmentId, consultationServiceId, consultationFee, items, discount, saveBilling]);
 
   if (billingLoading) {
     return (
