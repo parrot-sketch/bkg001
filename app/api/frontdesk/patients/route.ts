@@ -11,6 +11,8 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, Number(searchParams.get('page')) || 1);
     const limit = Math.min(Math.max(1, Number(searchParams.get('limit')) || 12), 100);
     const search = searchParams.get('q')?.trim() || undefined;
+    const createdToday = searchParams.get('createdToday') === 'true';
+    const createdThisMonth = searchParams.get('createdThisMonth') === 'true';
 
     const ipAddress =
       request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
@@ -19,7 +21,13 @@ export async function GET(request: NextRequest) {
     const userAgent = request.headers.get('user-agent') || undefined;
 
     const result = await container.listPatients.execute(
-      { page, limit, search },
+      { 
+        page, 
+        limit, 
+        search,
+        createdToday,
+        createdThisMonth,
+      },
       { userId: auth.userId, ipAddress, userAgent },
     );
 

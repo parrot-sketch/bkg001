@@ -12,6 +12,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import db from '@/lib/db';
 
 interface HealthCheckResponse {
   status: 'healthy' | 'degraded' | 'unhealthy';
@@ -56,36 +57,21 @@ async function checkDatabase(): Promise<{
   try {
     const dbStartTime = Date.now();
 
-    // Try to query a simple, lightweight table that definitely exists
-    // Using prisma to check database connectivity
-    const { PrismaClient } = await import('@prisma/client');
-    const prisma = new PrismaClient();
+    // Use the singleton Prisma client
+    const count = await db.vendor.count({
+      take: 1, // Don't return data, just test connection
+    });
 
-    try {
-      // Run a simple count query on a lightweight model
-      const count = await prisma.vendor.count({
-        take: 1, // Don't return data, just test connection
-      });
+    const latency = Date.now() - dbStartTime;
 
-      const latency = Date.now() - dbStartTime;
-
-      await prisma.$disconnect();
-
-      return {
-        status: 'ok',
-        latency,
-      };
-    } catch (error) {
-      await prisma.$disconnect().catch(() => {});
-      return {
-        status: 'error',
-        error: error instanceof Error ? error.message : 'Unknown database error',
-      };
-    }
+    return {
+      status: 'ok',
+      latency,
+    };
   } catch (error) {
     return {
       status: 'error',
-      error: error instanceof Error ? error.message : 'Database initialization failed',
+      error: error instanceof Error ? error.message : 'Unknown database error',
     };
   }
 }

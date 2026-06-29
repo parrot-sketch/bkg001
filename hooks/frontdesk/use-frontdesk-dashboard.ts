@@ -1,22 +1,21 @@
 /**
- * Unified Frontdesk Dashboard Hook
+ * Refactored Frontdesk Dashboard Hooks
  * 
- * Single source of truth for all dashboard data.
- * Uses React Query with proper caching to avoid excessive requests.
- * 
- * This hook replaces:
- * - useFrontdeskDashboard (stats only)
- * - useTodaysSchedule
- * - useCheckedInAwaitingAssignment
- * - useLiveQueueBoard
- * 
- * All data is fetched in a single server action call with pre-computed stats.
+ * Provides split, per-section query hooks that isolate cache queries and re-renders.
+ * Uses React Query select options to minimize updates and leverages Next.js unstable_cache
+ * for high-performance server action execution.
  */
 
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
-import { getFrontdeskDashboardData, revalidateFrontdeskDashboard, type FrontdeskDashboardData, type FrontdeskCheckedInPatient, type FrontdeskQueueEntry } from '@/actions/frontdesk/get-dashboard-data';
+import { 
+  getFrontdeskDashboardData, 
+  revalidateFrontdeskDashboard, 
+  type FrontdeskDashboardData, 
+  type FrontdeskCheckedInPatient, 
+  type FrontdeskQueueEntry 
+} from '@/actions/frontdesk/get-dashboard-data';
 import { queryKeys } from '@/lib/constants/queryKeys';
 import { frontdeskApi } from '@/lib/api/frontdesk';
 import { toast } from 'sonner';
@@ -45,70 +44,114 @@ export interface UseFrontdeskDashboardReturn {
   refetch: () => void;
 }
 
-// ─── Selector Hooks ────────────────────────────────────────────
-// These hooks allow components to subscribe to specific parts of the dashboard data
-// without causing re-renders when unrelated parts change
-
-export function useTodaysSchedule() {
-  const { data, isLoading, error } = useFrontdeskDashboard();
-  return {
-    data: data?.todaysSchedule,
-    isLoading,
-    error,
-  };
-}
-
-export function useCheckedInAwaitingAssignment() {
-  const { data, isLoading, error, refetch } = useFrontdeskDashboard();
-  return {
-    data: data?.queue.checkedInAwaitingAssignment,
-    isLoading,
-    error,
-    refetch,
-  };
-}
-
-export function useLiveQueueBoard() {
-  const { data, isLoading, error, refetch } = useFrontdeskDashboard();
-  
-  // Group queue entries by doctor
-  const groupedData = data?.queue.liveQueue.reduce((acc, entry) => {
-    const doctorId = entry.doctorId;
-    if (!acc[doctorId]) {
-      acc[doctorId] = {
-        doctorId,
-        doctorName: entry.doctorName,
-        patients: [],
-      };
-    }
-    acc[doctorId].patients.push(entry);
-    return acc;
-  }, {} as Record<string, { doctorId: string; doctorName: string; patients: typeof data.queue.liveQueue }>);
-  
-  return {
-    data: groupedData ? Object.values(groupedData) : [],
-    isLoading,
-    error,
-    refetch,
-  };
-}
-
-export function useDashboardStats() {
-  const { data, isLoading, error } = useFrontdeskDashboard();
-  return {
-    data: data?.stats,
-    isLoading,
-    error,
-  };
-}
-
 // ─── Constants ────────────────────────────────────────────────────
 
 const STALE_TIME_MS = 30_000; // 30 seconds - aligns with server action cache
 const GC_TIME_MS = 5 * 60 * 1000; // 5 minutes
 const REFETCH_INTERVAL_MS = 120_000; // 2 minutes - appropriate for operational dashboard
 
-// ─── Main Hook ────────────────────────────────────────────────────
+// ─── Individual Section Hooks ─────────────────────────────────────
+
+/**
+ * Hook to subscribe to stats only.
+ */
+export function useDashboardStats() {
+  const { user, isAuthenticated } = useAuth();
+  const isEnabled = isAuthenticated && !!user;
+
+  return useQuery<FrontdeskDashboardData, Error, DashboardStats>({
+    queryKey: [...queryKeys.frontdesk.stats(), user?.id || 'default'] as const,
+    queryFn: getFrontdeskDashboardData,
+    select: (data) => data.stats,
+    enabled: isEnabled,
+    staleTime: STALE_TIME_MS,
+    gcTime: GC_TIME_MS,
+    refetchInterval: REFETCH_INTERVAL_MS,
+    refetchOnWindowFocus: true,
+  });
+}
+
+/**
+ * Hook to subscribe to today's schedule lane lists.
+ */
+export function useTodaysSchedule() {
+  const { user, isAuthenticated } = useAuth();
+  const isEnabled = isAuthenticated && !!user;
+
+  return useQuery<FrontdeskDashboardData, Error, FrontdeskDashboardData['todaysSchedule']>({
+    queryKey: [...queryKeys.frontdesk.todaysSchedule(), user?.id || 'default'] as const,
+    queryFn: getFrontdeskDashboardData,
+    select: (data) => data.todaysSchedule,
+    enabled: isEnabled,
+    staleTime: STALE_TIME_MS,
+    gcTime: GC_TIME_MS,
+    refetchInterval: REFETCH_INTERVAL_MS,
+    refetchOnWindowFocus: true,
+  });
+}
+
+/**
+ * Hook to subscribe to checked-in patients awaiting assignment.
+ */
+export function useCheckedInAwaitingAssignment() {
+  const { user, isAuthenticated } = useAuth();
+  const isEnabled = isAuthenticated && !!user;
+
+  return useQuery<FrontdeskDashboardData, Error, FrontdeskCheckedInPatient[]>({
+    queryKey: [...queryKeys.frontdesk.checkedInAwaitingAssignment(), user?.id || 'default'] as const,
+    queryFn: getFrontdeskDashboardData,
+    select: (data) => data.queue.checkedInAwaitingAssignment,
+    enabled: isEnabled,
+    staleTime: STALE_TIME_MS,
+    gcTime: GC_TIME_MS,
+    refetchInterval: REFETCH_INTERVAL_MS,
+    refetchOnWindowFocus: true,
+  });
+}
+
+/**
+ * Hook to subscribe to the live queue board, returning grouped-by-doctor queue entries.
+ */
+export function useLiveQueueBoard() {
+  const { user, isAuthenticated } = useAuth();
+  const isEnabled = isAuthenticated && !!user;
+
+  const queryResult = useQuery<FrontdeskDashboardData, Error, FrontdeskQueueEntry[]>({
+    queryKey: [...queryKeys.frontdesk.liveQueueBoard(), user?.id || 'default'] as const,
+    queryFn: getFrontdeskDashboardData,
+    select: (data) => data.queue.liveQueue,
+    enabled: isEnabled,
+    staleTime: STALE_TIME_MS,
+    gcTime: GC_TIME_MS,
+    refetchInterval: REFETCH_INTERVAL_MS,
+    refetchOnWindowFocus: true,
+  });
+
+  const groupedData = useMemo(() => {
+    if (!queryResult.data) return [];
+    
+    const acc: Record<string, { doctorId: string; doctorName: string; patients: FrontdeskQueueEntry[] }> = {};
+    queryResult.data.forEach((entry) => {
+      const doctorId = entry.doctorId;
+      if (!acc[doctorId]) {
+        acc[doctorId] = {
+          doctorId,
+          doctorName: entry.doctorName,
+          patients: [],
+        };
+      }
+      acc[doctorId].patients.push(entry);
+    });
+    return Object.values(acc);
+  }, [queryResult.data]);
+
+  return {
+    ...queryResult,
+    data: groupedData,
+  };
+}
+
+// ─── Backward Compatibility / God Hook ────────────────────────────
 
 export function useFrontdeskDashboard(): UseFrontdeskDashboardReturn {
   const { user, isAuthenticated } = useAuth();
@@ -117,28 +160,16 @@ export function useFrontdeskDashboard(): UseFrontdeskDashboardReturn {
 
   const isEnabled = isAuthenticated && !!user;
 
-  // Invalidate client-side cache when auth transitions to authenticated.
-  // React Query's refetchOnMount will handle fresh data fetch automatically.
-  // NOTE: We deliberately do NOT call revalidateFrontdeskDashboard() here —
-  // that Server Action bypasses RQ deduplication and caused 5-7 redundant
-  // POST /frontdesk/dashboard requests on every login.
   useEffect(() => {
     if (isEnabled && !prevEnabledRef.current) {
-      queryClient.invalidateQueries({ queryKey: queryKeys.frontdesk.dashboard() });
+      queryClient.invalidateQueries({ queryKey: ['frontdesk'] });
     }
     prevEnabledRef.current = isEnabled;
   }, [isEnabled, queryClient]);
 
-  const {
-    data,
-    isLoading,
-    error,
-  } = useQuery<FrontdeskDashboardData>({
-    queryKey: queryKeys.frontdesk.dashboard(user?.id),
-    queryFn: async () => {
-      const result = await getFrontdeskDashboardData();
-      return result;
-    },
+  const queryResult = useQuery<FrontdeskDashboardData, Error>({
+    queryKey: [...queryKeys.frontdesk.dashboard(), user?.id || 'default'] as const,
+    queryFn: getFrontdeskDashboardData,
     enabled: isEnabled,
     staleTime: STALE_TIME_MS,
     gcTime: GC_TIME_MS,
@@ -147,13 +178,13 @@ export function useFrontdeskDashboard(): UseFrontdeskDashboardReturn {
   });
 
   const refetch = async (): Promise<void> => {
-    await queryClient.invalidateQueries({ queryKey: queryKeys.frontdesk.dashboard() });
+    await queryClient.invalidateQueries({ queryKey: ['frontdesk'] });
     await revalidateFrontdeskDashboard();
   };
 
   return {
-    data,
-    stats: data?.stats ?? {
+    data: queryResult.data,
+    stats: queryResult.data?.stats ?? {
       expectedPatients: 0,
       checkedInPatients: 0,
       pendingCheckIns: 0,
@@ -161,18 +192,18 @@ export function useFrontdeskDashboard(): UseFrontdeskDashboardReturn {
       completedToday: 0,
       pendingIntakeCount: 0,
     },
-    todaysSchedule: data?.todaysSchedule ?? {
+    todaysSchedule: queryResult.data?.todaysSchedule ?? {
       scheduled: [],
       checkedIn: [],
       inConsultation: [],
       completed: [],
     },
-    queue: data?.queue ?? {
+    queue: queryResult.data?.queue ?? {
       checkedInAwaitingAssignment: [],
       liveQueue: [],
     },
-    isLoading,
-    error: error as Error | null,
+    isLoading: queryResult.isLoading,
+    error: queryResult.error,
     refetch,
   };
 }
@@ -198,52 +229,16 @@ export function useCheckIn() {
 
       return response.data;
     },
-    onMutate: async ({ appointmentId }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.frontdesk.dashboard() });
-
-      const previousData = queryClient.getQueryData<FrontdeskDashboardData>(queryKeys.frontdesk.dashboard());
-
-      if (previousData) {
-        const optimisticData = {
-          ...previousData,
-          stats: {
-            ...previousData.stats,
-            pendingCheckIns: Math.max(0, previousData.stats.pendingCheckIns - 1),
-            checkedInPatients: previousData.stats.checkedInPatients + 1,
-          },
-          todaysSchedule: {
-            ...previousData.todaysSchedule,
-            scheduled: previousData.todaysSchedule.scheduled.filter(
-              (apt) => apt.id !== appointmentId
-            ),
-            checkedIn: [
-              ...previousData.todaysSchedule.checkedIn,
-              ...previousData.todaysSchedule.scheduled.filter(
-                (apt) => apt.id === appointmentId
-              ).map((apt) => ({ ...apt, status: 'CHECKED_IN' as const })),
-            ],
-          },
-        };
-        queryClient.setQueryData<FrontdeskDashboardData>(
-          queryKeys.frontdesk.dashboard(),
-          optimisticData
-        );
-      }
-
-      return { previousData };
+    onMutate: async () => {
+      // Invalidate rather than optimistic update to avoid cross-query key syncing issues on split keys
+      await queryClient.cancelQueries({ queryKey: ['frontdesk'] });
     },
-    onError: (_err, _vars, context) => {
-      if (context?.previousData) {
-        queryClient.setQueryData<FrontdeskDashboardData>(
-          queryKeys.frontdesk.dashboard(),
-          context.previousData
-        );
-      }
+    onError: () => {
       toast.error('Failed to check in patient');
     },
     onSuccess: () => {
       revalidateFrontdeskDashboard();
-      queryClient.invalidateQueries({ queryKey: queryKeys.frontdesk.dashboard() });
+      queryClient.invalidateQueries({ queryKey: ['frontdesk'] });
       queryClient.invalidateQueries({ queryKey: queryKeys.appointments.list() });
       queryClient.invalidateQueries({ queryKey: queryKeys.doctor.appointments() });
       const today = new Date().toISOString().split('T')[0];

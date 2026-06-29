@@ -314,6 +314,7 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
     },
   todayAppointments: todayAppointments.map(a => ({
     id: a.id,
+    doctorId: doctor.id,
     patientId: a.patient_id,
     patient: {
       firstName: a.patient.first_name,
@@ -327,6 +328,7 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
   })),
   upcomingAppointments: upcomingAppointments.map(a => ({
     id: a.id,
+    doctorId: doctor.id,
     patientId: a.patient_id,
     patient: {
       firstName: a.patient.first_name,

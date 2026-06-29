@@ -1,20 +1,15 @@
-import { useState, type ReactNode } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import {
-    CheckCircle,
-    Clock,
-    Loader2,
     Search,
-    Stethoscope,
-    User,
 } from 'lucide-react';
 import { useTodaysSchedule } from '@/hooks/frontdesk/use-frontdesk-dashboard';
 import { FrontdeskAppointment } from '@/actions/frontdesk/get-dashboard-data';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { cn } from '@/lib/utils';
 import { FrontdeskAppointmentCard } from './FrontdeskAppointmentCard';
+import { ReactNode, useState } from 'react';
 
 type ScheduleSectionKey = 'scheduled' | 'checkedIn' | 'inConsultation' | 'completed';
 
@@ -23,52 +18,32 @@ interface ScheduleSectionDefinition {
     title: string;
     description: string;
     emptyMessage: string;
-    icon: typeof Clock;
-    tone: string;
-    borderTone: string;
-    badgeTone: string;
 }
 
 const SCHEDULE_SECTIONS: ScheduleSectionDefinition[] = [
     {
         key: 'scheduled',
-        title: 'Scheduled / Arriving',
-        description: '',
+        title: 'Scheduled',
+        description: 'Expected today',
         emptyMessage: 'No scheduled appointments pending arrival.',
-        icon: Clock,
-        tone: 'bg-slate-100 text-slate-700',
-        borderTone: 'border-slate-200',
-        badgeTone: 'bg-slate-900 text-white border-slate-900',
     },
     {
         key: 'checkedIn',
         title: 'Waiting Room',
-        description: '',
+        description: 'Checked in, awaiting consultation',
         emptyMessage: 'Waiting room is empty.',
-        icon: User,
-        tone: 'bg-amber-50 text-amber-700',
-        borderTone: 'border-amber-200/80',
-        badgeTone: 'bg-amber-50 text-amber-700 border-amber-200',
     },
     {
         key: 'inConsultation',
         title: 'In Consultation',
-        description: '',
+        description: 'Currently with a doctor',
         emptyMessage: 'No active consultations.',
-        icon: Stethoscope,
-        tone: 'bg-emerald-50 text-emerald-700',
-        borderTone: 'border-emerald-200/80',
-        badgeTone: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     },
     {
         key: 'completed',
-        title: 'Completed Today',
-        description: '',
+        title: 'Completed',
+        description: 'Finished today',
         emptyMessage: 'No completed appointments yet.',
-        icon: CheckCircle,
-        tone: 'bg-slate-100 text-slate-600',
-        borderTone: 'border-slate-200',
-        badgeTone: 'bg-slate-100 text-slate-700 border-slate-200',
     },
 ];
 
@@ -87,11 +62,9 @@ function mapScheduleAppointmentToDto(appointment: FrontdeskAppointment): Appoint
 }
 
 export function TodaysSchedule() {
-    // ALL hooks must be called unconditionally at the top
     const { data: schedule, isLoading, error } = useTodaysSchedule();
     const [searchQuery, setSearchQuery] = useState('');
 
-    // Filter function defined before any conditionals
     const filterAppointments = (list: FrontdeskAppointment[] = []) => {
         if (!searchQuery) return list;
         const lowerQuery = searchQuery.toLowerCase();
@@ -101,7 +74,6 @@ export function TodaysSchedule() {
         );
     };
 
-    // Computed values before any early returns
     const scheduled = filterAppointments(schedule?.scheduled ?? []);
     const checkedIn = filterAppointments(schedule?.checkedIn ?? []);
     const inConsultation = filterAppointments(schedule?.inConsultation ?? []);
@@ -117,13 +89,12 @@ export function TodaysSchedule() {
         completed,
     };
 
-    // Early returns AFTER all hooks are called - now React-compliant
     if (isLoading) {
         return (
-            <Card className="h-full min-h-[400px] flex items-center justify-center border-slate-200 shadow-sm">
-                <div className="flex flex-col items-center gap-2 text-slate-500">
-                    <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-                    <p>Loading today's schedule...</p>
+            <Card className="h-full min-h-[400px] flex items-center justify-center border-slate-200 bg-white">
+                <div className="flex flex-col items-center gap-2 text-slate-400">
+                    <Search className="h-8 w-8 animate-pulse text-slate-300" />
+                    <p className="text-sm">Loading today&apos;s schedule...</p>
                 </div>
             </Card>
         );
@@ -131,153 +102,61 @@ export function TodaysSchedule() {
 
     if (error) {
         return (
-            <Card className="h-full min-h-[400px] flex items-center justify-center border-red-200 bg-red-50 shadow-sm">
-                <p className="text-red-600 font-medium">Failed to load schedule. Please try again.</p>
+            <Card className="h-full min-h-[400px] flex items-center justify-center border-slate-200 bg-white">
+                <p className="text-sm text-slate-500">Failed to load schedule.</p>
             </Card>
         );
     }
 
     return (
-        <Card className="border-slate-200 shadow-sm bg-white overflow-hidden rounded-2xl">
-            <CardHeader className="border-b border-slate-100 bg-slate-50/70 px-5 py-5 sm:px-6">
-                <div className="flex flex-col gap-5">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                        <div className="space-y-1">
-                            <CardTitle className="flex items-center gap-2 text-lg sm:text-xl font-semibold tracking-tight text-slate-900">
-                                Today's Schedule
-                            </CardTitle>
-                        </div>
+        <Card className="border border-slate-200 bg-white shadow-sm">
+            <div className="px-5 py-5 sm:px-6 border-b border-slate-100">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="space-y-0.5">
+                        <h2 className="text-base font-semibold text-[#121c1d] tracking-tight">Today&apos;s Schedule</h2>
+                        <p className="text-sm text-slate-500">{totalAppointments} appointments across all stages</p>
+                    </div>
+                    <div className="relative w-full lg:w-64">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Input
+                            placeholder="Search patient or doctor..."
+                            className="w-full rounded-md border-slate-200 bg-white pl-9 text-sm text-slate-700 placeholder:text-slate-400 focus:border-[#0c5d69] focus:ring-[#0c5d69]"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                </div>
+            </div>
 
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center lg:justify-end">
-                            <div className="relative min-w-0 sm:min-w-[260px]">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                                <Input
-                                    placeholder="Search patient or doctor..."
-                                    className="w-full rounded-xl border-slate-200 bg-white pl-9 focus:border-slate-400"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                />
+            <div className="divide-y divide-slate-100">
+                {sections.map((section) => (
+                    <div key={section.key} className="px-5 sm:px-6">
+                        <div className="flex items-center justify-between py-3">
+                            <div>
+                                <h3 className="text-sm font-medium text-[#121c1d]">{section.title}</h3>
+                                <p className="text-xs text-slate-400 mt-0.5">{section.description}</p>
                             </div>
+                            <Badge variant="outline" className="h-6 rounded-md px-2 text-xs font-medium border-slate-200 text-slate-600">
+                                {appointmentMap[section.key].length}
+                            </Badge>
+                        </div>
+                        <div className="pb-4">
+                            {appointmentMap[section.key].length === 0 ? (
+                                <p className="text-xs text-slate-400 py-2">{section.emptyMessage}</p>
+                            ) : (
+                                <div className="space-y-2">
+                                    {appointmentMap[section.key].map((appointment) => (
+                                        <FrontdeskAppointmentCard
+                                            key={appointment.id}
+                                            appointment={mapScheduleAppointmentToDto(appointment)}
+                                        />
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
-
-                    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                        <ScheduleSummaryTile
-                            label="Total"
-                            value={totalAppointments}
-                        />
-                        <ScheduleSummaryTile
-                            label="Scheduled"
-                            value={scheduled.length}
-                        />
-                        <ScheduleSummaryTile
-                            label="Waiting"
-                            value={checkedIn.length}
-                        />
-                        <ScheduleSummaryTile
-                            label="In Progress"
-                            value={inConsultation.length}
-                        />
-                    </div>
-                </div>
-            </CardHeader>
-
-            <CardContent className="p-4 sm:p-5 lg:p-6">
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                    {sections.map((section) => (
-                        <ScheduleLane
-                            key={section.key}
-                            title={section.title}
-                            description={section.description}
-                            count={appointmentMap[section.key].length}
-                            icon={section.icon}
-                            tone={section.tone}
-                            borderTone={section.borderTone}
-                            badgeTone={section.badgeTone}
-                            emptyMessage={section.emptyMessage}
-                        >
-                            {appointmentMap[section.key].map((appointment) => (
-                                <FrontdeskAppointmentCard
-                                    key={appointment.id}
-                                    appointment={mapScheduleAppointmentToDto(appointment)}
-                                />
-                            ))}
-                        </ScheduleLane>
-                    ))}
-                </div>
-            </CardContent>
+                ))}
+            </div>
         </Card>
-    );
-}
-
-function ScheduleSummaryTile({
-    label,
-    value,
-}: {
-    label: string;
-    value: number;
-}) {
-    return (
-        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-            <div className="space-y-1">
-                <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">{label}</p>
-                <p className="text-2xl font-semibold tracking-tight text-slate-900">{value}</p>
-            </div>
-        </div>
-    );
-}
-
-function ScheduleLane({
-    title,
-    description,
-    count,
-    icon: Icon,
-    tone,
-    borderTone,
-    badgeTone,
-    emptyMessage,
-    children,
-}: {
-    title: string;
-    description: string;
-    count: number;
-    icon: typeof Clock;
-    tone: string;
-    borderTone: string;
-    badgeTone: string;
-    emptyMessage: string;
-    children: ReactNode;
-}) {
-    return (
-        <section className={cn('overflow-hidden rounded-2xl border bg-slate-50/40', borderTone)}>
-            <div className="flex items-start justify-between gap-3 border-b border-slate-200/80 px-4 py-4 sm:px-5">
-                <div className="min-w-0">
-                    <div className="flex items-center gap-3">
-                        <div className={cn('flex h-10 w-10 items-center justify-center rounded-xl', tone)}>
-                            <Icon className="h-4 w-4" />
-                        </div>
-                        <div>
-                            <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
-                            {description && <p className="text-xs text-slate-500">{description}</p>}
-                        </div>
-                    </div>
-                </div>
-                <Badge variant="outline" className={cn('shrink-0 rounded-full px-2.5 py-1 text-xs font-medium', badgeTone)}>
-                    {count}
-                </Badge>
-            </div>
-
-            <div className="max-h-[560px] overflow-y-auto p-3 sm:p-4">
-                {count === 0 ? (
-                    <div className="flex min-h-[180px] items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white/70 px-6 text-center">
-                        <p className="text-sm text-slate-500">{emptyMessage}</p>
-                    </div>
-                ) : (
-                    <div className="space-y-3">
-                        {children}
-                    </div>
-                )}
-            </div>
-        </section>
     );
 }

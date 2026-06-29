@@ -148,7 +148,11 @@ export const TOUR_STEPS: TourStep[] = [
     },
 ];
 
+// ─── Constants (module-level for stable references) ─────────────────────────────
+
 const STORAGE_KEY = 'tibaflow_onboarding_tour_step';
+const TOOLTIP_W = 380;
+const TOOLTIP_H = 230;
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
@@ -278,9 +282,6 @@ function computeTooltipPosition(
 
 // ─── Overlay Component ────────────────────────────────────────────────────────
 
-const TOOLTIP_W = 380;
-const TOOLTIP_H = 230; // rough estimate for clamping
-
 interface OverlayProps {
     step: TourStep;
     onNext: () => void;
@@ -291,44 +292,49 @@ interface OverlayProps {
 }
 
 function TourOverlay({ step, onNext, onPrev, onSkip, stepIndex, totalSteps }: OverlayProps) {
-    const [targetRect, setTargetRect] = useState<Rect | null>(null);
-    const [mounted, setMounted] = useState(false);
-    const rafRef = useRef<number | undefined>(undefined);
+  const [targetRect, setTargetRect] = useState<Rect | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const rafRef = useRef<number | undefined>(undefined);
+  const lastUpdateRef = useRef<number>(0);
 
-    // Track the target element position (refresh on scroll/resize)
-    const updateRect = useCallback(() => {
-        if (!step.targetId) {
-            setTargetRect(null);
-            return;
-        }
-        const el = document.getElementById(step.targetId);
-        if (!el) {
-            setTargetRect(null);
-            return;
-        }
-        const r = el.getBoundingClientRect();
-        setTargetRect({ top: r.top, left: r.left, width: r.width, height: r.height });
-    }, [step.targetId]);
+  const updateRect = useCallback(() => {
+    const now = performance.now();
+    // Throttle to 30fps max
+    if (now - lastUpdateRef.current < 33) return;
+    lastUpdateRef.current = now;
 
-    useLayoutEffect(() => {
-        setMounted(true);
-        updateRect();
+    if (!step.targetId) {
+      setTargetRect(null);
+      return;
+    }
+    const el = document.getElementById(step.targetId);
+    if (!el) {
+      setTargetRect(null);
+      return;
+    }
+    const r = el.getBoundingClientRect();
+    setTargetRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+  }, [step.targetId]);
 
-        const tick = () => {
-            updateRect();
-            rafRef.current = requestAnimationFrame(tick);
-        };
-        rafRef.current = requestAnimationFrame(tick);
+  useLayoutEffect(() => {
+    setMounted(true);
+    updateRect();
 
-        window.addEventListener('resize', updateRect);
-        window.addEventListener('scroll', updateRect, true);
+    const tick = () => {
+      updateRect();
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
 
-        return () => {
-            if (rafRef.current) cancelAnimationFrame(rafRef.current);
-            window.removeEventListener('resize', updateRect);
-            window.removeEventListener('scroll', updateRect, true);
-        };
-    }, [updateRect]);
+    window.addEventListener('resize', updateRect);
+    window.addEventListener('scroll', updateRect, true);
+
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      window.removeEventListener('resize', updateRect);
+      window.removeEventListener('scroll', updateRect, true);
+    };
+  }, [updateRect]);
 
     if (!mounted) return null;
 

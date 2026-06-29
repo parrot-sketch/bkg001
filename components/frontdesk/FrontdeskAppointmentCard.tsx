@@ -1,12 +1,5 @@
 'use client';
 
-/**
- * Frontdesk Appointment Card
- *
- * Presentational card for displaying appointment rows with inline actions.
- * Composes: InlineCheckInPanel, StaleConsultationDialog, and business logic helpers.
- */
-
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -32,32 +25,17 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import {
-  Clock,
-  CalendarClock,
-  CheckCircle,
-  CheckCheck,
-  XCircle,
-  AlertTriangle,
-  Stethoscope,
+  ChevronUp,
   MoreVertical,
   ExternalLink,
-  ChevronUp,
+  CheckCheck,
+  XCircle,
 } from 'lucide-react';
-
-// ─── Props ────────────────────────────────────────────────────
 
 interface FrontdeskAppointmentCardProps {
   appointment: AppointmentResponseDto;
   isHighlighted?: boolean;
 }
-
-// ─── Component ────────────────────────────────────────────────
 
 export function FrontdeskAppointmentCard({
   appointment,
@@ -71,7 +49,6 @@ export function FrontdeskAppointmentCard({
   const checkInMutation = useCheckIn();
   const isCheckingIn = checkInMutation.isPending;
 
-  // Highlight animation on mount/navigation
   useEffect(() => {
     if (isHighlighted) {
       setActiveHighlight(true);
@@ -81,12 +58,10 @@ export function FrontdeskAppointmentCard({
     }
   }, [isHighlighted, appointment.id]);
 
-  // Derived state
   const isOverdue = isAppointmentOverdue(appointment);
   const isStaleConsultation = appointment.status === AppointmentStatus.IN_CONSULTATION && isOverdue;
   const checkInStatus = getCheckInEligibility(appointment);
   const config = STATUS_CONFIG[appointment.status as AppointmentStatus] ?? STATUS_CONFIG[AppointmentStatus.PENDING];
-  const StatusIcon = config.icon;
   const { name: patientName, initials: patientInitials } = getPatientDisplay(appointment);
   const isTerminal = isTerminalStatus(appointment.status);
 
@@ -95,127 +70,92 @@ export function FrontdeskAppointmentCard({
       <div
         ref={cardRef}
         className={cn(
-          'group relative bg-white border rounded-xl overflow-hidden transition-all duration-300',
+          'group relative bg-white border border-slate-200 rounded-lg transition-all duration-200',
           checkInOpen
-            ? 'border-slate-300 shadow-md ring-1 ring-slate-200'
+            ? 'border-slate-300 shadow-sm'
             : activeHighlight
-              ? 'bg-emerald-50/80 border-emerald-300 ring-2 ring-emerald-200 ring-offset-2 shadow-md'
+              ? 'border-[#0c5d69] shadow-md bg-slate-50/50'
               : isStaleConsultation
-                ? 'border-amber-300 bg-amber-50/30 hover:shadow-sm'
-                : isTerminal
-                  ? 'border-slate-100 opacity-70 hover:opacity-100'
-                  : 'border-slate-200/60 hover:shadow-sm hover:border-slate-300',
+                ? 'border-amber-200 bg-amber-50/30'
+                : 'border-slate-200 hover:border-slate-300 hover:shadow-sm',
         )}
       >
-        {/* Main Row */}
-        <div className="flex items-stretch min-h-[68px]">
-          <div
-            className={cn(
-              'w-1 shrink-0 transition-colors duration-300',
-              checkInOpen ? 'bg-slate-900' : isStaleConsultation ? 'bg-amber-500' : config.bar,
-            )}
-          />
-
-          <div className="flex flex-1 flex-col sm:flex-row sm:items-center px-3 py-3 gap-3 sm:gap-4">
-            {/* Time + type */}
-            <div className="flex flex-row sm:flex-col items-center sm:items-start gap-2 sm:gap-0.5 sm:min-w-[72px]">
-              <span className="text-base font-bold text-slate-900 leading-tight tabular-nums">
+        <div className="px-3 py-3 sm:px-4 sm:py-3.5">
+          <div className="flex items-start gap-3">
+            <div className="flex flex-col items-center pt-1 shrink-0">
+              <span className="text-sm font-semibold text-[#121c1d] leading-none tabular-nums">
                 {appointment.time}
               </span>
-              <span className="text-[10px] font-medium text-slate-400 capitalize">
-                {appointment.type || 'Consultation'}
-              </span>
             </div>
 
-            {/* Patient & Doctor */}
-            <div className="flex-1 flex items-center gap-3 min-w-0">
-              <div className="h-9 w-9 rounded-full bg-gradient-to-br from-slate-600 to-slate-800 flex items-center justify-center border border-slate-200 shrink-0">
-                {appointment.patient?.img ? (
-                  <img src={appointment.patient.img} alt={patientName} className="h-full w-full rounded-full object-cover" />
-                ) : (
-                  <span className="text-xs font-bold text-white">{patientInitials}</span>
-                )}
-              </div>
-              <div className="flex flex-col min-w-0">
-                <h4 className="text-sm font-semibold text-slate-900 truncate leading-tight">{patientName}</h4>
-                <div className="flex items-center text-xs text-slate-400 gap-1.5 mt-0.5">
-                  <Stethoscope className="h-3 w-3 shrink-0" />
-                  <span className="truncate">{appointment.doctor?.name || 'Unassigned'}</span>
-                  {appointment.patient?.fileNumber && (
-                    <>
-                      <span className="text-slate-200">&bull;</span>
-                      <span className="text-[10px] font-mono">{appointment.patient.fileNumber}</span>
-                    </>
-                  )}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                  <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200 shrink-0 mt-0.5">
+                    <span className="text-[11px] font-semibold text-slate-600">{patientInitials}</span>
+                  </div>
+                  <div className="flex flex-col min-w-0 gap-0.5">
+                    <h4 className="text-sm font-medium text-[#121c1d] truncate leading-tight">{patientName}</h4>
+                    <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                      <span className="truncate">{appointment.doctor?.name || 'Unassigned'}</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Status badge — desktop */}
-            <div className="hidden sm:flex">
-              <StatusBadge config={config} StatusIcon={StatusIcon} />
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-              {/* Status badge — mobile */}
-              <div className="sm:hidden">
-                <StatusBadge config={config} StatusIcon={StatusIcon} />
+                <StatusBadge config={config} />
               </div>
 
-              {/* CTA */}
-              <CardCta
-                appointment={appointment}
-                checkInStatus={checkInStatus}
-                isStaleConsultation={isStaleConsultation}
-                checkInOpen={checkInOpen}
-                isCheckingIn={isCheckingIn}
-                onToggleCheckIn={() => setCheckInOpen((v) => !v)}
-                onOpenResolveDialog={staleDialog.openDialog}
-              />
+              <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-slate-100">
+                <CardCta
+                  appointment={appointment}
+                  checkInStatus={checkInStatus}
+                  isStaleConsultation={isStaleConsultation}
+                  checkInOpen={checkInOpen}
+                  isCheckingIn={isCheckingIn}
+                  onToggleCheckIn={() => setCheckInOpen((v) => !v)}
+                  onOpenResolveDialog={staleDialog.openDialog}
+                />
 
-              {/* Context menu */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-slate-300 hover:text-slate-600 sm:opacity-0 group-hover:opacity-100 transition-opacity rounded-lg"
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={() => router.push(`/frontdesk/appointments/${appointment.id}`)}>
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    View Details
-                  </DropdownMenuItem>
-                  {isStaleConsultation && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => staleDialog.openDialog('complete')}
-                        className="text-emerald-600 focus:text-emerald-600"
-                      >
-                        <CheckCheck className="h-4 w-4 mr-2" />
-                        Mark as Completed
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => staleDialog.openDialog('cancel')}
-                        className="text-red-600 focus:text-red-600"
-                      >
-                        <XCircle className="h-4 w-4 mr-2" />
-                        Cancel Appointment
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem onClick={() => router.push(`/frontdesk/appointments/${appointment.id}`)}>
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      View Details
+                    </DropdownMenuItem>
+                    {isStaleConsultation && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => staleDialog.openDialog('complete')}
+                          className="text-emerald-600 focus:text-emerald-600"
+                        >
+                          <CheckCheck className="h-4 w-4 mr-2" />
+                          Mark as Completed
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => staleDialog.openDialog('cancel')}
+                          className="text-red-600 focus:text-red-600"
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Cancel Appointment
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Inline Check-In Panel */}
         <InlineCheckInPanel
           appointmentId={appointment.id}
           patientName={patientName}
@@ -227,7 +167,6 @@ export function FrontdeskAppointmentCard({
         />
       </div>
 
-      {/* Stale Consultation Dialog */}
       <StaleConsultationDialog
         open={staleDialog.open}
         onOpenChange={staleDialog.onOpenChange}
@@ -239,15 +178,12 @@ export function FrontdeskAppointmentCard({
   );
 }
 
-// ─── Sub-components ───────────────────────────────────────────
-
-function StatusBadge({ config, StatusIcon }: { config: (typeof STATUS_CONFIG)[AppointmentStatus]; StatusIcon: (typeof config)['icon'] }) {
+function StatusBadge({ config }: { config: (typeof STATUS_CONFIG)[AppointmentStatus] }) {
   return (
     <Badge
       variant="outline"
-      className={cn('text-[10px] font-bold py-0.5 px-2.5 border-0 gap-1', config.text, config.bg)}
+      className={cn('h-6 rounded-md px-2 text-[10px] font-medium border-0', config.text, config.bg)}
     >
-      <StatusIcon className="h-3 w-3" />
       {config.label}
     </Badge>
   );
@@ -264,7 +200,6 @@ interface CardCtaProps {
 }
 
 function CardCta({ appointment, checkInStatus, isStaleConsultation, checkInOpen, isCheckingIn, onToggleCheckIn }: CardCtaProps) {
-  // Check-in available
   if (checkInStatus.canCheckIn) {
     return (
       <Button
@@ -272,68 +207,50 @@ function CardCta({ appointment, checkInStatus, isStaleConsultation, checkInOpen,
         disabled={isCheckingIn}
         size="sm"
         className={cn(
-          'h-8 px-3.5 text-xs font-semibold rounded-lg shadow-sm transition-all duration-200',
+          'h-7 px-3 text-xs font-medium rounded-md transition-colors',
           checkInOpen
-            ? 'bg-slate-100 text-slate-600 hover:bg-slate-200 shadow-none'
-            : 'bg-slate-900 hover:bg-slate-800 text-white',
+            ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            : 'bg-[#0c5d69] text-white hover:bg-[#0a4f59]',
         )}
       >
-        {checkInOpen ? (
-          <><ChevronUp className="mr-1 h-3.5 w-3.5" /> Close</>
-        ) : (
-          <><CheckCircle className="mr-1.5 h-3.5 w-3.5" /> Check In</>
-        )}
+        {checkInOpen ? 'Close' : 'Check In'}
       </Button>
     );
   }
 
-  // Check-in available for status but blocked by time/date
   if (canCheckIn(appointment.status as AppointmentStatus) && !checkInStatus.canCheckIn) {
     return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span>
-              <Button disabled size="sm" className="h-8 px-3.5 bg-slate-300 text-slate-500 text-xs font-semibold rounded-lg cursor-not-allowed">
-                <CalendarClock className="mr-1.5 h-3.5 w-3.5" /> Check In
-              </Button>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent side="top" className="max-w-xs">
-            <p className="text-xs font-medium">{checkInStatus.reason}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <Button disabled size="sm" className="h-7 px-3 bg-slate-100 text-slate-400 text-xs font-medium rounded-md cursor-not-allowed">
+        Check In
+      </Button>
     );
   }
 
-  // Already checked in / ready
   if (appointment.status === AppointmentStatus.CHECKED_IN || appointment.status === AppointmentStatus.READY_FOR_CONSULTATION) {
     return (
-      <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100">
-        <CheckCircle className="h-3.5 w-3.5" />
-        <span className="text-[10px] font-bold whitespace-nowrap">
+      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-100 text-slate-600">
+        <span className="h-1.5 w-1.5 rounded-full bg-[#0c5d69]" />
+        <span className="text-[10px] font-medium">
           {appointment.status === AppointmentStatus.READY_FOR_CONSULTATION ? 'Ready for MD' : 'In Waiting'}
         </span>
-      </div>
+      </span>
     );
   }
 
-  // In consultation
   if (appointment.status === AppointmentStatus.IN_CONSULTATION) {
     if (isStaleConsultation) {
       return (
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-100 text-amber-800 border border-amber-200">
-          <AlertTriangle className="h-3.5 w-3.5" />
-          <span className="text-[10px] font-bold whitespace-nowrap">Overdue</span>
-        </div>
+        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-50 text-amber-700 border border-amber-100">
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+          <span className="text-[10px] font-medium">Overdue</span>
+        </span>
       );
     }
     return (
-      <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-50 text-violet-700 border border-violet-100">
-        <Clock className="h-3.5 w-3.5 animate-pulse" />
-        <span className="text-[10px] font-bold whitespace-nowrap">In Progress</span>
-      </div>
+      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-100 text-slate-600">
+        <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-pulse" />
+        <span className="text-[10px] font-medium">In Progress</span>
+      </span>
     );
   }
 

@@ -122,7 +122,7 @@ function FrontdeskAppointmentsContent(): React.ReactElement {
     : null;
 
   return (
-    <div className="space-y-5 animate-in fade-in duration-500">
+    <div className="px-4 sm:px-6 py-4 space-y-5 animate-in fade-in duration-500">
       {patientIdFilter && (
         <PatientContextBanner 
           patientIdFilter={patientIdFilter} 

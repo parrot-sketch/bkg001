@@ -322,6 +322,24 @@ body {
   background: transparent;
 }
 
+/* Scrollbar for content panels - teal themed */
+.custom-scrollbar-light::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar-light::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar-light::-webkit-scrollbar-thumb {
+  background: rgba(12, 93, 105, 0.15);
+  border-radius: 999px;
+}
+
+.custom-scrollbar-light::-webkit-scrollbar-thumb:hover {
+  background: rgba(12, 93, 105, 0.3);
+}
+
 /* Mobile input fixes - ensure inputs are interactive on mobile */
 input[type="text"],
 input[type="email"],

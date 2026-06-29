@@ -3,16 +3,17 @@
 import { Users, CheckCircle, Activity, HeartPulse, Loader2 } from 'lucide-react';
 import { useDoctorStats } from '@/hooks/use-doctor-dashboard';
 import { useRouter } from 'next/navigation';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface DashboardStatCardsProps {
   isLoading: boolean;
 }
 
 const stats = [
-  { key: 'queueLength', label: 'In Queue', href: '#queue' },
-  { key: 'completedConsultationsToday', label: 'Completed Today', href: '/doctor/consultations' },
-  { key: 'activeSurgicalCases', label: 'Active Surgeries', href: '/doctor/surgical-cases' },
-  { key: 'recoveryCases', label: 'In Recovery', href: '/doctor/surgical-cases?status=RECOVERY' },
+  { key: 'queueLength', label: 'In Queue', href: '#queue', icon: Users },
+  { key: 'completedConsultationsToday', label: 'Completed Today', href: '/doctor/consultations', icon: CheckCircle },
+  { key: 'activeSurgicalCases', label: 'Active Surgeries', href: '/doctor/surgical-cases', icon: Activity },
+  { key: 'recoveryCases', label: 'In Recovery', href: '/doctor/surgical-cases?status=RECOVERY', icon: HeartPulse },
 ] as const;
 
 export function DashboardStatCards({ isLoading }: DashboardStatCardsProps) {
@@ -20,8 +21,8 @@ export function DashboardStatCards({ isLoading }: DashboardStatCardsProps) {
   const router = useRouter();
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      {stats.map(({ key, label, href }) => {
+    <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {stats.map(({ key, label, href, icon: Icon }) => {
         const value = data[key as keyof typeof data];
 
         return (
@@ -40,7 +41,7 @@ export function DashboardStatCards({ isLoading }: DashboardStatCardsProps) {
                 <p className="text-[11px] uppercase tracking-wider text-slate-500 font-medium">
                   {label}
                 </p>
-                <p className={`text-3xl font-bold mt-1 ${value === 0 ? 'text-slate-300' : 'text-slate-900'}`}>
+                <p className={`text-3xl font-bold mt-1 ${value === 0 ? 'text-slate-300' : 'text-[#121c1d]'}`}>
                   {value}
                 </p>
               </>
@@ -48,6 +49,6 @@ export function DashboardStatCards({ isLoading }: DashboardStatCardsProps) {
           </button>
         );
       })}
-    </div>
+    </section>
   );
 }

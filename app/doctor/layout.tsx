@@ -50,10 +50,10 @@ export default function DoctorLayout({ children }: DoctorLayoutProps) {
   // ── Guard: loading spinner
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-stone-50">
+      <div className="flex h-screen items-center justify-center bg-[#f0f4f5]">
         <div className="animate-pulse flex flex-col items-center">
-          <div className="h-12 w-12 bg-stone-200 rounded-full mb-4" />
-          <div className="h-4 w-32 bg-stone-100 rounded" />
+          <div className="h-12 w-12 bg-slate-200 rounded-full mb-4" />
+          <div className="h-4 w-32 bg-slate-100 rounded" />
         </div>
       </div>
     );
@@ -68,8 +68,8 @@ export default function DoctorLayout({ children }: DoctorLayoutProps) {
   const isOnboarding = pathname === '/doctor/onboarding';
   if (isOnboarding) {
     return (
-      <div className="flex h-screen overflow-hidden bg-stone-50 w-full">
-        <main className="flex-1 relative overflow-hidden focus:outline-none bg-gradient-to-b from-stone-50/80 via-white to-stone-50/40 overflow-y-auto overscroll-contain scroll-smooth">
+      <div className="flex h-screen overflow-hidden bg-[#f0f4f5] w-full">
+        <main className="flex-1 relative overflow-hidden focus:outline-none bg-[#f0f4f5] overflow-y-auto overscroll-contain scroll-smooth">
           <div className="w-full min-h-full mx-auto px-4 py-6 sm:px-6 lg:px-8">
             {children}
           </div>
@@ -80,7 +80,7 @@ export default function DoctorLayout({ children }: DoctorLayoutProps) {
 
   return (
     <OnboardingTourProvider onboardingStatus={doctor?.onboardingStatus ?? null}>
-      <div className="flex h-screen overflow-hidden bg-stone-50">
+      <div className="flex h-screen overflow-hidden bg-[#f0f4f5]">
         {/* Sidebar */}
         <DoctorSidebar
           isOpen={sidebarOpen}
@@ -96,7 +96,7 @@ export default function DoctorLayout({ children }: DoctorLayoutProps) {
           }
         >
           <DoctorHeader onMenuClick={() => setSidebarOpen(true)} />
-          <main className="flex-1 relative overflow-hidden focus:outline-none bg-gradient-to-b from-stone-50/80 via-white to-stone-50/40 overflow-y-auto overscroll-contain scroll-smooth">
+          <main className="flex-1 relative overflow-hidden focus:outline-none bg-[#f0f4f5] overflow-y-auto overscroll-contain scroll-smooth">
             <div className="w-full min-h-full mx-auto max-w-[1600px] px-4 py-5 sm:px-5 sm:py-6 lg:px-8 lg:py-7 xl:px-10 xl:py-8">
               {children}
             </div>

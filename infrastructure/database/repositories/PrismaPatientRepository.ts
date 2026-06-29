@@ -188,6 +188,11 @@ export class PrismaPatientRepository implements IPatientRepository, IPatientFile
   async findWithFilters(filters: PatientFilters): Promise<PatientListResult> {
     const q = filters.search?.trim();
 
+    // Build date filters
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
     const normalizePhoneVariants = (input: string): string[] => {
       const raw = input.trim();
       if (!raw) return [];
@@ -267,7 +272,26 @@ export class PrismaPatientRepository implements IPatientRepository, IPatientFile
       return { OR: or };
     };
 
-    const where = q ? buildWhere(q) : {};
+    // Build the combined where clause
+    const whereConditions: any[] = [];
+    
+    // Add search filter if provided
+    if (q) {
+      whereConditions.push(buildWhere(q));
+    }
+
+    // Add date filters
+    if (filters.createdToday) {
+      whereConditions.push({ created_at: { gte: startOfToday } });
+    }
+    if (filters.createdThisMonth) {
+      whereConditions.push({ created_at: { gte: startOfMonth } });
+    }
+
+    // Combine conditions with AND
+    const where = whereConditions.length > 0 
+      ? { AND: whereConditions }
+      : {};
 
     const skip = (filters.page - 1) * filters.limit;
 

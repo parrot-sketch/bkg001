@@ -1,12 +1,3 @@
-/**
- * Appointment Card Helpers — Pure business logic for appointment card rendering
- *
- * Extracted from FrontdeskAppointmentCard to separate concerns:
- * - Status configuration/mapping
- * - Overdue detection
- * - Check-in eligibility rules
- */
-
 import { AppointmentStatus, canCheckIn } from '@/domain/enums/AppointmentStatus';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { format, isAfter, startOfDay } from 'date-fns';
@@ -23,8 +14,6 @@ import {
 } from 'lucide-react';
 import type { ComponentType } from 'react';
 
-// ─── Types ────────────────────────────────────────────────────
-
 export interface StatusConfig {
   bar: string;
   text: string;
@@ -40,42 +29,38 @@ export interface CheckInEligibility {
   isPastGracePeriod?: boolean;
 }
 
-// ─── Status Configuration ─────────────────────────────────────
-
 export const STATUS_CONFIG: Record<AppointmentStatus, StatusConfig> = {
   [AppointmentStatus.PENDING]: {
-    bar: 'bg-amber-400', text: 'text-amber-700', bg: 'bg-amber-50', label: 'Pending', icon: Clock,
+    bar: 'bg-slate-300', text: 'text-slate-600', bg: 'bg-slate-50', label: 'Pending', icon: Clock,
   },
   [AppointmentStatus.PENDING_DOCTOR_CONFIRMATION]: {
-    bar: 'bg-indigo-400', text: 'text-indigo-700', bg: 'bg-indigo-50', label: 'Awaiting MD', icon: CalendarClock,
+    bar: 'bg-slate-300', text: 'text-slate-600', bg: 'bg-slate-50', label: 'Awaiting MD', icon: CalendarClock,
   },
   [AppointmentStatus.SCHEDULED]: {
-    bar: 'bg-emerald-500', text: 'text-emerald-700', bg: 'bg-emerald-50', label: 'Scheduled', icon: CheckCircle,
+    bar: 'bg-[#0c5d69]', text: 'text-[#0c5d69]', bg: 'bg-[#e6f0f1]', label: 'Scheduled', icon: CheckCircle,
   },
   [AppointmentStatus.CONFIRMED]: {
-    bar: 'bg-emerald-600', text: 'text-emerald-800', bg: 'bg-emerald-100', label: 'Confirmed', icon: CheckCircle,
+    bar: 'bg-[#0c5d69]', text: 'text-[#0c5d69]', bg: 'bg-[#e6f0f1]', label: 'Confirmed', icon: CheckCircle,
   },
   [AppointmentStatus.COMPLETED]: {
-    bar: 'bg-blue-500', text: 'text-blue-700', bg: 'bg-blue-50', label: 'Completed', icon: CheckCheck,
+    bar: 'bg-slate-300', text: 'text-slate-500', bg: 'bg-slate-50', label: 'Completed', icon: CheckCheck,
   },
   [AppointmentStatus.CANCELLED]: {
     bar: 'bg-slate-300', text: 'text-slate-500', bg: 'bg-slate-50', label: 'Cancelled', icon: XCircle,
   },
   [AppointmentStatus.NO_SHOW]: {
-    bar: 'bg-rose-500', text: 'text-rose-700', bg: 'bg-rose-50', label: 'No Show', icon: AlertTriangle,
+    bar: 'bg-slate-400', text: 'text-slate-600', bg: 'bg-slate-100', label: 'No Show', icon: AlertTriangle,
   },
   [AppointmentStatus.CHECKED_IN]: {
-    bar: 'bg-sky-500', text: 'text-sky-700', bg: 'bg-sky-50', label: 'Checked In', icon: UserCheck,
+    bar: 'bg-[#DFAC0D]', text: 'text-[#78350f]', bg: 'bg-[#fdf6e3]', label: 'Checked In', icon: UserCheck,
   },
   [AppointmentStatus.READY_FOR_CONSULTATION]: {
-    bar: 'bg-teal-500', text: 'text-teal-700', bg: 'bg-teal-50', label: 'Ready', icon: Stethoscope,
+    bar: 'bg-[#DFAC0D]', text: 'text-[#78350f]', bg: 'bg-[#fdf6e3]', label: 'Ready', icon: Stethoscope,
   },
   [AppointmentStatus.IN_CONSULTATION]: {
-    bar: 'bg-violet-500', text: 'text-violet-700', bg: 'bg-violet-50', label: 'In Consultation', icon: Stethoscope,
+    bar: 'bg-slate-400', text: 'text-slate-600', bg: 'bg-slate-50', label: 'In Consultation', icon: Stethoscope,
   },
 };
-
-// ─── Business Logic ───────────────────────────────────────────
 
 export function isAppointmentOverdue(appointment: AppointmentResponseDto): boolean {
   if (

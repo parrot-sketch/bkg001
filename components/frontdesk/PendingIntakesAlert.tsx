@@ -19,10 +19,10 @@ export function PendingIntakesAlert() {
 
   return (
     <Link href="/frontdesk/intake/pending">
-      <Card className="border-slate-200 bg-white shadow-none rounded-none cursor-pointer hover:bg-slate-50 transition-colors hidden sm:block">
+      <Card className="border-l-4 border-l-[#0c5d69] bg-[#e6f0f1] shadow-sm rounded-none cursor-pointer hover:bg-[#dce8ea] transition-colors hidden sm:block">
         <CardContent className="p-3 sm:p-4">
-          <p className="text-xs sm:text-sm font-semibold text-slate-900">Pending intakes</p>
-          <p className="text-[10px] sm:text-xs text-slate-600 mt-0.5">
+          <p className="text-xs sm:text-sm font-bold text-[#121c1d]">Pending intakes</p>
+          <p className="text-[10px] sm:text-xs text-[#0c5d69] mt-0.5 font-medium">
             {stats.pendingIntakeCount} intake{stats.pendingIntakeCount !== 1 ? 's' : ''} awaiting review
           </p>
         </CardContent>

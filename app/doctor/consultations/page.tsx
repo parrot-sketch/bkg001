@@ -45,10 +45,8 @@ export default async function ConsultationsHubPage() {
   const completedConsultations = hubData.success ? hubData.data ?? [] : [];
 
   const mappedWaitingQueue = waitingQueue.map(q => {
-    // Use appointment ID if available and valid, fall back to queue ID only for walk-ins
     const appointmentId = q.appointment?.id;
-    
-    // If no appointment ID exists, this is a data integrity issue - log it
+
     if (!appointmentId) {
       console.warn('[ConsultationsHub] Queue entry missing appointment_id:', {
         queueId: q.id,
@@ -57,9 +55,9 @@ export default async function ConsultationsHubPage() {
         addedAt: q.added_at,
       });
     }
-    
+
     return {
-      id: appointmentId ?? q.id, // Fall back to queue ID only if no appointment exists
+      id: appointmentId ?? q.id,
       patientId: q.patient_id,
       doctorId: q.doctor_id,
       appointmentDate: q.appointment?.appointment_date ?? null,
@@ -78,20 +76,20 @@ export default async function ConsultationsHubPage() {
   });
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">Consultations</h1>
-        <p className="text-xs text-slate-500 mt-0.5">Completed sessions and waiting queue</p>
+    <div className="space-y-5 animate-in fade-in duration-500">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold tracking-tight text-[#121c1d]">Consultations</h1>
+        <p className="text-sm text-slate-500">Completed sessions and waiting queue</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-5 lg:grid-cols-3">
         {/* Completed consultations — 2/3 */}
         <div className="lg:col-span-2">
           <div className="flex items-center gap-2 mb-3">
-            <ClipboardCheck className="h-3.5 w-3.5 text-slate-400" />
-            <h2 className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Completed</h2>
+            <ClipboardCheck className="h-4 w-4 text-[#0c5d69]" />
+            <h2 className="text-sm font-semibold text-[#121c1d]">Completed</h2>
             {completedConsultations.length > 0 && (
-              <span className="text-[10px] text-slate-400 ml-auto">{completedConsultations.length}</span>
+              <span className="text-xs text-slate-400 ml-auto">{completedConsultations.length}</span>
             )}
           </div>
           <Suspense fallback={<Skeleton className="h-[400px] w-full rounded-xl" />}>
@@ -102,13 +100,13 @@ export default async function ConsultationsHubPage() {
         {/* Waiting queue — 1/3 */}
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <Users className="h-3.5 w-3.5 text-slate-400" />
-            <h2 className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Queue</h2>
+            <Users className="h-4 w-4 text-[#0c5d69]" />
+            <h2 className="text-sm font-semibold text-[#121c1d]">Queue</h2>
           </div>
           {waitingQueue.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 border border-slate-200 rounded-xl text-center">
+            <div className="flex flex-col items-center justify-center py-12 border border-slate-200 rounded-xl bg-white text-center">
               <Users className="h-6 w-6 text-slate-300 mb-2" />
-              <p className="text-xs text-slate-500">No patients waiting</p>
+              <p className="text-xs text-slate-400">No patients waiting</p>
             </div>
           ) : (
             <WaitingQueue appointments={mappedWaitingQueue as any[]} />

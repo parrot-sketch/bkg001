@@ -3,11 +3,10 @@
 /**
  * Login Page — Nairobi Sculpt
  *
- * Enterprise-grade, WCAG AA compliant authentication page.
- * Audited, Refactored, and Modularized:
- * - Separated styling and presentation from stateful business logic.
- * - Form state, validation, focus, and API operations managed in useLoginForm hook.
- * - Pure error messages, classification, and URL filters managed in auth-helpers.
+ * Enterprise-grade split-screen authentication.
+ * - Branded left panel on desktop
+ * - Clean auth form on right
+ * - WCAG AA compliant
  */
 
 import { useEffect } from 'react';
@@ -17,22 +16,7 @@ import { useLoginForm } from '@/hooks/auth/useLoginForm';
 import { MSG } from '@/lib/utils/auth-helpers';
 import { cn } from '@/lib/utils';
 
-// ─── Helpers (Aesthetic SVG Icons) ───────────────────────────────────────────
-function LockIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      className="w-10 h-10 text-brand-primary"
-      aria-hidden="true"
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-    </svg>
-  );
-}
-
+// ─── Icons ─────────────────────────────────────────────────────────────────────
 function AlertIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 20 20" fill="currentColor" className={cn('w-4 h-4 shrink-0 mt-0.5', className)} aria-hidden="true">
@@ -74,64 +58,53 @@ export default function LoginPage() {
     emailRef.current?.focus();
   }, [emailRef]);
 
-  // ── Shared input styles ───────────────────────────────────────────────────
+  // ── Input styles (8px grid, modern) ─────────────────────────────────────────
   const inputBase =
-    'block w-full rounded-lg border bg-white px-4 text-[15px] text-slate-900 placeholder-slate-400 ' +
+    'block w-full rounded-xl border bg-white px-4 text-[15px] text-slate-900 placeholder:text-slate-400 ' +
     'outline-none transition-all duration-150 ' +
-    'focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-0 focus-visible:border-brand-primary ' +
+    'focus-visible:ring-2 focus-visible:ring-[#0c5d69] focus-visible:ring-offset-0 ' +
     'disabled:opacity-50 disabled:cursor-not-allowed ' +
-    'h-12'; // 48px meets target minimum
+    'h-12';
 
   const inputNormal = 'border-slate-300 hover:border-slate-400';
-  const inputError  = 'border-red-400 focus-visible:ring-red-400 focus-visible:border-red-500 bg-red-50';
+  const inputError = 'border-red-300 focus-visible:ring-red-400 bg-red-50';
 
-  // Render centered skeleton screen on mount ONLY during initial hydration check
+  // Render loading state during initial hydration
   if (isAuthLoading && !isSubmitting && !isNavigating) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 space-y-6 animate-pulse" aria-hidden="true">
-        <div className="w-16 h-16 rounded-2xl bg-slate-200" />
-        <div className="h-6 w-48 bg-slate-200 rounded" />
-        <div className="h-4 w-64 bg-slate-100 rounded" />
-        <div className="w-full space-y-4 pt-4">
-          <div className="h-12 bg-slate-100 rounded-lg w-full" />
-          <div className="h-12 bg-slate-100 rounded-lg w-full" />
-          <div className="h-12 bg-brand-primary/10 rounded-lg w-full" />
-        </div>
+      <div className="w-full max-w-sm space-y-5" aria-label="Loading authentication">
+        <div className="h-12 w-full bg-slate-200 rounded-xl animate-pulse" />
+        <div className="h-12 w-full bg-slate-200 rounded-xl animate-pulse" />
+        <div className="h-12 w-full bg-[#0c5d69] opacity-20 rounded-xl animate-pulse" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="w-full max-w-sm lg:max-w-md">
 
-      {/* ── Heading ──────────────────────────────────────────────────────── */}
-      <div className="text-center space-y-3">
-        <div className="flex justify-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-primary/8 ring-1 ring-brand-primary/15">
-            <LockIcon />
-          </div>
-        </div>
+      {/* ── Mobile Header ────────────────────────────────────────────────────────── */}
+      <div className="flex lg:hidden items-center justify-center mb-8 gap-3">
+        <img src="/logo.png" alt="Nairobi Sculpt" className="w-10 h-10" />
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-            Sign in to your account
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Enter your credentials to access the clinical system
-          </p>
+          <h1 className="text-lg font-bold text-[#0c5d69] tracking-tight" style={{fontFamily: 'var(--font-playfair), Georgia, serif'}}>Nairobi Sculpt</h1>
+          <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500 font-medium">Aesthetic Centre</p>
         </div>
       </div>
 
-      {/* ── Session-expired banner ────────────────────────────────────────── */}
+      {/* ── Session-expired banner ────────────────────────────────────────────── */}
       {sessionExpired && !error && (
         <div
-          className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+          className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 mb-5"
+          role="status"
+          aria-live="polite"
         >
           <InfoIcon className="text-amber-500" />
           <span>{MSG.SESSION_EXPIRED}</span>
         </div>
       )}
 
-      {/* ── Form ─────────────────────────────────────────────────────────── */}
+      {/* ── Form ────────────────────────────────────────────────────────────────── */}
       <form
         onSubmit={handleSubmit}
         noValidate
@@ -140,10 +113,7 @@ export default function LoginPage() {
       >
         {/* Email */}
         <div className="space-y-1.5">
-          <label
-            htmlFor="email"
-            className="block text-sm font-medium text-slate-700"
-          >
+          <label htmlFor="email" className="block text-sm font-medium text-slate-700">
             Email address
           </label>
           <input
@@ -176,18 +146,15 @@ export default function LoginPage() {
         {/* Password */}
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-slate-700"
-            >
+            <label htmlFor="password" className="block text-sm font-medium text-slate-700">
               Password
             </label>
             <Link
               href="/patient/forgot-password"
               className={cn(
-                'text-xs font-medium text-brand-primary underline-offset-2',
+                'text-xs font-medium text-[#0c5d69] underline-offset-2',
                 'hover:underline focus-visible:underline',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-1 rounded',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0c5d69] focus-visible:ring-offset-1 rounded',
                 'transition-colors',
               )}
             >
@@ -208,11 +175,7 @@ export default function LoginPage() {
             aria-required="true"
             aria-invalid={!!fieldErrors.password}
             aria-describedby={fieldErrors.password ? 'password-error' : undefined}
-            className={cn(
-              inputBase,
-              fieldErrors.password ? inputError : inputNormal,
-              'pr-12', // room for toggle
-            )}
+            className={cn(inputBase, fieldErrors.password ? inputError : inputNormal)}
           />
           {fieldErrors.password && (
             <p id="password-error" role="alert" className="flex items-center gap-1.5 text-xs text-red-600 font-medium">
@@ -222,7 +185,7 @@ export default function LoginPage() {
           )}
         </div>
 
-        {/* ── Form-level error banner ─────────────────────────────────────── */}
+        {/* ── Form-level error banner ────────────────────────────────────────── */}
         {error && (
           <div
             ref={errorRef}
@@ -230,7 +193,7 @@ export default function LoginPage() {
             role="alert"
             aria-live="assertive"
             className={cn(
-              'flex items-start gap-2.5 rounded-lg border px-4 py-3 text-sm font-medium',
+              'flex items-start gap-2.5 rounded-xl border px-4 py-3 text-sm font-medium',
               error.isWarning
                 ? 'border-amber-200 bg-amber-50 text-amber-800'
                 : 'border-red-200 bg-red-50 text-red-700',
@@ -243,37 +206,34 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* ── Submit button ───────────────────────────────────────────────── */}
+        {/* ── Submit button ────────────────────────────────────────────────────── */}
         <button
           type="submit"
           disabled={isDisabled}
           aria-busy={isDisabled}
           aria-label={isDisabled ? 'Signing in, please wait' : 'Sign in'}
           className={cn(
-            'relative w-full h-12 rounded-lg px-6',
-            'bg-brand-primary text-white text-sm font-semibold tracking-wide',
+            'relative w-full h-12 rounded-xl px-6',
+            'bg-[#0c5d69] text-white text-sm font-semibold tracking-wide',
             'transition-all duration-150',
-            'hover:bg-brand-primary/90 active:scale-[0.98]',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2',
+            'hover:bg-[#0a4f59] active:scale-[0.98]',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0c5d69] focus-visible:ring-offset-2',
             'disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100',
             'flex items-center justify-center gap-2.5',
           )}
         >
           {isDisabled && (
-            <span
-              aria-hidden="true"
-              className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin"
-            />
+            <span aria-hidden="true" className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
           )}
           <span>{isDisabled ? 'Signing in…' : 'Sign in'}</span>
         </button>
       </form>
 
-      {/* ── Trust footer ───────────────────────────────────────────────────── */}
-      <div className="pt-1 border-t border-slate-100">
-        <p className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 text-center">
+      {/* ── Security footer ────────────────────────────────────────────────────── */}
+      <div className="pt-6 mt-8 border-t border-slate-200">
+        <p className="flex items-center justify-center gap-1.5 text-[11px] text-slate-500">
           <svg viewBox="0 0 16 16" fill="currentColor" className="w-3 h-3 shrink-0" aria-hidden="true">
-            <path fillRule="evenodd" d="M8 1a3.5 3.5 0 00-3.5 3.5V6H3a1 1 0 00-1 1v7a1 1 0 001 1h10a1 1 0 001-1V7a1 1 0 00-1-1h-1.5V4.5A3.5 3.5 0 008 1zm2.5 5V4.5a2.5 2.5 0 00-5 0V6h5z" clipRule="evenodd"/>
+            <path fillRule="evenodd" d="M8 1a3.5 3.5 0 00-3.5 3.5V6H3a1 1 0 00-1 1v7a1 1 0 001 1h10a1 1 0 001-1v-7a1 1 0 00-1-1h-1.5V4.5A3.5 3.5 0 008 1zm2.5 5V4.5a2.5 2.5 0 00-5 0V6h5z" clipRule="evenodd"/>
           </svg>
           Secured with encrypted session cookies · HIPAA-aligned
         </p>

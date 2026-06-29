@@ -34,6 +34,13 @@ import { ConsultationDocumentViewer } from '@/components/patients/ConsultationDo
 // Re-export
 export { ConsultationDocumentViewer };
 
+// ── Helper Functions ───────────────────────────────────────────────────
+function formatAuthorName(name: string | null | undefined): string {
+  if (!name) return '—';
+  if (name.match(/^(Dr\.?|Dr\s)/i)) return name;
+  return `Dr. ${name}`;
+}
+
 // ── Skeleton loaders ─────────────────────────────────────────────────
 
 export function PatientHeaderSkeleton() {
@@ -207,7 +214,7 @@ export function VisitCard({
         </span>
 
         <span className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-slate-700 truncate">Dr. {visit.doctor?.name || '—'}</p>
+          <p className="text-xs font-semibold text-slate-700 truncate">{formatAuthorName(visit.doctor?.name)}</p>
           {visit.consultation?.chiefComplaint && !expanded && (
             <p className="text-[10px] text-slate-400 truncate max-w-[260px]">
               {visit.consultation.chiefComplaint.replace(/<[^>]*>/g, '')}

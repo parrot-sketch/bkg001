@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 
-// Initialize OpenAI client
-// Ensure OPENAI_API_KEY is set in your .env file
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+// Lazy initialize OpenAI client - only when API key is available
+function getOpenAIClient(): OpenAI | null {
+    if (!process.env.OPENAI_API_KEY) {
+        return null;
+    }
+    return new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+    });
+}
 
 /**
  * API Route: Clinical Dictation (AI-Powered)
@@ -36,20 +40,21 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Check if OpenAI API key is configured
-        if (!process.env.OPENAI_API_KEY) {
-            console.warn('[Dictation] OPENAI_API_KEY not found. Falling back to mock response.');
-            return handleMockResponse(context);
-        }
-
         // 1. Prepare the file for Whisper
         // We convert the Blob to a File object which OpenAI SDK accepts
         const file = new File([audioBlob], 'recording.webm', { type: 'audio/webm' });
 
         console.log(`[Dictation] Processing AI transcription for: ${audioBlob.size} bytes. Context: ${context}`);
 
+        // Lazy initialize OpenAI client
+        const client = getOpenAIClient();
+        if (!client) {
+            console.warn('[Dictation] OPENAI_API_KEY not found. Falling back to mock response.');
+            return handleMockResponse(context);
+        }
+
         // 2. Transcription via OpenAI Whisper
-        const transcription = await openai.audio.transcriptions.create({
+        const transcription = await client.audio.transcriptions.create({
             file: file,
             model: 'whisper-1',
             language: 'en', // Optional: can be auto-detected
@@ -59,7 +64,7 @@ export async function POST(req: NextRequest) {
         console.log(`[Dictation] Raw Transcription: "${rawText.substring(0, 50)}..."`);
 
         // 3. Refinement via GPT-4o (The "AI Medical Scribe")
-        const scribeResponse = await openai.chat.completions.create({
+        const scribeResponse = await client.chat.completions.create({
             model: 'gpt-4o',
             messages: [
                 {

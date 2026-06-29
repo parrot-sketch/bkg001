@@ -16,12 +16,11 @@ export const ProfileImage = ({
   bgColor?: string;
 }) => {
   if (url) {
-    // Extract size from className for sizes attribute
     const sizeMatch = className?.match(/(?:w-|h-|size-)(\d+)/);
     const size = sizeMatch ? parseInt(sizeMatch[1]) : 40;
     
     return (
-      <div className={cn("relative rounded-full overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100", className)}>
+      <div className={cn("relative rounded-full overflow-hidden bg-slate-100", className)}>
         <Image
           src={url}
           alt={name}
@@ -37,10 +36,10 @@ export const ProfileImage = ({
     return (
       <div
         className={cn(
-          "flex md:hidden lg:flex w-10 h-10 rounded-full text-white text-base items-center justify-center font-light",
+          "flex w-10 h-10 rounded-full text-white text-xs items-center justify-center font-medium",
           className
         )}
-        style={{ backgroundColor: bgColor || "#2563eb" }}
+        style={{ backgroundColor: bgColor || "#0c5d69" }}
       >
         <p className={textClassName}>{getInitials(name)}</p>
       </div>

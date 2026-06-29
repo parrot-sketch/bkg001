@@ -112,7 +112,7 @@ function EmptyState({
         <Button
           onClick={() => router.push('/frontdesk/patients?mode=book')}
           size="sm"
-          className="bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl text-xs"
+          className="bg-[#0c5d69] hover:bg-[#0a4f59] text-white rounded-lg text-xs font-medium"
         >
           <Plus className="h-3 w-3 mr-1.5" />
           Book Appointment

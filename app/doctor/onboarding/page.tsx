@@ -46,6 +46,8 @@ import {
 } from '@/components/ui/select';
 import OnboardingLoading from './loading';
 
+import { DoctorOnboardingStatus } from '@/domain/enums/DoctorOnboardingStatus';
+
 type StepId = 1 | 2 | 3 | 4 | 5 | 6;
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];

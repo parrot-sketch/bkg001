@@ -7,6 +7,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -22,6 +23,7 @@ import {
 import { format, formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 import { ConsultationChargeSheetDrawer } from './ConsultationChargeSheetDrawer';
+import { Card, CardContent } from '@/components/ui/card';
 
 interface ConsultationItem {
   id: number;
@@ -68,52 +70,27 @@ export function ConsultationLedger({ consultations }: Props) {
 
   if (consultations.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-lg border border-slate-200 bg-white py-16 text-center shadow-sm">
-        <ClipboardCheck className="mb-2 h-6 w-6 text-slate-300" />
-        <p className="text-sm font-medium text-slate-700">No completed consultations</p>
-        <p className="mt-1 text-xs text-slate-400">Finalized sessions appear here</p>
-      </div>
+      <Card className="border border-slate-200 bg-white">
+        <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+          <ClipboardCheck className="h-6 w-6 text-slate-300 mb-2" />
+          <p className="text-sm font-medium text-[#121c1d]">No completed consultations</p>
+          <p className="mt-1 text-xs text-slate-400">Finalized sessions appear here</p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-      <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[860px]">
-          <thead className="border-b border-slate-200 bg-slate-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">Patient</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">Consultation</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">Completed</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-slate-500">Charges</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-slate-500">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {consultations.map((item) => (
-              <ConsultationTableRow
-                key={item.id}
-                item={item}
-                onOpenChargeSheet={(appointmentId, patientName) =>
-                  setActiveChargeSheet({ appointmentId, patientName })
-                }
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="divide-y divide-slate-100 md:hidden">
-        {consultations.map((item) => (
-          <ConsultationMobileRow
-            key={item.id}
-            item={item}
-            onOpenChargeSheet={(appointmentId, patientName) =>
-              setActiveChargeSheet({ appointmentId, patientName })
-            }
-          />
-        ))}
-      </div>
+    <div className="border border-slate-200 bg-white rounded-xl overflow-hidden divide-y divide-slate-100">
+      {consultations.map((item) => (
+        <ConsultationRow
+          key={item.id}
+          item={item}
+          onOpenChargeSheet={(appointmentId, patientName) =>
+            setActiveChargeSheet({ appointmentId, patientName })
+          }
+        />
+      ))}
 
       {activeChargeSheet && (
         <ConsultationChargeSheetDrawer
@@ -125,6 +102,134 @@ export function ConsultationLedger({ consultations }: Props) {
           patientName={activeChargeSheet.patientName}
         />
       )}
+    </div>
+  );
+}
+
+function ConsultationRow({
+  item,
+  onOpenChargeSheet,
+}: {
+  item: ConsultationItem;
+  onOpenChargeSheet: (appointmentId: number, patientName: string) => void;
+}) {
+  const {
+    patient,
+    patientName,
+    firstName,
+    lastName,
+    fileNumber,
+    completedTime,
+    completedAgo,
+    duration,
+    appointmentType,
+    hasSurgicalCase,
+    hasCharges,
+  } = getConsultationRowMeta(item);
+
+  return (
+    <div className="flex items-center justify-between gap-4 px-4 py-3.5 hover:bg-slate-50/50 transition-colors">
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
+          <span className="text-xs font-semibold text-slate-600">
+            {firstName[0]}{lastName[0]}
+          </span>
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-[#121c1d] truncate">{patientName}</p>
+          <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+            <span className="font-mono">{fileNumber || 'No file #'}</span>
+            <span className="text-slate-200">.</span>
+            <span>{appointmentType}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="hidden md:flex items-center gap-6 shrink-0">
+        <div className="text-right">
+          <p className="text-sm font-medium text-[#121c1d]">{completedTime}</p>
+          {duration != null && (
+            <p className="text-xs text-slate-400">{duration} min</p>
+          )}
+        </div>
+
+        <div className="w-32">
+          {hasCharges ? (
+            <div>
+              <p className="text-xs font-medium text-emerald-700">Charged</p>
+              <p className="text-[10px] text-slate-400">Ready for review</p>
+            </div>
+          ) : (
+            <div>
+              <p className="text-xs font-medium text-slate-500">No charges</p>
+              <p className="text-[10px] text-slate-400">Add fee or items</p>
+            </div>
+          )}
+        </div>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-600">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            {item.appointment?.id && (
+              <DropdownMenuItem onClick={() => onOpenChargeSheet(item.appointment!.id!, patientName)}>
+                <Banknote className="h-4 w-4 mr-2 text-emerald-600" />
+                Charge Sheet
+              </DropdownMenuItem>
+            )}
+            {hasSurgicalCase && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href={`/doctor/surgical-cases/${item.id}`}>
+                    <Scissors className="h-4 w-4 mr-2 text-slate-400" />
+                    Surgical Case
+                  </Link>
+                </DropdownMenuItem>
+              </>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href={`/doctor/consultations/${item.id}`}>
+                <Eye className="h-4 w-4 mr-2 text-slate-400" />
+                View Record
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <div className="md:hidden flex items-center gap-2">
+        {hasCharges ? (
+          <span className="text-xs font-medium text-emerald-700">Charged</span>
+        ) : (
+          <span className="text-xs text-slate-400">No charges</span>
+        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400">
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            {item.appointment?.id && (
+              <DropdownMenuItem onClick={() => onOpenChargeSheet(item.appointment!.id!, patientName)}>
+                <Banknote className="h-4 w-4 mr-2 text-emerald-600" />
+                Charge Sheet
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem asChild>
+              <Link href={`/doctor/consultations/${item.id}`}>
+                <Eye className="h-4 w-4 mr-2 text-slate-400" />
+                View Record
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   );
 }
@@ -159,215 +264,4 @@ function getConsultationRowMeta(item: ConsultationItem) {
     hasSurgicalCase,
     hasCharges,
   };
-}
-
-function ConsultationTableRow({
-  item,
-  onOpenChargeSheet,
-}: {
-  item: ConsultationItem;
-  onOpenChargeSheet: (appointmentId: number, patientName: string) => void;
-}) {
-  const {
-    patient,
-    patientName,
-    firstName,
-    lastName,
-    fileNumber,
-    completedTime,
-    completedAgo,
-    duration,
-    appointmentType,
-    hasSurgicalCase,
-    hasCharges,
-  } = getConsultationRowMeta(item);
-
-  return (
-    <tr className="transition-colors hover:bg-slate-50/70">
-      <td className="px-4 py-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">
-            {firstName[0]}{lastName[0]}
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-slate-900">{patientName}</p>
-            <p className="text-xs font-mono text-slate-500">{fileNumber || 'No file number'}</p>
-          </div>
-        </div>
-      </td>
-      <td className="px-4 py-3">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="border-slate-200 bg-white text-[10px] font-normal text-slate-500 uppercase tracking-wider">
-              {appointmentType}
-            </Badge>
-            {hasSurgicalCase && (
-              <Badge className="border border-emerald-200 bg-emerald-50 text-[10px] font-medium text-emerald-700 uppercase tracking-wider">
-                Surgical Case
-              </Badge>
-            )}
-          </div>
-          <p className="text-xs text-slate-500">Consultation ID #{item.id}</p>
-        </div>
-      </td>
-      <td className="px-4 py-3">
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-slate-800">{completedTime}</p>
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            {duration != null && (
-              <span className="inline-flex items-center gap-1">
-                <Clock3 className="h-3 w-3" />
-                {duration} min
-              </span>
-            )}
-            {completedAgo && <span>{completedAgo}</span>}
-          </div>
-        </div>
-      </td>
-      <td className="px-4 py-3">
-        {hasCharges ? (
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-emerald-700">Charge sheet added</p>
-            <p className="text-xs text-slate-500">Ready for updates or final review</p>
-          </div>
-        ) : (
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-slate-700">No charges yet</p>
-            <p className="text-xs text-slate-500">Add consultation fee or billable items</p>
-          </div>
-        )}
-      </td>
-      <td className="px-4 py-3">
-        <div className="flex items-center justify-end gap-2">
-          {item.appointment?.id && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => onOpenChargeSheet(item.appointment!.id!, patientName)}
-            >
-              <Banknote className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
-              Charge Sheet
-            </Button>
-          )}
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 w-7 p-0 text-slate-400 hover:text-slate-700"
-              >
-                <MoreVertical className="h-3.5 w-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              {item.appointment?.id && (
-                <DropdownMenuItem
-                  onClick={() => onOpenChargeSheet(item.appointment!.id!, patientName)}
-                  className="cursor-pointer font-medium text-slate-700"
-                >
-                  <Banknote className="mr-2 h-3.5 w-3.5 text-emerald-600" />
-                  Charge Sheet
-                </DropdownMenuItem>
-              )}
-
-              {hasSurgicalCase && (
-                <DropdownMenuItem asChild className="cursor-pointer">
-                  <Link href={`/doctor/surgical-cases/${item.id}`}>
-                    <Scissors className="mr-2 h-3.5 w-3.5 text-slate-400" />
-                    View Surgical Case
-                  </Link>
-                </DropdownMenuItem>
-              )}
-
-              <DropdownMenuItem asChild className="cursor-pointer">
-                <Link
-                  href={`/doctor/appointments/new?patientId=${patient?.id}&type=Follow-up&source=DOCTOR_FOLLOW_UP&parentConsultationId=${item.id}&parentAppointmentId=${item.appointment?.id}`}
-                >
-                  <Calendar className="mr-2 h-3.5 w-3.5 text-slate-400" />
-                  Schedule Follow-up
-                </Link>
-              </DropdownMenuItem>
-
-              <DropdownMenuItem asChild className="cursor-pointer">
-                <Link href={`/doctor/consultations/${item.id}`}>
-                  <Eye className="mr-2 h-3.5 w-3.5 text-slate-400" />
-                  View Record
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </td>
-    </tr>
-  );
-}
-
-function ConsultationMobileRow({
-  item,
-  onOpenChargeSheet,
-}: {
-  item: ConsultationItem;
-  onOpenChargeSheet: (appointmentId: number, patientName: string) => void;
-}) {
-  const {
-    patientName,
-    fileNumber,
-    completedTime,
-    completedAgo,
-    appointmentType,
-    hasCharges,
-  } = getConsultationRowMeta(item);
-
-  return (
-    <div className="space-y-3 p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-slate-900">{patientName}</p>
-          <p className="text-xs font-mono text-slate-500">{fileNumber || 'No file number'}</p>
-        </div>
-        <Badge variant="outline" className="border-slate-200 bg-white text-[10px] font-normal text-slate-500 uppercase tracking-wider">
-          {appointmentType}
-        </Badge>
-      </div>
-
-      <div className="flex items-center gap-3 text-xs text-slate-500">
-        <span className="inline-flex items-center gap-1">
-          <Clock3 className="h-3 w-3" />
-          {completedTime}
-        </span>
-        {completedAgo && <span>{completedAgo}</span>}
-      </div>
-
-      <div className="rounded-xl bg-slate-50 p-3">
-        <p className="text-xs font-medium text-slate-700">
-          {hasCharges ? 'Charge sheet added' : 'No charges yet'}
-        </p>
-        <p className="mt-1 text-xs text-slate-500">
-          {hasCharges ? 'You can reopen and adjust the bill.' : 'Append consultation fees or billable items.'}
-        </p>
-      </div>
-
-      <div className="flex gap-2">
-        {item.appointment?.id && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1 border-slate-200"
-            onClick={() => onOpenChargeSheet(item.appointment!.id!, patientName)}
-          >
-            <Banknote className="mr-1.5 h-3.5 w-3.5 text-emerald-600" />
-            Charge Sheet
-          </Button>
-        )}
-        <Button asChild variant="outline" size="sm" className="flex-1 border-slate-200">
-          <Link href={`/doctor/consultations/${item.id}`}>
-            <FileText className="mr-1.5 h-3.5 w-3.5" />
-            View Record
-          </Link>
-        </Button>
-      </div>
-    </div>
-  );
 }

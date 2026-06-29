@@ -1,19 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { Activity, ArrowRight, Info, Sparkles, X } from 'lucide-react';
+import { Activity, ArrowRight, Info, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useDoctorProfile } from '@/hooks/use-doctor-dashboard';
 import { useOnboardingTour } from '@/components/doctor/onboarding-tour/OnboardingTourContext';
 
 interface OnboardingWidgetProps {
-  user: any;
   show: boolean;
   isLoading: boolean;
 }
 
-export function OnboardingWidget({ user, show, isLoading }: OnboardingWidgetProps) {
+export function OnboardingWidget({ show, isLoading }: OnboardingWidgetProps) {
+  const doctor = useDoctorProfile();
   const { resumeTour, isActive, isFirstTime } = useOnboardingTour();
   const [dismissed, setDismissed] = useState(false);
 
@@ -21,30 +21,22 @@ export function OnboardingWidget({ user, show, isLoading }: OnboardingWidgetProp
 
   return (
     <TooltipProvider>
-      <div className="relative rounded-2xl border border-indigo-100 bg-gradient-to-br from-white via-indigo-50/30 to-white p-4 shadow-sm overflow-hidden">
-        {/* Subtle decorative glow */}
-        <div
-          className="pointer-events-none absolute -top-6 -right-6 h-24 w-24 rounded-full bg-indigo-400/10 blur-2xl"
-          aria-hidden
-        />
-
+      <div className="relative rounded-xl border border-[#0c5d69]/10 bg-white p-4 shadow-sm overflow-hidden">
         <div className="flex items-start gap-3">
-          {/* Icon */}
-          <div className="mt-0.5 h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-600 to-indigo-700 text-white flex items-center justify-center shrink-0 shadow-sm">
-            <Activity className="h-5 w-5" />
+          <div className="mt-0.5 h-9 w-9 rounded-lg bg-[#e6f0f1] flex items-center justify-center shrink-0">
+            <Activity className="h-5 w-5 text-[#0c5d69]" />
           </div>
 
-          {/* Content */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-sm font-semibold text-slate-900">
+              <h2 className="text-sm font-semibold text-[#121c1d]">
                 {isFirstTime ? 'Start account setup' : 'Finish account setup'}
               </h2>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    className="inline-flex h-6 w-6 items-center justify-center rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                    className="inline-flex h-6 w-6 items-center justify-center rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
                     aria-label="Onboarding help"
                   >
                     <Info className="h-3.5 w-3.5" />
@@ -56,11 +48,10 @@ export function OnboardingWidget({ user, show, isLoading }: OnboardingWidgetProp
               </Tooltip>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Hi Dr. {user?.firstName || 'Doctor'} — {isFirstTime ? 'let’s get your profile and schedule set up.' : 'complete your profile and schedule to activate your account.'}
+              Hi Dr. {doctor?.firstName || 'Doctor'} — {isFirstTime ? 'let\'s get your profile and schedule set up.' : 'complete your profile and schedule to activate your account.'}
             </p>
           </div>
 
-          {/* Dismiss */}
           <button
             type="button"
             onClick={() => setDismissed(true)}
@@ -71,17 +62,15 @@ export function OnboardingWidget({ user, show, isLoading }: OnboardingWidgetProp
           </button>
         </div>
 
-        {/* Action row */}
         <div className="flex items-center gap-2 mt-3 pl-12">
-          {/* Primary: launch the guided tour */}
           {!isActive && (
             <Button
               size="sm"
               onClick={resumeTour}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-200 text-xs h-8 px-3 gap-1.5"
+              className="bg-[#0c5d69] hover:bg-[#0a4f59] text-white shadow-sm text-xs h-8 px-3 gap-1.5"
             >
-              <Sparkles className="h-3.5 w-3.5" />
               {isFirstTime ? 'Start Setup' : 'Resume Setup'}
+              <ArrowRight className="h-3.5 w-3.5" />
             </Button>
           )}
         </div>

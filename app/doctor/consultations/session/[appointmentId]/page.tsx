@@ -1,29 +1,7 @@
 'use client';
 
-/**
- * Consultation Session Page
- * 
- * Premium clinical workstation layout — responsive and balanced.
- * 
- * Desktop (≥1024px):
- * ┌──────────────────────────────────────────────────────────────────────┐
- * │                          HEADER                                      │
- * ├──────────┬──────────────────────────────────────────┬────────────────┤
- * │ PATIENT  │              WORKSPACE                   │    QUEUE       │
- * │ SIDEBAR  │  (Step-based notes editor)               │  (Collapsible) │
- * │  280px   │                                          │    260px       │
- * └──────────┴──────────────────────────────────────────┴────────────────┘
- * 
- * Tablet (768–1023px):
- * Sidebar collapses, queue hidden by default.
- * 
- * Mobile (<768px):
- * Full-width workspace only. Sidebar & queue as overlays.
- * 
- * Route: /doctor/consultations/session/[appointmentId]
- */
 
-import { use, Suspense, useState, useCallback, useEffect } from 'react';
+import { use, Suspense, useState, useCallback, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { ConsultationProvider, useConsultationContext } from '@/contexts/ConsultationContext';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -31,9 +9,21 @@ import { Button } from '@/components/ui/button';
 import { apiClient } from '@/lib/api/client';
 import { useAuth } from '@/hooks/patient/useAuth';
 import Link from 'next/link';
-import { Loader2 } from 'lucide-react';
+import { Loader2, PanelLeft, PanelRight } from 'lucide-react';
 import { Role } from '@/domain/enums/Role';
 import { cn } from '@/lib/utils';
+
+// ============================================================================
+// BRAND TOKENS
+// ============================================================================
+
+const BRAND = {
+  primary: '#0c5d69',      // Teal - main brand color
+  primaryLight: '#e6f0f1', // Light teal - backgrounds
+  primaryDark: '#0a4f59',  // Darker teal - hover states
+  border: 'border-[#0c5d69]/15',
+  borderStrong: 'border-[#0c5d69]/25',
+};
 
 // ============================================================================
 // LAZY LOADED COMPONENTS
@@ -84,9 +74,6 @@ const CompleteConsultationDialog = dynamic(
   { ssr: false }
 );
 
-// ============================================================================
-// SKELETON COMPONENTS
-// ============================================================================
 
 function HeaderSkeleton() {
   return (
@@ -157,8 +144,8 @@ function LoadingState() {
     <div className="flex h-screen items-center justify-center bg-slate-50">
       <div className="text-center space-y-4">
         <div className="relative">
-          <div className="h-14 w-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto">
-            <Loader2 className="h-7 w-7 animate-spin text-slate-400" />
+          <div className="h-14 w-14 rounded-2xl bg-white border border-slate-200 flex items-center justify-center mx-auto">
+            <Loader2 className="h-7 w-7 animate-spin" style={{ color: BRAND.primary }} />
           </div>
         </div>
         <div>
@@ -176,15 +163,15 @@ function NoPatientState({ waitingQueue, onRefresh, isRefreshing }: {
   isRefreshing?: boolean;
 }) {
   return (
-    <div className="flex flex-col h-screen bg-white">
-      {/* Simple header */}
-      <div className="h-16 border-b border-slate-200 flex items-center justify-center px-4">
+    <div className="flex flex-col h-screen bg-slate-50/30">
+      {/* Simple header with teal accent */}
+      <div className="h-16 border-b border-slate-200 flex items-center justify-center px-4 bg-white">
         <h1 className="text-base font-semibold text-slate-900">Consultation room</h1>
       </div>
 
       {/* Main content area - centered message */}
       <div className="flex-1 flex flex-col items-center justify-center p-6">
-        <div className="text-center max-w-sm border border-slate-200 bg-white p-6">
+        <div className="text-center max-w-sm border border-slate-200 bg-white p-8 rounded-xl shadow-sm">
           <h2 className="text-base font-semibold text-slate-900 mb-2">Waiting for patient</h2>
           <p className="text-sm text-slate-600 mb-4">
             {waitingQueue.length > 0 
@@ -317,38 +304,44 @@ function ConsultationSessionContent() {
         />
       </Suspense>
 
-      {/* Main Layout — 3 columns */}
+{/* Main Layout — 3 columns */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left: Patient Info (collapsible) */}
+        {/* Left: Patient Info (collapsible) - teal themed */}
         <div
           className={cn(
             'bg-white border-r border-slate-200 shrink-0 hidden lg:flex flex-col overflow-hidden transition-[width] duration-200 ease-out',
-            isPatientSidebarCollapsed ? 'w-9' : 'w-[280px]',
+            isPatientSidebarCollapsed ? 'w-14' : 'w-[280px]',
           )}
         >
           {isPatientSidebarCollapsed ? (
             <button
               type="button"
               onClick={() => setIsPatientSidebarCollapsed(false)}
-              className="h-full w-full flex items-center justify-center text-[10px] font-semibold text-slate-500 hover:text-slate-900"
+              className="h-full w-full flex flex-col items-center justify-center bg-slate-50/50 hover:bg-slate-100 transition-colors group"
               aria-label="Open patient panel"
-              title="Patient"
+              title="Open patient panel"
             >
-              <span className="[writing-mode:vertical-rl] uppercase tracking-[0.2em]">Patient</span>
+              <PanelRight className="h-5 w-5 text-slate-600 group-hover:text-slate-900 mb-1" />
+              <span className="text-[10px] font-semibold text-slate-600 uppercase tracking-[0.1em]">
+                Patient
+              </span>
             </button>
           ) : (
             <div className="flex h-full flex-col">
-              <div className="flex items-center justify-between px-3 py-2 border-b border-slate-200">
+              {/* Panel header with close button */}
+              <div className="flex items-center justify-between px-3 py-2 border-b border-slate-200 bg-slate-50/50">
                 <span className="text-xs font-semibold text-slate-700">Patient</span>
                 <button
                   type="button"
                   onClick={() => setIsPatientSidebarCollapsed(true)}
-                  className="text-xs text-slate-500 hover:text-slate-900"
+                  className="p-1 rounded hover:bg-slate-200 text-slate-500 hover:text-slate-900 transition-colors"
+                  aria-label="Close patient panel"
                 >
-                  Hide
+                  <PanelLeft className="h-4 w-4" />
                 </button>
               </div>
-              <div className="flex-1 overflow-hidden">
+              {/* Independent scroll container */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar-light">
                 <PatientInfoSidebar
                   patient={patient}
                   appointment={appointment}
@@ -406,10 +399,6 @@ function ConsultationSessionContent() {
     </div>
   );
 }
-
-// ============================================================================
-// PAGE COMPONENT
-// ============================================================================
 
 interface PageProps {
   params: Promise<{ appointmentId: string }>;

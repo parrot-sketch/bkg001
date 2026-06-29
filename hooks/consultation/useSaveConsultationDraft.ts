@@ -63,7 +63,7 @@ export function useSaveConsultationDraft() {
             outcomeType: newDraft.outcomeType ?? previousConsultation.outcomeType,
             patientDecision: newDraft.patientDecision ?? previousConsultation.patientDecision,
             updatedAt: new Date(), // Optimistic timestamp
-          }
+          } as ConsultationResponseDto
         );
       }
 

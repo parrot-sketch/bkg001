@@ -1,40 +1,80 @@
-'use client';
-
-/**
- * DashboardPipelineStats
- *
- * Self-contained container — owns its own data hook.
- * If this section fails to load, the rest of the dashboard is completely unaffected.
- */
-
-import { PipelineCard } from './PipelineCard';
+import { UserCheck, Users, UserPlus, Stethoscope } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+import Link from 'next/link';
 import { useDashboardStats } from '@/hooks/frontdesk/use-frontdesk-dashboard';
+
+const iconMap = {
+  'Arriving Today':   UserPlus,
+  'In Waiting Room':  Users,
+  'In Consultation':  Stethoscope,
+  'Completed Today':  UserCheck,
+} as const;
 
 export function DashboardPipelineStats() {
   const { data: stats, isLoading, error } = useDashboardStats();
 
-  // On error, render silent zero-state cards — never kill the layout
   const s = error ? null : stats;
 
+  const today = new Date().toISOString().split('T')[0];
+
   const pipelineData = [
-    { label: 'Arriving Today',   value: s?.pendingCheckIns   ?? 0, icon: undefined, variant: undefined },
-    { label: 'In Waiting Room',  value: s?.checkedInPatients ?? 0, icon: undefined, variant: undefined },
-    { label: 'In Consultation',  value: s?.inConsultation    ?? 0, icon: undefined, variant: undefined },
-    { label: 'Completed Today',  value: s?.completedToday    ?? 0, icon: undefined, variant: 'accent' as const },
+    {
+      label: 'Arriving Today',
+      value: s?.pendingCheckIns   ?? 0,
+      href: `/frontdesk/appointments?date=${today}`,
+    },
+    {
+      label: 'In Waiting Room',
+      value: s?.checkedInPatients ?? 0,
+      href: `/frontdesk/appointments?date=${today}&status=CHECKED_IN`,
+    },
+    {
+      label: 'In Consultation',
+      value: s?.inConsultation    ?? 0,
+      href: `/frontdesk/appointments?date=${today}&status=IN_CONSULTATION`,
+    },
+    {
+      label: 'Completed Today',
+      value: s?.completedToday    ?? 0,
+      href: `/frontdesk/appointments?date=${today}&status=COMPLETED`,
+    },
   ] as const;
 
   return (
-    <section className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
-      {pipelineData.map((item) => (
-        <PipelineCard
-          key={item.label}
-          label={item.label}
-          value={item.value}
-          icon={item.icon}
-          variant={item.variant}
-          isLoading={isLoading}
-        />
-      ))}
+    <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      {pipelineData.map((item) => {
+        const Icon = iconMap[item.label];
+
+        return (
+          <Link
+            key={item.label}
+            href={item.href}
+            className="group block"
+          >
+            <Card className="h-full border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md hover:border-slate-300">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 pt-3 px-3">
+                <CardTitle className="text-xs font-medium text-slate-500">
+                  {item.label}
+                </CardTitle>
+                <div className="flex size-7 items-center justify-center rounded-md bg-slate-50 text-slate-400">
+                  <Icon className="size-3.5" />
+                </div>
+              </CardHeader>
+              <CardContent className="px-3 pb-3 pt-0">
+                <div className="flex items-end justify-between">
+                  <span className="text-2xl font-semibold tabular-nums leading-none tracking-tight text-[#121c1d]">
+                    {isLoading ? '—' : item.value}
+                  </span>
+                  <span className="text-xs text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                    View
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        );
+      })}
     </section>
   );
 }

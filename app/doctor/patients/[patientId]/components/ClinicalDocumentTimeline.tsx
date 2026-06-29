@@ -253,7 +253,14 @@ export function ClinicalDocumentTimeline({ patientId, visits }: ClinicalDocument
   );
 }
 
-// ─── Note Card ────────────────────────────────────────────────
+// ─── Helper Functions ─────────────────────────────────────────────────
+function formatAuthorName(name: string | null | undefined): string {
+  if (!name) return '';
+  if (name.match(/^(Dr\.?|Dr\s)/i)) return name;
+  return `Dr. ${name}`;
+}
+
+// ─── Note Card ───────────────────────────────────────────────────────
 
 interface NoteCardProps {
   note: ClinicalNote;
@@ -318,7 +325,7 @@ function NoteCard({ note, patientId, onDelete, onTogglePin }: NoteCardProps) {
 
       {/* Footer metadata */}
       <div className="flex items-center gap-2 mt-3 pt-2 border-t border-slate-100 text-[10px] text-slate-400 font-mono">
-        <span>Dr. {note.author?.name || 'Practitioner'}</span>
+        <span>{formatAuthorName(note.author?.name) || 'Practitioner'}</span>
         <span>·</span>
         <span>
           {formatDistanceToNow(new Date(note.createdAt), { addSuffix: true })}

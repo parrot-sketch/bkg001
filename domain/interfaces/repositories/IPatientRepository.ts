@@ -5,6 +5,8 @@ export interface PatientFilters {
   search?: string;
   page: number;
   limit: number;
+  createdToday?: boolean;
+  createdThisMonth?: boolean;
 }
 
 export interface PatientRegistryRecord {

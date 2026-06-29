@@ -162,6 +162,10 @@ export default function DoctorPatientProfilePage() {
       {/* Header Row */}
       <PatientProfileHeader
         patientName={patientName}
+        fileNumber={patient.fileNumber}
+        email={patient.email}
+        phone={patient.phone}
+        whatsappPhone={patient.whatsappPhone || undefined}
         fromConsultation={fromConsultation}
         consultationAppointmentId={consultationAppointmentId}
         onBackToPatients={() => router.push('/doctor/patients')}

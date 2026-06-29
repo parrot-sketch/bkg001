@@ -67,7 +67,7 @@ async function main() {
     console.log('-'.repeat(60));
     
     const doctorUser = await prisma.user.findUnique({
-      where: { email: 'mukami.gathariki@nairobisculpt.com' },
+      where: { email: 'mukami@nairobisculpt.com' },
     });
     
     if (!doctorUser) {
@@ -156,7 +156,7 @@ async function main() {
       console.log('✅ All checks passed! Database is properly configured.');
       console.log('\nTest these login credentials:');
       console.log('  Admin: admin@nairobisculpt.com / admin123');
-      console.log('  Doctor: mukami.gathariki@nairobisculpt.com / doctor123');
+      console.log('  Doctor: mukami@nairobisculpt.com / doctor123');
     } else {
       console.log('\n⚠️  Issues found:');
       for (const issue of issues) {

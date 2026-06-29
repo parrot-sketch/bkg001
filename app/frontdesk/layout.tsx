@@ -1,10 +1,8 @@
 'use client';
 
 /**
- * Frontdesk Dashboard Layout
- * 
- * Main layout for all frontdesk dashboard pages.
- * Uses UnifiedSidebar with enhanced design and FrontdeskHeader.
+ * Responsive fix for 1920×1200 viewport:
+ * - Removed inner div wrapper from <main> — DashboardShell already owns padding
  */
 
 import { useState, ReactNode, useEffect } from 'react';
@@ -38,10 +36,16 @@ export default function FrontdeskLayout({ children }: FrontdeskLayoutProps) {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-stone-50">
-        <div className="animate-pulse flex flex-col items-center">
-          <div className="h-12 w-12 bg-stone-200 rounded-full mb-4" />
-          <div className="h-4 w-32 bg-stone-100 rounded" />
+      <div className="flex h-screen items-center justify-center bg-[#f0f4f5]">
+        <div className="flex flex-col items-center gap-3">
+          {/* Brand teal pulse ring */}
+          <div className="relative h-10 w-10">
+            <div className="absolute inset-0 rounded-full bg-[#0c5d69]/20 animate-ping" />
+            <div className="relative h-10 w-10 rounded-full bg-[#0c5d69]/10 flex items-center justify-center">
+              <div className="h-5 w-5 rounded-full bg-[#0c5d69]/40 animate-pulse" />
+            </div>
+          </div>
+          <p className="text-xs text-[#0c5d69]/60 font-medium tracking-wide">Loading…</p>
         </div>
       </div>
     );
@@ -52,23 +56,25 @@ export default function FrontdeskLayout({ children }: FrontdeskLayoutProps) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-stone-50">
-      <FrontdeskSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} onCollapse={setSidebarCollapsed} />
+    <div className="flex h-screen overflow-hidden bg-[#f0f4f5]">
+      <FrontdeskSidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onCollapse={setSidebarCollapsed}
+      />
 
-      {/* Main content area — zero margin on mobile, sidebar-offset on lg+ */}
+      {/* Main content area */}
       <div
         className="flex-1 flex flex-col min-w-0 h-full overflow-hidden transition-all duration-300 lg:ml-[var(--sidebar-offset)]"
         style={{ '--sidebar-offset': sidebarCollapsed ? '4rem' : '280px' } as React.CSSProperties}
       >
         <FrontdeskHeader onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-        
+
         <BookAppointmentDialog />
 
         {/* Main scrollable content */}
-        <main className="flex-1 relative overflow-hidden focus:outline-none bg-gradient-to-b from-stone-50/80 via-white to-stone-50/40 overflow-y-auto overscroll-contain scroll-smooth">
-          <div className="w-full min-h-full mx-auto px-3 py-4 sm:px-4 sm:py-5 md:px-5 md:py-6 lg:px-6 lg:py-7 xl:max-w-[1400px] xl:px-8 xl:py-8 2xl:max-w-[1600px]">
-            {children}
-          </div>
+        <main className="flex-1 overflow-y-auto overscroll-contain scroll-smooth bg-[#f0f4f5] focus:outline-none">
+          {children}
         </main>
       </div>
     </div>

@@ -42,7 +42,7 @@ export function PipelineCard({
   const styles = VARIANT_STYLES[variant];
 
   return (
-    <div className={`${styles.bg} border ${styles.border} p-3 sm:p-4`}>
+    <div className={`${styles.bg} border ${styles.border} p-3 sm:p-4 rounded-xl shadow-sm`}>
       <div className="min-w-0">
         <p className={`text-[10px] sm:text-xs font-medium ${styles.label} uppercase tracking-wide truncate`}>
           {label}

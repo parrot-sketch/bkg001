@@ -57,5 +57,6 @@ export interface LoginResponseDto {
     role: string;
     firstName?: string;
     lastName?: string;
+    mustPersonalize?: boolean;
   };
 }

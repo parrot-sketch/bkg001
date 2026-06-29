@@ -1,13 +1,17 @@
 'use client';
 
-import { useDoctorQueue } from '@/hooks/use-doctor-dashboard';
-import { useStartConsultation } from '@/hooks/doctor/useConsultation';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Stethoscope } from 'lucide-react';
 import { toast } from 'sonner';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { useDoctorQueue } from '@/hooks/use-doctor-dashboard';
+import { useStartConsultation } from '@/hooks/doctor/useConsultation';
 
-function formatQueueStatus(item: any): string {
+type QueueItem = NonNullable<ReturnType<typeof useDoctorQueue>[number]>;
+
+function formatQueueStatus(item: QueueItem): string {
   const aptStatus = String(item.appointmentStatus ?? '').toUpperCase();
   if (aptStatus === 'READY_FOR_CONSULTATION') return 'Ready';
   if (aptStatus === 'CHECKED_IN') return 'Checked in';
@@ -15,12 +19,22 @@ function formatQueueStatus(item: any): string {
   return 'Waiting';
 }
 
+const STATUS_CONFIG: Record<string, { bg: string; text: string }> = {
+  ready: { bg: 'bg-[#0c5d69]', text: 'text-white' },
+  'checked in': { bg: 'bg-[#e6f0f1]', text: 'text-[#0c5d69]' },
+  'walk-in': { bg: 'bg-[#fdf6e3]', text: 'text-[#78350f]' },
+};
+
+function getStatusConfig(status: string) {
+  return STATUS_CONFIG[status.toLowerCase()] ?? { bg: 'bg-slate-100', text: 'text-slate-600' };
+}
+
 export function PatientQueuePanel() {
   const queue = useDoctorQueue();
   const router = useRouter();
   const { mutate: startConsultation, isPending } = useStartConsultation();
 
-  const handleStart = (apt: any) => {
+  const handleStart = (apt: QueueItem) => {
     const appointmentId = apt.appointmentId;
     if (!appointmentId) {
       toast.error('Unable to start consultation: missing appointment');
@@ -35,64 +49,67 @@ export function PatientQueuePanel() {
   };
 
   return (
-    <section className="border border-slate-200 bg-white">
-      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-        <h2 className="text-sm font-semibold text-slate-900">Patient queue</h2>
-        <div className="text-xs text-slate-500">
-          {queue.length === 0 ? 'No patients waiting' : `${queue.length} waiting`}
+    <Card className="border border-slate-200 shadow-sm">
+      <CardHeader className="border-b border-slate-100 px-5 py-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base font-semibold text-[#121c1d]">Patient Queue</CardTitle>
+          <span className="text-xs text-slate-400 font-medium">
+            {queue.length === 0 ? 'No patients waiting' : `${queue.length} waiting`}
+          </span>
         </div>
-      </div>
+      </CardHeader>
 
-      {queue.length > 0 && (
-        <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500 border-b border-slate-200">
-          <div className="col-span-1">#</div>
-          <div className="col-span-4">Patient</div>
-          <div className="col-span-2">File</div>
-          <div className="col-span-2">Visit</div>
-          <div className="col-span-1">Wait</div>
-          <div className="col-span-1">Status</div>
-          <div className="col-span-1 text-right">Consult</div>
-        </div>
-      )}
+      <CardContent className="p-0">
+        {queue.length === 0 ? (
+          <div className="px-5 py-12 text-center text-sm text-slate-400">No patients waiting</div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {queue.map((item, index) => {
+              const status = formatQueueStatus(item);
+              const statusConfig = getStatusConfig(status);
 
-      {queue.length === 0 ? (
-        <div className="px-4 py-10 text-center text-sm text-slate-500">No patients waiting</div>
-      ) : (
-        <div className="divide-y divide-slate-200">
-          {queue.map((item: any, index: number) => (
-            <div
-              key={item.id}
-              className="px-4 py-3 hover:bg-slate-50 transition-colors md:grid md:grid-cols-12 md:gap-4 md:items-center"
-            >
-              <div className="hidden md:block md:col-span-1 text-xs text-slate-500">{index + 1}</div>
-
-              <div className="md:col-span-4 min-w-0">
-                <div className="text-sm font-medium text-slate-900 truncate">{item.patientName}</div>
-                <div className="md:hidden text-xs text-slate-500 mt-0.5">
-                  {item.patientFileNumber} • {item.type} • {item.waitTime} • {formatQueueStatus(item)}
-                </div>
-              </div>
-
-              <div className="hidden md:block md:col-span-2 text-sm text-slate-700">{item.patientFileNumber}</div>
-              <div className="hidden md:block md:col-span-2 text-sm text-slate-700">{item.type}</div>
-              <div className="hidden md:block md:col-span-1 text-sm text-slate-700">{item.waitTime}</div>
-              <div className="hidden md:block md:col-span-1 text-sm text-slate-700">{formatQueueStatus(item)}</div>
-
-              <div className="mt-3 md:mt-0 md:col-span-1 md:flex md:justify-end">
-                <Button
-                  size="sm"
-                  onClick={() => handleStart(item)}
-                  disabled={isPending}
-                  variant="outline"
-                  className="h-8 px-3 text-xs rounded-none"
+              return (
+                <div
+                  key={item.id}
+                  className="px-5 py-3.5 hover:bg-slate-50/50 transition-colors"
                 >
-                  {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Consult'}
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <span className="text-xs font-medium text-slate-400 w-4 shrink-0">{index + 1}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-[#121c1d] truncate">{item.patientName}</p>
+                          <span className="text-[10px] text-slate-400 font-mono shrink-0">{item.patientFileNumber}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs text-slate-400">{item.type}</span>
+                          <span className="text-slate-200">.</span>
+                          <span className="text-xs text-slate-400">Wait: <span className="text-[#0c5d69] font-medium">{item.waitTime}</span></span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge variant="outline" className={`text-[10px] font-medium border-0 ${statusConfig.bg} ${statusConfig.text}`}>
+                        {status}
+                      </Badge>
+                      <Button
+                        size="sm"
+                        onClick={() => handleStart(item)}
+                        disabled={isPending}
+                        className="h-8 px-3 text-xs rounded-lg bg-[#0c5d69] hover:bg-[#0a4f59] text-white"
+                      >
+                        {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Stethoscope className="h-3 w-3 mr-1" />}
+                        Consult
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

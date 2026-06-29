@@ -2,7 +2,6 @@
 
 import { Clock, Play, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { useStartConsultation } from '@/hooks/doctor/useConsultation';
 import { useRouter } from 'next/navigation';
@@ -39,7 +38,7 @@ export function WaitingQueue({ appointments, onStartConsultation }: WaitingQueue
   if (appointments.length === 0) return null;
 
   return (
-    <Card>
+    <Card className="border border-slate-200 shadow-sm">
       <CardContent className="p-0">
         <div className="divide-y divide-slate-100">
           {sorted.map((apt, index) => {
@@ -53,35 +52,30 @@ export function WaitingQueue({ appointments, onStartConsultation }: WaitingQueue
             return (
               <div
                 key={apt.id}
-                className="flex items-center justify-between p-3 hover:bg-slate-50 transition-colors"
+                className="flex items-center justify-between p-3.5 hover:bg-slate-50/50 transition-colors"
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <span className="text-xs text-slate-400 w-5">{index + 1}</span>
-                  <Avatar className="h-9 w-9 border border-slate-200">
-                    <AvatarFallback className="bg-slate-100 text-slate-600 text-xs font-bold">
-                      {patientName.split(' ').map(n => n[0]).join('')}
-                    </AvatarFallback>
-                  </Avatar>
+                  <span className="text-xs font-medium text-slate-400 w-5 shrink-0">{index + 1}</span>
                   <div className="min-w-0 flex-1">
-                    <h4 className="text-sm font-medium text-slate-900 truncate">
+                    <h4 className="text-sm font-medium text-[#121c1d] truncate">
                       {patientName}
                     </h4>
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
                       <Clock className="h-3 w-3" />
                       <span>{waitTime}</span>
-                      <span>•</span>
+                      <span className="text-slate-200">.</span>
                       <span>{apt.type || 'Consultation'}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="shrink-0">
+                <div className="shrink-0 ml-3">
                   {apt.status === 'IN_CONSULTATION' ? (
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => router.push(`/doctor/consultations/session/${apt.id}`)}
-                      className="h-8 text-xs"
+                      className="h-8 text-xs rounded-lg border-slate-200"
                     >
                       Continue
                     </Button>
@@ -90,7 +84,7 @@ export function WaitingQueue({ appointments, onStartConsultation }: WaitingQueue
                       size="sm"
                       onClick={() => handleStart(apt)}
                       disabled={isPending}
-                      className="h-8 text-xs bg-slate-900 hover:bg-black text-white"
+                      className="h-8 text-xs rounded-lg bg-[#0c5d69] hover:bg-[#0a4f59] text-white"
                     >
                       {isPending ? (
                         <Loader2 className="h-3 w-3 animate-spin" />

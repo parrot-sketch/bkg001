@@ -1,4 +1,7 @@
-'use client';
+/**
+ * Responsive fix for 1920×1200 viewport:
+ * - Breadcrumb role name: text-sm → text-xs (more compact vertical density)
+ */
 
 /**
  * UnifiedHeader — shared top navigation bar for all authenticated roles.
@@ -128,7 +131,7 @@ export function UnifiedHeader({
       className={cn(
         'shrink-0 sticky top-0 z-30',
         'flex h-14 w-full items-center justify-between',
-        'bg-white border-b border-slate-200',
+        'bg-[[#0c5d69]/70 border-b border-slate-200',
         'px-4 sm:px-6',
       )}
       // 3px brand-primary top strip visually connects to sidebar's nav accent
@@ -155,7 +158,7 @@ export function UnifiedHeader({
         )}
 
         {/* Breadcrumb trail */}
-        <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-sm overflow-hidden">
+        <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs overflow-hidden">
           <span className="text-slate-400 font-medium hidden sm:inline shrink-0">{roleName}</span>
 
           {breadcrumbs.map((crumb, i) => (

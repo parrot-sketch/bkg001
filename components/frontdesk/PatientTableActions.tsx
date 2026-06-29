@@ -110,7 +110,7 @@ export function PatientTableActions({ patient, onActionComplete }: PatientTableA
             onClick={handleAddToQueue}
             className="cursor-pointer data-[highlighted]:bg-slate-50 data-[highlighted]:text-slate-900"
           >
-            <UserPlus className="h-4 w-4 mr-2 text-cyan-600" />
+            <UserPlus className="h-4 w-4 mr-2 text-[#0c5d69]" />
             Add to Queue
           </DropdownMenuItem>
           

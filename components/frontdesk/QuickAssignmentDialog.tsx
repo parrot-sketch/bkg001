@@ -4,14 +4,13 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Loader2, UserPlus, Stethoscope, Send } from 'lucide-react';
+import { Loader2, UserPlus, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { patientApi } from '@/lib/api/patient';
 import { assignPatientToQueue } from '@/app/actions/appointment';
 import { PatientCombobox } from '@/components/frontdesk/PatientCombobox';
 import { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';
-import { ProfileImage } from '@/components/profile-image';
 import { queryKeys } from '@/lib/constants/queryKeys';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -101,7 +100,6 @@ export function QuickAssignmentDialog({
         setSelectedDoctorId('');
         onOpenChange(false);
         onSuccess?.();
-        // Invalidate nurse clinic queue so patient appears on nurse dashboard
         queryClient.invalidateQueries({ queryKey: queryKeys.nurse.clinicQueue('today') });
       } else {
         toast.error(result.msg || 'Failed to add patient to queue');
@@ -124,18 +122,18 @@ export function QuickAssignmentDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-sm animate-in fade-in-0 zoom-in-95 duration-200">
+      <DialogContent className="max-w-sm animate-in fade-in-0 zoom-in-95 duration-200 bg-white border-slate-200 border-t-4 border-t-[#0c5d69]">
         <DialogHeader className="pb-2">
-          <DialogTitle className="flex items-center gap-2 text-lg">
-            <div className="h-8 w-8 rounded-lg bg-cyan-100 flex items-center justify-center">
-              <UserPlus className="h-4 w-4 text-cyan-600" />
+          <DialogTitle className="flex items-center gap-2 text-lg text-[#121c1d]">
+            <div className="h-8 w-8 rounded-lg bg-[#e6f0f1] flex items-center justify-center">
+              <UserPlus className="h-4 w-4 text-[#0c5d69]" />
             </div>
             Add to Queue
           </DialogTitle>
           <DialogDescription className="text-xs text-slate-500">
             {hasPreselectedPatient
               ? `Assign ${initialPatientName} to a doctor's queue`
-              : 'Assign patient directly to a doctor\'s queue'}
+              : "Assign patient directly to a doctor's queue"}
           </DialogDescription>
         </DialogHeader>
 
@@ -155,23 +153,21 @@ export function QuickAssignmentDialog({
 
           {/* Pre-selected Patient Preview */}
           {hasPreselectedPatient && selectedPatient && (
-            <div className="p-2.5 rounded-lg bg-cyan-50/80 border border-cyan-100">
-              <p className="text-sm font-medium text-cyan-900">
+            <div className="p-2.5 rounded-lg bg-[#e6f0f1] border border-[#0c5d69]/20">
+              <p className="text-sm font-bold text-[#0c5d69]">
                 {selectedPatient.firstName} {selectedPatient.lastName}
               </p>
               {selectedPatient.fileNumber && (
-                <p className="text-xs text-cyan-600 mt-0.5">
-                  {selectedPatient.fileNumber}
-                </p>
+                <p className="text-xs text-[#0c5d69]/80 mt-0.5">{selectedPatient.fileNumber}</p>
               )}
             </div>
           )}
 
           {/* Doctor Selection */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-slate-600">Doctor</Label>
+            <Label className="text-xs font-bold text-[#121c1d]">Doctor</Label>
             <select
-              className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-all duration-200"
+              className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#0c5d69]/40 focus:border-[#0c5d69] transition-all duration-200"
               value={selectedDoctorId}
               onChange={(e) => setSelectedDoctorId(e.target.value)}
               disabled={loadingDoctors}
@@ -181,9 +177,10 @@ export function QuickAssignmentDialog({
               </option>
               {doctors.map((doctor) => {
                 const docName = doctor.name || `${doctor.firstName} ${doctor.lastName}`;
-                const displayName = doctor.title && !docName.toLowerCase().startsWith(doctor.title.toLowerCase())
-                  ? `${doctor.title} ${docName}`
-                  : docName;
+                const displayName =
+                  doctor.title && !docName.toLowerCase().startsWith(doctor.title.toLowerCase())
+                    ? `${doctor.title} ${docName}`
+                    : docName;
                 return (
                   <option key={doctor.id} value={doctor.id}>
                     {displayName} - {doctor.specialization || 'General'}
@@ -195,11 +192,11 @@ export function QuickAssignmentDialog({
 
           {/* Selected Patient Preview — for non-preselected flow */}
           {!hasPreselectedPatient && selectedPatient && (
-            <div className="p-2.5 rounded-lg bg-cyan-50/80 border border-cyan-100">
-              <p className="text-sm font-medium text-cyan-900">
+            <div className="p-2.5 rounded-lg bg-[#e6f0f1] border border-[#0c5d69]/20">
+              <p className="text-sm font-bold text-[#0c5d69]">
                 {selectedPatient.firstName} {selectedPatient.lastName}
               </p>
-              <p className="text-xs text-cyan-600 mt-0.5">
+              <p className="text-xs text-[#0c5d69]/80 mt-0.5">
                 {selectedPatient.fileNumber} • {selectedPatient.age} yrs • {selectedPatient.gender}
               </p>
             </div>
@@ -212,14 +209,14 @@ export function QuickAssignmentDialog({
             variant="outline"
             onClick={handleClose}
             disabled={isSubmitting}
-            className="h-8 px-3 text-xs rounded-lg"
+            className="h-8 px-3 text-xs rounded-lg border-slate-200 text-slate-600 hover:bg-slate-50"
           >
             Cancel
           </Button>
           <Button
             onClick={handleSubmit}
             disabled={!selectedPatient || !selectedDoctorId || isSubmitting}
-            className="h-8 px-3 text-xs rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-all duration-200"
+            className="h-8 px-3 text-xs rounded-lg bg-[#0c5d69] hover:bg-[#0a4f59] text-white transition-colors duration-200 shadow-[0_1px_2px_rgba(12,93,105,0.2)]"
           >
             {isSubmitting ? (
               <>

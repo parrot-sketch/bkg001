@@ -87,7 +87,7 @@ const FRONTDESK_KEYS = {
     ['frontdesk', 'payments', 'pending', filters ?? {}] as const,
   intakeSession: (sessionId: string) => ['frontdesk', 'intake', sessionId] as const,
   intakePendingCount: () => ['frontdesk', 'intake', 'pending', 'count'] as const,
-  patients: (filters?: { page?: number; limit?: number; search?: string }) =>
+  patients: (filters?: { page?: number; limit?: number; search?: string; createdToday?: boolean; createdThisMonth?: boolean }) =>
     ['frontdesk', 'patients', filters ?? {}] as const,
   patientStats: () => ['frontdesk', 'patient-stats'] as const,
 } as const;

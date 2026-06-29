@@ -29,4 +29,5 @@ export interface PatientResponseDto {
   readonly updatedAt?: Date;
   readonly profileImage?: string;
   readonly colorCode?: string;
+  readonly lastVisitDate?: Date;
 }

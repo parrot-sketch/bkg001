@@ -7,6 +7,8 @@ interface UseFrontdeskPatientsProps {
   page: number;
   limit: number;
   search?: string;
+  createdToday?: boolean;
+  createdThisMonth?: boolean;
   enabled?: boolean;
 }
 
@@ -14,16 +16,20 @@ export function useFrontdeskPatients({
   page,
   limit,
   search,
+  createdToday,
+  createdThisMonth,
   enabled = true,
 }: UseFrontdeskPatientsProps) {
   return useQuery({
-    queryKey: queryKeys.frontdesk.patients({ page, limit, search }),
+    queryKey: queryKeys.frontdesk.patients({ page, limit, search, createdToday, createdThisMonth }),
     queryFn: async () => {
       const params = new URLSearchParams({
         page: page.toString(),
         limit: limit.toString(),
       });
       if (search) params.set('q', search);
+      if (createdToday) params.set('createdToday', 'true');
+      if (createdThisMonth) params.set('createdThisMonth', 'true');
 
       const result = await apiClient.get(`/frontdesk/patients?${params.toString()}`);
 

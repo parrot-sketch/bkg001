@@ -1,27 +1,16 @@
 'use client';
 
-/**
- * Doctor Appointments Page — Clean Workflow-Oriented Design
- * 
- * Features:
- * - Pending confirmations prominently surfaced
- * - Clear status-driven action buttons
- * - Patient context always visible
- * - Tab-based navigation with smart defaults
- */
-
+import { RefreshCw, Search, Eye, Calendar as CalendarIcon, Check } from 'lucide-react';
+import { toast } from 'sonner';
 import { useMemo, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { doctorApi } from '@/lib/api/doctor';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { RefreshCw, Search, Calendar as CalendarIcon, Eye, Check, X } from 'lucide-react';
-import { toast } from 'sonner';
+import { Card, CardContent } from '@/components/ui/card';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { useDoctorAppointments } from '@/hooks/doctor/useDoctorAppointments';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
-import { ClinicalDashboardShell } from '@/components/layouts/ClinicalDashboardShell';
 import { format, isToday, startOfDay } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -35,14 +24,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 
 const ALL_ACTIVE_STATUSES = [
     AppointmentStatus.PENDING_DOCTOR_CONFIRMATION,
@@ -88,12 +69,12 @@ export default function DoctorAppointmentsPage() {
             }
         }
 
-        const sortByTime = (a: AppointmentResponseDto, b: AppointmentResponseDto) => 
+        const sortByTime = (a: AppointmentResponseDto, b: AppointmentResponseDto) =>
             (a.time || '').localeCompare(b.time || '');
 
         return {
             todayAppointments: today.sort(sortByTime),
-            upcomingAppointments: upcoming.sort((a, b) => 
+            upcomingAppointments: upcoming.sort((a, b) =>
                 new Date(a.appointmentDate).getTime() - new Date(b.appointmentDate).getTime()
             ),
             pendingConfirmations: pending.sort(sortByTime),
@@ -105,31 +86,14 @@ export default function DoctorAppointmentsPage() {
         };
     }, [appointments]);
 
-    // Default to 'pending' tab if there are pending confirmations
-    const initialTab: TabKey = pendingConfirmations.length > 0 ? 'pending' : 
+    const initialTab: TabKey = pendingConfirmations.length > 0 ? 'pending' :
         (searchParams.get('tab') as TabKey) || 'today';
     const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
 
-    // Refetch data periodically for status updates
     useEffect(() => {
         const interval = setInterval(() => refetch(), 60000);
         return () => clearInterval(interval);
     }, [refetch]);
-
-    const handleCheckIn = async (appointmentId: number) => {
-        if (!user) return;
-        try {
-            const response = await doctorApi.checkInPatient(appointmentId, user.id);
-            if (response.success) {
-                toast.success('Patient checked in');
-                refetch();
-            } else {
-                toast.error(response.error || 'Failed to check in');
-            }
-        } catch (error) {
-            toast.error('Error checking in patient');
-        }
-    };
 
     const handleConfirm = async (appointmentId: number) => {
         try {
@@ -141,7 +105,7 @@ export default function DoctorAppointmentsPage() {
             } else {
                 toast.error(response.error || 'Failed to confirm');
             }
-        } catch (error) {
+        } catch {
             toast.error('Error confirming appointment');
         }
     };
@@ -158,7 +122,7 @@ export default function DoctorAppointmentsPage() {
             } else {
                 toast.error(response.error || 'Failed to reject');
             }
-        } catch (error) {
+        } catch {
             toast.error('Error rejecting appointment');
         }
     };
@@ -167,21 +131,19 @@ export default function DoctorAppointmentsPage() {
         router.push(`/doctor/consultations/session/${appointmentId}`);
     };
 
-    const currentList = activeTab === 'today' ? todayAppointments 
-        : activeTab === 'upcoming' ? upcomingAppointments 
+    const currentList = activeTab === 'today' ? todayAppointments
+        : activeTab === 'upcoming' ? upcomingAppointments
         : pendingConfirmations;
 
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
 
     useEffect(() => {
-        // Keep filters sane when switching tabs
         if (activeTab === 'pending') {
             setStatusFilter(AppointmentStatus.PENDING_DOCTOR_CONFIRMATION);
         } else if (statusFilter === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION) {
             setStatusFilter('ALL');
         }
-        // Clear search when switching context (reduces "empty table confusion")
         setSearchQuery('');
     }, [activeTab]);
 
@@ -209,274 +171,208 @@ export default function DoctorAppointmentsPage() {
 
     if (!isAuthenticated || !user) {
         return (
-            <div className="flex items-center justify-center h-screen bg-slate-50">
+            <div className="flex items-center justify-center h-screen bg-[#f0f4f5]">
                 <p className="text-sm text-slate-400">Please log in</p>
             </div>
         );
     }
 
     return (
-        <ClinicalDashboardShell>
-            <div className="space-y-4 pb-8">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Appointments</h1>
-                        <p className="text-sm text-muted-foreground mt-1">
-                            {format(new Date(), 'EEEE, MMMM d, yyyy')}
-                        </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => refetch()}
-                            disabled={refreshing}
-                            className="h-9 rounded-none"
-                        >
-                            <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
-                            Refresh
-                        </Button>
-                    </div>
+        <div className="space-y-5 animate-in fade-in duration-500">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <h1 className="text-2xl font-semibold tracking-tight text-[#121c1d]">Appointments</h1>
+                    <p className="text-sm text-slate-500 mt-0.5">
+                        {format(new Date(), 'EEEE, MMMM d, yyyy')}
+                    </p>
                 </div>
-
-                <div className="flex flex-col gap-3 border border-border bg-background p-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-1 border-b border-border sm:border-b-0">
-                        {(['today', 'pending', 'upcoming'] as TabKey[]).map((tab) => {
-                            const label =
-                                tab === 'today' ? 'Today'
-                                    : tab === 'pending' ? 'Pending'
-                                        : 'Upcoming';
-                            const count =
-                                tab === 'today' ? stats.today
-                                    : tab === 'pending' ? stats.pending
-                                        : stats.upcoming;
-                            const isActive = activeTab === tab;
-                            return (
-                                <button
-                                    key={tab}
-                                    onClick={() => setActiveTab(tab)}
-                                    className={cn(
-                                        "px-3 py-2 text-xs font-medium rounded-none border-b-2 transition-colors",
-                                        isActive ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
-                                    )}
-                                >
-                                    {label}
-                                    <span className={cn(
-                                        "ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] tabular-nums",
-                                        isActive ? "bg-muted text-foreground" : "bg-muted/60 text-muted-foreground"
-                                    )}>
-                                        {count}
-                                    </span>
-                                </button>
-                            );
-                        })}
-                    </div>
-
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                        <div className="flex items-center gap-2">
-                            <div className="text-xs text-muted-foreground">Status</div>
-                            <Select
-                                value={statusFilter}
-                                onValueChange={(v) => setStatusFilter(v as StatusFilter)}
-                                disabled={activeTab === 'pending'}
-                            >
-                                <SelectTrigger className="h-9 w-[180px] rounded-none">
-                                    <SelectValue placeholder="All statuses" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="ALL">All</SelectItem>
-                                    <SelectItem value={AppointmentStatus.PENDING_DOCTOR_CONFIRMATION}>Needs confirm</SelectItem>
-                                    <SelectItem value={AppointmentStatus.SCHEDULED}>Scheduled</SelectItem>
-                                    <SelectItem value={AppointmentStatus.CONFIRMED}>Confirmed</SelectItem>
-                                    <SelectItem value={AppointmentStatus.CHECKED_IN}>Checked in</SelectItem>
-                                    <SelectItem value={AppointmentStatus.READY_FOR_CONSULTATION}>Ready</SelectItem>
-                                    <SelectItem value={AppointmentStatus.IN_CONSULTATION}>In consultation</SelectItem>
-                                    <SelectItem value={AppointmentStatus.COMPLETED}>Completed</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className="relative">
-                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Search patient, file #, type…"
-                                className="h-9 pl-9 w-full sm:w-[260px] rounded-none"
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                {loading ? (
-                    <div className="space-y-3">
-                        {[1, 2, 3].map((i) => (
-                            <Skeleton key={i} className="h-20 w-full rounded-lg" />
-                        ))}
-                    </div>
-                ) : filteredList.length === 0 ? (
-                    <EmptyState tab={activeTab} hasQuery={Boolean(searchQuery.trim())} />
-                ) : (
-                    <div className="border border-border bg-background">
-                        <Table>
-                            <TableHeader className="bg-muted/40">
-                                <TableRow>
-                                    <TableHead className="w-[110px]">When</TableHead>
-                                    <TableHead>Patient</TableHead>
-                                    <TableHead className="hidden md:table-cell">Type</TableHead>
-                                    <TableHead className="hidden lg:table-cell">Note</TableHead>
-                                    <TableHead className="w-[140px]">Status</TableHead>
-                                    <TableHead className="w-[220px] text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredList.map((apt) => (
-                                    <AppointmentsTableRow
-                                        key={apt.id}
-                                        appointment={apt}
-                                        showDate={activeTab !== 'today'}
-                                        onView={() => router.push(`/doctor/appointments/${apt.id}`)}
-                                        onStart={() => handleStartConsultation(apt.id)}
-                                        onConfirm={() => handleConfirm(apt.id)}
-                                        onReject={() => handleReject(apt.id)}
-                                    />
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                )}
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => refetch()}
+                    disabled={refreshing}
+                    className="h-9 rounded-lg w-full sm:w-auto"
+                >
+                    <RefreshCw className={cn("h-4 w-4 mr-2", refreshing && "animate-spin")} />
+                    Refresh
+                </Button>
             </div>
-        </ClinicalDashboardShell>
-    );
-}
 
-function EmptyState({ tab, hasQuery }: { tab: string; hasQuery: boolean }) {
-    const messages = {
-        today: { title: "No appointments today", description: "Your schedule is clear for today." },
-        upcoming: { title: "No upcoming appointments", description: "No future appointments scheduled." },
-        pending: { title: "No pending confirmations", description: "All appointments have been confirmed or rejected." },
-    };
-    
-    const msg = messages[tab as keyof typeof messages];
-    
-    return (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-            <CalendarIcon className="h-12 w-12 text-slate-300 mb-4" />
-            <h3 className="text-lg font-medium text-slate-900">
-                {hasQuery ? 'No matching appointments' : msg.title}
-            </h3>
-            <p className="text-sm text-slate-500 mt-1">
-                {hasQuery ? 'Try a different search term or clear filters.' : msg.description}
-            </p>
+            {/* Tabs */}
+            <div className="flex items-center gap-1 border-b border-slate-200">
+                {(['today', 'pending', 'upcoming'] as TabKey[]).map((tab) => {
+                    const label = tab === 'today' ? 'Today' : tab === 'pending' ? 'Pending' : 'Upcoming';
+                    const count = tab === 'today' ? stats.today : tab === 'pending' ? stats.pending : stats.upcoming;
+                    const isActive = activeTab === tab;
+                    return (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className={cn(
+                                "px-4 py-2.5 text-sm font-medium border-b-2 transition-colors",
+                                isActive ? "border-[#0c5d69] text-[#0c5d69]" : "border-transparent text-slate-500 hover:text-slate-700"
+                            )}
+                        >
+                            {label}
+                            <span className={cn(
+                                "ml-2 inline-flex items-center rounded-full px-2 py-0.5 text-xs tabular-nums",
+                                isActive ? "bg-[#e6f0f1] text-[#0c5d69]" : "bg-slate-100 text-slate-500"
+                            )}>
+                                {count}
+                            </span>
+                        </button>
+                    );
+                })}
+            </div>
+
+            {/* Filters */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="flex items-center gap-2">
+                    <Select
+                        value={statusFilter}
+                        onValueChange={(v) => setStatusFilter(v as StatusFilter)}
+                        disabled={activeTab === 'pending'}
+                    >
+                        <SelectTrigger className="h-9 w-full sm:w-[180px] rounded-lg border-slate-200">
+                            <SelectValue placeholder="All statuses" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ALL">All</SelectItem>
+                            <SelectItem value={AppointmentStatus.PENDING_DOCTOR_CONFIRMATION}>Needs confirm</SelectItem>
+                            <SelectItem value={AppointmentStatus.SCHEDULED}>Scheduled</SelectItem>
+                            <SelectItem value={AppointmentStatus.CONFIRMED}>Confirmed</SelectItem>
+                            <SelectItem value={AppointmentStatus.CHECKED_IN}>Checked in</SelectItem>
+                            <SelectItem value={AppointmentStatus.READY_FOR_CONSULTATION}>Ready</SelectItem>
+                            <SelectItem value={AppointmentStatus.IN_CONSULTATION}>In consultation</SelectItem>
+                            <SelectItem value={AppointmentStatus.COMPLETED}>Completed</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search patient, file #, type…"
+                        className="h-9 pl-9 rounded-lg border-slate-200"
+                    />
+                </div>
+            </div>
+
+            {/* Appointments List */}
+            {loading ? (
+                <div className="space-y-2">
+                    {[1, 2, 3].map((i) => (
+                        <Skeleton key={i} className="h-20 w-full rounded-xl" />
+                    ))}
+                </div>
+            ) : filteredList.length === 0 ? (
+                <Card className="border border-slate-200 bg-white">
+                    <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                        <CalendarIcon className="h-10 w-10 text-slate-300 mb-3" />
+                        <h3 className="text-sm font-semibold text-[#121c1d] mb-1">
+                            {searchQuery ? 'No matching appointments' : `No appointments`}
+                        </h3>
+                        <p className="text-xs text-slate-400 max-w-xs">
+                            {searchQuery ? 'Try a different search term or clear filters.' : 'No appointments found for this filter.'}
+                        </p>
+                    </CardContent>
+                </Card>
+            ) : (
+                <div className="border border-slate-200 bg-white rounded-xl overflow-hidden divide-y divide-slate-100">
+                    {filteredList.map((apt) => {
+                        const patientName = apt.patient
+                            ? `${apt.patient.firstName} ${apt.patient.lastName}`
+                            : 'Unknown patient';
+                        const fileNumber = apt.patient?.fileNumber ? `#${apt.patient.fileNumber}` : null;
+                        const when = activeTab !== 'today'
+                            ? `${format(new Date(apt.appointmentDate), 'MMM d')} • ${apt.time || '--:--'}`
+                            : (apt.time || '--:--');
+
+                        const needsConfirm = apt.status === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION;
+                        const canStart =
+                            apt.status === AppointmentStatus.CHECKED_IN ||
+                            apt.status === AppointmentStatus.READY_FOR_CONSULTATION ||
+                            apt.status === AppointmentStatus.IN_CONSULTATION;
+                        const isCompleted = apt.status === AppointmentStatus.COMPLETED;
+
+                        return (
+                            <div
+                                key={apt.id}
+                                className="flex flex-col sm:flex-row sm:items-center gap-3 px-4 py-3.5 hover:bg-slate-50/50 transition-colors"
+                            >
+                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                    <div className="w-14 text-center shrink-0">
+                                        <p className="text-sm font-semibold text-[#121c1d] leading-none tabular-nums">{when}</p>
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <p className="text-sm font-medium text-[#121c1d] truncate">{patientName}</p>
+                                            {fileNumber && (
+                                                <span className="shrink-0 text-[10px] font-mono text-slate-400">
+                                                    {fileNumber}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-slate-400 mt-0.5">{apt.type || 'Consultation'}</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-between gap-3 sm:justify-end sm:min-w-[400px]">
+                                    <StatusBadge status={apt.status} />
+
+                                    <div className="flex items-center gap-2">
+                                        {needsConfirm && (
+                                            <>
+                                            <Button size="sm" variant="outline" className="h-8 rounded-lg border-slate-200 text-xs" onClick={() => handleReject(apt.id)}>
+                                                Reject
+                                            </Button>
+                                                <Button size="sm" className="h-8 rounded-lg bg-[#0c5d69] hover:bg-[#0a4f59] text-white text-xs" onClick={() => handleConfirm(apt.id)}>
+                                                    <Check className="h-3.5 w-3.5 mr-1" />
+                                                    Confirm
+                                                </Button>
+                                            </>
+                                        )}
+                                        {canStart && (
+                                            <Button size="sm" className="h-8 rounded-lg bg-[#0c5d69] hover:bg-[#0a4f59] text-white text-xs" onClick={() => handleStartConsultation(apt.id)}>
+                                                Start
+                                            </Button>
+                                        )}
+                                        <Button size="sm" variant="outline" className="h-8 rounded-lg border-slate-200 text-xs" onClick={() => router.push(`/doctor/appointments/${apt.id}`)}>
+                                            <Eye className="h-3.5 w-3.5 mr-1" />
+                                            View
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
 }
 
-function getStatusLabel(status: string): string {
-    switch (status) {
-        case AppointmentStatus.PENDING_DOCTOR_CONFIRMATION:
-            return 'Needs confirm';
-        case AppointmentStatus.SCHEDULED:
-            return 'Scheduled';
-        case AppointmentStatus.CONFIRMED:
-            return 'Confirmed';
-        case AppointmentStatus.CHECKED_IN:
-            return 'Checked in';
-        case AppointmentStatus.READY_FOR_CONSULTATION:
-            return 'Ready';
-        case AppointmentStatus.IN_CONSULTATION:
-            return 'In consultation';
-        case AppointmentStatus.COMPLETED:
-            return 'Completed';
-        default:
-            return status;
-    }
-}
+function StatusBadge({ status }: { status: string }) {
+    const config: Record<string, { bg: string; text: string }> = {
+        PENDING_DOCTOR_CONFIRMATION: { bg: 'bg-[#fdf6e3]', text: 'text-[#78350f]' },
+        SCHEDULED: { bg: 'bg-[#e6f0f1]', text: 'text-[#0c5d69]' },
+        CONFIRMED: { bg: 'bg-[#e6f0f1]', text: 'text-[#0c5d69]' },
+        CHECKED_IN: { bg: 'bg-[#e6f0f1]', text: 'text-[#0c5d69]' },
+        READY_FOR_CONSULTATION: { bg: 'bg-[#fdf6e3]', text: 'text-[#78350f]' },
+        IN_CONSULTATION: { bg: 'bg-[#fef3c7]', text: 'text-[#92400e]' },
+        COMPLETED: { bg: 'bg-slate-100', text: 'text-slate-600' },
+        CANCELLED: { bg: 'bg-slate-100', text: 'text-slate-500' },
+        NO_SHOW: { bg: 'bg-slate-100', text: 'text-slate-500' },
+        PENDING: { bg: 'bg-[#fdf6e3]', text: 'text-[#78350f]' },
+    };
 
-function AppointmentsTableRow({
-    appointment,
-    showDate,
-    onView,
-    onStart,
-    onConfirm,
-    onReject,
-}: {
-    appointment: AppointmentResponseDto;
-    showDate: boolean;
-    onView: () => void;
-    onStart: () => void;
-    onConfirm: () => void;
-    onReject: () => void;
-}) {
-    const patientName = appointment.patient
-        ? `${appointment.patient.firstName} ${appointment.patient.lastName}`
-        : 'Unknown patient';
-    const fileNumber = appointment.patient?.fileNumber ? `#${appointment.patient.fileNumber}` : null;
-    const when = showDate
-        ? `${format(new Date(appointment.appointmentDate), 'MMM d')} • ${appointment.time || '--:--'}`
-        : (appointment.time || '--:--');
-
-    const needsConfirm = appointment.status === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION;
-    const canStart =
-        appointment.status === AppointmentStatus.CHECKED_IN ||
-        appointment.status === AppointmentStatus.READY_FOR_CONSULTATION ||
-        appointment.status === AppointmentStatus.IN_CONSULTATION;
+    const c = config[status] || { bg: 'bg-slate-100', text: 'text-slate-600' };
 
     return (
-        <TableRow className="cursor-default">
-            <TableCell className="py-3">
-                <div className="text-sm font-medium text-foreground tabular-nums">{when}</div>
-            </TableCell>
-            <TableCell className="py-3">
-                <div className="min-w-0">
-                    <div className="flex items-center gap-2 min-w-0">
-                        <div className="truncate text-sm text-foreground font-medium">{patientName}</div>
-                        {fileNumber && (
-                            <span className="shrink-0 text-[10px] font-mono text-muted-foreground">
-                                {fileNumber}
-                            </span>
-                        )}
-                    </div>
-                </div>
-            </TableCell>
-            <TableCell className="py-3 hidden md:table-cell">
-                <div className="text-sm text-muted-foreground">{appointment.type || 'Consultation'}</div>
-            </TableCell>
-            <TableCell className="py-3 hidden lg:table-cell">
-                <div className="text-sm text-muted-foreground truncate max-w-[460px]">
-                    {appointment.note || '—'}
-                </div>
-            </TableCell>
-            <TableCell className="py-3">
-                <Badge variant="outline" className="rounded-none text-xs font-medium">
-                    {getStatusLabel(appointment.status)}
-                </Badge>
-            </TableCell>
-            <TableCell className="py-3 text-right">
-                <div className="inline-flex items-center gap-2 justify-end">
-                    {needsConfirm && (
-                        <>
-                            <Button size="sm" variant="outline" className="h-8 rounded-none" onClick={onReject}>
-                                <X className="h-4 w-4 mr-1.5" />
-                                Reject
-                            </Button>
-                            <Button size="sm" className="h-8 rounded-none" onClick={onConfirm}>
-                                <Check className="h-4 w-4 mr-1.5" />
-                                Confirm
-                            </Button>
-                        </>
-                    )}
-                    {canStart && !needsConfirm && (
-                        <Button size="sm" variant="outline" className="h-8 rounded-none" onClick={onStart}>
-                            Start
-                        </Button>
-                    )}
-                    <Button size="sm" variant="outline" className="h-8 rounded-none" onClick={onView}>
-                        <Eye className="h-4 w-4 mr-1.5" />
-                        View
-                    </Button>
-                </div>
-            </TableCell>
-        </TableRow>
+        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${c.bg} ${c.text}`}>
+            {status.replace(/_/g, ' ')}
+        </span>
     );
 }
