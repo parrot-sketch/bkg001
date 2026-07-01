@@ -138,5 +138,17 @@
     "typescript": "^5",
     "vitest": "^4.0.17"
   },
-  "type": "module"
+  "type": "module",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "bcrypt",
+      "canvas",
+      "core-js",
+      "esbuild",
+      "prisma",
+      "sharp"
+    ]
+  }
 }
