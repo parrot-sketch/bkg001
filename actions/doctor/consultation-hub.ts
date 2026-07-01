@@ -185,3 +185,61 @@ export async function updateConsultationOutcome(params: {
     };
   }
 }
+
+/**
+ * Update clinical notes on a completed consultation.
+ * Bypasses the IN_PROGRESS-only restriction so doctors can correct/finalize
+ * records after the session is closed.
+ */
+export async function updateCompletedConsultationNotes(params: {
+  consultationId: number;
+  doctorId: string;
+  chiefComplaint?: string;
+  examination?: string;
+  assessment?: string;
+  plan?: string;
+}) {
+  try {
+    const { consultationId, doctorId, chiefComplaint, examination, assessment, plan } = params;
+
+    const consultation = await db.consultation.findUnique({
+      where: { id: consultationId },
+      include: {
+        appointment: { select: { doctor_id: true } },
+      },
+    });
+
+    if (!consultation) {
+      return { success: false, error: 'Consultation not found' };
+    }
+
+    if (consultation.doctor_id !== doctorId) {
+      return { success: false, error: 'Unauthorized: You do not own this consultation' };
+    }
+
+    const updateData: any = {
+      updated_at: new Date(),
+    };
+
+    if (chiefComplaint !== undefined) updateData.chief_complaint = chiefComplaint || null;
+    if (examination !== undefined) updateData.examination = examination || null;
+    if (assessment !== undefined) updateData.assessment = assessment || null;
+    if (plan !== undefined) updateData.plan = plan || null;
+
+    await db.consultation.update({
+      where: { id: consultationId },
+      data: updateData,
+    });
+
+    revalidatePath('/doctor/consultations');
+    revalidatePath(`/doctor/consultations/${consultationId}`);
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error updating consultation notes:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to update consultation notes',
+    };
+  }
+}

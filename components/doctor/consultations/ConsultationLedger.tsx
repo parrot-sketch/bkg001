@@ -18,6 +18,7 @@ import {
   Eye,
   FileText,
   MoreVertical,
+  Pencil,
   Scissors,
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -192,6 +193,12 @@ function ConsultationRow({
               </>
             )}
             <DropdownMenuSeparator />
+<DropdownMenuItem asChild>
+               <Link href={`/doctor/consultations/${item.id}/edit`}>
+                 <Pencil className="h-4 w-4 mr-2 text-slate-400" />
+                 Edit Record
+               </Link>
+             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link href={`/doctor/consultations/${item.id}`}>
                 <Eye className="h-4 w-4 mr-2 text-slate-400" />
@@ -221,6 +228,12 @@ function ConsultationRow({
                 Charge Sheet
               </DropdownMenuItem>
             )}
+<DropdownMenuItem asChild>
+               <Link href={`/doctor/consultations/${item.id}/edit`}>
+                 <Pencil className="h-4 w-4 mr-2 text-slate-400" />
+                 Edit Record
+               </Link>
+             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link href={`/doctor/consultations/${item.id}`}>
                 <Eye className="h-4 w-4 mr-2 text-slate-400" />

@@ -1,10 +1,9 @@
-
 import { getCurrentUser } from '@/lib/auth/server-auth';
 import db from '@/lib/db';
 import { notFound, redirect } from 'next/navigation';
-import ConsultationDetailPageContent from './ConsultationDetailPageContent';
+import ConsultationPrintView from './ConsultationPrintView';
 
-interface ConsultationDetailPageProps {
+interface ConsultationPrintPageProps {
   params: Promise<{
     consultationId: string;
   }>;
@@ -129,8 +128,8 @@ async function getConsultationRecord(consultationId: number, doctorId: string) {
   return { ...data, payment: paymentData };
 }
 
-export default async function ConsultationDetailPage({ params }: ConsultationDetailPageProps) {
-  const { consultationId: consultationIdParam } = await params;
+export default async function ConsultationPrintPage({ params }: ConsultationPrintPageProps) {
+  const resolvedParams = await params;
   const user = await getCurrentUser();
   const userId = user?.userId;
 
@@ -148,7 +147,7 @@ export default async function ConsultationDetailPage({ params }: ConsultationDet
   }
 
   const doctorId = doctorRecord.id;
-  const consultationId = parseInt(consultationIdParam);
+  const consultationId = parseInt(resolvedParams.consultationId);
   
   if (isNaN(consultationId)) {
     notFound();
@@ -160,5 +159,5 @@ export default async function ConsultationDetailPage({ params }: ConsultationDet
     notFound();
   }
 
-  return <ConsultationDetailPageContent recordData={recordData} />;
+  return <ConsultationPrintView recordData={recordData} />;
 }

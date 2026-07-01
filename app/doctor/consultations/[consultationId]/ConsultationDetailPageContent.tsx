@@ -29,6 +29,7 @@ import { format } from 'date-fns';
 interface ClinicalNote {
   title: string;
   content: string | null | undefined;
+  icon: 'user' | 'activity' | 'clipboard' | 'fileText';
 }
 
 interface ChargeItem {
@@ -74,6 +75,7 @@ interface ConsultationRecord {
   appointmentId: number;
   chiefComplaint: string;
   examination: string;
+  assessment: string;
   plan: string;
   outcomeType?: string;
   completedAt?: string;
@@ -117,19 +119,21 @@ export default function ConsultationDetailPageContent({ recordData }: Consultati
   const patientAge = calculateAge(patient.dateOfBirth);
 
   const clinicalNotes: ClinicalNote[] = [
-    { title: 'Chief Complaint / Patient Concerns', content: recordData.chiefComplaint },
-    { title: 'Clinical Examination', content: recordData.examination },
-    { title: 'Treatment Plan & Recommendations', content: recordData.plan },
+    { title: 'Subjective', content: recordData.chiefComplaint, icon: 'user' },
+    { title: 'Objective', content: recordData.examination, icon: 'activity' },
+    { title: 'Assessment', content: recordData.assessment, icon: 'clipboard' },
+    { title: 'Plan', content: recordData.plan, icon: 'fileText' },
   ];
 
   const handlePrint = () => {
-    window.print();
+    const printUrl = `/doctor/consultations/${recordData.id}/print`;
+    window.open(printUrl, '_blank', 'width=1200,height=800,scrollbars=yes,resizable=yes');
   };
 
   return (
     <div className="min-h-screen bg-white">
       {/* Print-optimized header */}
-      <div className="print:hidden bg-white border-b border-slate-200 sticky top-0 z-50">
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button asChild variant="ghost" size="sm" className="h-9 px-2 text-slate-500 hover:text-slate-900">
@@ -296,26 +300,27 @@ export default function ConsultationDetailPageContent({ recordData }: Consultati
               CLINICAL NOTES
             </h2>
           </div>
-          <div className="p-4 sm:p-6 space-y-6">
-            {clinicalNotes.map((note, index) => (
-              <div key={note.title} className={index > 0 ? 'pt-4 border-t border-slate-100 print:border-black' : ''}>
-                <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2 print:text-black">
-                  {index === 0 && <Stethoscope className="h-4 w-4" />}
-                  {index === 1 && <Activity className="h-4 w-4" />}
-                  {index === 2 && <ClipboardList className="h-4 w-4" />}
-                  {note.title}
-                </h3>
-                {note.content && note.content.trim().length > 0 ? (
-                  <div 
-                    className="text-slate-700 leading-relaxed print:text-black"
-                    dangerouslySetInnerHTML={{ __html: note.content }}
-                  />
-                ) : (
-                  <p className="text-slate-400 italic">No documentation recorded</p>
-                )}
-              </div>
-            ))}
-          </div>
+              <div className="p-4 sm:p-6 space-y-6">
+              {clinicalNotes.map((note, index) => (
+                <div key={note.title} className={index > 0 ? 'pt-4 border-t border-slate-100 print:border-black' : ''}>
+                  <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2 print:text-black">
+                    {note.icon === 'user' && <User className="h-4 w-4" />}
+                    {note.icon === 'activity' && <Activity className="h-4 w-4" />}
+                    {note.icon === 'clipboard' && <ClipboardList className="h-4 w-4" />}
+                    {note.icon === 'fileText' && <FileText className="h-4 w-4" />}
+                    {note.title}
+                  </h3>
+                  {note.content && note.content.trim().length > 0 ? (
+                    <div 
+                      className="text-slate-700 leading-relaxed print:text-black"
+                      dangerouslySetInnerHTML={{ __html: note.content }}
+                    />
+                  ) : (
+                    <p className="text-slate-400 italic">No documentation recorded</p>
+                  )}
+                </div>
+              ))}
+            </div>
         </div>
 
         {/* Charge Sheet Section */}
@@ -513,32 +518,6 @@ export default function ConsultationDetailPageContent({ recordData }: Consultati
           </div>
         </div>
       </div>
-
-      {/* Print Styles */}
-      <style jsx global>{`
-        @media print {
-          body { 
-            font-size: 12px; 
-            line-height: 1.4;
-          }
-          .print\\:hidden { 
-            display: none !important; 
-          }
-          .print\\:border-black {
-            border-color: #000 !important;
-          }
-          .print\\:text-black {
-            color: #000 !important;
-          }
-          .print\\:bg-white {
-            background-color: #fff !important;
-          }
-          @page {
-            margin: 0.5in;
-            size: letter;
-          }
-        }
-      `}</style>
     </div>
   );
 }

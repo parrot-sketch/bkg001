@@ -1,13 +1,6 @@
 'use client';
 
-/**
- * Login Page — Nairobi Sculpt
- *
- * Enterprise-grade split-screen authentication.
- * - Branded left panel on desktop
- * - Clean auth form on right
- * - WCAG AA compliant
- */
+
 
 import { useEffect } from 'react';
 import Link from 'next/link';

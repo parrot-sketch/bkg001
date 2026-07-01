@@ -3,12 +3,14 @@
 interface DocumentationChecklistProps {
   hasChief: boolean;
   hasExam: boolean;
+  hasAssessment: boolean;
   hasPlan: boolean;
 }
 
 export function DocumentationChecklist({
   hasChief,
   hasExam,
+  hasAssessment,
   hasPlan,
 }: DocumentationChecklistProps) {
   return (
@@ -19,9 +21,10 @@ export function DocumentationChecklist({
         </h3>
       </div>
       <div className="px-4 py-3 space-y-2">
-        <ChecklistRow label="Patient concerns" complete={hasChief} />
-        <ChecklistRow label="Examination" complete={hasExam} />
-        <ChecklistRow label="Treatment plan" complete={hasPlan} />
+        <ChecklistRow label="Subjective" complete={hasChief} />
+        <ChecklistRow label="Objective" complete={hasExam} />
+        <ChecklistRow label="Assessment" complete={hasAssessment} />
+        <ChecklistRow label="Plan" complete={hasPlan} />
       </div>
     </div>
   );

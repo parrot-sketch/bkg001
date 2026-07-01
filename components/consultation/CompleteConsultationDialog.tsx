@@ -55,16 +55,19 @@ function stripHtml(html: string): string {
 function generateSummary(notes: {
   chiefComplaint?: string;
   examination?: string;
+  assessment?: string;
   plan?: string;
 }): string {
   const parts: string[] = [];
 
-  const chief = notes.chiefComplaint ? stripHtml(notes.chiefComplaint) : '';
-  const exam = notes.examination ? stripHtml(notes.examination) : '';
+  const subjective = notes.chiefComplaint ? stripHtml(notes.chiefComplaint) : '';
+  const objective = notes.examination ? stripHtml(notes.examination) : '';
+  const assessment = notes.assessment ? stripHtml(notes.assessment) : '';
   const plan = notes.plan ? stripHtml(notes.plan) : '';
 
-  if (chief) parts.push(`Patient Concerns: ${chief}`);
-  if (exam) parts.push(`Examination: ${exam}`);
+  if (subjective) parts.push(`Subjective: ${subjective}`);
+  if (objective) parts.push(`Objective: ${objective}`);
+  if (assessment) parts.push(`Assessment: ${assessment}`);
   if (plan) parts.push(`Plan: ${plan}`);
 
   return parts.join('\n\n');
@@ -112,6 +115,7 @@ export function CompleteConsultationDialog({
   // Notes completeness check
   const hasChief = !!state.notes.chiefComplaint && stripHtml(state.notes.chiefComplaint).length > 0;
   const hasExam = !!state.notes.examination && stripHtml(state.notes.examination).length > 0;
+  const hasAssessment = !!state.notes.assessment && stripHtml(state.notes.assessment).length > 0;
   const hasPlan = !!state.notes.plan && stripHtml(state.notes.plan).length > 0;
 
   const handleSubmit = async () => {
@@ -166,6 +170,7 @@ export function CompleteConsultationDialog({
           <DocumentationChecklist 
             hasChief={hasChief} 
             hasExam={hasExam} 
+            hasAssessment={hasAssessment}
             hasPlan={hasPlan} 
           />
 

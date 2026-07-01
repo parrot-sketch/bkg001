@@ -79,9 +79,7 @@ export class ConsultationMapper {
 
     // If completed, apply complete transition
     if (state === ConsultationState.COMPLETED) {
-      if (!outcomeType) {
-        throw new Error('Completed consultation must have outcome type');
-      }
+      // outcomeType is optional in domain - allow missing value for legacy/incomplete records
       result = result.complete({
         outcomeType,
         notes: notes ?? ConsultationNotes.createEmpty(),

@@ -41,6 +41,7 @@ import { useAuth } from '@/hooks/patient/useAuth';
 import { useDoctorTodayAppointments } from '@/hooks/doctor/useDoctorDashboard';
 import { useConsultation } from '@/hooks/consultation/useConsultation';
 import { useSaveConsultationDraft } from '@/hooks/consultation/useSaveConsultationDraft';
+import { updateCompletedConsultationNotes } from '@/actions/doctor/consultation-hub';
 
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { ConsultationState } from '@/domain/enums/ConsultationState';
@@ -79,6 +80,7 @@ export interface VitalsData {
 export interface StructuredNotes {
   chiefComplaint?: string;
   examination?: string;
+  assessment?: string;
   plan?: string;
 }
 
@@ -283,6 +285,7 @@ interface ConsultationContextValue {
   startConsultation: () => Promise<void>;
   closeStartDialog: () => void;
   saveDraft: () => Promise<void>;
+  saveNotes: () => Promise<void>;
   updateNotes: (field: keyof StructuredNotes, value: string) => void;
   setOutcome: (outcome: ConsultationOutcomeType) => void;
   setPatientDecision: (decision: PatientDecision | null) => void;
@@ -340,7 +343,7 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
     state.consultation?.state === ConsultationState.IN_PROGRESS;
   const isReadOnly = appointmentCompleted || appointmentCancelled ||
     state.consultation?.state === ConsultationState.COMPLETED;
-  const canSave = isActive && state.workflow.isDirty;
+  const canSave = state.workflow.isDirty;
   const canComplete = isActive && !state.isSaving;
 
   // ========== ACTIONS ==========
@@ -413,8 +416,9 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
         if (consultationResponse.data.notes?.structured) {
           dispatch({ type: 'SET_NOTES', payload: consultationResponse.data.notes.structured });
         } else if (consultationResponse.data.notes?.fullText) {
-          // Fallback for legacy raw notes (display in chief complaint)
-          dispatch({ type: 'SET_NOTES', payload: { chiefComplaint: consultationResponse.data.notes.fullText } });
+          // Parse legacy full-text notes into structured format
+          const parsed = parseLegacyNotes(consultationResponse.data.notes.fullText);
+          dispatch({ type: 'SET_NOTES', payload: parsed });
         }
 
         // Restore outcome/decision
@@ -561,7 +565,6 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
       dispatch({ type: 'SET_DIRTY', payload: false });
       dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'saved' });
 
-      // Save to localStorage as backup
       localStorage.setItem(
         `consultation-draft-${state.appointment.id}`,
         JSON.stringify({
@@ -570,7 +573,6 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
         })
       );
 
-      // Reset status after 2 seconds
       setTimeout(() => {
         dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'idle' });
       }, 2000);
@@ -582,6 +584,70 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
       dispatch({ type: 'SET_SAVING', payload: false });
     }
   }, [state.appointment, state.doctorId, state.consultation, state.notes, state.outcomeType, state.patientDecision, canSave, saveDraftMutation]);
+
+  const saveNotes = useCallback(async () => {
+    if (!state.appointment || !state.doctorId || !state.consultation || !state.workflow.isDirty) return;
+
+    dispatch({ type: 'SET_SAVING', payload: true });
+    dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'saving' });
+
+    try {
+      const isCompleted = state.consultation.state === ConsultationState.COMPLETED ||
+        state.appointment.status === AppointmentStatus.COMPLETED;
+
+if (isCompleted) {
+         const result = await updateCompletedConsultationNotes({
+           consultationId: state.consultation.id,
+           doctorId: state.doctorId,
+           chiefComplaint: state.notes.chiefComplaint,
+           examination: state.notes.examination,
+           plan: state.notes.plan,
+         });
+
+        if (result.success) {
+          dispatch({ type: 'SET_DIRTY', payload: false });
+          dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'saved' });
+          setTimeout(() => {
+            dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'idle' });
+          }, 2000);
+        } else {
+          dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'error' });
+          toast.error(result.error || 'Failed to save notes');
+        }
+      } else {
+        await saveDraftMutation.mutateAsync({
+          appointmentId: state.appointment.id,
+          doctorId: state.doctorId,
+          notes: {
+            rawText: generateFullText(state.notes),
+            structured: state.notes,
+          },
+          outcomeType: state.outcomeType ?? undefined,
+          patientDecision: state.patientDecision ?? undefined,
+        });
+
+        dispatch({ type: 'SET_DIRTY', payload: false });
+        dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'saved' });
+
+        localStorage.setItem(
+          `consultation-draft-${state.appointment.id}`,
+          JSON.stringify({
+            structured: state.notes,
+            timestamp: new Date().toISOString()
+          })
+        );
+
+        setTimeout(() => {
+          dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'idle' });
+        }, 2000);
+      }
+    } catch (error: any) {
+      console.error('Failed to save notes:', error);
+      dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'error' });
+    } finally {
+      dispatch({ type: 'SET_SAVING', payload: false });
+    }
+  }, [state.appointment, state.doctorId, state.consultation, state.notes, state.outcomeType, state.patientDecision, state.workflow.isDirty, state.consultation?.state, state.appointment?.status, saveDraftMutation]);
 
   const updateNotes = useCallback((field: keyof StructuredNotes, value: string) => {
     dispatch({ type: 'UPDATE_NOTE_FIELD', payload: { field, value } });
@@ -776,6 +842,7 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
     startConsultation,
     closeStartDialog,
     saveDraft,
+    saveNotes,
     updateNotes,
     setOutcome,
     setPatientDecision,
@@ -797,6 +864,7 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
     startConsultation,
     closeStartDialog,
     saveDraft,
+    saveNotes,
     updateNotes,
     setOutcome,
     setPatientDecision,
@@ -847,4 +915,24 @@ function generateFullText(notes: StructuredNotes): string {
   }
 
   return parts.join('\n\n' + '='.repeat(40) + '\n\n');
+}
+
+/**
+ * Parse legacy full-text notes into structured format.
+ * Handles notes saved in format: "Chief Complaint: ...\n\nExamination: ...\n\nAssessment: ...\n\nPlan: ..."
+ */
+function parseLegacyNotes(fullText: string): StructuredNotes {
+  const notes: StructuredNotes = {};
+  
+  const chiefMatch = fullText.match(/Chief Complaint:([\s\S]*?)(?:Examination:|Assessment:|Plan:|=== CONSULTATION OUTCOME ===|$)/i);
+  const examMatch = fullText.match(/Examination:([\s\S]*?)(?:Assessment:|Plan:|=== CONSULTATION OUTCOME ===|$)/i);
+  const assessmentMatch = fullText.match(/Assessment:([\s\S]*?)(?:Plan:|=== CONSULTATION OUTCOME ===|$)/i);
+  const planMatch = fullText.match(/Plan:([\s\S]*?)(=== CONSULTATION OUTCOME ===|$)/i);
+  
+  if (chiefMatch) notes.chiefComplaint = chiefMatch[1].trim();
+  if (examMatch) notes.examination = examMatch[1].trim();
+  if (assessmentMatch) notes.assessment = assessmentMatch[1].trim();
+  if (planMatch) notes.plan = planMatch[1].trim();
+  
+  return notes;
 }
