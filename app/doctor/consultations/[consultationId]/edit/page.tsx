@@ -77,11 +77,6 @@ async function getConsultationForEdit(consultationId: number, doctorId: string) 
   };
 }
 
-interface ConsultationEditPageContentProps {
-  recordData: ConsultationRecord;
-  doctorId: string;
-}
-
 export default async function ConsultationEditPage({ params }: ConsultationEditPageProps) {
   const { consultationId: consultationIdParam } = await params;
   const user = await getCurrentUser();
