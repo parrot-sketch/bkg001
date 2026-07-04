@@ -116,7 +116,13 @@ export function useBooking() {
       });
 
       if (res.success) {
-        toast.success('Appointment scheduled successfully!');
+        toast.success('Appointment request submitted. Awaiting doctor confirmation.', {
+          style: {
+            background: '#143232',
+            color: '#ffffff',
+            border: '1px solid #bea032',
+          },
+        });
         router.push('/frontdesk/appointments');
       } else {
         toast.error(res.error || 'Failed to schedule appointment');

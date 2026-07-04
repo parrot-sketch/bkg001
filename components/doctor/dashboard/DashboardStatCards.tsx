@@ -29,19 +29,19 @@ export function DashboardStatCards({ isLoading }: DashboardStatCardsProps) {
           <button
             key={key}
             onClick={() => href.startsWith('#') ? null : router.push(href)}
-            className="flex flex-col items-center justify-center p-4 bg-white border border-slate-200 rounded-xl hover:shadow-sm hover:border-slate-300 transition-all text-center"
+            className="flex flex-col items-center justify-center p-4 bg-[#e7d6bf] border border-[#2c2e4b]/10 rounded-xl hover:shadow-md hover:border-[#caa26a]/40 transition-all text-center"
           >
             {isLoading ? (
               <div className="space-y-2 w-full">
-                <div className="h-4 w-3/4 bg-slate-100 animate-pulse rounded mx-auto" />
-                <div className="h-8 w-1/2 bg-slate-100 animate-pulse rounded mx-auto" />
+                <div className="h-4 w-3/4 bg-[#2c2e4b]/10 animate-pulse rounded mx-auto" />
+                <div className="h-8 w-1/2 bg-[#2c2e4b]/10 animate-pulse rounded mx-auto" />
               </div>
             ) : (
               <>
-                <p className="text-[11px] uppercase tracking-wider text-slate-500 font-medium">
+                <p className="text-[11px] uppercase tracking-wider text-[#2c2e4b]/70 font-medium">
                   {label}
                 </p>
-                <p className={`text-3xl font-bold mt-1 ${value === 0 ? 'text-slate-300' : 'text-[#121c1d]'}`}>
+                <p className={`text-3xl font-bold mt-1 ${value === 0 ? 'text-[#2c2e4b]/30' : 'text-[#2c2e4b]'}`}>
                   {value}
                 </p>
               </>

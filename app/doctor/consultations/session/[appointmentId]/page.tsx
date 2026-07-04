@@ -18,11 +18,12 @@ import { cn } from '@/lib/utils';
 // ============================================================================
 
 const BRAND = {
-  primary: '#0c5d69',      // Teal - main brand color
-  primaryLight: '#e6f0f1', // Light teal - backgrounds
-  primaryDark: '#0a4f59',  // Darker teal - hover states
-  border: 'border-[#0c5d69]/15',
-  borderStrong: 'border-[#0c5d69]/25',
+  primary: '#2c2e4b',
+  primaryLight: '#e7d6bf',
+  primaryDark: '#1a1c2f',
+  accent: '#caa26a',
+  border: 'border-[#e7d6bf]',
+  borderStrong: 'border-[#caa26a]/40',
 };
 
 // ============================================================================
@@ -77,7 +78,7 @@ const CompleteConsultationDialog = dynamic(
 
 function HeaderSkeleton() {
   return (
-    <div className="h-16 bg-white border-b flex items-center px-4 lg:px-6 gap-3">
+    <div className="h-16 bg-white border-b border-[#e7d6bf] flex items-center px-4 lg:px-6 gap-3">
       <Skeleton className="h-9 w-9 rounded-full" />
       <Skeleton className="h-10 w-10 rounded-full" />
       <div className="space-y-1.5">
@@ -96,19 +97,19 @@ function SidebarSkeleton() {
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center gap-3">
-        <Skeleton className="h-11 w-11 rounded-xl" />
+        <Skeleton className="h-11 w-11 rounded-xl bg-[#e7d6bf]/50" />
         <div className="space-y-1.5 flex-1">
-          <Skeleton className="h-4 w-28" />
-          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-4 w-28 bg-[#e7d6bf]/50" />
+          <Skeleton className="h-3 w-20 bg-[#e7d6bf]/50" />
         </div>
       </div>
-      <div className="border-t border-slate-100 pt-3 space-y-3">
-        <Skeleton className="h-3 w-16" />
-        <Skeleton className="h-10 w-full rounded-lg" />
+      <div className="border-t border-[#e7d6bf] pt-3 space-y-3">
+        <Skeleton className="h-3 w-16 bg-[#e7d6bf]/50" />
+        <Skeleton className="h-10 w-full rounded-lg bg-[#e7d6bf]/50" />
       </div>
-      <div className="border-t border-slate-100 pt-3 space-y-3">
-        <Skeleton className="h-3 w-20" />
-        <Skeleton className="h-16 w-full rounded-lg" />
+      <div className="border-t border-[#e7d6bf] pt-3 space-y-3">
+        <Skeleton className="h-3 w-20 bg-[#e7d6bf]/50" />
+        <Skeleton className="h-16 w-full rounded-lg bg-[#e7d6bf]/50" />
       </div>
     </div>
   );
@@ -118,22 +119,22 @@ function WorkspaceSkeleton() {
   return (
     <div className="flex-1 flex flex-col">
       {/* Tab bar skeleton */}
-      <div className="h-14 border-b bg-slate-50/80 flex items-center px-3 gap-2">
+      <div className="h-14 border-b border-[#e7d6bf] bg-white flex items-center px-3 gap-2">
         {[1, 2, 3, 4, 5].map(i => (
-          <Skeleton key={i} className="h-9 flex-1 rounded-lg" />
+          <Skeleton key={i} className="h-9 flex-1 rounded-lg bg-[#e7d6bf]/50" />
         ))}
       </div>
       {/* Content skeleton */}
       <div className="flex-1 p-6 space-y-4">
-        <Skeleton className="h-5 w-36" />
-        <Skeleton className="h-3 w-64" />
-        <Skeleton className="h-72 w-full rounded-xl" />
+        <Skeleton className="h-5 w-36 bg-[#e7d6bf]/50" />
+        <Skeleton className="h-3 w-64 bg-[#e7d6bf]/50" />
+        <Skeleton className="h-72 w-full rounded-xl bg-[#e7d6bf]/50" />
       </div>
       {/* Footer skeleton */}
-      <div className="h-16 border-t flex items-center justify-between px-6">
-        <Skeleton className="h-9 w-24 rounded-lg" />
-        <Skeleton className="h-4 w-16" />
-        <Skeleton className="h-9 w-24 rounded-lg" />
+      <div className="h-16 border-t border-[#e7d6bf] flex items-center justify-between px-6">
+        <Skeleton className="h-9 w-24 rounded-lg bg-[#e7d6bf]/50" />
+        <Skeleton className="h-4 w-16 bg-[#e7d6bf]/50" />
+        <Skeleton className="h-9 w-24 rounded-lg bg-[#e7d6bf]/50" />
       </div>
     </div>
   );
@@ -141,16 +142,16 @@ function WorkspaceSkeleton() {
 
 function LoadingState() {
   return (
-    <div className="flex h-screen items-center justify-center bg-slate-50">
+    <div className="flex h-screen items-center justify-center bg-white">
       <div className="text-center space-y-4">
         <div className="relative">
-          <div className="h-14 w-14 rounded-2xl bg-white border border-slate-200 flex items-center justify-center mx-auto">
-            <Loader2 className="h-7 w-7 animate-spin" style={{ color: BRAND.primary }} />
+          <div className="h-14 w-14 rounded-2xl bg-white border border-[#e7d6bf] flex items-center justify-center mx-auto">
+            <Loader2 className="h-7 w-7 animate-spin text-[#caa26a]" />
           </div>
         </div>
         <div>
-          <p className="text-sm font-medium text-slate-600">Loading Consultation Room…</p>
-          <p className="text-xs text-slate-400 mt-1">Preparing your workspace</p>
+          <p className="text-sm font-medium text-[#2c2e4b]">Loading Consultation Room…</p>
+          <p className="text-xs text-[#2c2e4b]/60 mt-1">Preparing your workspace</p>
         </div>
       </div>
     </div>
@@ -163,17 +164,17 @@ function NoPatientState({ waitingQueue, onRefresh, isRefreshing }: {
   isRefreshing?: boolean;
 }) {
   return (
-    <div className="flex flex-col h-screen bg-slate-50/30">
-      {/* Simple header with teal accent */}
-      <div className="h-16 border-b border-slate-200 flex items-center justify-center px-4 bg-white">
-        <h1 className="text-base font-semibold text-slate-900">Consultation room</h1>
+    <div className="flex flex-col h-screen bg-white">
+      {/* Simple header with brand accent */}
+      <div className="h-16 border-b border-[#e7d6bf] flex items-center justify-center px-4 bg-white">
+        <h1 className="text-base font-semibold text-[#2c2e4b]">Consultation room</h1>
       </div>
 
       {/* Main content area - centered message */}
       <div className="flex-1 flex flex-col items-center justify-center p-6">
-        <div className="text-center max-w-sm border border-slate-200 bg-white p-8 rounded-xl shadow-sm">
-          <h2 className="text-base font-semibold text-slate-900 mb-2">Waiting for patient</h2>
-          <p className="text-sm text-slate-600 mb-4">
+        <div className="text-center max-w-sm border border-[#e7d6bf] bg-white p-8 rounded-xl shadow-sm">
+          <h2 className="text-base font-semibold text-[#2c2e4b] mb-2">Waiting for patient</h2>
+          <p className="text-sm text-[#2c2e4b]/70 mb-4">
             {waitingQueue.length > 0 
               ? `${waitingQueue.length} patient${waitingQueue.length > 1 ? 's' : ''} waiting in queue`
               : 'No patients currently in queue'
@@ -231,16 +232,16 @@ function ConsultationSessionContent() {
   // Error state
   if (state.workflow.error) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50">
+      <div className="flex h-screen items-center justify-center bg-white">
         <div className="text-center space-y-4 max-w-md px-6">
-          <div className="border border-slate-200 bg-white p-6">
-            <h2 className="text-base font-semibold text-slate-900">Unable to load consultation</h2>
-          <p className="text-sm text-slate-500 leading-relaxed">{state.workflow.error}</p>
+          <div className="border border-[#e7d6bf] bg-white p-6">
+            <h2 className="text-base font-semibold text-[#2c2e4b]">Unable to load consultation</h2>
+          <p className="text-sm text-[#2c2e4b]/70 leading-relaxed">{state.workflow.error}</p>
           <Button
             variant="outline"
             size="sm"
             onClick={() => window.location.reload()}
-            className="mt-4 rounded-none"
+            className="mt-4 rounded-lg border-[#e7d6bf] text-[#2c2e4b]"
           >
             Try again
           </Button>
@@ -281,7 +282,7 @@ function ConsultationSessionContent() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-white text-slate-900">
+    <div className="flex flex-col h-screen bg-white text-[#2c2e4b]">
       {/* Header */}
       <Suspense fallback={<HeaderSkeleton />}>
         <ConsultationSessionHeader
@@ -304,12 +305,12 @@ function ConsultationSessionContent() {
         />
       </Suspense>
 
-{/* Main Layout — 3 columns */}
+ {/* Main Layout — 3 columns */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left: Patient Info (collapsible) - teal themed */}
+        {/* Left: Patient Info (collapsible) - brand themed */}
         <div
           className={cn(
-            'bg-white border-r border-slate-200 shrink-0 hidden lg:flex flex-col overflow-hidden transition-[width] duration-200 ease-out',
+            'bg-white border-r border-[#e7d6bf] shrink-0 hidden lg:flex flex-col overflow-hidden transition-[width] duration-200 ease-out',
             isPatientSidebarCollapsed ? 'w-14' : 'w-[280px]',
           )}
         >
@@ -317,24 +318,24 @@ function ConsultationSessionContent() {
             <button
               type="button"
               onClick={() => setIsPatientSidebarCollapsed(false)}
-              className="h-full w-full flex flex-col items-center justify-center bg-slate-50/50 hover:bg-slate-100 transition-colors group"
+              className="h-full w-full flex flex-col items-center justify-center bg-[#e7d6bf]/30 hover:bg-[#e7d6bf]/50 transition-colors group"
               aria-label="Open patient panel"
               title="Open patient panel"
             >
-              <PanelRight className="h-5 w-5 text-slate-600 group-hover:text-slate-900 mb-1" />
-              <span className="text-[10px] font-semibold text-slate-600 uppercase tracking-[0.1em]">
+              <PanelRight className="h-5 w-5 text-[#2c2e4b] group-hover:text-[#2c2e4b]/80 mb-1" />
+              <span className="text-[10px] font-semibold text-[#2c2e4b] uppercase tracking-[0.1em]">
                 Patient
               </span>
             </button>
           ) : (
             <div className="flex h-full flex-col">
               {/* Panel header with close button */}
-              <div className="flex items-center justify-between px-3 py-2 border-b border-slate-200 bg-slate-50/50">
-                <span className="text-xs font-semibold text-slate-700">Patient</span>
+              <div className="flex items-center justify-between px-3 py-2 border-b border-[#e7d6bf] bg-[#e7d6bf]/30">
+                <span className="text-xs font-semibold text-[#2c2e4b]">Patient</span>
                 <button
                   type="button"
                   onClick={() => setIsPatientSidebarCollapsed(true)}
-                  className="p-1 rounded hover:bg-slate-200 text-slate-500 hover:text-slate-900 transition-colors"
+                  className="p-1 rounded hover:bg-[#e7d6bf] text-[#2c2e4b]/70 hover:text-[#2c2e4b] transition-colors"
                   aria-label="Close patient panel"
                 >
                   <PanelLeft className="h-4 w-4" />
@@ -353,7 +354,7 @@ function ConsultationSessionContent() {
         </div>
 
         {/* Center: Workspace (flex) */}
-        <div className="flex-1 flex flex-col h-full overflow-hidden border-r border-slate-200">
+        <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#fcfbf8]">
           <ConsultationWorkspaceOptimized />
         </div>
 
@@ -415,12 +416,12 @@ export default function ConsultationSessionPageOptimized({ params }: PageProps) 
 
   if (!isAuthenticated || !user) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50">
-        <div className="text-center p-8 bg-white border border-slate-200 max-w-md">
-          <h2 className="text-base font-semibold text-slate-900 mb-2">Authentication required</h2>
-          <p className="text-sm text-slate-600 mb-6">Please log in to access the consultation room.</p>
+      <div className="flex h-screen items-center justify-center bg-white">
+        <div className="text-center p-8 bg-white border border-[#e7d6bf] max-w-md">
+          <h2 className="text-base font-semibold text-[#2c2e4b] mb-2">Authentication required</h2>
+          <p className="text-sm text-[#2c2e4b]/70 mb-6">Please log in to access the consultation room.</p>
           <Link href="/login">
-            <Button variant="outline" className="w-full rounded-none">Return to login</Button>
+            <Button variant="outline" className="w-full rounded-lg border-[#e7d6bf] text-[#2c2e4b]">Return to login</Button>
           </Link>
         </div>
       </div>
@@ -429,10 +430,10 @@ export default function ConsultationSessionPageOptimized({ params }: PageProps) 
 
   if (isNaN(appointmentId)) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50">
-        <div className="text-center space-y-3 border border-slate-200 bg-white p-6 max-w-md">
-          <p className="text-sm font-semibold text-slate-900">Invalid appointment ID</p>
-          <p className="text-xs text-slate-500">Please check the URL and try again.</p>
+      <div className="flex h-screen items-center justify-center bg-white">
+        <div className="text-center space-y-3 border border-[#e7d6bf] bg-white p-6 max-w-md">
+          <p className="text-sm font-semibold text-[#2c2e4b]">Invalid appointment ID</p>
+          <p className="text-xs text-[#2c2e4b]/60">Please check the URL and try again.</p>
         </div>
       </div>
     );

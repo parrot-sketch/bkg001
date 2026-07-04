@@ -280,6 +280,29 @@ body {
   animation: glow-pulse 3s ease-in-out infinite;
 }
 
+/* Float animations for auth layout decorative elements */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes float-delayed {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+}
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-12px) rotate(2deg); }
+}
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+.animate-float-delayed {
+  animation: float-delayed 8s ease-in-out infinite;
+}
+.animate-float-slow {
+  animation: float-slow 10s ease-in-out infinite;
+}
+
 /* ------------------------------------------------------------------ */
 /* Landing page — premium background textures (pure CSS, no images)   */
 /* ------------------------------------------------------------------ */

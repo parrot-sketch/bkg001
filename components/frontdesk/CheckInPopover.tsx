@@ -15,7 +15,7 @@ import {
     ClipboardType
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { useCheckIn } from '@/hooks/frontdesk/useTodaysSchedule';
+import { useCheckIn } from '@/hooks/frontdesk/use-frontdesk-dashboard';
 import { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { cn } from '@/lib/utils';
 
@@ -54,17 +54,17 @@ export function CheckInPopover({ appointment, children }: CheckInPopoverProps) {
             <PopoverTrigger asChild>
                 {children}
             </PopoverTrigger>
-            <PopoverContent className="w-80 p-0 overflow-hidden border-slate-100 shadow-xl rounded-2xl bg-white" align="end" sideOffset={8}>
+            <PopoverContent className="w-80 p-0 overflow-hidden border border-[#e7d6bf] shadow-xl rounded-xl bg-white" align="end" sideOffset={8}>
                 {/* Header */}
-                <div className="bg-slate-50/50 p-4 border-b border-slate-100 flex items-start justify-between">
+                <div className="bg-[#e7d6bf]/15 p-4 border-b border-[#e7d6bf] flex items-start justify-between">
                     <div>
-                        <h3 className="text-sm font-bold text-slate-900">{patientName}</h3>
-                        <p className="text-xs text-slate-500 font-medium flex items-center gap-1.5 mt-0.5">
-                            <ClipboardType className="w-3 h-3" />
+                        <h3 className="text-sm font-bold text-[#2c2e4b]">{patientName}</h3>
+                        <p className="text-xs text-[#2c2e4b]/60 font-medium flex items-center gap-1.5 mt-0.5">
+                            <ClipboardType className="w-3 h-3 text-[#caa26a]" />
                             {appointment.type || 'General Consultation'}
                         </p>
                     </div>
-                    <div className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">
+                    <div className="bg-[#e7d6bf]/30 text-[#2c2e4b] px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider">
                         Ready
                     </div>
                 </div>
@@ -73,16 +73,16 @@ export function CheckInPopover({ appointment, children }: CheckInPopoverProps) {
                     {/* Quick Context */}
                     <div className="flex gap-4 text-xs">
                         <div className="flex-1 space-y-1">
-                            <div className="text-slate-400 font-semibold uppercase text-[10px] tracking-wider flex items-center gap-1">
-                                <Clock className="w-3 h-3" /> Time
+                            <div className="text-[#2c2e4b]/40 font-semibold uppercase text-[10px] tracking-wider flex items-center gap-1">
+                                <Clock className="w-3 h-3 text-[#caa26a]" /> Time
                             </div>
-                            <div className="font-medium text-slate-700">{timeString}</div>
+                            <div className="font-medium text-[#2c2e4b]">{timeString}</div>
                         </div>
                         <div className="flex-1 space-y-1">
-                            <div className="text-slate-400 font-semibold uppercase text-[10px] tracking-wider flex items-center gap-1">
-                                <Stethoscope className="w-3 h-3" /> Provider
+                            <div className="text-[#2c2e4b]/40 font-semibold uppercase text-[10px] tracking-wider flex items-center gap-1">
+                                <Stethoscope className="w-3 h-3 text-[#caa26a]" /> Provider
                             </div>
-                            <div className="font-medium text-slate-700 truncate max-w-[100px]" title={doctorName}>
+                            <div className="font-medium text-[#2c2e4b] truncate max-w-[100px]" title={doctorName}>
                                 {doctorName.replace('Dr. ', '')}
                             </div>
                         </div>
@@ -90,13 +90,13 @@ export function CheckInPopover({ appointment, children }: CheckInPopoverProps) {
 
                     {/* Notes Input */}
                     <div className="space-y-2">
-                        <Label htmlFor="popover-notes" className="text-xs font-semibold text-slate-500">
-                            Arrival Notes <span className="text-[10px] font-normal text-slate-400">(Optional)</span>
+                        <Label htmlFor="popover-notes" className="text-xs font-semibold text-[#2c2e4b]">
+                            Arrival Notes <span className="text-[10px] font-normal text-[#2c2e4b]/50">(Optional)</span>
                         </Label>
                         <Textarea
                             id="popover-notes"
                             placeholder="Any immediate observations..."
-                            className="min-h-[60px] resize-none border-slate-200 text-sm p-3 focus:ring-indigo-500"
+                            className="min-h-[60px] resize-none border-[#e7d6bf] text-sm p-3 focus:ring-[#caa26a]/30 focus:border-[#caa26a] text-[#2c2e4b] placeholder:text-[#2c2e4b]/30"
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
                         />
@@ -107,7 +107,7 @@ export function CheckInPopover({ appointment, children }: CheckInPopoverProps) {
                         <Button
                             onClick={handleCheckIn}
                             disabled={isPending}
-                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-sm h-10"
+                            className="w-full bg-[#caa26a] hover:bg-[#b8913e] text-[#2c2e4b] font-semibold rounded-lg shadow-sm h-10"
                         >
                             {isPending ? (
                                 <div className="flex items-center gap-2">
@@ -124,7 +124,7 @@ export function CheckInPopover({ appointment, children }: CheckInPopoverProps) {
                         <Button
                             variant="ghost"
                             onClick={() => setOpen(false)}
-                            className="w-full text-slate-500 hover:text-slate-700 h-8 text-xs font-semibold"
+                            className="w-full text-[#2c2e4b]/50 hover:text-[#2c2e4b] hover:bg-[#e7d6bf]/30 h-8 text-xs font-semibold"
                         >
                             Cancel
                         </Button>

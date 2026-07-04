@@ -66,58 +66,60 @@ export function FrontdeskPatientSidebar({
     return (
         <div className="space-y-4">
             {/* Patient Summary */}
-            <div className="border border-border bg-white">
-                <div className="px-4 py-3 border-b border-border">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            <div className="border border-[#e7d6bf] bg-white rounded-xl shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-[#e7d6bf] bg-[#e7d6bf]/10">
+                    <p className="text-[10px] font-bold text-[#2c2e4b]/60 uppercase tracking-widest">
                         Summary
                     </p>
                 </div>
-                <div className="px-4">
-                    <div className="flex items-center justify-between py-2.5 border-b border-border">
-                        <span className="text-sm text-muted-foreground">Status</span>
-                        <span className="text-xs font-medium text-foreground">Active</span>
+                <div className="px-4 py-1">
+                    <div className="flex items-center justify-between py-2.5 border-b border-[#e7d6bf]/60">
+                        <span className="text-sm text-[#2c2e4b]/60">Status</span>
+                        <span className="inline-flex items-center text-[11px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                            Active
+                        </span>
                     </div>
-                    <div className="flex items-center justify-between py-2.5 border-b border-border">
-                        <span className="text-sm text-muted-foreground">Total Appointments</span>
-                        <span className="text-sm font-semibold text-foreground">{totalAppointments}</span>
+                    <div className="flex items-center justify-between py-2.5 border-b border-[#e7d6bf]/60">
+                        <span className="text-sm text-[#2c2e4b]/60">Total Appointments</span>
+                        <span className="text-sm font-semibold text-[#2c2e4b]">{totalAppointments}</span>
                     </div>
                     {lastVisit ? (
                         <div className="flex items-center justify-between py-2.5">
-                            <span className="text-sm text-muted-foreground">Last Visit</span>
-                            <span className="text-sm font-medium text-foreground">
+                            <span className="text-sm text-[#2c2e4b]/60">Last Visit</span>
+                            <span className="text-sm font-semibold text-[#2c2e4b]">
                                 {format(lastVisit, "MMM d, yyyy")}
                             </span>
                         </div>
                     ) : (
                         <div className="flex items-center justify-between py-2.5">
-                            <span className="text-sm text-muted-foreground">Last Visit</span>
-                            <span className="text-sm text-muted-foreground italic">No visits yet</span>
+                            <span className="text-sm text-[#2c2e4b]/60">Last Visit</span>
+                            <span className="text-sm text-[#2c2e4b]/40 italic">No visits yet</span>
                         </div>
                     )}
                 </div>
             </div>
 
             {/* Quick Actions */}
-            <div className="border border-border bg-white">
-                <div className="px-4 py-3 border-b border-border">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            <div className="border border-[#e7d6bf] bg-white rounded-xl shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-[#e7d6bf] bg-[#e7d6bf]/10">
+                    <p className="text-[10px] font-bold text-[#2c2e4b]/60 uppercase tracking-widest">
                         Actions
                     </p>
                 </div>
-                <div className="p-4 space-y-2">
+                <div className="p-4 space-y-2.5">
                     {/* Add to Queue */}
                     <button
                         onClick={() => setQueueDialogOpen(true)}
-                        className="w-full flex items-center gap-3 p-3 border border-border hover:bg-muted/30 transition-colors group text-left"
+                        className="w-full flex items-center gap-3 p-3 border border-[#e7d6bf] rounded-lg bg-white hover:bg-[#e7d6bf]/15 transition-all duration-200 group text-left shadow-sm hover:border-[#caa26a]/60"
                     >
-                        <div className="p-2 flex-shrink-0 text-foreground bg-muted">
+                        <div className="p-2 flex-shrink-0 text-[#caa26a] bg-[#e7d6bf]/20 rounded-md group-hover:bg-[#caa26a] group-hover:text-white transition-all duration-200">
                             <UserPlus size={14} />
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground leading-tight">Add to Queue</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">Assign to a doctor</p>
+                            <p className="text-sm font-semibold text-[#2c2e4b] leading-tight">Add to Queue</p>
+                            <p className="text-[11px] text-[#2c2e4b]/50 mt-0.5">Assign to a doctor</p>
                         </div>
-                        <ArrowRight size={14} className="text-muted-foreground/50 group-hover:text-foreground transition-colors flex-shrink-0" />
+                        <ArrowRight size={14} className="text-[#2c2e4b]/30 group-hover:text-[#caa26a] group-hover:translate-x-0.5 transition-all flex-shrink-0" />
                     </button>
 
                     {/* Schedule Appointment */}
@@ -127,16 +129,16 @@ export function FrontdeskPatientSidebar({
                             source: AppointmentSource.FRONTDESK_SCHEDULED,
                             bookingChannel: BookingChannel.DASHBOARD,
                         })}
-                        className="w-full flex items-center gap-3 p-3 border border-border hover:bg-muted/30 transition-colors group text-left"
+                        className="w-full flex items-center gap-3 p-3 border border-[#e7d6bf] rounded-lg bg-white hover:bg-[#e7d6bf]/15 transition-all duration-200 group text-left shadow-sm hover:border-[#caa26a]/60"
                     >
-                        <div className="p-2 flex-shrink-0 text-foreground bg-muted">
+                        <div className="p-2 flex-shrink-0 text-[#caa26a] bg-[#e7d6bf]/20 rounded-md group-hover:bg-[#caa26a] group-hover:text-white transition-all duration-200">
                             <CalendarPlus size={14} />
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground leading-tight">Schedule Appointment</p>
-                            <p className="text-xs text-muted-foreground mt-0.5">Book a new appointment</p>
+                            <p className="text-sm font-semibold text-[#2c2e4b] leading-tight">Schedule Appointment</p>
+                            <p className="text-[11px] text-[#2c2e4b]/50 mt-0.5">Book a new appointment</p>
                         </div>
-                        <ArrowRight size={14} className="text-muted-foreground/50 group-hover:text-foreground transition-colors flex-shrink-0" />
+                        <ArrowRight size={14} className="text-[#2c2e4b]/30 group-hover:text-[#caa26a] group-hover:translate-x-0.5 transition-all flex-shrink-0" />
                     </button>
 
                     {/* Tab Actions */}
@@ -148,27 +150,32 @@ export function FrontdeskPatientSidebar({
                                 key={action.label}
                                 onClick={() => handleTabClick(action.tabKey)}
                                 className={cn(
-                                    "w-full flex items-center gap-3 p-3 border transition-colors group text-left",
+                                    "w-full flex items-center gap-3 p-3 border rounded-lg transition-all duration-200 group text-left shadow-sm",
                                     isActive
-                                        ? "border-foreground/30 bg-muted/40"
-                                        : "border-border hover:bg-muted/30"
+                                        ? "border-[#caa26a] bg-[#e7d6bf]/15"
+                                        : "border-[#e7d6bf] bg-white hover:bg-[#e7d6bf]/15 hover:border-[#caa26a]/60"
                                 )}
                             >
-                                <div className="p-2 flex-shrink-0 text-foreground bg-muted">
+                                <div className={cn(
+                                    "p-2 flex-shrink-0 rounded-md transition-all duration-200",
+                                    isActive
+                                        ? "text-white bg-[#caa26a]"
+                                        : "text-[#caa26a] bg-[#e7d6bf]/20 group-hover:bg-[#caa26a] group-hover:text-white"
+                                )}>
                                     <Icon size={14} />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <p className={cn(
-                                        "text-sm font-medium leading-tight",
-                                        "text-foreground"
-                                    )}>
+                                    <p className="text-sm font-semibold text-[#2c2e4b] leading-tight">
                                         {action.label}
                                     </p>
-                                    <p className="text-xs text-muted-foreground mt-0.5">{action.description}</p>
+                                    <p className="text-[11px] text-[#2c2e4b]/50 mt-0.5">{action.description}</p>
                                 </div>
                                 <ArrowRight
                                     size={14}
-                                    className="text-muted-foreground/50 group-hover:text-foreground transition-colors flex-shrink-0"
+                                    className={cn(
+                                        "transition-all flex-shrink-0",
+                                        isActive ? "text-[#caa26a]" : "text-[#2c2e4b]/30 group-hover:text-[#caa26a] group-hover:translate-x-0.5"
+                                    )}
                                 />
                             </button>
                         );

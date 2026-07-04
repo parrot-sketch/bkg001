@@ -22,8 +22,8 @@ export function PatientSelectionStep({
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-lg font-semibold text-slate-900 mb-1">Select Patient</h3>
-        <p className="text-sm text-slate-500">Search and select the patient for this appointment</p>
+        <h3 className="text-base font-semibold text-[#2c2e4b] mb-1">Select Patient</h3>
+        <p className="text-xs text-[#2c2e4b]/60">Search and select the patient for this appointment</p>
       </div>
 
       <PatientCombobox
@@ -32,7 +32,7 @@ export function PatientSelectionStep({
       />
 
       {selectedPatient && (
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="rounded-xl border border-[#e7d6bf] bg-white p-4">
           <div className="flex items-start gap-4">
             <ProfileImage
               url={selectedPatient.profileImage}
@@ -42,16 +42,16 @@ export function PatientSelectionStep({
             />
             <div className="flex-1">
               <div className="flex items-center justify-between">
-                <h4 className="font-semibold text-slate-900">
+                <h4 className="font-semibold text-[#2c2e4b]">
                   {selectedPatient.firstName} {selectedPatient.lastName}
                 </h4>
                 {selectedPatient.fileNumber && (
-                  <span className="text-xs px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-mono">
+                  <span className="text-xs px-2 py-0.5 rounded-md bg-[#e7d6bf]/30 text-[#2c2e4b]/70 font-mono">
                     {selectedPatient.fileNumber}
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-4 mt-2 text-xs text-slate-500">
+              <div className="flex items-center gap-4 mt-2 text-xs text-[#2c2e4b]/60">
                 <span className="flex items-center gap-1">
                   <Clock className="h-3 w-3" />
                   {selectedPatient.age} yrs · {selectedPatient.gender}

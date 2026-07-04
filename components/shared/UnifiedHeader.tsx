@@ -131,11 +131,10 @@ export function UnifiedHeader({
       className={cn(
         'shrink-0 sticky top-0 z-30',
         'flex h-14 w-full items-center justify-between',
-        'bg-[[#0c5d69]/70 border-b border-slate-200',
+        'bg-white border-b border-[#e7d6bf]',
         'px-4 sm:px-6',
       )}
-      // 3px brand-primary top strip visually connects to sidebar's nav accent
-      style={{ borderTop: '3px solid #1E3A5F' }}
+      style={{ borderTop: '3px solid #caa26a' }}
     >
 
       {/* ── Left: hamburger + breadcrumbs ──────────────────────────────────── */}

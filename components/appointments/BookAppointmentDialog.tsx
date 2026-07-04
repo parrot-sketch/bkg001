@@ -9,7 +9,7 @@ import { useQueryClient } from '@tanstack/react-query';
  * BookAppointmentDialog — Nairobi Sculpt Brand
  *
  * Sheet slides in from the right over the light clinical layout.
- * White surface, teal accents inside the wizard are handled by
+ * White surface, gold/navy accents inside the wizard are handled by
  * AppointmentBookingWizard's own styles.
  */
 export function BookAppointmentDialog() {
@@ -45,7 +45,7 @@ export function BookAppointmentDialog() {
     <Sheet open={isOpen} onOpenChange={(open) => (!open ? closeBookingDialog() : undefined)}>
       <SheetContent
         side="right"
-        className="p-0 sm:max-w-[560px] w-[95vw] bg-white border-l border-slate-200 shadow-xl"
+        className="p-0 sm:max-w-[560px] w-[95vw] bg-white border-l border-[#e7d6bf] shadow-xl"
       >
         <SheetTitle className="sr-only">Book Appointment</SheetTitle>
         <AppointmentBookingWizard

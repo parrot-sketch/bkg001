@@ -1,13 +1,14 @@
 /**
- * Responsive fixes for 1920×1200 viewport:
- * - Wrapper scroll: added max-h-[calc(100vh-320px)] overflow-y-auto (prevents overflow)
- * - Patient row padding: px-4 py-3 → px-3 py-2.5 (tighter density)
- * - Doctor group row padding: px-4 py-3 → px-3 py-2.5
- * - Patient row in live queue: px-3 py-2 stays (already compact)
+ * Queue Management Panel - Combined view
+ * 
+ * Shows patients awaiting assignment (checked-in but not in any queue)
+ * and the live queue organized by doctor.
+ * 
+ * Branded with Nairobi Sculpt light palette: white cards, beige borders,
+ * navy typography, and gold accents.
  */
-
 import { useMemo, useState } from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -15,17 +16,16 @@ import {
   Clock, 
   UserPlus, 
   Loader2,
-  CheckCircle,
+  CheckCircle2,
   XCircle,
   UserMinus,
   RefreshCw
 } from 'lucide-react';
 import { useCheckedInAwaitingAssignment, useLiveQueueBoard, invalidateFrontdeskCache } from '@/hooks/frontdesk/use-frontdesk-dashboard';
 import type { FrontdeskCheckedInPatient } from '@/hooks/frontdesk/use-frontdesk-dashboard';
-import { assignPatientToQueue, removeFromQueue, reassignQueue } from '@/app/actions/appointment';
+import { assignPatientToQueue, removeFromQueue } from '@/app/actions/appointment';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { queryKeys } from '@/lib/constants/queryKeys';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDoctorsAvailability } from '@/hooks/schedule/useDoctorAvailability';
 import type { DoctorAvailabilityResponseDto } from '@/application/dtos/DoctorAvailabilityResponseDto';
@@ -59,7 +59,7 @@ function getNowStatus(doctor: DoctorAvailabilityResponseDto, now: Date): Availab
 
 export function QueueManagementPanels() {
   const queryClient = useQueryClient();
-  const { data: checkedInAwaiting, isLoading: loadingCheckedIn, error: errorCheckedIn, refetch: refetchCheckedIn } = useCheckedInAwaitingAssignment();
+  const { data: checkedInAwaiting, isLoading: loadingAwaiting, error: errorAwaiting, refetch: refetchAwaiting } = useCheckedInAwaitingAssignment();
   const { data: liveQueue, isLoading: loadingQueue, error: errorQueue, refetch: refetchQueue } = useLiveQueueBoard();
   const [showDoctorSelect, setShowDoctorSelect] = useState<number | null>(null);
   const [selectedDoctor, setSelectedDoctor] = useState<string>('');
@@ -78,9 +78,8 @@ export function QueueManagementPanels() {
         setShowDoctorSelect(null);
         setSelectedDoctor('');
         await invalidateFrontdeskCache();
-        refetchCheckedIn();
+        refetchAwaiting();
         refetchQueue();
-        queryClient.invalidateQueries({ queryKey: queryKeys.nurse.clinicQueue('today') });
       }
     } catch (error) {
       console.error('Error assigning patient:', error);
@@ -96,7 +95,7 @@ export function QueueManagementPanels() {
       const result = await removeFromQueue(queueId, 'Removed by frontdesk');
       if (result.success) {
         await invalidateFrontdeskCache();
-        refetchCheckedIn();
+        refetchAwaiting();
         refetchQueue();
       }
     } catch (error) {
@@ -117,182 +116,180 @@ export function QueueManagementPanels() {
     return map;
   }, [availabilityDoctors]);
 
-  return (
-    <div className="space-y-3 max-h-[calc(100vh-320px)] overflow-y-auto">
+  const totalInQueue = liveQueue?.reduce((sum, g) => sum + g.patients.length, 0) ?? 0;
+  const hasAwaiting = checkedInAwaiting && checkedInAwaiting.length > 0;
+  const hasLiveQueue = liveQueue && liveQueue.length > 0;
 
-      {/* Checked In — Awaiting Assignment */}
-      <Card className="border-[#0c5d69]/15 shadow-sm bg-white overflow-hidden rounded-xl">
-        <CardHeader className="border-b border-[#0c5d69]/15 bg-[#0c5d69] py-3 px-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-bold text-white flex items-center gap-2">
-              <Clock className="h-4 w-4 text-white/80" />
+  return (
+    <div className="space-y-5 w-full">
+      {/* Awaiting Assignment - Only show if there are patients */}
+      {hasAwaiting && (
+        <div className="border border-[#e7d6bf] bg-white">
+          <div className="px-4 py-3 border-b border-[#e7d6bf] flex items-center justify-between">
+            <div className="text-sm font-semibold text-[#2c2e4b] flex items-center gap-2">
+              <div className="h-8 w-8 border border-[#e7d6bf] bg-[#e7d6bf]/30 flex items-center justify-center">
+                <Clock className="h-4 w-4 text-[#caa26a]" />
+              </div>
               Awaiting Assignment
-            </CardTitle>
-            <Badge variant="outline" className="bg-white/15 text-white border-white/20 text-xs font-bold backdrop-blur-sm">
-              {loadingCheckedIn ? '…' : checkedInAwaiting?.length || 0}
+            </div>
+            <Badge variant="outline" className="rounded-none text-xs border-[#e7d6bf] text-[#2c2e4b] font-semibold">
+              {loadingAwaiting ? '…' : checkedInAwaiting?.length || 0}
             </Badge>
           </div>
-        </CardHeader>
 
-        <CardContent className="p-0">
-          {loadingCheckedIn ? (
-            <div className="p-5 flex justify-center">
-              <Loader2 className="h-4 w-4 animate-spin text-[#0c5d69]" />
-            </div>
-          ) : errorCheckedIn ? (
-            <div className="p-4 text-center">
-              <p className="text-xs text-slate-500">
-                Unable to load.{' '}
-                <button onClick={() => refetchCheckedIn()} className="text-[#0c5d69] underline hover:no-underline">
-                  Retry
-                </button>
-              </p>
-            </div>
-          ) : checkedInAwaiting && checkedInAwaiting.length > 0 ? (
-            <div className="divide-y divide-slate-100">
-              {checkedInAwaiting.map((patient) => (
-                <div key={patient.id} className="px-3 py-2.5 hover:bg-[#e6f0f1] transition-colors">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-[#121c1d] truncate">
-                        {patient.patient.firstName} {patient.patient.lastName}
-                      </p>
-                      <p className="text-xs text-slate-400 mt-0.5">
-                        {patient.patient.fileNumber}
-                        {' · '}
-                        {patient.isWalkIn ? 'Walk-in' : patient.time || 'No time'}
-                        {' · '}
-                        <span className="text-[#0c5d69] font-medium">{patient.waitTime}</span>
-                      </p>
-                    </div>
+          <div className="p-0">
+            {loadingAwaiting ? (
+              <div className="p-4 flex justify-center">
+                <Loader2 className="h-4 w-4 animate-spin text-[#caa26a]" />
+              </div>
+            ) : errorAwaiting ? (
+              <div className="p-3 text-center">
+                <p className="text-xs text-[#2c2e4b]/60">
+                  Unable to load.{' '}
+                  <button onClick={() => refetchAwaiting()} className="text-[#0c5d69] underline hover:no-underline">
+                    Retry
+                  </button>
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-[#e7d6bf]/60">
+                {checkedInAwaiting!.map((patient) => (
+                  <div key={patient.id} className="px-4 py-3 hover:bg-[#e7d6bf]/10 transition-colors">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-[#2c2e4b] truncate">
+                          {patient.patient.firstName} {patient.patient.lastName}
+                        </p>
+                        <p className="text-xs text-[#2c2e4b]/60 mt-0.5">
+                          {patient.patient.fileNumber}
+                          {' · '}
+                          {patient.isWalkIn ? 'Walk-in' : patient.time || 'No time'}
+                        </p>
+                      </div>
 
-                    <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
-                      {showDoctorSelect === patient.id ? (
-                        <>
-                          <select
-                            className="text-xs border border-slate-200 rounded-md px-2 py-1 max-w-[140px] focus:outline-none focus:ring-2 focus:ring-[#0c5d69]/30 focus:border-[#0c5d69]"
-                            value={selectedDoctor}
-                            onChange={(e) => setSelectedDoctor(e.target.value)}
-                            disabled={loadingDoctors}
-                          >
-                            <option value="">{loadingDoctors ? 'Loading…' : 'Select doctor'}</option>
-                            {availabilityDoctors.map((doc) => {
-                              const status = availabilityByDoctorId.get(doc.doctorId);
-                              const suffix = status === 'AVAILABLE' ? ' · ✓' : status === 'LATER_TODAY' ? ' · Later' : ' · Off';
-                              return (
-                                <option key={doc.doctorId} value={doc.doctorId}>
-                                  {doc.doctorName}{suffix}
-                                </option>
-                              );
-                            })}
-                          </select>
+                      <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                        {showDoctorSelect === patient.id ? (
+                          <>
+                            <select
+                              className="text-xs border border-[#e7d6bf] rounded-lg px-2 py-1.5 max-w-[140px] focus:outline-none focus:ring-2 focus:ring-[#caa26a]/30 focus:border-[#caa26a] bg-white text-[#2c2e4b]"
+                              value={selectedDoctor}
+                              onChange={(e) => setSelectedDoctor(e.target.value)}
+                              disabled={loadingDoctors}
+                            >
+                              <option value="">{loadingDoctors ? 'Loading…' : 'Select doctor'}</option>
+                              {availabilityDoctors.map((doc) => {
+                                const status = availabilityByDoctorId.get(doc.doctorId);
+                                const suffix = status === 'AVAILABLE' ? ' · Available' : status === 'LATER_TODAY' ? ' · Later' : ' · Off';
+                                return (
+                                  <option key={doc.doctorId} value={doc.doctorId}>
+                                    {doc.doctorName}{suffix}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                            <Button
+                              size="sm"
+                              onClick={() => handleAssignToQueue(patient)}
+                              disabled={!selectedDoctor || actionLoading === `assign-${patient.id}`}
+                              className="h-8 w-8 p-0 bg-[#caa26a] hover:bg-[#b8913e] text-[#2c2e4b] rounded-lg"
+                            >
+                              {actionLoading === `assign-${patient.id}` ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                              )}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => { setShowDoctorSelect(null); setSelectedDoctor(''); }}
+                              className="h-8 w-8 p-0 text-[#2c2e4b]/40 hover:text-[#2c2e4b] hover:bg-[#e7d6bf]/30 rounded-lg"
+                            >
+                              <XCircle className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
+                        ) : (
                           <Button
                             size="sm"
-                            onClick={() => handleAssignToQueue(patient)}
-                            disabled={!selectedDoctor || actionLoading === `assign-${patient.id}`}
-                            className="h-7 w-7 p-0 bg-[#0c5d69] hover:bg-[#0a4f59] text-white rounded-md shadow-[0_1px_2px_rgba(12,93,105,0.2)]"
+                            onClick={() => setShowDoctorSelect(patient.id)}
+                            className="h-8 px-3 text-xs bg-[#caa26a] hover:bg-[#b8913e] text-[#2c2e4b] rounded-lg font-medium"
                           >
-                            {actionLoading === `assign-${patient.id}` ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <CheckCircle className="h-3 w-3" />
-                            )}
+                            <UserPlus className="h-3.5 w-3.5 mr-1.5" />
+                            Assign
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => { setShowDoctorSelect(null); setSelectedDoctor(''); }}
-                            className="h-7 w-7 p-0 text-slate-400 hover:text-slate-600"
-                          >
-                            <XCircle className="h-3 w-3" />
-                          </Button>
-                        </>
-                      ) : (
-                        <Button
-                          size="sm"
-                          onClick={() => setShowDoctorSelect(patient.id)}
-                          className="h-7 px-2.5 text-xs bg-[#0c5d69] hover:bg-[#0a4f59] text-white rounded-md font-medium shadow-[0_1px_2px_rgba(12,93,105,0.2)]"
-                        >
-                          <UserPlus className="h-3 w-3 mr-1" />
-                          Assign
-                        </Button>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="px-4 py-5 text-center text-xs text-slate-400">
-              No patients awaiting assignment
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Live Queue Board */}
-      <Card className="border-[#0c5d69]/15 shadow-sm bg-white overflow-hidden rounded-xl">
-        <CardHeader className="border-b border-[#0c5d69]/15 bg-[#0c5d69] py-3 px-4">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-bold text-white flex items-center gap-2">
-              <Users className="h-4 w-4 text-white/80" />
-              Live Queue
-            </CardTitle>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => { refetchCheckedIn(); refetchQueue(); }}
-              className="h-7 w-7 p-0 text-white/80 hover:text-white hover:bg-white/10"
-            >
-              <RefreshCw className="h-3 w-3" />
-            </Button>
+                ))}
+              </div>
+            )}
           </div>
-        </CardHeader>
+        </div>
+      )}
 
-        <CardContent className="p-0">
+      {/* Live Queue Board - Always shown */}
+      <div className="border border-[#e7d6bf] bg-white">
+        <div className="px-4 py-3 border-b border-[#e7d6bf] flex items-center justify-between">
+          <div className="text-sm font-semibold text-[#2c2e4b] flex items-center gap-2">
+            <div className="h-8 w-8 border border-[#e7d6bf] bg-[#e7d6bf]/30 flex items-center justify-center">
+              <Users className="h-4 w-4 text-[#caa26a]" />
+            </div>
+            Live Queue
+          </div>
+          <Badge variant="outline" className="rounded-none text-xs border-[#e7d6bf] text-[#2c2e4b] font-semibold">
+            {totalInQueue}
+          </Badge>
+        </div>
+
+        <div className="p-0">
           {loadingQueue ? (
-            <div className="p-5 flex justify-center">
-              <Loader2 className="h-4 w-4 animate-spin text-[#0c5d69]" />
+            <div className="p-4 flex justify-center">
+              <Loader2 className="h-4 w-4 animate-spin text-[#caa26a]" />
             </div>
           ) : errorQueue ? (
-            <div className="p-4 text-center">
-              <p className="text-xs text-slate-500">
+            <div className="p-3 text-center">
+              <p className="text-xs text-[#2c2e4b]/60">
                 Unable to load.{' '}
                 <button onClick={() => refetchQueue()} className="text-[#0c5d69] underline hover:no-underline">
                   Retry
                 </button>
               </p>
             </div>
-          ) : liveQueue && liveQueue.length > 0 ? (
-            <div className="divide-y divide-slate-100">
-              {liveQueue.map((doctorGroup) => (
-                <div key={doctorGroup.doctorId} className="px-3 py-2.5">
+          ) : !hasLiveQueue ? (
+            <div className="px-4 py-6 text-center text-xs text-[#2c2e4b]/40">
+              No patients in queue
+            </div>
+          ) : (
+            <div className="divide-y divide-[#e7d6bf]/60">
+              {liveQueue!.map((doctorGroup) => (
+                <div key={doctorGroup.doctorId} className="px-4 py-3">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-semibold text-[#0c5d69] uppercase tracking-wide">
+                    <p className="text-xs font-semibold text-[#2c2e4b] uppercase tracking-wide">
                       {doctorGroup.doctorName}
                     </p>
-                    <Badge variant="outline" className="text-[10px] bg-[#DFAC0D]/10 text-[#9a7709] border-[#DFAC0D]/30 font-semibold">
-                      {doctorGroup.patients.length} waiting
-                    </Badge>
+                    <span className="text-[10px] text-[#2c2e4b]/40">
+                      {doctorGroup.patients.filter(p => p.status === 'WAITING').length} waiting · {doctorGroup.patients.filter(p => p.status === 'IN_CONSULTATION').length} in progress
+                    </span>
                   </div>
                   <div className="space-y-1.5">
                     {doctorGroup.patients.map((patient) => (
                       <div
                         key={patient.id}
-                        className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-lg border border-slate-100"
+                        className="flex items-center justify-between px-3 py-2 bg-[#e7d6bf]/8 rounded-lg border border-[#e7d6bf]/60"
                       >
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-medium text-[#121c1d] truncate">
+                            <span className="text-xs font-medium text-[#2c2e4b] truncate">
                               {patient.patient.firstName} {patient.patient.lastName}
                             </span>
                             {patient.isWalkIn && (
-                              <Badge variant="outline" className="text-[9px] bg-slate-100 text-slate-500 border-slate-200 shrink-0 px-1.5 py-0">
+                              <Badge variant="outline" className="text-[9px] bg-[#e7d6bf]/20 text-[#2c2e4b]/70 border-[#e7d6bf] shrink-0 px-1.5 py-0 rounded-none">
                                 Walk-in
                               </Badge>
                             )}
                           </div>
-                          <p className="text-[10px] text-slate-400 mt-0.5">
+                          <p className="text-[10px] text-[#2c2e4b]/50 mt-0.5">
                             Wait: <span className="text-[#0c5d69] font-medium">{patient.waitTime}</span>
                           </p>
                         </div>
@@ -300,10 +297,10 @@ export function QueueManagementPanels() {
                           <Badge
                             variant="outline"
                             className={cn(
-                              'text-[9px] px-1.5 py-0 font-medium',
+                              'text-[9px] px-1.5 py-0 font-medium rounded-none',
                               patient.status === 'IN_CONSULTATION'
-                                ? 'bg-rose-50 text-rose-600 border-rose-200'
-                                : 'bg-[#DFAC0D]/10 text-[#9a7709] border-[#DFAC0D]/30'
+                                ? 'bg-[#caa26a]/10 text-[#9a7709] border-[#caa26a]/40'
+                                : 'bg-[#e7d6bf]/20 text-[#2c2e4b]/70 border-[#e7d6bf]'
                             )}
                           >
                             {patient.status === 'IN_CONSULTATION' ? 'In progress' : 'Waiting'}
@@ -314,12 +311,12 @@ export function QueueManagementPanels() {
                               variant="ghost"
                               onClick={() => handleRemoveFromQueue(patient.id)}
                               disabled={actionLoading === `remove-${patient.id}`}
-                              className="h-6 w-6 p-0 text-slate-300 hover:text-rose-500 hover:bg-rose-50"
+                              className="h-6 w-6 p-0 text-[#2c2e4b]/30 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
                             >
                               {actionLoading === `remove-${patient.id}` ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
+                                <Loader2 className="h-2.5 w-2.5 animate-spin" />
                               ) : (
-                                <UserMinus className="h-3 w-3" />
+                                <UserMinus className="h-2.5 w-2.5" />
                               )}
                             </Button>
                           )}
@@ -330,14 +327,9 @@ export function QueueManagementPanels() {
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="px-4 py-5 text-center text-xs text-slate-400">
-              No patients in queue
-            </div>
           )}
-        </CardContent>
-      </Card>
-
+        </div>
+      </div>
     </div>
   );
 }

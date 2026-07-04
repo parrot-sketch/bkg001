@@ -125,7 +125,7 @@ export function ConsultationWorkspaceOptimized() {
     return (
         <div className="flex flex-col h-full bg-white">
             {/* Tab Navigation */}
-            <div className="border-b border-slate-200 bg-white px-3 shrink-0">
+            <div className="border-b border-[#e7d6bf] bg-white px-3 shrink-0">
                 <div className="flex gap-0">
                     {TABS.map((tab, index) => {
                         const isActive = index === currentTabIndex;
@@ -138,16 +138,16 @@ export function ConsultationWorkspaceOptimized() {
                                 className={cn(
                                     "relative px-4 py-3 text-xs font-medium transition-colors",
                                     isActive
-                                        ? "text-slate-900"
-                                        : "text-slate-400 hover:text-slate-600"
+                                        ? "text-[#2c2e4b]"
+                                        : "text-slate-400 hover:text-[#2c2e4b]/70"
                                 )}
                             >
                                 {tab.label}
                                 {isComplete && !isActive && (
-                                    <span className="ml-1 text-emerald-500 text-[10px]">●</span>
+                                    <span className="ml-1 text-[#caa26a] text-[10px]">●</span>
                                 )}
                                 {isActive && (
-                                    <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-slate-900 rounded-full" />
+                                    <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-[#caa26a] rounded-full" />
                                 )}
                             </button>
                         );
@@ -156,7 +156,7 @@ export function ConsultationWorkspaceOptimized() {
             </div>
 
             {/* Tab Content */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto custom-scrollbar-light">
                 <Tabs value={activeTab} className="h-full">
                     <TabsContent value="subjective" className="m-0 h-full border-none">
                         <div className="p-6 max-w-3xl mx-auto">
@@ -193,8 +193,8 @@ export function ConsultationWorkspaceOptimized() {
                             <PlanTab
                                 initialValue={state.notes.plan || ''}
                                 onChange={handleNoteChange('plan')}
-                                isReadOnly={isReadOnly}
                                 consultation={state.consultation}
+                                isReadOnly={isReadOnly}
                             />
                         </div>
                     </TabsContent>
@@ -202,10 +202,10 @@ export function ConsultationWorkspaceOptimized() {
             </div>
 
             {/* Persistent Action Bar — always visible on every tab */}
-            <div className="border-t border-slate-200 bg-white px-6 py-3 flex items-center justify-between shrink-0">
+            <div className="border-t border-[#e7d6bf] bg-[#e7d6bf]/20 px-6 py-3 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-1.5">
                     {completedFields.size > 0 && (
-                        <span className="text-[11px] text-slate-400">
+                        <span className="text-[11px] text-[#2c2e4b]/60">
                             {completedFields.size}/{TABS.filter(t => t.noteField).length} sections documented
                         </span>
                     )}
@@ -217,7 +217,7 @@ export function ConsultationWorkspaceOptimized() {
                         size="sm"
                         onClick={handleSave}
                         disabled={!canSave || state.isSaving}
-                        className="gap-1.5 text-xs h-8"
+                        className="gap-1.5 text-xs h-8 border-[#e7d6bf] text-[#2c2e4b] hover:bg-[#e7d6bf]/30 rounded-lg"
                     >
                         {state.isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
                         Save Notes
@@ -226,7 +226,7 @@ export function ConsultationWorkspaceOptimized() {
                         <Button
                             size="sm"
                             onClick={openCompleteDialog}
-                            className="gap-1.5 text-xs h-8 bg-emerald-600 hover:bg-emerald-700"
+                            className="gap-1.5 text-xs h-8 bg-[#caa26a] hover:bg-[#caa26a]/90 text-[#2c2e4b] font-semibold rounded-lg shadow-sm transition-colors"
                         >
                             <CheckCircle className="h-3 w-3" />
                             Complete

@@ -1,11 +1,9 @@
 'use client';
 
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { FileText, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, Stethoscope, User, Calendar, FileText, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-import { StepIndicator } from './steps/StepIndicator';
 import { DoctorSelectionStep } from './steps/DoctorSelectionStep';
 import { PatientSelectionStep } from './steps/PatientSelectionStep';
 import { DateTimeSelectionStep } from './steps/DateTimeSelectionStep';
@@ -15,6 +13,7 @@ import { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';
 import { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import { AppointmentSource } from '@/domain/enums/AppointmentSource';
 import { BookingChannel } from '@/domain/enums/BookingChannel';
+import { Button } from '@/components/ui/button';
 
 interface BookingWizardProps {
   initialPatientId?: string;
@@ -55,6 +54,7 @@ export function AppointmentBookingWizard({
 }: BookingWizardProps) {
   const {
     currentStep,
+    setCurrentStep,
     formData,
     setFormData,
     selectedPatient,
@@ -63,8 +63,6 @@ export function AppointmentBookingWizard({
     setSelectedDoctor,
     isSubmitting,
     isFollowUp,
-    sameDoctorConflict,
-    differentDoctorAppointments,
     stepLabels,
     currentStepIndex,
     canProceed,
@@ -89,104 +87,181 @@ export function AppointmentBookingWizard({
     onCancel,
   });
 
+  const isSheet = variant === 'sheet';
+  const showNav = variant === 'page';
+
   return (
-    <div
-      className={cn(
-        'flex flex-col min-h-0',
-        variant === 'page' ? 'rounded-2xl border border-slate-200 bg-white shadow-sm' : 'h-full',
-      )}
-    >
+    <div className={cn('flex flex-col h-full', isSheet ? 'bg-white' : 'min-h-0')}>
       {/* Header */}
-      <div className={cn('flex items-center justify-between px-5 py-3 border-b bg-white', variant === 'page' && 'rounded-t-2xl')}>
-        <div>
-          <h2 className="text-base font-bold text-slate-900">
-            {isFollowUp ? 'Schedule Follow-up' : 'Book Appointment'}
-          </h2>
-          <p className="text-xs text-slate-500">
-            {isFollowUp ? 'Choose the follow-up date and time for this patient' : 'Schedule a new appointment'}
-          </p>
-        </div>
-      </div>
-
-      {/* Progress */}
-      <div className="px-5 py-3 bg-slate-50">
-        <StepIndicator steps={stepLabels} currentStep={currentStep} currentStepIndex={currentStepIndex} />
-      </div>
-
-      {/* Follow-up Banner */}
-      {isFollowUp && parentConsultationId && (
-        <div className="mx-5 mt-2 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 flex items-start gap-2">
-          <FileText className="h-3.5 w-3.5 text-amber-700 mt-0.5" />
+      <div className={cn(
+        'flex items-center justify-between px-5 py-3 border-b bg-white shrink-0',
+        isSheet ? 'rounded-t-2xl' : ''
+      )}>
+        <div className="flex items-center gap-3">
+          {showNav && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={currentStep === 1 ? onCancel : handleBack}
+              className="rounded-lg hover:bg-slate-100 -ml-2"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+          )}
           <div>
-            <p className="font-semibold text-amber-900 text-xs">Follow-up Appointment</p>
-            <p className="text-[10px] text-amber-700">Linked to consultation #{parentConsultationId}</p>
+            <h2 className="text-base font-bold text-[#2c2e4b]">
+              {isFollowUp ? 'Schedule Follow-up' : 'Book Appointment'}
+            </h2>
+            {!isSheet && (
+              <p className="text-xs text-[#2c2e4b]/60">
+                {isFollowUp ? 'Choose the follow-up date and time for this patient' : 'Schedule a new appointment'}
+              </p>
+            )}
           </div>
         </div>
-      )}
+        {showNav && (
+          <Button
+            variant="ghost"
+            onClick={onCancel}
+            className="text-slate-500 hover:text-slate-900 rounded-lg"
+          >
+            <X className="h-4 w-4 mr-2" />
+            Cancel
+          </Button>
+        )}
+      </div>
+
+      {/* Compact Horizontal Stepper */}
+      <div className="shrink-0 border-b border-[#e7d6bf] bg-[#e7d6bf]/10">
+        <div className="flex items-center px-4">
+          {stepLabels.map((step, idx) => {
+            const isActive = currentStep === step.id;
+            const isCompleted = currentStepIndex > idx + 1;
+            const stepIcons: Record<number, typeof Stethoscope> = { 1: Stethoscope, 2: User, 3: Calendar, 4: FileText };
+            const StepIcon = stepIcons[step.id] || User;
+
+            return (
+              <button
+                key={step.id}
+                onClick={() => {
+                  if (isCompleted) {
+                    setCurrentStep(step.id);
+                  }
+                }}
+                disabled={!isCompleted && !isActive}
+                className={cn(
+                  'flex items-center gap-2 py-3 px-3 text-xs font-medium transition-all relative flex-1 justify-center',
+                  isActive
+                    ? 'text-[#caa26a]'
+                    : isCompleted
+                    ? 'text-[#2c2e4b]/70 hover:text-[#2c2e4b]'
+                    : 'text-[#2c2e4b]/40 cursor-default'
+                )}
+              >
+                {/* Connector line */}
+                {idx > 0 && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-px h-4 bg-[#e7d6bf]" />
+                )}
+
+                <div className={cn(
+                  'h-5 w-5 rounded-full flex items-center justify-center border transition-all shrink-0',
+                  isActive
+                    ? 'border-[#caa26a] bg-[#caa26a] text-white'
+                    : isCompleted
+                    ? 'border-[#caa26a] bg-[#caa26a] text-white'
+                    : 'border-[#e7d6bf] bg-white text-[#2c2e4b]/40'
+                )}>
+                  {isCompleted ? (
+                    <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  ) : (
+                    <StepIcon className="h-3 w-3" />
+                  )}
+                </div>
+                <span className={cn(
+                  'hidden sm:inline whitespace-nowrap',
+                  isActive && 'font-semibold'
+                )}>
+                  {step.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Step Content - Scrollable */}
       <div className="flex-1 overflow-y-auto">
-        <Card className="border-none shadow-none bg-white mx-5 my-3">
-          <CardContent className="p-4">
-            {currentStep === 1 && (
-              <DoctorSelectionStep
-                selectedDoctorId={formData.doctorId}
-                onSelect={(id) => setFormData(prev => ({ ...prev, doctorId: id, appointmentDate: '', selectedSlot: null }))}
-                selectedDoctor={selectedDoctor}
-                onDoctorLoaded={setSelectedDoctor}
-                lockDoctor={lockDoctor}
-              />
-            )}
+        <div className={cn('px-5 py-4', isSheet ? 'mx-0' : 'mx-5 my-3')}>
+          {currentStep === 1 && (
+            <DoctorSelectionStep
+              selectedDoctorId={formData.doctorId}
+              onSelect={(id) => setFormData(prev => ({ ...prev, doctorId: id, appointmentDate: '', selectedSlot: null }))}
+              selectedDoctor={selectedDoctor}
+              onDoctorLoaded={setSelectedDoctor}
+              lockDoctor={lockDoctor}
+            />
+          )}
 
-            {currentStep === 2 && (
-              <PatientSelectionStep
-                selectedPatientId={formData.patientId}
-                onSelect={(id, patient) => {
-                  setFormData(prev => ({ ...prev, patientId: id }));
-                  if (patient) setSelectedPatient(patient);
-                }}
-                selectedPatient={selectedPatient}
-                onPatientCleared={() => setSelectedPatient(null)}
-              />
-            )}
+          {currentStep === 2 && (
+            <PatientSelectionStep
+              selectedPatientId={formData.patientId}
+              onSelect={(id, patient) => {
+                setFormData(prev => ({ ...prev, patientId: id }));
+                if (patient) setSelectedPatient(patient);
+              }}
+              selectedPatient={selectedPatient}
+              onPatientCleared={() => setSelectedPatient(null)}
+            />
+          )}
 
-            {currentStep === 3 && (
-              <DateTimeSelectionStep
-                doctorId={formData.doctorId}
-                selectedDate={formData.appointmentDate}
-                selectedSlot={formData.selectedSlot}
-                onSelect={(date, slot) => setFormData(prev => ({ ...prev, appointmentDate: date, selectedSlot: slot }))}
-              />
-            )}
+          {currentStep === 3 && (
+            <DateTimeSelectionStep
+              doctorId={formData.doctorId}
+              selectedDate={formData.appointmentDate}
+              selectedSlot={formData.selectedSlot}
+              onSelect={(date, slot) => setFormData(prev => ({ ...prev, appointmentDate: date, selectedSlot: slot }))}
+            />
+          )}
 
-            {currentStep === 4 && (
-              <ReviewStep
-                formData={formData}
-                onFormDataChange={setFormData}
-                selectedPatient={selectedPatient}
-                selectedDoctor={selectedDoctor}
-                sameDoctorConflict={sameDoctorConflict}
-                differentDoctorAppointments={differentDoctorAppointments}
-                isFollowUp={isFollowUp}
-              />
-            )}
-          </CardContent>
-        </Card>
+          {currentStep === 4 && (
+            <ReviewStep
+              formData={formData}
+              onFormDataChange={setFormData}
+              selectedPatient={selectedPatient}
+              selectedDoctor={selectedDoctor}
+              isFollowUp={isFollowUp}
+            />
+          )}
+        </div>
       </div>
 
       {/* Footer - Fixed at bottom */}
-      <div className={cn('flex items-center justify-between px-5 py-3 border-t bg-white', variant === 'page' && 'rounded-b-2xl')}>
-        <Button variant="outline" onClick={currentStep === 1 ? onCancel : handleBack} className="gap-1.5 h-8 px-3 text-xs rounded-lg">
+      <div className={cn('flex items-center justify-between px-5 py-3 border-t bg-white shrink-0', isSheet ? 'rounded-b-2xl' : '')}>
+        <Button
+          variant="outline"
+          onClick={currentStep === 1 ? onCancel : handleBack}
+          className="gap-1.5 h-8 px-3 text-xs rounded-lg border-[#e7d6bf] text-[#2c2e4b] hover:bg-[#e7d6bf]/30"
+        >
           {currentStep === 1 ? 'Cancel' : <><ChevronLeft className="h-3.5 w-3.5" /> Back</>}
         </Button>
 
         {currentStep < 4 ? (
-          <Button onClick={handleNext} disabled={!canProceed()} className="gap-1.5 h-8 px-3 text-xs rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-all duration-200">
+          <Button
+            onClick={handleNext}
+            disabled={!canProceed()}
+            className="gap-1.5 h-8 px-3 text-xs rounded-lg bg-[#2c2e4b] hover:bg-[#1a1c2f] text-white transition-all duration-200"
+          >
             Next <ChevronRight className="h-3.5 w-3.5" />
           </Button>
         ) : (
-          <Button onClick={handleSubmit} disabled={!formData.type || isSubmitting} className="gap-1.5 h-8 px-3 text-xs rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-all duration-200">
-            {isSubmitting ? 'Booking...' : isFollowUp ? 'Schedule Follow-up' : 'Confirm Booking'}
+          <Button
+            onClick={handleSubmit}
+            disabled={!formData.type || isSubmitting}
+            className="gap-1.5 h-8 px-3 text-xs rounded-lg bg-[#caa26a] hover:bg-[#b8913e] text-[#2c2e4b] transition-all duration-200"
+          >
+            {isSubmitting ? 'Submitting...' : isFollowUp ? 'Schedule Follow-up' : 'Submit Request'}
           </Button>
         )}
       </div>

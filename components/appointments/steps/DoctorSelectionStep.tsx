@@ -47,10 +47,10 @@ export function DoctorSelectionStep({
   if (lockDoctor && selectedDoctor) {
     return (
       <div className="space-y-4">
-        <div className="rounded-2xl border-2 border-cyan-500/20 bg-cyan-50/50 p-6">
+        <div className="rounded-xl border-2 border-[#caa26a]/25 bg-[#caa26a]/8 p-6">
           <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-bold uppercase tracking-widest text-cyan-600">Selected Doctor</span>
-            <CheckCircle className="h-5 w-5 text-cyan-600" />
+            <span className="text-xs font-bold uppercase tracking-widest text-[#caa26a]">Selected Doctor</span>
+            <CheckCircle className="h-5 w-5 text-[#caa26a]" />
           </div>
           <div className="flex items-center gap-4">
             <ProfileImage
@@ -59,12 +59,12 @@ export function DoctorSelectionStep({
               className="h-16 w-16 rounded-full border-2 border-white shadow"
             />
             <div>
-              <h4 className="text-lg font-bold text-slate-900">
+              <h4 className="text-lg font-bold text-[#2c2e4b]">
                 {selectedDoctor.title} {selectedDoctor.name || `${selectedDoctor.firstName} ${selectedDoctor.lastName}`}
               </h4>
-              <p className="text-sm text-slate-500 font-medium">{selectedDoctor.specialization}</p>
+              <p className="text-sm text-[#2c2e4b]/60 font-medium">{selectedDoctor.specialization}</p>
               {selectedDoctor.clinicLocation && (
-                <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+                <p className="text-xs text-[#2c2e4b]/50 mt-1 flex items-center gap-1">
                   <MapPin className="h-3 w-3" /> {selectedDoctor.clinicLocation}
                 </p>
               )}
@@ -78,8 +78,8 @@ export function DoctorSelectionStep({
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-cyan-500/40" />
-        <p className="text-sm font-medium text-slate-400">Loading doctors...</p>
+        <Loader2 className="h-8 w-8 animate-spin text-[#caa26a]/50" />
+        <p className="text-sm font-medium text-[#2c2e4b]/50">Loading doctors...</p>
       </div>
     );
   }
@@ -87,8 +87,8 @@ export function DoctorSelectionStep({
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-lg font-semibold text-slate-900 mb-1">Select Doctor</h3>
-        <p className="text-sm text-slate-500">Choose a medical professional for this appointment</p>
+        <h3 className="text-base font-semibold text-[#2c2e4b] mb-1">Select Doctor</h3>
+        <p className="text-xs text-[#2c2e4b]/60">Choose a medical professional for this appointment</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-2">
@@ -106,8 +106,8 @@ export function DoctorSelectionStep({
               className={cn(
                 "flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all",
                 isSelected
-                  ? "border-cyan-500 bg-cyan-50 ring-1 ring-cyan-500/20"
-                  : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                  ? "border-[#caa26a] bg-[#caa26a]/10 ring-1 ring-[#caa26a]/30"
+                  : "border-[#e7d6bf] bg-white hover:border-[#caa26a] hover:bg-[#caa26a]/5"
               )}
             >
               <ProfileImage
@@ -115,16 +115,16 @@ export function DoctorSelectionStep({
                 name={doctorName}
                 className={cn(
                   "h-12 w-12 rounded-full border-2 transition-transform",
-                  isSelected ? "border-cyan-200" : "border-white shadow"
+                  isSelected ? "border-[#caa26a]/50" : "border-white shadow"
                 )}
               />
               <div className="flex-1 min-w-0">
-                <p className={cn("font-semibold truncate", isSelected ? "text-slate-900" : "text-slate-800")}>
+                <p className={cn("font-semibold truncate", isSelected ? "text-[#2c2e4b]" : "text-[#2c2e4b]/80")}>
                   {displayName}
                 </p>
-                <p className="text-xs text-slate-500 truncate">{doctor.specialization || 'Medical Specialist'}</p>
+                <p className="text-xs text-[#2c2e4b]/50 truncate">{doctor.specialization || 'Medical Specialist'}</p>
               </div>
-              {isSelected && <CheckCircle2 className="h-5 w-5 text-cyan-600 shrink-0" />}
+              {isSelected && <CheckCircle2 className="h-5 w-5 text-[#caa26a] shrink-0" />}
             </button>
           );
         })}

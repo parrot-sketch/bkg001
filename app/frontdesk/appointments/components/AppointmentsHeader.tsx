@@ -17,8 +17,8 @@ export function AppointmentsHeader({ patientIdFilter, patientNameFromFilter }: A
   return (
     <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Appointments</h1>
-        <p className="text-sm text-slate-500 mt-0.5">
+        <h1 className="text-2xl font-bold text-[#dddee2] tracking-tight">Appointments</h1>
+        <p className="text-sm text-[#dddee2]/60 mt-0.5">
           {patientIdFilter
             ? `Filtered to ${patientNameFromFilter || 'selected patient'}`
             : 'Manage bookings, check-ins, and patient flow'}
@@ -32,9 +32,9 @@ export function AppointmentsHeader({ patientIdFilter, patientNameFromFilter }: A
             bookingChannel: BookingChannel.DASHBOARD,
           });
         }}
-        className="bg-cyan-600 hover:bg-cyan-700 text-white rounded-xl shadow-sm shadow-cyan-200/50 h-10 px-5"
+        className="bg-[#caa26a] hover:bg-[#b8913e] text-[#2c2e4b] rounded-lg text-xs font-medium shadow-sm px-4 h-9 transition-all"
       >
-        <Plus className="h-4 w-4 mr-2" />
+        <Plus className="h-4 w-4 mr-1.5" />
         New Appointment
       </Button>
     </header>

@@ -11,10 +11,10 @@ interface QueueHeaderProps {
 
 export function QueueHeader({ queueCount, onCollapse, onRefresh, isRefreshing }: QueueHeaderProps) {
   return (
-    <div className="px-4 py-3 border-b border-slate-200 bg-white flex items-center justify-between">
+    <div className="px-4 py-3 border-b border-[#e7d6bf] bg-[#e7d6bf]/30 flex items-center justify-between">
       <div className="flex flex-col min-w-0">
-        <span className="text-sm font-semibold text-slate-900">Queue</span>
-        <span className="text-xs text-slate-500">
+        <span className="text-sm font-semibold text-[#2c2e4b]">Queue</span>
+        <span className="text-xs text-[#2c2e4b]/60">
           {queueCount} waiting
         </span>
       </div>
@@ -23,7 +23,7 @@ export function QueueHeader({ queueCount, onCollapse, onRefresh, isRefreshing }:
           <button
             onClick={onRefresh}
             disabled={isRefreshing}
-            className="h-8 w-8 flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors disabled:opacity-50"
+            className="h-8 w-8 flex items-center justify-center text-[#2c2e4b]/50 hover:text-[#2c2e4b] hover:bg-[#e7d6bf]/50 transition-colors disabled:opacity-50"
             title="Refresh queue"
           >
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -31,7 +31,7 @@ export function QueueHeader({ queueCount, onCollapse, onRefresh, isRefreshing }:
         )}
         <button
           onClick={onCollapse}
-          className="h-8 w-8 flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+          className="h-8 w-8 flex items-center justify-center text-[#2c2e4b]/50 hover:text-[#2c2e4b] hover:bg-[#e7d6bf]/50 transition-colors"
           title="Collapse queue"
         >
           <ChevronRight className="h-4 w-4" />

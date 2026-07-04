@@ -136,24 +136,35 @@ const FrontdeskPatientProfile = async (props: ParamsProps) => {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Clinical Header */}
-      <div className="flex flex-col gap-3 border border-border bg-white p-5">
+    <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Clinical Header Card */}
+      <div className="flex flex-col gap-4 border border-[#e7d6bf] bg-white p-5 rounded-xl shadow-sm">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-semibold text-foreground truncate">{fullName}</h1>
+              <h1 className="text-xl font-bold text-[#2c2e4b] truncate">{fullName}</h1>
               {data.file_number ? (
-                <span className="font-mono text-xs text-muted-foreground border border-border px-2 py-0.5">
+                <span className="inline-flex items-center font-mono text-xs font-medium text-[#2c2e4b] bg-[#e7d6bf]/15 border border-[#e7d6bf] px-2 py-0.5 rounded">
                   {data.file_number}
                 </span>
               ) : null}
             </div>
-            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#2c2e4b]/60">
               {data.gender ? <span className="capitalize">{data.gender.toLowerCase()}</span> : null}
+              {data.gender && ageLabel ? <span className="text-[#e7d6bf]">·</span> : null}
               {ageLabel ? <span>{ageLabel}</span> : null}
-              {data.phone ? <span>{data.phone}</span> : null}
-              {data.email ? <span className="truncate">{data.email}</span> : null}
+              {data.phone ? (
+                <>
+                  <span className="text-[#e7d6bf]">·</span>
+                  <span>{data.phone}</span>
+                </>
+              ) : null}
+              {data.email ? (
+                <>
+                  <span className="text-[#e7d6bf]">·</span>
+                  <span className="truncate">{data.email}</span>
+                </>
+              ) : null}
             </div>
           </div>
 
@@ -161,42 +172,47 @@ const FrontdeskPatientProfile = async (props: ParamsProps) => {
             <PatientDetailActions patient={patientDetail} />
             <Link
               href="/frontdesk/patients"
-              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              className="inline-flex items-center gap-1.5 text-xs text-[#2c2e4b]/60 hover:text-[#2c2e4b] hover:bg-[#e7d6bf]/30 px-2.5 py-1.5 rounded-lg border border-[#e7d6bf] transition-colors bg-white font-medium shadow-sm"
             >
-              <ArrowLeft size={14} />
+              <ArrowLeft size={14} className="text-[#caa26a]" />
               Back
             </Link>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-          <div className="border border-border p-3">
-            <p className="text-muted-foreground">Appointments</p>
-            <p className="mt-1 font-semibold text-foreground">{data.totalAppointments ?? 0}</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="border border-[#e7d6bf] bg-white rounded-lg p-3 shadow-sm transition-all hover:border-[#caa26a]/60">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-[#2c2e4b]/50">Appointments</p>
+            <p className="mt-1 text-base font-semibold text-[#2c2e4b] tracking-tight">{data.totalAppointments ?? 0}</p>
           </div>
-          <div className="border border-border p-3">
-            <p className="text-muted-foreground">Last visit</p>
-            <p className="mt-1 font-semibold text-foreground">
+          <div className="border border-[#e7d6bf] bg-white rounded-lg p-3 shadow-sm transition-all hover:border-[#caa26a]/60">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-[#2c2e4b]/50">Last visit</p>
+            <p className="mt-1 text-base font-semibold text-[#2c2e4b] tracking-tight">
               {data.lastVisit ? format(data.lastVisit, "MMM d, yyyy") : "—"}
             </p>
           </div>
-          <div className="border border-border p-3">
-            <p className="text-muted-foreground">Blood group</p>
-            <p className="mt-1 font-semibold text-foreground">{data.blood_group ?? "—"}</p>
+          <div className="border border-[#e7d6bf] bg-white rounded-lg p-3 shadow-sm transition-all hover:border-[#caa26a]/60">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-[#2c2e4b]/50">Blood group</p>
+            <p className="mt-1 text-base font-semibold text-[#2c2e4b] tracking-tight">{data.blood_group ?? "—"}</p>
           </div>
-          <div className="border border-border p-3">
-            <p className="text-muted-foreground">Registered</p>
-            <p className="mt-1 font-semibold text-foreground">
+          <div className="border border-[#e7d6bf] bg-white rounded-lg p-3 shadow-sm transition-all hover:border-[#caa26a]/60">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-[#2c2e4b]/50">Registered</p>
+            <p className="mt-1 text-base font-semibold text-[#2c2e4b] tracking-tight">
               {data.created_at ? format(data.created_at, "MMM d, yyyy") : "—"}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="border border-border bg-white">
-        <Suspense fallback={<div className="h-12 border-b border-border" />}>
-          <PatientProfileTabs patientId={id} />
+      {/* Tab Navigation & Content Card */}
+      <div className="border border-[#e7d6bf] bg-white rounded-xl shadow-sm overflow-hidden">
+        <Suspense fallback={<div className="h-12 border-b border-[#e7d6bf] bg-[#e7d6bf]/5" />}>
+          <PatientProfileTabs 
+            patientId={id} 
+            containerClassName="border-b border-[#e7d6bf] bg-[#e7d6bf]/5"
+            activeClassName="text-[#caa26a] border-b-2 border-[#caa26a]"
+            inactiveClassName="text-[#2c2e4b]/60 hover:text-[#2c2e4b] hover:bg-[#e7d6bf]/10"
+          />
         </Suspense>
 
         {/* Tab Content */}

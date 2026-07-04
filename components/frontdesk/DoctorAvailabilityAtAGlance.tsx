@@ -2,6 +2,9 @@
  * Responsive fixes for 1920×1200 viewport:
  * - Doctor row padding: px-3 py-2.5 → px-3 py-2 (more compact rows)
  * - Doctor name font: text-sm → text-xs (scaled down for density)
+ * 
+ * Branded with Nairobi Sculpt light palette: white cards, beige borders,
+ * navy typography, and gold accents.
  */
 
 import { useMemo } from 'react';
@@ -13,6 +16,7 @@ import { AppointmentSource } from '@/domain/enums/AppointmentSource';
 import { BookingChannel } from '@/domain/enums/BookingChannel';
 import { useBookAppointmentStore } from '@/hooks/frontdesk/useBookAppointmentStore';
 import type { DoctorAvailabilityResponseDto } from '@/application/dtos/DoctorAvailabilityResponseDto';
+import { Stethoscope } from 'lucide-react';
 
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(':').map((v) => Number(v));
@@ -53,20 +57,20 @@ function getTodayHoursLabel(doctor: DoctorAvailabilityResponseDto, now: Date): s
 function StatusBadge({ status }: { status: AvailabilityNowStatus }) {
   if (status === 'AVAILABLE') {
     return (
-      <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700 font-medium text-xs">
+      <Badge variant="outline" className="rounded-none text-[10px] border-[#e7d6bf] bg-[#e7d6bf]/20 text-[#2c2e4b] font-semibold">
         Available
       </Badge>
     );
   }
   if (status === 'LATER_TODAY') {
     return (
-      <Badge variant="outline" className="border-[#DFAC0D]/40 bg-[#DFAC0D]/10 text-[#9a7709] font-medium text-xs">
+      <Badge variant="outline" className="rounded-none text-[10px] border-[#caa26a]/40 bg-[#caa26a]/10 text-[#9a7709] font-semibold">
         Later today
       </Badge>
     );
   }
   return (
-    <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-500 font-medium text-xs">
+    <Badge variant="outline" className="rounded-none text-[10px] border-[#e7d6bf] bg-white text-[#2c2e4b]/50 font-medium">
       Off
     </Badge>
   );
@@ -92,54 +96,59 @@ export function DoctorAvailabilityAtAGlance() {
   }, [doctors]);
 
   return (
-    <section className="border border-slate-200 bg-white rounded-xl shadow-sm overflow-hidden">
-      <div className="px-4 py-3 border-b border-[#0c5d69]/15 bg-[#0c5d69] flex items-center justify-between">
-        <div className="text-sm font-bold text-white">Doctor availability</div>
-        <div className="text-xs text-white/80 font-medium">{format(new Date(), 'EEE, MMM d')}</div>
+    <section className="border border-[#e7d6bf] bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="px-4 py-3 border-b border-[#e7d6bf] flex items-center justify-between bg-white">
+        <div className="text-sm font-semibold text-[#2c2e4b] flex items-center gap-2">
+          <div className="h-8 w-8 border border-[#e7d6bf] bg-[#e7d6bf]/30 flex items-center justify-center">
+            <Stethoscope className="h-4 w-4 text-[#caa26a]" />
+          </div>
+          Doctor availability
+        </div>
+        <div className="text-xs text-[#2c2e4b]/60 font-medium">{format(new Date(), 'EEE, MMM d')}</div>
       </div>
 
-<div className="p-4">
-         {isLoading ? (
-           <div className="text-sm text-slate-400 py-2 px-1">Loading…</div>
-         ) : error ? (
-           <div className="text-sm text-slate-500 py-2 px-1">Unable to load availability.</div>
-         ) : rows.length === 0 ? (
-           <div className="text-sm text-slate-400 py-2 px-1">No doctors found.</div>
-         ) : (
-           <div className="space-y-1.5">
-             {rows.map(({ doctor, status, hours }) => (
-               <div
-                 key={doctor.doctorId}
-                 className="flex items-center justify-between gap-3 border border-slate-100 rounded-lg px-3 py-2 bg-white hover:bg-[#0c5d69]/3 hover:border-[#0c5d69]/20 transition-colors"
-               >
-                 <div className="min-w-0">
-                   <div className="text-xs font-medium text-[#121c1d] truncate">{doctor.doctorName}</div>
-                   <div className="text-xs text-slate-400 truncate">{hours}</div>
-                 </div>
-                 <div className="flex items-center gap-2 shrink-0">
-                   <StatusBadge status={status} />
-                   <Button
-                     type="button"
-                     variant="outline"
-                     size="sm"
-                     className="h-7 px-2.5 text-xs rounded-md bg-white border-[#0c5d69]/30 text-[#0c5d69] hover:bg-[#0c5d69] hover:text-white hover:border-[#0c5d69] transition-colors font-medium shadow-sm"
-                     onClick={() =>
-                       openBookingDialog({
-                         initialDoctorId: doctor.doctorId,
-                         lockDoctor: true,
-                         source: AppointmentSource.FRONTDESK_SCHEDULED,
-                         bookingChannel: BookingChannel.DASHBOARD,
-                       })
-                     }
-                   >
-                     Book
-                   </Button>
-                 </div>
-               </div>
-             ))}
-           </div>
-         )}
-       </div>
-     </section>
+      <div className="p-3">
+        {isLoading ? (
+          <div className="text-xs text-[#2c2e4b]/40 py-2 px-1">Loading…</div>
+        ) : error ? (
+          <div className="text-xs text-[#2c2e4b]/60 py-2 px-1">Unable to load availability.</div>
+        ) : rows.length === 0 ? (
+          <div className="text-xs text-[#2c2e4b]/40 py-2 px-1">No doctors found.</div>
+        ) : (
+          <div className="space-y-1">
+            {rows.map(({ doctor, status, hours }) => (
+              <div
+                key={doctor.doctorId}
+                className="flex items-center justify-between gap-3 border border-[#e7d6bf]/60 rounded-lg px-3 py-2 bg-white hover:bg-[#e7d6bf]/10 transition-colors"
+              >
+                <div className="min-w-0">
+                  <div className="text-xs font-medium text-[#2c2e4b] truncate">{doctor.doctorName}</div>
+                  <div className="text-[10px] text-[#2c2e4b]/50 truncate">{hours}</div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <StatusBadge status={status} />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2.5 text-[10px] rounded-lg bg-white border-[#caa26a]/30 text-[#caa26a] hover:bg-[#caa26a] hover:text-white hover:border-[#caa26a] transition-colors font-medium shadow-sm"
+                    onClick={() =>
+                      openBookingDialog({
+                        initialDoctorId: doctor.doctorId,
+                        lockDoctor: true,
+                        source: AppointmentSource.FRONTDESK_SCHEDULED,
+                        bookingChannel: BookingChannel.DASHBOARD,
+                      })
+                    }
+                  >
+                    Book
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
   );
 }

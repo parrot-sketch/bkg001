@@ -87,6 +87,8 @@ async function getConsultationRecord(consultationId: number, doctorId: string) {
       consultation.surgical_case?.case_procedures?.length > 0),
     appointment: {
       id: consultation.appointment.id,
+      patientId: patient.id,
+      doctorId: doctorId,
       type: consultation.appointment.type,
       appointmentDate: consultation.appointment.appointment_date.toISOString(),
       time: consultation.appointment.time,

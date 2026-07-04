@@ -33,20 +33,20 @@ export function PatientInfoSidebar({ patient, appointment, vitals = null }: Prop
    return (
       <div className="h-full flex flex-col">
         {/* Patient Identity - Fixed height header */}
-        <div className="px-4 py-4 bg-white border-b border-slate-200/60 shrink-0">
+        <div className="px-4 py-4 bg-[#e7d6bf]/30 border-b border-[#e7d6bf] shrink-0">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-[#e6f0f1] flex items-center justify-center text-sm font-bold text-[#0c5d69] shrink-0">
+            <div className="h-10 w-10 rounded-full bg-[#caa26a] flex items-center justify-center text-sm font-bold text-white shrink-0">
               {patient.firstName?.[0]}{patient.lastName?.[0]}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-slate-900 truncate">
+              <p className="text-sm font-semibold text-[#2c2e4b] truncate">
                 {patient.firstName} {patient.lastName}
               </p>
-              <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
+              <div className="flex items-center gap-2 text-[11px] text-[#2c2e4b]/60 mt-0.5">
                 {patient.fileNumber && <span className="font-mono">{patient.fileNumber}</span>}
-                {age !== null && <span className="text-slate-300">•</span>}
+                {age !== null && <span className="text-[#e7d6bf]">•</span>}
                 {age !== null && <span>{age} yrs</span>}
-                {patient.gender && <span className="text-slate-300">•</span>}
+                {patient.gender && <span className="text-[#e7d6bf]">•</span>}
                 <span className="capitalize">{patient.gender?.toLowerCase()}</span>
               </div>
             </div>
@@ -114,8 +114,8 @@ export function PatientInfoSidebar({ patient, appointment, vitals = null }: Prop
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="px-4 py-3 bg-white border-b border-slate-100">
-      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">{title}</p>
+    <div className="px-4 py-3 bg-white border-b border-[#e7d6bf]">
+      <p className="text-[10px] font-semibold text-[#caa26a] uppercase tracking-wider mb-2">{title}</p>
       {children}
     </div>
   );
@@ -124,8 +124,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start gap-2 text-xs">
-      <span className="text-slate-400 w-12 shrink-0">{label}</span>
-      <span className="text-slate-700 break-all">{value}</span>
+      <span className="text-[#2c2e4b]/50 w-12 shrink-0">{label}</span>
+      <span className="text-[#2c2e4b] break-all">{value}</span>
     </div>
   );
 }
@@ -141,16 +141,16 @@ function VitalsGrid({ vitals }: { vitals: VitalsData }) {
     { label: 'Ht', value: vitals.height != null ? `${vitals.height}cm` : null, warn: false },
   ].filter(i => i.value != null);
 
-  if (items.length === 0) return <p className="text-[11px] text-slate-400 italic">No vitals recorded</p>;
+  if (items.length === 0) return <p className="text-[11px] text-[#2c2e4b]/40 italic">No vitals recorded</p>;
 
   return (
     <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
       {items.map(item => (
         <div key={item.label} className="flex items-center gap-2 text-[11px]">
-          <span className="text-slate-400 w-7 shrink-0">{item.label}</span>
-          <span className={cn('font-medium', item.warn ? 'text-amber-600' : 'text-slate-700')}>
+          <span className="text-[#2c2e4b]/50 w-7 shrink-0">{item.label}</span>
+          <span className={cn('font-medium', item.warn ? 'text-[#caa26a]' : 'text-[#2c2e4b]')}>
             {item.value}
-            {item.warn && <AlertTriangle className="inline h-3 w-3 ml-0.5 text-amber-500" />}
+            {item.warn && <AlertTriangle className="inline h-3 w-3 ml-0.5 text-[#caa26a]" />}
           </span>
         </div>
       ))}

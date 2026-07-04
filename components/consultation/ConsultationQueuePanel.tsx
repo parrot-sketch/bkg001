@@ -151,46 +151,46 @@ export function ConsultationQueuePanel({
     return <CollapsedRail queueCount={queueCount} onClick={() => setIsCollapsed(false)} />;
   }
 
-  return (
-    <>
-      <motion.div
-        layoutId="queue-panel"
-        initial={{ x: 260 }}
-        animate={{ x: 0 }}
-        exit={{ x: 260 }}
+   return (
+     <>
+       <motion.div
+         layoutId="queue-panel"
+         initial={{ x: 260 }}
+         animate={{ x: 0 }}
+         exit={{ x: 260 }}
         className={cn(
-          "w-72 bg-white/70 backdrop-blur-xl border-l border-slate-200 flex flex-col h-full hidden lg:flex z-30 shadow-sm relative",
+          "w-72 bg-[#fcfbf8]/90 backdrop-blur-xl border-l border-[#e7d6bf] flex flex-col h-full hidden lg:flex z-30 shadow-sm relative",
           className
         )}
-      >
-        {queueCount > 0 && (
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-[60px] rounded-full pointer-events-none" />
-        )}
+       >
+         {queueCount > 0 && (
+           <div className="absolute top-0 right-0 w-32 h-32 bg-[#caa26a]/10 blur-[60px] rounded-full pointer-events-none" />
+         )}
 
-        <QueueHeader queueCount={queueCount} onCollapse={() => setIsCollapsed(true)} onRefresh={onRefresh} isRefreshing={isRefreshing} />
+         <QueueHeader queueCount={queueCount} onCollapse={() => setIsCollapsed(true)} onRefresh={onRefresh} isRefreshing={isRefreshing} />
 
-        <div className="flex-1 overflow-y-auto custom-scrollbar-light px-2 bg-transparent">
-          {queueCount === 0 ? (
-            <QueueEmptyState />
-          ) : (
-            <div className="space-y-2 py-3">
-                <AnimatePresence mode="popLayout">
-                  {sortedQueue.map((apt, index) => (
-                    <QueuePatientCard
-                      key={apt.id}
-                      appointment={apt}
-                      isNext={index === 0}
-                      isStarting={startingId === apt.id}
-                      onInitiateSwitch={handleInitiateSwitchClick}
-                    />
-                  ))}
-                </AnimatePresence>
-            </div>
-          )}
-        </div>
+         <div className="flex-1 overflow-y-auto custom-scrollbar-light px-2 bg-transparent">
+           {queueCount === 0 ? (
+             <QueueEmptyState />
+           ) : (
+             <div className="space-y-2 py-3">
+                 <AnimatePresence mode="popLayout">
+                   {sortedQueue.map((apt, index) => (
+                     <QueuePatientCard
+                       key={apt.id}
+                       appointment={apt}
+                       isNext={index === 0}
+                       isStarting={startingId === apt.id}
+                       onInitiateSwitch={handleInitiateSwitchClick}
+                     />
+                   ))}
+                 </AnimatePresence>
+             </div>
+           )}
+         </div>
 
-        <QueueFooter sortedQueue={sortedQueue} />
-      </motion.div>
+         <QueueFooter sortedQueue={sortedQueue} />
+       </motion.div>
 
       {selectedForSwitch && (
         <PatientSwitchConfirmation

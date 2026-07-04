@@ -31,18 +31,18 @@ export function AppointmentsList({
     <div className="space-y-2.5">
       {/* List header */}
       <div className="flex items-center justify-between px-1">
-        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+        <p className="text-xs font-semibold text-[#2c2e4b]/50 uppercase tracking-wider">
           {loading
             ? 'Loading...'
             : `${filteredAppointments.length} appointment${filteredAppointments.length !== 1 ? 's' : ''}`}
           {statusFilter !== 'ALL' && (
-            <span className="text-slate-300 font-normal ml-1">
+            <span className="text-[#2c2e4b]/50 font-normal ml-1">
               ({STATUS_CHIPS.find((c) => c.key === statusFilter)?.label})
             </span>
           )}
         </p>
         {filteredAppointments.length > 0 && (
-          <p className="text-[10px] text-slate-400">
+          <p className="text-[10px] text-[#2c2e4b]/50">
             Sorted by scheduled time
           </p>
         )}
@@ -85,14 +85,14 @@ function EmptyState({
   const router = useRouter();
 
   return (
-    <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-slate-200 bg-white/50">
-      <div className="h-16 w-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-5">
-        <Calendar className="h-8 w-8 text-slate-300" />
+    <div className="flex flex-col items-center justify-center py-16 rounded-xl border border-dashed border-[#e7d6bf] bg-[#e7d6bf]/5">
+      <div className="h-16 w-16 rounded-2xl bg-[#e7d6bf]/20 flex items-center justify-center mb-5">
+        <Calendar className="h-8 w-8 text-[#caa26a]" />
       </div>
-      <h3 className="text-sm font-semibold text-slate-600 mb-1">
+      <h3 className="text-sm font-semibold text-[#2c2e4b] mb-1">
         {hasFilters ? 'No matching appointments' : `No appointments ${dateLabel.toLowerCase()}`}
       </h3>
-      <p className="text-xs text-slate-400 mb-5 text-center max-w-xs">
+      <p className="text-xs text-[#2c2e4b]/60 mb-5 text-center max-w-xs">
         {hasFilters
           ? 'Try adjusting your filters or search query'
           : 'Appointments booked for this date will appear here'}
@@ -103,7 +103,7 @@ function EmptyState({
             variant="outline"
             size="sm"
             onClick={onClearFilters}
-            className="rounded-xl text-xs"
+            className="border-[#e7d6bf] text-[#2c2e4b] hover:bg-[#e7d6bf]/30 hover:border-[#caa26a]/60 rounded-lg"
           >
             <Filter className="h-3 w-3 mr-1.5" />
             Clear Filters
@@ -112,7 +112,7 @@ function EmptyState({
         <Button
           onClick={() => router.push('/frontdesk/patients?mode=book')}
           size="sm"
-          className="bg-[#0c5d69] hover:bg-[#0a4f59] text-white rounded-lg text-xs font-medium"
+          className="bg-[#caa26a] hover:bg-[#b8913e] text-[#2c2e4b] rounded-lg"
         >
           <Plus className="h-3 w-3 mr-1.5" />
           Book Appointment

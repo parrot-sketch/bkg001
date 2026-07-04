@@ -17,7 +17,7 @@ export function PatientDetailActions({ patient }: { patient: PatientDetailDto })
         variant="outline"
         size="sm"
         onClick={() => setEditOpen(true)}
-        className="rounded-none gap-1.5"
+        className="rounded-lg gap-1.5 border-[#e7d6bf] text-[#2c2e4b] hover:bg-[#e7d6bf]/30"
       >
         <Pencil className="h-3.5 w-3.5" />
         Edit

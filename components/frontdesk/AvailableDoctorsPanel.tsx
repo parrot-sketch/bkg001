@@ -1,17 +1,18 @@
 'use client';
 
 /**
- * Available Doctors Panel — Premium Redesign
+ * Available Doctors Panel
  * 
- * Displays doctor availability for today with gradient avatars,
- * live status indicators, and seamless Quick Book integration.
+ * Displays doctor availability for today with consistent branding.
  * Designed for the frontdesk dashboard as a primary action surface.
+ * 
+ * Branded with Nairobi Sculpt light palette: white cards, beige borders,
+ * navy typography, and gold accents.
  */
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -19,9 +20,8 @@ import {
   User,
   CheckCircle2,
   Stethoscope,
-  ArrowRight,
   RefreshCw,
-  Zap,
+  ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -64,7 +64,6 @@ export function AvailableDoctorsPanel({ selectedDate }: AvailableDoctorsPanelPro
 
   // Filter to only show doctors who have at least one available date in the future
   const doctorsAvailability = allDoctors.filter((doctor) => {
-    // Check if doctor has any working days with availability in the date range
     return doctor.workingDays && doctor.workingDays.some((wd) => wd.isAvailable);
   }) as DoctorAvailabilityWithUI[];
 
@@ -84,106 +83,90 @@ export function AvailableDoctorsPanel({ selectedDate }: AvailableDoctorsPanelPro
   if (!isAuthenticated || !user) return null;
 
   return (
-    <Card className="h-full flex flex-col border-slate-200/60 shadow-sm rounded-2xl overflow-hidden">
+    <Card className="h-full flex flex-col border border-[#e7d6bf] bg-white rounded-xl overflow-hidden shadow-sm">
       {/* ── Header ── */}
-      <CardHeader className="py-3.5 px-5 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-600 shadow-sm shadow-cyan-200/50">
-              <Stethoscope className="h-4 w-4 text-white" />
-            </div>
-            <div>
-              <CardTitle className="text-sm font-bold text-slate-800 tracking-tight">
-                Available Doctors
-              </CardTitle>
-              <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                {doctorsAvailability.length} doctor{doctorsAvailability.length !== 1 ? 's' : ''} on duty today
-              </p>
-            </div>
+      <div className="px-4 py-3 border-b border-[#e7d6bf] bg-white flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 border border-[#e7d6bf] bg-[#e7d6bf]/30 flex items-center justify-center">
+            <Stethoscope className="h-4 w-4 text-[#caa26a]" />
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => refetch()}
-            disabled={isRefetching}
-            className="h-8 px-2.5 text-xs text-slate-400 hover:text-slate-600 rounded-lg"
-          >
-            <RefreshCw className={cn('h-3.5 w-3.5 mr-1.5', isRefetching && 'animate-spin')} />
-            Refresh
-          </Button>
+          <div>
+            <CardTitle className="text-sm font-semibold text-[#2c2e4b]">
+              Available Doctors
+            </CardTitle>
+            <p className="text-[10px] text-[#2c2e4b]/60 font-medium mt-0.5">
+              {doctorsAvailability.length} doctor{doctorsAvailability.length !== 1 ? 's' : ''} on duty today
+            </p>
+          </div>
         </div>
-      </CardHeader>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => refetch()}
+          disabled={isRefetching}
+          className="h-8 px-2.5 text-xs text-[#2c2e4b]/50 hover:text-[#2c2e4b] rounded-lg"
+        >
+          <RefreshCw className={cn('h-3.5 w-3.5 mr-1.5', isRefetching && 'animate-spin')} />
+          Refresh
+        </Button>
+      </div>
 
       {/* ── Doctor List ── */}
       <CardContent className="p-0 flex-1 overflow-y-auto">
         {doctorsAvailability.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center px-6">
-            <div className="h-16 w-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
-              <User className="h-8 w-8 text-slate-300" />
+          <div className="flex flex-col items-center justify-center py-12 text-center px-5">
+            <div className="h-12 w-12 border border-[#e7d6bf] bg-[#e7d6bf]/20 flex items-center justify-center mb-3">
+              <User className="h-6 w-6 text-[#2c2e4b]/30" />
             </div>
-            <p className="text-sm font-semibold text-slate-600 mb-1">No Doctors Available</p>
-            <p className="text-xs text-slate-400">No doctors have availability in the next 2 months</p>
+            <p className="text-sm font-semibold text-[#2c2e4b] mb-1">No Doctors Available</p>
+            <p className="text-xs text-[#2c2e4b]/50">No doctors have availability in the next 2 months</p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-100/80">
+          <div className="divide-y divide-[#e7d6bf]/60">
             {doctorsAvailability.map((doctor: DoctorAvailabilityWithUI, index: number) => {
               // Find the first available working day (could be today or future)
               const availableWorkDay = doctor.workingDays.find((wd) => wd.isAvailable);
-              const color = doctor.colorCode || '#0891b2';
 
               return (
                 <div
                   key={doctor.doctorId}
                   className={cn(
-                    'group relative px-5 py-4 hover:bg-slate-50/70 transition-all duration-200 cursor-pointer',
-                    index === 0 && 'pt-4'
+                    'group relative px-4 py-3 hover:bg-[#e7d6bf]/10 transition-all duration-200 cursor-pointer',
+                    index === 0 && 'pt-3'
                   )}
                   onClick={() => handleQuickBook(doctor)}
                 >
-                  {/* Left accent on hover */}
-                  <div
-                    className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                    style={{ backgroundColor: color }}
-                  />
-
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
                     {/* Avatar */}
                     <div className="relative shrink-0">
-                      <div
-                        className="h-12 w-12 rounded-xl flex items-center justify-center text-white font-bold text-base shadow-sm transition-transform group-hover:scale-105 duration-200"
-                        style={{
-                          background: `linear-gradient(135deg, ${color} 0%, ${adjustColor(color, -25)} 100%)`,
-                        }}
-                      >
+                      <div className="h-10 w-10 rounded-lg border border-[#e7d6bf] bg-[#e7d6bf]/30 flex items-center justify-center text-[#2c2e4b] font-semibold text-sm transition-transform group-hover:scale-105 duration-200">
                         {doctor.doctorName.split(' ').slice(-1)[0]?.charAt(0) || 'D'}
                       </div>
-                      {/* Live indicator */}
-                      <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-emerald-500 ring-2 ring-white shadow-sm" />
                     </div>
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
-                        <h4 className="font-semibold text-sm text-slate-800 truncate leading-tight">
+                        <h4 className="font-semibold text-sm text-[#2c2e4b] truncate leading-tight">
                           {doctor.doctorName}
                         </h4>
                       </div>
-                      <p className="text-xs text-slate-500 truncate mb-2">
+                      <p className="text-xs text-[#2c2e4b]/60 truncate mb-1.5">
                         {doctor.specialization}
                       </p>
 
                       {/* Status row */}
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge
-                          variant="secondary"
-                          className="bg-emerald-50 text-emerald-700 border-emerald-200/60 text-[10px] font-semibold px-2 py-0 rounded-md"
+                          variant="outline"
+                          className="rounded-none text-[10px] border-[#e7d6bf] bg-[#e7d6bf]/20 text-[#2c2e4b] font-semibold px-2 py-0"
                         >
-                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                          <CheckCircle2 className="w-3 h-3 mr-1 text-[#caa26a]" />
                           On Duty
                         </Badge>
                         {availableWorkDay && (
-                          <span className="text-[10px] text-slate-400 flex items-center font-medium">
-                            <Clock className="w-3 h-3 mr-1" />
+                          <span className="text-[10px] text-[#2c2e4b]/50 flex items-center font-medium">
+                            <Clock className="w-3 h-3 mr-1 text-[#caa26a]/60" />
                             {availableWorkDay.startTime} – {availableWorkDay.endTime}
                           </span>
                         )}
@@ -194,18 +177,18 @@ export function AvailableDoctorsPanel({ selectedDate }: AvailableDoctorsPanelPro
                     <Button
                       size="sm"
                       className={cn(
-                        'transition-all duration-200 shrink-0 rounded-xl shadow-sm',
-                        'bg-cyan-600 hover:bg-cyan-700 text-white',
-                        'opacity-0 group-hover:opacity-100 translate-x-1 group-hover:translate-x-0'
+                        'transition-all duration-200 shrink-0 rounded-lg shadow-sm border border-transparent',
+                        'bg-[#caa26a] hover:bg-[#b8913e] text-[#2c2e4b]',
+                        'opacity-100 sm:opacity-0 sm:translate-x-1 sm:group-hover:opacity-100 sm:group-hover:translate-x-0'
                       )}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleQuickBook(doctor);
                       }}
                     >
-                      <Zap className="h-3.5 w-3.5 mr-1.5" />
-                      Quick Book
-                      <ArrowRight className="h-3 w-3 ml-1" />
+                      <Stethoscope className="h-3.5 w-3.5 mr-1.5" />
+                      Book
+                      <ChevronRight className="h-3 w-3 ml-1" />
                     </Button>
                   </div>
                 </div>
@@ -220,42 +203,26 @@ export function AvailableDoctorsPanel({ selectedDate }: AvailableDoctorsPanelPro
 
 /* ═══════════════════════ Helpers ═══════════════════════ */
 
-/** Darken/lighten a hex color */
-function adjustColor(color: string, amount: number): string {
-  const clamp = (val: number) => Math.min(255, Math.max(0, val));
-  let hex = color.replace('#', '');
-  if (hex.length === 3) hex = hex.split('').map((c) => c + c).join('');
-  const num = parseInt(hex, 16);
-  const r = clamp((num >> 16) + amount);
-  const g = clamp(((num >> 8) & 0x00ff) + amount);
-  const b = clamp((num & 0x0000ff) + amount);
-  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
-}
-
 function AvailableDoctorsSkeleton() {
   return (
-    <Card className="h-full border-slate-200/60 shadow-sm rounded-2xl overflow-hidden">
-      <CardHeader className="py-3.5 px-5 border-b border-slate-100 bg-gradient-to-r from-slate-50/80 to-white">
+    <Card className="h-full border border-[#e7d6bf] bg-white rounded-xl overflow-hidden shadow-sm">
+      <CardHeader className="px-4 py-3 border-b border-[#e7d6bf] bg-white">
         <div className="flex items-center gap-3">
-          <Skeleton className="h-9 w-9 rounded-xl" />
+          <div className="h-9 w-9 border border-[#e7d6bf] bg-[#e7d6bf]/20" />
           <div className="space-y-1.5">
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-3 w-24" />
+            <div className="h-4 w-32 bg-[#e7d6bf]/20 rounded" />
+            <div className="h-3 w-24 bg-[#e7d6bf]/10 rounded" />
           </div>
         </div>
       </CardHeader>
-      <CardContent className="p-5">
+      <CardContent className="p-4">
         <div className="space-y-5">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="flex items-center gap-4">
-              <Skeleton className="h-12 w-12 rounded-xl" />
+            <div key={i} className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg border border-[#e7d6bf]/40 bg-[#e7d6bf]/10" />
               <div className="space-y-2 flex-1">
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-3 w-1/2" />
-                <div className="flex gap-2">
-                  <Skeleton className="h-5 w-16 rounded-md" />
-                  <Skeleton className="h-5 w-24 rounded-md" />
-                </div>
+                <div className="h-4 w-3/4 bg-[#e7d6bf]/15 rounded" />
+                <div className="h-3 w-1/2 bg-[#e7d6bf]/10 rounded" />
               </div>
             </div>
           ))}

@@ -28,9 +28,6 @@ export default function DoctorLayout({ children }: DoctorLayoutProps) {
   const router = useRouter();
   const { user, isLoading } = useAuth();
 
-  // ── Doctor profile fetch for onboarding tour status
-  // MUST remain here — unconditionally at the top level (Rules of Hooks).
-  // The `enabled` flag prevents any fetch until auth is confirmed.
   const isDoctorUser =
     !isLoading && !!user && (user.role === 'DOCTOR' || user.role === 'ADMIN');
   const { data: dashboardData } = useDoctorDashboard({ enabled: isDoctorUser });
@@ -47,7 +44,6 @@ export default function DoctorLayout({ children }: DoctorLayoutProps) {
     }
   }, [isLoading, user, router]);
 
-  // ── Guard: loading spinner
   if (isLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#f0f4f5]">
@@ -59,12 +55,10 @@ export default function DoctorLayout({ children }: DoctorLayoutProps) {
     );
   }
 
-  // ── Guard: unauthenticated or wrong role (redirect handled above via useEffect)
   if (!user || (user.role !== 'DOCTOR' && user.role !== 'ADMIN')) {
     return null;
   }
 
-  // ── Legacy onboarding page — render without sidebar
   const isOnboarding = pathname === '/doctor/onboarding';
   if (isOnboarding) {
     return (
@@ -80,7 +74,7 @@ export default function DoctorLayout({ children }: DoctorLayoutProps) {
 
   return (
     <OnboardingTourProvider onboardingStatus={doctor?.onboardingStatus ?? null}>
-      <div className="flex h-screen overflow-hidden bg-[#f0f4f5]">
+      <div className="flex h-screen overflow-hidden bg-[#2c2e4b]">
         {/* Sidebar */}
         <DoctorSidebar
           isOpen={sidebarOpen}
@@ -95,9 +89,14 @@ export default function DoctorLayout({ children }: DoctorLayoutProps) {
             { '--sidebar-offset': sidebarCollapsed ? '4rem' : '280px' } as React.CSSProperties
           }
         >
-          <DoctorHeader onMenuClick={() => setSidebarOpen(true)} />
-          <main className="flex-1 relative overflow-hidden focus:outline-none bg-[#f0f4f5] overflow-y-auto overscroll-contain scroll-smooth">
-            <div className="w-full min-h-full mx-auto max-w-[1600px] px-4 py-5 sm:px-5 sm:py-6 lg:px-8 lg:py-7 xl:px-10 xl:py-8">
+          <div className="shrink-0 bg-white border-b border-[#e7d6bf]">
+            <DoctorHeader onMenuClick={() => setSidebarOpen(true)} />
+          </div>
+          <main className="flex-1 relative overflow-hidden focus:outline-none overflow-y-auto overscroll-contain scroll-smooth">
+            {/* Branded background */}
+            <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: "url('/bg.webp')" }} aria-hidden="true" />
+            <div className="absolute inset-0 bg-gradient-to-br from-[#2c2e4b]/80 via-[#2c2e4b]/70 to-[#2c2e4b]/50" aria-hidden="true" />
+            <div className="relative w-full min-h-full mx-auto max-w-[1600px] px-4 py-5 sm:px-5 sm:py-6 lg:px-8 lg:py-7 xl:px-10 xl:py-8">
               {children}
             </div>
           </main>

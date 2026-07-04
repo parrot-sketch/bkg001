@@ -233,7 +233,18 @@ async function fetchDashboardDataInternal(): Promise<FrontdeskDashboardData> {
   );
   const completed = mappedAppointments.filter(a => a.status === 'COMPLETED');
 
-  const checkedInAwaitingMapped: FrontdeskCheckedInPatient[] = checkedIn.map(a => ({
+  // Get appointment IDs already in the queue to exclude from awaiting assignment
+  const queuedAppointmentIds = new Set(
+    liveQueue.filter(q => q.status === 'WAITING').map(q => q.appointment_id).filter((id): id is number => id !== null)
+  );
+  
+  const queuedPatientIds = new Set(
+    liveQueue.filter(q => q.appointment_id === null).map(q => q.patient_id)
+  );
+
+  const checkedInAwaitingMapped: FrontdeskCheckedInPatient[] = checkedIn
+    .filter(a => !queuedAppointmentIds.has(a.id) && !queuedPatientIds.has(a.patientId))
+    .map(a => ({
     id: a.id,
     patientId: a.patientId,
     patient: {

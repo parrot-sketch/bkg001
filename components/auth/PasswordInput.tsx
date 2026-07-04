@@ -82,12 +82,12 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
         <button
           type="button"
           onClick={togglePasswordVisibility}
-          className={cn(
-            'absolute right-3 top-1/2 -translate-y-1/2',
-            'text-slate-500 hover:text-slate-700',
-            'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 rounded p-0.5',
-            'transition-colors'
-          )}
+             className={cn(
+             'absolute right-3 top-1/2 -translate-y-1/2',
+             'text-white/70 hover:text-white sm:text-slate-500 sm:hover:text-slate-700',
+             'focus:outline-none focus:ring-2 focus:ring-white/30 sm:focus:ring-ring sm:focus:ring-offset-1 rounded p-0.5',
+             'transition-colors'
+           )}
           aria-label={showPassword ? 'Hide password' : 'Show password'}
           tabIndex={-1}
         >
@@ -101,11 +101,11 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
         {/* Caps Lock Warning */}
         {showCapsLockWarning && capsLockOn && (
           <div
-            className="mt-2 flex items-start gap-1.5 text-sm text-amber-600"
-            role="alert"
-            aria-live="polite"
-          >
-            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" aria-hidden="true" />
+           className="mt-2 flex items-start gap-1.5 text-sm text-white/80 sm:text-amber-600"
+           role="alert"
+           aria-live="polite"
+         >
+           <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-white/80 sm:text-amber-600" aria-hidden="true" />
             <span>Caps Lock is on</span>
           </div>
         )}

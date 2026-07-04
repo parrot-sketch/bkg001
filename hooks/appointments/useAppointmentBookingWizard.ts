@@ -1,12 +1,10 @@
 import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
-import { format, startOfDay } from 'date-fns';
+import { format } from 'date-fns';
 import { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';
 import { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import { AppointmentSource } from '@/domain/enums/AppointmentSource';
 import { BookingChannel } from '@/domain/enums/BookingChannel';
-import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
-import { usePatientAppointments } from '@/hooks/appointments/useAppointments';
 
 interface UseAppointmentBookingWizardProps {
   initialPatientId?: string;
@@ -80,31 +78,6 @@ export function useAppointmentBookingWizard({
   const [selectedPatient, setSelectedPatient] = useState<PatientResponseDto | null>(initialPatient || null);
   const [selectedDoctor, setSelectedDoctor] = useState<DoctorResponseDto | null>(initialDoctor || null);
 
-  const { data: patientAppointments = [] } = usePatientAppointments(
-    formData.patientId,
-    !!formData.patientId && !!formData.appointmentDate
-  );
-
-  const existingAppointmentsOnDate = useMemo(() => {
-    if (!formData.appointmentDate || !formData.patientId) return [];
-    const selectedDateOnly = startOfDay(new Date(formData.appointmentDate));
-    const excludedStatuses = [AppointmentStatus.CANCELLED, AppointmentStatus.COMPLETED];
-    return patientAppointments.filter((apt) => {
-      const aptDate = startOfDay(new Date(apt.appointmentDate));
-      return aptDate.getTime() === selectedDateOnly.getTime() && !excludedStatuses.includes(apt.status as AppointmentStatus);
-    });
-  }, [patientAppointments, formData.appointmentDate, formData.patientId]);
-
-  const sameDoctorConflict = useMemo(() => {
-    if (!formData.doctorId || existingAppointmentsOnDate.length === 0) return null;
-    return existingAppointmentsOnDate.find(apt => apt.doctorId === formData.doctorId);
-  }, [existingAppointmentsOnDate, formData.doctorId]);
-
-  const differentDoctorAppointments = useMemo(() => {
-    if (!formData.doctorId || existingAppointmentsOnDate.length === 0) return [];
-    return existingAppointmentsOnDate.filter(apt => apt.doctorId !== formData.doctorId);
-  }, [existingAppointmentsOnDate, formData.doctorId]);
-
   const canProceed = () => {
     switch (currentStep) {
       case 1: return !!formData.doctorId;
@@ -138,11 +111,6 @@ export function useAppointmentBookingWizard({
       return;
     }
 
-    if (sameDoctorConflict) {
-      toast.warning(`This patient already has an appointment with this doctor on ${format(new Date(formData.appointmentDate), 'MMMM d, yyyy')} at ${sameDoctorConflict.time}.`);
-      return;
-    }
-
     setIsSubmitting(true);
     try {
       const { frontdeskApi } = await import('@/lib/api/frontdesk');
@@ -164,7 +132,13 @@ export function useAppointmentBookingWizard({
       });
 
       if (response.success) {
-        toast.success(isFollowUp ? 'Follow-up appointment scheduled' : 'Appointment scheduled successfully');
+        toast.success('Appointment request submitted. Awaiting doctor confirmation.', {
+          style: {
+            background: '#143232',
+            color: '#ffffff',
+            border: '1px solid #bea032',
+          },
+        });
         if (onSuccess) onSuccess(response.data?.id, new Date(formData.appointmentDate));
       } else {
         toast.error(response.error || 'Failed to schedule appointment');
@@ -189,7 +163,6 @@ export function useAppointmentBookingWizard({
   const currentStepIndex = stepLabels.findIndex(s => s.id === currentStep) + 1;
 
   return {
-    // State
     currentStep,
     setCurrentStep,
     formData,
@@ -199,21 +172,13 @@ export function useAppointmentBookingWizard({
     selectedDoctor,
     setSelectedDoctor,
     isSubmitting,
-    
-    // Computed
     isFollowUp,
-    sameDoctorConflict,
-    differentDoctorAppointments,
     stepLabels,
     currentStepIndex,
-    
-    // Handlers
     canProceed,
     handleNext,
     handleBack,
     handleSubmit,
-    
-    // Props (for components that need them)
     lockDoctor,
     source,
     bookingChannel,

@@ -10,17 +10,17 @@ import type { DoctorDashboardData } from '@/hooks/use-doctor-dashboard';
 type TodayAppointment = DoctorDashboardData['todayAppointments'][number];
 
 const STATUS_CONFIG: Record<string, { bg: string; text: string }> = {
-  PENDING_DOCTOR_CONFIRMATION: { bg: 'bg-[#fdf6e3]', text: 'text-[#78350f]' },
-  SCHEDULED: { bg: 'bg-[#e6f0f1]', text: 'text-[#0c5d69]' },
-  CONFIRMED: { bg: 'bg-[#e6f0f1]', text: 'text-[#0c5d69]' },
-  CHECKED_IN: { bg: 'bg-[#e6f0f1]', text: 'text-[#0c5d69]' },
-  READY_FOR_CONSULTATION: { bg: 'bg-[#fdf6e3]', text: 'text-[#78350f]' },
-  IN_CONSULTATION: { bg: 'bg-[#fef3c7]', text: 'text-[#92400e]' },
-  COMPLETED: { bg: 'bg-slate-100', text: 'text-slate-600' },
+  PENDING_DOCTOR_CONFIRMATION: { bg: 'bg-[#e7d6bf]', text: 'text-[#2c2e4b]' },
+  SCHEDULED: { bg: 'bg-[#caa26a]/20', text: 'text-[#2c2e4b]' },
+  CONFIRMED: { bg: 'bg-[#caa26a]/20', text: 'text-[#2c2e4b]' },
+  CHECKED_IN: { bg: 'bg-[#caa26a]/20', text: 'text-[#2c2e4b]' },
+  READY_FOR_CONSULTATION: { bg: 'bg-[#e7d6bf]', text: 'text-[#2c2e4b]' },
+  IN_CONSULTATION: { bg: 'bg-[#caa26a]/20', text: 'text-[#2c2e4b]' },
+  COMPLETED: { bg: 'bg-[#e7d6bf]/60', text: 'text-[#2c2e4b]/70' },
 };
 
 function getStatusConfig(status: string) {
-  return STATUS_CONFIG[status] ?? { bg: 'bg-slate-100', text: 'text-slate-600' };
+  return STATUS_CONFIG[status] ?? { bg: 'bg-[#e7d6bf]/60', text: 'text-[#2c2e4b]/70' };
 }
 
 export function TodaysAppointmentsPreview({ appointments, isLoading }: { appointments: TodayAppointment[]; isLoading: boolean }) {
@@ -28,12 +28,12 @@ export function TodaysAppointmentsPreview({ appointments, isLoading }: { appoint
 
   if (isLoading) {
     return (
-      <Card className="border border-slate-200 shadow-sm">
-        <CardHeader className="border-b border-slate-100 px-5 py-4">
-          <CardTitle className="text-base font-semibold text-[#121c1d]">Today's Schedule</CardTitle>
+      <Card className="border border-[#e7d6bf] shadow-sm">
+        <CardHeader className="border-b border-[#e7d6bf] px-5 py-4">
+          <CardTitle className="text-base font-semibold text-[#2c2e4b]">Today's Schedule</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-[#e7d6bf]">
             {[1, 2, 3].map((i) => (
               <div key={i} className="flex items-center gap-4 px-5 py-3">
                 <Skeleton className="h-10 w-10 rounded-lg" />
@@ -51,33 +51,33 @@ export function TodaysAppointmentsPreview({ appointments, isLoading }: { appoint
 
   if (appointments.length === 0) {
     return (
-      <Card className="border border-slate-200 shadow-sm">
-        <CardHeader className="border-b border-slate-100 px-5 py-4">
-          <CardTitle className="text-base font-semibold text-[#121c1d]">Today's Schedule</CardTitle>
+      <Card className="border border-[#e7d6bf] shadow-sm">
+        <CardHeader className="border-b border-[#e7d6bf] px-5 py-4">
+          <CardTitle className="text-base font-semibold text-[#2c2e4b]">Today's Schedule</CardTitle>
         </CardHeader>
         <CardContent className="px-5 py-8 text-center">
-          <Clock className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-          <p className="text-sm text-slate-400">No appointments scheduled for today</p>
+          <Clock className="h-8 w-8 text-[#e7d6bf] mx-auto mb-2" />
+          <p className="text-sm text-[#2c2e4b]/50">No appointments scheduled for today</p>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="border border-slate-200 shadow-sm">
-      <CardHeader className="border-b border-slate-100 px-5 py-4">
+    <Card className="border border-[#e7d6bf] shadow-sm">
+      <CardHeader className="border-b border-[#e7d6bf] px-5 py-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-semibold text-[#121c1d]">Today's Schedule</CardTitle>
+          <CardTitle className="text-base font-semibold text-[#2c2e4b]">Today's Schedule</CardTitle>
           <button
             onClick={() => router.push('/doctor/consultations')}
-            className="text-xs text-slate-400 hover:text-[#0c5d69] transition-colors flex items-center gap-1"
+            className="text-xs text-[#caa26a] hover:text-[#2c2e4b] transition-colors flex items-center gap-1"
           >
             View all <ChevronRight className="h-3 w-3" />
           </button>
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-[#e7d6bf]">
           {appointments.slice(0, 5).map((apt) => {
             const patientName = apt.patient
               ? `${apt.patient.firstName} ${apt.patient.lastName}`
@@ -86,15 +86,15 @@ export function TodaysAppointmentsPreview({ appointments, isLoading }: { appoint
             return (
               <div
                 key={apt.id}
-                className="flex items-center gap-4 px-5 py-3 hover:bg-slate-50/50 transition-colors cursor-pointer"
+                className="flex items-center gap-4 px-5 py-3 hover:bg-[#e7d6bf]/30 transition-colors cursor-pointer"
                 onClick={() => router.push(`/doctor/appointments/${apt.id}`)}
               >
                 <div className="w-12 text-center shrink-0">
-                  <p className="text-sm font-semibold text-[#121c1d] leading-none">{apt.time || '--:--'}</p>
+                  <p className="text-sm font-semibold text-[#2c2e4b] leading-none">{apt.time || '--:--'}</p>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[#121c1d] truncate">{patientName}</p>
-                  <p className="text-xs text-slate-400">{apt.type || 'Consultation'}</p>
+                  <p className="text-sm font-medium text-[#2c2e4b] truncate">{patientName}</p>
+                  <p className="text-xs text-[#2c2e4b]/60">{apt.type || 'Consultation'}</p>
                 </div>
                 <StatusBadge status={apt.status} />
               </div>

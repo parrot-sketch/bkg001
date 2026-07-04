@@ -55,8 +55,8 @@ export default function FrontdeskLayout({ children }: FrontdeskLayoutProps) {
     return null;
   }
 
-  return (
-    <div className="flex h-screen overflow-hidden bg-[#f0f4f5]">
+return (
+    <div className="flex h-screen overflow-hidden bg-[#2c2e4b]">
       <FrontdeskSidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -68,13 +68,20 @@ export default function FrontdeskLayout({ children }: FrontdeskLayoutProps) {
         className="flex-1 flex flex-col min-w-0 h-full overflow-hidden transition-all duration-300 lg:ml-[var(--sidebar-offset)]"
         style={{ '--sidebar-offset': sidebarCollapsed ? '4rem' : '280px' } as React.CSSProperties}
       >
-        <FrontdeskHeader onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+<div className="shrink-0 bg-white border-b border-[#e7d6bf]">
+            <FrontdeskHeader onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+          </div>
 
         <BookAppointmentDialog />
 
         {/* Main scrollable content */}
-        <main className="flex-1 overflow-y-auto overscroll-contain scroll-smooth bg-[#f0f4f5] focus:outline-none">
-          {children}
+        <main className="flex-1 relative overflow-hidden focus:outline-none overflow-y-auto overscroll-contain scroll-smooth">
+          {/* Branded background for frontdesk */}
+          <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: "url('/bg.webp')" }} aria-hidden="true" />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#2c2e4b]/80 via-[#2c2e4b]/70 to-[#2c2e4b]/50" aria-hidden="true" />
+          <div className="relative w-full min-h-full mx-auto max-w-[1600px] px-4 py-5 sm:px-5 sm:py-6 lg:px-8 lg:py-7 xl:px-10 xl:py-8">
+            {children}
+          </div>
         </main>
       </div>
     </div>

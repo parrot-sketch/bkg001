@@ -60,8 +60,8 @@ function FrontdeskAppointmentsContent(): React.ReactElement {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="text-center space-y-3">
-          <Loader2 className="h-8 w-8 animate-spin text-slate-300 mx-auto" />
-          <p className="text-sm text-slate-400">Loading...</p>
+          <Loader2 className="h-8 w-8 animate-spin text-[#caa26a] mx-auto" />
+          <p className="text-sm text-[#2c2e4b]/60">Loading...</p>
         </div>
       </div>
     );
@@ -70,12 +70,12 @@ function FrontdeskAppointmentsContent(): React.ReactElement {
   if (!isAuthenticated || !user) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
-        <div className="text-center p-8 bg-white rounded-2xl shadow-lg border border-slate-100 max-w-md">
-          <User className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-slate-900 mb-2">Authentication Required</h2>
-          <p className="text-sm text-slate-500 mb-6">Please log in to manage appointments.</p>
+        <div className="text-center p-8 bg-white rounded-xl shadow-sm border border-[#e7d6bf] max-w-md">
+          <User className="h-12 w-12 text-[#caa26a]/60 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-[#2c2e4b] mb-2">Authentication Required</h2>
+          <p className="text-sm text-[#2c2e4b]/60 mb-6">Please log in to manage appointments.</p>
           <Link href="/login">
-            <Button className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl">
+            <Button className="bg-[#caa26a] hover:bg-[#b8913e] text-[#2c2e4b] font-semibold rounded-lg shadow-sm h-10 px-6">
               Return to Login
             </Button>
           </Link>
@@ -88,25 +88,25 @@ function FrontdeskAppointmentsContent(): React.ReactElement {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] p-8">
-        <div className="text-center p-8 bg-white rounded-2xl shadow-lg border border-red-100 max-w-md">
-          <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+        <div className="text-center p-8 bg-white rounded-xl shadow-sm border border-red-200 max-w-md">
+          <div className="h-12 w-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4">
             <XCircle className="h-6 w-6 text-red-500" />
           </div>
-          <h2 className="text-xl font-bold text-slate-900 mb-2">Unable to Load Appointments</h2>
-          <p className="text-sm text-slate-500 mb-6">
+          <h2 className="text-xl font-bold text-[#2c2e4b] mb-2">Unable to Load Appointments</h2>
+          <p className="text-sm text-[#2c2e4b]/60 mb-6">
             {error.message || 'A network error occurred. Please check your connection and try again.'}
           </p>
           <div className="flex items-center justify-center gap-3">
             <Button
               variant="outline"
               onClick={() => window.location.reload()}
-              className="rounded-xl"
+              className="rounded-lg border-[#e7d6bf] text-[#2c2e4b] hover:bg-[#e7d6bf]/30 hover:border-[#caa26a]/60 h-10 px-5"
             >
               Refresh Page
             </Button>
             <Button
               onClick={() => refetch()}
-              className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl"
+              className="bg-[#caa26a] hover:bg-[#b8913e] text-[#2c2e4b] font-semibold rounded-lg shadow-sm h-10 px-5"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Retry
@@ -135,7 +135,11 @@ function FrontdeskAppointmentsContent(): React.ReactElement {
         patientNameFromFilter={patientNameFromFilter} 
       />
 
-      <AppointmentsPipeline pipelineStats={pipelineStats} />
+      <AppointmentsPipeline 
+        pipelineStats={pipelineStats} 
+        onStatusClick={setStatusFilter}
+        activeStatusFilter={statusFilter}
+      />
 
       <AppointmentsFilterBar 
         selectedDate={selectedDate}
@@ -169,16 +173,16 @@ function FrontdeskAppointmentsContent(): React.ReactElement {
 function AppointmentsPageSkeleton(): React.ReactElement {
   return (
     <div className="space-y-6">
-      <div className="h-12 w-48 bg-slate-100 rounded-xl animate-pulse" />
+      <div className="h-12 w-48 bg-[#e7d6bf]/10 border border-[#e7d6bf]/30 rounded-xl animate-pulse" />
       <div className="grid grid-cols-5 gap-3">
         {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="h-20 bg-slate-100 rounded-xl animate-pulse" />
+          <div key={i} className="h-20 bg-[#e7d6bf]/10 border border-[#e7d6bf]/30 rounded-xl animate-pulse" />
         ))}
       </div>
-      <div className="h-24 bg-slate-100 rounded-2xl animate-pulse" />
+      <div className="h-24 bg-[#e7d6bf]/10 border border-[#e7d6bf]/30 rounded-2xl animate-pulse" />
       <div className="space-y-3">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="h-24 bg-slate-100 rounded-xl animate-pulse" />
+          <div key={i} className="h-24 bg-[#e7d6bf]/10 border border-[#e7d6bf]/30 rounded-xl animate-pulse" />
         ))}
       </div>
     </div>

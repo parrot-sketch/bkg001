@@ -97,7 +97,7 @@ export function PatientTableActions({ patient, onActionComplete }: PatientTableA
           <Button
             size="sm"
             variant="ghost"
-            className="h-8 px-2 text-xs rounded-lg hover:bg-slate-100 transition-all duration-200 ease-in-out"
+            className="h-8 px-2 text-xs rounded-lg hover:bg-[#e7d6bf]/30 transition-all duration-200 ease-in-out text-[#2c2e4b]"
             onClick={(e) => e.stopPropagation()}
             title="Actions"
           >
@@ -108,9 +108,9 @@ export function PatientTableActions({ patient, onActionComplete }: PatientTableA
           {/* Primary Action: Add to Queue */}
           <DropdownMenuItem
             onClick={handleAddToQueue}
-            className="cursor-pointer data-[highlighted]:bg-slate-50 data-[highlighted]:text-slate-900"
+            className="cursor-pointer data-[highlighted]:bg-[#e7d6bf]/20 data-[highlighted]:text-[#2c2e4b]"
           >
-            <UserPlus className="h-4 w-4 mr-2 text-[#0c5d69]" />
+            <UserPlus className="h-4 w-4 mr-2 text-[#caa26a]" />
             Add to Queue
           </DropdownMenuItem>
           
@@ -119,23 +119,23 @@ export function PatientTableActions({ patient, onActionComplete }: PatientTableA
           {/* Secondary Actions */}
           <DropdownMenuItem
             onClick={handleBook}
-            className="cursor-pointer data-[highlighted]:bg-slate-50 data-[highlighted]:text-slate-900"
+            className="cursor-pointer data-[highlighted]:bg-[#e7d6bf]/20 data-[highlighted]:text-[#2c2e4b]"
           >
-            <Calendar className="h-4 w-4 mr-2 text-slate-500" />
+            <Calendar className="h-4 w-4 mr-2 text-[#2c2e4b]/50" />
             Book Appointment
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={handleViewBilling}
-            className="cursor-pointer data-[highlighted]:bg-slate-50 data-[highlighted]:text-slate-900"
+            className="cursor-pointer data-[highlighted]:bg-[#e7d6bf]/20 data-[highlighted]:text-[#2c2e4b]"
           >
-            <CreditCard className="h-4 w-4 mr-2 text-slate-500" />
+            <CreditCard className="h-4 w-4 mr-2 text-[#2c2e4b]/50" />
             View Billing
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={handleViewAppointments}
-            className="cursor-pointer data-[highlighted]:bg-slate-50 data-[highlighted]:text-slate-900"
+            className="cursor-pointer data-[highlighted]:bg-[#e7d6bf]/20 data-[highlighted]:text-[#2c2e4b]"
           >
-            <ClipboardList className="h-4 w-4 mr-2 text-slate-500" />
+            <ClipboardList className="h-4 w-4 mr-2 text-[#2c2e4b]/50" />
             View Appointments
           </DropdownMenuItem>
           
@@ -144,9 +144,9 @@ export function PatientTableActions({ patient, onActionComplete }: PatientTableA
           {/* View Action */}
           <DropdownMenuItem
             onClick={handleViewProfile}
-            className="cursor-pointer data-[highlighted]:bg-slate-50 data-[highlighted]:text-slate-900"
+            className="cursor-pointer data-[highlighted]:bg-[#e7d6bf]/20 data-[highlighted]:text-[#2c2e4b]"
           >
-            <Eye className="h-4 w-4 mr-2 text-slate-500" />
+            <Eye className="h-4 w-4 mr-2 text-[#2c2e4b]/50" />
             View Full Profile
           </DropdownMenuItem>
         </DropdownMenuContent>

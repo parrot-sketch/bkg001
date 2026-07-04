@@ -23,65 +23,41 @@ export const STATUS_CHIPS = [
     key: 'ALL',
     label: 'All',
     icon: CalendarDays,
-    bgClass: 'bg-slate-100',
-    textClass: 'text-slate-700',
-    borderClass: 'border-slate-300',
   },
   {
     key: AppointmentStatus.PENDING_DOCTOR_CONFIRMATION,
     label: 'Awaiting Doctor',
     icon: Clock,
-    bgClass: 'bg-indigo-50',
-    textClass: 'text-indigo-700',
-    borderClass: 'border-indigo-300',
   },
   {
     key: AppointmentStatus.PENDING,
     label: 'Pending',
     icon: AlertCircle,
-    bgClass: 'bg-amber-50',
-    textClass: 'text-amber-700',
-    borderClass: 'border-amber-300',
   },
   {
     key: AppointmentStatus.SCHEDULED,
     label: 'Scheduled',
     icon: Calendar,
-    bgClass: 'bg-emerald-50',
-    textClass: 'text-emerald-700',
-    borderClass: 'border-emerald-300',
   },
   {
     key: AppointmentStatus.CHECKED_IN,
     label: 'Checked In',
     icon: CheckCircle,
-    bgClass: 'bg-sky-50',
-    textClass: 'text-sky-700',
-    borderClass: 'border-sky-300',
   },
   {
     key: AppointmentStatus.IN_CONSULTATION,
     label: 'In Consult',
     icon: Stethoscope,
-    bgClass: 'bg-violet-50',
-    textClass: 'text-violet-700',
-    borderClass: 'border-violet-300',
   },
   {
     key: AppointmentStatus.COMPLETED,
     label: 'Completed',
     icon: CheckCircle,
-    bgClass: 'bg-green-50',
-    textClass: 'text-green-700',
-    borderClass: 'border-green-300',
   },
   {
     key: AppointmentStatus.CANCELLED,
     label: 'Cancelled',
     icon: AlertCircle,
-    bgClass: 'bg-red-50',
-    textClass: 'text-red-700',
-    borderClass: 'border-red-300',
   },
 ] as const;
 
@@ -131,13 +107,13 @@ export function AppointmentsFilterBar({
   }, [setStatusFilter]);
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-4 space-y-4">
+    <div className="border border-[#e7d6bf] rounded-xl shadow-sm bg-white p-4 space-y-4">
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <div className="flex items-center gap-1.5 shrink-0">
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9 rounded-lg text-slate-500 hover:text-slate-700"
+            className="h-9 w-9 rounded-lg text-[#2c2e4b]/60 hover:text-[#2c2e4b] hover:bg-[#e7d6bf]/30"
             onClick={handlePrevClick}
           >
             <ChevronLeft className="h-4 w-4" />
@@ -148,8 +124,8 @@ export function AppointmentsFilterBar({
             className={cn(
               'px-4 py-2 rounded-xl text-sm font-semibold transition-all border',
               isToday(selectedDate)
-                ? 'bg-slate-900 text-white border-slate-900'
-                : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                ? 'bg-[#2c2e4b] text-white border-[#2c2e4b]'
+                : 'bg-white text-[#2c2e4b] border-[#e7d6bf] hover:border-[#caa26a]/60 hover:bg-[#e7d6bf]/10'
             )}
           >
             <span className="block text-xs font-normal opacity-60">{dateLabel}</span>
@@ -159,7 +135,7 @@ export function AppointmentsFilterBar({
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9 rounded-lg text-slate-500 hover:text-slate-700"
+            className="h-9 w-9 rounded-lg text-[#2c2e4b]/60 hover:text-[#2c2e4b] hover:bg-[#e7d6bf]/30"
             onClick={handleNextClick}
           >
             <ChevronRight className="h-4 w-4" />
@@ -170,7 +146,7 @@ export function AppointmentsFilterBar({
               variant="ghost"
               size="sm"
               onClick={handleGoToToday}
-              className="text-xs text-cyan-600 hover:text-cyan-700 hover:bg-cyan-50 rounded-lg ml-1"
+              className="text-xs text-[#caa26a] hover:text-[#b8913e] hover:bg-[#e7d6bf]/15 rounded-lg ml-1"
             >
               Today
             </Button>
@@ -178,17 +154,17 @@ export function AppointmentsFilterBar({
         </div>
 
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#2c2e4b]/40" />
           <Input
             placeholder="Search patient, doctor, type..."
             value={searchQuery}
             onChange={handleSearchChange}
-            className="pl-10 h-10 rounded-xl border-slate-200 bg-slate-50/50 focus:bg-white transition-colors"
+            className="pl-10 h-10 rounded-lg border-[#e7d6bf] text-[#2c2e4b] placeholder-[#2c2e4b]/40 focus:border-[#caa26a]"
           />
           {searchQuery && (
             <button
               onClick={handleClearSearch}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#2c2e4b]/40 hover:text-[#2c2e4b]"
             >
               ×
             </button>
@@ -196,7 +172,7 @@ export function AppointmentsFilterBar({
         </div>
 
         {isRefetching && (
-          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+          <div className="flex items-center gap-1.5 text-xs text-[#2c2e4b]/40">
             <Loader2 className="h-3 w-3 animate-spin" />
             Refreshing...
           </div>
@@ -216,8 +192,8 @@ export function AppointmentsFilterBar({
               className={cn(
                 'shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border',
                 isActive
-                  ? `${chip.bgClass} ${chip.textClass} ${chip.borderClass}`
-                  : 'bg-white text-slate-500 border-slate-200/60 hover:border-slate-300 hover:bg-slate-50'
+                  ? 'bg-[#caa26a]/10 text-[#caa26a] border-[#caa26a]'
+                  : 'bg-white text-[#2c2e4b]/60 border-[#e7d6bf]/60 hover:border-[#caa26a]/60 hover:bg-[#e7d6bf]/10'
               )}
             >
               <Icon className="h-3 w-3" />
@@ -227,8 +203,8 @@ export function AppointmentsFilterBar({
                   className={cn(
                     'ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none',
                     isActive
-                      ? `${chip.textClass} bg-white/80`
-                      : 'text-slate-400 bg-slate-100'
+                      ? 'text-[#caa26a] bg-white/80'
+                      : 'text-[#2c2e4b]/50 bg-[#e7d6bf]/20'
                   )}
                 >
                   {count}

@@ -84,7 +84,7 @@ export function PatientCombobox({ value, onSelect, disabled }: PatientComboboxPr
     }
   }, [value]);
 
-  return (
+   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
@@ -92,34 +92,34 @@ export function PatientCombobox({ value, onSelect, disabled }: PatientComboboxPr
           role="combobox"
           aria-expanded={open}
           className={cn(
-            'w-full justify-between h-11 rounded-xl border-slate-200 hover:border-slate-300 transition-all',
+            'w-full justify-between h-11 rounded-lg border-[#e7d6bf] hover:border-[#caa26a]/50 transition-all',
             'text-left font-normal',
-            selectedPatient && 'border-emerald-200 bg-emerald-50/30',
+            selectedPatient && 'border-[#caa26a] bg-[#e7d6bf]/15',
             disabled && 'opacity-50 cursor-not-allowed'
           )}
           disabled={disabled}
         >
           {selectedPatient ? (
             <div className="flex items-center gap-2.5 text-left overflow-hidden">
-              <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center">
-                <User className="h-3.5 w-3.5 text-emerald-700" />
+              <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-[#e7d6bf]/30 flex items-center justify-center">
+                <User className="h-3.5 w-3.5 text-[#caa26a]" />
               </div>
               <div className="flex flex-col truncate">
-                <span className="truncate text-sm font-semibold text-slate-800">
+                <span className="truncate text-sm font-semibold text-[#2c2e4b]">
                   {selectedPatient.firstName} {selectedPatient.lastName}
                 </span>
-                <span className="text-[10px] text-slate-500 truncate">
+                <span className="text-[10px] text-[#2c2e4b]/60 truncate">
                   {selectedPatient.fileNumber || selectedPatient.email}
                 </span>
               </div>
             </div>
           ) : (
-            <span className="text-sm text-slate-400">Search patient by name, email, or phone...</span>
+            <span className="text-sm text-[#2c2e4b]/40">Search patient by name, email, or phone...</span>
           )}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-slate-300" />
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-[#2c2e4b]/30" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[440px] p-0 rounded-xl shadow-xl border-slate-200" align="start">
+      <PopoverContent className="w-[440px] p-0 rounded-xl shadow-xl border border-[#e7d6bf]" align="start">
         <Command shouldFilter={false}>
           <div className="relative">
             <CommandInput
@@ -129,32 +129,32 @@ export function PatientCombobox({ value, onSelect, disabled }: PatientComboboxPr
               className="h-11"
             />
             {loading && (
-              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-slate-400" />
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-[#caa26a]" />
             )}
           </div>
           <CommandList className="max-h-[280px]">
             {!loading && patients.length === 0 && searchQuery.length >= 2 && (
               <CommandEmpty>
                 <div className="py-6 text-center">
-                  <User className="h-8 w-8 text-slate-200 mx-auto mb-2" />
-                  <p className="text-sm text-slate-500">No patients found</p>
-                  <p className="text-xs text-slate-400 mt-0.5">Try a different search term</p>
+                  <User className="h-8 w-8 text-[#e7d6bf] mx-auto mb-2" />
+                  <p className="text-sm text-[#2c2e4b]">No patients found</p>
+                  <p className="text-xs text-[#2c2e4b]/50 mt-0.5">Try a different search term</p>
                 </div>
               </CommandEmpty>
             )}
 
             {!loading && searchQuery.length < 2 && (
               <div className="py-8 text-center">
-                <Search className="h-8 w-8 text-slate-200 mx-auto mb-2" />
-                <p className="text-sm text-slate-500 font-medium">Search Patients</p>
-                <p className="text-xs text-slate-400 mt-0.5">Type at least 2 characters to begin</p>
+                <Search className="h-8 w-8 text-[#e7d6bf] mx-auto mb-2" />
+                <p className="text-sm text-[#2c2e4b] font-medium">Search Patients</p>
+                <p className="text-xs text-[#2c2e4b]/50 mt-0.5">Type at least 2 characters to begin</p>
               </div>
             )}
 
             {loading && patients.length === 0 && (
               <div className="py-8 text-center">
-                <Loader2 className="h-6 w-6 animate-spin text-slate-300 mx-auto mb-2" />
-                <p className="text-xs text-slate-400">Searching...</p>
+                <Loader2 className="h-6 w-6 animate-spin text-[#caa26a] mx-auto mb-2" />
+                <p className="text-xs text-[#2c2e4b]/50">Searching...</p>
               </div>
             )}
 
@@ -174,8 +174,8 @@ export function PatientCombobox({ value, onSelect, disabled }: PatientComboboxPr
                   <div className={cn(
                     'flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold',
                     value === patient.id
-                      ? 'bg-emerald-100 text-emerald-700'
-                      : 'bg-slate-100 text-slate-500'
+                      ? 'bg-[#e7d6bf]/40 text-[#2c2e4b]'
+                      : 'bg-[#e7d6bf]/20 text-[#2c2e4b]/70'
                   )}>
                     {patient.firstName?.charAt(0)}{patient.lastName?.charAt(0)}
                   </div>
@@ -183,25 +183,25 @@ export function PatientCombobox({ value, onSelect, disabled }: PatientComboboxPr
                   {/* Info */}
                   <div className="flex flex-col flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-semibold text-sm text-slate-800 truncate">
+                      <span className="font-semibold text-sm text-[#2c2e4b] truncate">
                         {patient.firstName} {patient.lastName}
                       </span>
                       {patient.fileNumber && (
-                        <span className="text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded shrink-0">
+                        <span className="text-[10px] font-mono text-[#2c2e4b]/50 bg-[#e7d6bf]/20 px-1.5 py-0.5 rounded shrink-0">
                           {patient.fileNumber}
                         </span>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 text-[11px] text-slate-500 mt-0.5">
+                    <div className="flex items-center gap-3 text-[11px] text-[#2c2e4b]/50 mt-0.5">
                       {patient.email && (
                         <span className="flex items-center gap-1 truncate">
-                          <Mail className="h-3 w-3 text-slate-300" />
+                          <Mail className="h-3 w-3 text-[#caa26a]/60" />
                           {patient.email}
                         </span>
                       )}
                       {patient.phone && (
                         <span className="flex items-center gap-1 shrink-0">
-                          <Phone className="h-3 w-3 text-slate-300" />
+                          <Phone className="h-3 w-3 text-[#caa26a]/60" />
                           {patient.phone}
                         </span>
                       )}
@@ -212,7 +212,7 @@ export function PatientCombobox({ value, onSelect, disabled }: PatientComboboxPr
                   <Check
                     className={cn(
                       'h-4 w-4 shrink-0 transition-opacity',
-                      value === patient.id ? 'opacity-100 text-emerald-600' : 'opacity-0'
+                      value === patient.id ? 'opacity-100 text-[#caa26a]' : 'opacity-0'
                     )}
                   />
                 </CommandItem>

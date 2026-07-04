@@ -70,20 +70,20 @@ export function FrontdeskAppointmentCard({
       <div
         ref={cardRef}
         className={cn(
-          'group relative bg-white border border-slate-200 rounded-lg transition-all duration-200',
+          'group relative bg-white border border-[#e7d6bf] rounded-lg transition-all duration-200',
           checkInOpen
-            ? 'border-slate-300 shadow-sm'
+            ? 'border-[#caa26a] shadow-sm'
             : activeHighlight
-              ? 'border-[#0c5d69] shadow-md bg-slate-50/50'
+              ? 'border-[#caa26a] shadow-md bg-[#e7d6bf]/10'
               : isStaleConsultation
-                ? 'border-amber-200 bg-amber-50/30'
-                : 'border-slate-200 hover:border-slate-300 hover:shadow-sm',
+                ? 'border-[#caa26a]/40 bg-[#caa26a]/10'
+                : 'border-[#e7d6bf] hover:border-[#caa26a]/50 hover:shadow-sm',
         )}
       >
         <div className="px-3 py-3 sm:px-4 sm:py-3.5">
           <div className="flex items-start gap-3">
             <div className="flex flex-col items-center pt-1 shrink-0">
-              <span className="text-sm font-semibold text-[#121c1d] leading-none tabular-nums">
+              <span className="text-sm font-semibold text-[#2c2e4b] leading-none tabular-nums">
                 {appointment.time}
               </span>
             </div>
@@ -91,12 +91,12 @@ export function FrontdeskAppointmentCard({
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                  <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200 shrink-0 mt-0.5">
-                    <span className="text-[11px] font-semibold text-slate-600">{patientInitials}</span>
+                  <div className="h-8 w-8 rounded-full bg-[#e7d6bf]/30 flex items-center justify-center border border-[#e7d6bf] shrink-0 mt-0.5">
+                    <span className="text-[11px] font-semibold text-[#2c2e4b]">{patientInitials}</span>
                   </div>
                   <div className="flex flex-col min-w-0 gap-0.5">
-                    <h4 className="text-sm font-medium text-[#121c1d] truncate leading-tight">{patientName}</h4>
-                    <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                    <h4 className="text-sm font-medium text-[#2c2e4b] truncate leading-tight">{patientName}</h4>
+                    <div className="flex items-center gap-1.5 text-xs text-[#2c2e4b]/50">
                       <span className="truncate">{appointment.doctor?.name || 'Unassigned'}</span>
                     </div>
                   </div>
@@ -104,7 +104,7 @@ export function FrontdeskAppointmentCard({
                 <StatusBadge config={config} />
               </div>
 
-              <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-slate-100">
+              <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-[#e7d6bf]">
                 <CardCta
                   appointment={appointment}
                   checkInStatus={checkInStatus}
@@ -120,7 +120,7 @@ export function FrontdeskAppointmentCard({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md"
+                      className="h-8 w-8 text-[#2c2e4b]/30 hover:text-[#2c2e4b] hover:bg-[#e7d6bf]/30 rounded-lg"
                     >
                       <MoreVertical className="h-4 w-4" />
                     </Button>
@@ -135,7 +135,7 @@ export function FrontdeskAppointmentCard({
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onClick={() => staleDialog.openDialog('complete')}
-                          className="text-emerald-600 focus:text-emerald-600"
+                          className="text-[#caa26a] focus:text-[#caa26a]"
                         >
                           <CheckCheck className="h-4 w-4 mr-2" />
                           Mark as Completed
@@ -207,10 +207,10 @@ function CardCta({ appointment, checkInStatus, isStaleConsultation, checkInOpen,
         disabled={isCheckingIn}
         size="sm"
         className={cn(
-          'h-7 px-3 text-xs font-medium rounded-md transition-colors',
+          'h-7 px-3 text-xs font-medium rounded-lg transition-colors',
           checkInOpen
-            ? 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            : 'bg-[#0c5d69] text-white hover:bg-[#0a4f59]',
+            ? 'bg-[#e7d6bf]/30 text-[#2c2e4b] hover:bg-[#e7d6bf]/50'
+            : 'bg-[#caa26a] text-[#2c2e4b] hover:bg-[#b8913e]',
         )}
       >
         {checkInOpen ? 'Close' : 'Check In'}
@@ -220,7 +220,7 @@ function CardCta({ appointment, checkInStatus, isStaleConsultation, checkInOpen,
 
   if (canCheckIn(appointment.status as AppointmentStatus) && !checkInStatus.canCheckIn) {
     return (
-      <Button disabled size="sm" className="h-7 px-3 bg-slate-100 text-slate-400 text-xs font-medium rounded-md cursor-not-allowed">
+      <Button disabled size="sm" className="h-7 px-3 bg-[#e7d6bf]/20 text-[#2c2e4b]/40 text-xs font-medium rounded-lg cursor-not-allowed">
         Check In
       </Button>
     );
@@ -228,7 +228,7 @@ function CardCta({ appointment, checkInStatus, isStaleConsultation, checkInOpen,
 
   if (appointment.status === AppointmentStatus.CHECKED_IN || appointment.status === AppointmentStatus.READY_FOR_CONSULTATION) {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-100 text-slate-600">
+      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#e7d6bf]/20 text-[#0c5d69]">
         <span className="h-1.5 w-1.5 rounded-full bg-[#0c5d69]" />
         <span className="text-[10px] font-medium">
           {appointment.status === AppointmentStatus.READY_FOR_CONSULTATION ? 'Ready for MD' : 'In Waiting'}
@@ -240,15 +240,15 @@ function CardCta({ appointment, checkInStatus, isStaleConsultation, checkInOpen,
   if (appointment.status === AppointmentStatus.IN_CONSULTATION) {
     if (isStaleConsultation) {
       return (
-        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-amber-50 text-amber-700 border border-amber-100">
-          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#caa26a]/10 text-[#9a7709] border border-[#caa26a]/40">
+          <span className="h-1.5 w-1.5 rounded-full bg-[#caa26a]" />
           <span className="text-[10px] font-medium">Overdue</span>
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-100 text-slate-600">
-        <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-pulse" />
+      <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#e7d6bf]/20 text-[#2c2e4b]/70">
+        <span className="h-1.5 w-1.5 rounded-full bg-[#caa26a] animate-pulse" />
         <span className="text-[10px] font-medium">In Progress</span>
       </span>
     );
