@@ -33,29 +33,29 @@ export function PatientRow({
 
   return (
     <div
-      className="px-4 py-3 hover:bg-slate-50 transition-colors cursor-pointer md:grid md:grid-cols-12 md:gap-4 md:items-center"
+      className="px-4 py-3 hover:bg-[#e7d6bf]/10 transition-colors cursor-pointer md:grid md:grid-cols-12 md:gap-4 md:items-center"
       onClick={() => router.push(`/doctor/patients/${patient.id}`)}
     >
       <div className="md:col-span-4 min-w-0 flex items-center gap-3">
-        <div className="h-9 w-9 border border-slate-200 bg-slate-50 flex items-center justify-center text-xs font-semibold text-slate-700 flex-shrink-0">
+        <div className="h-9 w-9 border border-[#e7d6bf] bg-[#e7d6bf]/30 flex items-center justify-center text-xs font-semibold text-[#2c2e4b] flex-shrink-0 rounded-lg">
           {initials}
         </div>
         <div className="min-w-0">
-          <div className="text-sm font-medium text-slate-900 truncate">{fullName}</div>
-          <div className="text-xs text-slate-500 md:hidden mt-0.5">
+          <div className="text-sm font-medium text-[#2c2e4b] truncate">{fullName}</div>
+          <div className="text-xs text-[#2c2e4b]/60 md:hidden mt-0.5">
             {patient.fileNumber || '—'} • {patient.phone || '—'} • Last: {lastVisitLabel} • {appointmentCount} visit{appointmentCount !== 1 ? 's' : ''} • {flagsLabel}
           </div>
-          <div className="hidden md:block text-xs text-slate-500 mt-0.5">
+          <div className="hidden md:block text-xs text-[#2c2e4b]/60 mt-0.5">
             {[patient.gender ? patient.gender.toLowerCase() : null, age !== null ? `${age} yrs` : null].filter(Boolean).join(' · ') || '—'}
           </div>
         </div>
       </div>
 
-      <div className="hidden md:block md:col-span-2 text-sm text-slate-700">{patient.fileNumber || '—'}</div>
-      <div className="hidden md:block md:col-span-2 text-sm text-slate-700">{patient.phone || '—'}</div>
-      <div className="hidden md:block md:col-span-2 text-sm text-slate-700">{lastVisitLabel}</div>
-      <div className="hidden md:block md:col-span-1 text-sm text-slate-700">{appointmentCount}</div>
-      <div className="hidden md:block md:col-span-1 text-xs text-slate-700 truncate">{flagsLabel}</div>
+      <div className="hidden md:block md:col-span-2 text-sm text-[#2c2e4b]">{patient.fileNumber || '—'}</div>
+      <div className="hidden md:block md:col-span-2 text-sm text-[#2c2e4b]">{patient.phone || '—'}</div>
+      <div className="hidden md:block md:col-span-2 text-sm text-[#2c2e4b]">{lastVisitLabel}</div>
+      <div className="hidden md:block md:col-span-1 text-sm text-[#2c2e4b]">{appointmentCount}</div>
+      <div className="hidden md:block md:col-span-1 text-xs text-[#2c2e4b]/70 truncate">{flagsLabel}</div>
     </div>
   );
 }

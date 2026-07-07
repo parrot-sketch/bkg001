@@ -34,18 +34,18 @@ export function PatientFilters({
           placeholder="Search by name, file number, phone, email"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="h-9 text-sm bg-white border-slate-200 rounded-none"
+          className="h-9 text-sm bg-white border-[#e7d6bf] rounded-lg text-[#2c2e4b]"
         />
       </div>
 
       <div className="flex items-center gap-3 sm:justify-end">
-        <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <label className="text-xs font-semibold uppercase tracking-wide text-[#2c2e4b]/60">
           Sort
         </label>
         <select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value as SortKey)}
-          className="h-9 border border-slate-200 bg-white px-3 text-sm text-slate-900 rounded-none"
+          className="h-9 border border-[#e7d6bf] bg-white px-3 text-sm text-[#2c2e4b] rounded-lg"
         >
           {SORT_OPTIONS.map((opt) => (
             <option key={opt.key} value={opt.key}>
@@ -54,7 +54,7 @@ export function PatientFilters({
           ))}
         </select>
 
-        <div className="text-sm text-slate-600 whitespace-nowrap">
+        <div className="text-sm text-[#2c2e4b]/70 whitespace-nowrap">
           {loading ? '…' : `${resultCount} patient${resultCount !== 1 ? 's' : ''}`}
         </div>
       </div>

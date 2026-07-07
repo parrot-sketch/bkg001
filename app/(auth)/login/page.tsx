@@ -108,7 +108,7 @@ export default function LoginPage() {
       <div className="relative w-full sm:rounded-2xl sm:bg-white sm:shadow-[0_25px_70px_-20px_rgba(15,16,38,0.5)] sm:border sm:border-white overflow-hidden">
         <div className="p-0 sm:p-9 space-y-7">
           <div className="flex flex-col items-center gap-3 text-center">
-            <div className="w-14 h-14 rounded-xl bg-white/10 sm:bg-[#2c2e4b] backdrop-blur-md sm:backdrop-blur-none border border-white/20 sm:border-0 flex items-center justify-center">
+            <div className="w-14 h-14 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center">
               <img src="/logo.png" alt="" className="w-9 h-9 object-contain" />
             </div>
             <div>

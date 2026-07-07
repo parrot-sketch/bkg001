@@ -48,34 +48,34 @@ export function PatientMobileCard({ patient, onSelect }: PatientMobileCardProps)
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="text-sm font-medium text-[#2c2e4b] truncate">{name}</p>
+                <p className="text-sm font-semibold text-black truncate">{name}</p>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="text-xs text-[#2c2e4b]/50 capitalize">{patient.gender?.toLowerCase()}</span>
+                  <span className="text-xs text-zinc-700 font-medium capitalize">{patient.gender?.toLowerCase()}</span>
                   {age && (
                     <>
                       <span className="text-[#e7d6bf]">·</span>
-                      <span className="text-xs text-[#2c2e4b]/50">{age}</span>
+                      <span className="text-xs text-zinc-700 font-medium">{age}</span>
                     </>
                   )}
                 </div>
               </div>
               {patient.fileNumber && (
-                <span className="font-mono text-[10px] font-medium text-[#2c2e4b] bg-[#e7d6bf]/15 border border-[#e7d6bf] px-2 py-0.5 rounded shrink-0">
-                  {patient.fileNumber}
+                <span className="font-mono text-[10px] font-semibold text-black bg-[#e7d6bf]/15 border border-[#e7d6bf] px-2 py-0.5 rounded shrink-0">
+                  {patient.fileNumber.toUpperCase()}
                 </span>
               )}
             </div>
 
             <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1">
               {patient.phone && (
-                <div className="flex items-center gap-1 text-xs text-[#2c2e4b]/60">
-                  <Phone className="h-3 w-3 text-[#caa26a]/60" />
+                <div className="flex items-center gap-1 text-xs text-zinc-800 font-medium">
+                  <Phone className="h-3 w-3 text-zinc-500" />
                   <span>{patient.phone}</span>
                 </div>
               )}
               {lastVisit && (
-                <div className="flex items-center gap-1 text-xs text-[#2c2e4b]/60">
-                  <Clock className="h-3 w-3 text-[#caa26a]/60" />
+                <div className="flex items-center gap-1 text-xs text-zinc-800 font-medium">
+                  <Clock className="h-3 w-3 text-zinc-500" />
                   {lastVisit}
                 </div>
               )}

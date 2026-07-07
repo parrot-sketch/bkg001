@@ -20,8 +20,28 @@ export function formatPatientAge(dateOfBirth: string | null | undefined): string
 }
 
 /**
- * Builds a patient's display name from first and last name parts.
+ * Converts a string to Title Case, capitalizing the first letter of each word
+ * (including handling hyphenated names like Mary-Jane or Jean-Paul).
+ */
+export function toTitleCase(str: string | null | undefined): string {
+  if (!str) return '';
+  return str
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+    .split(' ')
+    .map((word) => {
+      return word
+        .split('-')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join('-');
+    })
+    .join(' ');
+}
+
+/**
+ * Builds a patient's display name from first and last name parts, normalizing the casing.
  */
 export function formatPatientName(firstName: string, lastName: string): string {
-  return `${firstName} ${lastName}`;
+  return `${toTitleCase(firstName)} ${toTitleCase(lastName)}`;
 }

@@ -23,6 +23,22 @@ interface SearchAutocompleteProps {
   autoFocus?: boolean;
 }
 
+function toTitleCase(str: string | null | undefined): string {
+  if (!str) return '';
+  return str
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+    .split(' ')
+    .map((word) => {
+      return word
+        .split('-')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join('-');
+    })
+    .join(' ');
+}
+
 export function SearchAutocomplete({
   onSelectPatient,
   onNavigateToPatient,
@@ -160,9 +176,6 @@ export function SearchAutocomplete({
                   <X className="h-3.5 w-3.5" />
                 </Button>
               )}
-              <kbd className="hidden sm:inline-flex items-center gap-1 rounded border border-[#e7d6bf] bg-[#e7d6bf]/15 px-1.5 py-0.5 text-[10px] font-medium text-[#2c2e4b]/40">
-                Ctrl K
-              </kbd>
             </div>
           </div>
         </PopoverTrigger>
@@ -178,9 +191,9 @@ export function SearchAutocomplete({
               {results.length === 0 ? renderEmpty() : (
                 <CommandGroup>
                   {results.map((patient) => {
-                    const name = `${patient.firstName} ${patient.lastName}`;
+                    const name = `${toTitleCase(patient.firstName)} ${toTitleCase(patient.lastName)}`;
                     const age = patient.dateOfBirth ? new Date().getFullYear() - new Date(patient.dateOfBirth).getFullYear() : (patient as any).age;
-                    const initials = `${patient.firstName?.[0] || ''}${patient.lastName?.[0] || ''}`;
+                    const initials = `${patient.firstName?.[0]?.toUpperCase() || ''}${patient.lastName?.[0]?.toUpperCase() || ''}`;
                     return (
                       <CommandItem
                         key={patient.id}
@@ -198,7 +211,7 @@ export function SearchAutocomplete({
                         <div className="flex flex-col flex-1 min-w-0">
                           <span className="font-semibold text-sm text-[#2c2e4b] truncate">{name}</span>
                           <div className="flex items-center gap-2 text-[11px] text-[#2c2e4b]/50 mt-0.5">
-                            <span className="font-mono">{patient.fileNumber}</span>
+                            <span className="font-mono">{patient.fileNumber?.toUpperCase()}</span>
                             {age != null && <span>· {age} yrs</span>}
                             {patient.phone && <span>· {patient.phone}</span>}
                           </div>

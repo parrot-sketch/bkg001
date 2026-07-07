@@ -18,6 +18,7 @@ import { AppointmentSource } from '@/domain/enums/AppointmentSource';
 import { BookingChannel } from '@/domain/enums/BookingChannel';
 import { triggerAppointmentExpiry } from '@/app/actions/appointment-expiry';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
+import { DashboardSkeleton } from '@/components/frontdesk/DashboardSkeleton';
 
 /**
  * Frontdesk Dashboard Client Coordinator
@@ -102,15 +103,19 @@ export function FrontdeskDashboardClient() {
           </>
         }
       >
-        <div className="space-y-5">
-          {hasPendingActions && (
-            <FrontdeskPendingActionsPanel
-              completedAppointments={completedAppointments}
-              isLoading={isLoading}
-            />
-          )}
-          <QueueManagementPanels />
-        </div>
+        {isLoading ? (
+          <DashboardSkeleton />
+        ) : (
+          <div className="space-y-5">
+            {hasPendingActions && (
+              <FrontdeskPendingActionsPanel
+                completedAppointments={completedAppointments}
+                isLoading={isLoading}
+              />
+            )}
+            <QueueManagementPanels />
+          </div>
+        )}
       </DashboardShell>
 
       {/* Dialog Components */}

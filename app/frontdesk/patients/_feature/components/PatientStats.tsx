@@ -105,7 +105,7 @@ export function PatientStats({
         loading={isLoading}
         icon={Search}
         onClick={onShowResults}
-        active={isBrowseMode}
+        active={hasActiveFilters && !createdToday && !createdThisMonth}
       />
     </section>
   );
