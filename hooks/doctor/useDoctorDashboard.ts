@@ -25,7 +25,7 @@ import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
  * @param doctorId - Doctor user ID
  * @param enabled - Whether the query should run (default: true)
  */
-export function useDoctorTodayAppointments(doctorId: string | undefined, enabled = true) {
+export function useDoctorTodayAppointments(doctorId: string | undefined, enabled = true, refetchInterval: number | false = 30_000) {
   const query = useQuery({
     queryKey: ['doctor', doctorId, 'appointments', 'today'],
     queryFn: async () => {
@@ -89,7 +89,7 @@ export function useDoctorTodayAppointments(doctorId: string | undefined, enabled
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     refetchOnWindowFocus: false, // Polling already keeps this fresh enough
     refetchOnReconnect: true,
-    refetchInterval: 30_000, // Was 15s — reduced to conserve DB connections
+    refetchInterval: refetchInterval,
     networkMode: 'offlineFirst',
     enabled: enabled && !!doctorId,
   });

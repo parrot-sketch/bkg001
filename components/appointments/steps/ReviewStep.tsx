@@ -35,7 +35,14 @@ export function ReviewStep({
   isFollowUp
 }: ReviewStepProps) {
   const doctorName = selectedDoctor
-    ? `${selectedDoctor.title || ''} ${selectedDoctor.name || `${selectedDoctor.firstName} ${selectedDoctor.lastName}`}`.trim()
+    ? (() => {
+        const raw = selectedDoctor.name || `${selectedDoctor.firstName} ${selectedDoctor.lastName}`;
+        const title = selectedDoctor.title || '';
+        if (title && raw.toLowerCase().startsWith(title.toLowerCase())) {
+          return raw;
+        }
+        return `${title} ${raw}`.trim();
+      })()
     : '';
 
   return (
@@ -45,15 +52,27 @@ export function ReviewStep({
         <p className="text-xs text-[#2c2e4b]/60">Verify the appointment request details before submitting</p>
       </div>
 
-      <div className="rounded-xl border border-[#0c5d69]/20 bg-[#0c5d69]/5 px-4 py-3 flex items-start gap-3">
-        <Info className="h-4 w-4 text-[#0c5d69] mt-0.5 shrink-0" />
-        <div>
-          <p className="text-xs font-semibold text-[#0c5d69]">Doctor Confirmation Required</p>
-          <p className="text-[11px] text-[#2c2e4b]/60 mt-0.5">
-            This appointment request will be sent to the doctor for approval. The doctor can confirm, reschedule, or cancel this request.
-          </p>
+      {isFollowUp ? (
+        <div className="rounded-xl border border-[#caa26a]/20 bg-[#caa26a]/5 px-4 py-3 flex items-start gap-3">
+          <Info className="h-4 w-4 text-[#caa26a] mt-0.5 shrink-0" />
+          <div>
+            <p className="text-xs font-semibold text-[#caa26a]">Follow-up Appointment</p>
+            <p className="text-[11px] text-[#2c2e4b]/60 mt-0.5">
+              This follow-up will be scheduled directly and linked to the original appointment.
+            </p>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="rounded-xl border border-[#0c5d69]/20 bg-[#0c5d69]/5 px-4 py-3 flex items-start gap-3">
+          <Info className="h-4 w-4 text-[#0c5d69] mt-0.5 shrink-0" />
+          <div>
+            <p className="text-xs font-semibold text-[#0c5d69]">Doctor Confirmation Required</p>
+            <p className="text-[11px] text-[#2c2e4b]/60 mt-0.5">
+              This appointment request will be sent to the doctor for approval. The doctor can confirm, reschedule, or cancel this request.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="rounded-xl border border-[#e7d6bf] bg-[#e7d6bf]/10 p-4 space-y-3">
         <h4 className="font-semibold text-[#2c2e4b] flex items-center gap-2 text-xs">

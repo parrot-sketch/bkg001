@@ -28,6 +28,7 @@ interface ConsultationQueuePanelProps {
   currentAppointmentId?: number;
   currentPatientName?: string;
   currentAppointmentStatus?: string;
+  doctorId?: string;
   appointments: AppointmentResponseDto[];
   onSwitchPatient?: (appointmentId: number) => void;
   onSaveDraft?: () => Promise<void>;
@@ -42,6 +43,7 @@ export function ConsultationQueuePanel({
   currentAppointmentId,
   currentPatientName = 'Current Patient',
   currentAppointmentStatus,
+  doctorId,
   appointments,
   onSwitchPatient,
   onSaveDraft,
@@ -52,7 +54,6 @@ export function ConsultationQueuePanel({
   isRefreshing,
 }: ConsultationQueuePanelProps) {
   const router = useRouter();
-  const { user } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   const [startingId, setStartingId] = useState<number | null>(null);
 
@@ -60,15 +61,9 @@ export function ConsultationQueuePanel({
   const [switchConfirmOpen, setSwitchConfirmOpen] = useState(false);
   const [selectedForSwitch, setSelectedForSwitch] = useState<AppointmentResponseDto | null>(null);
 
-   // Check if doctor has an active consultation (current appointment status)
-   // NOTE: This is now just informational — we ALLOW switching even with active consultation
    const hasActiveConsultation = currentAppointmentStatus === AppointmentStatus.IN_CONSULTATION;
 
-  const resolveDoctorId = useCallback(async () => {
-    if (!user) return null;
-    const doctorResponse = await doctorApi.getDoctorByUserId(user.id);
-    return doctorResponse.success && doctorResponse.data ? doctorResponse.data.id : null;
-  }, [user]);
+  const { user } = useAuth();
 
    // Filter & Sort Queue — show all actionable appointments (excluding current)
    const sortedQueue = useMemo(() => {
@@ -99,7 +94,7 @@ export function ConsultationQueuePanel({
   };
 
   const handleConfirmSwitch = useCallback(async () => {
-    if (!selectedForSwitch || !user) {
+    if (!selectedForSwitch || !user || !doctorId) {
       setSwitchConfirmOpen(false);
       return;
     }
@@ -116,12 +111,6 @@ export function ConsultationQueuePanel({
       // Step 2: Start consultation for the next patient
       // Note: We do NOT auto-complete the current session.
       // The doctor can have multiple IN_CONSULTATION sessions and return to them later.
-      const doctorId = await resolveDoctorId();
-      if (!doctorId) {
-        toast.error('Unable to resolve doctor profile');
-        return;
-      }
-
       const response = await doctorApi.startConsultation({
         appointmentId: apt.id,
         doctorId,
@@ -145,7 +134,7 @@ export function ConsultationQueuePanel({
       setSwitchConfirmOpen(false);
       setSelectedForSwitch(null);
     }
-  }, [selectedForSwitch, user, onSaveDraft, onSwitchPatient, router, resolveDoctorId]);
+  }, [selectedForSwitch, user, doctorId, onSaveDraft, onSwitchPatient, router]);
 
   if (isCollapsed) {
     return <CollapsedRail queueCount={queueCount} onClick={() => setIsCollapsed(false)} />;

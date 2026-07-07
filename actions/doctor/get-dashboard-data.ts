@@ -20,6 +20,7 @@ export interface DoctorDashboardData {
   } | null;
   todayAppointments: Array<{
     id: number;
+    doctorId: string;
     patientId: string;
     patient: {
       firstName: string;
@@ -33,6 +34,7 @@ export interface DoctorDashboardData {
   }>;
   upcomingAppointments: Array<{
     id: number;
+    doctorId: string;
     patientId: string;
     patient: {
       firstName: string;

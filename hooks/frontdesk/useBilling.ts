@@ -8,8 +8,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api/client';
 import { toast } from 'sonner';
 import { PaymentMethod } from '@/domain/enums/PaymentMethod';
+import { PaymentStatus } from '@/domain/enums/PaymentStatus';
 import type { PaymentWithRelations } from '@/domain/interfaces/repositories/IPaymentRepository';
-import { queryKeys } from '@/lib/constants/queryKeys';
 
 interface BillingResponse {
   payments: PaymentWithRelations[];
@@ -21,23 +21,39 @@ interface BillingResponse {
   };
 }
 
+type StatusFilter = 'all' | PaymentStatus.UNPAID | PaymentStatus.PART | PaymentStatus.PAID;
+
 /**
- * Hook for fetching pending payments
+ * Hook for fetching payments with optional status filter
  */
-export function usePendingPayments(enabled = true) {
+export function useBillingPayments(enabled = true, statusFilter: StatusFilter = 'all') {
   return useQuery({
-    queryKey: queryKeys.frontdesk.pendingPayments(),
+    queryKey: ['billing-payments', statusFilter],
     queryFn: async () => {
-      const response = await apiClient.get<BillingResponse>('/payments/pending');
+      const params = new URLSearchParams();
+      
+      if (statusFilter !== 'all') {
+        params.set('status', statusFilter);
+      }
+      params.set('limit', '100');
+      
+      const response = await apiClient.get<BillingResponse>(`/payments/pending?${params.toString()}`);
       if (!response.success) {
-        throw new Error(response.error || 'Failed to load pending payments');
+        throw new Error(response.error || 'Failed to load payments');
       }
       return response.data;
     },
-    staleTime: 1000 * 60, // 60 seconds - billing is not real-time
+    staleTime: 1000 * 60,
     refetchOnWindowFocus: true,
     enabled,
   });
+}
+
+/**
+ * Hook for fetching pending payments (backwards compatible)
+ */
+export function usePendingPayments(enabled = true) {
+  return useBillingPayments(enabled, 'all');
 }
 
 /**
@@ -67,11 +83,9 @@ export function useRecordPayment() {
 
       return response.data;
     },
-    onSuccess: (data) => {
-      // Invalidate pending payments query - using exact key
-      queryClient.invalidateQueries({ queryKey: queryKeys.frontdesk.pendingPayments() });
-      
-      toast.success(data?.message || 'Payment recorded');
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['billing-payments'] });
+      toast.success('Payment recorded');
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Failed to record payment');

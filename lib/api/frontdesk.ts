@@ -5,6 +5,7 @@
  */
 
 import { apiClient, ApiResponse } from './client';
+import { getLocalDateString } from '@/lib/utils/dates';
 import type { DoctorAvailabilityResponseDto } from '@/application/dtos/DoctorAvailabilityResponseDto';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
@@ -226,16 +227,16 @@ export const frontdeskApi = {
      * Get today's appointments
      */
     async getTodayAppointments(): Promise<ApiResponse<AppointmentResponseDto[]>> {
-        const today = new Date().toISOString().split('T')[0];
-        return apiClient.get<AppointmentResponseDto[]>(`/appointments?date=${today}`);
+      const today = getLocalDateString(new Date());
+      return apiClient.get<AppointmentResponseDto[]>(`/appointments?date=${today}`);
     },
 
     /**
      * Get appointments by date
      */
     async getAppointmentsByDate(date: Date): Promise<ApiResponse<AppointmentResponseDto[]>> {
-        const dateStr = date.toISOString().split('T')[0];
-        return apiClient.get<AppointmentResponseDto[]>(`/appointments?date=${dateStr}`);
+      const dateStr = getLocalDateString(date);
+      return apiClient.get<AppointmentResponseDto[]>(`/appointments?date=${dateStr}`);
     },
 
     /**
@@ -277,11 +278,11 @@ export const frontdeskApi = {
      * Get today's schedule
      */
     async getTodaysSchedule(doctorId?: string): Promise<ApiResponse<AppointmentResponseDto[]>> {
-        const today = new Date().toISOString().split('T')[0];
-        const url = doctorId 
-            ? `/appointments?date=${today}&doctorId=${doctorId}`
-            : `/appointments?date=${today}`;
-        return apiClient.get<AppointmentResponseDto[]>(url);
+      const today = getLocalDateString(new Date());
+      const url = doctorId 
+          ? `/appointments?date=${today}&doctorId=${doctorId}`
+          : `/appointments?date=${today}`;
+      return apiClient.get<AppointmentResponseDto[]>(url);
     },
 
     /**

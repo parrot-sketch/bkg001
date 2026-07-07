@@ -2,7 +2,7 @@
 
 import { useDoctorDashboard } from '@/hooks/use-doctor-dashboard';
 import { DashboardStatCards } from '@/components/doctor/dashboard/DashboardStatCards';
-import { PatientQueuePanel } from '@/components/doctor/dashboard/PatientQueuePanel';
+import { DailyQueuePanel } from '@/components/doctor/dashboard/DailyQueuePanel';
 import { CasePipeline } from '@/components/doctor/dashboard/CasePipeline';
 import { TodaysAppointmentsPreview } from '@/components/doctor/dashboard/TodaysAppointmentsPreview';
 import { PendingConfirmationsBanner } from '@/components/doctor/dashboard/PendingConfirmationsBanner';
@@ -27,11 +27,9 @@ export default function DoctorDashboardPage() {
         <DashboardStatCards isLoading={isLoading} />
       </section>
 
-      <TodaysAppointmentsPreview appointments={dashboardData?.todayAppointments ?? []} isLoading={isLoading} />
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 space-y-5">
-          <PatientQueuePanel />
+          <DailyQueuePanel appointments={dashboardData?.todayAppointments ?? []} isLoading={isLoading} />
         </div>
 
         <div className="lg:col-span-1">

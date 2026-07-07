@@ -24,13 +24,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // 2. Check authorization - only ADMIN
-    if (authResult.user.role !== Role.ADMIN) {
-      return NextResponse.json(
-        { success: false, error: 'Access denied - Admin only' },
-        { status: 403 }
-      );
-    }
+// 2. Check authorization - ADMIN and FRONTDESK can access billing records
+  const allowedRoles = [Role.ADMIN, Role.FRONTDESK];
+  if (!allowedRoles.includes(authResult.user.role as Role)) {
+    return NextResponse.json(
+      { success: false, error: 'Access denied' },
+      { status: 403 }
+    );
+  }
 
     // 3. Get query parameters
     const { searchParams } = new URL(request.url);

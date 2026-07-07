@@ -198,6 +198,7 @@ function ConsultationSessionContent() {
     waitingQueue,
     refetchQueue,
     isQueueRefetching,
+    loadWaitingQueue,
     saveDraft,
     startConsultation,
     closeStartDialog,
@@ -223,6 +224,12 @@ function ConsultationSessionContent() {
   } = state;
 
   const patientName = patient ? `${patient.firstName} ${patient.lastName}` : 'Unknown Patient';
+
+  useEffect(() => {
+    if (appointment) {
+      loadWaitingQueue();
+    }
+  }, [appointment, loadWaitingQueue]);
 
   // Loading state
   if (isLoading && !appointment) {
@@ -264,10 +271,11 @@ function ConsultationSessionContent() {
         </div>
         {/* Queue Panel */}
         <Suspense fallback={null}>
-          <ConsultationQueuePanel
+           <ConsultationQueuePanel
             currentAppointmentId={appointment?.id}
             currentPatientName={patientName}
             currentAppointmentStatus={appointment?.status}
+            doctorId={doctorId || undefined}
             appointments={waitingQueue}
             onSwitchPatient={switchToPatient}
             onSaveDraft={saveDraft}
@@ -362,6 +370,8 @@ function ConsultationSessionContent() {
         <ConsultationQueuePanel
           currentAppointmentId={appointment.id}
           currentPatientName={patientName}
+          currentAppointmentStatus={appointment?.status}
+          doctorId={doctorId || undefined}
           appointments={waitingQueue}
           onSwitchPatient={switchToPatient}
           onSaveDraft={saveDraft}

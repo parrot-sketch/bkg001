@@ -34,13 +34,15 @@ export interface Payment {
  * Payment with related data for display
  */
 export interface PaymentWithRelations extends Payment {
-  patient?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-  };
+   patient?: {
+     id: string;
+     firstName: string;
+     lastName: string;
+     email: string;
+     phone: string;
+     img?: string;
+     fileNumber?: string;
+   };
   appointment?: {
     id: number;
     appointmentDate: Date;

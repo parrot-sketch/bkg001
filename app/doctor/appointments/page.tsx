@@ -7,7 +7,7 @@ import { AppointmentAnalytics } from '@/components/doctor/appointments/Appointme
 import { AppointmentTable } from '@/components/doctor/appointments/AppointmentTable';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 
-const ALL_ACTIVE_STATUSES = [
+const ACTIVE_DOCTOR_STATUSES = [
   AppointmentStatus.PENDING_DOCTOR_CONFIRMATION,
   AppointmentStatus.SCHEDULED,
   AppointmentStatus.CONFIRMED,
@@ -15,9 +15,6 @@ const ALL_ACTIVE_STATUSES = [
   AppointmentStatus.READY_FOR_CONSULTATION,
   AppointmentStatus.IN_CONSULTATION,
   AppointmentStatus.COMPLETED,
-  AppointmentStatus.CANCELLED,
-  AppointmentStatus.NO_SHOW,
-  AppointmentStatus.PENDING,
 ].join(',');
 
 export default function DoctorAppointmentsPage() {
@@ -28,7 +25,7 @@ export default function DoctorAppointmentsPage() {
     isLoading,
     isRefetching,
     refetch,
-  } = useDoctorAppointments(user?.id, ALL_ACTIVE_STATUSES, isAuthenticated && !!user);
+  } = useDoctorAppointments(user?.id, ACTIVE_DOCTOR_STATUSES, isAuthenticated && !!user);
 
   const appointments = useMemo(() => appointmentData || [], [appointmentData]);
 

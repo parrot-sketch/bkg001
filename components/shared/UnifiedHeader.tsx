@@ -27,7 +27,7 @@
  */
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { useEffect, useState } from 'react';
 import {
@@ -75,6 +75,8 @@ const LABEL_OVERRIDES: Record<string, string> = {
   // add more as needed
 };
 
+const ROOT_SEGMENTS = new Set(Object.keys(LABEL_OVERRIDES));
+
 function toLabel(segment: string): string {
   return (
     LABEL_OVERRIDES[segment] ??
@@ -93,6 +95,7 @@ export function UnifiedHeader({
   searchPlaceholder,
 }: UnifiedHeaderProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, logout } = useAuth();
   const [mounted, setMounted] = useState(false);
 
@@ -100,11 +103,11 @@ export function UnifiedHeader({
 
   const segments = pathname.split('/').filter(Boolean);
 
-  // Build breadcrumbs — skip UUIDs and pure numeric segments for cleanliness
   const breadcrumbs = segments
-    .filter(s => !/^[0-9a-f-]{36}$/.test(s) && !/^\d+$/.test(s))
+    .filter(s => !/^[0-9a-f-]{36}$/.test(s) && !/^\d+$/.test(s) && !ROOT_SEGMENTS.has(s))
     .map((segment, i, arr) => ({
       label: toLabel(segment),
+      href: '/' + segments.slice(0, segments.indexOf(segment) + 1).join('/'),
       isLast: i === arr.length - 1,
     }));
 
@@ -158,21 +161,26 @@ export function UnifiedHeader({
 
         {/* Breadcrumb trail */}
         <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs overflow-hidden">
-          <span className="text-slate-400 font-medium hidden sm:inline shrink-0">{roleName}</span>
+          <Link
+            href="/frontdesk/dashboard"
+            className="text-slate-400 font-medium hidden sm:inline shrink-0 hover:text-slate-600 transition-colors"
+          >
+            {roleName}
+          </Link>
 
           {breadcrumbs.map((crumb, i) => (
             <span key={i} className="flex items-center gap-1 min-w-0">
               <ChevronRight className="h-3.5 w-3.5 text-slate-300 shrink-0" aria-hidden />
-              <span
-                className={cn(
-                  'truncate font-medium',
-                  crumb.isLast
-                    ? 'text-slate-900'
-                    : 'text-slate-400',
-                )}
-              >
-                {crumb.label}
-              </span>
+              {crumb.isLast ? (
+                <span className="truncate font-medium text-slate-900">{crumb.label}</span>
+              ) : (
+                <Link
+                  href={crumb.href}
+                  className="truncate font-medium text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {crumb.label}
+                </Link>
+              )}
             </span>
           ))}
         </nav>

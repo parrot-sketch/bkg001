@@ -1,364 +1,226 @@
 'use client';
 
-/**
- * Frontdesk Billing Dashboard
- * Simple, clean billing interface for collecting payments.
- * Shows all pending payments (UNPAID + PART) in a single list.
- */
-
-import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
-import { usePendingPayments, useRecordPayment } from '@/hooks/frontdesk/useBilling';
-import { PaymentDialog } from './components/PaymentDialog';
-import type { PaymentWithRelations } from '@/domain/interfaces/repositories/IPaymentRepository';
+import { useRecordPayment } from '@/hooks/frontdesk/useBilling';
 import { PaymentMethod } from '@/domain/enums/PaymentMethod';
-import { PaymentStatus, getPaymentStatusLabel } from '@/domain/enums/PaymentStatus';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Search, 
-  Loader2,
-  Receipt,
-  CreditCard,
-  Calendar,
-  ChevronDown,
-  CheckCircle,
-  AlertCircle
-} from 'lucide-react';
-import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { PaymentStatus } from '@/domain/enums/PaymentStatus';
+import { BillingSummary } from './components/BillingSummary';
+import { SharedPaymentDialog } from '@/components/billing/SharedPaymentDialog';
+import { BillingPageHeader } from './components/BillingPageHeader';
+import { BillingFilters } from './components/BillingFilters';
+import { BillingPaymentTable } from './components/BillingPaymentTable';
+import { BillingEmptyState } from './components/BillingEmptyState';
+import { BillingPagination } from './components/BillingPagination';
+import { apiClient } from '@/lib/api/client';
+import type { PaymentWithRelations } from '@/domain/interfaces/repositories/IPaymentRepository';
 
-type StatusFilter = 'all' | PaymentStatus.UNPAID | PaymentStatus.PART;
+type StatusFilter = 'all' | PaymentStatus.UNPAID | PaymentStatus.PART | PaymentStatus.PAID;
+
+interface BillingData {
+  payments: PaymentWithRelations[];
+  summary: {
+    totalBilled: number;
+    totalCollected: number;
+    pendingCount: number;
+    paidCount: number;
+  };
+}
 
 export default function FrontdeskBillingPage() {
+  const router = useRouter();
   const { user, isAuthenticated } = useAuth();
-  const { data: billingData, isLoading } = usePendingPayments(isAuthenticated);
   const { mutateAsync: recordPayment, isPending: isRecording } = useRecordPayment();
+
+  const [payments, setPayments] = useState<PaymentWithRelations[]>([]);
+  const [summary, setSummary] = useState<BillingData['summary'] | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [sortField, setSortField] = useState<'date' | 'patient' | 'balance' | 'status'>('date');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedPayment, setSelectedPayment] = useState<PaymentWithRelations | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
-  const [expandedPaymentId, setExpandedPaymentId] = useState<number | null>(null);
+  
+  const pageSize = 10;
 
-  if (!isAuthenticated || !user) {
-    return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <p className="text-muted-foreground">Please log in to access billing</p>
-      </div>
-    );
-  }
-
-  const pendingPayments = billingData?.payments || [];
-  const summary = billingData?.summary;
-
-  // Filter payments by search and status
-  const filteredPayments = pendingPayments.filter((p) => {
-    const matchesSearch = searchQuery
-      ? p.patient?.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.patient?.lastName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.chargeSheetNo?.toLowerCase().includes(searchQuery.toLowerCase())
-      : true;
+  useEffect(() => {
+    if (!isAuthenticated) return;
     
-    const matchesStatus = statusFilter === 'all' || p.status === statusFilter;
+    const fetchPayments = async () => {
+      setIsLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (statusFilter !== 'all') {
+          params.set('status', statusFilter);
+        }
+        params.set('limit', '100');
+        
+        const response = await apiClient.get<BillingData>(
+          `/payments/pending?${params.toString()}`
+        );
+        
+        if (response.success) {
+          setPayments(response.data.payments);
+          setSummary(response.data.summary);
+        }
+      } catch (error) {
+        console.error('Failed to load payments:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
     
-    return matchesSearch && matchesStatus;
-  });
+    fetchPayments();
+  }, [isAuthenticated, statusFilter]);
 
-  // Calculate totals for filtered items
-  const totalOutstanding = filteredPayments.reduce(
-    (sum, p) => sum + (p.totalAmount - p.discount - p.amountPaid),
-    0
-  );
+  const toggleSort = (field: typeof sortField) => {
+    if (sortField === field) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+    setCurrentPage(1);
+  };
 
-  const handleOpenPaymentDialog = (payment: PaymentWithRelations) => {
+  const filteredPayments = useMemo(() => {
+    return payments.filter((p) => {
+      const matchesSearch = searchQuery
+        ? p.patient?.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          p.patient?.lastName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          p.chargeSheetNo?.toLowerCase().includes(searchQuery.toLowerCase())
+        : true;
+
+      return matchesSearch;
+    });
+  }, [payments, searchQuery]);
+
+  const sortedPayments = useMemo(() => {
+    const data = [...filteredPayments];
+    data.sort((a, b) => {
+      if (sortField === 'date') {
+        const diff = new Date(a.billDate).getTime() - new Date(b.billDate).getTime();
+        return sortDir === 'asc' ? diff : -diff;
+      }
+      if (sortField === 'balance') {
+        const aBal = a.totalAmount - a.discount - a.amountPaid;
+        const bBal = b.totalAmount - b.discount - b.amountPaid;
+        return sortDir === 'asc' ? aBal - bBal : bBal - aBal;
+      }
+      if (sortField === 'patient') {
+        const aName = `${a.patient?.firstName || ''} ${a.patient?.lastName || ''}`.toLowerCase();
+        const bName = `${b.patient?.firstName || ''} ${b.patient?.lastName || ''}`.toLowerCase();
+        return sortDir === 'asc' ? aName.localeCompare(bName) : bName.localeCompare(aName);
+      }
+      if (sortField === 'status') {
+        return sortDir === 'asc' ? a.status.localeCompare(b.status) : b.status.localeCompare(a.status);
+      }
+      return 0;
+    });
+    return data;
+  }, [filteredPayments, sortField, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedPayments.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedPayments = sortedPayments.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+  const handleCollectPayment = (payment: PaymentWithRelations) => {
     setSelectedPayment(payment);
     setPaymentDialogOpen(true);
   };
 
+  const handleViewPatient = (patientId: string) => {
+    router.push(`/frontdesk/patient/${patientId}`);
+  };
+
   const handleRecordPayment = async (amount: number, method: PaymentMethod) => {
     if (!selectedPayment) return;
-
     await recordPayment({
       paymentId: selectedPayment.id,
       amountPaid: amount,
       paymentMethod: method,
     });
-
     setPaymentDialogOpen(false);
     setSelectedPayment(null);
   };
 
-  const statusCounts = {
-    all: pendingPayments.length,
-    [PaymentStatus.UNPAID]: pendingPayments.filter(p => p.status === PaymentStatus.UNPAID).length,
-    [PaymentStatus.PART]: pendingPayments.filter(p => p.status === PaymentStatus.PART).length,
-  };
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <p className="text-white/70">Please log in to access billing</p>
+      </div>
+    );
+  }
+
+  const hasFilters = !!searchQuery || statusFilter !== 'all';
+  const hasPayments = paginatedPayments.length > 0;
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <section className="border border-border bg-white p-5">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">Billing</h1>
-            <p className="text-muted-foreground text-sm mt-1">Collect payments from patients</p>
-          </div>
-          <div className="relative w-full sm:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input
-              placeholder="Search patient or charge sheet..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-9 bg-white border-slate-200 rounded-none text-sm"
-            />
+    <div className="max-w-6xl mx-auto space-y-5 animate-in fade-in duration-500">
+      <BillingPageHeader />
+
+      <div className="border border-[#e7d6bf] bg-white rounded-xl">
+        <div className="px-4 py-3 border-b border-[#e7d6bf]">
+          <div className="text-sm font-semibold text-[#2c2e4b] flex items-center gap-2">
+            <ReceiptIcon className="h-4 w-4 text-[#caa26a]" />
+            Billing Queue
           </div>
         </div>
-      </section>
-
-      {/* Summary Stats */}
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border-slate-200 shadow-sm">
-          <CardContent className="p-5">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Total Outstanding</p>
-            <div className="flex items-baseline gap-1">
-              <span className="text-xs font-medium text-slate-400">KES</span>
-              <p className="text-2xl font-bold text-slate-900 tabular-nums">
-                {totalOutstanding.toLocaleString()}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-slate-200 shadow-sm">
-          <CardContent className="p-5">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Collected Today</p>
-            <div className="flex items-baseline gap-1">
-              <span className="text-xs font-medium text-slate-400">KES</span>
-              <p className="text-2xl font-bold text-slate-900 tabular-nums">
-                {(summary?.totalCollected || 0).toLocaleString()}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-slate-200 shadow-sm">
-          <CardContent className="p-5">
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Pending Bills</p>
-            <p className="text-2xl font-bold text-slate-900 tabular-nums">
-              {filteredPayments.length}
-            </p>
-          </CardContent>
-        </Card>
-      </section>
-
-      {/* Status Filter Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-1">
-        {(['all', PaymentStatus.UNPAID, PaymentStatus.PART] as StatusFilter[]).map((status) => (
-          <button
-            key={status}
-            onClick={() => setStatusFilter(status)}
-            className={cn(
-              "px-4 py-2 text-sm font-medium transition-colors -mb-px border-b-2",
-              statusFilter === status
-                ? "text-slate-900 border-slate-900"
-                : "text-slate-500 border-transparent hover:text-slate-700"
-            )}
-          >
-            {status === 'all' ? 'All' : getPaymentStatusLabel(status)}
-            <span className={cn(
-              "ml-2 px-2 py-0.5 text-xs border border-slate-200",
-              statusFilter === status ? "bg-slate-50 text-slate-700" : "bg-white text-slate-600"
-            )}>
-              {statusCounts[status]}
-            </span>
-          </button>
-        ))}
+        <div className="p-4">
+          <p className="text-xs text-[#2c2e4b]/60">
+            Collect payments and manage charge sheets
+          </p>
+        </div>
       </div>
 
-      {/* Payment List */}
+      <BillingSummary summary={summary ?? undefined} totalOutstanding={0} />
+
       {isLoading ? (
-        <Card className="border-slate-200">
-          <CardContent className="py-16 text-center text-slate-500 flex flex-col items-center">
-            <Loader2 className="w-6 h-6 animate-spin text-slate-300 mb-2" />
-            <p className="text-sm">Loading payments...</p>
-          </CardContent>
-        </Card>
-      ) : filteredPayments.length === 0 ? (
-        <Card className="border-slate-200">
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="h-12 w-12 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center mb-4">
-              <CheckCircle className="h-6 w-6 text-slate-300" />
-            </div>
-            <p className="text-lg font-semibold text-slate-900">
-              {searchQuery || statusFilter !== 'all' ? 'No matching bills' : 'All caught up!'}
-            </p>
-            <p className="text-sm text-slate-500 mt-1">
-              {searchQuery || statusFilter !== 'all' 
-                ? 'Try adjusting your search or filters' 
-                : 'No pending payments right now'}
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {filteredPayments.map((payment) => {
-            const remaining = payment.totalAmount - payment.discount - payment.amountPaid;
-            const isExpanded = expandedPaymentId === payment.id;
-            const hasBillItems = payment.billItems && payment.billItems.length > 0;
-
-            return (
-              <Card
-                key={payment.id}
-                className={cn(
-                  "overflow-hidden transition-all duration-200 border-slate-200",
-                  isExpanded ? "shadow-sm bg-white" : "shadow-sm hover:border-slate-300 bg-white"
-                )}
-              >
-                <div className="p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    {/* Left - Patient Info */}
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      {/* Expand Toggle */}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className={cn(
-                          "h-8 w-8 rounded-lg flex-shrink-0",
-                          hasBillItems ? "text-slate-400 hover:text-slate-700 hover:bg-slate-50" : "opacity-50 cursor-not-allowed"
-                        )}
-                        onClick={() => hasBillItems && setExpandedPaymentId(isExpanded ? null : payment.id)}
-                        disabled={!hasBillItems}
-                      >
-                        <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
-                      </Button>
-
-                      {/* Icon */}
-                      <div className="h-10 w-10 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
-                        <Receipt className="h-4 w-4 text-slate-600" />
-                      </div>
-
-                      {/* Patient Details */}
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-semibold text-slate-900 text-sm truncate">
-                            {payment.patient?.firstName} {payment.patient?.lastName}
-                          </p>
-                          {payment.chargeSheetNo && (
-                            <code className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200">
-                              {payment.chargeSheetNo}
-                            </code>
-                          )}
-                          <Badge 
-                            variant="outline" 
-                            className={cn(
-                              "text-[10px] font-medium px-1.5 py-0 h-5 rounded-none"
-                            )}
-                          >
-                            {getPaymentStatusLabel(payment.status)}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                          <Calendar className="h-3 w-3" />
-                          {format(new Date(payment.billDate), 'MMM dd, yyyy')}
-                          <span className="text-slate-300">•</span>
-                          <span className="capitalize">{payment.billType?.toLowerCase()}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Right - Amount & Action */}
-                    <div className="flex items-center gap-6 flex-shrink-0">
-                      <div className="text-right">
-                        <p className="text-[10px] font-medium uppercase text-slate-400 mb-0.5">Balance Due</p>
-                        <p className="text-lg font-bold text-slate-900 flex items-baseline gap-1">
-                          <span className="text-[10px] text-slate-500 font-normal">KES</span>
-                          {remaining.toLocaleString()}
-                        </p>
-                        {payment.discount > 0 && (
-                          <p className="text-[10px] font-medium text-slate-500">
-                            -{payment.discount.toLocaleString()} discount
-                          </p>
-                        )}
-                      </div>
-
-                      <Button 
-                        onClick={() => handleOpenPaymentDialog(payment)}
-                        size="sm"
-                        className="bg-slate-900 hover:bg-slate-800 text-white font-medium h-8 rounded-none px-4 text-xs"
-                      >
-                        <CreditCard className="h-3.5 w-3.5 mr-1.5" />
-                        Collect
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Expanded Items */}
-                {isExpanded && hasBillItems && (
-                  <div className="px-4 pb-4 pt-1 bg-slate-50/50">
-                    <div className="bg-white border border-slate-200 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100 border-dashed">
-                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                          Bill Items
-                        </p>
-                        <p className="text-[10px] text-slate-400">
-                          {payment.billItems?.length} items
-                        </p>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        {payment.billItems!.map((item, idx) => (
-                          <div
-                            key={item.id ?? idx}
-                            className="flex items-center justify-between text-sm"
-                          >
-                            <span className="text-slate-700">{item.serviceName}</span>
-                            <div className="flex items-center gap-3 text-slate-500">
-                              <span className="text-xs">{item.quantity} × {item.unitCost.toLocaleString()}</span>
-                              <span className="font-medium text-slate-900 w-20 text-right">
-                                {item.totalCost.toLocaleString()}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="mt-4 pt-3 border-t border-slate-100 space-y-1.5 text-sm">
-                        <div className="flex items-center justify-between text-slate-500">
-                          <span>Subtotal</span>
-                          <span className="font-medium text-slate-700">{payment.totalAmount.toLocaleString()}</span>
-                        </div>
-                        {payment.discount > 0 && (
-                          <div className="flex items-center justify-between text-slate-500">
-                            <span>Discount</span>
-                            <span>-{payment.discount.toLocaleString()}</span>
-                          </div>
-                        )}
-                        {payment.amountPaid > 0 && (
-                          <div className="flex items-center justify-between text-slate-500">
-                            <span>Paid</span>
-                            <span>-{payment.amountPaid.toLocaleString()}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center justify-between pt-2 mt-2 border-t border-slate-100 font-semibold">
-                          <span className="text-slate-700">Balance Due</span>
-                          <span className="text-slate-900">{remaining.toLocaleString()}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </Card>
-            );
-          })}
+        <div className="border border-[#e7d6bf] bg-white rounded-xl overflow-hidden">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-16 border-b border-[#e7d6bf] last:border-0 animate-pulse bg-[#e7d6bf]/10" />
+          ))}
         </div>
+      ) : (
+        <>
+          <BillingFilters
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            statusFilter={statusFilter}
+            onStatusChange={setStatusFilter}
+            sortField={sortField}
+            sortDir={sortDir}
+            onToggleSort={toggleSort}
+            recordCount={filteredPayments.length}
+          />
+
+          {hasPayments ? (
+            <>
+              <BillingPaymentTable
+                payments={paginatedPayments}
+                onCollectPayment={handleCollectPayment}
+                onViewPatient={handleViewPatient}
+              />
+              <BillingPagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            </>
+          ) : (
+            <BillingEmptyState hasFilters={hasFilters} onClear={() => {
+              setSearchQuery('');
+              setStatusFilter('all');
+            }} />
+          )}
+        </>
       )}
 
-      {/* Record Payment Dialog */}
-      <PaymentDialog
+      <SharedPaymentDialog
         open={paymentDialogOpen}
         onOpenChange={setPaymentDialogOpen}
         payment={selectedPayment}
@@ -366,5 +228,13 @@ export default function FrontdeskBillingPage() {
         isRecording={isRecording}
       />
     </div>
+  );
+}
+
+function ReceiptIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+    </svg>
   );
 }

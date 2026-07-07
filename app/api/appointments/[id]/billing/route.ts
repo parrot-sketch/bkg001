@@ -162,6 +162,9 @@ export async function GET(
           paymentMethod: payment.payment_method,
           status: payment.status,
           receiptNumber: payment.receipt_number,
+          chargeSheetNo: payment.charge_sheet_no,
+          finalizedAt: payment.finalized_at,
+          finalizedBy: payment.finalized_by,
           patient: payment.patient ? {
             id: payment.patient.id,
             firstName: payment.patient.first_name,

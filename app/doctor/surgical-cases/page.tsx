@@ -150,12 +150,12 @@ export default function DoctorSurgicalCasesPage() {
     );
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500 pb-12">
+        <div className="space-y-5 animate-in fade-in duration-500 pb-12">
             {/* Header */}
-            <div>
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Doctor Workspace</p>
-                <h1 className="text-2xl font-semibold tracking-tight text-foreground">Surgical Cases</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl px-5 py-4 border border-white/20">
+                <p className="text-xs text-[#caa26a] font-semibold uppercase tracking-widest mb-1">Doctor Workspace</p>
+                <h1 className="text-2xl font-bold tracking-tight text-white">Surgical Cases</h1>
+                <p className="mt-1 text-sm text-white/60">
                     Follow each case from planning through ward prep, booking, and active surgery.
                 </p>
             </div>
@@ -163,21 +163,19 @@ export default function DoctorSurgicalCasesPage() {
             {/* Metrics Bar */}
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
                 {[
-                    { label: 'Total', value: metrics?.total, color: 'text-foreground' },
-                    { label: 'Draft', value: metrics?.draft, color: 'text-slate-600' },
-                    { label: 'Planning', value: metrics?.planning, color: 'text-amber-700' },
-                    { label: 'Ward Prep', value: metrics?.readyForWardPrep, color: 'text-emerald-700' },
-                    { label: 'Scheduled', value: metrics?.scheduled, color: 'text-slate-700' },
-                    { label: 'Active', value: metrics?.inProgress, color: 'text-red-700' },
-                ].map(({ label, value, color }) => (
-                    <Card key={label} className="shadow-none border">
-                        <CardContent className="p-3">
-                            <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-                                {label}
-                            </span>
-                            <p className={cn('text-xl font-bold', color)}>{value ?? 0}</p>
-                        </CardContent>
-                    </Card>
+                    { label: 'Total', value: metrics?.total, color: 'text-white', accent: 'text-[#caa26a]' },
+                    { label: 'Draft', value: metrics?.draft, color: 'text-white', accent: 'text-slate-300' },
+                    { label: 'Planning', value: metrics?.planning, color: 'text-white', accent: 'text-amber-300' },
+                    { label: 'Ward Prep', value: metrics?.readyForWardPrep, color: 'text-white', accent: 'text-emerald-300' },
+                    { label: 'Scheduled', value: metrics?.scheduled, color: 'text-white', accent: 'text-blue-300' },
+                    { label: 'Active', value: metrics?.inProgress, color: 'text-white', accent: 'text-red-300' },
+                ].map(({ label, value, color, accent }) => (
+                    <div key={label} className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-3">
+                        <span className="text-[10px] font-semibold text-white/50 uppercase tracking-wider block mb-1">
+                            {label}
+                        </span>
+                        <p className={cn('text-2xl font-bold', accent)}>{value ?? 0}</p>
+                    </div>
                 ))}
             </div>
 
@@ -193,15 +191,15 @@ export default function DoctorSurgicalCasesPage() {
                             className={cn(
                                 'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-medium transition-all border',
                                 isActive
-                                    ? 'bg-primary text-primary-foreground border-primary'
-                                    : 'bg-background text-muted-foreground border-border hover:bg-muted',
+                                    ? 'bg-[#caa26a] text-[#2c2e4b] border-[#caa26a] shadow-sm'
+                                    : 'bg-white/10 text-white/70 border-white/20 hover:bg-white/20 hover:text-white',
                             )}
                         >
                             {tab.label}
                             {count !== undefined && (
                                 <span className={cn(
                                     'rounded-full px-1.5 py-0.5 text-[10px] font-semibold',
-                                    isActive ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground',
+                                    isActive ? 'bg-[#2c2e4b]/20 text-[#2c2e4b]' : 'bg-white/10 text-white/60',
                                 )}>
                                     {count}
                                 </span>
@@ -214,25 +212,25 @@ export default function DoctorSurgicalCasesPage() {
             {/* Filters Row */}
             <div className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-1 max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
                     <Input
                         placeholder="Search patient, procedure, diagnosis..."
                         value={search}
                         onChange={(e) => handleSearchChange(e.target.value)}
-                        className="pl-9 h-9 text-sm"
+                        className="pl-9 h-9 text-sm bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-[#caa26a] focus:ring-[#caa26a]/30"
                     />
                 </div>
 
                 <div className="w-full sm:w-[160px]">
                     <select
-                        className="w-full h-9 px-3 text-sm border rounded-md bg-background"
+                        className="w-full h-9 px-3 text-sm border rounded-md bg-white/10 border-white/20 text-white focus:border-[#caa26a] focus:outline-none"
                         value={urgencyFilter || 'ALL'}
                         onChange={(e) => handleUrgencyChange(e.target.value)}
                     >
-                        <option value="ALL">All Urgencies</option>
-                        <option value="ELECTIVE">Elective</option>
-                        <option value="URGENT">Urgent</option>
-                        <option value="EMERGENCY">Emergency</option>
+                        <option value="ALL" className="bg-[#2c2e4b] text-white">All Urgencies</option>
+                        <option value="ELECTIVE" className="bg-[#2c2e4b] text-white">Elective</option>
+                        <option value="URGENT" className="bg-[#2c2e4b] text-white">Urgent</option>
+                        <option value="EMERGENCY" className="bg-[#2c2e4b] text-white">Emergency</option>
                     </select>
                 </div>
 
@@ -241,158 +239,159 @@ export default function DoctorSurgicalCasesPage() {
                         value={dateFilter}
                         onChange={handleDateChange}
                         placeholder="Filter by date..."
-                        className="h-9"
+                        className="h-9 bg-white/10 border-white/20 text-white"
                     />
                 </div>
 
                 {isFetching && !isLoading && (
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground animate-pulse self-center">
-                        <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    <div className="flex items-center gap-1.5 text-xs text-white/50 animate-pulse self-center">
+                        <div className="h-1.5 w-1.5 rounded-full bg-[#caa26a]" />
                         Updating...
                     </div>
                 )}
             </div>
 
-            <Separator />
+            <div className="border-t border-white/15" />
 
-            {/* Table */}
+            {/* Table / States */}
             {isLoading ? (
                 <TableSkeleton />
             ) : error ? (
-                <Card className="border-destructive/30 bg-destructive/5">
-                    <CardContent className="flex flex-col items-center justify-center p-12 text-center">
-                        <AlertCircle className="h-8 w-8 text-destructive" />
-                        <p className="mt-2 text-destructive">{error.message}</p>
-                        <Button variant="outline" size="sm" onClick={() => window.location.reload()} className="mt-2">
-                            Retry
-                        </Button>
-                    </CardContent>
-                </Card>
+                <div className="bg-red-500/10 border border-red-400/30 rounded-xl p-12 flex flex-col items-center justify-center text-center">
+                    <AlertCircle className="h-8 w-8 text-red-400" />
+                    <p className="mt-2 text-red-300 text-sm">{error.message}</p>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.location.reload()}
+                        className="mt-3 border-red-400/30 text-red-300 hover:bg-red-500/10"
+                    >
+                        Retry
+                    </Button>
+                </div>
             ) : items.length === 0 ? (
-                <Card className="border-dashed bg-muted/20">
-                    <CardContent className="flex flex-col items-center justify-center p-16 text-center">
-                        <Scissors className="h-8 w-8 text-muted-foreground" />
-                        <h3 className="mt-4 font-semibold">No Surgical Cases</h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                            Click "Plan Surgery" on a completed consultation in the Consultations Hub to create a case.
-                        </p>
-                    </CardContent>
-                </Card>
+                <div className="bg-white/5 border border-white/15 border-dashed rounded-xl p-16 flex flex-col items-center justify-center text-center">
+                    <Scissors className="h-8 w-8 text-white/30" />
+                    <h3 className="mt-4 font-semibold text-white">No Surgical Cases</h3>
+                    <p className="text-sm text-white/50 mt-1">
+                        Click "Plan Surgery" on a completed consultation in the Consultations Hub to create a case.
+                    </p>
+                </div>
             ) : (
-                <div className="border rounded-lg overflow-hidden">
+                <div className="bg-white rounded-xl border border-white/20 overflow-hidden shadow-xl shadow-black/20">
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm min-w-[800px]">
-                            <thead className="bg-slate-50 border-b">
+                            <thead className="bg-[#2c2e4b] border-b border-white/10">
                                 <tr>
-                                    <th className="text-left px-4 py-3 font-medium text-slate-500 w-[120px]">Status</th>
-                                    <th className="text-left px-4 py-3 font-medium text-slate-500 w-[200px]">Patient</th>
-                                    <th className="text-left px-4 py-3 font-medium text-slate-500 min-w-[150px]">Procedure</th>
-                                    <th className="text-left px-4 py-3 font-medium text-slate-500">Diagnosis</th>
-                                    <th className="text-left px-4 py-3 font-medium text-slate-500">Surgeon</th>
-                                    <th className="text-left px-4 py-3 font-medium text-slate-500 w-[100px]">Urgency</th>
-                                    <th className="text-center px-4 py-3 font-medium text-slate-500 w-[120px]">Action</th>
+                                    <th className="text-left px-4 py-3 font-semibold text-[#caa26a] text-xs uppercase tracking-wider w-[120px]">Status</th>
+                                    <th className="text-left px-4 py-3 font-semibold text-[#caa26a] text-xs uppercase tracking-wider w-[200px]">Patient</th>
+                                    <th className="text-left px-4 py-3 font-semibold text-[#caa26a] text-xs uppercase tracking-wider min-w-[150px]">Procedure</th>
+                                    <th className="text-left px-4 py-3 font-semibold text-[#caa26a] text-xs uppercase tracking-wider">Diagnosis</th>
+                                    <th className="text-left px-4 py-3 font-semibold text-[#caa26a] text-xs uppercase tracking-wider">Surgeon</th>
+                                    <th className="text-left px-4 py-3 font-semibold text-[#caa26a] text-xs uppercase tracking-wider w-[100px]">Urgency</th>
+                                    <th className="text-center px-4 py-3 font-semibold text-[#caa26a] text-xs uppercase tracking-wider w-[120px]">Action</th>
                                 </tr>
                             </thead>
-                        <tbody className="divide-y">
-                            {items.map((sc) => {
-                                const status = STATUS_CONFIG[sc.status] ?? STATUS_CONFIG.DRAFT;
-                                const urgency = URGENCY_CONFIG[sc.urgency] ?? URGENCY_CONFIG.ELECTIVE;
-                                const patientName = sc.patient
-                                    ? `${sc.patient.firstName} ${sc.patient.lastName}`
-                                    : 'Unknown';
-                                
-                                return (
-                                    <tr key={sc.id} className="hover:bg-slate-50 transition-colors">
-                                        <td className="px-4 py-3">
-                                            <Badge className={status.className}>
-                                                {status.label}
-                                            </Badge>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <div className="flex items-center gap-3">
-                                                <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-medium text-slate-500 shrink-0">
-                                                    {sc.patient?.firstName?.[0] || '?'}{sc.patient?.lastName?.[0] || ''}
+                            <tbody className="divide-y divide-slate-100 bg-white">
+                                {items.map((sc) => {
+                                    const status = STATUS_CONFIG[sc.status] ?? STATUS_CONFIG.DRAFT;
+                                    const urgency = URGENCY_CONFIG[sc.urgency] ?? URGENCY_CONFIG.ELECTIVE;
+                                    const patientName = sc.patient
+                                        ? `${sc.patient.firstName} ${sc.patient.lastName}`
+                                        : 'Unknown';
+
+                                    return (
+                                        <tr key={sc.id} className="hover:bg-[#e7d6bf]/20 transition-colors">
+                                            <td className="px-4 py-3">
+                                                <Badge className={status.className}>
+                                                    {status.label}
+                                                </Badge>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="h-8 w-8 rounded-full bg-[#2c2e4b]/10 flex items-center justify-center text-xs font-semibold text-[#2c2e4b] shrink-0">
+                                                        {sc.patient?.firstName?.[0] || '?'}{sc.patient?.lastName?.[0] || ''}
+                                                    </div>
+                                                    <div className="flex flex-col min-w-0">
+                                                        <span className="font-semibold text-slate-900 truncate">{patientName}</span>
+                                                        {sc.patient?.fileNumber && (
+                                                            <span className="text-xs text-slate-400 font-mono truncate">
+                                                                {sc.patient.fileNumber}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                                <div className="flex flex-col min-w-0">
-                                                    <span className="font-medium text-slate-900 truncate">{patientName}</span>
-                                                    {sc.patient?.fileNumber && (
-                                                        <span className="text-xs text-slate-400 font-mono truncate">
-                                                            {sc.patient.fileNumber}
-                                                        </span>
-                                                    )}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className="line-clamp-1 text-sm font-medium text-slate-800">
+                                                    {sc.procedures && sc.procedures.length > 0
+                                                        ? sc.procedures.map(p => p.name).join(', ')
+                                                        : sc.procedureName || '—'}
+                                                </span>
+                                                <div className="flex gap-1.5 mt-1.5">
+                                                    {sc.casePlan?.hasProcedurePlan && <Badge variant="secondary" className="border border-slate-200 px-1.5 py-0 text-[10px] font-medium text-slate-600">Plan</Badge>}
+                                                    {sc.casePlan?.hasSurgicalNotes && <Badge variant="secondary" className="border border-emerald-200 bg-emerald-50 px-1.5 py-0 text-[10px] font-medium text-emerald-700">Notes</Badge>}
+                                                    {sc.casePlan?.hasChargeSheet && <Badge variant="secondary" className="border border-slate-300 bg-slate-100 px-1.5 py-0 text-[10px] font-medium text-slate-700">Charges</Badge>}
                                                 </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <span className="line-clamp-1 text-sm font-medium">
-                                                {sc.procedures && sc.procedures.length > 0
-                                                    ? sc.procedures.map(p => p.name).join(', ')
-                                                    : sc.procedureName || '—'}
-                                            </span>
-                                            <div className="flex gap-1.5 mt-1.5">
-                                                {sc.casePlan?.hasProcedurePlan && <Badge variant="secondary" className="border border-slate-200 px-1.5 py-0 text-[10px] font-medium text-slate-600">Plan</Badge>}
-                                                {sc.casePlan?.hasSurgicalNotes && <Badge variant="secondary" className="border border-emerald-200 bg-emerald-50 px-1.5 py-0 text-[10px] font-medium text-emerald-700">Notes</Badge>}
-                                                {sc.casePlan?.hasChargeSheet && <Badge variant="secondary" className="border border-slate-300 bg-slate-100 px-1.5 py-0 text-[10px] font-medium text-slate-700">Charges</Badge>}
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <span className="line-clamp-1 text-sm text-slate-500">
-                                                {sc.diagnosis || '—'}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <span className="text-sm">{sc.primarySurgeon?.name || '—'}</span>
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <span className={cn('text-xs font-medium', urgency.className)}>
-                                                {urgency.label}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-center">
-                                            <div className="flex items-center justify-center gap-1">
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() => navigateToCase(sc.id)}
-                                                    className="h-7 gap-1.5 rounded-r-none border-r-0"
-                                                >
-                                                    <Eye className="h-3.5 w-3.5" />
-                                                    Open
-                                                </Button>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            className="h-7 w-7 p-0 rounded-l-none"
-                                                        >
-                                                            <MoreHorizontal className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end" className="w-44">
-                                                        <DropdownMenuLabel className="text-xs">Jump to</DropdownMenuLabel>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuItem onClick={() => router.push(`/doctor/surgical-cases/${sc.id}/case-plan`)}>
-                                                            <ClipboardList className="h-3.5 w-3.5 mr-2" />
-                                                            Case Plan
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => router.push(`/doctor/surgical-cases/${sc.id}/surgical-notes`)}>
-                                                            <FileText className="h-3.5 w-3.5 mr-2" />
-                                                            Surgical Notes
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => router.push(`/doctor/surgical-cases/${sc.id}/charge-sheet`)}>
-                                                            <Receipt className="h-3.5 w-3.5 mr-2" />
-                                                            Charge Sheet
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className="line-clamp-1 text-sm text-slate-500">
+                                                    {sc.diagnosis || '—'}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className="text-sm text-slate-700">{sc.primarySurgeon?.name || '—'}</span>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span className={cn('text-xs font-semibold', urgency.className)}>
+                                                    {urgency.label}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <div className="flex items-center justify-center gap-1">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={() => navigateToCase(sc.id)}
+                                                        className="h-7 gap-1.5 rounded-r-none border-r-0 border-[#2c2e4b]/20 text-[#2c2e4b] hover:bg-[#2c2e4b] hover:text-white"
+                                                    >
+                                                        <Eye className="h-3.5 w-3.5" />
+                                                        Open
+                                                    </Button>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="h-7 w-7 p-0 rounded-l-none border-[#2c2e4b]/20 text-[#2c2e4b] hover:bg-[#2c2e4b] hover:text-white"
+                                                            >
+                                                                <MoreHorizontal className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" className="w-44">
+                                                            <DropdownMenuLabel className="text-xs">Jump to</DropdownMenuLabel>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem onClick={() => router.push(`/doctor/surgical-cases/${sc.id}/case-plan`)}>
+                                                                <ClipboardList className="h-3.5 w-3.5 mr-2" />
+                                                                Case Plan
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => router.push(`/doctor/surgical-cases/${sc.id}/surgical-notes`)}>
+                                                                <FileText className="h-3.5 w-3.5 mr-2" />
+                                                                Surgical Notes
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => router.push(`/doctor/surgical-cases/${sc.id}/charge-sheet`)}>
+                                                                <Receipt className="h-3.5 w-3.5 mr-2" />
+                                                                Charge Sheet
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             )}
@@ -400,27 +399,27 @@ export default function DoctorSurgicalCasesPage() {
             {/* Pagination */}
             {meta && meta.totalPages > 1 && (
                 <div className="flex items-center justify-between pt-2">
-                    <p className="text-xs text-muted-foreground">
-                        Showing <span className="font-medium">{(meta.page - 1) * meta.pageSize + 1}–{Math.min(meta.page * meta.pageSize, meta.total)}</span> of{' '}
-                        <span className="font-medium">{meta.total}</span> cases
+                    <p className="text-xs text-white/50">
+                        Showing <span className="font-medium text-white/80">{(meta.page - 1) * meta.pageSize + 1}–{Math.min(meta.page * meta.pageSize, meta.total)}</span> of{' '}
+                        <span className="font-medium text-white/80">{meta.total}</span> cases
                     </p>
                     <div className="flex items-center gap-1.5">
                         <Button
                             variant="outline"
                             size="sm"
-                            className="h-7 w-7 p-0"
+                            className="h-7 w-7 p-0 bg-white/10 border-white/20 text-white hover:bg-white/20 disabled:opacity-40"
                             disabled={meta.page <= 1}
                             onClick={() => setPage(meta.page - 1)}
                         >
                             <ChevronLeft className="h-4 w-4" />
                         </Button>
-                        <span className="text-xs font-medium tabular-nums px-2">
+                        <span className="text-xs font-medium tabular-nums px-2 text-white/70">
                             {meta.page} / {meta.totalPages}
                         </span>
                         <Button
                             variant="outline"
                             size="sm"
-                            className="h-7 w-7 p-0"
+                            className="h-7 w-7 p-0 bg-white/10 border-white/20 text-white hover:bg-white/20 disabled:opacity-40"
                             disabled={meta.page >= meta.totalPages}
                             onClick={() => setPage(meta.page + 1)}
                         >
@@ -435,22 +434,22 @@ export default function DoctorSurgicalCasesPage() {
 
 function TableSkeleton() {
     return (
-        <div className="border rounded-lg overflow-hidden">
+        <div className="bg-white rounded-xl border border-white/20 overflow-hidden shadow-xl shadow-black/20">
             <div className="overflow-x-auto">
                 <table className="w-full text-sm min-w-[800px]">
-                    <thead className="bg-slate-50 border-b">
+                    <thead className="bg-[#2c2e4b] border-b border-white/10">
                         <tr>
                             {['Status', 'Patient', 'Procedure', 'Diagnosis', 'Surgeon', 'Urgency', 'Action'].map((h) => (
-                                <th key={h} className="text-left px-4 py-3 font-medium text-slate-500">{h}</th>
+                                <th key={h} className="text-left px-4 py-3 font-semibold text-[#caa26a] text-xs uppercase tracking-wider">{h}</th>
                             ))}
                         </tr>
                     </thead>
-                    <tbody className="divide-y">
+                    <tbody className="divide-y divide-slate-100 bg-white">
                         {Array.from({ length: 5 }).map((_, i) => (
                             <tr key={i}>
                                 {Array.from({ length: 7 }).map((_, j) => (
                                     <td key={j} className="px-4 py-3">
-                                        <Skeleton className="h-5 w-full" />
+                                        <Skeleton className="h-5 w-full bg-slate-100" />
                                     </td>
                                 ))}
                             </tr>

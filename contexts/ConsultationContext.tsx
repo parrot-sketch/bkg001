@@ -27,6 +27,7 @@ import React, {
   useEffect,
   useRef,
   useMemo,
+  useState,
   type ReactNode
 } from 'react';
 import { useRouter } from 'next/navigation';
@@ -279,6 +280,7 @@ interface ConsultationContextValue {
   waitingQueue: AppointmentResponseDto[];
   refetchQueue: () => Promise<unknown>;
   isQueueRefetching: boolean;
+  loadWaitingQueue: () => void;
 
   // Actions
   loadAppointment: (appointmentId: number) => Promise<void>;
@@ -319,19 +321,33 @@ export function ConsultationProvider({ children, initialAppointmentId }: Consult
 
   // External hooks
   const saveDraftMutation = useSaveConsultationDraft();
-  const { data: todayAppointments = [], refetch: refetchQueue, isRefetching: isQueueRefetching } = useDoctorTodayAppointments(user?.id, !!user);
+  const [queueLoaded, setQueueLoaded] = useState(false);
 
   // Refs for debounced save
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Lazy-load waiting queue only when needed
+  const {
+    data: todayAppointments = [],
+    refetch: refetchQueue,
+    isRefetching: isQueueRefetching,
+  } = useDoctorTodayAppointments(user?.id, queueLoaded, false);
+
   // Waiting queue (excluding current appointment)
   const waitingQueue = useMemo(() => {
-    return todayAppointments.filter(apt =>
+    return todayAppointments.filter((apt) =>
       apt.id !== state.appointment?.id &&
       (apt.status === AppointmentStatus.CHECKED_IN ||
         apt.status === AppointmentStatus.READY_FOR_CONSULTATION)
     );
   }, [todayAppointments, state.appointment?.id]);
+
+  const loadWaitingQueue = useCallback(() => {
+    if (!queueLoaded) {
+      setQueueLoaded(true);
+      refetchQueue();
+    }
+  }, [queueLoaded, refetchQueue]);
 
   // Computed properties
   // Ground truth: appointment status trumps consultation record state.
@@ -838,6 +854,7 @@ if (isCompleted) {
     waitingQueue,
     refetchQueue,
     isQueueRefetching,
+    loadWaitingQueue,
     loadAppointment,
     startConsultation,
     closeStartDialog,
@@ -860,6 +877,7 @@ if (isCompleted) {
     waitingQueue,
     refetchQueue,
     isQueueRefetching,
+    loadWaitingQueue,
     loadAppointment,
     startConsultation,
     closeStartDialog,

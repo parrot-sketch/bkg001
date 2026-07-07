@@ -423,8 +423,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (userRole === Role.DOCTOR && source !== AppointmentSource.DOCTOR_FOLLOW_UP && source !== AppointmentSource.PATIENT_REQUESTED) {
       return handleApiError(new ForbiddenError('Doctors can only create follow-up or patient-requested appointments'));
     }
-    if (userRole === Role.FRONTDESK && source === AppointmentSource.DOCTOR_FOLLOW_UP) {
-      return handleApiError(new ForbiddenError('Frontdesk cannot create doctor follow-up appointments'));
+    if (userRole === Role.FRONTDESK && source === AppointmentSource.DOCTOR_FOLLOW_UP && !body.parentAppointmentId) {
+      return handleApiError(new ForbiddenError('Frontdesk cannot create doctor follow-up appointments without a parent appointment'));
     }
 
     // Default source for roles when not explicitly provided

@@ -22,29 +22,64 @@ export function useAppointmentActions(options: UseAppointmentActionsOptions = {}
     queryClient.invalidateQueries({ queryKey: ['doctor', 'dashboard'] });
   }, [queryClient]);
 
+  const applyStatusUpdate = useCallback(
+    (appointmentId: number, nextStatus: string) => {
+      queryClient.setQueriesData<AppointmentResponseDto[]>(
+        { queryKey: appointmentKeys.lists() },
+        (old) => {
+          if (!Array.isArray(old)) return old;
+          return old.map((apt) =>
+            apt.id === appointmentId ? { ...apt, status: nextStatus as AppointmentResponseDto['status'] } : apt,
+          );
+        }
+      );
+    },
+    [queryClient],
+  );
+
   const confirmMutation = useMutation({
-    mutationFn: (appointmentId: number) =>
-      doctorApi.confirmAppointment(appointmentId, 'confirm'),
+    mutationFn: async (appointmentId: number) => {
+      const response = await doctorApi.confirmAppointment(appointmentId, 'confirm');
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to confirm appointment');
+      }
+      return response.data;
+    },
+    onMutate: async (appointmentId) => {
+      await queryClient.cancelQueries({ queryKey: appointmentKeys.all });
+      applyStatusUpdate(appointmentId, 'SCHEDULED');
+    },
     onSuccess: () => {
       invalidate();
       toast.success('Appointment confirmed');
       options.onSuccess?.();
     },
     onError: (error) => {
+      invalidate();
       toast.error(error.message || 'Failed to confirm appointment');
       options.onError?.(error);
     },
   });
 
   const rejectMutation = useMutation({
-    mutationFn: ({ appointmentId, reason }: { appointmentId: number; reason: string }) =>
-      doctorApi.confirmAppointment(appointmentId, 'reject', { rejectionReason: reason }),
+    mutationFn: async ({ appointmentId, reason }: { appointmentId: number; reason: string }) => {
+      const response = await doctorApi.confirmAppointment(appointmentId, 'reject', { rejectionReason: reason });
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to reject appointment');
+      }
+      return response.data;
+    },
+    onMutate: async ({ appointmentId }) => {
+      await queryClient.cancelQueries({ queryKey: appointmentKeys.all });
+      applyStatusUpdate(appointmentId, 'CANCELLED');
+    },
     onSuccess: () => {
       invalidate();
       toast.success('Appointment rejected');
       options.onSuccess?.();
     },
     onError: (error) => {
+      invalidate();
       toast.error(error.message || 'Failed to reject appointment');
       options.onError?.(error);
     },

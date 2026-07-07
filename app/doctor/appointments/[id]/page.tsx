@@ -21,6 +21,7 @@ import {
   ActionPanel,
   ActivityTimeline,
 } from '@/components/doctor/appointments';
+import { SmartConfirmationDialog } from '@/components/appointments/SmartConfirmationDialog';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -37,6 +38,7 @@ export default function AppointmentDetailPage({ params }: PageProps) {
 
   const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [recentAction, setRecentAction] = useState<{
     type: 'confirmed' | 'rescheduled' | 'cancelled' | null;
     timestamp: number;
@@ -120,26 +122,6 @@ export default function AppointmentDetailPage({ params }: PageProps) {
     ? new Date(appointment.appointmentDate)
     : new Date();
 
-  const handleConfirm = async () => {
-    try {
-      const response = await fetch(`/api/appointments/${appointment.id}/confirm`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'confirm', notes: '' }),
-      });
-      const result = await response.json();
-      if (result.success) {
-        toast.success('Appointment confirmed');
-        setRecentAction({ type: 'confirmed', timestamp: Date.now() });
-        refetch();
-      } else {
-        toast.error(result.error || 'Failed to confirm');
-      }
-    } catch {
-      toast.error('Error confirming appointment');
-    }
-  };
-
   return (
     <div className="max-w-4xl mx-auto space-y-5 animate-in fade-in duration-500">
       <Button
@@ -159,7 +141,7 @@ export default function AppointmentDetailPage({ params }: PageProps) {
         appointmentId={appointment.id}
         time={appointment.time}
         date={appointmentDate}
-        onConfirm={canConfirm ? handleConfirm : undefined}
+        onConfirm={canConfirm ? () => setShowConfirmDialog(true) : undefined}
         onStart={canStartConsultation ? () => router.push(`/doctor/consultations/session/${appointment.id}`) : undefined}
         onContinue={canContinueConsultation ? () => router.push(`/doctor/consultations/session/${appointment.id}`) : undefined}
         isConfirming={isConfirming}
@@ -255,6 +237,16 @@ export default function AppointmentDetailPage({ params }: PageProps) {
       </div>
 
       {/* Dialogs */}
+      <SmartConfirmationDialog
+        open={showConfirmDialog}
+        onOpenChange={setShowConfirmDialog}
+        appointment={appointment}
+        onSuccess={() => {
+          setRecentAction({ type: 'confirmed', timestamp: Date.now() });
+          refetch();
+        }}
+      />
+
       <RescheduleDialog
         open={showRescheduleDialog}
         onOpenChange={setShowRescheduleDialog}

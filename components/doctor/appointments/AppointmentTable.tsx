@@ -100,9 +100,14 @@ function getRowAction(
   router: ReturnType<typeof useRouter>,
   onConfirm: (id: number) => void,
   onReject: (id: number) => void,
-  onStart: (appointment: AppointmentResponseDto) => void
+  onStart: (appointment: AppointmentResponseDto) => void,
+  isConfirming: boolean,
+  isRejecting: boolean,
 ) {
   const status = appointment.status;
+  const isPendingConfirm = status === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION;
+  const busy = (isConfirming && isPendingConfirm) || (isRejecting && isPendingConfirm);
+
   if (status === AppointmentStatus.IN_CONSULTATION) {
     return (
       <Button
@@ -127,7 +132,7 @@ function getRowAction(
       </Button>
     );
   }
-  if (status === AppointmentStatus.PENDING_DOCTOR_CONFIRMATION) {
+  if (isPendingConfirm) {
     return (
       <div className="flex items-center gap-1">
         <Button
@@ -135,6 +140,7 @@ function getRowAction(
           variant="outline"
           className="h-7 rounded-lg border-slate-200 text-xs"
           onClick={() => onReject(appointment.id)}
+          disabled={busy}
         >
           <X className="h-3.5 w-3.5" />
         </Button>
@@ -142,9 +148,10 @@ function getRowAction(
           size="sm"
           className="h-7 rounded-lg bg-[#0c5d69] hover:bg-[#0a4f59] text-white text-xs"
           onClick={() => onConfirm(appointment.id)}
+          disabled={busy}
         >
           <Check className="h-3.5 w-3.5 mr-1" />
-          Confirm
+          {busy ? 'Saving...' : 'Confirm'}
         </Button>
       </div>
     );
@@ -181,7 +188,7 @@ export function AppointmentTable({
   onRefresh,
 }: AppointmentTableProps) {
   const router = useRouter();
-  const { handleConfirm, handleReject, handleStartConsultation } = useAppointmentActions();
+  const { handleConfirm, handleReject, handleStartConsultation, confirmMutation, rejectMutation } = useAppointmentActions();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [dateRange, setDateRange] = useState<string>('all');
@@ -219,23 +226,6 @@ export function AppointmentTable({
             (apt.type || '').toLowerCase().includes(q) ||
             (apt.note || '').toLowerCase().includes(q)
           );
-        }
-        return true;
-      })
-      .filter((apt) => {
-        if (dateRange === 'all') return true;
-        if (dateRange === 'today' && isToday(new Date(apt.appointmentDate))) return true;
-        if (dateRange === 'week') {
-          const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-          const weekEnd = new Date(weekStart);
-          weekEnd.setDate(weekEnd.getDate() + 7);
-          return isWithinInterval(new Date(apt.appointmentDate), { start: weekStart, end: weekEnd });
-        }
-        if (dateRange === 'month') {
-          const monthStart = startOfMonth(now);
-          const monthEnd = new Date(monthStart);
-          monthEnd.setMonth(monthEnd.getMonth() + 1);
-          return isWithinInterval(new Date(apt.appointmentDate), { start: monthStart, end: monthEnd });
         }
         return true;
       })
@@ -415,7 +405,7 @@ export function AppointmentTable({
                           onClick={(e) => e.stopPropagation()}
                           className="flex items-center justify-end gap-1"
                         >
-                          {getRowAction(apt, router, handleConfirm, handleReject, handleStartConsultation)}
+                          {getRowAction(apt, router, handleConfirm, handleReject, handleStartConsultation, confirmMutation.isPending, rejectMutation.isPending)}
                         </div>
                       </TableCell>
                     </TableRow>

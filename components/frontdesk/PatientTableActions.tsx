@@ -71,17 +71,17 @@ export function PatientTableActions({ patient, onActionComplete }: PatientTableA
   // Dropdown action handlers
   const handleViewBilling = () => {
     setMenuOpen(false);
-    router.push(`/frontdesk/patient/${patient.id}?tab=billing`);
+    router.push(`/frontdesk/patient/${patient.id}?cat=billing`);
   };
 
   const handleViewAppointments = () => {
     setMenuOpen(false);
-    router.push(`/frontdesk/patient/${patient.id}?tab=appointments`);
+    router.push(`/frontdesk/patient/${patient.id}?cat=appointments`);
   };
 
   const handleViewProfile = () => {
     setMenuOpen(false);
-    router.push(`/frontdesk/patient/${patient.id}`);
+    router.push(`/frontdesk/patient/${patient.id}?cat=overview`);
   };
 
   const handleQuickAssignmentSuccess = () => {

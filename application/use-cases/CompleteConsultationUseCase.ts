@@ -376,10 +376,12 @@ export class CompleteConsultationUseCase {
           paymentId = payment.id;
         }
 
+        // Note: Charge sheet is NOT finalized here so frontdesk can still edit it.
+        // It will be finalized when payment is recorded.
         // Finalize the charge sheet to lock editing since consultation is now complete
-        if (paymentId) {
-          await chargeSheetService.finalize(paymentId, dto.doctorId);
-        }
+        // if (paymentId) {
+        //   await chargeSheetService.finalize(paymentId, dto.doctorId);
+        // }
 
         // Notify frontdesk users about pending payment
         if (this.userRepository && paymentId) {

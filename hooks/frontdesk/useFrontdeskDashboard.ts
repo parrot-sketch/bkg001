@@ -8,8 +8,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { frontdeskApi } from '@/lib/api/frontdesk';
-
-// ─── Types ────────────────────────────────────────────────────
+import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 
 export interface DashboardStats {
   expectedPatients: number;
@@ -22,6 +21,7 @@ export interface DashboardStats {
 
 export interface UseFrontdeskDashboardReturn {
   stats: DashboardStats;
+  completedAppointments: AppointmentResponseDto[];
   isLoading: boolean;
   error: Error | null;
   refetch: () => void;
@@ -34,12 +34,12 @@ const GC_TIME_MS = 5 * 60 * 1000; // 5 minutes
 
 // ─── Query Functions ─────────────────────────────────────────
 
-async function fetchTodaysSchedule(): Promise<unknown[]> {
+async function fetchTodaysSchedule(): Promise<AppointmentResponseDto[]> {
   const response = await frontdeskApi.getTodaysSchedule();
   if (!response.success) {
     throw new Error(response.error || 'Failed to fetch schedule');
   }
-  return response.data || [];
+  return (response.data || []) as AppointmentResponseDto[];
 }
 
 async function fetchPendingIntakeCount(): Promise<number> {
@@ -62,7 +62,7 @@ export function useFrontdeskDashboard(): UseFrontdeskDashboardReturn {
     data: appointments = [],
     isLoading: loadingAppointments,
     error: appointmentsError,
-  } = useQuery<unknown[]>({
+  } = useQuery<AppointmentResponseDto[]>({
     queryKey: ['frontdesk', 'schedule', 'today'] as const,
     queryFn: fetchTodaysSchedule,
     enabled: isEnabled,
@@ -86,25 +86,17 @@ export function useFrontdeskDashboard(): UseFrontdeskDashboardReturn {
   const stats: DashboardStats = {
     expectedPatients: appointments.length,
     checkedInPatients: appointments.filter(
-      (apt: unknown) => {
-        const status = (apt as { status?: string }).status;
-        return status === 'CHECKED_IN' || status === 'READY_FOR_CONSULTATION';
-      }
+      (apt) => apt.status === 'CHECKED_IN' || apt.status === 'READY_FOR_CONSULTATION'
     ).length,
     pendingCheckIns: appointments.filter(
-      (apt: unknown) => {
-        const status = (apt as { status?: string }).status;
-        return status === 'SCHEDULED' || status === 'CONFIRMED';
-      }
+      (apt) => apt.status === 'SCHEDULED' || apt.status === 'CONFIRMED'
     ).length,
-    inConsultation: appointments.filter(
-      (apt: unknown) => (apt as { status?: string }).status === 'IN_CONSULTATION'
-    ).length,
-    completedToday: appointments.filter(
-      (apt: unknown) => (apt as { status?: string }).status === 'COMPLETED'
-    ).length,
+    inConsultation: appointments.filter((apt) => apt.status === 'IN_CONSULTATION').length,
+    completedToday: appointments.filter((apt) => apt.status === 'COMPLETED').length,
     pendingIntakeCount,
   };
+
+  const completedAppointments = appointments.filter((apt) => apt.status === 'COMPLETED');
 
   const isLoading = loadingAppointments || loadingIntakes;
   const error = appointmentsError as Error | null;
@@ -114,5 +106,5 @@ export function useFrontdeskDashboard(): UseFrontdeskDashboardReturn {
     queryClient.invalidateQueries({ queryKey: ['frontdesk', 'intake'] });
   };
 
-  return { stats, isLoading, error, refetch };
+  return { stats, completedAppointments, isLoading, error, refetch };
 }

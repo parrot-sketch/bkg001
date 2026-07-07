@@ -7,11 +7,13 @@ import { QuickAssignmentDialog } from '@/components/frontdesk/QuickAssignmentDia
 import { DashboardPipelineStats } from '@/components/frontdesk/DashboardPipelineStats';
 import { PendingIntakesAlert } from '@/components/frontdesk/PendingIntakesAlert';
 import { DoctorAvailabilityAtAGlance } from '@/components/frontdesk/DoctorAvailabilityAtAGlance';
+import { FrontdeskPendingActionsPanel } from '@/components/frontdesk/FrontdeskPendingActionsPanel';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { UserPlus } from 'lucide-react';
 import { useBookAppointmentStore } from '@/hooks/frontdesk/useBookAppointmentStore';
 import { QuickBookAppointmentDialog } from '@/components/frontdesk/dashboard/QuickBookAppointmentDialog';
+import { useFrontdeskDashboard } from '@/hooks/frontdesk/useFrontdeskDashboard';
 import { AppointmentSource } from '@/domain/enums/AppointmentSource';
 import { BookingChannel } from '@/domain/enums/BookingChannel';
 import { triggerAppointmentExpiry } from '@/app/actions/appointment-expiry';
@@ -27,6 +29,7 @@ export function FrontdeskDashboardClient() {
   const { openBookingDialog } = useBookAppointmentStore();
   const [quickAssignmentOpen, setQuickAssignmentOpen] = useState<boolean>(false);
   const [quickBookOpen, setQuickBookOpen] = useState(false);
+  const { stats, completedAppointments, isLoading } = useFrontdeskDashboard();
 
   // Background expiry check — fire and forget, never blocks UI
   useEffect(() => {
@@ -42,30 +45,32 @@ export function FrontdeskDashboardClient() {
     });
   }, [openBookingDialog]);
 
+  const hasPendingActions = completedAppointments.length > 0;
+
   return (
     <>
-<DashboardShell
-         banner={<PendingIntakesAlert />}
-         title="Frontdesk Operations"
-         subtitle="Manage today's schedule, queue, and patient intake."
-         stats={<DashboardPipelineStats />}
-         sidebarClassName="xl:w-[320px] 2xl:w-[360px]"
-sidebar={
-            <>
-              <Card className="border border-[#e7d6bf]/60 shadow-sm rounded-xl bg-white overflow-hidden">
-                <CardContent className="p-2.5">
-                  <Button
-                    onClick={(): void => setQuickAssignmentOpen(true)}
-                    className="w-full bg-[#caa26a] hover:bg-[#b8913e] text-[#2c2e4b] font-medium shadow-sm rounded-lg h-9"
-                  >
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Add Patient to Queue
-                  </Button>
-                </CardContent>
-              </Card>
-              <DoctorAvailabilityAtAGlance />
-            </>
-          }
+      <DashboardShell
+        banner={<PendingIntakesAlert />}
+        title="Frontdesk Operations"
+        subtitle="Manage today's schedule, queue, and patient intake."
+        stats={<DashboardPipelineStats />}
+        sidebarClassName="xl:w-[320px] 2xl:w-[360px]"
+        sidebar={
+          <>
+            <Card className="border border-[#e7d6bf]/60 shadow-sm rounded-xl bg-white overflow-hidden">
+              <CardContent className="p-2.5">
+                <Button
+                  onClick={(): void => setQuickAssignmentOpen(true)}
+                  className="w-full bg-[#caa26a] hover:bg-[#b8913e] text-[#2c2e4b] font-medium shadow-sm rounded-lg h-9"
+                >
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Add Patient to Queue
+                </Button>
+              </CardContent>
+            </Card>
+            <DoctorAvailabilityAtAGlance />
+          </>
+        }
         mobileActions={
           <>
             <div className="text-sm font-semibold text-[#2c2e4b] px-2">Quick actions</div>
@@ -97,7 +102,15 @@ sidebar={
           </>
         }
       >
-        <QueueManagementPanels />
+        <div className="space-y-5">
+          {hasPendingActions && (
+            <FrontdeskPendingActionsPanel
+              completedAppointments={completedAppointments}
+              isLoading={isLoading}
+            />
+          )}
+          <QueueManagementPanels />
+        </div>
       </DashboardShell>
 
       {/* Dialog Components */}

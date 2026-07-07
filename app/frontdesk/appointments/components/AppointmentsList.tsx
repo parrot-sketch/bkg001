@@ -1,7 +1,7 @@
 import { Calendar, Filter, Plus, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FrontdeskAppointmentCard } from '@/components/frontdesk/FrontdeskAppointmentCard';
+import { FrontdeskAppointmentCardV2 } from '@/components/frontdesk/FrontdeskAppointmentCardV2';
 import { useRouter } from 'next/navigation';
 import { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { STATUS_CHIPS } from './AppointmentsFilterBar';
@@ -60,10 +60,14 @@ export function AppointmentsList({
       ) : (
         <div className="space-y-2">
           {filteredAppointments.map((appointment: AppointmentResponseDto) => (
-            <FrontdeskAppointmentCard
+            <FrontdeskAppointmentCardV2
               key={appointment.id}
               appointment={appointment}
-              isHighlighted={highlightedId === appointment.id}
+              onAction={(action) => {
+                if (action === 'details') {
+                  router.push(`/frontdesk/appointments/${appointment.id}`);
+                }
+              }}
             />
           ))}
         </div>

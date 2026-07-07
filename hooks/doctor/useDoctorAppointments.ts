@@ -5,23 +5,21 @@
  * Used for history and patient timeline views.
  */
 
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { doctorApi } from '@/lib/api/doctor';
+import { appointmentKeys } from '@/hooks/useAppointments';
+import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 
-/**
- * Hook for fetching all appointments for a doctor
- * 
- * @param doctorId - Doctor ID
- * @param enabled - Whether the query should run (default: true)
- */
 export function useDoctorAppointments(doctorId: string | undefined, statuses?: string, enabled = true) {
+    const filters = useMemo(() => ({ doctorId, status: statuses }), [doctorId, statuses]);
+    
     return useQuery({
-        queryKey: ['doctor', doctorId, 'appointments', statuses || 'all'],
-        queryFn: async () => {
+        queryKey: appointmentKeys.list(filters),
+        queryFn: async (): Promise<AppointmentResponseDto[]> => {
             if (!doctorId) {
                 throw new Error('Doctor ID is required');
             }
-            // Fetch appointments matching statuses
             const response = await doctorApi.getAppointments(doctorId, statuses, true);
 
             if (!response.success) {

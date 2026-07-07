@@ -14,30 +14,15 @@ export interface FrontdeskDashboardStats {
   pendingIntakeCount: number;
 }
 
-export interface FrontdeskAppointment {
-  id: number;
-  patientId: string;
+import {
+  type AppointmentResponseDto,
+} from '@/application/dtos/AppointmentResponseDto';
+
+export interface FrontdeskAppointment extends AppointmentResponseDto {
   patientName: string;
   patientFileNumber: string | null;
   patientPhone: string | null;
-  doctorId: string;
   doctorName: string;
-  appointmentDate: string;
-  time: string;
-  type: string;
-  status: string;
-  patient?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    fileNumber: string | undefined;
-    img?: string | null;
-  };
-  doctor?: {
-    id: string;
-    name: string;
-    specialization?: string;
-  };
 }
 
 export interface FrontdeskCheckedInPatient {
@@ -254,7 +239,7 @@ async function fetchDashboardDataInternal(): Promise<FrontdeskDashboardData> {
       fileNumber: a.patient?.fileNumber || '',
       phone: a.patientPhone || '',
     },
-    appointmentDate: a.appointmentDate,
+    appointmentDate: typeof a.appointmentDate === 'string' ? a.appointmentDate : new Date(a.appointmentDate).toISOString(),
     time: a.time,
     type: a.type,
     checkedInAt: new Date().toISOString(),
