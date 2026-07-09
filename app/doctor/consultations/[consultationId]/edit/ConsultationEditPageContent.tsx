@@ -41,6 +41,7 @@ interface ConsultationRecord {
 interface ConsultationEditPageContentProps {
   recordData: ConsultationRecord;
   doctorId: string;
+  patientId?: string;
 }
 
 const TAB_CONFIG = [
@@ -50,7 +51,7 @@ const TAB_CONFIG = [
   { id: 'plan', label: 'Plan', icon: ClipboardCheck, description: 'Treatment & follow-up' },
 ] as const;
 
-export default function ConsultationEditPageContent({ recordData, doctorId }: ConsultationEditPageContentProps) {
+export default function ConsultationEditPageContent({ recordData, doctorId, patientId }: ConsultationEditPageContentProps) {
   const patient = recordData.appointment.patient;
 
   const [chiefComplaint, setChiefComplaint] = useState(recordData.chiefComplaint);
@@ -109,7 +110,7 @@ export default function ConsultationEditPageContent({ recordData, doctorId }: Co
         <div className="border-b border-[#a5a0a3]/30 bg-white/80 backdrop-blur-sm px-4 lg:px-6 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <Button asChild variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-[#e7d6bf]/50">
-              <Link href="/doctor/consultations">
+              <Link href={patientId ? `/doctor/patients/${patientId}` : '/doctor/consultations'}>
                 <ChevronLeft className="h-4 w-4" />
               </Link>
             </Button>

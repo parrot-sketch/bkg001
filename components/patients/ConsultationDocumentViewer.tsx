@@ -187,13 +187,13 @@ export function ConsultationDocumentViewer({
     );
   }
 
-  const hasAnyContent = Boolean(
+  const hasStructured = Boolean(
     consultation.chiefComplaint ||
     consultation.examination ||
     consultation.assessment ||
-    consultation.plan ||
-    consultation.doctorNotes
+    consultation.plan
   );
+  const legacyNotes = consultation.doctorNotes?.trim() || '';
 
   return (
     <Card className="border-stone-200 shadow-sm">
@@ -213,7 +213,7 @@ export function ConsultationDocumentViewer({
       </CardHeader>
 
       <CardContent className="px-5 pb-5 pt-3">
-        {hasAnyContent ? (
+        {hasStructured ? (
           <DocSection>
             {/* ── Chief Complaint ─────────────────────────────────── */}
             <SectionField keyName="chiefComplaint" value={consultation.chiefComplaint} />
@@ -233,25 +233,20 @@ export function ConsultationDocumentViewer({
             {/* ── Treatment Plan ─────────────────────────────────── */}
             <SectionField keyName="plan" value={consultation.plan} />
           </DocSection>
+        ) : legacyNotes ? (
+          /* Legacy fallback — only shown when no structured SOAP exists */
+          <div className="bg-[#F4F1E8] rounded-lg px-4 py-3 space-y-0.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 flex items-center gap-1.5">
+              <PenLine className="h-3 w-3" />
+              Doctor Notes
+            </p>
+            <div
+              className="text-sm text-stone-800 leading-relaxed prose prose-sm prose-stone max-w-none italic [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1"
+              dangerouslySetInnerHTML={{ __html: `\u201c${legacyNotes}\u201d` }}
+            />
+          </div>
         ) : (
-          <p className="text-xs text-stone-400">No structured consultation details recorded.</p>
-        )}
-
-        {/* ── Doctor Notes (separate — always shown below divider) ─── */}
-        {consultation.doctorNotes?.trim() && (
-          <>
-            <DocDivider />
-            <div className="bg-[#F4F1E8] rounded-lg px-4 py-3 space-y-0.5">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 flex items-center gap-1.5">
-                <PenLine className="h-3 w-3" />
-                Doctor Notes
-              </p>
-              <div
-                className="text-sm text-stone-800 leading-relaxed prose prose-sm prose-stone max-w-none italic [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1"
-                dangerouslySetInnerHTML={{ __html: `\u201c${consultation.doctorNotes}\u201d` }}
-              />
-            </div>
-          </>
+          <p className="text-xs text-stone-400">No consultation details recorded.</p>
         )}
 
         {/* ── Patient Decision ───────────────────────────────────── */}

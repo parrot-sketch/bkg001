@@ -39,10 +39,16 @@ import {
   Pill,
   DollarSign,
   Stethoscope,
-  AlertCircle,
+  StickyNote,
 } from 'lucide-react';
 import { ConsultationDocumentViewer } from '@/components/patients/ConsultationDocumentViewer';
-import type { VisitResponseDto, VisitVital, VisitMedicalRecord } from '@/application/dtos/VisitResponseDto';
+import type {
+  VisitResponseDto,
+  VisitVital,
+  VisitMedicalRecord,
+  VisitBilling,
+} from '@/application/dtos/VisitResponseDto';
+import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 
 // ─── Types ─────────────────────────────────────────────────────────
@@ -73,6 +79,23 @@ function useVisitDetail(patientId: string, visitId: number, enabled: boolean) {
     staleTime: 30_000,
     gcTime: 60_000,
     retry: 2,
+    refetchOnWindowFocus: false,
+    enabled,
+  });
+}
+
+// Patient identity for the document header (the visit DTO carries no patient field)
+function useVisitPatient(patientId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['doctor', 'patient', patientId],
+    queryFn: async () => {
+      const res = await apiClient.get<PatientResponseDto>(`/patients/${patientId}`);
+      if (!res.success) throw new Error((res as any).error || 'Failed to load patient');
+      return (res as any).data as PatientResponseDto;
+    },
+    staleTime: 60_000,
+    gcTime: 120_000,
+    retry: 1,
     refetchOnWindowFocus: false,
     enabled,
   });
@@ -257,6 +280,7 @@ function DiagnosesSection({ medicalRecords }: DiagnosesSectionProps) {
 
 interface VisitInfoBarProps {
   patientName: string;
+  fileNumber?: string | null;
   doctorName: string | null;
   date: string;
   time: string;
@@ -268,6 +292,7 @@ interface VisitInfoBarProps {
 
 function VisitInfoBar({
   patientName,
+  fileNumber,
   doctorName,
   date,
   time,
@@ -292,6 +317,11 @@ function VisitInfoBar({
 
       <div className="flex items-center gap-2 flex-wrap">
         <h1 className="text-lg font-semibold text-stone-900">{patientName}</h1>
+        {fileNumber && (
+          <span className="text-[10px] font-mono text-stone-400 border border-stone-200 rounded px-1.5 py-0.5">
+            {fileNumber}
+          </span>
+        )}
         <Badge
           variant="outline"
           className={cn('text-[10px] font-bold py-0 h-5 border', sc.bg, sc.text)}
@@ -313,14 +343,79 @@ function VisitInfoBar({
         {doctorName && (
           <span className="flex items-center gap-1">
             <Phone className="h-3 w-3" />
-            Dr. {doctorName}
+            {/^dr\.?\s/i.test(doctorName.trim()) ? doctorName.trim() : `Dr. ${doctorName.trim()}`}
           </span>
         )}
-        {durationMinutes != null && (
-          <span>{durationMinutes} min</span>
-        )}
+        {durationMinutes != null && <span>{durationMinutes} min</span>}
       </div>
     </div>
+  );
+}
+
+// ─── AppointmentNoteStrip ─────────────────────────────────────────
+// Appointment-level metadata (booking note / reason). Deliberately
+// styled as muted context — NOT a clinical note — to avoid duplication
+// with the consultation SOAP "Doctor Notes" section.
+
+function AppointmentNoteStrip({ note }: { note: string }) {
+  return (
+    <div className="flex items-start gap-2.5 rounded-lg border border-stone-200 bg-stone-50 px-4 py-2.5">
+      <StickyNote className="h-3.5 w-3.5 text-stone-400 mt-0.5 shrink-0" />
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400">
+          Appointment Note
+        </p>
+        <p className="text-xs text-stone-700 leading-relaxed whitespace-pre-wrap">{note}</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── BillingSection ───────────────────────────────────────────────
+
+function BillingSection({ billing }: { billing: VisitBilling }) {
+  const balance = billing.totalAmount - billing.amountPaid;
+  return (
+    <Card>
+      <CardHeader className="pb-2 pt-4 px-5">
+        <CardTitle className="text-sm flex items-center gap-1.5">
+          <DollarSign className="h-4 w-4 text-emerald-600" />
+          Billing
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="px-5 pb-4">
+        <div className="space-y-2 text-sm">
+          {billing.items.map((item) => (
+            <div
+              key={item.id}
+              className="flex items-center justify-between text-xs py-1 border-b border-stone-50 last:border-0"
+            >
+              <span className="text-stone-600">
+                {item.serviceName} × {item.quantity}
+              </span>
+              <span className="font-medium text-stone-800">
+                {item.totalCost.toLocaleString()}
+              </span>
+            </div>
+          ))}
+          <div className="flex items-center justify-between pt-2 border-t border-stone-200 mt-2">
+            <span className="text-xs font-semibold text-stone-700">Total</span>
+            <span className="text-sm font-bold text-stone-900">
+              {billing.totalAmount.toLocaleString()}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-[10px] text-stone-400">
+            <span>Paid: {billing.amountPaid.toLocaleString()}</span>
+            <span className="capitalize">{billing.status.toLowerCase()}</span>
+          </div>
+          {balance > 0 && (
+            <p className="text-[10px] text-amber-600 pt-1">
+              Balance due: {balance.toLocaleString()}
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -342,6 +437,8 @@ export default function DoctorVisitDetailPage({ params }: { params: Promise<Page
     error,
     refetch,
   } = useVisitDetail(patientId, visitId, enabled);
+
+  const { data: patient } = useVisitPatient(patientId, enabled);
 
   // ── Auth guard ─────────────────────────────────────────────────
 
@@ -413,16 +510,17 @@ export default function DoctorVisitDetailPage({ params }: { params: Promise<Page
 
   // ── Rendered ────────────────────────────────────────────────────
 
-  const patientName = `${visit.doctor?.name || 'Patient'}`;
-  const hasVitals    = visit.vitals.length > 0;
-  const hasDiags     = visit.medicalRecords.some((mr) => mr.diagnoses.length > 0);
-  const hasBilling   = Boolean(visit.billing);
+  const patientName = patient
+    ? `${patient.firstName} ${patient.lastName}`.trim()
+    : 'Patient';
+  const hasBilling = Boolean(visit.billing);
 
   return (
-    <div className="space-y-5 animate-in fade-in duration-300 pb-8">
+    <div className="max-w-4xl mx-auto space-y-4 animate-in fade-in duration-300 pb-10">
       {/* ── Header ───────────────────────────────────────────────── */}
       <VisitInfoBar
         patientName={patientName}
+        fileNumber={patient?.fileNumber}
         doctorName={visit.doctor?.name || null}
         date={visit.date}
         time={visit.time}
@@ -432,9 +530,10 @@ export default function DoctorVisitDetailPage({ params }: { params: Promise<Page
         onBack={() => router.push(`/doctor/patients/${patientId}`)}
       />
 
-      <div className="h-px bg-stone-100" />
+      {/* Appointment-level metadata — distinct from clinical notes */}
+      {visit.note && <AppointmentNoteStrip note={visit.note} />}
 
-      {/* ── Consultation Document  ← PRIMARY CONTENT ─────────────── */}
+      {/* ── Clinical Documentation (SOAP)  ← PRIMARY CONTENT ─────── */}
       <ConsultationDocumentViewer
         consultation={visit.consultation}
         appointmentDate={visit.date}
@@ -442,74 +541,14 @@ export default function DoctorVisitDetailPage({ params }: { params: Promise<Page
         appointmentType={visit.type}
       />
 
-      {/* ── Vitals ───────────────────────────────────────────────── */}
+      {/* ── Objective: Vitals ────────────────────────────────────── */}
       <VitalsSection vitals={visit.vitals} />
 
-      {/* ── Diagnoses & Prescriptions ─────────────────────────────── */}
+      {/* ── Diagnoses & Prescriptions ────────────────────────────── */}
       <DiagnosesSection medicalRecords={visit.medicalRecords} />
 
-      {/* ── Visit Note ────────────────────────────────────────────── */}
-      {visit.note && (
-        <Card>
-          <CardHeader className="pb-2 pt-4 px-5">
-            <CardTitle className="text-sm flex items-center gap-1.5">
-              <AlertCircle className="h-4 w-4 text-amber-500" />
-              Visit Note
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-5 pb-4">
-            <p className="text-sm text-stone-700 leading-relaxed whitespace-pre-wrap">
-              {visit.note}
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
       {/* ── Billing ──────────────────────────────────────────────── */}
-      {hasBilling && (
-        <Card>
-          <CardHeader className="pb-2 pt-4 px-5">
-            <CardTitle className="text-sm flex items-center gap-1.5">
-              <DollarSign className="h-4 w-4 text-emerald-600" />
-              Billing
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-5 pb-4">
-            <div className="space-y-2 text-sm">
-              {visit.billing!.items.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between text-xs py-1 border-b border-stone-50 last:border-0"
-                >
-                  <span className="text-stone-600">
-                    {item.serviceName} × {item.quantity}
-                  </span>
-                  <span className="font-medium text-stone-800">
-                    {item.totalCost.toLocaleString()}
-                  </span>
-                </div>
-              ))}
-              <div className="flex items-center justify-between pt-2 border-t border-stone-200 mt-2">
-                <span className="text-xs font-semibold text-stone-700">Total</span>
-                <span className="text-sm font-bold text-stone-900">
-                  {visit.billing!.totalAmount.toLocaleString()}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-[10px] text-stone-400">
-                <span>Paid: {visit.billing!.amountPaid.toLocaleString()}</span>
-                <span className="capitalize">{visit.billing!.status.toLowerCase()}</span>
-              </div>
-              {visit.billing!.amountPaid > 0 &&
-                visit.billing!.amountPaid < visit.billing!.totalAmount && (
-                  <p className="text-[10px] text-amber-600 pt-1">
-                    Balance due:{' '}
-                    {(visit.billing!.totalAmount - visit.billing!.amountPaid).toLocaleString()}
-                  </p>
-                )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {hasBilling && <BillingSection billing={visit.billing!} />}
     </div>
   );
 }

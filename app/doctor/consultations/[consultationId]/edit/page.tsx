@@ -7,6 +7,9 @@ interface ConsultationEditPageProps {
   params: Promise<{
     consultationId: string;
   }>;
+  searchParams: Promise<{
+    patientId?: string;
+  }>;
 }
 
 async function getConsultationForEdit(consultationId: number, doctorId: string) {
@@ -77,8 +80,13 @@ async function getConsultationForEdit(consultationId: number, doctorId: string) 
   };
 }
 
-export default async function ConsultationEditPage({ params }: ConsultationEditPageProps) {
+export default async function ConsultationEditPage({
+  params,
+  searchParams,
+}: ConsultationEditPageProps) {
   const { consultationId: consultationIdParam } = await params;
+  const sp = await searchParams;
+  const patientId = typeof sp?.patientId === 'string' ? sp.patientId : undefined;
   const user = await getCurrentUser();
   const userId = user?.userId;
 
@@ -107,5 +115,5 @@ export default async function ConsultationEditPage({ params }: ConsultationEditP
     notFound();
   }
 
-  return <ConsultationEditPageContent recordData={recordData} doctorId={doctorRecord.id} />;
+  return <ConsultationEditPageContent recordData={recordData} doctorId={doctorRecord.id} patientId={patientId} />;
 }
