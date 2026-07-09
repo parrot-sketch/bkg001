@@ -176,21 +176,21 @@ export default function DoctorPatientProfilePage() {
 
       {/* 2. Chronic Medical History & Conditions */}
       {(patient.medicalHistory || patient.medicalConditions) && (
-        <div className="border border-slate-200 bg-white p-6 space-y-4 shadow-sm">
-          <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
-            <FileText className="h-4 w-4 text-slate-500" />
+        <div className="border border-[#e7d6bf] bg-white p-6 space-y-4 shadow-sm rounded-xl">
+          <h2 className="text-xs font-bold text-[#2c2e4b] uppercase tracking-wider flex items-center gap-1.5 border-b border-[#e7d6bf]/50 pb-2">
+            <FileText className="h-4 w-4 text-[#2c2e4b]/60" />
             Chronic Medical History & Conditions
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-slate-700">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-[#2c2e4b]/80">
             {patient.medicalHistory && (
               <div className="space-y-1">
-                <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Medical History Summary</span>
+                <span className="block text-[10px] uppercase font-bold text-[#2c2e4b]/40 tracking-wider">Medical History Summary</span>
                 <p className="whitespace-pre-wrap leading-relaxed">{patient.medicalHistory}</p>
               </div>
             )}
             {patient.medicalConditions && (
               <div className="space-y-1">
-                <span className="block text-[10px] uppercase font-bold text-slate-400 tracking-wider">Active Medical Conditions</span>
+                <span className="block text-[10px] uppercase font-bold text-[#2c2e4b]/40 tracking-wider">Active Medical Conditions</span>
                 <p className="whitespace-pre-wrap leading-relaxed">{patient.medicalConditions}</p>
               </div>
             )}
@@ -199,7 +199,7 @@ export default function DoctorPatientProfilePage() {
       )}
 
       {/* 3. Longitudinal Document timeline (Visits & Observation notes) */}
-      <div className="border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="border border-[#e7d6bf] bg-white p-6 shadow-sm rounded-xl">
         <ClinicalDocumentTimeline patientId={patientId} visits={visits || []} />
       </div>
     </div>

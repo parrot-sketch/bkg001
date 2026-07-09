@@ -300,21 +300,30 @@ export const doctorApi = {
 
   /**
    * Get doctor's patients
-   * 
+   *
    * Fetches patients from explicit assignment records (status: ACTIVE by default).
-   * Supports filtering by assignment status and pagination.
-   * 
-   * @param options - Query options (status, skip, take)
+   * Supports server-side search, sorting, status filtering and pagination.
+   *
+   * The response body includes a typed `total` field for pagination math — no
+   * `as any` cast is required by callers.
+   *
+   * @param options - Query options
    */
   async getMyPatients(options?: {
-    status?: 'ACTIVE' | 'DISCHARGED' | 'TRANSFERRED' | 'INACTIVE';
-    skip?: number;
-    take?: number;
-  }): Promise<ApiResponse<PatientResponseDto[]>> {
+    status?:    'ACTIVE' | 'DISCHARGED' | 'TRANSFERRED' | 'INACTIVE' | 'ALL';
+    skip?:      number;
+    take?:      number;
+    search?:    string;
+    sortBy?:    'assignedAt' | 'name';
+    sortOrder?: 'asc' | 'desc';
+  }): Promise<ApiResponse<PatientResponseDto[]> & { total?: number }> {
     const params = new URLSearchParams();
-    if (options?.status) params.set('status', options.status);
-    if (options?.skip !== undefined) params.set('skip', options.skip.toString());
-    if (options?.take !== undefined) params.set('take', options.take.toString());
+    if (options?.status)               params.set('status',    options.status);
+    if (options?.skip    !== undefined) params.set('skip',      options.skip.toString());
+    if (options?.take    !== undefined) params.set('take',      options.take.toString());
+    if (options?.search?.trim())        params.set('search',    options.search.trim());
+    if (options?.sortBy)               params.set('sortBy',    options.sortBy);
+    if (options?.sortOrder)            params.set('sortOrder', options.sortOrder);
 
     const query = params.toString();
     return apiClient.get<PatientResponseDto[]>(`/doctors/me/patients${query ? `?${query}` : ''}`);

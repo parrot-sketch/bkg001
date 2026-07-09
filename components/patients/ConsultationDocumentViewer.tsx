@@ -6,15 +6,6 @@
  * Renders a single consultation as a clean, professional, read-only
  * clinical document. Groups fields into logical sections with print-ready
  * styling. No raw HTML is rendered — all content is plain text.
- *
- * Sections:
- *  - Header: date, time, doctor, status, duration
- *  - Chief Complaint
- *  - Examination Findings
- *  - Assessment / Diagnosis
- *  - Treatment Plan
- *  - Doctor Notes
- *  - Patient Decision & Outcome
  */
 
 import { format } from 'date-fns';
@@ -37,14 +28,6 @@ import type { VisitConsultation } from '@/application/dtos/VisitResponseDto';
 
 // ─── helpers ──────────────────────────────────────────────────────
 
-const SECTION_ICONS: Record<string, typeof Stethoscope> = {
-  chiefComplaint: Phone,
-  examination: Stethoscope,
-  assessment: ClipboardList,
-  plan: Lightbulb,
-  doctorNotes: PenLine,
-};
-
 const SECTION_COPY: Record<string, { label: string; icon: typeof Stethoscope }> = {
   chiefComplaint:   { label: 'Chief Complaint',   icon: Phone },
   examination:      { label: 'Examination',        icon: Stethoscope },
@@ -63,13 +46,13 @@ function SectionField({
   if (!value?.trim()) return null;
   const { label, icon: Icon } = SECTION_COPY[keyName];
   return (
-    <div className="space-y-0.5">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 flex items-center gap-1.5">
-        <Icon className="h-3 w-3" />
+    <div className="space-y-1">
+      <p className="text-[9px] font-bold uppercase tracking-wider text-[#2c2e4b]/40 flex items-center gap-1.5">
+        <Icon className="h-3.5 w-3.5 text-[#2c2e4b]/60" />
         {label}
       </p>
       <div
-        className="text-sm text-stone-800 leading-relaxed prose prose-sm prose-stone max-w-none [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1"
+        className="text-xs text-[#2c2e4b] leading-relaxed prose prose-sm max-w-none [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1"
         dangerouslySetInnerHTML={{ __html: value }}
       />
     </div>
@@ -94,14 +77,14 @@ function OutcomeBadge({ outcomeType, patientDecision }: { outcomeType: string | 
   if (!label) return null;
 
   const colorMap: Record<string, string> = {
-    default: 'bg-blue-50 text-blue-700 border-blue-200',
-    secondary: 'bg-amber-50 text-amber-700 border-amber-200',
-    destructive: 'bg-rose-50 text-rose-700 border-rose-200',
-    outline: 'bg-stone-50 text-stone-600 border-stone-200',
+    default: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    secondary: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    destructive: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+    outline: 'bg-white/10 text-white/70 border-white/15',
   };
 
   return (
-    <Badge variant="outline" className={cn('text-[10px] h-5 border', colorMap[variant])}>
+    <Badge variant="outline" className={cn('text-[9px] h-5 border rounded-md px-1.5 font-bold', colorMap[variant])}>
       {label}
     </Badge>
   );
@@ -111,14 +94,14 @@ function OutcomeBadge({ outcomeType, patientDecision }: { outcomeType: string | 
 
 function DocHeader({ visit }: { visit: VisitConsultation }) {
   return (
-    <div className="flex items-start justify-between gap-4 mb-6">
+    <div className="flex items-start justify-between gap-4 mb-4">
       <div className="flex items-center gap-2.5">
-        <div className="h-9 w-9 rounded-full bg-[#1E3A5F] flex items-center justify-center flex-shrink-0">
+        <div className="h-9 w-9 rounded-lg bg-[#2c2e4b] flex items-center justify-center flex-shrink-0">
           <FileText className="h-4 w-4 text-white" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-stone-900">Clinical Document</p>
-          <p className="text-[10px] text-stone-400">
+          <p className="text-xs font-bold text-[#2c2e4b]">Clinical Document</p>
+          <p className="text-[10px] text-[#2c2e4b]/40 font-mono mt-0.5">
             {visit.startedAt && format(new Date(visit.startedAt), 'EEEE, MMM d, yyyy · h:mm a')}
           </p>
         </div>
@@ -126,7 +109,7 @@ function DocHeader({ visit }: { visit: VisitConsultation }) {
       <div className="flex items-center gap-2 flex-wrap justify-end">
         <OutcomeBadge outcomeType={visit.outcomeType} patientDecision={visit.patientDecision} />
         {visit.durationMinutes != null && (
-          <span className="text-[10px] text-stone-400 flex items-center gap-1">
+          <span className="text-[10px] text-[#2c2e4b]/40 font-mono flex items-center gap-1">
             <Clock className="h-3 w-3" /> {visit.durationMinutes} min
           </span>
         )}
@@ -146,21 +129,13 @@ function DocSection({
 }
 
 function DocDivider() {
-  return <div className="h-px bg-stone-100 my-4" />;
+  return <div className="h-px bg-[#e7d6bf]/30 my-4" />;
 }
 
 // ─── main component ───────────────────────────────────────────────
 
 interface ConsultationDocumentViewerProps {
-  /**
-   * The raw consultation data merged with visits. If consultation is null
-   * the component will show a "no record" empty state instead.
-   */
   consultation: VisitConsultation | null;
-  /**
-   * Appointment backdrop — shown in header so the doctor immediately knows
-   * which visit this corresponds to.
-   */
   appointmentDate?: string | null;
   appointmentTime?: string | null;
   appointmentType?: string | null;
@@ -172,14 +147,13 @@ export function ConsultationDocumentViewer({
   appointmentTime,
   appointmentType,
 }: ConsultationDocumentViewerProps) {
-  // ── Empty / no-consultation state ───────────────────────────────
   if (!consultation) {
     return (
-      <Card className="border-dashed">
+      <Card className="border-dashed border-[#e7d6bf] bg-white rounded-xl shadow-sm overflow-hidden">
         <CardContent className="pt-8 pb-8 flex flex-col items-center">
-          <ClipboardList className="h-8 w-8 text-stone-300 mb-3" />
-          <p className="text-xs font-medium text-stone-500">No consultation record</p>
-          <p className="text-[10px] text-stone-400 mt-1">
+          <ClipboardList className="h-8 w-8 text-[#e7d6bf] mb-3" />
+          <p className="text-xs font-semibold text-[#2c2e4b]">No consultation record</p>
+          <p className="text-[10px] text-[#2c2e4b]/40 mt-1">
             This visit does not have consultation notes yet.
           </p>
         </CardContent>
@@ -196,11 +170,11 @@ export function ConsultationDocumentViewer({
   const legacyNotes = consultation.doctorNotes?.trim() || '';
 
   return (
-    <Card className="border-stone-200 shadow-sm">
+    <Card className="border-[#e7d6bf] bg-white rounded-xl shadow-sm overflow-hidden">
       <CardHeader className="px-5 pt-4 pb-0">
         {/* Appointment context strip */}
         {appointmentDate && (
-          <p className="text-[10px] text-stone-400 flex items-center gap-1 mb-2">
+          <p className="text-[9px] text-[#2c2e4b]/40 font-semibold uppercase tracking-wider flex items-center gap-1 mb-2">
             <Calendar className="h-3 w-3" />
             {format(new Date(appointmentDate), 'EEEE, MMM d, yyyy')}
             {appointmentTime && `  ·  ${appointmentTime}`}
@@ -235,18 +209,18 @@ export function ConsultationDocumentViewer({
           </DocSection>
         ) : legacyNotes ? (
           /* Legacy fallback — only shown when no structured SOAP exists */
-          <div className="bg-[#F4F1E8] rounded-lg px-4 py-3 space-y-0.5">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-stone-400 flex items-center gap-1.5">
-              <PenLine className="h-3 w-3" />
+          <div className="bg-[#e7d6bf]/10 border border-[#e7d6bf]/30 rounded-xl px-4 py-3 space-y-1">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-[#2c2e4b]/40 flex items-center gap-1.5">
+              <PenLine className="h-3.5 w-3.5 text-[#2c2e4b]/60" />
               Doctor Notes
             </p>
             <div
-              className="text-sm text-stone-800 leading-relaxed prose prose-sm prose-stone max-w-none italic [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1"
+              className="text-xs text-[#2c2e4b] leading-relaxed prose prose-sm max-w-none italic [&>p]:my-1 [&>ul]:my-1 [&>ol]:my-1"
               dangerouslySetInnerHTML={{ __html: `\u201c${legacyNotes}\u201d` }}
             />
           </div>
         ) : (
-          <p className="text-xs text-stone-400">No consultation details recorded.</p>
+          <p className="text-xs text-[#2c2e4b]/40">No consultation details recorded.</p>
         )}
 
         {/* ── Patient Decision ───────────────────────────────────── */}
@@ -254,15 +228,14 @@ export function ConsultationDocumentViewer({
           <>
             <DocDivider />
             <div className="flex items-center gap-2">
-              {consultation.patientDecision === 'YES' && (
+              {consultation.patientDecision === 'YES' ? (
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              ) : (
+                <HelpCircle className="h-4 w-4 text-[#2c2e4b]/40" />
               )}
-              {consultation.patientDecision === 'NO' && (
-                <HelpCircle className="h-4 w-4 text-stone-400" />
-              )}
-              <p className="text-sm text-stone-700">
-                <span className="font-medium">Patient Decision:</span>{' '}
-                <span>{consultation.patientDecision}</span>
+              <p className="text-xs text-[#2c2e4b]">
+                <span className="font-semibold">Patient Decision:</span>{' '}
+                <span className="font-medium text-[#2c2e4b]/80">{consultation.patientDecision}</span>
               </p>
             </div>
           </>

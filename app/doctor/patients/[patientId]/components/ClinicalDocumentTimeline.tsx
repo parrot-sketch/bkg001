@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { DatePicker } from '@/components/ui/date-picker';
 import type { VisitResponseDto } from '@/application/dtos/VisitResponseDto';
 import { Pencil, FileText, ArrowUpDown, Calendar } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ClinicalDocumentTimelineProps {
   patientId: string;
@@ -63,40 +64,40 @@ export function ClinicalDocumentTimeline({ patientId, visits }: ClinicalDocument
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+      <div className="flex items-center justify-between border-b border-[#e7d6bf]/50 pb-3">
         <div>
-          <h2 className="text-base font-bold text-slate-900 tracking-tight">Clinical Chart Feed</h2>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <h2 className="text-base font-bold text-[#2c2e4b] tracking-tight">Clinical Chart Feed</h2>
+          <p className="text-xs text-[#2c2e4b]/40 mt-0.5">
             Past consultations &amp; visit history
           </p>
         </div>
       </div>
 
       {/* Filter / Sort toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <div className="flex items-center gap-2">
           <DatePicker
             value={fromDate ?? undefined}
             onChange={(d) => setFromDate(d ?? null)}
             placeholder="From date"
-            className="h-8 w-40 text-xs"
+            className="h-8 w-40 text-xs border-[#e7d6bf] text-[#2c2e4b] focus:ring-[#caa26a]/60"
           />
-          <span className="text-xs text-slate-400">–</span>
+          <span className="text-xs text-[#2c2e4b]/40">–</span>
           <DatePicker
             value={toDate ?? undefined}
             onChange={(d) => setToDate(d ?? null)}
             placeholder="To date"
-            className="h-8 w-40 text-xs"
+            className="h-8 w-40 text-xs border-[#e7d6bf] text-[#2c2e4b] focus:ring-[#caa26a]/60"
           />
         </div>
 
         <Button
           variant="outline"
           size="sm"
-          className="h-8 text-xs border-slate-200 text-slate-600"
+          className="h-8 text-xs border-[#e7d6bf] text-[#2c2e4b] hover:bg-[#e7d6bf]/10 rounded-lg"
           onClick={() => setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))}
         >
-          <ArrowUpDown className="h-3.5 w-3.5 mr-1.5" />
+          <ArrowUpDown className="h-3.5 w-3.5 mr-1.5 text-[#2c2e4b]/60" />
           {sortDir === 'desc' ? 'Newest first' : 'Oldest first'}
         </Button>
 
@@ -104,7 +105,7 @@ export function ClinicalDocumentTimeline({ patientId, visits }: ClinicalDocument
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 text-xs text-slate-500"
+            className="h-8 text-xs text-[#2c2e4b]/60 hover:text-[#2c2e4b] hover:bg-[#e7d6bf]/10 rounded-lg"
             onClick={() => {
               setFromDate(null);
               setToDate(null);
@@ -114,25 +115,25 @@ export function ClinicalDocumentTimeline({ patientId, visits }: ClinicalDocument
           </Button>
         )}
 
-        <span className="sm:ml-auto text-xs text-slate-400">
+        <span className="sm:ml-auto text-xs text-[#2c2e4b]/40">
           {rows.length} record{rows.length !== 1 ? 's' : ''}
         </span>
       </div>
 
       {/* Table */}
       {rows.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 bg-white border border-dashed border-slate-200 rounded">
-          <Calendar className="h-8 w-8 text-slate-300 mb-3" />
-          <p className="text-sm font-medium text-slate-600">No medical events recorded</p>
-          <p className="text-xs text-slate-400 mt-1">
+        <div className="flex flex-col items-center justify-center py-16 bg-white border border-dashed border-[#e7d6bf] rounded-xl">
+          <Calendar className="h-8 w-8 text-[#e7d6bf] mb-3" />
+          <p className="text-sm font-medium text-[#2c2e4b]">No medical events recorded</p>
+          <p className="text-xs text-[#2c2e4b]/40 mt-1">
             {visits?.length ? 'No visits match the selected date range.' : 'Timeline is empty for this patient record.'}
           </p>
         </div>
       ) : (
-        <div className="border border-slate-200 bg-white overflow-hidden rounded-lg">
+        <div className="border border-[#e7d6bf] bg-white overflow-hidden rounded-xl">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+              <tr className="border-b border-[#e7d6bf] bg-[#e7d6bf]/10 text-[10px] font-semibold uppercase tracking-wider text-[#2c2e4b]/60">
                 <th className="text-left px-4 py-2.5">Date</th>
                 <th className="text-left px-4 py-2.5">Doctor</th>
                 <th className="text-left px-4 py-2.5">Type</th>
@@ -141,53 +142,54 @@ export function ClinicalDocumentTimeline({ patientId, visits }: ClinicalDocument
                 <th className="text-right px-4 py-2.5">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-[#e7d6bf]/50">
               {rows.map((visit) => {
                 const consultation = visit.consultation;
                 const summary = consultation?.chiefComplaint?.replace(/<[^>]*>/g, '').trim();
                 return (
-                  <tr key={`visit-${visit.id}`} className="hover:bg-slate-50/60 transition-colors">
+                  <tr key={`visit-${visit.id}`} className="hover:bg-[#e7d6bf]/5 transition-colors">
                     <td className="px-4 py-3 align-top whitespace-nowrap">
-                      <div className="font-medium text-slate-800">
+                      <div className="font-semibold text-[#2c2e4b]">
                         {format(parseISO(visit.date), 'MMM d, yyyy')}
                       </div>
-                      <div className="text-[10px] text-slate-400 font-mono">{visit.time}</div>
+                      <div className="text-[10px] text-[#2c2e4b]/40 font-mono mt-0.5">{visit.time}</div>
                     </td>
-                    <td className="px-4 py-3 align-top text-slate-700">
+                    <td className="px-4 py-3 align-top text-[#2c2e4b]">
                       {visit.doctor?.name || '—'}
                       {visit.doctor?.specialization && (
-                        <div className="text-[10px] text-slate-400">{visit.doctor.specialization}</div>
+                        <div className="text-[10px] text-[#2c2e4b]/40 mt-0.5">{visit.doctor.specialization}</div>
                       )}
                     </td>
-                    <td className="px-4 py-3 align-top text-slate-600 capitalize">
+                    <td className="px-4 py-3 align-top text-[#2c2e4b]/80 capitalize">
                       {visit.type?.toLowerCase() || '—'}
                     </td>
                     <td className="px-4 py-3 align-top">
                       <Badge
                         variant="outline"
-                        className={`text-[10px] font-medium border ${
+                        className={cn(
+                          'text-[10px] font-medium border rounded-md px-2 py-0.5',
                           STATUS_STYLES[visit.status] || 'bg-slate-100 text-slate-600 border-slate-200'
-                        }`}
+                        )}
                       >
                         {prettyStatus(visit.status)}
                       </Badge>
                     </td>
-                    <td className="px-4 py-3 align-top text-slate-600 max-w-[280px]">
-                      <span className="line-clamp-2 text-xs">
+                    <td className="px-4 py-3 align-top text-[#2c2e4b]/70 max-w-[280px]">
+                      <span className="line-clamp-2 text-xs leading-relaxed">
                         {summary || (consultation ? 'Consultation recorded' : '—')}
                       </span>
                     </td>
                     <td className="px-4 py-3 align-top text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1.5">
-                        <Button asChild variant="ghost" size="sm" className="h-7 text-[11px] text-slate-500">
+                        <Button asChild variant="ghost" size="sm" className="h-7 text-[11px] text-[#2c2e4b]/60 hover:text-[#2c2e4b] hover:bg-[#e7d6bf]/10 rounded-lg">
                           <Link href={`/doctor/patients/${patientId}/visits/${visit.id}`}>
-                            <FileText className="h-3 w-3 mr-1" /> View
+                            <FileText className="h-3.5 w-3.5 mr-1 text-[#2c2e4b]/60" /> View
                           </Link>
                         </Button>
                         {consultation && (
-                          <Button asChild size="sm" className="h-7 text-[11px] bg-slate-900 hover:bg-slate-800 text-white">
+                          <Button asChild size="sm" className="h-7 text-[11px] bg-[#2c2e4b] hover:bg-[#2c2e4b]/90 text-white rounded-lg">
                             <Link href={`/doctor/consultations/${consultation.id}/edit?patientId=${patientId}`}>
-                              <Pencil className="h-3 w-3 mr-1" /> Edit
+                              <Pencil className="h-3 w-3 mr-1 text-white/80" /> Edit
                             </Link>
                           </Button>
                         )}

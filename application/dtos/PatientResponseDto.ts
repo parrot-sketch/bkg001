@@ -30,4 +30,8 @@ export interface PatientResponseDto {
   readonly profileImage?: string;
   readonly colorCode?: string;
   readonly lastVisitDate?: Date;
+  /** When this patient was assigned to the current doctor (from DoctorPatientAssignment). */
+  readonly assignedAt?: Date | null;
+  /** Total number of appointments with the current doctor — populated by the /me/patients endpoint. */
+  readonly visitCount?: number;
 }
