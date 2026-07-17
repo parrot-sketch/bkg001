@@ -11,7 +11,6 @@ import { useInventoryPlanningTab } from './useInventoryPlanningTab';
 import { InventoryPlanningTabView } from './InventoryPlanningTab.view';
 import { InventoryCategory } from '@/domain/enums/InventoryCategory';
 import { useAuth } from '@/hooks/patient/useAuth';
-import { tokenStorage } from '@/lib/auth/token';
 import { useSurgicalCasePlanPage } from '../../shared/hooks/useSurgicalCasePlanPage';
 import { OPERATIVE_STATUSES } from '../../core/constants';
 
@@ -22,11 +21,10 @@ interface InventoryPlanningTabContainerProps {
 export function InventoryPlanningTabContainer({
   caseId,
 }: InventoryPlanningTabContainerProps) {
-  // Get actor user ID and role
+  // Get actor user ID and role from the authenticated session (no client token storage).
   const { user } = useAuth();
-  const storedUser = tokenStorage.getUser();
-  const actorUserId = user?.id || storedUser?.id || '';
-  const actorRole = user?.role || storedUser?.role;
+  const actorUserId = user?.id || '';
+  const actorRole = user?.role;
 
   // Load foundation case data for status and baseline permissions
   const { data: pageData, canEdit: pageCanEdit } = useSurgicalCasePlanPage(caseId);

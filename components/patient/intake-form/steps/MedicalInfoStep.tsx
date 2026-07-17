@@ -13,8 +13,8 @@ export function MedicalInfoStep({ form }: MedicalInfoStepProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-gray-900">Medical Information</h2>
-        <p className="text-gray-600 mt-1">Help us understand your medical background</p>
+        <h2 className="text-xl font-bold text-gray-900">Your Health</h2>
+        <p className="text-gray-500 mt-1">Help us understand your medical background (optional)</p>
       </div>
 
       <div className="space-y-4">
@@ -91,7 +91,7 @@ export function MedicalInfoStep({ form }: MedicalInfoStepProps) {
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
         <p className="text-sm text-blue-900">
-          💉 Complete medical information helps us provide safer, more personalized care.
+          Complete medical information helps us provide safer, more personalized care.
         </p>
       </div>
     </div>

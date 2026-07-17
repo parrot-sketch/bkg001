@@ -89,20 +89,6 @@ export default function ProfilePage() {
 
       toast.success('Profile updated successfully');
 
-      // Update stored user data with new profile information
-      if (response.data && typeof window !== 'undefined') {
-        const { tokenStorage } = await import('@/lib/auth/token');
-        const currentUser = tokenStorage.getUser();
-        if (currentUser) {
-          tokenStorage.setUser({
-            ...currentUser,
-            firstName: response.data.firstName || currentUser.firstName,
-            lastName: response.data.lastName || currentUser.lastName,
-            phone: response.data.phone || currentUser.phone,
-          });
-        }
-      }
-      
       // Check if user now has a patient profile and redirect accordingly
       if (user?.id) {
         const hasProfile = await hasPatientProfile(user.id);

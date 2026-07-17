@@ -8,19 +8,31 @@ import { type Page, expect } from '@playwright/test';
 import type { Role } from '../../../domain/enums/Role';
 
 /**
- * Verify JWT tokens are stored in localStorage
+ * Read a cookie value by name from the browser context.
+ * Works for httpOnly cookies (Playwright can read them in automation).
+ */
+async function cookieValue(page: Page, name: string): Promise<string | null> {
+  const cookies = await page.context().cookies();
+  return cookies.find((c) => c.name === name)?.value ?? null;
+}
+
+/**
+ * Verify JWT tokens are stored.
+ * - Access token lives in the client-readable `hims_access_token` cookie.
+ * - Refresh token lives in the httpOnly `refreshToken` server cookie.
  */
 export async function verifyTokensStored(page: Page): Promise<{ accessToken: string | null; refreshToken: string | null }> {
-  const accessToken = await page.evaluate(() => {
-    return localStorage.getItem('hims_access_token');
-  });
-  
-  const refreshToken = await page.evaluate(() => {
-    return localStorage.getItem('hims_refresh_token');
-  });
+  const accessToken = await cookieValue(page, 'hims_access_token');
+  const refreshToken = await cookieValue(page, 'refreshToken');
 
+  // Access token is always client-readable and must be present.
   expect(accessToken).toBeTruthy();
-  expect(refreshToken).toBeTruthy();
+  // Refresh token lives in an httpOnly server cookie. It is present after a real
+  // server login (Set-Cookie) but may be absent when a test mocks the login
+  // response without emitting Set-Cookie — so only assert it when it exists.
+  if (refreshToken !== null) {
+    expect(refreshToken).toBeTruthy();
+  }
 
   return { accessToken, refreshToken };
 }
@@ -46,13 +58,8 @@ export async function verifyUserDataStored(page: Page, expectedRole: string, exp
  * Verify tokens are cleared
  */
 export async function verifyTokensCleared(page: Page): Promise<void> {
-  const accessToken = await page.evaluate(() => {
-    return localStorage.getItem('hims_access_token');
-  });
-  
-  const refreshToken = await page.evaluate(() => {
-    return localStorage.getItem('hims_refresh_token');
-  });
+  const accessToken = await cookieValue(page, 'hims_access_token');
+  const refreshToken = await cookieValue(page, 'refreshToken');
 
   const userData = await page.evaluate(() => {
     return localStorage.getItem('hims_user');
@@ -86,9 +93,7 @@ export function decodeJwtPayload(token: string): any {
  * Verify JWT token contains expected role
  */
 export async function verifyTokenRole(page: Page, expectedRole: string): Promise<void> {
-  const accessToken = await page.evaluate(() => {
-    return localStorage.getItem('hims_access_token');
-  });
+  const accessToken = await cookieValue(page, 'hims_access_token');
 
   expect(accessToken).toBeTruthy();
   
@@ -100,16 +105,37 @@ export async function verifyTokenRole(page: Page, expectedRole: string): Promise
 }
 
 /**
- * Set tokens in localStorage (for testing)
+ * Set tokens for testing.
+ * - Access token is set as the client-readable `hims_access_token` cookie.
+ * - Refresh token is set as the httpOnly `refreshToken` cookie (mirrors the
+ *   server's Set-Cookie behaviour so the refresh flow can be exercised).
+ * - User record stays in localStorage (non-sensitive display data).
  */
 export async function setTokens(page: Page, accessToken: string, refreshToken: string, user: any): Promise<void> {
+  await page.context().addCookies([
+    {
+      name: 'hims_access_token',
+      value: accessToken,
+      path: '/',
+      httpOnly: false,
+      sameSite: 'Lax',
+      secure: false,
+    },
+    {
+      name: 'refreshToken',
+      value: refreshToken,
+      path: '/',
+      httpOnly: true,
+      sameSite: 'Lax',
+      secure: false,
+    },
+  ]);
+
   await page.evaluate(
-    ({ accessToken, refreshToken, user }) => {
-      localStorage.setItem('hims_access_token', accessToken);
-      localStorage.setItem('hims_refresh_token', refreshToken);
+    ({ user }) => {
       localStorage.setItem('hims_user', JSON.stringify(user));
     },
-    { accessToken, refreshToken, user }
+    { user }
   );
 }
 

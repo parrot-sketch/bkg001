@@ -13,8 +13,8 @@ export function PersonalInfoStep({ form }: PersonalInfoStepProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-gray-900">Personal Information</h2>
-        <p className="text-gray-600 mt-1">Let's start with your basic details</p>
+        <h2 className="text-xl font-bold text-gray-900">About You</h2>
+        <p className="text-gray-500 mt-1">Let's start with your basic details</p>
       </div>
 
       <div className="space-y-4">
@@ -91,7 +91,7 @@ export function PersonalInfoStep({ form }: PersonalInfoStepProps) {
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
         <p className="text-sm text-blue-900">
-          💡 Your information helps us provide better care and understand your medical history.
+          Your information helps us provide better care and understand your medical history.
         </p>
       </div>
     </div>

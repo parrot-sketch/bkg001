@@ -12,8 +12,8 @@ export function InsuranceInfoStep({ form }: InsuranceInfoStepProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-gray-900">Insurance Information</h2>
-        <p className="text-gray-600 mt-1">This helps us process your claims and billing (Optional)</p>
+        <h2 className="text-xl font-bold text-gray-900">Insurance Info</h2>
+        <p className="text-gray-500 mt-1">This helps us process your claims and billing (Optional)</p>
       </div>
 
       <div className="space-y-4">
@@ -50,7 +50,7 @@ export function InsuranceInfoStep({ form }: InsuranceInfoStepProps) {
 
       <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-6">
         <p className="text-sm text-green-900">
-          💳 Having insurance information ready makes billing easier for everyone.
+          Having insurance information ready makes billing easier for everyone.
         </p>
       </div>
     </div>

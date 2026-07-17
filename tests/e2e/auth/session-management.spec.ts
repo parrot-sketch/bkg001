@@ -52,7 +52,8 @@ test.describe('Session & Token Management', () => {
       // If automatic refresh is implemented, new token should be stored
       // Otherwise, user should be logged out
       const currentToken = await page.evaluate(() => {
-        return localStorage.getItem('hims_access_token');
+        const m = document.cookie.match(/(?:^|; )hims_access_token=([^;]*)/);
+        return m ? decodeURIComponent(m[1]) : null;
       });
 
       // Token should be either refreshed or cleared
@@ -228,7 +229,8 @@ test.describe('Session & Token Management', () => {
 
       // User should still be authenticated
       const token = await page.evaluate(() => {
-        return localStorage.getItem('hims_access_token');
+        const m = document.cookie.match(/(?:^|; )hims_access_token=([^;]*)/);
+        return m ? decodeURIComponent(m[1]) : null;
       });
       expect(token).toBeTruthy();
     });
@@ -267,9 +269,15 @@ test.describe('Session & Token Management', () => {
       const newPage = await context.newPage();
       await newPage.goto('/patient/dashboard');
 
-      // Both tabs should have access (localStorage is per origin, shared across tabs)
-      const tokenTab1 = await page.evaluate(() => localStorage.getItem('hims_access_token'));
-      const tokenTab2 = await newPage.evaluate(() => localStorage.getItem('hims_access_token'));
+      // Both tabs should have access (cookies are per origin, shared across tabs)
+      const tokenTab1 = await page.evaluate(() => {
+        const m = document.cookie.match(/(?:^|; )hims_access_token=([^;]*)/);
+        return m ? decodeURIComponent(m[1]) : null;
+      });
+      const tokenTab2 = await newPage.evaluate(() => {
+        const m = document.cookie.match(/(?:^|; )hims_access_token=([^;]*)/);
+        return m ? decodeURIComponent(m[1]) : null;
+      });
 
       expect(tokenTab1).toBeTruthy();
       expect(tokenTab2).toBe(tokenTab1); // Same localStorage

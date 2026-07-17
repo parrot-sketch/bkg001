@@ -1,0 +1,1 @@
+export { ConsultationRoom } from './ConsultationRoom';

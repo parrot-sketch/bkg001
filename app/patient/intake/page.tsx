@@ -28,7 +28,7 @@ function PatientIntakePageContent() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 to-slate-100 p-4">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50/30 to-white p-4">
       {/* Header Section */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-4xl mx-auto px-4 py-6">
@@ -37,8 +37,8 @@ function PatientIntakePageContent() {
             <span className="text-sm font-medium text-green-600">Private & Secure</span>
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Patient Intake Form</h1>
-          <p className="text-gray-600">
-            Please complete this form privately. Your information is secure and confidential.
+          <p className="text-gray-500">
+            Please complete this form. Your information is safe with us.
           </p>
         </div>
       </div>
@@ -47,8 +47,7 @@ function PatientIntakePageContent() {
       <div className="flex-1 py-8">
         <PatientIntakeFormRefactored
           sessionId={sessionId}
-          onSuccess={() => {
-            // Redirect after 3 seconds to success message
+          onSuccess={(result) => {
             setTimeout(() => {
               router.replace('/patient/intake/success');
             }, 3000);

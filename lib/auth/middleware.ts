@@ -143,11 +143,9 @@ export class JwtMiddleware {
    */
   async verifyToken(token: string): Promise<AuthContext> {
     try {
-      const payload: TokenPayload = await this.authService.verifyAccessToken(token);
-      
-      console.log(`[JwtMiddleware.verifyToken] Decoded payload:`, JSON.stringify(payload));
+    const payload: TokenPayload = await this.authService.verifyAccessToken(token);
 
-      return {
+       return {
         userId: payload.userId,
         email: payload.email,
         role: payload.role,

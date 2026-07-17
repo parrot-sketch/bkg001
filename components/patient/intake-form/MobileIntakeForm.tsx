@@ -26,23 +26,27 @@ type FormData = {
     maritalStatus?: string; occupation?: string;
     emergencyContactName?: string; emergencyContactNumber?: string; emergencyContactRelation?: string;
     bloodGroup?: string; allergies?: string; medicalConditions?: string;
-    privacyConsent: boolean; serviceConsent: boolean; medicalConsent: boolean;
 };
 
 const STEPS = [
-    { id: 1, title: 'Personal Info', description: 'Tell us about yourself' },
-    { id: 2, title: 'Contact', description: 'How can we reach you?' },
-    { id: 3, title: 'Emergency', description: 'Emergency contact details' },
-    { id: 4, title: 'Medical', description: 'Your medical overview' },
+    { id: 1, title: 'About You', description: 'Tell us your name and birthday' },
+    { id: 2, title: 'Your Contact Info', description: 'How can we reach you?' },
+    { id: 3, title: 'Emergency Contact', description: 'Someone we can call if needed' },
+    { id: 4, title: 'Your Health', description: 'Medical info (optional)' },
 ];
 
 const inputClass =
-    "w-full px-0 py-3 bg-transparent border-0 border-b border-slate-300 text-slate-900 placeholder:text-slate-400 " +
-    "focus:outline-none focus:border-slate-900 transition-colors";
-const labelClass = "block text-[11px] font-semibold tracking-wide uppercase text-slate-600 mb-1";
+    "w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 " +
+    "focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all";
+const labelClass = "block text-sm font-semibold text-slate-700 mb-1.5";
+const optionalLabelClass = "block text-sm font-medium text-slate-500 mb-1.5";
 
 function Required() {
-    return <span className="text-rose-600">*</span>;
+    return <span className="text-rose-500 font-bold ml-0.5">*</span>;
+}
+
+function Optional() {
+    return <span className="text-slate-400 text-xs ml-1">(optional)</span>;
 }
 
 export function MobileIntakeForm({
@@ -57,7 +61,9 @@ export function MobileIntakeForm({
     const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const [submissionResult, setSubmissionResult] = useState<{ fileNumber?: string; firstName?: string } | null>(null);
     const [minutesLeft, setMinutesLeft] = useState(initialMinutes);
+    const [isMinor, setIsMinor] = useState(false);
     const formRef = useRef<HTMLDivElement>(null);
 
     const form = useForm<FormData>({
@@ -69,7 +75,6 @@ export function MobileIntakeForm({
             maritalStatus: '', occupation: '',
             emergencyContactName: '', emergencyContactNumber: '', emergencyContactRelation: '',
             bloodGroup: '', allergies: '', medicalConditions: '',
-            privacyConsent: true, serviceConsent: true, medicalConsent: true,
         },
     });
 
@@ -102,13 +107,30 @@ export function MobileIntakeForm({
         return () => clearInterval(interval);
     }, []);
 
+    /* Detect minor from DOB */
+    const watchedDob = watch('dateOfBirth');
+    useEffect(() => {
+        if (watchedDob) {
+            const birthDate = new Date(watchedDob);
+            const today = new Date();
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const monthDiff = today.getMonth() - birthDate.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                age--;
+            }
+            setIsMinor(age < 18);
+        } else {
+            setIsMinor(false);
+        }
+    }, [watchedDob]);
+
     /* Step navigation */
     const goNext = useCallback(async () => {
         let fieldsToValidate: string[] = [];
         
         if (step === 1) {
             fieldsToValidate = ['firstName', 'lastName', 'dateOfBirth', 'gender'];
-        } else if (step === 2) {
+        } else if (step === 2 && !isMinor) {
             fieldsToValidate = ['phone', 'email', 'address'];
         } else if (step === 3) {
             fieldsToValidate = [];
@@ -119,19 +141,27 @@ export function MobileIntakeForm({
         const valid = fieldsToValidate.length === 0 || await trigger(fieldsToValidate as any);
         
         if (valid) {
-            setStep((s) => Math.min(s + 1, STEPS.length));
+            if (step === 1 && isMinor) {
+                setStep(4);
+            } else {
+                setStep((s) => Math.min(s + 1, STEPS.length));
+            }
             if (formRef.current) {
                 formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         }
-    }, [step, trigger]);
+    }, [step, trigger, isMinor]);
 
     const goPrev = useCallback(() => {
-        setStep((s) => Math.max(s - 1, 1));
+        setStep((s) => {
+            const next = Math.max(s - 1, 1);
+            if (isMinor && next === 2) return 1;
+            return next;
+        });
         if (formRef.current) {
             formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
-    }, []);
+    }, [isMinor]);
 
     /* Submit */
     const handleSubmit = async () => {
@@ -151,8 +181,10 @@ export function MobileIntakeForm({
                 const err = await res.json();
                 throw new Error(err.error || 'Submission failed');
             }
+            const result = await res.json();
             localStorage.removeItem(DRAFT_KEY);
             setSubmitted(true);
+            setSubmissionResult(result);
         } catch (e) {
             setSubmitError(e instanceof Error ? e.message : 'Something went wrong');
         } finally {
@@ -161,6 +193,7 @@ export function MobileIntakeForm({
     };
 
     const stepProgress = (step / STEPS.length) * 100;
+    const displayStep = isMinor && step === 2 ? 3 : step;
 
     // Session can expire while the patient is mid-form.
     // The server will reject submission anyway; we show a clear clinical message.
@@ -169,18 +202,18 @@ export function MobileIntakeForm({
             <div className="min-h-screen bg-white flex flex-col">
                 <div className="px-6 pt-10 pb-6 text-center border-b border-slate-100">
                     <div className="inline-flex items-center gap-2 mb-1">
-                        <div className="h-8 w-8 border border-slate-300 bg-white flex items-center justify-center">
-                            <span className="text-slate-900 font-bold text-sm">NS</span>
+                        <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                            <span className="text-white font-bold text-sm">NS</span>
                         </div>
                         <span className="font-bold text-slate-900 text-lg">Nairobi Sculpt</span>
                     </div>
                 </div>
 
                 <div className="flex-1 flex flex-col items-center justify-center px-6 text-center max-w-sm mx-auto w-full">
-                    <div className="h-16 w-16 border border-slate-300 bg-white flex items-center justify-center mb-5">
-                        <AlertCircle className="h-7 w-7 text-slate-700" />
+                    <div className="h-16 w-16 bg-amber-50 rounded-full flex items-center justify-center mb-5">
+                        <AlertCircle className="h-7 w-7 text-amber-600" />
                     </div>
-                    <h1 className="text-xl font-bold text-slate-900 mb-2">Session expired</h1>
+                    <h1 className="text-xl font-bold text-slate-900 mb-2">Session Expired</h1>
                     <p className="text-slate-500 text-sm leading-relaxed mb-4">
                         For your privacy, this intake session has expired. Please ask the receptionist to generate a new QR code.
                     </p>
@@ -204,15 +237,15 @@ export function MobileIntakeForm({
             <div className="min-h-screen bg-white flex flex-col">
                 <div className="px-6 pt-12 pb-6 text-center border-b border-slate-100">
                     <div className="inline-flex items-center gap-2">
-                        <div className="h-8 w-8 border border-slate-300 bg-white flex items-center justify-center">
-                            <span className="text-slate-900 font-bold text-sm">NS</span>
+                        <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                            <span className="text-white font-bold text-sm">NS</span>
                         </div>
-                        <span className="font-bold text-slate-900">Nairobi Sculpt</span>
+                        <span className="font-bold text-slate-900 text-lg">Nairobi Sculpt</span>
                     </div>
                 </div>
                 <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
-                    <div className="h-24 w-24 border border-slate-300 bg-white flex items-center justify-center mb-6">
-                        <Check className="h-12 w-12 text-slate-900" />
+                    <div className="h-24 w-24 bg-green-50 rounded-full flex items-center justify-center mb-6">
+                        <Check className="h-12 w-12 text-green-600" />
                     </div>
                     <h1 className="text-2xl font-bold text-slate-900 mb-3">
                         {firstName ? `You're all set, ${firstName}!` : "You're all set!"}
@@ -220,6 +253,13 @@ export function MobileIntakeForm({
                     <p className="text-slate-500 text-sm leading-relaxed mb-2">
                         Your details have been received.
                     </p>
+                    {submissionResult?.fileNumber && (
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6">
+                            <p className="text-sm text-slate-900">
+                                Your file number is <span className="font-mono font-bold">{submissionResult.fileNumber}</span>
+                            </p>
+                        </div>
+                    )}
                     <p className="text-slate-500 text-sm mb-6">
                         Please take a seat — we'll call your name shortly.
                     </p>
@@ -235,15 +275,15 @@ export function MobileIntakeForm({
     }
 
     return (
-        <div ref={formRef} className="min-h-screen bg-white">
-            {/* Header (minimal, clinical) */}
-            <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
+        <div ref={formRef} className="min-h-screen bg-gradient-to-b from-blue-50/30 to-white">
+            {/* Header (warm, friendly) */}
+            <div className="bg-white border-b border-slate-100 sticky top-0 z-10">
                 <div className="px-5 py-4 flex items-center gap-3">
-                    <div className="h-10 w-10 bg-white border border-slate-200 flex items-center justify-center">
-                        <span className="text-slate-900 font-extrabold text-sm">NS</span>
+                    <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-sm">
+                        <span className="text-white font-extrabold text-sm">NS</span>
                     </div>
                     <div className="min-w-0">
-                        <p className="text-[11px] tracking-wide uppercase text-slate-500">Nairobi Sculpt</p>
+                        <p className="text-[11px] tracking-wide uppercase text-slate-500 font-medium">Nairobi Sculpt</p>
                         <p className="font-semibold text-slate-900 leading-tight">Patient Intake</p>
                     </div>
                 </div>
@@ -254,32 +294,33 @@ export function MobileIntakeForm({
                 <div className="max-w-md mx-auto">
                     {/* Step title */}
                     <div className="mb-6">
-                        <h2 className="text-base font-semibold text-slate-900">{STEPS[step - 1].title}</h2>
+                        <h2 className="text-xl font-bold text-slate-900">{STEPS[displayStep - 1]?.title || STEPS[step - 1]?.title}</h2>
+                        <p className="text-sm text-slate-500 mt-1">{STEPS[displayStep - 1]?.description || STEPS[step - 1]?.description}</p>
                     </div>
 
                         {/* Form fields */}
-                        <div className="space-y-4">
+                        <div className="space-y-5">
                         {/* Step 1: Personal */}
                         {step === 1 && (
-                            <div className="space-y-4">
+                            <div className="space-y-5">
                                 <div>
                                     <label className={labelClass}>First name <Required /></label>
                                     <input 
                                         {...register('firstName')} 
-                                        placeholder="Your first name"
+                                        placeholder="e.g. Mary"
                                         className={inputClass}
                                         autoFocus
                                     />
-                                    {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName.message}</p>}
+                                    {errors.firstName && <p className="text-red-500 text-xs mt-1.5">{errors.firstName.message}</p>}
                                 </div>
                                 <div>
                                     <label className={labelClass}>Last name <Required /></label>
                                     <input 
                                         {...register('lastName')} 
-                                        placeholder="Your last name"
+                                        placeholder="e.g. Wanjiku"
                                         className={inputClass}
                                     />
-                                    {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName.message}</p>}
+                                    {errors.lastName && <p className="text-red-500 text-xs mt-1.5">{errors.lastName.message}</p>}
                                 </div>
                                 <div>
                                     <label className={labelClass}>Date of birth <Required /></label>
@@ -288,7 +329,7 @@ export function MobileIntakeForm({
                                         type="date"
                                         className={inputClass}
                                     />
-                                    {errors.dateOfBirth && <p className="text-red-500 text-xs mt-1">{errors.dateOfBirth.message}</p>}
+                                    {errors.dateOfBirth && <p className="text-red-500 text-xs mt-1.5">{errors.dateOfBirth.message}</p>}
                                 </div>
                                 <div>
                                     <label className={labelClass}>Gender <Required /></label>
@@ -303,7 +344,7 @@ export function MobileIntakeForm({
 
                         {/* Step 2: Contact */}
                         {step === 2 && (
-                            <div className="space-y-4">
+                            <div className="space-y-5">
                                 <div>
                                     <label className={labelClass}>Phone number <Required /></label>
                                     <Controller
@@ -321,10 +362,29 @@ export function MobileIntakeForm({
                                             </div>
                                         )}
                                     />
-                                    {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
+                                    {errors.phone && <p className="text-red-500 text-xs mt-1.5">{errors.phone.message}</p>}
                                 </div>
                                 <div>
-                                    <label className={labelClass}>WhatsApp Number</label>
+                                    <label className={labelClass}>Email <Required /></label>
+                                    <input 
+                                        {...register('email')} 
+                                        type="email"
+                                        placeholder="your@email.com"
+                                        className={inputClass}
+                                    />
+                                    {errors.email && <p className="text-red-500 text-xs mt-1.5">{errors.email.message}</p>}
+                                </div>
+                                <div>
+                                    <label className={labelClass}>Home address <Required /></label>
+                                    <input 
+                                        {...register('address')} 
+                                        placeholder="e.g. Westlands, Nairobi"
+                                        className={inputClass}
+                                    />
+                                    {errors.address && <p className="text-red-500 text-xs mt-1.5">{errors.address.message}</p>}
+                                </div>
+                                <div>
+                                    <label className={optionalLabelClass}>WhatsApp Number <Optional /></label>
                                     <Controller
                                         name="whatsappPhone"
                                         control={control}
@@ -341,51 +401,36 @@ export function MobileIntakeForm({
                                         )}
                                     />
                                 </div>
-                                <div>
-                                    <label className={labelClass}>Email <Required /></label>
-                                    <input 
-                                        {...register('email')} 
-                                        type="email"
-                                        placeholder="your@email.com"
-                                        className={inputClass}
-                                    />
-                                    {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
-                                </div>
-                                <div>
-                                    <label className={labelClass}>Home address <Required /></label>
-                                    <input 
-                                        {...register('address')} 
-                                        placeholder="e.g. Westlands, Nairobi"
-                                        className={inputClass}
-                                    />
-                                    {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address.message}</p>}
-                                </div>
-                                <div>
-                                    <label className={labelClass}>Marital Status</label>
-                                    <select {...register('maritalStatus')} className={cn(inputClass, "bg-white")}>
-                                        <option value="">Prefer not to say</option>
-                                        <option value="SINGLE">Single</option>
-                                        <option value="MARRIED">Married</option>
-                                        <option value="DIVORCED">Divorced</option>
-                                        <option value="WIDOWED">Widowed</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className={labelClass}>Occupation</label>
-                                    <input 
-                                        {...register('occupation')} 
-                                        placeholder="Your occupation"
-                                        className={inputClass}
-                                    />
-                                </div>
+                                {!isMinor && (
+                                    <>
+                                        <div>
+                                            <label className={optionalLabelClass}>Marital Status <Optional /></label>
+                                            <select {...register('maritalStatus')} className={cn(inputClass, "bg-white")}>
+                                                <option value="">Prefer not to say</option>
+                                                <option value="SINGLE">Single</option>
+                                                <option value="MARRIED">Married</option>
+                                                <option value="DIVORCED">Divorced</option>
+                                                <option value="WIDOWED">Widowed</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className={optionalLabelClass}>Occupation <Optional /></label>
+                                            <input 
+                                                {...register('occupation')} 
+                                                placeholder="Your occupation"
+                                                className={inputClass}
+                                            />
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         )}
 
                         {/* Step 3: Emergency */}
                         {step === 3 && (
-                            <div className="space-y-4">
+                            <div className="space-y-5">
                                 <div>
-                                    <label className={labelClass}>Contact Name</label>
+                                    <label className={labelClass}>Contact Name <Required /></label>
                                     <input 
                                         {...register('emergencyContactName')} 
                                         placeholder="Full name"
@@ -393,7 +438,7 @@ export function MobileIntakeForm({
                                     />
                                 </div>
                                 <div>
-                                    <label className={labelClass}>Contact Phone</label>
+                                    <label className={labelClass}>Contact Phone <Required /></label>
                                     <Controller
                                         name="emergencyContactNumber"
                                         control={control}
@@ -411,7 +456,7 @@ export function MobileIntakeForm({
                                     />
                                 </div>
                                 <div>
-                                    <label className={labelClass}>Relationship</label>
+                                    <label className={labelClass}>Relationship <Required /></label>
                                     <select {...register('emergencyContactRelation')} className={cn(inputClass, "bg-white")}>
                                         <option value="">Select relationship</option>
                                         <option value="SPOUSE">Spouse / Partner</option>
@@ -427,9 +472,9 @@ export function MobileIntakeForm({
 
                         {/* Step 4: Medical */}
                         {step === 4 && (
-                            <div className="space-y-4">
+                            <div className="space-y-5">
                                 <div>
-                                    <label className={labelClass}>Blood Group</label>
+                                    <label className={optionalLabelClass}>Blood Group <Optional /></label>
                                     <select {...register('bloodGroup')} className={cn(inputClass, "bg-white")}>
                                         <option value="">Not sure / prefer not to say</option>
                                         {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => (
@@ -438,26 +483,26 @@ export function MobileIntakeForm({
                                     </select>
                                 </div>
                                 <div>
-                                    <label className={labelClass}>Known Allergies</label>
+                                    <label className={optionalLabelClass}>Known Allergies <Optional /></label>
                                     <textarea
                                         {...register('allergies')}
                                         rows={3}
-                                        placeholder="e.g. Penicillin, latex... or leave blank"
+                                        placeholder="e.g. Penicillin, nuts... or leave blank"
                                         className={cn(inputClass, "resize-none")}
                                     />
                                 </div>
                                 <div>
-                                    <label className={labelClass}>Medical Conditions</label>
+                                    <label className={optionalLabelClass}>Medical Conditions <Optional /></label>
                                     <textarea
                                         {...register('medicalConditions')}
                                         rows={3}
-                                        placeholder="e.g. Diabetes, hypertension... or leave blank"
+                                        placeholder="e.g. Asthma, diabetes... or leave blank"
                                         className={cn(inputClass, "resize-none")}
                                     />
                                 </div>
 
                                 {submitError && (
-                                    <div className="border border-red-200 bg-red-50 p-3 flex items-start gap-2">
+                                    <div className="border border-red-200 bg-red-50 p-3 flex items-start gap-2 rounded-xl">
                                         <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
                                         <p className="text-xs font-medium text-red-600">{submitError}</p>
                                     </div>
@@ -469,15 +514,15 @@ export function MobileIntakeForm({
             </div>
 
             {/* Fixed bottom navigation */}
-            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-5 py-4 z-20">
+            <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-sm border-t border-slate-200 px-5 py-4 z-20">
                 <div className="max-w-md mx-auto flex gap-3">
                     {step > 1 ? (
                         <button
                             type="button"
                             onClick={goPrev}
-                            className="px-5 py-3 border border-slate-200 font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+                            className="px-5 py-3.5 border-2 border-slate-200 font-semibold text-slate-600 rounded-xl hover:bg-slate-50 transition-colors"
                         >
-                            Back
+                            ← Back
                         </button>
                     ) : (
                         <div className="flex-1" />
@@ -487,9 +532,9 @@ export function MobileIntakeForm({
                         <button
                             type="button"
                             onClick={goNext}
-                            className="flex-1 px-5 py-3 bg-slate-900 text-white font-medium hover:bg-slate-800 transition-colors"
+                            className="flex-1 px-5 py-3.5 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
                         >
-                            Continue
+                            {isMinor && step === 2 ? 'Skip →' : 'Continue →'}
                         </button>
                     ) : (
                         <button
@@ -497,10 +542,10 @@ export function MobileIntakeForm({
                             onClick={handleSubmit}
                             disabled={submitting}
                             className={cn(
-                                "flex-1 px-5 py-3 font-medium transition-colors flex items-center justify-center gap-2",
+                                "flex-1 px-5 py-3.5 font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm",
                                 submitting
                                     ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                                    : "bg-slate-900 text-white hover:bg-slate-800"
+                                    : "bg-green-600 text-white hover:bg-green-700"
                             )}
                         >
                             {submitting ? (

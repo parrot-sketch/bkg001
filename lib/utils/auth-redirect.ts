@@ -46,17 +46,9 @@ export async function getPostAuthRedirect(
   userId: string,
   userRole?: string
 ): Promise<string> {
-  // If no role provided, try to infer from user data
+  // If no role provided, fall back to the patient redirect check.
   if (!userRole) {
-    // Try to get role from stored user (if available)
-    try {
-      const { tokenStorage } = await import('../auth/token');
-      const storedUser = tokenStorage.getUser();
-      userRole = storedUser?.role;
-    } catch {
-      // If we can't get role, fall back to patient check
-      return getPatientRedirect(userId);
-    }
+    return getPatientRedirect(userId);
   }
 
   // Route based on role

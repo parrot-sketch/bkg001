@@ -2,7 +2,7 @@
   "name": "hms-video",
   "version": "0.1.0",
   "private": true,
-"engines": {
+  "engines": {
     "node": ">=20.x"
   },
   "scripts": {
@@ -106,6 +106,7 @@
     "react-pdf": "^9.1.2",
     "react-phone-number-input": "^3.4.16",
     "recharts": "^2.15.0",
+    "sass": "^1.101.0",
     "sonner": "^1.7.1",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7",

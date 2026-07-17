@@ -143,13 +143,31 @@ export class PrismaAvailabilityRepository implements IAvailabilityRepository {
   }
 
   async getDoctorsAvailability(doctorIds: string[], startDate: Date, endDate: Date): Promise<DoctorAvailability[]> {
-    // Basic implementation for build fix - iterating (less efficient but safe)
+    if (doctorIds.length === 0) return [];
+
+    const templates = await this.prisma.availabilityTemplate.findMany({
+      where: { doctor_id: { in: doctorIds }, is_active: true },
+      select: { doctor_id: true },
+    });
+
+    const availableDoctorIds = new Set(templates.map(t => t.doctor_id));
+
     const results: DoctorAvailability[] = [];
-    for (const id of doctorIds) {
-      const avail = await this.getDoctorAvailability(id);
-      if (avail) results.push(avail);
+    for (const doctorId of doctorIds) {
+      results.push({
+        doctorId,
+        workingDays: [],
+        sessions: [],
+        overrides: [],
+        blocks: [],
+        breaks: [],
+      });
     }
-    return results;
+
+    return results.map(r => ({
+      ...r,
+      isAvailable: availableDoctorIds.has(r.doctorId),
+    }));
   }
 
   async getWorkingDays(doctorId: string): Promise<WorkingDay[]> {

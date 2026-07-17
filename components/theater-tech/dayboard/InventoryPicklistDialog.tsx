@@ -27,7 +27,6 @@ import { useInventoryPicklist, PicklistItem, ConsumptionInput } from '@/hooks/th
 import { useQuery } from '@tanstack/react-query';
 import { isSuccess } from '@/lib/http/apiResponse';
 import { InventoryBatchDto } from '@/application/dtos/TheaterTechDtos';
-import { tokenStorage } from '@/lib/auth/token';
 
 interface InventoryPicklistDialogProps {
     caseData: DayboardCaseDto;
@@ -47,9 +46,8 @@ export function InventoryPicklistDialog({ caseData, onClose }: InventoryPicklist
     const { data: batches = [], isLoading: isLoadingBatches } = useQuery<InventoryBatchDto[]>({
         queryKey: ['inventory-batches', selectingBatchForItem?.inventoryItemId],
         queryFn: async () => {
-            const token = tokenStorage.getAccessToken();
             const res = await fetch(`/api/inventory/batches?itemId=${selectingBatchForItem?.inventoryItemId}`, {
-                headers: { Authorization: `Bearer ${token}` }
+                credentials: 'same-origin',
             });
             const json = await res.json();
             if (!isSuccess(json)) throw new Error(json.error || 'Failed to fetch batches');

@@ -27,10 +27,10 @@ export function FormNavigation({
         variant="outline"
         onClick={onPrevious}
         disabled={currentStep === 1 || isSubmitting}
-        className="h-11"
+        className="h-11 rounded-xl"
       >
         <ChevronLeft className="w-4 h-4 mr-2" />
-        Previous
+        Back
       </Button>
 
       {currentStep < totalSteps ? (
@@ -38,7 +38,7 @@ export function FormNavigation({
           type="button"
           onClick={onNext}
           disabled={isSubmitting}
-          className="flex-1 h-11 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+          className="flex-1 h-11 bg-[#caa26a] hover:bg-[#b8913e] text-[#2c2e4b] rounded-xl font-medium"
         >
           {isSubmitting ? (
             <>
@@ -57,7 +57,7 @@ export function FormNavigation({
           type="submit"
           onClick={onSubmit}
           disabled={isSubmitting}
-          className="flex-1 h-11 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white"
+          className="flex-1 h-11 bg-[#2c2e4b] hover:bg-[#1a1b2e] text-white rounded-xl font-medium"
         >
           {isSubmitting ? (
             <>

@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { QueueManagementPanels } from '@/components/frontdesk/QueueManagementPanels';
 import { QuickAssignmentDialog } from '@/components/frontdesk/QuickAssignmentDialog';
 import { DashboardPipelineStats } from '@/components/frontdesk/DashboardPipelineStats';
-import { PendingIntakesAlert } from '@/components/frontdesk/PendingIntakesAlert';
 import { DoctorAvailabilityAtAGlance } from '@/components/frontdesk/DoctorAvailabilityAtAGlance';
 import { FrontdeskPendingActionsPanel } from '@/components/frontdesk/FrontdeskPendingActionsPanel';
 import { Card, CardContent } from '@/components/ui/card';
@@ -51,7 +50,6 @@ export function FrontdeskDashboardClient() {
   return (
     <>
       <DashboardShell
-        banner={<PendingIntakesAlert />}
         title="Frontdesk Operations"
         subtitle="Manage today's schedule, queue, and patient intake."
         stats={<DashboardPipelineStats />}

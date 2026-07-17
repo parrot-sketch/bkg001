@@ -3,11 +3,10 @@
 /**
  * Available Doctors Panel
  * 
- * Displays doctor availability for today with consistent branding.
- * Designed for the frontdesk dashboard as a primary action surface.
+ * Simplified: shows which doctors are on duty today.
+ * Booking goes through doctor confirmation/approval.
  * 
- * Branded with Nairobi Sculpt light palette: white cards, beige borders,
- * navy typography, and gold accents.
+ * Branded with Nairobi Sculpt light palette.
  */
 
 import { useState } from 'react';
@@ -16,12 +15,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  Clock,
   User,
-  CheckCircle2,
-  Stethoscope,
   RefreshCw,
-  ChevronRight,
+  Stethoscope,
+  CheckCircle2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -31,13 +28,6 @@ import { useDoctorsAvailability, getDefaultAvailabilityDateRange } from '@/hooks
 import { useBookAppointmentStore } from '@/hooks/frontdesk/useBookAppointmentStore';
 import { AppointmentSource } from '@/domain/enums/AppointmentSource';
 import { BookingChannel } from '@/domain/enums/BookingChannel';
-
-// Extended type for doctor availability with optional UI properties
-interface DoctorAvailabilityWithUI extends DoctorAvailabilityResponseDto {
-  colorCode?: string;
-  email?: string;
-  phone?: string;
-}
 
 interface AvailableDoctorsPanelProps {
   selectedDate?: Date;
@@ -49,10 +39,8 @@ export function AvailableDoctorsPanel({ selectedDate }: AvailableDoctorsPanelPro
   const { openBookingDialog } = useBookAppointmentStore();
   const [viewDate] = useState(selectedDate || new Date());
 
-  // Get default date range (next 2 months) - matches booking wizard
   const { startDate, endDate } = getDefaultAvailabilityDateRange();
   
-  // Use shared hook - data will be cached and reused by booking wizard
   const {
     data: allDoctors = [],
     isLoading: loading,
@@ -62,13 +50,9 @@ export function AvailableDoctorsPanel({ selectedDate }: AvailableDoctorsPanelPro
     enabled: !!isAuthenticated && !!user && !authLoading,
   });
 
-  // Filter to only show doctors who have at least one available date in the future
-  const doctorsAvailability = allDoctors.filter((doctor) => {
-    return doctor.workingDays && doctor.workingDays.some((wd) => wd.isAvailable);
-  }) as DoctorAvailabilityWithUI[];
+  const doctorsAvailability = allDoctors.filter((doctor) => doctor.isAvailable) as DoctorAvailabilityResponseDto[];
 
-  // Navigate to canonical booking page with doctor pre-selected
-  const handleQuickBook = (doctor: DoctorAvailabilityWithUI) => {
+  const handleQuickBook = (doctor: DoctorAvailabilityResponseDto) => {
     openBookingDialog({
       initialDoctorId: doctor.doctorId,
       source: AppointmentSource.FRONTDESK_SCHEDULED,
@@ -84,7 +68,6 @@ export function AvailableDoctorsPanel({ selectedDate }: AvailableDoctorsPanelPro
 
   return (
     <Card className="h-full flex flex-col border border-[#e7d6bf] bg-white rounded-xl overflow-hidden shadow-sm">
-      {/* ── Header ── */}
       <div className="px-4 py-3 border-b border-[#e7d6bf] bg-white flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 border border-[#e7d6bf] bg-[#e7d6bf]/30 flex items-center justify-center">
@@ -111,7 +94,6 @@ export function AvailableDoctorsPanel({ selectedDate }: AvailableDoctorsPanelPro
         </Button>
       </div>
 
-      {/* ── Doctor List ── */}
       <CardContent className="p-0 flex-1 overflow-y-auto">
         {doctorsAvailability.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center px-5">
@@ -119,14 +101,11 @@ export function AvailableDoctorsPanel({ selectedDate }: AvailableDoctorsPanelPro
               <User className="h-6 w-6 text-[#2c2e4b]/30" />
             </div>
             <p className="text-sm font-semibold text-[#2c2e4b] mb-1">No Doctors Available</p>
-            <p className="text-xs text-[#2c2e4b]/50">No doctors have availability in the next 2 months</p>
+            <p className="text-xs text-[#2c2e4b]/50">No doctors are on duty today</p>
           </div>
         ) : (
           <div className="divide-y divide-[#e7d6bf]/60">
-            {doctorsAvailability.map((doctor: DoctorAvailabilityWithUI, index: number) => {
-              // Find the first available working day (could be today or future)
-              const availableWorkDay = doctor.workingDays.find((wd) => wd.isAvailable);
-
+            {doctorsAvailability.map((doctor, index) => {
               return (
                 <div
                   key={doctor.doctorId}
@@ -137,14 +116,12 @@ export function AvailableDoctorsPanel({ selectedDate }: AvailableDoctorsPanelPro
                   onClick={() => handleQuickBook(doctor)}
                 >
                   <div className="flex items-center gap-3">
-                    {/* Avatar */}
                     <div className="relative shrink-0">
                       <div className="h-10 w-10 rounded-lg border border-[#e7d6bf] bg-[#e7d6bf]/30 flex items-center justify-center text-[#2c2e4b] font-semibold text-sm transition-transform group-hover:scale-105 duration-200">
                         {doctor.doctorName.split(' ').slice(-1)[0]?.charAt(0) || 'D'}
                       </div>
                     </div>
 
-                    {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
                         <h4 className="font-semibold text-sm text-[#2c2e4b] truncate leading-tight">
@@ -155,7 +132,6 @@ export function AvailableDoctorsPanel({ selectedDate }: AvailableDoctorsPanelPro
                         {doctor.specialization}
                       </p>
 
-                      {/* Status row */}
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge
                           variant="outline"
@@ -164,16 +140,9 @@ export function AvailableDoctorsPanel({ selectedDate }: AvailableDoctorsPanelPro
                           <CheckCircle2 className="w-3 h-3 mr-1 text-[#caa26a]" />
                           On Duty
                         </Badge>
-                        {availableWorkDay && (
-                          <span className="text-[10px] text-[#2c2e4b]/50 flex items-center font-medium">
-                            <Clock className="w-3 h-3 mr-1 text-[#caa26a]/60" />
-                            {availableWorkDay.startTime} – {availableWorkDay.endTime}
-                          </span>
-                        )}
                       </div>
                     </div>
 
-                    {/* Quick Book button */}
                     <Button
                       size="sm"
                       className={cn(
@@ -188,7 +157,6 @@ export function AvailableDoctorsPanel({ selectedDate }: AvailableDoctorsPanelPro
                     >
                       <Stethoscope className="h-3.5 w-3.5 mr-1.5" />
                       Book
-                      <ChevronRight className="h-3 w-3 ml-1" />
                     </Button>
                   </div>
                 </div>

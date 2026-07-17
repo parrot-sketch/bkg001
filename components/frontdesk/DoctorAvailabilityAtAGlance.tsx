@@ -1,10 +1,11 @@
 /**
- * Responsive fixes for 1920×1200 viewport:
- * - Doctor row padding: px-3 py-2.5 → px-3 py-2 (more compact rows)
- * - Doctor name font: text-sm → text-xs (scaled down for density)
+ * Simplified Doctor Availability At A Glance
  * 
- * Branded with Nairobi Sculpt light palette: white cards, beige borders,
- * navy typography, and gold accents.
+ * Shows which doctors are on duty today.
+ * Booking goes through doctor confirmation/approval,
+ * so we only need to show basic availability status.
+ * 
+ * Branded with Nairobi Sculpt light palette.
  */
 
 import { useMemo } from 'react';
@@ -18,79 +19,19 @@ import { useBookAppointmentStore } from '@/hooks/frontdesk/useBookAppointmentSto
 import type { DoctorAvailabilityResponseDto } from '@/application/dtos/DoctorAvailabilityResponseDto';
 import { Stethoscope } from 'lucide-react';
 
-function timeToMinutes(time: string): number {
-  const [h, m] = time.split(':').map((v) => Number(v));
-  return (h || 0) * 60 + (m || 0);
-}
-
-type AvailabilityNowStatus = 'AVAILABLE' | 'LATER_TODAY' | 'OFF';
-
-function getNowStatus(doctor: DoctorAvailabilityResponseDto, now: Date): AvailabilityNowStatus {
-  const dayName = format(now, 'EEEE').toLowerCase();
-  const wd = doctor.workingDays?.find((d) => (d.day || '').toLowerCase() === dayName);
-  if (!wd?.isAvailable) return 'OFF';
-
-  const nowMins = now.getHours() * 60 + now.getMinutes();
-  const sessions =
-    wd.sessions?.length && wd.sessions.length > 0
-      ? wd.sessions
-      : [{ startTime: wd.startTime, endTime: wd.endTime }];
-
-  const inSession = sessions.some((s) => nowMins >= timeToMinutes(s.startTime) && nowMins < timeToMinutes(s.endTime));
-  if (inSession) return 'AVAILABLE';
-
-  const later = sessions.some((s) => nowMins < timeToMinutes(s.startTime));
-  return later ? 'LATER_TODAY' : 'OFF';
-}
-
-function getTodayHoursLabel(doctor: DoctorAvailabilityResponseDto, now: Date): string {
-  const dayName = format(now, 'EEEE').toLowerCase();
-  const wd = doctor.workingDays?.find((d) => (d.day || '').toLowerCase() === dayName);
-  if (!wd?.isAvailable) return 'Off today';
-  const sessions =
-    wd.sessions?.length && wd.sessions.length > 0
-      ? wd.sessions
-      : [{ startTime: wd.startTime, endTime: wd.endTime }];
-  return sessions.map((s) => `${s.startTime}–${s.endTime}`).join(', ');
-}
-
-function StatusBadge({ status }: { status: AvailabilityNowStatus }) {
-  if (status === 'AVAILABLE') {
-    return (
-      <Badge variant="outline" className="rounded-none text-[10px] border-[#e7d6bf] bg-[#e7d6bf]/20 text-[#2c2e4b] font-semibold">
-        Available
-      </Badge>
-    );
-  }
-  if (status === 'LATER_TODAY') {
-    return (
-      <Badge variant="outline" className="rounded-none text-[10px] border-[#caa26a]/40 bg-[#caa26a]/10 text-[#9a7709] font-semibold">
-        Later today
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="outline" className="rounded-none text-[10px] border-[#e7d6bf] bg-white text-[#2c2e4b]/50 font-medium">
-      Off
-    </Badge>
-  );
-}
-
 export function DoctorAvailabilityAtAGlance() {
   const { openBookingDialog } = useBookAppointmentStore();
   const today = useMemo(() => new Date(), []);
   const { data: doctors = [], isLoading, error } = useDoctorsAvailability(today, today);
 
   const rows = useMemo(() => {
-    const now = new Date();
     return doctors
       .map((d) => ({
         doctor: d,
-        status: getNowStatus(d, now),
-        hours: getTodayHoursLabel(d, now),
+        status: d.isAvailable ? 'AVAILABLE' : 'OFF',
       }))
       .sort((a, b) => {
-        const order: Record<AvailabilityNowStatus, number> = { AVAILABLE: 0, LATER_TODAY: 1, OFF: 2 };
+        const order = { AVAILABLE: 0, OFF: 1 };
         return order[a.status] - order[b.status] || a.doctor.doctorName.localeCompare(b.doctor.doctorName);
       });
   }, [doctors]);
@@ -116,17 +57,26 @@ export function DoctorAvailabilityAtAGlance() {
           <div className="text-xs text-[#2c2e4b]/40 py-2 px-1">No doctors found.</div>
         ) : (
           <div className="space-y-1">
-            {rows.map(({ doctor, status, hours }) => (
+            {rows.map(({ doctor, status }) => (
               <div
                 key={doctor.doctorId}
                 className="flex items-center justify-between gap-3 border border-[#e7d6bf]/60 rounded-lg px-3 py-2 bg-white hover:bg-[#e7d6bf]/10 transition-colors"
               >
                 <div className="min-w-0">
                   <div className="text-xs font-medium text-[#2c2e4b] truncate">{doctor.doctorName}</div>
-                  <div className="text-[10px] text-[#2c2e4b]/50 truncate">{hours}</div>
+                  <div className="text-[10px] text-[#2c2e4b]/50 truncate">{doctor.specialization}</div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <StatusBadge status={status} />
+                  <Badge
+                    variant="outline"
+                    className={
+                      status === 'AVAILABLE'
+                        ? 'rounded-none text-[10px] border-[#e7d6bf] bg-[#e7d6bf]/20 text-[#2c2e4b] font-semibold'
+                        : 'rounded-none text-[10px] border-[#e7d6bf] bg-white text-[#2c2e4b]/50 font-medium'
+                    }
+                  >
+                    {status === 'AVAILABLE' ? 'On duty' : 'Off'}
+                  </Badge>
                   <Button
                     type="button"
                     variant="outline"

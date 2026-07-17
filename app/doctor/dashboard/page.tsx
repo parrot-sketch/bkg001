@@ -4,11 +4,23 @@ import { useDoctorDashboard } from '@/hooks/use-doctor-dashboard';
 import { DashboardStatCards } from '@/components/doctor/dashboard/DashboardStatCards';
 import { DailyQueuePanel } from '@/components/doctor/dashboard/DailyQueuePanel';
 import { CasePipeline } from '@/components/doctor/dashboard/CasePipeline';
-import { TodaysAppointmentsPreview } from '@/components/doctor/dashboard/TodaysAppointmentsPreview';
 import { PendingConfirmationsBanner } from '@/components/doctor/dashboard/PendingConfirmationsBanner';
+import Loader from '../_components/loader';
 
 export default function DoctorDashboardPage() {
   const { data: dashboardData, isLoading } = useDoctorDashboard();
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 rounded-2xl border border-white/10 bg-white/10 px-6 py-10 text-center shadow-sm backdrop-blur-sm">
+        <Loader size="3rem" grid={4} />
+        <div>
+          <h2 className="text-lg font-semibold text-white">Loading your dashboard</h2>
+          <p className="mt-1 text-sm text-white/70">Preparing appointments, queue, and case insights…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5 animate-in fade-in duration-500">

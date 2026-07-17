@@ -1,0 +1,99 @@
+.loader {
+  --size: 2.75rem;
+  --speed: 1.5s;
+
+  --front: #102a56;
+  --side: #1b3d73;
+  --top: #d4af37;
+
+  display: grid;
+  grid-template-columns: repeat(var(--n), var(--size));
+  gap: .5rem;
+
+  transform-style: preserve-3d;
+  transform: rotateX(55deg) rotate(45deg);
+}
+
+.cube {
+  display: grid;
+  aspect-ratio: 1;
+
+  transform-style: preserve-3d;
+  transform-origin: 50% 50% calc(var(--size) * -1);
+
+  background: var(--front);
+
+  animation: rise var(--speed) ease-in-out infinite;
+
+  animation-delay: calc(
+    (var(--n) - 1 - var(--j) + var(--i))
+    * .05
+    * var(--speed)
+  );
+
+  box-shadow: 0 .08rem .25rem rgba(0,0,0,.15);
+}
+
+.cube::before,
+.cube::after {
+  --face-i: 0;
+  --face-j: calc(1 - var(--face-i));
+
+  content: "";
+
+  grid-area: 1 / 1;
+
+  transform-origin:
+    calc(var(--face-j) * 50%)
+    calc(var(--face-i) * 50%);
+
+  translate:
+    calc(var(--face-i) * 100%)
+    calc(var(--face-j) * 100%);
+
+  rotate:
+    var(--face-j)
+    var(--face-i)
+    0
+    calc((2 * var(--face-i) - 1) * 90deg);
+}
+
+.cube::before {
+  background: var(--side);
+}
+
+.cube::after {
+  --face-i: 1;
+
+  background: linear-gradient(
+    135deg,
+    #f6e7a5,
+    var(--top),
+    #f6e7a5
+  );
+
+  background-size: 300% 300%;
+  animation: shine 3s linear infinite;
+}
+
+@keyframes rise {
+  0%,
+  50%,
+  100% {
+    scale: 1 1 0;
+  }
+
+  25% {
+    scale: 1 1 .5;
+  }
+}
+
+@keyframes shine {
+  from {
+    background-position: 0%;
+  }
+
+  to {
+    background-position: 300%;
+  }
+}

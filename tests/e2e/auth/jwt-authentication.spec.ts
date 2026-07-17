@@ -230,7 +230,10 @@ test.describe('JWT Authentication - Login Flow', () => {
       await expect(page).toHaveURL(/\/patient\/login/);
 
       // Tokens should not be stored
-      const accessToken = await page.evaluate(() => localStorage.getItem('hims_access_token'));
+      const accessToken = await page.evaluate(() => {
+        const m = document.cookie.match(/(?:^|; )hims_access_token=([^;]*)/);
+        return m ? decodeURIComponent(m[1]) : null;
+      });
       expect(accessToken).toBeNull();
     });
 
@@ -355,7 +358,8 @@ test.describe('JWT Authentication - Login Flow', () => {
 
       // Token should still be present
       const token = await page.evaluate(() => {
-        return localStorage.getItem('hims_access_token');
+        const m = document.cookie.match(/(?:^|; )hims_access_token=([^;]*)/);
+        return m ? decodeURIComponent(m[1]) : null;
       });
       expect(token).toBe('persistent-token');
     });

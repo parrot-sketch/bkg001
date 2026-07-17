@@ -6,13 +6,12 @@ import { PatientIntakeFormSchema } from '@/lib/schema';
 const STORAGE_KEY = 'patient_intake_draft';
 
 const STEPS = [
-  { id: 1, name: 'Personal Info', fields: ['firstName', 'lastName', 'dateOfBirth', 'gender'] },
+  { id: 1, name: 'About You', fields: ['firstName', 'lastName', 'dateOfBirth', 'gender'] },
   { id: 2, name: 'Contact', fields: ['email', 'phone', 'whatsappPhone', 'address', 'maritalStatus', 'occupation'] },
   { id: 3, name: 'Emergency', fields: ['emergencyContactName', 'emergencyContactNumber', 'emergencyContactRelation'] },
   { id: 4, name: 'Medical', fields: ['bloodGroup', 'allergies', 'medicalConditions', 'medicalHistory'] },
   { id: 5, name: 'Insurance', fields: ['insuranceProvider', 'insuranceNumber'] },
-  { id: 6, name: 'Consent', fields: ['privacyConsent', 'serviceConsent', 'medicalConsent'] },
-  { id: 7, name: 'Review', fields: [] },
+  { id: 6, name: 'Review', fields: [] },
 ];
 
 export function useIntakeForm() {
@@ -21,6 +20,7 @@ export function useIntakeForm() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [draftSaved, setDraftSaved] = useState(false);
+  const [isMinor, setIsMinor] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(PatientIntakeFormSchema),
@@ -35,10 +35,7 @@ export function useIntakeForm() {
       gender: 'MALE',
       emergencyContactName: '',
       emergencyContactNumber: '',
-      emergencyContactRelation: 'PARENT',
-      privacyConsent: false,
-      serviceConsent: false,
-      medicalConsent: false,
+      emergencyContactRelation: '',
       dateOfBirth: '',
       whatsappPhone: '',
       occupation: '',
@@ -75,9 +72,27 @@ export function useIntakeForm() {
     return () => subscription.unsubscribe();
   }, [form]);
 
+  // Detect minor from DOB
+  const watchedDob = form.watch('dateOfBirth');
+  useEffect(() => {
+    if (watchedDob) {
+      const birthDate = new Date(watchedDob);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      setIsMinor(age < 18);
+    } else {
+      setIsMinor(false);
+    }
+  }, [watchedDob]);
+
   const validateCurrentStep = async () => {
     const currentStepFields = STEPS[currentStep - 1].fields;
-    if (currentStep === 7) return true; // Skip validation for review step
+    if (currentStep === STEPS.length) return true; // Skip validation for review step
+    if (isMinor && currentStep === 2) return true; // Skip contact step for minors
     return await form.trigger(currentStepFields as any);
   };
 
@@ -85,7 +100,13 @@ export function useIntakeForm() {
     if (currentStep < STEPS.length) {
       const isValid = await validateCurrentStep();
       if (isValid) {
-        setCurrentStep(currentStep + 1);
+        if (isMinor && currentStep === 1) {
+          setCurrentStep(3); // Skip contact step for minors
+        } else if (isMinor && currentStep === 2) {
+          setCurrentStep(3); // Should not normally happen, but safety net
+        } else {
+          setCurrentStep(currentStep + 1);
+        }
         window.scrollTo(0, 0);
       }
     }
@@ -93,7 +114,13 @@ export function useIntakeForm() {
 
   const handlePrev = () => {
     if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
+      if (isMinor && currentStep === 3) {
+        setCurrentStep(1); // Skip contact step going back for minors
+      } else if (isMinor && currentStep === 2) {
+        setCurrentStep(1); // Should not normally happen, but safety net
+      } else {
+        setCurrentStep(currentStep - 1);
+      }
       window.scrollTo(0, 0);
     }
   };
@@ -104,12 +131,11 @@ export function useIntakeForm() {
     setCurrentStep(1);
   };
 
-  const onSubmit = async (data: any, sessionId: string, onSuccess: () => void) => {
+  const onSubmit = async (data: any, sessionId: string, onSuccess: (result: any) => void) => {
     try {
       setIsSubmitting(true);
       setSubmitError(null);
 
-      // Clean up empty optional fields before sending
       const cleanData = Object.fromEntries(
         Object.entries(data).map(([key, value]) => [
           key,
@@ -137,10 +163,10 @@ export function useIntakeForm() {
         throw new Error(fieldErrors);
       }
 
-      // Clear draft on successful submission
+      const result = await response.json();
       localStorage.removeItem(STORAGE_KEY);
       setSubmitted(true);
-      onSuccess();
+      onSuccess(result);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
@@ -158,6 +184,7 @@ export function useIntakeForm() {
     setSubmitError,
     submitted,
     draftSaved,
+    isMinor,
     STEPS,
     STORAGE_KEY,
     validateCurrentStep,

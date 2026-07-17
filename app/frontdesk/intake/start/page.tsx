@@ -7,7 +7,7 @@
  *   1. Receptionist generates QR code and link
  *   2. Receptionist copies link and manually sends to patient via WhatsApp
  *   3. Patient receives link and fills form at their own pace
- *   4. When form is submitted → Auto-redirect to /frontdesk/intake/pending
+ *   4. When form is submitted → Auto-redirect to /frontdesk/patients
  *
  * 3-state machine:
  *   idle      → receptionist hasn't generated a session yet
@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { apiClient } from '@/lib/api/client';
+import { toast } from 'sonner';
 
 /* ── Types ── */
 interface DeskQr {
@@ -246,9 +247,8 @@ export default function StartIntakePage() {
         if (data.status === 'SUBMITTED' || data.status === 'CONFIRMED') {
           stopPoll();
           stopCountdown();
-          // Auto-redirect to pending page when form is submitted
-          // This allows frontdesk to manually send form link via WhatsApp and be notified automatically
-          router.push('/frontdesk/intake/pending');
+          toast.success(`New patient registered: ${data.patientName || 'Patient'}`);
+          router.push('/frontdesk/patients');
         } else if (data.status === 'EXPIRED') {
           stopPoll();
           stopCountdown();
@@ -302,9 +302,9 @@ export default function StartIntakePage() {
 
             <div className="px-7 py-5 space-y-3">
               {[
-                { icon: QrCode, text: 'Click below to generate a unique QR code session' },
+                { icon: QrCode, text: 'Click below to generate a QR code for walk-in registration' },
                 { icon: Users, text: 'Patient scans it on their phone and fills the form privately' },
-                { icon: CheckCircle2, text: 'This screen alerts you the moment they submit — click Review & Confirm' },
+                { icon: CheckCircle2, text: 'This screen alerts you the moment they submit — patient record is created automatically' },
               ].map(({ icon: Icon, text }, i) => (
                 <div key={i} className="flex items-start gap-3">
                   <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center shrink-0 mt-0.5">
@@ -456,9 +456,9 @@ export default function StartIntakePage() {
                 <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
                 Start Another
               </Button>
-              <Link href="/frontdesk/intake/pending" className="flex-1">
+              <Link href="/frontdesk/patients" className="flex-1">
                 <Button className="w-full h-9 rounded-xl text-sm bg-slate-900 hover:bg-black text-white">
-                  View Pending
+                  View Patients
                 </Button>
               </Link>
             </div>

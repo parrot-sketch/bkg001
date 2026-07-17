@@ -2,7 +2,10 @@ import { IntakeSubmission } from '@/domain/entities/IntakeSubmission';
 import { IIntakeSessionRepository } from '@/infrastructure/repositories/IntakeSessionRepository';
 import { IIntakeSubmissionRepository } from '@/infrastructure/repositories/IntakeSubmissionRepository';
 import { IPatientRepository } from '@/domain/interfaces/repositories/IPatientRepository';
+import { Patient } from '@/domain/entities/Patient';
 import { Email } from '@/domain/value-objects/Email';
+import { PhoneNumber } from '@/domain/value-objects/PhoneNumber';
+import { Gender } from '@/domain/enums/Gender';
 import {
   SessionNotFoundError,
   SessionExpiredError,
@@ -17,8 +20,8 @@ export interface SubmitIntakeInput {
   lastName: string;
   dateOfBirth: Date;
   gender: 'MALE' | 'FEMALE' | 'OTHER';
-  email: string;
-  phone: string;
+  email?: string;
+  phone?: string;
   address?: string;
   maritalStatus?: 'SINGLE' | 'MARRIED' | 'DIVORCED' | 'WIDOWED' | '';
   occupation?: string;
@@ -32,9 +35,6 @@ export interface SubmitIntakeInput {
   medicalHistory?: string;
   insuranceProvider?: string;
   insuranceNumber?: string;
-  privacyConsent: boolean;
-  serviceConsent: boolean;
-  medicalConsent: boolean;
   ipAddress?: string;
   userAgent?: string;
 }
@@ -42,6 +42,12 @@ export interface SubmitIntakeInput {
 export interface SubmitIntakeOutput {
   submissionId: string;
   sessionId: string;
+  patientId: string;
+  fileNumber: string;
+  firstName: string;
+  lastName: string;
+  email?: string;
+  phone?: string;
   message: string;
 }
 
@@ -53,7 +59,6 @@ export class SubmitPatientIntakeUseCase {
   ) {}
 
   async execute(input: SubmitIntakeInput): Promise<SubmitIntakeOutput> {
-    // 1. Validate session
     const session = await this.sessionRepo.findBySessionId(input.sessionId);
     if (!session) throw new SessionNotFoundError(input.sessionId);
 
@@ -66,8 +71,9 @@ export class SubmitPatientIntakeUseCase {
       throw new SessionAlreadySubmittedError(input.sessionId);
     }
 
-    // 2. Check for duplicate patient by email
-    const existingPatient = await this.patientRepo.findByEmail(Email.create(input.email));
+    const existingPatient = input.email
+      ? await this.patientRepo.findByEmail(Email.create(input.email))
+      : null;
     if (existingPatient) {
       throw new DuplicatePatientError(
         input.email,
@@ -76,22 +82,63 @@ export class SubmitPatientIntakeUseCase {
       );
     }
 
-    // 3. Create submission entity (validates all fields)
     const submission = IntakeSubmission.create({
       submissionId: uuidv4(),
       ...input,
+      privacyConsent: true,
+      serviceConsent: true,
+      medicalConsent: true,
     });
 
-    // 4. Persist submission and update session status atomically
     await this.submissionRepo.create(submission);
+
+    const fileNumber = await this.patientRepo.generateNextFileNumber();
+    const patientId = uuidv4();
+
+    const patientEntity = Patient.create({
+      id: patientId,
+      fileNumber,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      dateOfBirth: input.dateOfBirth,
+      gender: input.gender as Gender,
+      email: input.email,
+      phone: input.phone,
+      address: input.address,
+      maritalStatus: input.maritalStatus,
+      occupation: input.occupation,
+      whatsappPhone: input.whatsappPhone,
+      emergencyContactName: input.emergencyContactName,
+      emergencyContactNumber: input.emergencyContactNumber,
+      relation: input.emergencyContactRelation,
+      bloodGroup: input.bloodGroup,
+      allergies: input.allergies,
+      medicalConditions: input.medicalConditions,
+      medicalHistory: input.medicalHistory,
+      insuranceProvider: input.insuranceProvider,
+      insuranceNumber: input.insuranceNumber,
+      privacyConsent: true,
+      serviceConsent: true,
+      medicalConsent: true,
+    });
+
+    await this.patientRepo.save(patientEntity);
 
     const updatedSession = session.markAsSubmitted();
     await this.sessionRepo.save(updatedSession);
 
+    await this.submissionRepo.updateWithPatientId(submission.getSubmissionId(), patientId);
+
     return {
       submissionId: submission.getSubmissionId(),
       sessionId: input.sessionId,
-      message: 'Your intake form has been received successfully. Please return the device to the receptionist.',
+      patientId,
+      fileNumber,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      email: input.email,
+      phone: input.phone,
+      message: 'Patient registered successfully',
     };
   }
 }

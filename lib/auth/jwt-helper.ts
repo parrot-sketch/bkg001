@@ -33,12 +33,19 @@ const jwtMiddleware = new JwtMiddleware(authService);
  */
 export async function authenticateRequest(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const user = await jwtMiddleware.authenticate(authHeader || undefined);
+    const result = await JwtMiddleware.authenticate(request);
     
+    if (!result.success || !result.user) {
+      return {
+        success: false,
+        error: 'Authentication failed',
+        user: null,
+      };
+    }
+
     return {
       success: true,
-      user,
+      user: result.user,
     };
   } catch (error) {
     return {

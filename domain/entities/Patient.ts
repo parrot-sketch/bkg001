@@ -22,13 +22,13 @@ import { DomainException } from '../exceptions/DomainException';
 export class Patient {
   private constructor(
     private readonly id: string,
-    private readonly fileNumber: string, // System-generated: NS001, NS002, etc.
+    private readonly fileNumber: string,
     private readonly firstName: string,
     private readonly lastName: string,
     private readonly dateOfBirth: Date,
     private readonly gender: Gender,
-    private readonly email: Email,
-    private readonly phone: PhoneNumber,
+    private readonly email?: Email,
+    private readonly phone?: PhoneNumber,
     private readonly privacyConsent: boolean,
     private readonly serviceConsent: boolean,
     private readonly medicalConsent: boolean,
@@ -48,7 +48,6 @@ export class Patient {
     private readonly insuranceNumber?: string,
     private readonly img?: string,
     private readonly colorCode?: string,
-    // Timestamps (set by infrastructure)
     private readonly createdAt?: Date,
     private readonly updatedAt?: Date,
   ) {
@@ -64,13 +63,13 @@ export class Patient {
    */
   static create(params: {
     id: string;
-    fileNumber: string; // System-generated: NS001, NS002, etc.
+    fileNumber: string;
     firstName: string;
     lastName: string;
     dateOfBirth: Date;
     gender: Gender;
-    email: string | Email;
-    phone: string | PhoneNumber;
+    email?: string | Email;
+    phone?: string | PhoneNumber;
     privacyConsent: boolean;
     serviceConsent: boolean;
     medicalConsent: boolean;
@@ -178,8 +177,8 @@ export class Patient {
     }
 
     // Convert string values to value objects if needed
-    const email = params.email instanceof Email ? params.email : Email.create(params.email);
-    const phone = params.phone instanceof PhoneNumber ? params.phone : PhoneNumber.create(params.phone);
+    const email = params.email instanceof Email ? params.email : (params.email ? Email.create(params.email) : undefined);
+    const phone = params.phone instanceof PhoneNumber ? params.phone : (params.phone ? PhoneNumber.create(params.phone) : undefined);
     const emergencyContactNumber =
       params.emergencyContactNumber
         ? (params.emergencyContactNumber instanceof PhoneNumber
@@ -254,11 +253,11 @@ export class Patient {
     return this.gender;
   }
 
-  getEmail(): Email {
+  getEmail(): Email | undefined {
     return this.email;
   }
 
-  getPhone(): PhoneNumber {
+  getPhone(): PhoneNumber | undefined {
     return this.phone;
   }
 

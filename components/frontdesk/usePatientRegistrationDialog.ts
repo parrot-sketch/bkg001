@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { PatientIntakeFormSchema } from '@/lib/schema';
@@ -25,17 +25,15 @@ export type PatientRegistrationFormData = {
   bloodGroup?: string;
   allergies?: string;
   medicalConditions?: string;
-  privacyConsent: boolean;
-  serviceConsent: boolean;
-  medicalConsent: boolean;
 };
 
 const STEPS = [
-  { id: 1, title: 'Personal Info', description: 'Tell us about the patient' },
-  { id: 2, title: 'Contact', description: 'How can we reach them?' },
-  { id: 3, title: 'Emergency', description: 'Emergency contact details' },
-  { id: 4, title: 'Medical', description: 'Medical overview' },
-] as const;
+  { id: 1, name: 'About You', fields: ['firstName', 'lastName', 'dateOfBirth', 'gender'] },
+  { id: 2, name: 'Contact', fields: ['email', 'phone', 'whatsappPhone', 'address', 'maritalStatus', 'occupation'] },
+  { id: 3, name: 'Emergency', fields: ['emergencyContactName', 'emergencyContactNumber', 'emergencyContactRelation'] },
+  { id: 4, name: 'Medical', fields: ['bloodGroup', 'allergies', 'medicalConditions'] },
+  { id: 5, name: 'Review', fields: [] },
+];
 
 function sanitizeFormValues(values: Record<string, unknown>) {
   return Object.fromEntries(
@@ -43,6 +41,17 @@ function sanitizeFormValues(values: Record<string, unknown>) {
       .map(([key, value]) => [key, value === '' ? undefined : value])
       .filter(([, value]) => value !== undefined),
   );
+}
+
+function calculateAge(dob: string): number {
+  const birthDate = new Date(dob);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
 }
 
 export function usePatientRegistrationDialog(params: {
@@ -54,6 +63,7 @@ export function usePatientRegistrationDialog(params: {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isMinor, setIsMinor] = useState(false);
 
   const form = useForm<PatientRegistrationFormData>({
     resolver: zodResolver(PatientIntakeFormSchema) as any,
@@ -75,11 +85,17 @@ export function usePatientRegistrationDialog(params: {
       bloodGroup: '',
       allergies: '',
       medicalConditions: '',
-      privacyConsent: true,
-      serviceConsent: true,
-      medicalConsent: true,
     },
   });
+
+  const watchedDob = form.watch('dateOfBirth');
+  useEffect(() => {
+    if (watchedDob) {
+      setIsMinor(calculateAge(watchedDob) < 18);
+    } else {
+      setIsMinor(false);
+    }
+  }, [watchedDob]);
 
   const currentStep = useMemo(() => STEPS[Math.max(0, Math.min(step - 1, STEPS.length - 1))], [step]);
   const stepProgress = useMemo(() => (step / STEPS.length) * 100, [step]);
@@ -87,17 +103,31 @@ export function usePatientRegistrationDialog(params: {
   const validateForStep = useCallback(async () => {
     let fields: (keyof PatientRegistrationFormData)[] = [];
     if (step === 1) fields = ['firstName', 'lastName', 'dateOfBirth', 'gender'];
-    else if (step === 2) fields = ['phone', 'email'];
-    const valid = fields.length === 0 || (await form.trigger(fields));
+    else if (step === 2 && !isMinor) fields = ['phone', 'email', 'address'];
+    else if (step === 3) fields = [];
+    else if (step === 4) fields = [];
+    const valid = fields.length === 0 || (await form.trigger(fields as any));
     return valid;
-  }, [form, step]);
+  }, [form, step, isMinor]);
 
   const goNext = useCallback(async () => {
     const valid = await validateForStep();
-    if (valid) setStep((s) => Math.min(s + 1, STEPS.length));
-  }, [validateForStep]);
+    if (valid) {
+      if (isMinor && step === 1) {
+        setStep(3);
+      } else {
+        setStep((s) => Math.min(s + 1, STEPS.length));
+      }
+    }
+  }, [validateForStep, isMinor, step]);
 
-  const goPrev = useCallback(() => setStep((s) => Math.max(s - 1, 1)), []);
+  const goPrev = useCallback(() => {
+    setStep((s) => {
+      const next = Math.max(s - 1, 1);
+      if (isMinor && next === 2) return 1;
+      return next;
+    });
+  }, [isMinor]);
 
   const submit = useCallback(async () => {
     setSubmitting(true);
@@ -138,6 +168,7 @@ export function usePatientRegistrationDialog(params: {
     submitting,
     submitted,
     submitError,
+    isMinor,
     form,
     goNext,
     goPrev,
@@ -145,4 +176,3 @@ export function usePatientRegistrationDialog(params: {
     close,
   };
 }
-

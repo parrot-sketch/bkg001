@@ -63,11 +63,31 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Execute activation use case
     const response = await activateDoctorInviteUseCase.execute(body);
 
-    return NextResponse.json({
+    const nextResponse = NextResponse.json({
       success: true,
       data: response,
       message: 'Account activated successfully',
     }, { status: 200 });
+
+    // Set auth cookies (mirrors /api/authentication/login). The refresh token is
+    // httpOnly so client JavaScript can never read it.
+    const safeExpiresIn = typeof response.expiresIn === 'number' ? response.expiresIn : 900;
+    const cookieBase = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax' as const,
+      path: '/',
+    };
+    nextResponse.cookies.set('accessToken', response.accessToken, {
+      ...cookieBase,
+      maxAge: safeExpiresIn,
+    });
+    nextResponse.cookies.set('refreshToken', response.refreshToken, {
+      ...cookieBase,
+      maxAge: 7 * 24 * 60 * 60,
+    });
+
+    return nextResponse;
 
   } catch (error) {
     if (error instanceof DomainException) {

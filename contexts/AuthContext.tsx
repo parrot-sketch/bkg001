@@ -1,185 +1,148 @@
 'use client';
 
 /**
- * AuthContext - Authentication State Management
- * 
- * Clean implementation with proper logout handling to prevent flicker.
- * Single responsibility: manages auth state only.
+ * AuthContext - Authentication State Management (cookie-only)
+ *
+ * The browser never reads JWTs. Authentication is driven entirely by httpOnly,
+ * Secure, SameSite cookies set by the server. On mount we ask the server
+ * (/api/authentication/session) whether a valid session exists and restore the
+ * user from there. Refresh is server-driven: the API client triggers a refresh
+ * which the server answers by issuing new cookies. There is no client token
+ * storage.
  */
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
-import { authApi } from '@/lib/api/auth';
-import { tokenStorage, type StoredUser } from '@/lib/auth/token';
 import { apiClient } from '@/lib/api/client';
+import { authApi, type SessionUser } from '@/lib/api/auth';
 
-// ============================================================================
-// Types
-// ============================================================================
+export interface AuthUser {
+  id: string;
+  email: string;
+  role: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  status?: string;
+}
 
 interface AuthContextType {
-    user: StoredUser | null;
-    isAuthenticated: boolean;
-    isLoading: boolean;
-    isLoggingOut: boolean;
-    login: (email: string, password: string) => Promise<void>;
-    logout: () => Promise<void>;
-    refreshToken: () => Promise<void>;
+  user: AuthUser | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  isLoggingOut: boolean;
+  login: (email: string, password: string) => Promise<AuthUser>;
+  logout: () => Promise<void>;
+  refreshToken: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// ============================================================================
-// Helper Functions (Single Responsibility)
-// ============================================================================
-
-function configureApiClient(): void {
-    apiClient.setAuthTokenProvider(() => tokenStorage.getAccessToken());
-    apiClient.setRefreshTokenProvider(async () => {
-        const refreshTokenValue = tokenStorage.getRefreshToken();
-        if (!refreshTokenValue) {
-            throw new Error('No refresh token available');
-        }
-        const response = await authApi.refreshToken({ refreshToken: refreshTokenValue });
-        if (!response.success) {
-            throw new Error(response.error || 'Token refresh failed');
-        }
-        tokenStorage.setAccessToken(response.data.accessToken);
-        tokenStorage.setRefreshToken(response.data.refreshToken);
-        apiClient.setAuthTokenProvider(() => tokenStorage.getAccessToken());
-    });
-}
-
-function initializeAuthFromStorage(): { user: StoredUser | null; isAuthenticated: boolean } {
-    const storedUser = tokenStorage.getUser();
-    const accessToken = tokenStorage.getAccessToken();
-    const isAuthenticated = !!(storedUser && accessToken);
-    
-    if (isAuthenticated) {
-        configureApiClient();
-    }
-    
-    return { user: storedUser, isAuthenticated };
-}
-
-// ============================================================================
-// Hook
-// ============================================================================
-
 export function useAuthContext() {
-    const context = useContext(AuthContext);
-    if (context === undefined) {
-        throw new Error('useAuthContext must be used within an AuthProvider');
-    }
-    return context;
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuthContext must be used within an AuthProvider');
+  }
+  return context;
 }
 
-// ============================================================================
-// Provider Component
-// ============================================================================
+function mapLoginUser(u: LoginUserShape | undefined): AuthUser | null {
+  if (!u) return null;
+  return { id: u.id, email: u.email, role: u.role, firstName: u.firstName, lastName: u.lastName };
+}
+
+function mapSessionUser(u: SessionUser): AuthUser {
+  return { id: u.id, email: u.email, role: u.role, firstName: u.firstName, lastName: u.lastName, status: u.status };
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [user, setUser] = useState<StoredUser | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-    // Initialize auth state on mount
-    useEffect(() => {
-        const { user: storedUser } = initializeAuthFromStorage();
-        setUser(storedUser);
-        setIsLoading(false);
-    }, []);
+  // Single refresh provider. Cookie-driven: the server reads the httpOnly
+  // refresh cookie and issues new cookies; the client never sees a JWT.
+  useEffect(() => {
+    apiClient.setRefreshTokenProvider(async () => {
+      const res = await authApi.refreshToken();
+      if (!res.success) throw new Error(res.error || 'Session refresh failed');
+    });
+  }, []);
 
-    // Login function
-    const login = useCallback(async (email: string, password: string) => {
-        setIsLoading(true);
-        try {
-            const response = await authApi.login({ email, password });
-            if (!response.success) {
-                const err = new Error(response.error || 'Login failed');
-                (err as any).status = (response as any).status ?? 0;
-                (err as any).retryAfterSeconds = (response as any).retryAfterSeconds;
-                throw err;
-            }
-            tokenStorage.setAccessToken(response.data.accessToken);
-            tokenStorage.setRefreshToken(response.data.refreshToken);
-            tokenStorage.setUser(response.data.user);
-            configureApiClient();
-            setUser(response.data.user);
-        } finally {
-            setIsLoading(false);
+  // Session restoration on mount / page refresh.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await authApi.getSession();
+        if (active && res.success && res.data) {
+          setUser(mapSessionUser(res.data));
         }
-    }, []);
+      } catch {
+        // Stay unauthenticated.
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
-    // Logout function - Fixed to prevent flicker and 401s
-    const logout = useCallback(async () => {
-        // 1. IMMEDIATELY clear state to prevent flash
-        setIsLoggingOut(true);
-        setUser(null);
-        
-        // 2. Fire server-side revocation FIRST (fire and forget - don't await)
-        // Must be done before clearing tokenStorage so apiClient can read the token
-        const hadToken = tokenStorage.isAuthenticated();
-        if (hadToken) {
-            authApi.logout().catch(() => {
-                // Silently fail - token will be cleared locally anyway
-            });
-        }
-        
-        // 3. Clear token storage synchronously
-        tokenStorage.clear();
-        
-        // 4. Navigate immediately using window.location to bypass React render cycle
-        // This prevents the brief flash of unauthenticated UI before redirect
-        window.location.href = '/login';
-        
-        // 5. Reset state after navigation
-        setIsLoggingOut(false);
-    }, []);
+  const login = useCallback(async (email: string, password: string): Promise<AuthUser> => {
+    setIsLoading(true);
+    try {
+      const res = await authApi.login({ email, password });
+      if (!res.success) {
+        const err = new Error(res.error || 'Login failed');
+        (err as any).status = (res as any).status ?? 0;
+        (err as any).retryAfterSeconds = (res as any).retryAfterSeconds;
+        throw err;
+      }
+      const mapped = mapLoginUser(res.data.user)!;
+      setUser(mapped);
+      return mapped;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
-    // Refresh token function
-    const refreshToken = useCallback(async () => {
-        const refreshTokenValue = tokenStorage.getRefreshToken();
-        if (!refreshTokenValue) {
-            await logout();
-            throw new Error('No refresh token available');
-        }
+  const logout = useCallback(async () => {
+    setIsLoggingOut(true);
+    setUser(null);
+    // Fire server-side revocation (revokes refresh token + clears cookies).
+    // Fire-and-forget: state is already cleared locally.
+    await authApi.logout().catch(() => {});
+    window.location.href = '/login';
+    setIsLoggingOut(false);
+  }, []);
 
-        const response = await authApi.refreshToken({ refreshToken: refreshTokenValue });
-        if (!response.success) {
-            await logout();
-            throw new Error(response.error || 'Token refresh failed');
-        }
+  const refreshToken = useCallback(async () => {
+    const res = await authApi.refreshToken();
+    if (!res.success) {
+      setUser(null);
+      throw new Error(res.error || 'Session refresh failed');
+    }
+  }, []);
 
-        tokenStorage.setAccessToken(response.data.accessToken);
-        tokenStorage.setRefreshToken(response.data.refreshToken);
-        apiClient.setAuthTokenProvider(() => tokenStorage.getAccessToken());
-    }, [logout]);
+  const isAuthenticated = useMemo(() => {
+    if (isLoggingOut) return false;
+    return !!user;
+  }, [user, isLoggingOut]);
 
-    // Computed values
-    const isAuthenticated = useMemo(() => {
-        // During logout, always return false
-        if (isLoggingOut) return false;
-        // Otherwise check user and token
-        return !!user && tokenStorage.isAuthenticated();
-    }, [user, isLoggingOut]);
+  const value = useMemo(
+    () => ({ user, isAuthenticated, isLoading, isLoggingOut, login, logout, refreshToken }),
+    [user, isAuthenticated, isLoading, isLoggingOut, login, logout, refreshToken],
+  );
 
-    // Context value
-    const value = useMemo(
-        () => ({
-            user,
-            isAuthenticated,
-            isLoading,
-            isLoggingOut,
-            login,
-            logout,
-            refreshToken,
-        }),
-        [user, isAuthenticated, isLoading, isLoggingOut, login, logout, refreshToken]
-    );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
 
-    return (
-        <AuthContext.Provider value={value}>
-            {children}
-        </AuthContext.Provider>
-    );
+/** Shape returned in the login response `user` field. */
+interface LoginUserShape {
+  id: string;
+  email: string;
+  role: string;
+  firstName?: string;
+  lastName?: string;
+  mustPersonalize?: boolean;
 }

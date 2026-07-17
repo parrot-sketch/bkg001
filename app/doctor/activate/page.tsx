@@ -14,7 +14,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { tokenStorage } from '@/lib/auth/token';
 
 type ActivationState = 'loading' | 'invalid' | 'form' | 'success';
 
@@ -67,10 +66,7 @@ function ActivateDoctorForm() {
       });
 
       if (response.success && response.data) {
-        // Store tokens
-        tokenStorage.setAccessToken(response.data.accessToken);
-        tokenStorage.setRefreshToken(response.data.refreshToken);
-
+        // Server sets httpOnly access/refresh cookies; no client token storage.
         setState('success');
 
         // Auto-redirect after 2 seconds

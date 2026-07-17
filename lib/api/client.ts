@@ -1,29 +1,26 @@
 /**
  * API Client
- * 
- * HTTP client for communicating with the backend API.
- * Handles authentication, request/response transformation, and error handling.
+ *
+ * Cookie-only HTTP client for the same-origin BFF API.
+ *
+ * Authentication model:
+ * - No JWT is ever read by JavaScript. The `accessToken` and `refreshToken`
+ *   live in httpOnly, Secure, SameSite cookies set by the server. The browser
+ *   attaches them automatically on every same-origin request (credentials:
+ *   'same-origin'), so the client never builds an Authorization header.
+ * - On a 401, the client performs a single-flight refresh (one attempt) by
+ *   calling the refresh provider, which hits /api/authentication/refresh using
+ *   the refresh cookie. The refresh call is performed OUTSIDE this request path
+ *   (raw fetch) so it can never recurse. A retried request is marked and will
+ *   not trigger another refresh.
  */
 
 export interface ApiError {
   success: false;
   error: string;
   message?: string;
-  /**
-   * HTTP status code from the underlying fetch response.
-   * Added so UI layers can map errors (e.g. 429) to the correct message.
-   */
   status?: number;
-  /**
-   * Derived from `Retry-After` response header when present.
-   * Useful for rate-limit / lockout UX.
-   */
   retryAfterSeconds?: number;
-  /**
-   * Many endpoints return additional structured error metadata (e.g. `missingItems`,
-   * `details`, `code`, `metadata`). Preserve these fields so UIs can present
-   * actionable error messages instead of a generic failure.
-   */
   [key: string]: unknown;
 }
 
@@ -36,7 +33,7 @@ export interface ApiSuccess<T> {
     totalPages: number;
     currentPage: number;
     limit: number;
-    [key: string]: number; // Allow additional numeric stats (e.g. newToday, newThisMonth)
+    [key: string]: number;
   };
 }
 
@@ -47,9 +44,8 @@ export type ApiResponse<T> = ApiSuccess<T> | ApiError;
  */
 class ApiClient {
   private baseUrl: string;
-  private getAuthToken: (() => string | null) | null = null;
   private refreshTokenFn: (() => Promise<void>) | null = null;
-  private isRefreshing: boolean = false;
+  // Single-flight lock so concurrent 401s trigger exactly one refresh.
   private refreshPromise: Promise<void> | null = null;
 
   constructor(baseUrl: string = process.env.NEXT_PUBLIC_API_URL || '/api') {
@@ -57,317 +53,158 @@ class ApiClient {
   }
 
   /**
-   * Set the function to retrieve the authentication token
-   */
-  setAuthTokenProvider(getToken: () => string | null) {
-    this.getAuthToken = getToken;
-  }
-
-  /**
-   * Set the function to refresh the authentication token
+   * Set the refresh provider. The provider must perform the refresh HTTP call
+   * itself (raw fetch) and must NOT route back through this client's request()
+   * method, so a failed refresh can never recurse.
    */
   setRefreshTokenProvider(refreshToken: () => Promise<void>) {
     this.refreshTokenFn = refreshToken;
   }
 
   /**
-   * Get the authorization header
+   * Execute a fetch and normalize the response into { status, data, retryAfterSeconds }.
+   * Clones the response before reading to avoid stream-consumption issues; uses
+   * cache: 'no-store' to prevent "Connection closed" style caching problems.
    */
-  private getAuthHeader(): Record<string, string> {
-    const token = this.getAuthToken?.();
-    if (!token) {
-      return {};
+  private async performFetch(
+    url: string,
+    options: RequestInit,
+  ): Promise<{ status: number; data: any; retryAfterSeconds?: number }> {
+    const response = await fetch(url, {
+      ...options,
+      cache: 'no-store',
+      credentials: 'same-origin',
+    });
+
+    const retryAfterHeader = response.headers.get('Retry-After');
+    const retryAfterSeconds = retryAfterHeader ? Number(retryAfterHeader) : undefined;
+    const safeRetryAfterSeconds =
+      typeof retryAfterSeconds === 'number' && Number.isFinite(retryAfterSeconds)
+        ? retryAfterSeconds
+        : undefined;
+
+    const contentType = response.headers.get('content-type');
+    const clonedResponse = response.clone();
+
+    if (contentType && contentType.includes('application/json')) {
+      try {
+        const data = await clonedResponse.json();
+        return { status: response.status, data, retryAfterSeconds: safeRetryAfterSeconds };
+      } catch {
+        try {
+          const data = await response.json();
+          return { status: response.status, data, retryAfterSeconds: safeRetryAfterSeconds };
+        } catch {
+          return { status: response.status, data: null, retryAfterSeconds: safeRetryAfterSeconds };
+        }
+      }
     }
-    return { Authorization: `Bearer ${token}` };
+
+    // Non-JSON response (e.g. an HTML error page).
+    try {
+      await clonedResponse.text();
+    } catch {
+      try {
+        await response.text();
+      } catch {
+        /* ignore */
+      }
+    }
+    return { status: response.status, data: null, retryAfterSeconds: safeRetryAfterSeconds };
   }
 
   /**
-   * Make an HTTP request
-   * 
-   * CRITICAL FIX: Prevents "Connection closed" errors in production by:
-   * 1. Using cache: 'no-store' to prevent browser/edge caching
-   * 2. Cloning response before reading to avoid stream consumption issues
-   * 3. Adding cache-busting for GET requests
+   * Map a performed fetch result into the standard ApiResponse shape.
+   */
+  private normalize(result: {
+    status: number;
+    data: any;
+    retryAfterSeconds?: number;
+  }): ApiResponse<unknown> {
+    const { status, data, retryAfterSeconds } = result;
+
+    if (data && typeof data === 'object' && (data as any).success === false) {
+      return { ...(data as ApiError), status, retryAfterSeconds };
+    }
+    if (data && typeof data === 'object' && (data as any).success === true) {
+      return data as ApiSuccess<unknown>;
+    }
+    if (status >= 200 && status < 300) {
+      return { success: true, data: data as unknown };
+    }
+    return {
+      success: false,
+      error: (data as any)?.error || `Request failed with status ${status}`,
+      message: (data as any)?.message,
+      status,
+      retryAfterSeconds,
+    };
+  }
+
+  /**
+   * Make an HTTP request.
+   *
+   * @param _isRetry internal — when true, a 401 will NOT trigger another refresh
+   *        (prevents recursive refreshes).
    */
   async request<T>(
     endpoint: string,
     options: RequestInit = {},
+    _isRetry = false,
   ): Promise<ApiResponse<T>> {
-    // Add cache-busting for GET requests to prevent stale cached responses
+    // Cache-busting for GET requests to prevent stale cached responses.
     let url = `${this.baseUrl}${endpoint}`;
-    if ((options.method || 'GET') === 'GET' && !url.includes('?')) {
-      url = `${url}?_t=${Date.now()}`;
-    } else if ((options.method || 'GET') === 'GET' && url.includes('?')) {
-      url = `${url}&_t=${Date.now()}`;
+    if ((options.method || 'GET') === 'GET') {
+      url += (url.includes('?') ? '&' : '?') + `_t=${Date.now()}`;
     }
 
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
       'Cache-Control': 'no-store, no-cache, must-revalidate',
       'Pragma': 'no-cache',
-      ...this.getAuthHeader(),
       ...options.headers,
     };
 
     try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-        // CRITICAL: Prevent any caching that could cause "Connection closed" errors
-        cache: 'no-store',
-        credentials: 'same-origin',
-      });
+      const result = await this.performFetch(url, { ...options, headers });
 
-      const retryAfterHeader = response.headers.get('Retry-After');
-      const retryAfterSeconds = retryAfterHeader ? Number(retryAfterHeader) : undefined;
-      const safeRetryAfterSeconds =
-        typeof retryAfterSeconds === 'number' && Number.isFinite(retryAfterSeconds)
-          ? retryAfterSeconds
-          : undefined;
-
-      // CRITICAL: Clone response before reading to avoid stream consumption issues
-      // This is essential for production where responses might be cached
-      const clonedResponse = response.clone();
-
-      // Check if response is JSON before parsing
-      const contentType = response.headers.get('content-type');
-      let data: any;
-
-      if (contentType && contentType.includes('application/json')) {
-        try {
-          // Use cloned response to avoid "Connection closed" errors
-          data = await clonedResponse.json();
-        } catch (jsonError) {
-          // If JSON parsing fails on cloned response, try original as fallback
-          try {
-            data = await response.json();
-          } catch (fallbackError) {
-            // If both fail, return error
-            return {
-              success: false,
-              error: `Invalid JSON response: ${response.status} ${response.statusText}`,
-              status: response.status,
-              retryAfterSeconds: safeRetryAfterSeconds,
-            };
-          }
-        }
-      } else {
-        // Non-JSON response (e.g., 404 HTML page)
-        try {
-          const text = await clonedResponse.text();
-          return {
-            success: false,
-            error: `Unexpected response format: ${response.status} ${response.statusText}`,
-            status: response.status,
-            retryAfterSeconds: safeRetryAfterSeconds,
-          };
-        } catch {
-          // Fallback to original response
-          const text = await response.text();
-          return {
-            success: false,
-            error: `Unexpected response format: ${response.status} ${response.statusText}`,
-            status: response.status,
-            retryAfterSeconds: safeRetryAfterSeconds,
-          };
-        }
-      }
-
-      // Handle 401 Unauthorized - try to refresh token and retry
-      if (response.status === 401 && this.refreshTokenFn && !endpoint.includes('/auth/refresh')) {
-        // Check if token refresh is already in progress
-        if (!this.isRefreshing) {
-          this.isRefreshing = true;
-          this.refreshPromise = this.refreshTokenFn().catch((error) => {
-            // If refresh fails, reset state
-            this.isRefreshing = false;
+      // On 401, attempt exactly one refresh + retry. The refresh provider uses a
+      // raw fetch, so it cannot re-enter this handler; _isRetry guards the retry.
+      if (result.status === 401 && !_isRetry && this.refreshTokenFn) {
+        if (!this.refreshPromise) {
+          this.refreshPromise = this.refreshTokenFn().finally(() => {
             this.refreshPromise = null;
-            throw error;
           });
         }
-
-        // Wait for token refresh to complete
         try {
           await this.refreshPromise;
-        } catch (error) {
-          // Refresh failed - return original error
-          return {
-            success: false,
-            error: data?.error || 'Authentication failed',
-            message: data?.message,
-            status: response.status,
-            retryAfterSeconds: safeRetryAfterSeconds,
-          };
-        } finally {
-          this.isRefreshing = false;
-          this.refreshPromise = null;
+        } catch {
+          return this.normalize({ ...result, data: result.data ?? {} });
         }
-
-        // Retry the original request with new token
-        const retryResponse = await fetch(url, {
-          ...options,
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-store, no-cache, must-revalidate',
-            'Pragma': 'no-cache',
-            ...this.getAuthHeader(),
-            ...options.headers,
-          },
-          cache: 'no-store',
-          credentials: 'same-origin',
-        });
-
-        const retryAfterRetryHeader = retryResponse.headers.get('Retry-After');
-        const retryAfterRetrySeconds = retryAfterRetryHeader ? Number(retryAfterRetryHeader) : undefined;
-        const safeRetryAfterRetrySeconds =
-          typeof retryAfterRetrySeconds === 'number' && Number.isFinite(retryAfterRetrySeconds)
-            ? retryAfterRetrySeconds
-            : undefined;
-
-        // Clone retry response before reading
-        const clonedRetryResponse = retryResponse.clone();
-
-        // Check if retry response is JSON before parsing
-        const retryContentType = retryResponse.headers.get('content-type');
-        let retryData: any;
-
-        if (retryContentType && retryContentType.includes('application/json')) {
-          try {
-            // Use cloned response to avoid "Connection closed" errors
-            retryData = await clonedRetryResponse.json();
-          } catch (jsonError) {
-            // Fallback to original response
-            try {
-              retryData = await retryResponse.json();
-            } catch (fallbackError) {
-              return {
-                success: false,
-                error: `Invalid JSON response: ${retryResponse.status} ${retryResponse.statusText}`,
-                status: retryResponse.status,
-                retryAfterSeconds: safeRetryAfterRetrySeconds,
-              };
-            }
-          }
-        } else {
-          try {
-            const text = await clonedRetryResponse.text();
-            return {
-              success: false,
-              error: `Unexpected response format: ${retryResponse.status} ${retryResponse.statusText}`,
-              status: retryResponse.status,
-              retryAfterSeconds: safeRetryAfterRetrySeconds,
-            };
-          } catch {
-            const text = await retryResponse.text();
-            return {
-              success: false,
-              error: `Unexpected response format: ${retryResponse.status} ${retryResponse.statusText}`,
-              status: retryResponse.status,
-              retryAfterSeconds: safeRetryAfterRetrySeconds,
-            };
-          }
-        }
-
-        if (!retryResponse.ok) {
-          // Preserve structured error payloads when present.
-          if (retryData && typeof retryData === 'object' && (retryData as any).success === false) {
-            return {
-              ...(retryData as ApiError),
-              status: retryResponse.status,
-              retryAfterSeconds: safeRetryAfterRetrySeconds,
-            };
-          }
-          return {
-            success: false,
-            error: retryData?.error || `Request failed with status ${retryResponse.status}`,
-            message: retryData?.message,
-            status: retryResponse.status,
-            retryAfterSeconds: safeRetryAfterRetrySeconds,
-          };
-        }
-
-        // Handle retry response
-        if (retryData.success === false) {
-          return retryData as ApiError;
-        }
-
-        if (retryData.success === true) {
-          return retryData as ApiSuccess<T>;
-        }
-
-        return {
-          success: true,
-          data: retryData as T,
-        };
+        return this.request<T>(endpoint, options, true);
       }
 
-      // Preserve structured API error payloads even when status is non-2xx.
-      if (data && typeof data === 'object' && (data as any).success === false) {
-        return {
-          ...(data as ApiError),
-          status: response.status,
-          retryAfterSeconds: safeRetryAfterSeconds,
-        };
-      }
-
-      if (!response.ok) {
-        return {
-          success: false,
-          error: (data as any)?.error || `Request failed with status ${response.status}`,
-          message: (data as any)?.message,
-          status: response.status,
-          retryAfterSeconds: safeRetryAfterSeconds,
-        };
-      }
-
-      // Handle both ApiResponse format and direct data
-      if (data.success === false) {
-        return data as ApiError;
-      }
-
-      if (data.success === true) {
-        return data as ApiSuccess<T>;
-      }
-
-      // If response doesn't follow ApiResponse format, wrap it
-      return {
-        success: true,
-        data: data as T,
-      };
+      return this.normalize(result) as ApiResponse<T>;
     } catch (error) {
-      // Handle "Connection closed" errors gracefully
       const errorMessage = error instanceof Error ? error.message : 'Network error occurred';
-
-      // Check if it's a connection closed error
-      if (errorMessage.includes('Connection closed') ||
+      if (
+        errorMessage.includes('Connection closed') ||
         errorMessage.includes('connection closed') ||
-        errorMessage.includes('Failed to fetch')) {
+        errorMessage.includes('Failed to fetch')
+      ) {
         return {
           success: false,
           error: 'Network error: Please refresh the page and try again',
         };
       }
-
-      return {
-        success: false,
-        error: errorMessage,
-      };
+      return { success: false, error: errorMessage };
     }
   }
 
-  /**
-   * GET request
-   */
   async get<T>(endpoint: string, options?: RequestInit): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, {
-      ...options,
-      method: 'GET',
-    });
+    return this.request<T>(endpoint, { ...options, method: 'GET' });
   }
 
-  /**
-   * POST request
-   */
   async post<T>(endpoint: string, body?: unknown, options?: RequestInit): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       ...options,
@@ -376,9 +213,6 @@ class ApiClient {
     });
   }
 
-  /**
-   * PUT request
-   */
   async put<T>(endpoint: string, body?: unknown, options?: RequestInit): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       ...options,
@@ -387,19 +221,10 @@ class ApiClient {
     });
   }
 
-  /**
-   * DELETE request
-   */
   async delete<T>(endpoint: string, options?: RequestInit): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, {
-      ...options,
-      method: 'DELETE',
-    });
+    return this.request<T>(endpoint, { ...options, method: 'DELETE' });
   }
 
-  /**
-   * PATCH request
-   */
   async patch<T>(endpoint: string, body?: unknown, options?: RequestInit): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       ...options,
@@ -411,11 +236,3 @@ class ApiClient {
 
 // Export singleton instance
 export const apiClient = new ApiClient();
-
-// Initialize token provider from tokenStorage
-if (typeof window !== 'undefined') {
-  // Dynamic import to avoid SSR issues
-  import('../auth/token').then(({ tokenStorage }) => {
-    apiClient.setAuthTokenProvider(() => tokenStorage.getAccessToken());
-  });
-}

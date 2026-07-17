@@ -31,7 +31,6 @@ export interface DashboardStats {
   pendingCheckIns: number;
   inConsultation: number;
   completedToday: number;
-  pendingIntakeCount: number;
 }
 
 export interface UseFrontdeskDashboardReturn {
@@ -190,7 +189,6 @@ export function useFrontdeskDashboard(): UseFrontdeskDashboardReturn {
       pendingCheckIns: 0,
       inConsultation: 0,
       completedToday: 0,
-      pendingIntakeCount: 0,
     },
     todaysSchedule: queryResult.data?.todaysSchedule ?? {
       scheduled: [],

@@ -222,24 +222,26 @@ export const PatientIntakeFormSchema = z.object({
     errorMap: () => ({ message: "Please select a valid gender" }),
   }),
 
-  // Contact Information
+  // Contact Information — optional for minors; clinic collects contact via guardian/parent if needed
   email: z
     .string()
     .email("Invalid email address")
-    .toLowerCase(),
+    .toLowerCase()
+    .optional()
+    .or(z.literal("")),
 
   // International phone: optional + prefix, 7-15 digits
   phone: z.preprocess(
     (value) => {
       if (typeof value !== "string") return value;
-      // Accept common user formatting (spaces, hyphens, parentheses) and normalize
-      // to a bare +/digits string for validation.
       const cleaned = value.replace(/[^\d+]/g, "");
       return cleaned;
     },
     z
       .string()
-      .regex(/^\+?[0-9]{7,15}$/, "Enter a valid phone number (e.g. +254712345678 or 0712345678)"),
+      .regex(/^\+?[0-9]{7,15}$/, "Enter a valid phone number (e.g. +254712345678 or 0712345678)")
+      .optional()
+      .or(z.literal("")),
   ),
 
   whatsappPhone: z
@@ -312,10 +314,10 @@ export const PatientIntakeFormSchema = z.object({
     .optional()
     .or(z.literal("")),
 
-  // Consent — auto-set true; no dedicated consent step
-  privacyConsent: z.boolean().default(true),
-  serviceConsent: z.boolean().default(true),
-  medicalConsent: z.boolean().default(true),
+  // Consent — handled via physical documents at the clinic
+  // privacyConsent: z.boolean().default(true),
+  // serviceConsent: z.boolean().default(true),
+  // medicalConsent: z.boolean().default(true),
 });
 
 export type PatientIntakeFormData = z.infer<typeof PatientIntakeFormSchema>;

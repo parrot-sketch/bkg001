@@ -12,12 +12,11 @@ import { ContactInfoStep } from './steps/ContactInfoStep';
 import { EmergencyContactStep } from './steps/EmergencyContactStep';
 import { MedicalInfoStep } from './steps/MedicalInfoStep';
 import { InsuranceInfoStep } from './steps/InsuranceInfoStep';
-import { ConsentStep } from './steps/ConsentStep';
 import { ReviewStep } from './steps/ReviewStep';
 
 interface PatientIntakeFormProps {
   sessionId: string;
-  onSuccess: () => void;
+  onSuccess: (result: { fileNumber?: string; firstName?: string }) => void;
 }
 
 export function PatientIntakeFormRefactored({
@@ -31,6 +30,7 @@ export function PatientIntakeFormRefactored({
     submitError,
     submitted,
     draftSaved,
+    isMinor,
     STEPS,
     handleNext,
     handlePrev,
@@ -51,7 +51,7 @@ export function PatientIntakeFormRefactored({
       case 1:
         return <PersonalInfoStep form={form} />;
       case 2:
-        return <ContactInfoStep form={form} />;
+        return <ContactInfoStep form={form} isMinor={isMinor} />;
       case 3:
         return <EmergencyContactStep form={form} />;
       case 4:
@@ -59,9 +59,7 @@ export function PatientIntakeFormRefactored({
       case 5:
         return <InsuranceInfoStep form={form} />;
       case 6:
-        return <ConsentStep form={form} />;
-      case 7:
-        return <ReviewStep form={form} />;
+        return <ReviewStep form={form} isMinor={isMinor} />;
       default:
         return null;
     }
@@ -70,12 +68,12 @@ export function PatientIntakeFormRefactored({
   return (
     <div className="w-full min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 md:p-8">
       <div className="w-full max-w-2xl mx-auto space-y-6">
-        {/* Header with progress */}
-        <FormProgress
-          currentStep={currentStep}
-          totalSteps={STEPS.length}
-          draftSaved={draftSaved}
-        />
+         {/* Header with progress */}
+         <FormProgress
+           currentStep={currentStep}
+           totalSteps={isMinor ? STEPS.length - 1 : STEPS.length}
+           draftSaved={draftSaved}
+         />
 
         {/* Form card */}
         <Card className="bg-white border-0 shadow-sm">

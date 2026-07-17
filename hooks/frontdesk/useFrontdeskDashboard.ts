@@ -16,7 +16,6 @@ export interface DashboardStats {
   pendingCheckIns: number;
   inConsultation: number;
   completedToday: number;
-  pendingIntakeCount: number;
 }
 
 export interface UseFrontdeskDashboardReturn {
@@ -42,13 +41,6 @@ async function fetchTodaysSchedule(): Promise<AppointmentResponseDto[]> {
   return (response.data || []) as AppointmentResponseDto[];
 }
 
-async function fetchPendingIntakeCount(): Promise<number> {
-  const response = await fetch('/api/frontdesk/intake/pending?limit=1&offset=0');
-  if (!response.ok) return 0;
-  const data = await response.json();
-  return typeof data.total === 'number' ? data.total : 0;
-}
-
 // ─── Hook ────────────────────────────────────────────────────
 
 export function useFrontdeskDashboard(): UseFrontdeskDashboardReturn {
@@ -70,17 +62,7 @@ export function useFrontdeskDashboard(): UseFrontdeskDashboardReturn {
     gcTime: GC_TIME_MS,
   });
 
-  // Pending intake count
-  const {
-    data: pendingIntakeCount = 0,
-    isLoading: loadingIntakes,
-  } = useQuery<number>({
-    queryKey: ['frontdesk', 'intake', 'pending', 'count'] as const,
-    queryFn: fetchPendingIntakeCount,
-    enabled: isEnabled,
-    staleTime: STALE_TIME_MS,
-    gcTime: GC_TIME_MS,
-  });
+  // Pending intake count removed — patients are now auto-created on submission
 
   // Calculate stats
   const stats: DashboardStats = {
@@ -93,17 +75,15 @@ export function useFrontdeskDashboard(): UseFrontdeskDashboardReturn {
     ).length,
     inConsultation: appointments.filter((apt) => apt.status === 'IN_CONSULTATION').length,
     completedToday: appointments.filter((apt) => apt.status === 'COMPLETED').length,
-    pendingIntakeCount,
   };
 
   const completedAppointments = appointments.filter((apt) => apt.status === 'COMPLETED');
 
-  const isLoading = loadingAppointments || loadingIntakes;
+  const isLoading = loadingAppointments;
   const error = appointmentsError as Error | null;
 
   const refetch = (): void => {
     queryClient.invalidateQueries({ queryKey: ['frontdesk', 'schedule'] });
-    queryClient.invalidateQueries({ queryKey: ['frontdesk', 'intake'] });
   };
 
   return { stats, completedAppointments, isLoading, error, refetch };

@@ -202,9 +202,10 @@ test.describe('Login Page UX & Authentication', () => {
       // Wait for redirect to dashboard
       await page.waitForURL(/\/patient\/dashboard/, { timeout: 10000 });
 
-      // Verify tokens stored in localStorage
+      // Verify access token stored in the client-readable cookie
       const accessToken = await page.evaluate(() => {
-        return localStorage.getItem('hims_access_token');
+        const m = document.cookie.match(/(?:^|; )hims_access_token=([^;]*)/);
+        return m ? decodeURIComponent(m[1]) : null;
       });
       expect(accessToken).toBeTruthy();
 
@@ -338,7 +339,8 @@ test.describe('Login Page UX & Authentication', () => {
 
         // Verify tokens cleared
         const accessToken = await page.evaluate(() => {
-          return localStorage.getItem('hims_access_token');
+          const m = document.cookie.match(/(?:^|; )hims_access_token=([^;]*)/);
+          return m ? decodeURIComponent(m[1]) : null;
         });
         expect(accessToken).toBeNull();
       }

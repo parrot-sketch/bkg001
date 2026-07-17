@@ -80,14 +80,15 @@ export function useLoginForm(): UseLoginFormReturn {
 
     setIsSubmitting(true);
     try {
-      await login(email.trim(), password);
+      const loggedInUser = await login(email.trim(), password);
 
       // Transition to routing phase (keeps button spinner active)
       setIsNavigating(true);
 
-      const { tokenStorage } = await import('@/lib/auth/token');
-      const stored = tokenStorage.getUser();
-      const redirect = await getPostAuthRedirect(stored?.id ?? email.trim(), stored?.role);
+      const redirect = await getPostAuthRedirect(
+        loggedInUser?.id ?? email.trim(),
+        loggedInUser?.role,
+      );
       
       const safeRedirect = getSafeRedirectUrl(redirect, '/');
       router.push(safeRedirect);

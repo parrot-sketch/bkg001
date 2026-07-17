@@ -30,7 +30,7 @@ test.describe('Frontdesk Dashboard', () => {
 
   test('should search patients', async ({ loginAsFrontdesk }) => {
     const page = await loginAsFrontdesk();
-    await page.goto('/frontdesk/patient-intake');
+    await page.goto('/frontdesk/intake/start');
     
     const searchInput = page.locator('input[placeholder*="search" i]').first();
     if (await searchInput.isVisible({ timeout: 2000 }).catch(() => false)) {

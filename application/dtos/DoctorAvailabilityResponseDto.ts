@@ -2,9 +2,13 @@
  * DTO: DoctorAvailabilityResponseDto
  * 
  * Response DTO for doctor availability data.
+ * 
+ * For frontdesk dashboard booking flow, only doctorId, doctorName,
+ * specialization, and isAvailable are required.
+ * 
+ * Other fields are optional for backward compatibility with
+ * doctor-facing availability views.
  */
-
-import { WorkingDayDto, AvailabilityBreakDto, SlotConfigurationDto } from './SetDoctorAvailabilityDto';
 
 export interface AvailabilityOverrideDto {
   readonly id: string;
@@ -14,20 +18,41 @@ export interface AvailabilityOverrideDto {
   readonly isBlocked: boolean;
 }
 
+export interface WorkingDayDto {
+  readonly id: string;
+  readonly doctorId: string;
+  readonly day: string;
+  readonly startTime: string;
+  readonly endTime: string;
+  readonly isAvailable: boolean;
+  readonly type?: string;
+}
+
+export interface SlotConfigurationDto {
+  readonly id: string;
+  readonly doctorId: string;
+  readonly defaultDuration: number;
+  readonly bufferTime: number;
+  readonly slotInterval: number;
+}
+
+export interface SessionDto {
+  readonly workingDayId: string;
+  readonly day: string;
+  readonly startTime: string;
+  readonly endTime: string;
+  readonly sessionType?: string;
+  readonly maxPatients?: number;
+  readonly notes?: string;
+}
+
 export interface DoctorAvailabilityResponseDto {
   readonly doctorId: string;
   readonly doctorName: string;
   readonly specialization: string;
-  readonly workingDays: WorkingDayDto[];
+  readonly isAvailable: boolean;
+  readonly workingDays?: WorkingDayDto[];
   readonly slotConfiguration?: SlotConfigurationDto;
-  readonly overrides: AvailabilityOverrideDto[];
-  readonly sessions?: Array<{
-    readonly workingDayId: string;
-    readonly day: string; // Day name for mapping
-    readonly startTime: string;
-    readonly endTime: string;
-    readonly sessionType?: string;
-    readonly maxPatients?: number;
-    readonly notes?: string;
-  }>;
+  readonly overrides?: AvailabilityOverrideDto[];
+  readonly sessions?: SessionDto[];
 }

@@ -76,6 +76,7 @@ export interface DoctorAvailability {
   blocks: ScheduleBlock[]; // Explicit blocked periods
   breaks: AvailabilityBreak[];
   slotConfiguration?: SlotConfiguration;
+  isAvailable?: boolean;
 }
 
 export interface IAvailabilityRepository {

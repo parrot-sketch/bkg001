@@ -5,12 +5,11 @@
  * Now consumes the global AuthContext to prevent state flicker.
  */
 
-import { useAuthContext } from '../../contexts/AuthContext';
-import { type StoredUser } from '../../lib/auth/token';
+import { useAuthContext, type AuthUser } from '../../contexts/AuthContext';
 import { Role } from '../../domain/enums/Role';
 
 interface UseAuthReturn {
-  user: StoredUser | null;
+  user: AuthUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;

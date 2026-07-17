@@ -4,14 +4,26 @@ import { UseFormReturn } from 'react-hook-form';
 
 interface ReviewStepProps {
   form: UseFormReturn<any>;
+  isMinor?: boolean;
 }
 
-export function ReviewStep({ form }: ReviewStepProps) {
+export function ReviewStep({ form, isMinor = false }: ReviewStepProps) {
   const data = form.watch();
+
+  const contactFields = [
+    { label: 'Email', value: data.email },
+    { label: 'Phone', value: data.phone },
+    { label: 'WhatsApp', value: data.whatsappPhone || '—' },
+    { label: 'Address', value: data.address },
+    ...(isMinor ? [] : [
+      { label: 'Marital Status', value: data.maritalStatus },
+      { label: 'Occupation', value: data.occupation || '—' },
+    ]),
+  ];
 
   const sections = [
     {
-      title: 'Personal Information',
+      title: 'About You',
       fields: [
         { label: 'Name', value: `${data.firstName} ${data.lastName}` },
         { label: 'Date of Birth', value: data.dateOfBirth },
@@ -19,15 +31,8 @@ export function ReviewStep({ form }: ReviewStepProps) {
       ],
     },
     {
-      title: 'Contact Information',
-      fields: [
-        { label: 'Email', value: data.email },
-        { label: 'Phone', value: data.phone },
-        { label: 'WhatsApp', value: data.whatsappPhone || '—' },
-        { label: 'Address', value: data.address },
-        { label: 'Marital Status', value: data.maritalStatus },
-        { label: 'Occupation', value: data.occupation || '—' },
-      ],
+      title: 'Contact Info',
+      fields: contactFields,
     },
     {
       title: 'Emergency Contact',
@@ -38,7 +43,7 @@ export function ReviewStep({ form }: ReviewStepProps) {
       ],
     },
     {
-      title: 'Medical Information',
+      title: 'Your Health',
       fields: [
         { label: 'Blood Group', value: data.bloodGroup || '—' },
         { label: 'Allergies', value: data.allergies || '—' },
@@ -58,19 +63,19 @@ export function ReviewStep({ form }: ReviewStepProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-gray-900">Review Your Information</h2>
-        <p className="text-gray-600 mt-1">Please verify everything is correct before submitting</p>
+        <h2 className="text-xl font-bold text-gray-900">Review Your Info</h2>
+        <p className="text-gray-500 mt-1">Please check that everything looks correct</p>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4">
         {sections.map((section) => (
-          <div key={section.title} className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">{section.title}</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div key={section.title} className="bg-gray-50 border border-gray-200 rounded-xl p-5">
+            <h3 className="font-semibold text-gray-900 mb-3">{section.title}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {section.fields.map((field) => (
                 <div key={field.label}>
-                  <p className="text-sm text-gray-600">{field.label}</p>
-                  <p className="font-medium text-gray-900 mt-1">{field.value}</p>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide">{field.label}</p>
+                  <p className="font-medium text-gray-900 mt-0.5">{field.value}</p>
                 </div>
               ))}
             </div>
@@ -78,9 +83,9 @@ export function ReviewStep({ form }: ReviewStepProps) {
         ))}
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-900">
-          ✅ Everything looks good? Click Submit to send your intake form. You can still go back to edit any information.
+      <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+        <p className="text-sm text-green-900">
+          Everything looks good? Click Submit to send your form. You can still go back to edit anything.
         </p>
       </div>
     </div>

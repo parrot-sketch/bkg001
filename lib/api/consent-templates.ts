@@ -6,7 +6,6 @@
 
 import { apiClient, ApiResponse } from './client';
 import { ConsentType, TemplateFormat, TemplateStatus, AuditAction } from '@prisma/client';
-import { tokenStorage } from '@/lib/auth/token';
 
 export interface ConsentTemplateDto {
     id: string;
@@ -141,18 +140,10 @@ export const consentTemplateApi = {
         const formData = new FormData();
         formData.append('file', file);
 
-        // Get auth token from token storage
-        const token = tokenStorage.getAccessToken();
-        const headers: HeadersInit = {};
-
-        // Add auth header if token is available
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-
+        // Auth is via the httpOnly cookie, sent automatically on same-origin requests.
         const response = await fetch('/api/doctor/consents/templates/upload-pdf', {
             method: 'POST',
-            headers,
+            credentials: 'same-origin',
             body: formData,
             // Don't set Content-Type - browser will set it with boundary for FormData
         });

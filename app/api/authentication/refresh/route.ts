@@ -52,6 +52,17 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiErrorR
       return NextResponse.json(errorResponse, { status: 400 });
     }
 
+    // XSS-resistant path: when the client omits the refresh token, fall back to
+    // the httpOnly `refreshToken` cookie (which JavaScript can never read). This
+    // is merged in BEFORE validation so the DTO keeps `refreshToken` required.
+    if (rawBody && typeof rawBody === 'object') {
+      const rb = rawBody as Record<string, unknown>;
+      if (!rb.refreshToken) {
+        const cookieRefresh = request.cookies.get('refreshToken')?.value;
+        if (cookieRefresh) rb.refreshToken = cookieRefresh;
+      }
+    }
+
     // Validate with Zod schema
     const validationResult = refreshTokenDtoSchema.safeParse(rawBody);
     if (!validationResult.success) {
