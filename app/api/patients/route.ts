@@ -8,6 +8,7 @@ import { CreatePatientDto } from '@/application/dtos/CreatePatientDto';
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { Role } from '@/domain/enums/Role';
 import { PatientIntakeFormSchema } from '@/lib/schema';
+import { isMinor } from '@/lib/utils/age';
 import { v4 as uuidv4 } from 'uuid';
 
 const patientRepository = new PrismaPatientRepository(db);
@@ -51,13 +52,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Map intake form data → CreatePatientDto
+    const isPatientMinor = isMinor(data.dateOfBirth);
+    const email = data.email && data.email.trim() !== '' ? data.email : `guardian-${Date.now()}@placeholder.local`;
+
     const dto: CreatePatientDto = {
       id: patientId,
       firstName: data.firstName,
       lastName: data.lastName,
       dateOfBirth: data.dateOfBirth,
       gender: data.gender,
-      email: data.email,
+      email,
       phone: data.phone,
       whatsappPhone: data.whatsappPhone || undefined,
       address: data.address || undefined,

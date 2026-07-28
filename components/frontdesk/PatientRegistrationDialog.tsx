@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Loader2, Check, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { calculateAge, isMinor } from '@/lib/utils/age';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import { usePatientRegistrationDialog, type PatientRegistrationFormData } from './usePatientRegistrationDialog';
 
@@ -46,6 +47,9 @@ export function PatientRegistrationDialog({
 
   const { register, control, formState: { errors }, getValues } = form;
 
+  const watchDob = getValues('dateOfBirth');
+  const patientIsMinor = isMinor(watchDob || '');
+
   return (
     <Dialog open={open} onOpenChange={close}>
       <DialogContent className="sm:max-w-[540px] max-h-[90vh] overflow-y-auto p-0 gap-0">
@@ -68,134 +72,159 @@ export function PatientRegistrationDialog({
             {/* Form Content */}
             <div className="px-6 py-6">
               <div className="space-y-4">
-                {/* Step 1: Personal */}
-                {step === 1 && (
-                  <div className="space-y-4">
-                    <div>
-                      <label className={labelClass}>First Name *</label>
-                      <input {...register('firstName')} placeholder="First name" className={inputClass} autoFocus />
-                      {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName.message}</p>}
-                    </div>
-                    <div>
-                      <label className={labelClass}>Last Name *</label>
-                      <input {...register('lastName')} placeholder="Last name" className={inputClass} />
-                      {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName.message}</p>}
-                    </div>
-                    <div>
-                      <label className={labelClass}>Date of Birth *</label>
-                      <input {...register('dateOfBirth')} type="date" className={inputClass} />
-                      {errors.dateOfBirth && <p className="text-red-500 text-xs mt-1">{errors.dateOfBirth.message}</p>}
-                    </div>
-                    <div>
-                      <label className={labelClass}>Gender *</label>
-                      <select {...register('gender')} className={cn(inputClass, "bg-white")}>
-                        <option value="FEMALE">Female</option>
-                        <option value="MALE">Male</option>
-                        <option value="OTHER">Other</option>
-                      </select>
-                    </div>
-                  </div>
-                )}
+                 {/* Step 1: Personal */}
+                 {step === 1 && (
+                   <div className="space-y-4">
+                     <div>
+                       <label className={labelClass}>First Name *</label>
+                       <input {...register('firstName')} placeholder="First name" className={inputClass} autoFocus />
+                       {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName.message}</p>}
+                     </div>
+                     <div>
+                       <label className={labelClass}>Last Name *</label>
+                       <input {...register('lastName')} placeholder="Last name" className={inputClass} />
+                       {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName.message}</p>}
+                     </div>
+                     <div>
+                       <label className={labelClass}>Date of Birth *</label>
+                       <input {...register('dateOfBirth')} type="date" className={inputClass} />
+                       {errors.dateOfBirth && <p className="text-red-500 text-xs mt-1">{errors.dateOfBirth.message}</p>}
+                     </div>
+                     <div>
+                       <label className={labelClass}>Gender *</label>
+                       <select {...register('gender')} className={cn(inputClass, "bg-white")}>
+                         <option value="FEMALE">Female</option>
+                         <option value="MALE">Male</option>
+                         <option value="OTHER">Other</option>
+                       </select>
+                     </div>
+                     {patientIsMinor && (
+                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                         <p className="text-xs text-amber-900 font-medium">Minor patient detected</p>
+                         <p className="text-xs text-amber-700 mt-1">Guardian information will be required.</p>
+                       </div>
+                     )}
+                   </div>
+                 )}
 
-                {/* Step 2: Contact */}
-                {step === 2 && (
-                  <div className="space-y-4">
-                    <div>
-                      <label className={labelClass}>Phone Number *</label>
-                      <Controller
-                        name="phone"
-                        control={control}
-                        render={({ field }) => (
-                          <PhoneInput
-                            {...field}
-                            international
-                            defaultCountry="KE"
-                            className="phone-input-custom"
-                            onChange={(value) => field.onChange(value ?? '')}
-                          />
-                        )}
-                      />
-                      {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
-                    </div>
-                    <div>
-                      <label className={labelClass}>WhatsApp Number</label>
-                      <Controller
-                        name="whatsappPhone"
-                        control={control}
-                        render={({ field }) => (
-                          <PhoneInput
-                            {...field}
-                            international
-                            defaultCountry="KE"
-                            className="phone-input-custom"
-                            onChange={(value) => field.onChange(value ?? '')}
-                          />
-                        )}
-                      />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Email *</label>
-                      <input {...register('email')} type="email" placeholder="email@example.com" className={inputClass} />
-                      {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
-                    </div>
-                    <div>
-                      <label className={labelClass}>Address</label>
-                      <input {...register('address')} placeholder="e.g. Westlands, Nairobi" className={inputClass} />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Marital Status</label>
-                      <select {...register('maritalStatus')} className={cn(inputClass, "bg-white")}>
-                        <option value="">Prefer not to say</option>
-                        <option value="SINGLE">Single</option>
-                        <option value="MARRIED">Married</option>
-                        <option value="DIVORCED">Divorced</option>
-                        <option value="WIDOWED">Widowed</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className={labelClass}>Occupation</label>
-                      <input {...register('occupation')} placeholder="Occupation" className={inputClass} />
-                    </div>
-                  </div>
-                )}
+                 {/* Step 2: Contact */}
+                 {step === 2 && (
+                   <div className="space-y-4">
+                     <div>
+                       <label className={labelClass}>Phone Number *</label>
+                       <Controller
+                         name="phone"
+                         control={control}
+                         render={({ field }) => (
+                           <PhoneInput
+                             {...field}
+                             international
+                             defaultCountry="KE"
+                             className="phone-input-custom"
+                             onChange={(value) => field.onChange(value ?? '')}
+                           />
+                         )}
+                       />
+                       {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
+                     </div>
+                     <div>
+                       <label className={labelClass}>WhatsApp Number</label>
+                       <Controller
+                         name="whatsappPhone"
+                         control={control}
+                         render={({ field }) => (
+                           <PhoneInput
+                             {...field}
+                             international
+                             defaultCountry="KE"
+                             className="phone-input-custom"
+                             onChange={(value) => field.onChange(value ?? '')}
+                           />
+                         )}
+                       />
+                     </div>
+                     <div>
+                       <label className={labelClass}>{patientIsMinor ? 'Email (Parent/Guardian)' : 'Email *'}</label>
+                       <input {...register('email')} type="email" placeholder="email@example.com" className={inputClass} />
+                       {!patientIsMinor && errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
+                     </div>
+                     <div>
+                       <label className={labelClass}>Address</label>
+                       <input {...register('address')} placeholder="e.g. Westlands, Nairobi" className={inputClass} />
+                     </div>
+                     {!patientIsMinor && (
+                       <div>
+                         <label className={labelClass}>Marital Status</label>
+                         <select {...register('maritalStatus')} className={cn(inputClass, "bg-white")}>
+                           <option value="">Prefer not to say</option>
+                           <option value="SINGLE">Single</option>
+                           <option value="MARRIED">Married</option>
+                           <option value="DIVORCED">Divorced</option>
+                           <option value="WIDOWED">Widowed</option>
+                         </select>
+                       </div>
+                     )}
+                     {!patientIsMinor && (
+                       <div>
+                         <label className={labelClass}>Occupation</label>
+                         <input {...register('occupation')} placeholder="Occupation" className={inputClass} />
+                       </div>
+                     )}
+                   </div>
+                 )}
 
-                {/* Step 3: Emergency */}
-                {step === 3 && (
-                  <div className="space-y-4">
-                    <div>
-                      <label className={labelClass}>Contact Name</label>
-                      <input {...register('emergencyContactName')} placeholder="Full name" className={inputClass} />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Contact Phone</label>
-                      <Controller
-                        name="emergencyContactNumber"
-                        control={control}
-                        render={({ field }) => (
-                          <PhoneInput
-                            {...field}
-                            international
-                            defaultCountry="KE"
-                            className="phone-input-custom"
-                            onChange={(value) => field.onChange(value ?? '')}
-                          />
-                        )}
-                      />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Relationship</label>
-                      <select {...register('emergencyContactRelation')} className={cn(inputClass, "bg-white")}>
-                        <option value="">Select relationship</option>
-                        <option value="SPOUSE">Spouse / Partner</option>
-                        <option value="PARENT">Parent</option>
-                        <option value="SIBLING">Sibling</option>
-                        <option value="CHILD">Child</option>
-                        <option value="FRIEND">Friend</option>
-                        <option value="OTHER">Other</option>
-                      </select>
-                    </div>
-                  </div>
-                )}
+                 {/* Step 3: Emergency */}
+                 {step === 3 && (
+                   <div className="space-y-4">
+                     <div>
+                       <label className={labelClass}>{patientIsMinor ? 'Parent/Guardian Name' : 'Contact Name'}</label>
+                       <input 
+                         {...register('emergencyContactName')} 
+                         placeholder={patientIsMinor ? "Parent/Guardian full name" : "Full name"}
+                         className={inputClass}
+                       />
+                     </div>
+                     <div>
+                       <label className={labelClass}>{patientIsMinor ? 'Parent/Guardian Phone' : 'Contact Phone'}</label>
+                       <Controller
+                         name="emergencyContactNumber"
+                         control={control}
+                         render={({ field }) => (
+                           <PhoneInput
+                             {...field}
+                             international
+                             defaultCountry="KE"
+                             className="phone-input-custom"
+                             onChange={(value) => field.onChange(value ?? '')}
+                           />
+                         )}
+                       />
+                     </div>
+                     <div>
+                       <label className={labelClass}>Relationship</label>
+                       <select {...register('emergencyContactRelation')} className={cn(inputClass, "bg-white")}>
+                         {patientIsMinor ? (
+                           <>
+                             <option value="">Select relationship</option>
+                             <option value="PARENT">Parent</option>
+                             <option value="SIBLING">Sibling (18+)</option>
+                             <option value="OTHER">Other Guardian</option>
+                           </>
+                         ) : (
+                           <>
+                             <option value="">Select relationship</option>
+                             <option value="SPOUSE">Spouse / Partner</option>
+                             <option value="PARENT">Parent</option>
+                             <option value="SIBLING">Sibling</option>
+                             <option value="CHILD">Child</option>
+                             <option value="FRIEND">Friend</option>
+                             <option value="OTHER">Other</option>
+                           </>
+                         )}
+                       </select>
+                     </div>
+                   </div>
+                 )}
 
                 {/* Step 4: Medical */}
                 {step === 4 && (

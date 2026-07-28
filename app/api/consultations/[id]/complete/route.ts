@@ -150,7 +150,7 @@ export async function POST(
     const dto: CompleteConsultationDto = {
       appointmentId,
       doctorId,
-      outcome: body.outcome.trim(),
+      outcome: body.outcome ? String(body.outcome).trim() : '',
       outcomeType: body.outcomeType,
       patientDecision: body.patientDecision || undefined,
       procedureRecommended: body.procedureRecommended || undefined,

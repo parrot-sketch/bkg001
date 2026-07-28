@@ -73,11 +73,10 @@ export function PatientSearchInput({
         aria-label="Search patients"
         className={cn(
           'w-full h-9 pl-9 pr-8',
-          'bg-white/8 border border-white/15 rounded-lg',
+          'bg-[#2c2e4b] border border-white/25 rounded-lg',
           'text-sm text-white placeholder:text-white/35',
           'focus:outline-none focus:ring-1 focus:ring-[#caa26a]/60 focus:border-[#caa26a]/60',
           'transition-colors duration-150',
-          // Remove browser-default search cancel button (we provide our own)
           '[&::-webkit-search-cancel-button]:appearance-none',
         )}
       />

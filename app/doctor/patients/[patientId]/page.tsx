@@ -1,26 +1,18 @@
 'use client';
 
-/**
- * DoctorPatientProfilePage — Redesigned
- *
- * Patient detail view for doctors. All data is scoped to the authenticated
- * doctor at the API layer: visits only show this doctor's own appointments;
- * case plans are filtered by doctor_id; consultations are filtered by userId.
- *
- * Uses TanStack Query for all data fetching — no manual useState/useEffect.
- * Skeleton loaders replace the previous full-page spinner.
- *
- * This page is formatted as a structured, single-column clinical medical record chart.
- */
 
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useMemo, useState } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { apiClient } from '@/lib/api/client';
 import { doctorApi } from '@/lib/api/doctor';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FileText } from 'lucide-react';
+import { FileText, Stethoscope, CalendarDays, CreditCard, TrendingUp, Loader2 } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 // Components
 import { PatientProfileHeader } from './components/PatientProfileHeader';
@@ -95,6 +87,31 @@ export default function DoctorPatientProfilePage() {
 
   const loading  = patientLoading || visitsLoading;
   const hasError = Boolean(patientError) || Boolean(visitsError);
+
+  // ── Financial summary ───────────────────────────────────────
+  const financialSummary = useMemo(() => {
+    if (!visits) return { totalBilled: 0, totalPaid: 0, totalDiscount: 0, outstanding: 0, unpaidCount: 0 };
+    let totalBilled = 0;
+    let totalPaid = 0;
+    let totalDiscount = 0;
+    let outstanding = 0;
+    let unpaidCount = 0;
+    for (const v of visits) {
+      if (v.billing) {
+        totalBilled += v.billing.totalAmount;
+        totalPaid += v.billing.amountPaid;
+        totalDiscount += v.billing.discount;
+        const visitBalance = v.billing.totalAmount - v.billing.amountPaid - v.billing.discount;
+        if (visitBalance > 0) {
+          outstanding += visitBalance;
+          unpaidCount++;
+        }
+      }
+    }
+    return { totalBilled, totalPaid, totalDiscount, outstanding, unpaidCount };
+  }, [visits]);
+
+  const [isStartingConsultation, setIsStartingConsultation] = useState(false);
 
   // ── Auth guard ─────────────────────────────────────────────────
   if (authLoading) {
@@ -174,7 +191,101 @@ export default function DoctorPatientProfilePage() {
       {/* 1. Demographics & Alerts Banner */}
       <ClinicalPatientBanner patient={patient} />
 
-      {/* 2. Chronic Medical History & Conditions */}
+      {/* 2. Action Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Button
+          variant="outline"
+          className="h-auto py-3 px-4 flex items-center gap-3 border-[#e7d6bf] hover:bg-[#e7d6bf]/10 rounded-xl"
+          onClick={async () => {
+            setIsStartingConsultation(true);
+            try {
+              const result = await apiClient.post(`/doctor/patients/${patientId}/start-consultation`, {});
+              const appointmentId = (result as any).appointmentId ?? (result as any).data?.id;
+              if (result.success && appointmentId) {
+                toast.success('Consultation started');
+                router.push(`/doctor/consultations/session/${appointmentId}`);
+              } else {
+                toast.error((result as any).error || 'Failed to start consultation');
+              }
+            } catch {
+              toast.error('Failed to start consultation');
+            } finally {
+              setIsStartingConsultation(false);
+            }
+          }}
+          disabled={isStartingConsultation}
+        >
+          {isStartingConsultation ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <div className="h-9 w-9 rounded-lg bg-[#2c2e4b] text-white flex items-center justify-center shrink-0">
+              <Stethoscope className="h-4 w-4" />
+            </div>
+          )}
+          <div className="text-left">
+            <div className="text-xs font-semibold text-[#2c2e4b]">New Consultation</div>
+            <div className="text-[10px] text-[#2c2e4b]/50">Start a new visit</div>
+          </div>
+        </Button>
+
+        <Button
+          variant="outline"
+          className="h-auto py-3 px-4 flex items-center gap-3 border-[#e7d6bf] hover:bg-[#e7d6bf]/10 rounded-xl"
+          onClick={() => router.push(`/doctor/appointments/new?patientId=${patientId}&source=DOCTOR_FOLLOW_UP`)}
+        >
+          <div className="h-9 w-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
+            <CalendarDays className="h-4 w-4" />
+          </div>
+          <div className="text-left">
+            <div className="text-xs font-semibold text-[#2c2e4b]">Schedule Follow-up</div>
+            <div className="text-[10px] text-[#2c2e4b]/50">Book next appointment</div>
+          </div>
+        </Button>
+      </div>
+
+      {/* 3. Financial Summary */}
+      {(financialSummary.outstanding > 0 || financialSummary.totalBilled > 0) && (
+        <div className="border border-[#e7d6bf] bg-white p-5 rounded-xl shadow-sm">
+          <h2 className="text-xs font-bold text-[#2c2e4b] uppercase tracking-wider flex items-center gap-1.5 border-b border-[#e7d6bf]/50 pb-2 mb-4">
+            <CreditCard className="h-4 w-4 text-[#2c2e4b]/60" />
+            Financial Summary
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+            <div className="space-y-0.5">
+              <span className="block text-[9px] uppercase font-bold text-[#2c2e4b]/40 tracking-wider">Total Billed</span>
+              <span className="text-sm font-semibold text-[#2c2e4b]">
+                KSh {financialSummary.totalBilled.toLocaleString()}
+              </span>
+            </div>
+            <div className="space-y-0.5">
+              <span className="block text-[9px] uppercase font-bold text-[#2c2e4b]/40 tracking-wider">Total Paid</span>
+              <span className="text-sm font-semibold text-emerald-700">
+                KSh {financialSummary.totalPaid.toLocaleString()}
+              </span>
+            </div>
+            <div className="space-y-0.5">
+              <span className="block text-[9px] uppercase font-bold text-[#2c2e4b]/40 tracking-wider">Discounts</span>
+              <span className="text-sm font-semibold text-[#2c2e4b]">
+                KSh {financialSummary.totalDiscount.toLocaleString()}
+              </span>
+            </div>
+            <div className="space-y-0.5">
+              <span className="block text-[9px] uppercase font-bold text-[#2c2e4b]/40 tracking-wider">Outstanding</span>
+              <span className={cn('text-sm font-bold', financialSummary.outstanding > 0 ? 'text-rose-700' : 'text-emerald-700')}>
+                KSh {financialSummary.outstanding.toLocaleString()}
+              </span>
+            </div>
+            <div className="space-y-0.5">
+              <span className="block text-[9px] uppercase font-bold text-[#2c2e4b]/40 tracking-wider">Unpaid Bills</span>
+              <span className="text-sm font-semibold text-[#2c2e4b]">
+                {financialSummary.unpaidCount}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Chronic Medical History & Conditions */}
       {(patient.medicalHistory || patient.medicalConditions) && (
         <div className="border border-[#e7d6bf] bg-white p-6 space-y-4 shadow-sm rounded-xl">
           <h2 className="text-xs font-bold text-[#2c2e4b] uppercase tracking-wider flex items-center gap-1.5 border-b border-[#e7d6bf]/50 pb-2">
@@ -198,7 +309,7 @@ export default function DoctorPatientProfilePage() {
         </div>
       )}
 
-      {/* 3. Longitudinal Document timeline (Visits & Observation notes) */}
+      {/* 5. Longitudinal Document timeline (Visits & Consultation notes) */}
       <div className="border border-[#e7d6bf] bg-white p-6 shadow-sm rounded-xl">
         <ClinicalDocumentTimeline patientId={patientId} visits={visits || []} />
       </div>

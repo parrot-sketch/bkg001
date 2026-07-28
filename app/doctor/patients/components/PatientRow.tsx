@@ -1,37 +1,39 @@
 'use client';
 
-/**
- * PatientRow
- *
- * A single row in the doctor's patient roster table.
- * Receives visit decoration (lastVisit, visitCount) either from the patient
- * DTO itself (populated by the /me/patients API) or from override props
- * passed by the parent.
- */
-
+import { useState } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { MoreVertical, FileText, Stethoscope } from 'lucide-react';
 import { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 
 interface PatientRowProps {
   patient:          PatientResponseDto;
-  /** Override appointment count — used only if DTO.visitCount is absent. */
   appointmentCount?: number;
-  /** Override last visit date — used only if DTO.lastVisitDate is absent. */
   lastVisit?:       Date;
+  onNewConsultation?: (patientId: string) => void;
 }
 
 export function PatientRow({
   patient,
   appointmentCount,
   lastVisit,
+  onNewConsultation,
 }: PatientRowProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   const fullName = `${patient.firstName} ${patient.lastName}`;
   const initials = `${patient.firstName?.[0] || ''}${patient.lastName?.[0] || ''}`.toUpperCase();
 
-  // Prefer DTO-supplied values (from the API); fall back to override props
   const resolvedVisitCount = patient.visitCount ?? appointmentCount ?? 0;
 
   const resolvedLastVisit: Date | undefined = (() => {
@@ -57,13 +59,21 @@ export function PatientRow({
   if (hasConditions) flags.push({ label: 'Conditions', cls: 'bg-amber-50 text-amber-700 border-amber-200'  });
   if (hasInsurance)  flags.push({ label: 'Insured',    cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' });
 
+  const handleRowClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('[role="menuitem"]')) {
+      e.preventDefault();
+    }
+  };
+
   return (
-    <Link
-      href={`/doctor/patients/${patient.id}`}
-      className="block px-4 py-3 hover:bg-[#e7d6bf]/10 transition-colors md:grid md:grid-cols-12 md:gap-4 md:items-center"
-    >
+    <div className="group flex items-center gap-4 px-4 py-3 hover:bg-[#e7d6bf]/10 transition-colors rounded-lg">
       {/* ── Patient identity ─────────────────────────────────────── */}
-      <div className="md:col-span-4 min-w-0 flex items-center gap-3">
+      <Link
+        href={`/doctor/patients/${patient.id}`}
+        className="flex-1 min-w-0 flex items-center gap-3"
+        onClick={handleRowClick}
+      >
         <div className="h-9 w-9 border border-[#e7d6bf] bg-[#e7d6bf]/30 flex items-center justify-center text-xs font-semibold text-[#2c2e4b] flex-shrink-0 rounded-lg">
           {initials}
         </div>
@@ -90,7 +100,7 @@ export function PatientRow({
             )}
           </div>
         </div>
-      </div>
+      </Link>
 
       {/* ── Desktop columns ──────────────────────────────────────── */}
       <div className="hidden md:block md:col-span-2 text-sm text-[#2c2e4b]">
@@ -113,6 +123,35 @@ export function PatientRow({
         ))}
         {flags.length === 0 && <span className="text-[10px] text-[#2c2e4b]/40">—</span>}
       </div>
-    </Link>
+
+      {/* ── Quick actions ───────────────────────────────────────── */}
+      <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 text-[#2c2e4b]/40 hover:text-[#2c2e4b] hover:bg-[#e7d6bf]/20 rounded-lg"
+            >
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="rounded-lg border-[#e7d6bf]">
+            <DropdownMenuItem asChild>
+              <Link href={`/doctor/patients/${patient.id}`} className="cursor-pointer">
+                <FileText className="h-3.5 w-3.5 mr-2 text-[#2c2e4b]/60" />
+                View Record
+              </Link>
+            </DropdownMenuItem>
+            {onNewConsultation && (
+              <DropdownMenuItem onClick={() => onNewConsultation(patient.id)} className="cursor-pointer">
+                <Stethoscope className="h-3.5 w-3.5 mr-2 text-[#2c2e4b]/60" />
+                New Consultation
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
   );
 }

@@ -322,6 +322,30 @@ export class ScheduleAppointmentUseCase {
           );
         }
 
+        // Check for duplicate follow-up: when a doctor creates a follow-up, ensure there isn't already
+        // an active follow-up for the same patient-doctor on the same date
+        if (isDoctorFollowUp) {
+          const existingFollowUp = await tx.appointment.findFirst({
+            where: {
+              patient_id: dto.patientId,
+              doctor_id: dto.doctorId,
+              appointment_date: appointmentDateOnly,
+              source: AppointmentSource.DOCTOR_FOLLOW_UP as any,
+              status: {
+                notIn: ['CANCELLED', 'COMPLETED', 'NO_SHOW'] as any,
+              },
+            },
+          });
+
+          if (existingFollowUp) {
+            const existingTime = existingFollowUp.time || existingFollowUp.slot_start_time || '';
+            throw new ConflictError(
+              `A follow-up appointment already exists for this patient with this doctor on ${dto.appointmentDate.toLocaleDateString()} at ${existingTime}. ` +
+              `Please reschedule the existing follow-up instead of creating a new one.`
+            );
+          }
+        }
+
         // Check for same patient, same day, different doctors (warn but allow)
         // This is allowed but we'll log it for awareness (e.g., patient seeing multiple specialists)
         const sameDayDifferentDoctor = patientAppointments.filter((apt) => {

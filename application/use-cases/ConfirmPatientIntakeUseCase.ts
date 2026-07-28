@@ -31,8 +31,17 @@ export class ConfirmPatientIntakeUseCase {
     const submission = await this.submissionRepo.findBySessionId(sessionId);
     if (!submission) throw new SessionNotFoundError(sessionId);
 
+    // If already confirmed, return existing patient info (idempotent)
     if (submission.getStatus() === 'CONFIRMED') {
-      throw new InvalidSessionStateError(sessionId, 'CONFIRMED', 'PENDING');
+      const primitive = submission.toPrimitive();
+      return {
+        patientId: primitive.submissionId,
+        fileNumber: 'CONFIRMED',
+        firstName: primitive.personalInfo.firstName,
+        lastName: primitive.personalInfo.lastName,
+        email: primitive.contactInfo.email,
+        phone: primitive.contactInfo.phone,
+      };
     }
 
     if (submission.getStatus() === 'REJECTED') {

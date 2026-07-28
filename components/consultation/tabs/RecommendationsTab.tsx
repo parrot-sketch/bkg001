@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { RichTextEditor } from '@/components/consultation/RichTextEditor';
+import { ClinicalRichTextEditor } from '@/components/consultation/ClinicalRichTextEditor';
 import type { ConsultationResponseDto } from '@/application/dtos/ConsultationResponseDto';
 import { ConsultationOutcomeType } from '@/domain/enums/ConsultationOutcomeType';
 import { PatientDecision } from '@/domain/enums/PatientDecision';
@@ -249,7 +249,7 @@ export function RecommendationsTab({
         <div className="flex items-center gap-2 mb-2">
           <Label className="text-xs font-semibold text-slate-700">Assessment Notes</Label>
         </div>
-        <RichTextEditor
+        <ClinicalRichTextEditor
           content={assessment}
           onChange={handleAssessmentChange}
           placeholder="Clinical assessment, findings summary, diagnosis, candidacy evaluation…"

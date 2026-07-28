@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { PatientIntakeFormSchema } from '@/lib/schema';
+import { isMinor } from '@/lib/utils/age';
 import { apiClient } from '@/lib/api/client';
 import { toast } from 'sonner';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
@@ -87,7 +88,13 @@ export function usePatientRegistrationDialog(params: {
   const validateForStep = useCallback(async () => {
     let fields: (keyof PatientRegistrationFormData)[] = [];
     if (step === 1) fields = ['firstName', 'lastName', 'dateOfBirth', 'gender'];
-    else if (step === 2) fields = ['phone', 'email'];
+    else if (step === 2) {
+      fields = ['phone'];
+      const dob = form.getValues('dateOfBirth');
+      if (dob && !isMinor(dob)) {
+        fields.push('email');
+      }
+    }
     const valid = fields.length === 0 || (await form.trigger(fields));
     return valid;
   }, [form, step]);

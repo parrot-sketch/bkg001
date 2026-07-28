@@ -10,7 +10,7 @@ import { InventoryPicker } from '@/components/inventory/InventoryPicker';
 import { ServicePicker } from './ServicePicker';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { apiClient } from '@/lib/api/client';
+import { getConsultationServiceId } from '@/actions/doctor/consultation-session';
 
 interface ChargeItem {
   key: string;
@@ -43,9 +43,9 @@ export function BillingTab({ appointmentId, isReadOnly = false }: { appointmentI
     let cancelled = false;
     async function loadConsultService() {
       try {
-        const res = await apiClient.get<{ serviceId: number }>('/services/consultation');
-        if (!cancelled && res.success && res.data?.serviceId) {
-          setConsultationServiceId(res.data.serviceId);
+        const result = await getConsultationServiceId();
+        if (!cancelled && result.success && result.data?.serviceId) {
+          setConsultationServiceId(result.data.serviceId);
         }
       } catch {
         // Non-blocking — save will still fail fast with a helpful error.

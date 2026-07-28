@@ -7,7 +7,7 @@
  */
 
 import { useState, useMemo } from 'react';
-import { doctorApi } from '@/lib/api/doctor';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -22,10 +22,10 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useAppointmentBilling } from '@/hooks/doctor/useBilling';
-import { useConsultationContext } from '@/contexts/ConsultationContext';
+import { useDocumentationContext } from '@/providers/documentation/DocumentationProvider';
+import { completeSession } from '@/actions/doctor/consultation-session';
 import type { ConsultationResponseDto } from '@/application/dtos/ConsultationResponseDto';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
-import type { CompleteConsultationDto } from '@/application/dtos/CompleteConsultationDto';
 
 // Sub-components
 import { DocumentationChecklist } from './complete/DocumentationChecklist';
@@ -85,10 +85,12 @@ export function CompleteConsultationDialog({
   appointment,
   doctorId,
 }: CompleteConsultationDialogProps) {
-  const { state, setPatientDecision } = useConsultationContext();
+  const router = useRouter();
+  const docs = useDocumentationContext();
+  const { setPatientDecision } = docs;
 
   // Summary logic
-  const autoSummary = useMemo(() => generateSummary(state.notes), [state.notes]);
+  const autoSummary = useMemo(() => generateSummary(docs.notes), [docs.notes]);
   const [summary, setSummary] = useState('');
   const [summaryEdited, setSummaryEdited] = useState(false);
   const effectiveSummary = summaryEdited ? summary : autoSummary;
@@ -113,29 +115,23 @@ export function CompleteConsultationDialog({
   const hasWarnings = advisoryWarnings.length > 0;
 
   // Notes completeness check
-  const hasChief = !!state.notes.chiefComplaint && stripHtml(state.notes.chiefComplaint).length > 0;
-  const hasExam = !!state.notes.examination && stripHtml(state.notes.examination).length > 0;
-  const hasAssessment = !!state.notes.assessment && stripHtml(state.notes.assessment).length > 0;
-  const hasPlan = !!state.notes.plan && stripHtml(state.notes.plan).length > 0;
+  const hasChief = !!docs.notes.chiefComplaint && stripHtml(docs.notes.chiefComplaint).length > 0;
+  const hasExam = !!docs.notes.examination && stripHtml(docs.notes.examination).length > 0;
+  const hasAssessment = !!docs.notes.assessment && stripHtml(docs.notes.assessment).length > 0;
+  const hasPlan = !!docs.notes.plan && stripHtml(docs.notes.plan).length > 0;
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
 
     try {
-      const dto: CompleteConsultationDto = {
-        appointmentId: appointment.id,
-        doctorId,
-        outcome: effectiveSummary.trim(),
-        // OutcomeType is now optional
-      };
+      const result = await completeSession(appointment.id);
 
-      const response = await doctorApi.completeConsultation(dto);
-
-      if (response.success) {
+      if (result.success) {
         toast.success('Consultation documentation finalized');
-        onSuccess(); // Context handles redirect to /doctor/consultations
+        router.push(result.data.redirectPath || '/doctor/consultations');
+        onClose();
       } else {
-        toast.error(response.error || 'Failed to complete consultation');
+        toast.error(result.error?.message || 'Failed to complete consultation');
       }
     } catch (error) {
       toast.error('An error occurred while completing consultation');

@@ -95,6 +95,13 @@ export const patientApi = {
   },
 
   /**
+   * Get patient vitals for a specific appointment
+   */
+  async getVitals(patientId: string, appointmentId: number): Promise<ApiResponse<any[]>> {
+    return apiClient.get<any[]>(`/patients/${patientId}/vitals?appointmentId=${appointmentId}`);
+  },
+
+  /**
    * Schedule a new appointment
    */
   async scheduleAppointment(dto: ScheduleAppointmentDto): Promise<ApiResponse<AppointmentResponseDto>> {

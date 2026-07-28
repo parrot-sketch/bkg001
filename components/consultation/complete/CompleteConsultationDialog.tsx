@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { doctorApi } from '@/lib/api/doctor';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -13,11 +13,12 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Loader2, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useConsultationContext } from '@/contexts/ConsultationContext';
+import { useDocumentationContext } from '@/providers/documentation/DocumentationProvider';
+import { useBillingContext } from '@/providers/billing/BillingProvider';
 import { useAppointmentBilling } from '@/hooks/doctor/useBilling';
+import { completeSession } from '@/actions/doctor/consultation-session';
 import type { ConsultationResponseDto } from '@/application/dtos/ConsultationResponseDto';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
-import type { CompleteConsultationDto } from '@/application/dtos/CompleteConsultationDto';
 
 // Sub-components
 import { DocumentationStep } from './DocumentationStep';
@@ -51,7 +52,9 @@ export function CompleteConsultationDialog({
   appointment,
   doctorId,
 }: CompleteConsultationDialogProps) {
-  const { state } = useConsultationContext();
+  const router = useRouter();
+  const docs = useDocumentationContext();
+  const billing = useBillingContext();
   const { data: existingBilling } = useAppointmentBilling(appointment.id, open);
 
   const [currentStep, setCurrentStep] = useState<StepKey>('documentation');
@@ -66,19 +69,15 @@ export function CompleteConsultationDialog({
     followUpType?: string;
   }>({});
 
-  const [billingItems, setBillingItems] = useState<any[]>([]);
-  const [billingTotal, setBillingTotal] = useState(0);
-  const [discount, setDiscount] = useState(0);
-
   const autoSummary = useMemo(() => {
-    const notes = state.notes;
+    const notes = docs.notes;
     const parts: string[] = [];
     if (notes.chiefComplaint) parts.push(`Subjective: ${notes.chiefComplaint.replace(/<[^>]*>/g, '').trim()}`);
     if (notes.examination) parts.push(`Objective: ${notes.examination.replace(/<[^>]*>/g, '').trim()}`);
     if (notes.assessment) parts.push(`Assessment: ${notes.assessment.replace(/<[^>]*>/g, '').trim()}`);
     if (notes.plan) parts.push(`Plan: ${notes.plan.replace(/<[^>]*>/g, '').trim()}`);
     return parts.join('\n\n');
-  }, [state.notes]);
+  }, [docs.notes]);
 
   const effectiveSummary = summaryEdited ? summary : autoSummary;
 
@@ -124,27 +123,14 @@ export function CompleteConsultationDialog({
 
     setIsSubmitting(true);
     try {
-      const dto: CompleteConsultationDto = {
-        appointmentId: appointment.id,
-        doctorId,
-        outcome: effectiveSummary.trim(),
-        outcomeType: consultation.outcomeType || undefined,
-        patientDecision: consultation.patientDecision || undefined,
-        followUpDate: followUp.followUpDate,
-        followUpTime: followUp.followUpTime,
-        followUpType: followUp.followUpType,
-        billingItems: (billingItems?.length ?? 0) > 0 ? billingItems : undefined,
-        customTotalAmount: billingTotal > 0 ? billingTotal : undefined,
-        discount: discount > 0 ? discount : undefined,
-      };
+      const result = await completeSession(consultation.id);
 
-      const response = await doctorApi.completeConsultation(dto);
-
-      if (response.success) {
+      if (result.success) {
         toast.success('Consultation completed successfully');
-        onSuccess();
+        router.push(result.data.redirectPath || '/doctor/consultations');
+        onClose();
       } else {
-        toast.error(response.error || 'Failed to complete consultation');
+        toast.error(result.error?.message || 'Failed to complete consultation');
       }
     } catch (error) {
       toast.error('An error occurred while completing consultation');
@@ -230,9 +216,9 @@ export function CompleteConsultationDialog({
             <BillingStep
               appointmentId={appointment.id}
               existingBilling={existingBilling}
-              onChange={setBillingItems}
-              onTotalChange={setBillingTotal}
-              onDiscountChange={setDiscount}
+              onChange={billing.setBillingItems}
+              onTotalChange={billing.setBillingTotal}
+              onDiscountChange={billing.setDiscount}
             />
           )}
 
@@ -240,9 +226,9 @@ export function CompleteConsultationDialog({
             <ReviewStep
               summary={effectiveSummary}
               followUp={followUp}
-              billingItems={billingItems}
-              billingTotal={billingTotal}
-              discount={discount}
+              billingItems={billing.billingItems}
+              billingTotal={billing.billingTotal}
+              discount={billing.discount}
             />
           )}
         </div>

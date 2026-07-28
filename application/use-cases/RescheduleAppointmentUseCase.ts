@@ -60,32 +60,28 @@ export class RescheduleAppointmentUseCase {
         // 2. Validate new slot availability
         const newDate = typeof dto.newDate === 'string' ? new Date(dto.newDate) : dto.newDate;
 
-        // Use the appointment's actual duration, or default to 30 minutes
-        // The duration is stored in the appointment entity from when it was created
+        const [hours, minutes] = dto.newTime.split(':').map(Number);
+        const scheduledAt = new Date(newDate);
+        scheduledAt.setHours(hours, minutes, 0, 0);
+
         const duration = appointment.getDurationMinutes() || 30;
 
         const availabilityResult = await this.validateAvailabilityUseCase.execute({
             doctorId: appointment.getDoctorId(),
-            date: newDate,
+            date: scheduledAt,
             time: dto.newTime,
             duration: duration,
-            excludeAppointmentId: appointment.getId() // Exclude the appointment being rescheduled from conflict check
+            excludeAppointmentId: appointment.getId()
         });
 
         if (!availabilityResult.isAvailable) {
-            // Optional: We could allow doctors to override availability (double book).
-            // For now, let's enforce availability but maybe with a flag? 
-            // The prompt said "critical concerns like slot locking are integrated".
-            // So we should enforce it.
             throw new DomainException(`Selected slot is not available: ${availabilityResult.reason}`);
         }
 
-        // 3. Update Appointment
-        // Doctor rescheduling implicitly confirms the appointment if it was pending
         const updatedAppointment = appointment.reschedule(
-            newDate,
+            scheduledAt,
             dto.newTime,
-            AppointmentStatus.SCHEDULED // Direct to SCHEDULED
+            AppointmentStatus.SCHEDULED
         );
 
         // 4. Save

@@ -111,7 +111,7 @@ export function PatientFilters({
               onChange={(e) => onSortByChange(e.target.value as SortKey)}
               aria-label="Sort patients by"
               className={cn(
-                'h-7 appearance-none pl-3 pr-7 rounded-lg border border-white/15 bg-white/8',
+                'h-7 appearance-none pl-3 pr-7 rounded-lg border border-white/15 bg-[#2c2e4b]',
                 'text-xs text-white/80',
                 'focus:outline-none focus:ring-1 focus:ring-[#caa26a]/60',
                 'transition-colors duration-150',

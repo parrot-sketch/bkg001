@@ -248,7 +248,7 @@ export default function StartIntakePage() {
           stopCountdown();
           // Auto-redirect to pending page when form is submitted
           // This allows frontdesk to manually send form link via WhatsApp and be notified automatically
-          router.push('/frontdesk/intake/pending');
+          router.push('/frontdesk/patients');
         } else if (data.status === 'EXPIRED') {
           stopPoll();
           stopCountdown();

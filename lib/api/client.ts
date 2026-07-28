@@ -66,8 +66,12 @@ class ApiClient {
   /**
    * Set the function to refresh the authentication token
    */
-  setRefreshTokenProvider(refreshToken: () => Promise<void>) {
+   setRefreshTokenProvider(refreshToken: () => Promise<void>) {
     this.refreshTokenFn = refreshToken;
+  }
+
+  setBaseUrl(baseUrl: string) {
+    this.baseUrl = baseUrl.replace(/\/$/, '');
   }
 
   /**
@@ -345,6 +349,14 @@ class ApiClient {
         return {
           success: false,
           error: 'Network error: Please refresh the page and try again',
+        };
+      }
+
+      // Handle URL parse errors (e.g. relative base URL in non-browser environments)
+      if (errorMessage.includes('Failed to parse URL') || errorMessage.includes('Invalid URL') || error instanceof TypeError) {
+        return {
+          success: false,
+          error: `API configuration error: ${errorMessage}`,
         };
       }
 

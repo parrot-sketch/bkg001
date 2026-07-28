@@ -61,6 +61,17 @@ export class Email {
     return new Email(normalized);
   }
 
+  static createOrNull(email?: string): Email | null {
+    if (!email || typeof email !== 'string') return null;
+    const trimmed = email.trim();
+    if (trimmed.length === 0) return null;
+    try {
+      return Email.create(trimmed);
+    } catch {
+      return null;
+    }
+  }
+
   /**
    * Gets the email address as a string
    * 

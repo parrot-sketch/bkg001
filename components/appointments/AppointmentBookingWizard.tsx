@@ -91,11 +91,14 @@ export function AppointmentBookingWizard({
   const showNav = variant === 'page';
 
   return (
-    <div className={cn('flex flex-col h-full', isSheet ? 'bg-white' : 'min-h-0')}>
+    <div className={cn(
+      'flex flex-col overflow-hidden',
+      isSheet ? 'h-full bg-white' : 'bg-white rounded-xl shadow-sm border border-[#e7d6bf]'
+    )}>
       {/* Header */}
       <div className={cn(
         'flex items-center justify-between px-5 py-3 border-b bg-white shrink-0',
-        isSheet ? 'rounded-t-2xl' : ''
+        isSheet ? 'rounded-t-2xl' : 'rounded-t-xl'
       )}>
         <div className="flex items-center gap-3">
           {showNav && (
@@ -238,7 +241,7 @@ export function AppointmentBookingWizard({
       </div>
 
       {/* Footer - Fixed at bottom */}
-      <div className={cn('flex items-center justify-between px-5 py-3 border-t bg-white shrink-0', isSheet ? 'rounded-b-2xl' : '')}>
+      <div className={cn('flex items-center justify-between px-5 py-3 border-t bg-white shrink-0', isSheet ? 'rounded-b-2xl' : 'rounded-b-xl')}>
         <Button
           variant="outline"
           onClick={currentStep === 1 ? onCancel : handleBack}

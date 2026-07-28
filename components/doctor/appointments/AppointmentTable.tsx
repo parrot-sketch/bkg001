@@ -29,6 +29,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { format, isToday, startOfWeek, startOfMonth, isWithinInterval } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -188,11 +189,13 @@ export function AppointmentTable({
   onRefresh,
 }: AppointmentTableProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { handleConfirm, handleReject, handleStartConsultation, confirmMutation, rejectMutation } = useAppointmentActions();
 
+  const urlStatus = searchParams.get('status');
   const [searchQuery, setSearchQuery] = useState('');
   const [dateRange, setDateRange] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [statusFilter, setStatusFilter] = useState<string>(urlStatus || 'ALL');
 
   const filteredAppointments = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();

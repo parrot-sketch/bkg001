@@ -4,7 +4,7 @@
  * Examination tab - free-form clinical documentation
  */
 
-import { RichTextEditor } from '@/components/consultation/RichTextEditor';
+import { ClinicalRichTextEditor } from '@/components/consultation/ClinicalRichTextEditor';
 import { CheckCircle2, FileText } from 'lucide-react';
 
 interface ExaminationTabProps {
@@ -34,7 +34,7 @@ export function ExaminationTab({
         </div>
       </div>
 
-      <RichTextEditor
+      <ClinicalRichTextEditor
         content={initialValue}
         onChange={onChange}
         placeholder="Document examination findings..."

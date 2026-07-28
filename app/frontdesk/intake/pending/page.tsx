@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +13,7 @@ import {
   Eye,
   RefreshCw,
   Inbox,
+  CheckCircle2,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { apiClient } from '@/lib/api/client';
@@ -43,6 +45,7 @@ interface PendingIntakesResponse {
 }
 
 export default function PendingIntakesPage() {
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [intakes, setIntakes] = useState<PendingIntake[]>([]);
@@ -111,18 +114,11 @@ export default function PendingIntakesPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Pending Intakes
+                Intake Submissions
               </h1>
-              <div className="flex items-center gap-3">
-                <p className="text-gray-600">
-                  {total} patient intake{total !== 1 ? 's' : ''} awaiting review and confirmation
-                </p>
-                {lastFetched && (
-                  <span className="text-xs text-gray-400">
-                    • Updated {formatDistanceToNow(lastFetched, { addSuffix: true })}
-                  </span>
-                )}
-              </div>
+              <p className="text-gray-600">
+                {total} intake{total !== 1 ? 's' : ''} submitted
+              </p>
             </div>
             <div className="flex gap-2">
               <Button
@@ -133,8 +129,8 @@ export default function PendingIntakesPage() {
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Refresh
               </Button>
-              <Link href="/frontdesk/intake/start">
-                <Button>Start New Intake</Button>
+              <Link href="/frontdesk/patients">
+                <Button>Go to Patients</Button>
               </Link>
             </div>
           </div>
@@ -157,10 +153,10 @@ export default function PendingIntakesPage() {
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Inbox className="h-12 w-12 text-gray-400 mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                No Pending Intakes
+                No Intake Submissions
               </h3>
               <p className="text-gray-600 mb-6 text-center">
-                There are no patient intake forms awaiting review at this time.
+                There are no patient intake submissions at this time.
               </p>
               <Link href="/frontdesk/intake/start">
                 <Button>Start New Intake Session</Button>
@@ -169,6 +165,12 @@ export default function PendingIntakesPage() {
           </Card>
         ) : (
           <div className="space-y-4">
+            <Alert className="border-green-200 bg-green-50">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-800">
+                Intake submissions are automatically confirmed. Patients are created immediately after submission.
+              </AlertDescription>
+            </Alert>
             {intakes.map((intake) => (
               <Card key={intake.sessionId} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-6">
@@ -211,6 +213,12 @@ export default function PendingIntakesPage() {
                       </div>
                       <div>
                         <p className="text-xs text-gray-500 uppercase tracking-wide">
+                          Status
+                        </p>
+                        <p className="text-sm text-green-600 font-medium">Auto-confirmed</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 uppercase tracking-wide">
                           Address
                         </p>
                         <p className="text-sm text-gray-700 line-clamp-2">
@@ -241,15 +249,15 @@ export default function PendingIntakesPage() {
                         </div>
                         {intake.missingFields.length > 0 && (
                           <div className="text-xs text-gray-600">
-                            {intake.missingFields.length} field(s) to verify
+                            {intake.missingFields.length} field(s) missing
                           </div>
                         )}
                       </div>
 
-                      <Link href={`/frontdesk/intake/review/${intake.sessionId}`}>
+                      <Link href="/frontdesk/patients">
                         <Button size="sm">
                           <Eye className="w-4 h-4 mr-2" />
-                          Review & Confirm
+                          View Patients
                         </Button>
                       </Link>
                     </div>

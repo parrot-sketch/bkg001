@@ -1,107 +1,51 @@
 'use client';
 
 /**
- * Consultation Context
- * 
- * Centralized state management for the consultation workflow.
- * Decouples data fetching, state management, and UI.
- * 
- * Responsibilities:
- * - Fetch and cache appointment/patient/consultation data
- * - Manage workflow state transitions
- * - Handle auto-save with debouncing
- * - Track dirty state and unsaved changes
- * - Provide actions for UI components
- * 
- * This context should be the SINGLE SOURCE OF TRUTH for:
- * - Current patient/appointment being consulted
- * - Consultation notes state
- * - Workflow state (loading, active, completing, etc.)
+ * Consultation Context — Compatibility Layer
+ *
+ * Thin façade preserving the existing useConsultationContext() API.
+ * All orchestration is delegated to SessionProvider and extracted providers.
  */
 
-import React, {
-  createContext,
-  useContext,
-  useReducer,
-  useCallback,
-  useEffect,
-  useRef,
-  useMemo,
-  useState,
-  type ReactNode
-} from 'react';
-import { useRouter } from 'next/navigation';
-import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import { debounce } from 'lodash';
-
-import { doctorApi } from '@/lib/api/doctor';
-import { consultationApi } from '@/lib/api/consultation';
-import { apiClient } from '@/lib/api/client';
-import { useAuth } from '@/hooks/patient/useAuth';
-import { useDoctorTodayAppointments } from '@/hooks/doctor/useDoctorDashboard';
-import { useConsultation } from '@/hooks/consultation/useConsultation';
-import { useSaveConsultationDraft } from '@/hooks/consultation/useSaveConsultationDraft';
-import { updateCompletedConsultationNotes } from '@/actions/doctor/consultation-hub';
-
-import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
-import { ConsultationState } from '@/domain/enums/ConsultationState';
-import { ConsultationOutcomeType } from '@/domain/enums/ConsultationOutcomeType';
-import { PatientDecision } from '@/domain/enums/PatientDecision';
-import {
-  ConsultationWorkflowState,
-  ConsultationWorkflowAction,
-  getNextState,
-  canPerformAction,
-  createInitialContext,
-  type ConsultationWorkflowContext,
-} from '@/domain/workflows/ConsultationWorkflowState';
-
+import { createContext, useContext, useMemo } from 'react';
+import { SessionProvider, useSessionContext, useSessionContextOpt } from '@/providers/session/SessionProvider';
+import type { SessionUser } from '@/infrastructure/factories/ConsultationSessionFactory';
+import type { SerializedSessionData } from '@/infrastructure/factories/ConsultationSessionFactory';
+import { useDialogContext } from '@/providers/dialog/DialogProvider';
+import { useDocumentationContext } from '@/providers/documentation/DocumentationProvider';
+import { useQueueContext } from '@/providers/queue/QueueContextProvider';
+import type { ConsultationResponseDto } from '@/application/dtos/ConsultationResponseDto';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
-import type { ConsultationResponseDto } from '@/application/dtos/ConsultationResponseDto';
+import type { VitalsData } from '@/providers/patient/PatientContextProvider';
+import type { StructuredNotes } from '@/shared-kernel/types/notes';
+import { ConsultationOutcomeType } from '@/domain/enums/ConsultationOutcomeType';
+import { PatientDecision } from '@/domain/enums/PatientDecision';
 
 // ============================================================================
-// TYPES
+// LEGACY TYPE RECONSTRUCTION
 // ============================================================================
 
-export interface VitalsData {
-  bodyTemperature: number | null;
-  systolic: number | null;
-  diastolic: number | null;
-  heartRate: string | null;
-  respiratoryRate: number | null;
-  oxygenSaturation: number | null;
-  weight: number | null;
-  height: number | null;
-  recordedAt: string;
-  recordedBy: string | null;
-}
-
-export interface StructuredNotes {
-  chiefComplaint?: string;
-  examination?: string;
-  assessment?: string;
-  plan?: string;
+interface ConsultationWorkflowContext {
+  state: string;
+  error: string | null;
+  isDirty: boolean;
+  appointmentId: number | null;
+  patientId: string | null;
+  consultationId: number | null;
+  lastSavedAt: Date | null;
 }
 
 interface ConsultationProviderState {
-  // Workflow state
   workflow: ConsultationWorkflowContext;
-
-  // Data (null when not loaded)
   appointment: AppointmentResponseDto | null;
   patient: PatientResponseDto | null;
   vitals: VitalsData | null;
   consultation: ConsultationResponseDto | null;
   doctorId: string | null;
-
-  // Notes state (local, synced via auto-save)
   notes: StructuredNotes;
   outcomeType: ConsultationOutcomeType | null;
   patientDecision: PatientDecision | null;
-
-  // UI state
   isLoading: boolean;
   isSaving: boolean;
   showCompleteDialog: boolean;
@@ -109,180 +53,18 @@ interface ConsultationProviderState {
   autoSaveStatus: 'idle' | 'saving' | 'saved' | 'error';
 }
 
-type ConsultationAction =
-  | { type: 'SET_WORKFLOW_STATE'; payload: ConsultationWorkflowState }
-  | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_SAVING'; payload: boolean }
-  | { type: 'SET_DATA'; payload: { appointment: AppointmentResponseDto; patient: PatientResponseDto; vitals: VitalsData | null; doctorId: string } }
-  | { type: 'SET_CONSULTATION'; payload: ConsultationResponseDto | null }
-  | { type: 'SET_NOTES'; payload: StructuredNotes }
-  | { type: 'UPDATE_NOTE_FIELD'; payload: { field: keyof StructuredNotes; value: string } }
-  | { type: 'SET_OUTCOME'; payload: ConsultationOutcomeType }
-  | { type: 'SET_PATIENT_DECISION'; payload: PatientDecision | null }
-  | { type: 'SET_AUTO_SAVE_STATUS'; payload: 'idle' | 'saving' | 'saved' | 'error' }
-  | { type: 'SET_DIRTY'; payload: boolean }
-  | { type: 'SHOW_COMPLETE_DIALOG'; payload: boolean }
-  | { type: 'SHOW_START_DIALOG'; payload: boolean }
-  | { type: 'SET_ERROR'; payload: string }
-  | { type: 'CLEAR_ERROR' }
-  | { type: 'RESET' };
-
-// ============================================================================
-// REDUCER
-// ============================================================================
-
-function consultationReducer(state: ConsultationProviderState, action: ConsultationAction): ConsultationProviderState {
-  switch (action.type) {
-    case 'SET_WORKFLOW_STATE':
-      return {
-        ...state,
-        workflow: { ...state.workflow, state: action.payload },
-      };
-
-    case 'SET_LOADING':
-      return { ...state, isLoading: action.payload };
-
-    case 'SET_SAVING':
-      return { ...state, isSaving: action.payload };
-
-    case 'SET_DATA':
-      return {
-        ...state,
-        appointment: action.payload.appointment,
-        patient: action.payload.patient,
-        vitals: action.payload.vitals,
-        doctorId: action.payload.doctorId,
-        workflow: {
-          ...state.workflow,
-          appointmentId: action.payload.appointment.id,
-          patientId: action.payload.patient.id,
-        },
-      };
-
-    case 'SET_CONSULTATION':
-      return {
-        ...state,
-        consultation: action.payload,
-        workflow: {
-          ...state.workflow,
-          consultationId: action.payload?.id ?? null,
-        },
-      };
-
-    case 'SET_NOTES':
-      return {
-        ...state,
-        notes: action.payload,
-        workflow: { ...state.workflow, isDirty: true },
-      };
-
-    case 'UPDATE_NOTE_FIELD':
-      if (state.notes[action.payload.field] === action.payload.value) {
-        return state;
-      }
-      return {
-        ...state,
-        notes: { ...state.notes, [action.payload.field]: action.payload.value },
-        workflow: { ...state.workflow, isDirty: true },
-      };
-
-    case 'SET_OUTCOME':
-      if (state.outcomeType === action.payload) {
-        return state;
-      }
-      return {
-        ...state,
-        outcomeType: action.payload,
-        workflow: { ...state.workflow, isDirty: true },
-      };
-
-    case 'SET_PATIENT_DECISION':
-      if (state.patientDecision === action.payload) {
-        return state;
-      }
-      return {
-        ...state,
-        patientDecision: action.payload,
-        workflow: { ...state.workflow, isDirty: true },
-      };
-
-    case 'SET_AUTO_SAVE_STATUS':
-      return { ...state, autoSaveStatus: action.payload };
-
-    case 'SET_DIRTY':
-      return {
-        ...state,
-        workflow: { ...state.workflow, isDirty: action.payload },
-      };
-
-    case 'SHOW_COMPLETE_DIALOG':
-      return { ...state, showCompleteDialog: action.payload };
-
-    case 'SHOW_START_DIALOG':
-      return { ...state, showStartDialog: action.payload };
-
-    case 'SET_ERROR':
-      return {
-        ...state,
-        workflow: {
-          ...state.workflow,
-          state: ConsultationWorkflowState.ERROR,
-          error: action.payload,
-        },
-      };
-
-    case 'CLEAR_ERROR':
-      return {
-        ...state,
-        workflow: { ...state.workflow, error: null },
-      };
-
-    case 'RESET':
-      return createInitialState();
-
-    default:
-      return state;
-  }
-}
-
-function createInitialState(appointmentId?: number): ConsultationProviderState {
-  return {
-    workflow: createInitialContext(appointmentId),
-    appointment: null,
-    patient: null,
-    vitals: null,
-    consultation: null,
-    doctorId: null,
-    notes: {},
-    outcomeType: null,
-    patientDecision: null,
-    isLoading: false,
-    isSaving: false,
-    showCompleteDialog: false,
-    showStartDialog: false,
-    autoSaveStatus: 'idle',
-  };
-}
-
-// ============================================================================
-// CONTEXT
-// ============================================================================
-
 interface ConsultationContextValue {
-  // State
   state: ConsultationProviderState;
-
-  // Computed
   isActive: boolean;
   isReadOnly: boolean;
   canSave: boolean;
   canComplete: boolean;
+  showStartDialog: boolean;
+  showCompleteDialog: boolean;
   waitingQueue: AppointmentResponseDto[];
   refetchQueue: () => Promise<unknown>;
   isQueueRefetching: boolean;
   loadWaitingQueue: () => void;
-
-  // Actions
   loadAppointment: (appointmentId: number) => Promise<void>;
   startConsultation: () => Promise<void>;
   closeStartDialog: () => void;
@@ -293,8 +75,8 @@ interface ConsultationContextValue {
   setPatientDecision: (decision: PatientDecision | null) => void;
   openCompleteDialog: () => void;
   closeCompleteDialog: () => void;
-  completeConsultation: (redirectPath?: string) => Promise<void>;
-  switchToPatient: (appointmentId: number) => void;
+  completeConsultation: () => Promise<void>;
+  switchToPatient: (appointmentId: number) => Promise<void>;
   goToSurgeryPlanning: () => void;
 }
 
@@ -304,594 +86,99 @@ const ConsultationContext = createContext<ConsultationContextValue | null>(null)
 // PROVIDER
 // ============================================================================
 
-interface ConsultationProviderProps {
-  children: ReactNode;
-  initialAppointmentId?: number;
+function useSessionSafe() {
+  const ctx = useSessionContext();
+  if (!ctx) throw new Error('SessionProvider missing');
+  return ctx;
 }
 
-export function ConsultationProvider({ children, initialAppointmentId }: ConsultationProviderProps) {
-  const router = useRouter();
-  const queryClient = useQueryClient();
-  const { user } = useAuth();
+export function ConsultationProvider({ children, initialSession, user, restoredDraft, initialAppointmentId }: { children: React.ReactNode; initialSession?: SerializedSessionData; user?: SessionUser; restoredDraft?: boolean; initialAppointmentId?: number }) {
+  const existingSession = useSessionContextOpt();
+  if (existingSession) {
+    return <CompatibilityAdapter>{children}</CompatibilityAdapter>;
+  }
 
-  const [state, dispatch] = useReducer(
-    consultationReducer,
-    createInitialState(initialAppointmentId)
+  return (
+    <SessionProvider initialSession={initialSession as any} user={user as any} restoredDraft={!!restoredDraft}>
+      <CompatibilityAdapter>
+        {children}
+      </CompatibilityAdapter>
+    </SessionProvider>
   );
+}
+
+function CompatibilityAdapter({ children }: { children: React.ReactNode }) {
+  const session = useSessionSafe();
+  const dialog = useDialogContext();
+  const docs = useDocumentationContext();
+  const queue = useQueueContext();
+
+  const lastSavedAtDate = useMemo(() => {
+    return docs.lastSavedAt ? new Date(docs.lastSavedAt) : null;
+  }, [docs.lastSavedAt]);
+
+  const workflow = useMemo(() => ({
+    state: session.workflowState,
+    error: session.error,
+    isDirty: docs.isDirty,
+    appointmentId: session.appointment?.id ?? null,
+    patientId: session.patient?.id ?? null,
+    consultationId: session.consultation?.id ?? null,
+    lastSavedAt: lastSavedAtDate,
+  }), [session.workflowState, session.error, docs.isDirty, session.appointment, session.patient, session.consultation, lastSavedAtDate]);
+
+  if (session.error) {
+    console.log('[ConsultationContext] session.error:', session.error, 'type:', typeof session.error);
+  }
+
+  const state = useMemo(() => ({
+    workflow,
+    appointment: session.appointment,
+    patient: session.patient,
+    vitals: session.vitals,
+    consultation: session.consultation,
+    doctorId: session.doctorId,
+    notes: docs.notes,
+    outcomeType: docs.outcomeType,
+    patientDecision: docs.patientDecision,
+    isLoading: session.isLoading,
+    isSaving: docs.isSaving,
+    showCompleteDialog: dialog.isCompleteDialogOpen,
+    showStartDialog: dialog.isStartDialogOpen,
+    autoSaveStatus: docs.autoSaveStatus,
+  }), [workflow, session.appointment, session.patient, session.vitals, session.consultation, session.doctorId, docs.notes, docs.outcomeType, docs.patientDecision, session.isLoading, docs.isSaving, dialog.isCompleteDialogOpen, dialog.isStartDialogOpen, docs.autoSaveStatus]);
+
+  const isActive = session.isActive;
+  const isReadOnly = session.isReadOnly;
+  const canSave = docs.isDirty;
+  const canComplete = isActive && !docs.isSaving;
 
-  // External hooks
-  const saveDraftMutation = useSaveConsultationDraft();
-  const [queueLoaded, setQueueLoaded] = useState(false);
-
-  // Refs for debounced save
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Lazy-load waiting queue only when needed
-  const {
-    data: todayAppointments = [],
-    refetch: refetchQueue,
-    isRefetching: isQueueRefetching,
-  } = useDoctorTodayAppointments(user?.id, queueLoaded, false);
-
-  // Waiting queue (excluding current appointment)
-  const waitingQueue = useMemo(() => {
-    return todayAppointments.filter((apt) =>
-      apt.id !== state.appointment?.id &&
-      (apt.status === AppointmentStatus.CHECKED_IN ||
-        apt.status === AppointmentStatus.READY_FOR_CONSULTATION)
-    );
-  }, [todayAppointments, state.appointment?.id]);
-
-  const loadWaitingQueue = useCallback(() => {
-    if (!queueLoaded) {
-      setQueueLoaded(true);
-      refetchQueue();
-    }
-  }, [queueLoaded, refetchQueue]);
-
-  // Computed properties
-  // Ground truth: appointment status trumps consultation record state.
-  // Old consultations completed before our updates may have a Consultation record
-  // still stuck in IN_PROGRESS even though the appointment is COMPLETED.
-  const appointmentCompleted = state.appointment?.status === AppointmentStatus.COMPLETED;
-  const appointmentCancelled = state.appointment?.status === AppointmentStatus.CANCELLED;
-  const isActive = !appointmentCompleted && !appointmentCancelled &&
-    state.consultation?.state === ConsultationState.IN_PROGRESS;
-  const isReadOnly = appointmentCompleted || appointmentCancelled ||
-    state.consultation?.state === ConsultationState.COMPLETED;
-  const canSave = state.workflow.isDirty;
-  const canComplete = isActive && !state.isSaving;
-
-  // ========== ACTIONS ==========
-
-  const loadAppointment = useCallback(async (appointmentId: number) => {
-    if (!user) return;
-
-    dispatch({ type: 'SET_LOADING', payload: true });
-    dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.LOADING });
-
-    try {
-      // Tier 1: Fetch core entities in parallel to shatter the rendering waterfall
-      const [appointmentResponse, doctorResponse, consultationResponse] = await Promise.all([
-        doctorApi.getAppointment(appointmentId),
-        doctorApi.getDoctorByUserId(user.id),
-        consultationApi.getConsultation(appointmentId).catch(() => ({ success: false, data: null }))
-      ]);
-
-      if (!appointmentResponse || !appointmentResponse.success || !appointmentResponse.data) {
-        throw new Error('Appointment not found');
-      }
-
-      const apt = appointmentResponse.data;
-      const doctorId = doctorResponse.success && doctorResponse.data
-        ? doctorResponse.data.id
-        : user.id;
-
-      // Tier 2: Fetch patient-specific vitals and profile dynamically downstream
-      const [patientResponse, vitalsResponse] = await Promise.all([
-        doctorApi.getPatient(apt.patientId),
-        apiClient.get<any[]>(`/patients/${apt.patientId}/vitals?appointmentId=${appointmentId}`).catch(() => ({ success: false, data: null }))
-      ]);
-
-      if (!patientResponse.success || !patientResponse.data) {
-        throw new Error('Patient not found');
-      }
-
-      let vitalsData: VitalsData | null = null;
-      if (vitalsResponse && vitalsResponse.success && vitalsResponse.data && vitalsResponse.data.length > 0) {
-        const raw = vitalsResponse.data[0];
-        vitalsData = {
-          bodyTemperature: raw.body_temperature ?? null,
-          systolic: raw.systolic ?? null,
-          diastolic: raw.diastolic ?? null,
-          heartRate: raw.heart_rate ?? null,
-          respiratoryRate: raw.respiratory_rate ?? null,
-          oxygenSaturation: raw.oxygen_saturation ?? null,
-          weight: raw.weight ?? null,
-          height: raw.height ?? null,
-          recordedAt: raw.recorded_at ?? '',
-          recordedBy: raw.recorded_by ?? null,
-        };
-      }
-
-      dispatch({
-        type: 'SET_DATA',
-        payload: {
-          appointment: apt,
-          patient: patientResponse.data,
-          vitals: vitalsData,
-          doctorId,
-        }
-      });
-
-      // Hydrate consultation if it was present in Tier 1
-      if (consultationResponse && consultationResponse.success && consultationResponse.data) {
-        dispatch({ type: 'SET_CONSULTATION', payload: consultationResponse.data });
-
-        // Restore notes from consultation
-        if (consultationResponse.data.notes?.structured) {
-          dispatch({ type: 'SET_NOTES', payload: consultationResponse.data.notes.structured });
-        } else if (consultationResponse.data.notes?.fullText) {
-          // Parse legacy full-text notes into structured format
-          const parsed = parseLegacyNotes(consultationResponse.data.notes.fullText);
-          dispatch({ type: 'SET_NOTES', payload: parsed });
-        }
-
-        // Restore outcome/decision
-        if (consultationResponse.data.outcomeType) {
-          dispatch({ type: 'SET_OUTCOME', payload: consultationResponse.data.outcomeType });
-        }
-        if (consultationResponse.data.patientDecision) {
-          dispatch({ type: 'SET_PATIENT_DECISION', payload: consultationResponse.data.patientDecision });
-        }
-
-        // Restore draft from localStorage if exists AND is newer than server data
-        const savedDraft = localStorage.getItem(`consultation-draft-${appointmentId}`);
-        if (savedDraft) {
-          try {
-            const draft = JSON.parse(savedDraft);
-            if (draft.timestamp && draft.structured) {
-              const draftTime = new Date(draft.timestamp);
-              const serverTime = consultationResponse.data.updatedAt 
-                ? new Date(consultationResponse.data.updatedAt) 
-                : new Date(0);
-
-              if (draftTime > serverTime) {
-                dispatch({ type: 'SET_NOTES', payload: draft.structured });
-                // No toast — auto-save indicator in header shows "Restored" status
-              } else {
-                localStorage.removeItem(`consultation-draft-${appointmentId}`);
-              }
-            }
-          } catch (e) {
-            console.error('Failed to restore draft:', e);
-            localStorage.removeItem(`consultation-draft-${appointmentId}`);
-          }
-        }
-      }
-
-      // Determine workflow state based on appointment/consultation status.
-      // If the appointment is already IN_CONSULTATION, go straight to the 
-      // workspace — no start dialog. This is the normal path when navigating
-      // from a "Start Consultation" button that already called the API.
-      const hasActiveConsultation = consultationResponse.success &&
-        consultationResponse.data?.state === ConsultationState.IN_PROGRESS;
-
-      if (apt.status === AppointmentStatus.COMPLETED ||
-        apt.status === AppointmentStatus.CANCELLED) {
-        // Already completed or cancelled — read-only view, no dialogs
-        dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.READY });
-        dispatch({ type: 'SHOW_START_DIALOG', payload: false });
-        dispatch({ type: 'SHOW_COMPLETE_DIALOG', payload: false });
-      } else if (apt.status === AppointmentStatus.IN_CONSULTATION || hasActiveConsultation) {
-        dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.ACTIVE });
-        // Explicitly ensure the dialog is closed (defensive)
-        dispatch({ type: 'SHOW_START_DIALOG', payload: false });
-      } else if (apt.status === AppointmentStatus.CHECKED_IN ||
-        apt.status === AppointmentStatus.READY_FOR_CONSULTATION) {
-        dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.READY });
-        dispatch({ type: 'SHOW_START_DIALOG', payload: true });
-      } else {
-        dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.READY });
-      }
-
-      dispatch({ type: 'SET_DIRTY', payload: false });
-
-    } catch (error: any) {
-      console.error('Failed to load appointment:', error);
-      dispatch({ type: 'SET_ERROR', payload: error.message || 'Failed to load appointment' });
-      toast.error(error.message || 'Failed to load appointment');
-    } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }
-  }, [user]);
-
-  const startConsultation = useCallback(async () => {
-    if (!user || !state.appointment) return;
-
-    dispatch({ type: 'SET_LOADING', payload: true });
-
-    try {
-      const response = await doctorApi.startConsultation({
-        appointmentId: state.appointment.id,
-        doctorId: state.doctorId || user.id,
-        userId: user.id,
-      });
-
-      if (!response.success) {
-        // Handle "already in progress" gracefully — another code path
-        // (dashboard, appointment detail) may have started it first.
-        const errorMsg = (response.error || '').toLowerCase();
-        const isAlreadyStarted = errorMsg.includes('in progress') ||
-          errorMsg.includes('in_consultation') ||
-          errorMsg.includes('already');
-
-        if (isAlreadyStarted) {
-          // Not an error — just proceed to the workspace
-          console.info('[ConsultationContext] Consultation already in progress, proceeding to workspace');
-        } else {
-          throw new Error(response.error || 'Failed to start consultation');
-        }
-      }
-
-      // Refresh consultation data regardless (it may exist from a prior start)
-      const consultationResponse = await consultationApi.getConsultation(state.appointment.id);
-      if (consultationResponse.success && consultationResponse.data) {
-        dispatch({ type: 'SET_CONSULTATION', payload: consultationResponse.data });
-      }
-
-      dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.ACTIVE });
-      dispatch({ type: 'SHOW_START_DIALOG', payload: false });
-
-      // Invalidate queries to refresh dashboard
-      queryClient.invalidateQueries({ queryKey: ['doctor', user.id, 'appointments'] });
-
-      toast.success('Consultation started');
-
-    } catch (error: any) {
-      console.error('Failed to start consultation:', error);
-      toast.error(error.message || 'Failed to start consultation');
-    } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }
-  }, [user, state.appointment, state.doctorId, queryClient]);
-
-  const closeStartDialog = useCallback(() => {
-    dispatch({ type: 'SHOW_START_DIALOG', payload: false });
-  }, []);
-
-  const saveDraft = useCallback(async () => {
-    if (!state.appointment || !state.doctorId || !state.consultation || !canSave) return;
-
-    dispatch({ type: 'SET_SAVING', payload: true });
-    dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'saving' });
-
-    try {
-      await saveDraftMutation.mutateAsync({
-        appointmentId: state.appointment.id,
-        doctorId: state.doctorId,
-        notes: {
-          rawText: generateFullText(state.notes),
-          structured: state.notes,
-        },
-        outcomeType: state.outcomeType ?? undefined,
-        patientDecision: state.patientDecision ?? undefined,
-      });
-
-      dispatch({ type: 'SET_DIRTY', payload: false });
-      dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'saved' });
-
-      localStorage.setItem(
-        `consultation-draft-${state.appointment.id}`,
-        JSON.stringify({
-          structured: state.notes,
-          timestamp: new Date().toISOString()
-        })
-      );
-
-      setTimeout(() => {
-        dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'idle' });
-      }, 2000);
-
-    } catch (error: any) {
-      console.error('Failed to save draft:', error);
-      dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'error' });
-    } finally {
-      dispatch({ type: 'SET_SAVING', payload: false });
-    }
-  }, [state.appointment, state.doctorId, state.consultation, state.notes, state.outcomeType, state.patientDecision, canSave, saveDraftMutation]);
-
-  const saveNotes = useCallback(async () => {
-    if (!state.appointment || !state.doctorId || !state.consultation || !state.workflow.isDirty) return;
-
-    dispatch({ type: 'SET_SAVING', payload: true });
-    dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'saving' });
-
-    try {
-      const isCompleted = state.consultation.state === ConsultationState.COMPLETED ||
-        state.appointment.status === AppointmentStatus.COMPLETED;
-
-if (isCompleted) {
-         const result = await updateCompletedConsultationNotes({
-           consultationId: state.consultation.id,
-           doctorId: state.doctorId,
-           chiefComplaint: state.notes.chiefComplaint,
-           examination: state.notes.examination,
-           plan: state.notes.plan,
-         });
-
-        if (result.success) {
-          dispatch({ type: 'SET_DIRTY', payload: false });
-          dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'saved' });
-          setTimeout(() => {
-            dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'idle' });
-          }, 2000);
-        } else {
-          dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'error' });
-          toast.error(result.error || 'Failed to save notes');
-        }
-      } else {
-        await saveDraftMutation.mutateAsync({
-          appointmentId: state.appointment.id,
-          doctorId: state.doctorId,
-          notes: {
-            rawText: generateFullText(state.notes),
-            structured: state.notes,
-          },
-          outcomeType: state.outcomeType ?? undefined,
-          patientDecision: state.patientDecision ?? undefined,
-        });
-
-        dispatch({ type: 'SET_DIRTY', payload: false });
-        dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'saved' });
-
-        localStorage.setItem(
-          `consultation-draft-${state.appointment.id}`,
-          JSON.stringify({
-            structured: state.notes,
-            timestamp: new Date().toISOString()
-          })
-        );
-
-        setTimeout(() => {
-          dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'idle' });
-        }, 2000);
-      }
-    } catch (error: any) {
-      console.error('Failed to save notes:', error);
-      dispatch({ type: 'SET_AUTO_SAVE_STATUS', payload: 'error' });
-    } finally {
-      dispatch({ type: 'SET_SAVING', payload: false });
-    }
-  }, [state.appointment, state.doctorId, state.consultation, state.notes, state.outcomeType, state.patientDecision, state.workflow.isDirty, state.consultation?.state, state.appointment?.status, saveDraftMutation]);
-
-  const updateNotes = useCallback((field: keyof StructuredNotes, value: string) => {
-    dispatch({ type: 'UPDATE_NOTE_FIELD', payload: { field, value } });
-  }, []);
-
-  const setOutcome = useCallback((outcome: ConsultationOutcomeType) => {
-    dispatch({ type: 'SET_OUTCOME', payload: outcome });
-    
-    // Automation: If procedure is recommended, patient decision is YES by default
-    if (outcome === ConsultationOutcomeType.PROCEDURE_RECOMMENDED) {
-      dispatch({ type: 'SET_PATIENT_DECISION', payload: PatientDecision.YES });
-    } else {
-      // Clear decision for other outcomes to keep state clean
-      dispatch({ type: 'SET_PATIENT_DECISION', payload: null });
-    }
-  }, []);
-
-  const setPatientDecision = useCallback((decision: PatientDecision | null) => {
-    dispatch({ type: 'SET_PATIENT_DECISION', payload: decision });
-  }, []);
-
-  const openCompleteDialog = useCallback(() => {
-    dispatch({ type: 'SHOW_COMPLETE_DIALOG', payload: true });
-    dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.COMPLETING });
-  }, []);
-
-  const closeCompleteDialog = useCallback(() => {
-    dispatch({ type: 'SHOW_COMPLETE_DIALOG', payload: false });
-    dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.ACTIVE });
-  }, []);
-
-  const completeConsultation = useCallback(async (redirectPath?: string) => {
-    if (!state.appointment) return;
-
-    const completedAppointmentId = state.appointment.id;
-
-    // Clear any pending auto-save before final submission
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-      saveTimeoutRef.current = null;
-    }
-
-    dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.TRANSITIONING });
-    dispatch({ type: 'SHOW_COMPLETE_DIALOG', payload: false });
-
-    try {
-      // The API completion call is now handled directly by the CompleteConsultationDialog
-      // because it captures the doctor's custom edited summary.
-      // This context function now exclusively handles post-completion cleanup and routing.
-      
-      // Clear local backup on successful completion
-      localStorage.removeItem(`consultation-draft-${completedAppointmentId}`);
-
-      // Full state reset — prevent stale patient data from leaking into next session
-      dispatch({ type: 'RESET' });
-
-      // Aggressively invalidate all related caches
-      queryClient.invalidateQueries({ queryKey: ['consultation', completedAppointmentId] });
-      queryClient.invalidateQueries({ queryKey: ['consultation'] });
-      queryClient.invalidateQueries({ queryKey: ['doctor'] });
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
-      queryClient.invalidateQueries({ queryKey: ['billing'] });
-      queryClient.invalidateQueries({ queryKey: ['appointment-billing'] });
-
-      toast.success('Consultation completed successfully');
-
-      // Navigate: explicit redirect > Hub (default)
-      const finalRedirect = redirectPath || '/doctor/consultations';
-      router.push(finalRedirect);
-
-    } catch (error: any) {
-      console.error('Failed to complete consultation:', error);
-      toast.error(error.message || 'Failed to finalize session');
-      dispatch({ type: 'SET_WORKFLOW_STATE', payload: ConsultationWorkflowState.ACTIVE });
-    }
-  }, [state.appointment, state.doctorId, state.notes, state.outcomeType, state.patientDecision, user, queryClient, router]);
-
-  const switchToPatient = useCallback((appointmentId: number) => {
-    // Clear any pending auto-save before switching
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-      saveTimeoutRef.current = null;
-    }
-    
-    if (state.workflow.isDirty) {
-      // Save before switching - with proper error handling
-      saveDraft().then(() => {
-        router.push(`/doctor/consultations/session/${appointmentId}`);
-      }).catch((error) => {
-        console.error('Failed to save draft before switching:', error);
-        // Navigate anyway - draft is not critical for switching
-        router.push(`/doctor/consultations/session/${appointmentId}`);
-      });
-    } else {
-      router.push(`/doctor/consultations/session/${appointmentId}`);
-    }
-  }, [state.workflow.isDirty, saveDraft, router]);
-
-  const goToSurgeryPlanning = useCallback(() => {
-    if (!state.appointment) return;
-    router.push(`/doctor/operative/plan/${state.appointment.id}/new`);
-  }, [state.appointment, router]);
-
-  // ========== EFFECTS ==========
-
-  // Auto-save with debouncing
-  useEffect(() => {
-    if (!isActive || !state.workflow.isDirty) return;
-
-    // Clear existing timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-
-    // Set new timeout for auto-save (3 seconds)
-    saveTimeoutRef.current = setTimeout(() => {
-      saveDraft();
-    }, 3000);
-
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
-  }, [
-    state.notes,
-    state.outcomeType,
-    state.patientDecision,
-    isActive,
-    state.workflow.isDirty,
-    saveDraft,
-  ]);
-
-  // Heartbeat effect: Send activity signal to backend every 30 seconds
-  // This prevents session timeout and enables cleanup of truly abandoned sessions
-  useEffect(() => {
-    if (!isActive || !state.consultation?.id) return;
-
-    const sendHeartbeat = async () => {
-      try {
-        await apiClient.post(
-          `/consultations/${state.consultation!.id}/heartbeat`,
-          {}
-        );
-      } catch (error) {
-        // Network errors are expected occasionally - don't interrupt consultation
-      }
-    };
-
-    // Send initial heartbeat immediately
-    sendHeartbeat();
-
-    // Set up interval to send heartbeat every 30 seconds
-    const heartbeatInterval = setInterval(sendHeartbeat, 30000);
-
-    return () => clearInterval(heartbeatInterval);
-  }, [isActive, state.consultation?.id]);
-
-  // Load initial appointment
-  useEffect(() => {
-    if (initialAppointmentId && user) {
-      loadAppointment(initialAppointmentId);
-    }
-  }, [initialAppointmentId, user, loadAppointment]);
-
-  // Warn before leaving with unsaved changes
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (state.workflow.isDirty) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [state.workflow.isDirty]);
-
-  // ========== CONTEXT VALUE ==========
-
-  // ========== CONTEXT VALUE ==========
   const value = useMemo(() => ({
     state,
     isActive,
     isReadOnly,
     canSave,
     canComplete,
-    waitingQueue,
-    refetchQueue,
-    isQueueRefetching,
-    loadWaitingQueue,
-    loadAppointment,
-    startConsultation,
-    closeStartDialog,
-    saveDraft,
-    saveNotes,
-    updateNotes,
-    setOutcome,
-    setPatientDecision,
-    openCompleteDialog,
-    closeCompleteDialog,
-    completeConsultation,
-    switchToPatient,
-    goToSurgeryPlanning,
-  }), [
-    state,
-    isActive,
-    isReadOnly,
-    canSave,
-    canComplete,
-    waitingQueue,
-    refetchQueue,
-    isQueueRefetching,
-    loadWaitingQueue,
-    loadAppointment,
-    startConsultation,
-    closeStartDialog,
-    saveDraft,
-    saveNotes,
-    updateNotes,
-    setOutcome,
-    setPatientDecision,
-    openCompleteDialog,
-    closeCompleteDialog,
-    completeConsultation,
-    switchToPatient,
-    goToSurgeryPlanning,
-  ]);
+    showStartDialog: dialog.isStartDialogOpen,
+    showCompleteDialog: dialog.isCompleteDialogOpen,
+    waitingQueue: queue.waitingQueue,
+    refetchQueue: queue.refetchQueue,
+    isQueueRefetching: queue.isQueueRefetching,
+    loadWaitingQueue: queue.loadWaitingQueue,
+    loadAppointment: session.initializeSession,
+    startConsultation: session.startConsultation,
+    closeStartDialog: dialog.closeStartDialog,
+    saveDraft: docs.saveDraft,
+    saveNotes: docs.saveNotes,
+    updateNotes: docs.updateNotes,
+    setOutcome: docs.setOutcome,
+    setPatientDecision: docs.setPatientDecision,
+    openCompleteDialog: dialog.openCompleteDialog,
+    closeCompleteDialog: dialog.closeCompleteDialog,
+    completeConsultation: session.completeSession,
+    switchToPatient: session.switchToPatient,
+    goToSurgeryPlanning: session.goToSurgeryPlanning,
+  }), [state, isActive, isReadOnly, canSave, canComplete, dialog.isStartDialogOpen, dialog.isCompleteDialogOpen, queue.waitingQueue, queue.refetchQueue, queue.isQueueRefetching, queue.loadWaitingQueue, session.initializeSession, session.startConsultation, dialog.closeStartDialog, docs.saveDraft, docs.saveNotes, docs.updateNotes, docs.setOutcome, docs.setPatientDecision, dialog.openCompleteDialog, dialog.closeCompleteDialog, session.completeSession, session.switchToPatient, session.goToSurgeryPlanning]);
 
   return (
     <ConsultationContext.Provider value={value}>
@@ -900,57 +187,10 @@ if (isCompleted) {
   );
 }
 
-// ============================================================================
-// HOOK
-// ============================================================================
-
 export function useConsultationContext() {
   const context = useContext(ConsultationContext);
   if (!context) {
     throw new Error('useConsultationContext must be used within ConsultationProvider');
   }
   return context;
-}
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-function generateFullText(notes: StructuredNotes): string {
-  const parts: string[] = [];
-
-  if (notes.chiefComplaint) {
-    parts.push(`PATIENT CONCERNS:\n${notes.chiefComplaint}`);
-  }
-  
-  // Combine internal fields into the simple "Plan" view if they exist
-  const combinedPlanParts: string[] = [];
-  if (notes.examination) combinedPlanParts.push(notes.examination);
-  if (notes.plan) combinedPlanParts.push(notes.plan);
-
-  if (combinedPlanParts.length > 0) {
-    parts.push(`TREATMENT PLAN & CLINICAL NOTES:\n${combinedPlanParts.join('\n\n')}`);
-  }
-
-  return parts.join('\n\n' + '='.repeat(40) + '\n\n');
-}
-
-/**
- * Parse legacy full-text notes into structured format.
- * Handles notes saved in format: "Chief Complaint: ...\n\nExamination: ...\n\nAssessment: ...\n\nPlan: ..."
- */
-function parseLegacyNotes(fullText: string): StructuredNotes {
-  const notes: StructuredNotes = {};
-  
-  const chiefMatch = fullText.match(/Chief Complaint:([\s\S]*?)(?:Examination:|Assessment:|Plan:|=== CONSULTATION OUTCOME ===|$)/i);
-  const examMatch = fullText.match(/Examination:([\s\S]*?)(?:Assessment:|Plan:|=== CONSULTATION OUTCOME ===|$)/i);
-  const assessmentMatch = fullText.match(/Assessment:([\s\S]*?)(?:Plan:|=== CONSULTATION OUTCOME ===|$)/i);
-  const planMatch = fullText.match(/Plan:([\s\S]*?)(=== CONSULTATION OUTCOME ===|$)/i);
-  
-  if (chiefMatch) notes.chiefComplaint = chiefMatch[1].trim();
-  if (examMatch) notes.examination = examMatch[1].trim();
-  if (assessmentMatch) notes.assessment = assessmentMatch[1].trim();
-  if (planMatch) notes.plan = planMatch[1].trim();
-  
-  return notes;
 }

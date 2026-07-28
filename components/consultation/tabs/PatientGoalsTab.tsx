@@ -6,7 +6,7 @@
  * Single responsibility: free-form clinical documentation via RichTextEditor.
  */
 
-import { RichTextEditor } from '@/components/consultation/RichTextEditor';
+import { ClinicalRichTextEditor } from '@/components/consultation/ClinicalRichTextEditor';
 
 interface PatientGoalsTabProps {
     initialValue?: string;
@@ -21,7 +21,7 @@ export function PatientGoalsTab({
 }: PatientGoalsTabProps) {
     return (
         <div className="space-y-4">
-            <RichTextEditor
+            <ClinicalRichTextEditor
                 content={initialValue}
                 onChange={onChange}
                 placeholder="Document patient concerns and goals..."

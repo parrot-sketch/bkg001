@@ -76,7 +76,7 @@ export default function DoctorNewAppointmentPage() {
             <div className="flex items-center justify-center min-h-[400px]">
                 <div className="text-center">
                     <div className="h-8 w-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                    <p className="text-sm text-slate-500">Loading booking form...</p>
+                    <p className="text-sm text-white/70">Loading booking form...</p>
                 </div>
             </div>
         }>

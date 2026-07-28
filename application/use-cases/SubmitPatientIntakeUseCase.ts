@@ -1,8 +1,10 @@
 import { IntakeSubmission } from '@/domain/entities/IntakeSubmission';
+import { Patient } from '@/domain/entities/Patient';
 import { IIntakeSessionRepository } from '@/infrastructure/repositories/IntakeSessionRepository';
 import { IIntakeSubmissionRepository } from '@/infrastructure/repositories/IntakeSubmissionRepository';
 import { IPatientRepository } from '@/domain/interfaces/repositories/IPatientRepository';
 import { Email } from '@/domain/value-objects/Email';
+import { Gender } from '@/domain/enums/Gender';
 import {
   SessionNotFoundError,
   SessionExpiredError,
@@ -42,6 +44,12 @@ export interface SubmitIntakeInput {
 export interface SubmitIntakeOutput {
   submissionId: string;
   sessionId: string;
+  patientId: string;
+  fileNumber: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
   message: string;
 }
 
@@ -88,10 +96,51 @@ export class SubmitPatientIntakeUseCase {
     const updatedSession = session.markAsSubmitted();
     await this.sessionRepo.save(updatedSession);
 
+    // 5. Auto-create patient record immediately
+    const primitive = submission.toPrimitive();
+    const fileNumber = await this.patientRepo.generateNextFileNumber();
+    const patientId = uuidv4();
+
+    const patientEntity = Patient.create({
+      id: patientId,
+      fileNumber,
+      firstName: primitive.personalInfo.firstName,
+      lastName: primitive.personalInfo.lastName,
+      dateOfBirth: new Date(primitive.personalInfo.dateOfBirth),
+      gender: primitive.personalInfo.gender as Gender,
+      email: primitive.contactInfo.email,
+      phone: primitive.contactInfo.phone,
+      address: primitive.contactInfo.address,
+      maritalStatus: primitive.contactInfo.maritalStatus || undefined,
+      occupation: primitive.contactInfo.occupation,
+      whatsappPhone: primitive.contactInfo.whatsappPhone,
+      emergencyContactName: primitive.emergencyContact.name || undefined,
+      emergencyContactNumber: primitive.emergencyContact.phoneNumber || undefined,
+      relation: primitive.emergencyContact.relationship || undefined,
+      bloodGroup: primitive.medicalInfo.bloodGroup,
+      allergies: primitive.medicalInfo.allergies,
+      medicalConditions: primitive.medicalInfo.medicalConditions,
+      medicalHistory: primitive.medicalInfo.medicalHistory,
+      insuranceProvider: primitive.insuranceInfo.provider,
+      insuranceNumber: primitive.insuranceInfo.number,
+      privacyConsent: primitive.consent.privacyConsent,
+      serviceConsent: primitive.consent.serviceConsent,
+      medicalConsent: primitive.consent.medicalConsent,
+    });
+
+    await this.patientRepo.save(patientEntity);
+    await this.submissionRepo.updateWithPatientId(submission.getSubmissionId(), patientId);
+
     return {
       submissionId: submission.getSubmissionId(),
       sessionId: input.sessionId,
-      message: 'Your intake form has been received successfully. Please return the device to the receptionist.',
+      patientId,
+      fileNumber,
+      firstName: primitive.personalInfo.firstName,
+      lastName: primitive.personalInfo.lastName,
+      email: primitive.contactInfo.email,
+      phone: primitive.contactInfo.phone,
+      message: 'Patient registered successfully.',
     };
   }
 }

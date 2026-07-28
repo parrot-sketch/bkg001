@@ -16,7 +16,7 @@ const AvailabilitySettingsPanel = dynamic(
     {
         ssr: false,
         loading: () => (
-            <div className="flex items-center justify-center py-24 text-muted-foreground">
+            <div className="flex items-center justify-center py-24 text-white/60">
                 <Loader2 className="h-5 w-5 animate-spin mr-2" />
                 <span className="text-sm">Loading availability editor…</span>
             </div>
@@ -77,7 +77,7 @@ export function ScheduleTabs({ initialSchedule, currentUser }: ScheduleTabsProps
 
     if (!currentUser) {
         return (
-            <div className="p-8 text-center text-muted-foreground">
+            <div className="p-8 text-center text-white/60">
                 Please log in to view schedule.
             </div>
         );
@@ -87,18 +87,18 @@ export function ScheduleTabs({ initialSchedule, currentUser }: ScheduleTabsProps
         <div className="space-y-4">
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
                 {/* Header Controls */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
-                    <TabsList className="bg-slate-100 p-1 rounded-none border border-slate-200 h-10">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#e7d6bf] pb-3">
+                    <TabsList className="bg-[#e7d6bf]/20 p-1 rounded-none border border-[#e7d6bf] h-10">
                         <TabsTrigger 
                             value="calendar" 
-                            className="rounded-none px-4 py-2 text-xs font-semibold data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm flex items-center gap-1.5"
+                            className="rounded-none px-4 py-2 text-xs font-semibold data-[state=active]:bg-white data-[state=active]:text-[#caa26a] data-[state=active]:shadow-sm flex items-center gap-1.5"
                         >
                             <Calendar className="h-3.5 w-3.5" />
                             Calendar View
                         </TabsTrigger>
                         <TabsTrigger 
                             value="availability" 
-                            className="rounded-none px-4 py-2 text-xs font-semibold data-[state=active]:bg-white data-[state=active]:text-blue-600 data-[state=active]:shadow-sm flex items-center gap-1.5"
+                            className="rounded-none px-4 py-2 text-xs font-semibold data-[state=active]:bg-white data-[state=active]:text-[#caa26a] data-[state=active]:shadow-sm flex items-center gap-1.5"
                         >
                             <Clock className="h-3.5 w-3.5" />
                             Weekly Availability
@@ -115,7 +115,7 @@ export function ScheduleTabs({ initialSchedule, currentUser }: ScheduleTabsProps
                                 size="sm"
                                 onClick={() => refreshSchedule()}
                                 disabled={refreshing}
-                                className="h-8 rounded-none border-slate-200 hover:bg-slate-50 text-slate-700 font-medium text-xs"
+                                className="h-8 rounded-none border-[#e7d6bf] hover:bg-[#e7d6bf]/30 text-[#2c2e4b] font-medium text-xs"
                             >
                                 <RefreshCw className={refreshing ? 'h-3.5 w-3.5 mr-1.5 animate-spin' : 'h-3.5 w-3.5 mr-1.5'} />
                                 Refresh Calendar
@@ -137,18 +137,18 @@ export function ScheduleTabs({ initialSchedule, currentUser }: ScheduleTabsProps
                 </TabsContent>
 
                 <TabsContent value="availability" className="mt-4 outline-none focus:outline-none">
-                    <div className="border border-slate-200 bg-white shadow-sm p-6 md:p-8">
-                        <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-6">
+                    <div className="border border-[#e7d6bf] bg-white shadow-sm p-6 md:p-8 rounded-xl">
+                        <div className="flex items-center justify-between border-b border-[#e7d6bf]/50 pb-4 mb-6">
                             <div>
-                                <h2 className="text-lg font-bold text-slate-900">Configure Availability & Slot Rules</h2>
-                                <p className="text-xs text-muted-foreground mt-0.5">
+                                <h2 className="text-lg font-bold text-[#2c2e4b]">Configure Availability & Slot Rules</h2>
+                                <p className="text-xs text-[#2c2e4b]/60 mt-0.5">
                                     Set up your recurring weekly working hours, slot intervals, and buffer periods.
                                 </p>
                             </div>
                             <Button
                                 variant="outline"
                                 size="sm"
-                                className="h-8 rounded-none text-xs"
+                                className="h-8 rounded-lg border-[#e7d6bf] text-[#2c2e4b] hover:bg-[#e7d6bf]/30 text-xs"
                                 onClick={() => handleTabChange('calendar')}
                             >
                                 Back to Calendar

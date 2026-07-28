@@ -21,7 +21,10 @@ export default function DoctorDashboardPage() {
         </div>
       </div>
 
-      <PendingConfirmationsBanner pendingCount={dashboardData?.stats?.pendingAppointments ?? 0} />
+      <PendingConfirmationsBanner 
+        pendingCount={dashboardData?.stats?.pendingAppointments ?? 0} 
+        pendingAppointmentIds={dashboardData?.stats?.pendingAppointmentIds ?? []} 
+      />
 
       <section>
         <DashboardStatCards isLoading={isLoading} />

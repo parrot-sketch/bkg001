@@ -33,15 +33,15 @@ export default async function DoctorSchedulePage() {
 
     // 3. Render
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-in fade-in duration-500">
             {/* Page header */}
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
                 <div>
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">{today}</p>
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                    <p className="text-xs text-white/60 font-medium uppercase tracking-wide mb-1">{today}</p>
+                    <h1 className="text-2xl font-bold tracking-tight text-white">
                         My Schedule
                     </h1>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="text-sm text-white/70 mt-1">
                         {appointmentCount > 0
                             ? `${appointmentCount} appointment${appointmentCount !== 1 ? 's' : ''} in the next 30 days`
                             : 'No upcoming appointments in the next 30 days'}
@@ -50,7 +50,7 @@ export default async function DoctorSchedulePage() {
             </div>
 
             {scheduleError ? (
-                <div className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <div className="border border-[#caa26a]/30 bg-[#caa26a]/10 px-4 py-3 text-sm text-[#caa26a] rounded-xl">
                     Unable to load schedule: <span className="font-medium">{scheduleError}</span>
                 </div>
             ) : null}

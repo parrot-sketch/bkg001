@@ -67,8 +67,9 @@ export class ConsultationMapper {
 
     // If started, apply start transition
     if (state === ConsultationState.IN_PROGRESS || state === ConsultationState.COMPLETED) {
-      if (prismaConsultation.started_at && prismaConsultation.user_id) {
-        result = result.start(prismaConsultation.user_id, prismaConsultation.started_at);
+      if (prismaConsultation.started_at) {
+        const startUserId = prismaConsultation.user_id || prismaConsultation.doctor_id;
+        result = result.start(startUserId, prismaConsultation.started_at);
       }
     }
 

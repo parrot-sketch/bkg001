@@ -65,12 +65,12 @@ export function UnifiedDashboardLayout({
             if (!config.allowedRoles.includes(user.role as Role)) {
                 toast.error(`Access Denied: ${config.role} privileges required`);
                 // Redirect to appropriate dashboard based on role
-                const roleDashboardMap: Record<Role, string> = {
+                const roleDashboardMap: Partial<Record<Role, string>> = {
                     'ADMIN': '/admin/dashboard',
                     'DOCTOR': '/doctor/dashboard',
                     'NURSE': '/nurse/dashboard',
                     'FRONTDESK': '/frontdesk/patients',
-                    'PATIENT': '/patient/dashboard',
+                    'PATIENT': '/login',
                     'LAB_TECHNICIAN': '/lab/dashboard',
                     'CASHIER': '/cashier/dashboard',
                     'THEATER_TECHNICIAN': '/theater-tech/dashboard',

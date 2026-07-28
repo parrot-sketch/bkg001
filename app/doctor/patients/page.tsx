@@ -22,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { isThisMonth } from 'date-fns';
 import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 // Modular Components
 import { PatientRow }     from './components/PatientRow';
@@ -41,6 +42,7 @@ const PAGE_SIZE = 15;
 // ============================================================================
 
 export default function DoctorPatientsPage() {
+  const router = useRouter();
   const { user, isAuthenticated } = useAuth();
 
   // ── Local UI state ──────────────────────────────────────────────────────────
@@ -119,6 +121,10 @@ export default function DoctorPatientsPage() {
     await refetchPatients();
     setRefreshing(false);
   };
+
+  const handleNewConsultation = useCallback((patientId: string) => {
+    router.push(`/doctor/consultations/new?patientId=${patientId}`);
+  }, [router]);
 
   const handleSortOrderToggle = useCallback(() => {
     setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
@@ -303,6 +309,7 @@ export default function DoctorPatientsPage() {
               <div className="col-span-2">Last visit</div>
               <div className="col-span-1">Visits</div>
               <div className="col-span-1">Flags</div>
+              <div className="col-span-1">Actions</div>
             </div>
 
             {/* Subtle fetch overlay */}
@@ -315,7 +322,7 @@ export default function DoctorPatientsPage() {
                 <PatientRow
                   key={patient.id}
                   patient={patient}
-                  // visitCount and lastVisitDate now come from patient DTO directly
+                  onNewConsultation={handleNewConsultation}
                 />
               ))}
             </div>

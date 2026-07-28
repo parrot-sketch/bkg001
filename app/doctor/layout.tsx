@@ -39,7 +39,7 @@ export default function DoctorLayout({ children }: DoctorLayoutProps) {
         router.replace('/login');
       } else if (user.role !== 'DOCTOR' && user.role !== 'ADMIN') {
         toast.error('Access Denied: Doctor privileges required');
-        router.replace('/patient/dashboard');
+        router.replace('/login');
       }
     }
   }, [isLoading, user, router]);

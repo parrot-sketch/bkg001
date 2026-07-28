@@ -23,6 +23,8 @@ export interface FrontdeskAppointment extends AppointmentResponseDto {
   patientFileNumber: string | null;
   patientPhone: string | null;
   doctorName: string;
+  followUpDate?: string;
+  followUpType?: string;
 }
 
 export interface FrontdeskCheckedInPatient {
@@ -105,6 +107,7 @@ async function fetchDashboardDataInternal(): Promise<FrontdeskDashboardData> {
     appointments,
     pendingIntakes,
     liveQueue,
+    followUpAppointments,
   ] = await Promise.all([
     db.appointment.groupBy({
       by: ['status'],
@@ -179,6 +182,24 @@ async function fetchDashboardDataInternal(): Promise<FrontdeskDashboardData> {
       },
       orderBy: { added_at: 'asc' },
     }),
+    db.appointment.findMany({
+      where: {
+        parent_appointment_id: { not: null },
+        appointment_date: {
+          gte: today,
+          lt: tomorrow,
+        },
+      },
+      select: {
+        id: true,
+        parent_appointment_id: true,
+        appointment_date: true,
+        time: true,
+        type: true,
+        status: true,
+      },
+      orderBy: { appointment_date: 'asc' },
+    }),
   ]);
 
   const mappedAppointments: FrontdeskAppointment[] = appointments.map(a => ({
@@ -217,6 +238,26 @@ async function fetchDashboardDataInternal(): Promise<FrontdeskDashboardData> {
     a => a.status === 'IN_CONSULTATION'
   );
   const completed = mappedAppointments.filter(a => a.status === 'COMPLETED');
+
+  const followUpMap = new Map<number, { followUpDate: string; followUpType: string }>();
+  for (const fu of followUpAppointments) {
+    if (fu.parent_appointment_id && !followUpMap.has(fu.parent_appointment_id)) {
+      followUpMap.set(fu.parent_appointment_id, {
+        followUpDate: fu.appointment_date.toISOString(),
+        followUpType: fu.type,
+      });
+    }
+  }
+
+  if (followUpMap.size > 0) {
+    for (const apt of [...scheduled, ...checkedIn, ...inConsultation, ...completed]) {
+      const fu = followUpMap.get(apt.id);
+      if (fu) {
+        apt.followUpDate = fu.followUpDate;
+        apt.followUpType = fu.followUpType;
+      }
+    }
+  }
 
   // Get appointment IDs already in the queue to exclude from awaiting assignment
   const queuedAppointmentIds = new Set(

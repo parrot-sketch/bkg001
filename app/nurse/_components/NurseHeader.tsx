@@ -12,6 +12,7 @@ export function NurseHeader({ onMenuClick }: NurseHeaderProps) {
       roleLabel="Nurse"
       roleBadgeCls="bg-emerald-500/10 text-emerald-700"
       profileHref="/nurse/profile"
+      rootHref="/nurse/dashboard"
       onMenuClick={onMenuClick}
       searchPlaceholder="Search patients…"
     />

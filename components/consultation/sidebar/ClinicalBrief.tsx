@@ -1,6 +1,6 @@
 'use client';
 
-import type { StructuredNotes } from '@/contexts/ConsultationContext';
+import type { StructuredNotes } from '@/shared-kernel/types/notes';
 
 interface ClinicalBriefProps {
   isReadOnly: boolean;

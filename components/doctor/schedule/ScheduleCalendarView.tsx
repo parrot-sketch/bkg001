@@ -8,23 +8,19 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 import '@/styles/schedule-calendar.css';
 
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { moveAppointment } from '@/app/actions/schedule';
 import { cn } from '@/lib/utils';
 import { calendarLocalizer } from '@/lib/calendar';
+import { useRouter } from 'next/navigation';
 import {
     ChevronLeft,
     ChevronRight,
     Calendar as CalendarIcon,
     Clock,
     AlertCircle,
-    Layers,
-    LayoutGrid,
-    List,
-    Maximize2,
     User,
     Stethoscope,
     Scissors,
@@ -146,31 +142,31 @@ function CustomToolbar({
     return (
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-6">
             <div className="flex items-center gap-4">
-                <h2 className="text-2xl font-semibold text-foreground tracking-tight">
+                <h2 className="text-2xl font-semibold text-[#2c2e4b] tracking-tight">
                     {getLabel()}
                 </h2>
                 {eventCount > 0 && (
-                    <Badge variant="secondary" className="hidden sm:flex text-xs font-normal">
+                    <Badge variant="secondary" className="hidden sm:flex text-xs font-normal bg-[#e7d6bf]/30 text-[#2c2e4b] border-[#e7d6bf]">
                         {eventCount} schedule items
                     </Badge>
                 )}
             </div>
 
             <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-                <div className="flex items-center bg-muted/50 rounded-lg p-1 shrink-0">
-                    <Button variant="ghost" size="sm" onClick={() => onNavigate(new Date())} className="h-7 text-xs px-3">
+                <div className="flex items-center bg-[#e7d6bf]/20 rounded-lg p-1 shrink-0">
+                    <Button variant="ghost" size="sm" onClick={() => onNavigate(new Date())} className="h-7 text-xs px-3 text-[#2c2e4b] hover:bg-[#e7d6bf]/30">
                         Today
                     </Button>
-                    <div className="w-px h-4 bg-border mx-1" />
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={goBack}>
+                    <div className="w-px h-4 bg-[#e7d6bf] mx-1" />
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-[#2c2e4b] hover:bg-[#e7d6bf]/30" onClick={goBack}>
                         <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={goForward}>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 text-[#2c2e4b] hover:bg-[#e7d6bf]/30" onClick={goForward}>
                         <ChevronRight className="h-4 w-4" />
                     </Button>
                 </div>
 
-                <div className="flex items-center bg-muted/50 rounded-lg p-1 shrink-0">
+                <div className="flex items-center bg-[#e7d6bf]/20 rounded-lg p-1 shrink-0">
                     {viewButtons.map(({ key, label }) => (
                         <button
                             key={key}
@@ -178,8 +174,8 @@ function CustomToolbar({
                             className={cn(
                                 'px-3 py-1 text-xs font-medium rounded-md transition-all',
                                 view === key
-                                    ? 'bg-background shadow-sm text-foreground'
-                                    : 'text-muted-foreground hover:text-foreground'
+                                    ? 'bg-white shadow-sm text-[#2c2e4b]'
+                                    : 'text-[#2c2e4b]/60 hover:text-[#2c2e4b]'
                             )}
                         >
                             {label}
@@ -210,7 +206,7 @@ function AppointmentEvent({ event }: { event: CalendarEvent }) {
                     style={{ backgroundColor: cfg.dot }}
                 />
                 <span className={cn(
-                    'text-[0.65rem] font-semibold leading-none truncate',
+                    'text-[0.65rem] font-semibold leading-none truncate text-[#2c2e4b]',
                     isCancelled && 'line-through opacity-60'
                 )}>
                     {event.title}
@@ -228,7 +224,7 @@ function AppointmentEvent({ event }: { event: CalendarEvent }) {
                     style={{ backgroundColor: isSurgery ? '#3b82f6' : cfg.dot }}
                 />
                 <span className={cn(
-                    'text-xs font-semibold leading-tight truncate text-slate-800',
+                    'text-xs font-semibold leading-tight truncate text-[#2c2e4b]',
                     isCancelled && 'line-through opacity-50'
                 )}>
                     {event.title}
@@ -236,7 +232,7 @@ function AppointmentEvent({ event }: { event: CalendarEvent }) {
             </div>
 
             {/* Meta Row */}
-            <div className="flex items-center gap-1 text-[0.65rem] text-slate-500">
+            <div className="flex items-center gap-1 text-[0.65rem] text-[#2c2e4b]/60">
                 <TypeIcon className="h-2.5 w-2.5 flex-shrink-0" />
                 <span className="truncate">{eventKindLabel}</span>
                 <span className="opacity-60 text-[10px]">·</span>
@@ -247,7 +243,7 @@ function AppointmentEvent({ event }: { event: CalendarEvent }) {
             {durationMins >= 45 && !isCancelled && (
                 <div className="mt-auto pt-1">
                     <span
-                        className="text-[0.6rem] font-medium px-1.5 py-0.5 rounded-md inline-block bg-white/60 text-slate-700 shadow-sm border border-slate-100 backdrop-blur-sm"
+                        className="text-[0.6rem] font-medium px-1.5 py-0.5 rounded-md inline-block bg-white/80 text-[#2c2e4b] shadow-sm border border-[#e7d6bf] backdrop-blur-sm"
                     >
                         {statusLabel}
                     </span>
@@ -268,6 +264,7 @@ export function ScheduleCalendarView({
     overrides = [],
     onSetupScheduleClick,
 }: ScheduleCalendarViewProps) {
+    const router = useRouter();
     const [view, setView] = useState<View>(Views.WEEK);
     const [date, setDate] = useState(new Date());
     const calendarRef = useRef<HTMLDivElement>(null);
@@ -275,7 +272,7 @@ export function ScheduleCalendarView({
     // Transform appointments + surgicalCases → events
     const events: CalendarEvent[] = useMemo(() => {
         const appointmentEvents = initialAppointments
-            .map(apt => {
+            .map((apt: any) => {
                 let startDate: Date;
                 if (apt.scheduled_at) {
                     startDate = new Date(apt.scheduled_at);
@@ -308,7 +305,7 @@ export function ScheduleCalendarView({
             .filter(Boolean) as CalendarEvent[];
 
         const surgicalEvents = calendarEvents
-            .map(ce => {
+            .map((ce: any) => {
                 const sc = ce.surgical_case;
                 const durationMinutes =
                     sc?.total_theatre_minutes && sc.total_theatre_minutes > 0
@@ -318,9 +315,6 @@ export function ScheduleCalendarView({
                 let start: Date | null = ce.start_time ? new Date(ce.start_time) : null;
                 let end: Date | null = ce.end_time ? new Date(ce.end_time) : null;
 
-                // Planned surgical cases can exist before a theater slot is confirmed.
-                // In that state we still show the case on the planned procedure date as a
-                // tentative placeholder so the doctor's schedule reflects the commitment.
                 if ((!start || !end) && sc?.procedure_date) {
                     start = new Date(sc.procedure_date);
                     start.setHours(9, 0, 0, 0);
@@ -351,6 +345,29 @@ export function ScheduleCalendarView({
 
         return [...appointmentEvents, ...surgicalEvents];
     }, [initialAppointments, calendarEvents]);
+
+    const handleSelectSlot = useCallback(({ start, end }: { start: Date; end: Date }) => {
+        const selectedStart = new Date(start);
+        const selectedEnd = new Date(end);
+        const durationMs = selectedEnd.getTime() - selectedStart.getTime();
+        const slotDuration = durationMs > 0 ? durationMs / 60000 : 30;
+
+        const conflict = events.find((evt) => {
+            if (evt.isBackground) return false;
+            const evtStart = new Date(evt.start);
+            const evtEnd = new Date(evt.end);
+            return selectedStart < evtEnd && selectedEnd > evtStart;
+        });
+
+        if (conflict) {
+            toast.error(`Time slot conflicts with "${conflict.title}" (${format(conflict.start, 'h:mm a')} – ${format(conflict.end, 'h:mm a')}). Please choose a different time.`);
+            return;
+        }
+
+        const dateStr = format(start, 'yyyy-MM-dd');
+        const timeStr = format(start, 'HH:mm');
+        router.push(`/doctor/appointments/new?date=${dateStr}&time=${timeStr}&source=DOCTOR_FOLLOW_UP`);
+    }, [router, events]);
 
     // Pending review count — appointments the doctor needs to confirm
     const pendingCount = useMemo(
@@ -385,7 +402,7 @@ export function ScheduleCalendarView({
         return {
             style: {
                 backgroundColor: bg,
-                color: '#0f172a',
+                color: '#2c2e4b',
                 border: '1px solid rgba(0,0,0,0.08)',
                 borderLeft: `3px solid ${isSurgery ? '#3b82f6' : cfg.border}`,
                 borderRadius: '6px',
@@ -432,35 +449,35 @@ export function ScheduleCalendarView({
         <div className="flex flex-col gap-4">
             {/* Pending review banner */}
             {pendingCount > 0 && (
-                <div className="flex items-center gap-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-4 py-3">
-                    <div className="p-1.5 bg-amber-100 dark:bg-amber-900/50 rounded-md shrink-0">
-                        <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                <div className="flex items-center gap-3 rounded-lg border border-[#caa26a]/30 bg-[#caa26a]/10 px-4 py-3">
+                    <div className="p-1.5 bg-[#caa26a]/20 rounded-md shrink-0">
+                        <AlertCircle className="h-4 w-4 text-[#caa26a]" />
                     </div>
                     <div className="flex-1">
-                        <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                        <p className="text-sm font-medium text-[#2c2e4b]">
                             {pendingCount} appointment{pendingCount !== 1 ? 's' : ''} awaiting your confirmation
                         </p>
-                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                        <p className="text-xs text-[#2c2e4b]/60 mt-0.5">
                             These are shown in amber on the calendar. Confirm them so the frontdesk can check patients in.
                         </p>
                     </div>
-                    <Badge className="bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-700 shrink-0">
+                    <Badge className="bg-[#caa26a]/15 text-[#2c2e4b] border-[#caa26a]/30 shrink-0">
                         {pendingCount} pending
                     </Badge>
                 </div>
             )}
             {/* Setup prompt */}
             {hasNoSchedule && (
-                <div className="flex items-center justify-between gap-4 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 px-4 py-3">
+                <div className="flex items-center justify-between gap-4 rounded-lg border border-[#e7d6bf] bg-[#e7d6bf]/10 px-4 py-3">
                     <div className="flex items-center gap-3">
-                        <div className="p-1.5 bg-blue-100 dark:bg-blue-900/50 rounded-md">
-                            <CalendarIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        <div className="p-1.5 bg-[#e7d6bf]/30 rounded-md">
+                            <CalendarIcon className="h-4 w-4 text-[#2c2e4b]/60" />
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                            <p className="text-sm font-medium text-[#2c2e4b]">
                                 No availability hours set
                             </p>
-                            <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">
+                            <p className="text-xs text-[#2c2e4b]/60 mt-0.5">
                                 Set your weekly hours in the My Availability tab so patients and staff can book with you.
                             </p>
                         </div>
@@ -469,7 +486,7 @@ export function ScheduleCalendarView({
                         <Button
                             size="sm"
                             onClick={onSetupScheduleClick}
-                            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm shrink-0"
+                            className="bg-[#2c2e4b] hover:bg-[#1a1c2f] text-white shadow-sm shrink-0"
                         >
                             Set Up Availability
                         </Button>
@@ -478,8 +495,8 @@ export function ScheduleCalendarView({
             )}
 
             {/* Calendar card */}
-            <Card className="border shadow-sm overflow-hidden">
-                <CardContent className="p-4 flex flex-col">
+            <div className="border border-[#e7d6bf] bg-white rounded-xl shadow-sm overflow-hidden">
+                <div className="p-4 flex flex-col">
                     <CustomToolbar
                         date={date}
                         view={view}
@@ -521,6 +538,7 @@ export function ScheduleCalendarView({
                             popup
                             resizable
                             selectable
+                            {...({ onSelect: handleSelectSlot } as any)}
                             onEventDrop={onEventDrop}
                             getNow={() => new Date()}
                             scrollToTime={new Date()}
@@ -533,8 +551,8 @@ export function ScheduleCalendarView({
                             })}
                         />
                     </div>
-                </CardContent>
-            </Card>
+                </div>
+            </div>
         </div>
     );
 }

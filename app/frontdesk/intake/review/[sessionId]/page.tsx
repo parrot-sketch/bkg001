@@ -11,7 +11,6 @@ import {
   ArrowLeft,
   AlertCircle,
   CheckCircle2,
-  Clock,
   User,
   Phone,
   Mail,
@@ -19,7 +18,6 @@ import {
   Heart,
   FileText,
   ShieldCheck,
-  Loader2,
 } from 'lucide-react';
 import { apiClient } from '@/lib/api/client';
 
@@ -74,9 +72,7 @@ export default function ReviewIntakePage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isConfirming, setIsConfirming] = useState(false);
   const [submission, setSubmission] = useState<IntakeSubmissionDTO | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchSubmission = async () => {
@@ -103,40 +99,11 @@ export default function ReviewIntakePage() {
     }
   }, [sessionId]);
 
-  const handleConfirm = async () => {
-    if (!submission) return;
-
-    try {
-      setIsConfirming(true);
-      setError(null);
-
-      const result = await apiClient.post<{ patientId: string; fileNumber: string; firstName: string; lastName: string }>(`/frontdesk/intake/confirm`, { sessionId });
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to confirm intake');
-      }
-
-      const confirmed = result.data;
-      setSuccessMessage(
-        `Patient ${confirmed.firstName} ${confirmed.lastName} confirmed. File #${confirmed.fileNumber}`,
-      );
-
-      // Redirect to patients registry with the new patient highlighted
-      setTimeout(() => {
-        router.push(`/frontdesk/patients?highlight=${confirmed.patientId}`);
-      }, 1500);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
-    } finally {
-      setIsConfirming(false);
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-gray-900" />
           <p className="mt-4 text-gray-600">Loading intake submission...</p>
         </div>
       </div>
@@ -177,9 +144,9 @@ export default function ReviewIntakePage() {
         {/* Header */}
         <div className="flex items-start justify-between">
           <div>
-            <Link href="/frontdesk/intake/pending" className="flex items-center gap-2 text-primary hover:underline mb-4">
+            <Link href="/frontdesk/patients" className="flex items-center gap-2 text-primary hover:underline mb-4">
               <ArrowLeft className="h-4 w-4" />
-              Back to Pending
+              Back to Patients
             </Link>
             <h1 className="text-3xl font-bold text-gray-900">
               {submission.personalInfo.firstName} {submission.personalInfo.lastName}
@@ -191,49 +158,25 @@ export default function ReviewIntakePage() {
 
           {/* Status Badge */}
           <div className="flex flex-col items-end gap-3">
-            <div
-              className={`px-3 py-1 rounded-full text-sm font-medium ${submission.completenessScore >= 90
-                ? 'bg-green-100 text-green-800'
-                : submission.completenessScore >= 75
-                  ? 'bg-blue-100 text-blue-800'
-                  : 'bg-amber-100 text-amber-800'
-                }`}
-            >
-              {submission.completenessScore}% Complete
+            <div className="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+              Auto-confirmed
             </div>
           </div>
         </div>
 
         {/* Success Message */}
-        {successMessage && (
-          <Alert className="border-green-200 bg-green-50">
-            <CheckCircle2 className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-800">{successMessage}</AlertDescription>
-          </Alert>
-        )}
+        <Alert className="border-green-200 bg-green-50">
+          <CheckCircle2 className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-green-800">
+            This intake was automatically confirmed and the patient record was created.
+          </AlertDescription>
+        </Alert>
 
         {/* Error Message */}
         {error && (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {/* Completeness Breakdown */}
-        {!submission.isComplete && submission.incompleteFields && submission.incompleteFields.length > 0 && (
-          <Alert className="border-amber-200 bg-amber-50">
-            <AlertCircle className="h-4 w-4 text-amber-600" />
-            <AlertDescription className="text-amber-800">
-              <p className="mb-2 font-medium">
-                Missing {submission.incompleteFields.length} required field(s):
-              </p>
-              <ul className="list-inside list-disc space-y-1 text-sm">
-                {submission.incompleteFields.map((field) => (
-                  <li key={field}>{field}</li>
-                ))}
-              </ul>
-            </AlertDescription>
           </Alert>
         )}
 
@@ -342,134 +285,11 @@ export default function ReviewIntakePage() {
           </CardContent>
         </Card>
 
-        {/* Medical Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Heart className="h-5 w-5" />
-              Medical Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-6">
-              {submission.medicalInfo.bloodGroup && (
-                <div>
-                  <p className="text-sm text-gray-600">Blood Group</p>
-                  <p className="font-medium">{submission.medicalInfo.bloodGroup}</p>
-                </div>
-              )}
-            </div>
-
-            {submission.medicalInfo.allergies && (
-              <div>
-                <p className="text-sm text-gray-600">Allergies</p>
-                <p className="font-medium">{submission.medicalInfo.allergies}</p>
-              </div>
-            )}
-
-            {submission.medicalInfo.medicalConditions && (
-              <div>
-                <p className="text-sm text-gray-600">Medical Conditions</p>
-                <p className="font-medium">{submission.medicalInfo.medicalConditions}</p>
-              </div>
-            )}
-
-            {submission.medicalInfo.medicalHistory && (
-              <div>
-                <p className="text-sm text-gray-600">Medical History</p>
-                <p className="font-medium">{submission.medicalInfo.medicalHistory}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Insurance Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Insurance Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-6">
-            {submission.insuranceInfo.provider && (
-              <div>
-                <p className="text-sm text-gray-600">Insurance Provider</p>
-                <p className="font-medium">{submission.insuranceInfo.provider}</p>
-              </div>
-            )}
-            {submission.insuranceInfo.policyNumber && (
-              <div>
-                <p className="text-sm text-gray-600">Policy Number</p>
-                <p className="font-medium">{submission.insuranceInfo.policyNumber}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Consent Summary */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5" />
-              Consent Summary
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center gap-3">
-              {submission.consent.privacyConsent ? (
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
-              ) : (
-                <AlertCircle className="h-5 w-5 text-red-600" />
-              )}
-              <span className="font-medium">Privacy Policy Consent</span>
-            </div>
-            <div className="flex items-center gap-3">
-              {submission.consent.serviceConsent ? (
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
-              ) : (
-                <AlertCircle className="h-5 w-5 text-red-600" />
-              )}
-              <span className="font-medium">Service Terms Consent</span>
-            </div>
-            <div className="flex items-center gap-3">
-              {submission.consent.medicalConsent ? (
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
-              ) : (
-                <AlertCircle className="h-5 w-5 text-red-600" />
-              )}
-              <span className="font-medium">Medical Data Processing Consent</span>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Action Buttons */}
         <div className="flex gap-4">
-          {submission.status === 'PENDING' && (
-            <>
-              <Button
-                onClick={handleConfirm}
-                disabled={!submission.isComplete || isConfirming}
-                className="flex-1"
-                size="lg"
-              >
-                {isConfirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isConfirming ? 'Confirming...' : 'Confirm & Create Patient'}
-              </Button>
-              <Button variant="outline" asChild>
-                <Link href="/frontdesk/intake/pending">Cancel</Link>
-              </Button>
-            </>
-          )}
-
-          {submission.status === 'CONFIRMED' && (
-            <Alert className="col-span-full border-green-200 bg-green-50">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-800">
-                This intake has already been confirmed and the patient record created.
-              </AlertDescription>
-            </Alert>
-          )}
+          <Button asChild>
+            <Link href="/frontdesk/patients">View Patients</Link>
+          </Button>
         </div>
       </div>
     </div>

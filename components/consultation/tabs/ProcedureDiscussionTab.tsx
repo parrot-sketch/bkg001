@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Save } from 'lucide-react';
-import { RichTextEditor } from '@/components/consultation/RichTextEditor';
+import { ClinicalRichTextEditor } from '@/components/consultation/ClinicalRichTextEditor';
 import type { ConsultationResponseDto } from '@/application/dtos/ConsultationResponseDto';
 import { PatientDecision } from '@/domain/enums/PatientDecision';
 
@@ -59,7 +59,7 @@ export function ProcedureDiscussionTab({
         <p className="text-xs text-muted-foreground mt-1 mb-3">
           Document procedures discussed, options presented, and patient questions.
         </p>
-        <RichTextEditor
+        <ClinicalRichTextEditor
           content={discussionContent}
           onChange={(content) => onDiscussionChange?.(content)}
           placeholder="Procedures discussed, options presented, risks explained, patient questions..."

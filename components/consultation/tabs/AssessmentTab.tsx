@@ -1,6 +1,6 @@
 'use client';
 
-import { RichTextEditor } from '@/components/consultation/RichTextEditor';
+import { ClinicalRichTextEditor } from '@/components/consultation/ClinicalRichTextEditor';
 
 interface AssessmentTabProps {
   initialValue?: string;
@@ -25,7 +25,7 @@ export function AssessmentTab({
         </div>
       </div>
 
-      <RichTextEditor
+      <ClinicalRichTextEditor
         content={initialValue}
         onChange={onChange}
         placeholder="Document clinical impression, working diagnosis, differential diagnoses..."

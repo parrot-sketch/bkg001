@@ -226,7 +226,9 @@ export const PatientIntakeFormSchema = z.object({
   email: z
     .string()
     .email("Invalid email address")
-    .toLowerCase(),
+    .toLowerCase()
+    .optional()
+    .or(z.literal("")),
 
   // International phone: optional + prefix, 7-15 digits
   phone: z.preprocess(

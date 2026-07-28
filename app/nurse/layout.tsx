@@ -30,7 +30,7 @@ export default function NurseLayout({ children }: NurseLayoutProps) {
         router.replace('/login');
       } else if (user.role !== 'NURSE' && user.role !== 'ADMIN') {
         toast.error('Access Denied: Nurse privileges required');
-        router.replace('/patient/dashboard');
+        router.replace('/login');
       }
     }
   }, [isLoading, user, router]);

@@ -14,8 +14,8 @@ import { PatientSwitchConfirmation } from './PatientSwitchConfirmation';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { useAuth } from '@/hooks/patient/useAuth';
-import { doctorApi } from '@/lib/api/doctor';
 import { toast } from 'sonner';
+import { startSession } from '@/actions/doctor/consultation-session';
 
 // Sub-components
 import { QueueHeader } from './queue/QueueHeader';
@@ -103,21 +103,13 @@ export function ConsultationQueuePanel({
     setStartingId(apt.id);
 
     try {
-      // Step 1: Auto-save draft of current consultation (if dirty)
       if (onSaveDraft) {
         await onSaveDraft();
       }
 
-      // Step 2: Start consultation for the next patient
-      // Note: We do NOT auto-complete the current session.
-      // The doctor can have multiple IN_CONSULTATION sessions and return to them later.
-      const response = await doctorApi.startConsultation({
-        appointmentId: apt.id,
-        doctorId,
-        userId: user.id
-      });
+      const result = await startSession(apt.id, doctorId);
 
-      if (response.success) {
+      if (result.success) {
         if (onSwitchPatient) {
           onSwitchPatient(apt.id);
         } else {
@@ -125,7 +117,7 @@ export function ConsultationQueuePanel({
         }
         toast.success(`Now consulting ${apt.patient?.firstName}`);
       } else {
-        toast.error(response.error || 'Failed to admit patient');
+        toast.error(result.error?.message || 'Failed to admit patient');
       }
     } catch (error: any) {
       toast.error(error.message || 'Failed to switch to patient');

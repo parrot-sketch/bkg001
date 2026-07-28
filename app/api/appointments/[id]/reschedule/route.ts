@@ -9,8 +9,10 @@ import { ValidateAppointmentAvailabilityUseCase } from '@/application/use-cases/
 import { RescheduleAppointmentUseCase } from '@/application/use-cases/RescheduleAppointmentUseCase';
 import db from '@/lib/db';
 import { revalidateFrontdeskDashboard } from '@/actions/frontdesk/get-dashboard-data';
+import { revalidateDoctorDashboard } from '@/actions/doctor/get-dashboard-data';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { DomainException } from '@/domain/exceptions/DomainException';
+import { revalidatePath } from 'next/cache';
 
 // Initialize dependencies
 const appointmentRepository = new PrismaAppointmentRepository(db);
@@ -78,6 +80,13 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
 
         // Invalidate frontdesk dashboard cache so status change is visible
         try { await revalidateFrontdeskDashboard(); } catch (_) { /* non-critical */ }
+
+        // Invalidate doctor-side cached pages
+        try {
+            revalidatePath('/doctor/schedule');
+            revalidatePath('/doctor/dashboard');
+            revalidatePath('/doctor/appointments');
+        } catch (_) { /* non-critical */ }
 
         return NextResponse.json({
             success: true,

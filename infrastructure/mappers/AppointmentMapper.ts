@@ -163,6 +163,7 @@ export class AppointmentMapper {
       time: appointment.getTime(),
       status: appointment.getStatus() as any,
       type: appointment.getType(),
+      scheduled_at: appointment.getScheduledAt(),
     };
 
     // Handle optional fields - only include if they have values

@@ -37,7 +37,7 @@ export function CancelAppointmentDialog({
     onSuccess,
 }: CancelAppointmentDialogProps) {
     const [reason, setReason] = useState('');
-    const { cancelAppointment, isCancelling } = useAppointments();
+    const { cancelAppointment, isCancelling } = useAppointments({ onCancelSuccess: onSuccess });
 
     const handleCancel = () => {
         if (!reason.trim()) {
@@ -48,13 +48,10 @@ export function CancelAppointmentDialog({
         cancelAppointment({
             appointmentId,
             reason,
-        }, {
-            onSuccess: () => {
-                onOpenChange(false);
-                setReason('');
-                onSuccess?.(); // Trigger success callback
-            },
         });
+
+        onOpenChange(false);
+        setReason('');
     };
 
     return (

@@ -4,6 +4,9 @@
  * Immutable value object representing consultation notes.
  * Supports both structured (chief complaint, examination, assessment, plan) and raw text formats.
  */
+
+import type { StructuredNotes } from '@/shared-kernel/types/notes';
+
 export class ConsultationNotes {
   private constructor(
     private readonly chiefComplaint: string | undefined,
@@ -154,6 +157,18 @@ export class ConsultationNotes {
    */
   isStructured(): boolean {
     return this.rawText === undefined;
+  }
+
+  /**
+   * Convert to the canonical StructuredNotes shape.
+   */
+  toStructured(): StructuredNotes {
+    return {
+      chiefComplaint: this.chiefComplaint,
+      examination: this.examination,
+      assessment: this.assessment,
+      plan: this.plan,
+    };
   }
 
   /**

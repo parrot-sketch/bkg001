@@ -12,6 +12,7 @@ export function DoctorHeader({ onMenuClick }: DoctorHeaderProps) {
       roleLabel="Doctor"
       roleBadgeCls="bg-violet-500/10 text-violet-700"
       profileHref="/doctor/profile"
+      rootHref="/doctor/dashboard"
       onMenuClick={onMenuClick}
       searchPlaceholder="Search patients…"
     />

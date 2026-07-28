@@ -23,6 +23,8 @@ interface PendingAction {
   patientFileNumber?: string;
   doctorName?: string;
   time?: string;
+  followUpDate?: string;
+  followUpType?: string;
   actions: Array<'chargesheet' | 'followup'>;
 }
 
@@ -42,6 +44,8 @@ export function FrontdeskPendingActionsPanel({
           : 'Unknown Patient';
         const doctorName = apt.doctor?.name || 'Unknown Doctor';
 
+        const hasFollowUp = !!(apt as any).followUpDate;
+
         return {
           id: `pending-${apt.id}`,
           appointmentId: apt.id,
@@ -51,7 +55,9 @@ export function FrontdeskPendingActionsPanel({
           patientFileNumber: apt.patient?.fileNumber || undefined,
           doctorName,
           time: apt.time,
-          actions: ['chargesheet', 'followup'] as const,
+          followUpDate: (apt as any).followUpDate,
+          followUpType: (apt as any).followUpType,
+          actions: hasFollowUp ? ['chargesheet'] as const : ['chargesheet', 'followup'] as const,
         };
       });
   }, [completedAppointments]);
@@ -158,6 +164,12 @@ export function FrontdeskPendingActionsPanel({
                       )}
                       Follow-up
                     </Button>
+                  )}
+                  {action.followUpDate && (
+                    <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-md font-medium">
+                      Follow-up: {new Date(action.followUpDate).toLocaleDateString()}
+                      {action.followUpType && ` • ${action.followUpType}`}
+                    </span>
                   )}
                   <Button
                     size="sm"

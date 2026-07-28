@@ -19,6 +19,7 @@ export function FrontdeskHeader({ onMenuClick }: FrontdeskHeaderProps) {
       roleLabel="Front Desk"
       roleBadgeCls="bg-[#DFAC0D] text-[#9a7709] border border-[#DFAC0D]/30"
       profileHref="/frontdesk/profile"
+      rootHref="/frontdesk/dashboard"
       onMenuClick={onMenuClick}
       searchPlaceholder="Search patients…"
     />

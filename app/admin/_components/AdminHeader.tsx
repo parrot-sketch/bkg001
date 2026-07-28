@@ -7,6 +7,7 @@ export function AdminHeader() {
       roleLabel="Admin"
       roleBadgeCls="bg-blue-500/10 text-blue-700"
       profileHref="/admin/profile"
+      rootHref="/admin/dashboard"
       searchPlaceholder="Search…"
     />
   );

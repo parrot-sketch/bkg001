@@ -13,7 +13,7 @@ import Link from 'next/link';
 import { Calendar, CheckCircle2, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { RichTextEditor } from '@/components/consultation/RichTextEditor';
+import { ClinicalRichTextEditor } from '@/components/consultation/ClinicalRichTextEditor';
 import type { ConsultationResponseDto } from '@/application/dtos/ConsultationResponseDto';
 
 interface TreatmentPlanTabProps {
@@ -66,7 +66,7 @@ export function TreatmentPlanTab({
       )}
 
       {/* Treatment Plan Editor */}
-      <RichTextEditor
+      <ClinicalRichTextEditor
         content={nextSteps}
         onChange={handleChange}
         placeholder="Treatment plan, timeline, pre-op requirements, post-op care, patient instructions…"

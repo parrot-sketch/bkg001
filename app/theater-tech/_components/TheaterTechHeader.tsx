@@ -8,6 +8,7 @@ export function TheaterTechHeader({ onMenuClick }: TheaterTechHeaderProps) {
       roleLabel="Theater Tech"
       roleBadgeCls="bg-cyan-500/10 text-cyan-700"
       profileHref="/theater-tech/profile"
+      rootHref="/theater-tech/dashboard"
       onMenuClick={onMenuClick}
       searchPlaceholder="Search cases…"
     />

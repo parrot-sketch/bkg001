@@ -30,7 +30,7 @@ export default function TheaterTechLayout({ children }: TheaterTechLayoutProps) 
         router.replace('/login');
       } else if (user.role !== 'THEATER_TECHNICIAN' && user.role !== 'ADMIN') {
         toast.error('Access Denied: Theater Technician privileges required');
-        router.replace('/patient/dashboard');
+        router.replace('/login');
       }
     }
   }, [isLoading, user, router]);

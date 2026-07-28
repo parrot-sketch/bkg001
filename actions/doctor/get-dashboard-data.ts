@@ -102,6 +102,7 @@ export interface DoctorDashboardData {
     activeSurgicalCases: number;
     recoveryCases: number;
     pendingAppointments: number;
+    pendingAppointmentIds: number[];
   };
 }
 
@@ -407,6 +408,9 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
       activeSurgicalCases: activeCases,
       recoveryCases: recoveryCases,
       pendingAppointments: pendingCount,
+      pendingAppointmentIds: allAppointments
+        .filter(apt => apt.status === 'PENDING_DOCTOR_CONFIRMATION' || apt.status === 'PENDING')
+        .map(apt => apt.id),
     },
   };
 }

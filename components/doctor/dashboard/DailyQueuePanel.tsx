@@ -4,10 +4,8 @@ import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Stethoscope, Play } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useStartConsultation } from '@/hooks/doctor/useConsultation';
 import { AppointmentStatus, canStartConsultation, isAwaitingConfirmation } from '@/domain/enums/AppointmentStatus';
 import { cn } from '@/lib/utils';
 
@@ -45,7 +43,6 @@ interface DailyQueuePanelProps {
 
 export function DailyQueuePanel({ appointments, isLoading }: DailyQueuePanelProps) {
   const router = useRouter();
-  const { mutate: startConsultation, isPending } = useStartConsultation();
 
   const sortedAppointments = useMemo(() => {
     return [...appointments].sort((a, b) => {
@@ -55,16 +52,9 @@ export function DailyQueuePanel({ appointments, isLoading }: DailyQueuePanelProp
     });
   }, [appointments]);
 
-  const handleStart = (appointment: DailyQueueAppointment) => {
-    const appointmentId = appointment.id;
-    startConsultation(appointmentId, {
-      onSuccess: () => {
-        router.push(`/doctor/consultations/session/${appointmentId}`);
-      },
-      onError: () => {
-        toast.error('Failed to start consultation');
-      },
-    });
+  // No API call — navigate directly. The consultation room handles its own init.
+  const handleNavigate = (appointment: DailyQueueAppointment) => {
+    router.push(`/doctor/consultations/session/${appointment.id}?start=true`);
   };
 
   const getActionLabel = (status: string) => {
@@ -74,7 +64,7 @@ export function DailyQueuePanel({ appointments, isLoading }: DailyQueuePanelProp
   };
 
   const isActionEnabled = (status: string) => {
-    return canStartConsultation(status as AppointmentStatus);
+    return status === AppointmentStatus.IN_CONSULTATION || canStartConsultation(status as AppointmentStatus);
   };
 
   const getStatusConfig = (status: string) => {
@@ -137,7 +127,6 @@ export function DailyQueuePanel({ appointments, isLoading }: DailyQueuePanelProp
             const statusConfig = getStatusConfig(status);
             const actionLabel = getActionLabel(status);
             const actionEnabled = isActionEnabled(status);
-            const isStarting = isPending;
             const isAwaiting = isAwaitingConfirmation(status as AppointmentStatus);
             const patientName = appointment.patient
               ? `${appointment.patient.firstName} ${appointment.patient.lastName}`
@@ -151,9 +140,7 @@ export function DailyQueuePanel({ appointments, isLoading }: DailyQueuePanelProp
                   actionEnabled && 'hover:bg-[#e7d6bf]/20 cursor-pointer'
                 )}
                 onClick={() => {
-                  if (actionEnabled) {
-                    handleStart(appointment);
-                  }
+                  if (actionEnabled) handleNavigate(appointment);
                 }}
               >
                 <div className="w-14 text-center shrink-0">
@@ -189,9 +176,8 @@ export function DailyQueuePanel({ appointments, isLoading }: DailyQueuePanelProp
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleStart(appointment);
+                        handleNavigate(appointment);
                       }}
-                      disabled={isStarting}
                       className={cn(
                         'h-8 px-3 text-xs rounded-lg shadow-sm',
                         status === AppointmentStatus.IN_CONSULTATION
@@ -199,13 +185,6 @@ export function DailyQueuePanel({ appointments, isLoading }: DailyQueuePanelProp
                           : 'bg-[#2c2e4b] hover:bg-[#1a1c2f] text-white'
                       )}
                     >
-                      {isStarting ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : status === AppointmentStatus.IN_CONSULTATION ? (
-                        <Play className="h-3 w-3 mr-1" />
-                      ) : (
-                        <Stethoscope className="h-3 w-3 mr-1" />
-                      )}
                       {actionLabel}
                     </Button>
                   )}

@@ -158,7 +158,15 @@ export class StartConsultationUseCase {
     const transitionResult = AppointmentStateTransitionService.onConsultationStart(currentStatus);
     
     if (!transitionResult.isValid) {
-      // Natural, clinical-friendly error messages
+      // Idempotent handling for consultations already in progress.
+      // This supports the "continue consultation" flow from the queue/workspace
+      // without forcing the frontend to special-case the 400.
+      if (currentStatus === AppointmentStatus.IN_CONSULTATION) {
+        const existingConsultation = await this.consultationRepository.findByAppointmentId(dto.appointmentId);
+        const responseDto = ApplicationAppointmentMapper.toResponseDto(appointment);
+        return responseDto;
+      }
+
       let message: string;
       
       if (currentStatus === AppointmentStatus.SCHEDULED || 
@@ -169,8 +177,6 @@ export class StartConsultationUseCase {
         message = 'This appointment was cancelled';
       } else if (currentStatus === AppointmentStatus.COMPLETED) {
         message = 'This consultation has already been completed';
-      } else if (currentStatus === AppointmentStatus.IN_CONSULTATION) {
-        message = 'Consultation already in progress';
       } else if (currentStatus === AppointmentStatus.NO_SHOW) {
         message = 'Patient was marked as no-show';
       } else {

@@ -11,6 +11,7 @@ import { consultationApi } from '@/lib/api/consultation';
 import { toast } from 'sonner';
 import type { SaveConsultationDraftDto } from '@/application/dtos/SaveConsultationDraftDto';
 import type { ConsultationResponseDto } from '@/application/dtos/ConsultationResponseDto';
+import { isVersionConflict } from '@/shared-kernel/utils/version-conflict';
 
 /**
  * Hook to save consultation draft
@@ -28,9 +29,7 @@ export function useSaveConsultationDraft() {
       const response = await consultationApi.saveDraft(dto.appointmentId, dto);
       if (!response.success) {
         const error = new Error(response.error || 'Failed to save draft');
-        // Check for version conflict
-        if (response.error?.includes('updated by another session') || 
-            response.error?.includes('VERSION_CONFLICT')) {
+        if (isVersionConflict(response.error)) {
           (error as any).code = 'VERSION_CONFLICT';
         }
         throw error;
@@ -38,34 +37,11 @@ export function useSaveConsultationDraft() {
       return response.data;
     },
     onMutate: async (newDraft) => {
-      // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['consultation', newDraft.appointmentId] });
 
-      // Snapshot previous value
       const previousConsultation = queryClient.getQueryData<ConsultationResponseDto | null>(
         ['consultation', newDraft.appointmentId]
       );
-
-      // Optimistically update
-      if (previousConsultation) {
-        const fullText = newDraft.notes.rawText || 
-          (newDraft.notes.structured ? 
-            formatStructuredNotes(newDraft.notes.structured) : '');
-
-        queryClient.setQueryData<ConsultationResponseDto | null>(
-          ['consultation', newDraft.appointmentId],
-          {
-            ...previousConsultation,
-            notes: {
-              fullText,
-              structured: newDraft.notes.structured,
-            },
-            outcomeType: newDraft.outcomeType ?? previousConsultation.outcomeType,
-            patientDecision: newDraft.patientDecision ?? previousConsultation.patientDecision,
-            updatedAt: new Date(), // Optimistic timestamp
-          } as ConsultationResponseDto
-        );
-      }
 
       return { previousConsultation };
     },
@@ -79,8 +55,7 @@ export function useSaveConsultationDraft() {
       }
 
       // Handle version conflict specifically
-      if ((err as any).code === 'VERSION_CONFLICT' || 
-          err.message.includes('updated by another session')) {
+      if (isVersionConflict(err.message) || isVersionConflict((err as any).code)) {
         // Refetch to get latest version
         queryClient.invalidateQueries({ queryKey: ['consultation', newDraft.appointmentId] });
         toast.error('Consultation was updated. Please refresh and try again.');
@@ -95,37 +70,10 @@ export function useSaveConsultationDraft() {
       // toast.success('Draft saved');
     },
     retry: (failureCount, error) => {
-      // Don't retry version conflicts
-      if ((error as any).code === 'VERSION_CONFLICT' || 
-          error.message.includes('updated by another session')) {
+      if (isVersionConflict(error.message) || isVersionConflict((error as any).code)) {
         return false;
       }
       return failureCount < 3;
     },
   });
-}
-
-/**
- * Format structured notes to full text
- */
-function formatStructuredNotes(structured: {
-  chiefComplaint?: string;
-  examination?: string;
-  assessment?: string;
-  plan?: string;
-}): string {
-  const parts: string[] = [];
-  if (structured.chiefComplaint) {
-    parts.push(`Chief Complaint: ${structured.chiefComplaint}`);
-  }
-  if (structured.examination) {
-    parts.push(`Examination: ${structured.examination}`);
-  }
-  if (structured.assessment) {
-    parts.push(`Assessment: ${structured.assessment}`);
-  }
-  if (structured.plan) {
-    parts.push(`Plan: ${structured.plan}`);
-  }
-  return parts.join('\n\n');
 }

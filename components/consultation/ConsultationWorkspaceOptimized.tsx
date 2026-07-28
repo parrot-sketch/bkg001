@@ -24,7 +24,9 @@ import {
     Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useConsultationContext, type StructuredNotes } from '@/contexts/ConsultationContext';
+import { useConsultationContext } from '@/contexts/ConsultationContext';
+import { useDocumentationContext } from '@/providers/documentation/DocumentationProvider';
+import type { StructuredNotes } from '@/shared-kernel/types/notes';
 import { toast } from 'sonner';
 
 // ============================================================================
@@ -80,11 +82,19 @@ export function ConsultationWorkspaceOptimized() {
         state,
         isActive,
         isReadOnly,
+        openCompleteDialog,
+    } = useConsultationContext();
+
+    const docs = useDocumentationContext();
+
+    const {
+        notes,
+        isSaving,
+        autoSaveStatus,
         canSave,
         saveNotes,
         updateNotes,
-        openCompleteDialog,
-    } = useConsultationContext();
+    } = docs;
 
     const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'subjective');
 
@@ -96,13 +106,12 @@ export function ConsultationWorkspaceOptimized() {
     // Track completed fields for advisory dots
     const completedFields = useMemo(() => {
         const fields = new Set<string>();
-        const notes = state.notes;
         if (notes.chiefComplaint && notes.chiefComplaint.replace(/<[^>]*>/g, '').trim().length > 0) fields.add('chiefComplaint');
         if (notes.examination && notes.examination.replace(/<[^>]*>/g, '').trim().length > 0) fields.add('examination');
         if (notes.assessment && notes.assessment.replace(/<[^>]*>/g, '').trim().length > 0) fields.add('assessment');
         if (notes.plan && notes.plan.replace(/<[^>]*>/g, '').trim().length > 0) fields.add('plan');
         return fields;
-    }, [state.notes]);
+    }, [notes]);
 
     const handleTabChange = useCallback((tabId: string) => {
         setActiveTab(tabId);
@@ -112,7 +121,6 @@ export function ConsultationWorkspaceOptimized() {
     const handleSave = useCallback(async () => {
         if (!canSave) return;
         await saveNotes();
-        toast.success('Notes saved');
     }, [canSave, saveNotes]);
 
     const handleNoteChange = useCallback(
@@ -161,7 +169,7 @@ export function ConsultationWorkspaceOptimized() {
                     <TabsContent value="subjective" className="m-0 h-full border-none">
                         <div className="p-6 max-w-3xl mx-auto">
                             <SubjectiveTab
-                                initialValue={state.notes.chiefComplaint || ''}
+                                initialValue={notes.chiefComplaint || ''}
                                 onChange={handleNoteChange('chiefComplaint')}
                                 isReadOnly={isReadOnly}
                             />
@@ -171,7 +179,7 @@ export function ConsultationWorkspaceOptimized() {
                     <TabsContent value="objective" className="m-0 h-full border-none">
                         <div className="p-6 max-w-3xl mx-auto">
                             <ObjectiveTab
-                                initialValue={state.notes.examination || ''}
+                                initialValue={notes.examination || ''}
                                 onChange={handleNoteChange('examination')}
                                 isReadOnly={isReadOnly}
                             />
@@ -181,7 +189,7 @@ export function ConsultationWorkspaceOptimized() {
                     <TabsContent value="assessment" className="m-0 h-full border-none">
                         <div className="p-6 max-w-3xl mx-auto">
                             <AssessmentTab
-                                initialValue={state.notes.assessment || ''}
+                                initialValue={notes.assessment || ''}
                                 onChange={handleNoteChange('assessment')}
                                 isReadOnly={isReadOnly}
                             />
@@ -191,7 +199,7 @@ export function ConsultationWorkspaceOptimized() {
                     <TabsContent value="plan" className="m-0 h-full border-none">
                         <div className="p-6 max-w-3xl mx-auto">
                             <PlanTab
-                                initialValue={state.notes.plan || ''}
+                                initialValue={notes.plan || ''}
                                 onChange={handleNoteChange('plan')}
                                 consultation={state.consultation}
                                 isReadOnly={isReadOnly}
@@ -216,10 +224,10 @@ export function ConsultationWorkspaceOptimized() {
                         variant="outline"
                         size="sm"
                         onClick={handleSave}
-                        disabled={!canSave || state.isSaving}
+                        disabled={!canSave || isSaving}
                         className="gap-1.5 text-xs h-8 border-[#e7d6bf] text-[#2c2e4b] hover:bg-[#e7d6bf]/30 rounded-lg"
                     >
-                        {state.isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                        {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
                         Save Notes
                     </Button>
                     {isActive && (

@@ -57,6 +57,8 @@ export interface UnifiedHeaderProps {
   roleBadgeCls: string;
   /** "/doctor/profile", "/theater-tech/profile", etc. */
   profileHref: string;
+  /** Root dashboard href for the role breadcrumb, e.g. "/doctor/dashboard" */
+  rootHref: string;
   /** Mobile hamburger callback */
   onMenuClick?: () => void;
   /** Search box placeholder; omit to hide search */
@@ -91,6 +93,7 @@ export function UnifiedHeader({
   roleLabel,
   roleBadgeCls,
   profileHref,
+  rootHref,
   onMenuClick,
   searchPlaceholder,
 }: UnifiedHeaderProps) {
@@ -104,7 +107,7 @@ export function UnifiedHeader({
   const segments = pathname.split('/').filter(Boolean);
 
   const breadcrumbs = segments
-    .filter(s => !/^[0-9a-f-]{36}$/.test(s) && !/^\d+$/.test(s) && !ROOT_SEGMENTS.has(s))
+    .filter((s, i) => i > 0 && !/^[0-9a-f-]{36}$/.test(s) && !/^\d+$/.test(s) && !ROOT_SEGMENTS.has(s))
     .map((segment, i, arr) => ({
       label: toLabel(segment),
       href: '/' + segments.slice(0, segments.indexOf(segment) + 1).join('/'),
@@ -162,7 +165,7 @@ export function UnifiedHeader({
         {/* Breadcrumb trail */}
         <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs overflow-hidden">
           <Link
-            href="/frontdesk/dashboard"
+            href={rootHref}
             className="text-slate-400 font-medium hidden sm:inline shrink-0 hover:text-slate-600 transition-colors"
           >
             {roleName}

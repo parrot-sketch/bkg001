@@ -1,6 +1,6 @@
 'use client';
 
-import { RichTextEditor } from '@/components/consultation/RichTextEditor';
+import { ClinicalRichTextEditor } from '@/components/consultation/ClinicalRichTextEditor';
 
 interface SubjectiveTabProps {
   initialValue?: string;
@@ -25,7 +25,7 @@ export function SubjectiveTab({
         </div>
       </div>
 
-      <RichTextEditor
+      <ClinicalRichTextEditor
         content={initialValue}
         onChange={onChange}
         placeholder="Document patient concerns, history of present illness, review of systems..."

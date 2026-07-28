@@ -27,13 +27,9 @@ export function useStartConsultation() {
             return response.data;
         },
         onSuccess: (_data, variables) => {
-            // Invalidate all relevant queries
-            queryClient.invalidateQueries({ queryKey: ['doctor'] });
             queryClient.invalidateQueries({ queryKey: ['appointments'] });
-            queryClient.invalidateQueries({ queryKey: ['frontdesk', 'schedule'] });
             queryClient.invalidateQueries({ queryKey: queryKeys.doctor.dashboard() });
 
-            // CRITICAL: Invalidate the specific consultation cache so the session page sees the new state
             queryClient.invalidateQueries({ queryKey: ['consultation', variables] });
 
             // No toast — navigation to consultation room is the visual feedback

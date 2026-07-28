@@ -128,9 +128,13 @@ export const doctorApi = {
     return apiClient.get<PatientResponseDto>(`/patients/${patientId}`);
   },
 
+  async getPatientVitals(patientId: string, appointmentId: number): Promise<ApiResponse<any[]>> {
+    return apiClient.get<any[]>(`/patients/${patientId}/vitals?appointmentId=${appointmentId}`);
+  },
+
   /**
-   * Get patient's appointments (for viewing patient history)
-   */
+    * Get patient's appointments (for viewing patient history)
+    */
    async getPatientAppointments(patientId: string): Promise<ApiResponse<AppointmentResponseDto[]>> {
     return apiClient.get<AppointmentResponseDto[]>(`/patients/${patientId}/appointments`);
   },

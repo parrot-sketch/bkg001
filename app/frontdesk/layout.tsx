@@ -29,7 +29,7 @@ export default function FrontdeskLayout({ children }: FrontdeskLayoutProps) {
         router.replace('/login');
       } else if (user.role !== 'FRONTDESK' && user.role !== 'ADMIN') {
         toast.error('Access Denied: Frontdesk privileges required');
-        router.replace('/patient/dashboard');
+        router.replace('/login');
       }
     }
   }, [isLoading, user, router]);

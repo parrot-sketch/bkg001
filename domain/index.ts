@@ -8,6 +8,9 @@
  * on frameworks, infrastructure, or other layers.
  */
 
+// Workflows
+export * from './workflows';
+
 // Enums
 export * from './enums/Role';
 export * from './enums/AppointmentStatus';

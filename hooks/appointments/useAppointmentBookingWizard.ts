@@ -132,7 +132,10 @@ export function useAppointmentBookingWizard({
       });
 
       if (response.success) {
-        toast.success('Appointment request submitted. Awaiting doctor confirmation.', {
+        const successMessage = isFollowUp
+          ? 'Follow-up appointment scheduled successfully.'
+          : 'Appointment request submitted. Awaiting doctor confirmation.';
+        toast.success(successMessage, {
           style: {
             background: '#143232',
             color: '#ffffff',

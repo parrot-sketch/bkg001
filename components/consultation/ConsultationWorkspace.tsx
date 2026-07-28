@@ -22,16 +22,11 @@ import { TreatmentPlanTab } from './tabs/TreatmentPlanTab';
 import { QuickTextPanel } from './QuickTextPanel';
 import { TemplateSelector } from './TemplateSelector';
 import type { ConsultationResponseDto } from '@/application/dtos/ConsultationResponseDto';
+import type { StructuredNotes } from '@/shared-kernel/types/notes';
 import { ConsultationOutcomeType } from '@/domain/enums/ConsultationOutcomeType';
 import { PatientDecision } from '@/domain/enums/PatientDecision';
 import { generateTemplateHTML, type ClinicalTemplate } from '@/lib/clinical-templates';
 import { toast } from 'sonner';
-
-interface StructuredNotes {
-  chiefComplaint?: string;
-  examination?: string;
-  plan?: string;
-}
 
 interface ConsultationWorkspaceProps {
   consultation: ConsultationResponseDto | null;

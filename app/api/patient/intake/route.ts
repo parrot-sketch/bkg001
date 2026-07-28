@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PatientIntakeFormSchema } from '@/lib/schema';
 import { container } from '@/lib/container';
 import { IntakeError } from '@/domain/errors/IntakeErrors';
+import { isMinor } from '@/lib/utils/age';
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,13 +42,16 @@ export async function POST(request: NextRequest) {
 
     const data = validationResult.data;
 
+    const isPatientMinor = isMinor(data.dateOfBirth);
+    const email = data.email && data.email.trim() !== '' ? data.email : `guardian-${Date.now()}@placeholder.local`;
+
     const result = await container.submitIntake.execute({
       sessionId,
       firstName: data.firstName,
       lastName: data.lastName,
       dateOfBirth: data.dateOfBirth,
       gender: data.gender,
-      email: data.email,
+      email,
       phone: data.phone,
       whatsappPhone: data.whatsappPhone === '' ? undefined : data.whatsappPhone,
       address: data.address,

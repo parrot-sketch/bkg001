@@ -34,12 +34,15 @@ interface UseAppointmentsOptions {
         upcoming?: boolean;
     };
     enabled?: boolean;
+    onRescheduleSuccess?: () => void;
+    onCancelSuccess?: () => void;
+    onConfirmSuccess?: () => void;
 }
 
 export function useAppointments(options: UseAppointmentsOptions = {}) {
     const queryClient = useQueryClient();
     const { user } = useAuth();
-    const { filters, enabled = true } = options;
+    const { filters, enabled = true, onRescheduleSuccess, onCancelSuccess, onConfirmSuccess } = options;
 
     // Determine API based on user role
     const api = user?.role === 'FRONTDESK' ? frontdeskApi : doctorApi;
@@ -115,6 +118,7 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
             queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
             queryClient.invalidateQueries({ queryKey: queryKeys.doctors.availability() });
             queryClient.invalidateQueries({ queryKey: queryKeys.doctor.dashboard() });
+            onConfirmSuccess?.();
         },
     });
 
@@ -140,6 +144,7 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
             queryClient.invalidateQueries({ queryKey: queryKeys.doctors.availability() });
             queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
             queryClient.invalidateQueries({ queryKey: queryKeys.doctor.dashboard() });
+            onRescheduleSuccess?.();
         },
         onError: (err) => {
             toast.error('Failed to reschedule appointment');
@@ -185,6 +190,7 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
             queryClient.invalidateQueries({ queryKey: queryKeys.doctors.availability() });
             queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
             queryClient.invalidateQueries({ queryKey: queryKeys.doctor.dashboard() });
+            onCancelSuccess?.();
         },
     });
 
