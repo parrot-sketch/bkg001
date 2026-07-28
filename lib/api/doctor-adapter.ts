@@ -18,10 +18,11 @@
 import { DoctorApi, DoctorOutcome, DoctorResponse, VitalsResponse, StartConsultationParams, CompleteConsultationParams } from '@/domain/interfaces/services/DoctorApi';
 import type { AppointmentResponse } from '@/domain/interfaces/services/PatientApi';
 import type { PatientResponse } from '@/domain/interfaces/services/PatientApi';
-import { doctorApi } from '@/lib/api/doctor';
-import { ApiError } from '@/lib/api/client';
+import { ApiClient } from '@/lib/api/client';
 import { mapApiError, mapNetworkError } from '@/lib/api/adapter-utils';
 import type { ClinicalError } from '@/shared-kernel/errors/types';
+import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import type { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';
 import {
   ClinicalErrorCode,
   ClinicalErrorCategory,
@@ -33,9 +34,11 @@ const DOCTOR_ERROR_CONFIG = {
 };
 
 export class HttpDoctorApi implements DoctorApi {
+  constructor(private readonly apiClient: ApiClient) {}
+
   async getAppointment(appointmentId: number): Promise<DoctorOutcome<AppointmentResponse>> {
     try {
-      const response = await doctorApi.getAppointment(appointmentId);
+      const response = await this.apiClient.get<AppointmentResponseDto>(`/appointments/${appointmentId}`);
       if (!response.success) {
         return { success: false, error: mapApiError(response, DOCTOR_ERROR_CONFIG) };
       }
@@ -47,7 +50,7 @@ export class HttpDoctorApi implements DoctorApi {
 
   async getDoctorByUserId(userId: string): Promise<DoctorOutcome<DoctorResponse>> {
     try {
-      const response = await doctorApi.getDoctorByUserId(userId);
+      const response = await this.apiClient.get<DoctorResponseDto>(`/doctors/by-user/${userId}`);
       if (!response.success) {
         return { success: false, error: mapApiError(response, DOCTOR_ERROR_CONFIG) };
       }
@@ -59,7 +62,7 @@ export class HttpDoctorApi implements DoctorApi {
 
   async getPatient(patientId: string): Promise<DoctorOutcome<PatientResponse>> {
     try {
-      const response = await doctorApi.getPatient(patientId);
+      const response = await this.apiClient.get<PatientResponseDto>(`/patients/${patientId}`);
       if (!response.success) {
         return { success: false, error: mapApiError(response, DOCTOR_ERROR_CONFIG) };
       }
@@ -71,7 +74,7 @@ export class HttpDoctorApi implements DoctorApi {
 
   async getPatientVitals(patientId: string, appointmentId: number): Promise<DoctorOutcome<VitalsResponse[]>> {
     try {
-      const response = await doctorApi.getPatientVitals(patientId, appointmentId);
+      const response = await this.apiClient.get<any[]>(`/patients/${patientId}/vitals?appointmentId=${appointmentId}`);
       if (!response.success) {
         return { success: false, error: mapApiError(response, DOCTOR_ERROR_CONFIG) };
       }
@@ -83,7 +86,7 @@ export class HttpDoctorApi implements DoctorApi {
 
   async startConsultation(dto: StartConsultationParams): Promise<DoctorOutcome<AppointmentResponse>> {
     try {
-      const response = await doctorApi.startConsultation(dto as any);
+      const response = await this.apiClient.post<AppointmentResponseDto>(`/consultations/${dto.appointmentId}/start`, dto);
       if (!response.success) {
         return { success: false, error: mapApiError(response, DOCTOR_ERROR_CONFIG) };
       }
@@ -95,7 +98,7 @@ export class HttpDoctorApi implements DoctorApi {
 
   async completeConsultation(dto: CompleteConsultationParams): Promise<DoctorOutcome<AppointmentResponse>> {
     try {
-      const response = await doctorApi.completeConsultation(dto as any);
+      const response = await this.apiClient.post<AppointmentResponseDto>(`/consultations/${dto.appointmentId}/complete`, dto);
       if (!response.success) {
         return { success: false, error: mapApiError(response, DOCTOR_ERROR_CONFIG) };
       }

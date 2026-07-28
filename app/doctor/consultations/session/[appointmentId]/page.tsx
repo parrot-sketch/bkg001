@@ -160,9 +160,9 @@ function buildInitialSession(data: ConsultationPatientData): SerializedSessionDa
     vitals: data.vitals ?? null,
     consultation: data.consultation
       ? {
-          id: data.consultation.id,
-          appointmentId: appointment.id,
-          doctorId: '',
+        id: data.consultation.id,
+        appointmentId: appointment.id,
+        doctorId: appointment.doctorId,
           userId: undefined,
           state: data.consultation.state,
           startedAt: undefined,

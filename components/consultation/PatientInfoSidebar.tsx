@@ -318,7 +318,9 @@ export function PatientInfoSidebar({ patient, appointment, vitals = null, isRead
                       )}
                     </div>
                   ) : selectedPreviousConsultation.notes.fullText ? (
-                    <p className="text-[11px] text-[#2c2e4b] leading-relaxed whitespace-pre-wrap">{stripHtml(selectedPreviousConsultation.notes.fullText)}</p>
+                    <div className="space-y-3">
+                      <NoteBlock label="Notes" content={selectedPreviousConsultation.notes.fullText} />
+                    </div>
                   ) : (
                     <p className="text-[11px] text-[#2c2e4b]/40 italic">No notes recorded</p>
                   )}
@@ -397,8 +399,11 @@ function Row({ label, value }: { label: string; value: string }) {
 function NoteBlock({ label, content }: { label: string; content: string }) {
   return (
     <div className="space-y-1">
-      <p className="text-[10px] font-semibold text-[#caa26a] uppercase tracking-wider">{label}</p>
-      <p className="text-[11px] text-[#2c2e4b] leading-relaxed">{stripHtml(content)}</p>
+      <p className="text-xs font-bold text-[#2c2e4b] uppercase tracking-wide">{label}</p>
+      <div 
+        className="text-[11px] text-[#2c2e4b] leading-relaxed prose prose-sm max-w-none"
+        dangerouslySetInnerHTML={{ __html: content }}
+      />
     </div>
   );
 }

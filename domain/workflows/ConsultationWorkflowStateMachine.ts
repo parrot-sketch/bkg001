@@ -83,6 +83,7 @@ export interface ConsultationWorkflowContext {
 const VALID_TRANSITIONS: Record<ConsultationWorkflowState, ConsultationWorkflowAction[]> = {
   [ConsultationWorkflowState.IDLE]: [
     ConsultationWorkflowAction.LOAD_PATIENT,
+    ConsultationWorkflowAction.SWITCH_PATIENT,
   ],
   [ConsultationWorkflowState.LOADING]: [
     ConsultationWorkflowAction.LOAD_SUCCESS,

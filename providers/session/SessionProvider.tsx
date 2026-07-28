@@ -266,13 +266,19 @@ export function SessionProvider({ children, initialSession, user, restoredDraft 
           setWorkflowState(toWorkflowState(session.workflowState));
           setIsReady(true);
         }
+
+        for (const instruction of result.data.invalidationInstructions) {
+          if (instruction.direction === 'invalidate') {
+            queryClient.invalidateQueries({ queryKey: instruction.queryKey as any });
+          }
+        }
       } else {
         toast.error(toErrorMessage(result.error) || 'Failed to switch patient');
       }
     } catch (error) {
       toast.error(toErrorMessage(error) || 'Failed to switch patient');
     }
-  }, [user, appointment]);
+  }, [user, appointment, queryClient]);
 
   const resumeSession = useCallback(async () => {
     if (!consultation || !appointment) return;
@@ -374,7 +380,7 @@ export function SessionProvider({ children, initialSession, user, restoredDraft 
     patientDecision,
     onSaveDraft: async (notes: StructuredNotes, outcomeType: ConsultationOutcomeType | null, patientDecision: PatientDecision | null): Promise<{ success: true; version: string }> => {
       const targetId = consultation?.id || appointment?.id || 0;
-      const result = await saveDraftAction(targetId, doctorId || '', {
+      const result = await saveDraftAction(targetId, doctorId || consultation?.doctorId || '', {
         chiefComplaint: notes.chiefComplaint,
         examination: notes.examination,
         assessment: notes.assessment,
@@ -387,7 +393,7 @@ export function SessionProvider({ children, initialSession, user, restoredDraft 
     },
     onSaveNotes: async (notes: StructuredNotes) => {
       const targetId = consultation?.id || appointment?.id || 0;
-      const result = await saveCompletedNotesAction(targetId, doctorId || '', {
+      const result = await saveCompletedNotesAction(targetId, doctorId || consultation?.doctorId || '', {
         chiefComplaint: notes.chiefComplaint,
         examination: notes.examination,
         assessment: notes.assessment,

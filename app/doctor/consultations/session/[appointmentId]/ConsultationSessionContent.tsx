@@ -50,6 +50,9 @@ export function ConsultationSessionContent() {
 
   const handleComplete = async () => {
     try {
+      if (canSave) {
+        await saveDraft();
+      }
       await completeConsultation();
       setSidebarRefetchKey((k) => k + 1);
     } catch (err: any) {

@@ -15,6 +15,7 @@ import { HttpPatientApi } from '@/lib/api/patient-adapter';
 import { HttpConsultationApi } from '@/lib/api/consultation-adapter';
 import { HttpDoctorApi } from '@/lib/api/doctor-adapter';
 import { LocalStorageDraftStorage } from '@/lib/storage/local-storage-draft';
+import { ApiClient, apiClient as defaultApiClient } from '@/lib/api/client';
 import type { StructuredNotes } from '@/shared-kernel/types/notes';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
@@ -197,8 +198,9 @@ function createNoopTimerService(): WorkflowCoordinatorDependencies['timerService
   };
 }
 
-function serializeDate(date: Date | undefined | null): string | undefined {
+function serializeDate(date: Date | string | undefined | null): string | undefined {
   if (!date) return undefined;
+  if (typeof date === 'string') return date;
   return date.toISOString();
 }
 
@@ -317,19 +319,17 @@ interface SessionServiceContainer {
 }
 
 function createSessionServiceContainer(config: ConsultationSessionConfig): SessionServiceContainer {
-  const httpPatientApi = new HttpPatientApi();
-  const httpConsultationApi = new HttpConsultationApi();
-  const httpDoctorApi = new HttpDoctorApi();
-  const localStorageDraftStorage = new LocalStorageDraftStorage<StructuredNotes>();
-
+  const perRequestApiClient = new ApiClient();
   if (typeof window === 'undefined' && config.accessToken) {
-    apiClient.setAuthTokenProvider(() => config.accessToken as string);
-    const serverBaseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    console.log('[FACTORY DEBUG] Setting apiClient baseUrl=', serverBaseUrl, 'accessToken present=', !!config.accessToken);
-    apiClient.setBaseUrl(`${serverBaseUrl}/api`);
-  } else {
-    console.log('[FACTORY DEBUG] Skipping setBaseUrl - window=', typeof window, 'hasToken=', !!config.accessToken);
+    perRequestApiClient.setAuthTokenProvider(() => config.accessToken as string);
   }
+  const serverBaseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  perRequestApiClient.setBaseUrl(`${serverBaseUrl}/api`);
+
+  const httpPatientApi = new HttpPatientApi(perRequestApiClient);
+  const httpConsultationApi = new HttpConsultationApi(perRequestApiClient);
+  const httpDoctorApi = new HttpDoctorApi(perRequestApiClient);
+  const localStorageDraftStorage = new LocalStorageDraftStorage<StructuredNotes>();
 
   const registry = new DefaultGuardRegistry();
 
@@ -468,4 +468,33 @@ export async function refreshPatientSession(config: ConsultationSessionConfig, p
   }
 
   return result.data;
+}
+
+export interface SwitchPatientResult {
+  readonly fromAppointmentId: number;
+  readonly toAppointmentId: number;
+  readonly draftSaved: boolean;
+  readonly nextSession: SerializedSessionData;
+}
+
+export async function switchPatientSession(config: ConsultationSessionConfig, fromAppointmentId: number, toAppointmentId: number): Promise<SwitchPatientResult> {
+  const container = createSessionServiceContainer(config);
+
+  const result = await container.sessionService.switchSession(fromAppointmentId, toAppointmentId, config.user.id);
+
+  if (!result.success) {
+    throw new Error(result.error.message || 'Failed to switch patient');
+  }
+
+  const next = result.data.nextSession;
+  if (!next) {
+    throw new Error('No session returned after switching patient');
+  }
+
+  return {
+    fromAppointmentId: result.data.fromAppointmentId,
+    toAppointmentId: result.data.toAppointmentId,
+    draftSaved: result.data.draftSaved,
+    nextSession: container.serialize(next.session),
+  };
 }

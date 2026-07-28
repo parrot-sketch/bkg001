@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Loader2, UserPlus, Send } from 'lucide-react';
+import { Loader2, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { patientApi } from '@/lib/api/patient';
 import { assignPatientToQueue } from '@/app/actions/appointment';
@@ -35,6 +35,7 @@ export function QuickAssignmentDialog({
   const [doctors, setDoctors] = useState<DoctorResponseDto[]>([]);
   const [loadingDoctors, setLoadingDoctors] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   // Pre-select patient when initialPatientId is provided
   useEffect(() => {
@@ -86,21 +87,28 @@ export function QuickAssignmentDialog({
       return;
     }
 
+    setShowConfirm(true);
+  };
+
+  const confirmSubmit = async () => {
+    setShowConfirm(false);
     setIsSubmitting(true);
     try {
       const result = await assignPatientToQueue({
-        patientId: selectedPatient.id,
+        patientId: selectedPatient!.id,
         doctorId: selectedDoctorId,
+        appointmentId: initialPatientId,
         notes: 'Added via Quick Assignment',
       });
 
       if (result.success) {
-        toast.success(`${selectedPatient.firstName} ${selectedPatient.lastName} added to queue`);
+        toast.success(`${selectedPatient!.firstName} ${selectedPatient!.lastName} added to queue`);
         setSelectedPatient(null);
         setSelectedDoctorId('');
         onOpenChange(false);
         onSuccess?.();
         queryClient.invalidateQueries({ queryKey: queryKeys.nurse.clinicQueue('today') });
+        queryClient.invalidateQueries({ queryKey: ['doctor', selectedDoctorId] });
       } else {
         toast.error(result.msg || 'Failed to add patient to queue');
       }
@@ -115,6 +123,7 @@ export function QuickAssignmentDialog({
   const handleClose = () => {
     setSelectedPatient(null);
     setSelectedDoctorId('');
+    setShowConfirm(false);
     onOpenChange(false);
   };
 
@@ -204,33 +213,50 @@ export function QuickAssignmentDialog({
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end gap-2 pt-2">
-          <Button
-            variant="outline"
-            onClick={handleClose}
-            disabled={isSubmitting}
-            className="h-8 px-3 text-xs rounded-lg border-[#e7d6bf] text-[#2c2e4b] hover:bg-[#e7d6bf]/30"
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!selectedPatient || !selectedDoctorId || isSubmitting}
-            className="h-8 px-3 text-xs rounded-lg bg-[#caa26a] hover:bg-[#b8913e] text-[#2c2e4b] transition-colors duration-200 shadow-sm"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                Adding...
-              </>
-            ) : (
-              <>
-                <Send className="h-3.5 w-3.5 mr-1.5" />
-                Add to Queue
-              </>
-            )}
-          </Button>
-        </div>
+        {!showConfirm ? (
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={handleClose}
+              disabled={isSubmitting}
+              className="h-8 px-3 text-xs rounded-lg border-[#e7d6bf] text-[#2c2e4b] hover:bg-[#e7d6bf]/30"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={!selectedPatient || !selectedDoctorId || isSubmitting}
+              className="h-8 px-3 text-xs rounded-lg bg-[#caa26a] hover:bg-[#b8913e] text-[#2c2e4b] transition-colors duration-200 shadow-sm"
+            >
+              Add to Queue
+            </Button>
+          </div>
+        ) : (
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowConfirm(false)}
+              disabled={isSubmitting}
+              className="h-8 px-3 text-xs rounded-lg border-[#e7d6bf] text-[#2c2e4b] hover:bg-[#e7d6bf]/30"
+            >
+              Back
+            </Button>
+            <Button
+              onClick={confirmSubmit}
+              disabled={isSubmitting}
+              className="h-8 px-3 text-xs rounded-lg bg-[#2c2e4b] hover:bg-[#1a1c2f] text-white transition-colors duration-200 shadow-sm"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                'Confirm'
+              )}
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

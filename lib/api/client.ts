@@ -45,7 +45,7 @@ export type ApiResponse<T> = ApiSuccess<T> | ApiError;
 /**
  * Base API client class
  */
-class ApiClient {
+export class ApiClient {
   private baseUrl: string;
   private getAuthToken: (() => string | null) | null = null;
   private refreshTokenFn: (() => Promise<void>) | null = null;

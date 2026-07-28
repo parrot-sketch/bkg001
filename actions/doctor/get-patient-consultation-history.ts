@@ -144,15 +144,15 @@ export async function getPatientConsultationHistory(patientId: string): Promise<
     }>;
 
     const result: ConsultationHistoryItem[] = consultationAppointmentPairs.map(({ consultation, appointment }) => {
-      const chiefComplaint = toPlainText(consultation.chief_complaint || '');
-      const examination = toPlainText(consultation.examination || '');
-      const assessment = toPlainText(consultation.assessment || '');
-      const plan = toPlainText(consultation.plan || '');
-      const doctorNotes = toPlainText(consultation.doctor_notes || '');
+      const chiefComplaint = consultation.chief_complaint || '';
+      const examination = consultation.examination || '';
+      const assessment = consultation.assessment || '';
+      const plan = consultation.plan || '';
+      const doctorNotes = consultation.doctor_notes || '';
 
       const parts = [chiefComplaint, examination, assessment, plan].filter(Boolean);
       const fullText = parts.length > 0 ? parts.join('\n\n') : doctorNotes;
-      const plainText = fullText || '';
+      const plainText = toPlainText(fullText);
       const notesSummary = plainText.length > 200 ? plainText.substring(0, 200) + '…' : plainText;
 
       return {
@@ -228,11 +228,11 @@ export async function loadPreviousConsultationNotes(appointmentId: number): Prom
       return makeError(ClinicalErrorCode.SESSION_NOT_FOUND, 'Consultation not found', ClinicalErrorCategory.CONSULTATION, false, false);
     }
 
-    const chiefComplaint = toPlainText(consultation.chief_complaint || '');
-    const examination = toPlainText(consultation.examination || '');
-    const assessment = toPlainText(consultation.assessment || '');
-    const plan = toPlainText(consultation.plan || '');
-    const doctorNotes = toPlainText(consultation.doctor_notes || '');
+    const chiefComplaint = consultation.chief_complaint || '';
+    const examination = consultation.examination || '';
+    const assessment = consultation.assessment || '';
+    const plan = consultation.plan || '';
+    const doctorNotes = consultation.doctor_notes || '';
 
     const parts = [chiefComplaint, examination, assessment, plan].filter(Boolean);
     const fullText = parts.length > 0 ? parts.join('\n\n') : doctorNotes;

@@ -1,7 +1,7 @@
 'use server';
 
 import { getCurrentUser } from '@/lib/auth/server-auth';
-import { createConsultationSession, startConsultationSession, type StartSessionResult, resumeConsultationSession, type ResumeSessionResult, completeConsultationSession, type CompleteSessionResult, refreshPatientSession, type RefreshPatientResult } from '@/infrastructure/factories/ConsultationSessionFactory';
+import { createConsultationSession, startConsultationSession, type StartSessionResult, resumeConsultationSession, type ResumeSessionResult, completeConsultationSession, type CompleteSessionResult, refreshPatientSession, type RefreshPatientResult, switchPatientSession } from '@/infrastructure/factories/ConsultationSessionFactory';
 import { ClinicalErrorCode, ClinicalErrorCategory } from '@/shared-kernel/errors/codes';
 import { resolveConsultationServiceId } from '@/application/services/billing/resolveConsultationServiceId';
 import db from '@/lib/db';
@@ -136,7 +136,42 @@ export async function cancelCompletion(): Promise<ActionResult<any>> {
 }
 
 export async function switchToPatient(fromAppointmentId: number, toAppointmentId: number): Promise<ActionResult<any>> {
-  return makeError(ClinicalErrorCode.UNKNOWN, 'Not implemented in Phase 1', ClinicalErrorCategory.SYSTEM, true, true);
+  const user = await getCurrentUser();
+  if (!user) {
+    return makeError(ClinicalErrorCode.UNAUTHORIZED, 'Unauthorized', ClinicalErrorCategory.AUTHORIZATION, true, false);
+  }
+
+  try {
+    const accessToken = await getServerAccessToken();
+    const result = await switchPatientSession({
+      appointmentId: toAppointmentId,
+      user: {
+        id: user.userId,
+        email: user.email,
+        role: user.role,
+      },
+      accessToken,
+    }, fromAppointmentId, toAppointmentId);
+
+    return {
+      success: true,
+      data: {
+        nextSession: {
+          session: result.nextSession,
+        },
+        invalidationInstructions: [
+          { queryKey: ['consultation'], direction: 'invalidate' },
+          { queryKey: ['appointments'], direction: 'invalidate' },
+          { queryKey: ['doctor', result.nextSession.doctorId], direction: 'invalidate' },
+          { queryKey: ['doctor', 'dashboard'], direction: 'invalidate' },
+        ],
+      },
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to switch patient';
+    console.error('[switchToPatient] error=', message, 'cause=', error instanceof Error ? error.cause : undefined);
+    return makeError(ClinicalErrorCode.UNKNOWN, message, ClinicalErrorCategory.SYSTEM, true, true, error);
+  }
 }
 
 export async function advanceQueue(doctorId: string): Promise<ActionResult<any>> {
@@ -232,7 +267,13 @@ export async function saveDraft(consultationId: number, doctorId: string, notes:
     }
 
     if (doctorId && consultation.doctor_id !== doctorId && user.role !== 'ADMIN') {
-      return makeError(ClinicalErrorCode.UNAUTHORIZED, 'Not authorized for this consultation', ClinicalErrorCategory.AUTHORIZATION, true, false);
+      const doctorRecord = await db.doctor.findFirst({
+        where: { id: consultation.doctor_id },
+        select: { user_id: true },
+      });
+      if (!doctorRecord || doctorRecord.user_id !== user.userId) {
+        return makeError(ClinicalErrorCode.UNAUTHORIZED, 'Not authorized for this consultation', ClinicalErrorCategory.AUTHORIZATION, true, false);
+      }
     }
 
     const updated = await db.consultation.update({
@@ -294,7 +335,13 @@ export async function saveCompletedNotes(consultationId: number, doctorId: strin
     }
 
     if (doctorId && consultation.doctor_id !== doctorId && user.role !== 'ADMIN') {
-      return makeError(ClinicalErrorCode.UNAUTHORIZED, 'Not authorized for this consultation', ClinicalErrorCategory.AUTHORIZATION, true, false);
+      const doctorRecord = await db.doctor.findFirst({
+        where: { id: consultation.doctor_id },
+        select: { user_id: true },
+      });
+      if (!doctorRecord || doctorRecord.user_id !== user.userId) {
+        return makeError(ClinicalErrorCode.UNAUTHORIZED, 'Not authorized for this consultation', ClinicalErrorCategory.AUTHORIZATION, true, false);
+      }
     }
 
     const now = new Date();

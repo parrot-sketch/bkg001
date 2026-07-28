@@ -17,10 +17,10 @@
  */
 
 import { ConsultationApi, ConsultationOutcome, ConsultationResponse, SaveConsultationDraftParams, PatientConsultationHistory } from '@/domain/interfaces/services/ConsultationApi';
-import { consultationApi } from '@/lib/api/consultation';
-import { ApiError } from '@/lib/api/client';
+import { ApiError, ApiClient } from '@/lib/api/client';
 import { mapApiError, mapNetworkError } from '@/lib/api/adapter-utils';
 import type { ClinicalError } from '@/shared-kernel/errors/types';
+import type { ConsultationResponseDto } from '@/application/dtos/ConsultationResponseDto';
 import {
   ClinicalErrorCode,
   ClinicalErrorCategory,
@@ -32,9 +32,11 @@ const CONSULTATION_ERROR_CONFIG = {
 };
 
 export class HttpConsultationApi implements ConsultationApi {
+  constructor(private readonly apiClient: ApiClient) {}
+
   async loadConsultation(appointmentId: number): Promise<ConsultationOutcome<ConsultationResponse | null>> {
     try {
-      const response = await consultationApi.getConsultation(appointmentId);
+      const response = await this.apiClient.get<ConsultationResponseDto | null>(`/appointments/${appointmentId}/consultation`);
       if (!response.success) {
         return { success: false, error: mapApiError(response, CONSULTATION_ERROR_CONFIG) };
       }
@@ -49,7 +51,10 @@ export class HttpConsultationApi implements ConsultationApi {
     dto: SaveConsultationDraftParams
   ): Promise<ConsultationOutcome<ConsultationResponse>> {
     try {
-      const response = await consultationApi.saveDraft(appointmentId, dto);
+      const response = await this.apiClient.put<ConsultationResponse>(`/appointments/${appointmentId}/consultation/draft`, {
+        appointmentId,
+        ...dto,
+      });
       if (!response.success) {
         return { success: false, error: mapApiError(response, CONSULTATION_ERROR_CONFIG) };
       }
@@ -61,7 +66,7 @@ export class HttpConsultationApi implements ConsultationApi {
 
   async loadPatientConsultationHistory(patientId: string): Promise<ConsultationOutcome<PatientConsultationHistory>> {
     try {
-      const response = await consultationApi.getPatientConsultationHistory(patientId);
+      const response = await this.apiClient.get<PatientConsultationHistory>(`/patients/${patientId}/consultations`);
       if (!response.success) {
         return { success: false, error: mapApiError(response, CONSULTATION_ERROR_CONFIG) };
       }
@@ -73,8 +78,7 @@ export class HttpConsultationApi implements ConsultationApi {
 
   async sendHeartbeat(consultationId: number): Promise<ConsultationOutcome<void>> {
     try {
-      const { apiClient } = await import('@/lib/api/client');
-      await apiClient.post(`/consultations/${consultationId}/heartbeat`, {});
+      await this.apiClient.post(`/consultations/${consultationId}/heartbeat`, {});
       return { success: true, data: undefined };
     } catch (error) {
       return { success: false, error: mapNetworkError(error) };

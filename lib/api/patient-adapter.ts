@@ -17,10 +17,17 @@
  */
 
 import { PatientApi, PatientOutcome, PatientResponse, AppointmentResponse, VitalsResponse } from '@/domain/interfaces/services/PatientApi';
-import { patientApi } from '@/lib/api/patient';
+import { ApiClient } from '@/lib/api/client';
 import { ApiError } from '@/lib/api/client';
 import { mapApiError, mapNetworkError } from '@/lib/api/adapter-utils';
 import type { ClinicalError } from '@/shared-kernel/errors/types';
+import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
+import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import type { CreatePatientDto } from '@/application/dtos/CreatePatientDto';
+import type { ScheduleAppointmentDto } from '@/application/dtos/ScheduleAppointmentDto';
+import type { CheckInPatientDto } from '@/application/dtos/CheckInPatientDto';
+import type { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';
+import type { SubmitConsultationRequestDto } from '@/application/dtos/SubmitConsultationRequestDto';
 import {
   ClinicalErrorCode,
   ClinicalErrorCategory,
@@ -32,9 +39,11 @@ const PATIENT_ERROR_CONFIG = {
 };
 
 export class HttpPatientApi implements PatientApi {
+  constructor(private readonly apiClient: ApiClient) {}
+
   async loadPatient(patientId: string): Promise<PatientOutcome<PatientResponse>> {
     try {
-      const response = await patientApi.getPatient(patientId);
+      const response = await this.apiClient.get<PatientResponseDto>(`/patients/${patientId}`);
       if (!response.success) {
         return { success: false, error: mapApiError(response, PATIENT_ERROR_CONFIG) };
       }
@@ -46,7 +55,7 @@ export class HttpPatientApi implements PatientApi {
 
   async loadPatientAppointments(patientId: string): Promise<PatientOutcome<AppointmentResponse[]>> {
     try {
-      const response = await patientApi.getAppointments(patientId);
+      const response = await this.apiClient.get<AppointmentResponseDto[]>(`/appointments?patientId=${patientId}`);
       if (!response.success) {
         return { success: false, error: mapApiError(response, PATIENT_ERROR_CONFIG) };
       }
@@ -58,11 +67,24 @@ export class HttpPatientApi implements PatientApi {
 
   async loadUpcomingAppointments(patientId: string): Promise<PatientOutcome<AppointmentResponse[]>> {
     try {
-      const response = await patientApi.getUpcomingAppointments(patientId);
+      const response = await this.apiClient.get<AppointmentResponseDto[]>(`/appointments?patientId=${patientId}`);
       if (!response.success) {
         return { success: false, error: mapApiError(response, PATIENT_ERROR_CONFIG) };
       }
-      return { success: true, data: response.data };
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const upcoming = response.data?.filter((apt) => {
+        const appointmentDate = new Date(apt.appointmentDate);
+        appointmentDate.setHours(0, 0, 0, 0);
+        const isUpcoming = appointmentDate >= today;
+        const isPendingOrScheduled = apt.status === 'PENDING' || apt.status === 'SCHEDULED';
+        return isUpcoming && isPendingOrScheduled;
+      }) ?? [];
+      
+      return {
+        success: true,
+        data: upcoming,
+      };
     } catch (error) {
       return { success: false, error: mapNetworkError(error) };
     }
@@ -70,7 +92,7 @@ export class HttpPatientApi implements PatientApi {
 
   async getPatientVitals(patientId: string, appointmentId: number): Promise<PatientOutcome<VitalsResponse[]>> {
     try {
-      const response = await patientApi.getVitals(patientId, appointmentId);
+      const response = await this.apiClient.get<any[]>(`/patients/${patientId}/vitals?appointmentId=${appointmentId}`);
       if (!response.success) {
         return { success: false, error: mapApiError(response, PATIENT_ERROR_CONFIG) };
       }

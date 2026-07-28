@@ -220,9 +220,16 @@ export class SessionService {
 
     if (!doctorResult.success || !doctorResult.data) {
       const cause = doctorResult && typeof doctorResult === 'object' && 'error' in doctorResult ? (doctorResult as any).error : undefined;
-      return { success: false, error: makeError(ClinicalErrorCode.PATIENT_NOT_FOUND, 'Doctor not found', ClinicalErrorCategory.PATIENT, false, false, cause) };
+
+      const fallbackDoctorId = appointmentResult.data?.doctorId;
+      if (fallbackDoctorId) {
+        doctorId = fallbackDoctorId;
+      } else {
+        return { success: false, error: makeError(ClinicalErrorCode.PATIENT_NOT_FOUND, 'Doctor not found', ClinicalErrorCategory.PATIENT, false, false, cause) };
+      }
+    } else {
+      doctorId = (doctorResult.data as any).id;
     }
-    doctorId = (doctorResult.data as any).id;
 
     consultation = consultationResult.success ? (consultationResult.data as any) : null;
 

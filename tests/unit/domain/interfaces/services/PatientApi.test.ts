@@ -13,11 +13,21 @@ vi.mock('@/lib/api/patient', () => ({
   },
 }));
 
+function createMockApiClient() {
+  return {
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+    patch: vi.fn(),
+  } as any;
+}
+
 describe('HttpPatientApi', () => {
   let api: HttpPatientApi;
 
   beforeEach(() => {
-    api = new HttpPatientApi();
+    api = new HttpPatientApi(createMockApiClient());
     vi.clearAllMocks();
   });
 

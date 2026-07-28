@@ -68,6 +68,7 @@ export function QueueManagementPanels() {
 
   const handleAssignToQueue = async (patient: CheckedInPatient) => {
     if (!selectedDoctor) return;
+    if (!confirm(`Assign ${patient.patient.firstName} ${patient.patient.lastName} to this doctor's queue?`)) return;
     setActionLoading(`assign-${patient.id}`);
     try {
       const result = await assignPatientToQueue({
@@ -81,6 +82,7 @@ export function QueueManagementPanels() {
         await invalidateFrontdeskCache();
         refetchAwaiting();
         refetchQueue();
+        queryClient.invalidateQueries({ queryKey: ['doctor', selectedDoctor] });
       }
     } catch (error) {
       console.error('Error assigning patient:', error);
