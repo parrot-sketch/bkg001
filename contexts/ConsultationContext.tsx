@@ -17,6 +17,7 @@ import { useQueueContext } from '@/providers/queue/QueueContextProvider';
 import type { ConsultationResponseDto } from '@/application/dtos/ConsultationResponseDto';
 import type { QueuePatient } from '@/hooks/doctor/useDoctorQueue';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
+import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import type { VitalsData } from '@/providers/patient/PatientContextProvider';
 import type { StructuredNotes } from '@/shared-kernel/types/notes';
 import { ConsultationOutcomeType } from '@/domain/enums/ConsultationOutcomeType';

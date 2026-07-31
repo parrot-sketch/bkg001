@@ -5,6 +5,8 @@
  * These helpers normalize both shapes without throwing.
  */
 
+import { format } from 'date-fns';
+
 export function toIso(value: Date | string | undefined | null): string | undefined {
   if (!value) return undefined;
   if (typeof value === 'string') return value;
@@ -27,4 +29,11 @@ export function getLocalDateString(date: Date): string {
   const month = `${date.getMonth() + 1}`.padStart(2, '0');
   const day = `${date.getDate()}`.padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+export function formatDate(value: Date | string | undefined | null, formatStr: string = 'MMM d, yyyy'): string {
+  if (!value) return '—';
+  const date = typeof value === 'string' ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return '—';
+  return format(date, formatStr);
 }

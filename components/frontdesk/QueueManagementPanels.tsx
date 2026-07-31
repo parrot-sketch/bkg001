@@ -27,6 +27,7 @@ import { assignPatientToQueue, removeFromQueue, reassignQueue } from '@/app/acti
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/constants/queryKeys';
 import { useDoctorsAvailability } from '@/hooks/schedule/useDoctorAvailability';
 import type { DoctorAvailabilityResponseDto } from '@/application/dtos/DoctorAvailabilityResponseDto';
 import { toast } from 'sonner';

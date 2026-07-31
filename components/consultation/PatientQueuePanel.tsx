@@ -116,14 +116,14 @@ export function PatientQueuePanel() {
                       {queueItem.time || '--:--'}
                     </span>
                      {canLoad && queueItem.appointmentId && (
-                       <Button
-                         size="sm"
-                         onClick={() => handleLoadPatient(queueItem.appointmentId)}
-                         className="h-7 px-2.5 text-[10px] rounded-md bg-[#2c2e4b] hover:bg-[#1a1c2f] text-white"
-                       >
-                         Load
-                       </Button>
-                     )}
+                        <Button
+                          size="sm"
+                          onClick={() => handleLoadPatient(queueItem.appointmentId as number)}
+                          className="h-7 px-2.5 text-[10px] rounded-md bg-[#2c2e4b] hover:bg-[#1a1c2f] text-white"
+                        >
+                          Load
+                        </Button>
+                      )}
                   </div>
                 </div>
               );

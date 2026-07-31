@@ -86,7 +86,7 @@ export function WaitingQueue({ queue, onStartConsultation }: WaitingQueueProps) 
                   ) : item.appointmentId ? (
                     <Button
                       size="sm"
-                      onClick={() => handleStart(item.appointmentId)}
+                      onClick={() => handleStart(item.appointmentId as number)}
                       disabled={isPending}
                       className="h-8 text-xs rounded-lg bg-[#2c2e4b] hover:bg-[#1a1c2f] text-white"
                     >

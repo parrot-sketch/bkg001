@@ -148,7 +148,7 @@ export function DailyQueuePanel({ queue, isLoading }: DailyQueuePanelProps) {
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleNavigate(queueItem.appointmentId);
+                        handleNavigate(queueItem.appointmentId as number);
                       }}
                       className={cn(
                         'h-8 px-3 text-xs rounded-lg shadow-sm',

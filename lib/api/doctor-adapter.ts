@@ -22,6 +22,7 @@ import { ApiClient } from '@/lib/api/client';
 import { mapApiError, mapNetworkError } from '@/lib/api/adapter-utils';
 import type { ClinicalError } from '@/shared-kernel/errors/types';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import type { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';
 import {
   ClinicalErrorCode,

@@ -100,7 +100,7 @@ export function QueuePanel({ queue, onRefresh, onLoadPatient, isRefetching }: Qu
                     {canLoad && queueItem.appointmentId && (
                       <Button
                         size="sm"
-                        onClick={() => onLoadPatient(queueItem.appointmentId)}
+                        onClick={() => onLoadPatient(queueItem.appointmentId as number)}
                         className="h-7 px-3 text-[10px] rounded-md bg-[#2c2e4b] hover:bg-[#1a1c2f] text-white shadow-sm transition-colors"
                       >
                         Load
