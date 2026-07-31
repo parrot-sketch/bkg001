@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
 
     const isPatientMinor = isMinor(data.dateOfBirth);
     const email = data.email && data.email.trim() !== '' ? data.email : `guardian-${Date.now()}@placeholder.local`;
+    const phone = data.phone && data.phone.trim() !== '' ? data.phone : isPatientMinor ? '+254000000000' : '+254000000001';
 
     const result = await container.submitIntake.execute({
       sessionId,
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
       dateOfBirth: data.dateOfBirth,
       gender: data.gender,
       email,
-      phone: data.phone,
+      phone,
       whatsappPhone: data.whatsappPhone === '' ? undefined : data.whatsappPhone,
       address: data.address,
       maritalStatus: data.maritalStatus,

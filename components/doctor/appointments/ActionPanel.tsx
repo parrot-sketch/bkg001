@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { CalendarClock, UserX, XCircle } from 'lucide-react';
-import { AppointmentStatus, isAwaitingConfirmation } from '@/domain/enums/AppointmentStatus';
+import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 
 interface ActionPanelProps {
   status: AppointmentStatus;
@@ -12,6 +12,14 @@ interface ActionPanelProps {
   onCancel: () => void;
   onMarkNoShow?: () => void;
 }
+
+const CANCELLABLE_STATUSES = new Set([
+  AppointmentStatus.PENDING_DOCTOR_CONFIRMATION,
+  AppointmentStatus.SCHEDULED,
+  AppointmentStatus.CONFIRMED,
+  AppointmentStatus.CHECKED_IN,
+  AppointmentStatus.READY_FOR_CONSULTATION,
+]);
 
 export function ActionPanel({
   status,
@@ -27,8 +35,8 @@ export function ActionPanel({
     AppointmentStatus.SCHEDULED,
     AppointmentStatus.CONFIRMED,
   ].includes(status);
-  
-  const canCancel = isAwaitingConfirmation(status);
+
+  const canCancel = CANCELLABLE_STATUSES.has(status);
   const canMarkNoShow =
     (status === AppointmentStatus.SCHEDULED || status === AppointmentStatus.CONFIRMED) &&
     isPastDate;

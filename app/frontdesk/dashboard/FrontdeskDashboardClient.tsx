@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { UserPlus } from 'lucide-react';
 import { useBookAppointmentStore } from '@/hooks/frontdesk/useBookAppointmentStore';
 import { QuickBookAppointmentDialog } from '@/components/frontdesk/dashboard/QuickBookAppointmentDialog';
-import { useFrontdeskDashboard } from '@/hooks/frontdesk/useFrontdeskDashboard';
+import { useFrontdeskDashboard } from '@/hooks/frontdesk/use-frontdesk-dashboard';
 import { AppointmentSource } from '@/domain/enums/AppointmentSource';
 import { BookingChannel } from '@/domain/enums/BookingChannel';
 import { triggerAppointmentExpiry } from '@/app/actions/appointment-expiry';
@@ -30,7 +30,8 @@ export function FrontdeskDashboardClient() {
   const { openBookingDialog } = useBookAppointmentStore();
   const [quickAssignmentOpen, setQuickAssignmentOpen] = useState<boolean>(false);
   const [quickBookOpen, setQuickBookOpen] = useState(false);
-  const { stats, completedAppointments, isLoading } = useFrontdeskDashboard();
+  const { data, stats, isLoading } = useFrontdeskDashboard();
+  const completedAppointments = data?.todaysSchedule.completed ?? [];
 
   // Background expiry check — fire and forget, never blocks UI
   useEffect(() => {

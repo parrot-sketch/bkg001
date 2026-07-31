@@ -166,6 +166,14 @@ export function SessionProvider({ children, initialSession, user, restoredDraft 
     return completed || consultation.state === ConsultationState.COMPLETED;
   }, [appointment, consultation]);
 
+  useEffect(() => {
+    if (!appointment) return;
+    const expectedPath = `/doctor/consultations/session/${appointment.id}`;
+    if (window.location.pathname !== expectedPath) {
+      window.history.replaceState(null, '', expectedPath);
+    }
+  }, [appointment?.id]);
+
   const initializeSession = useCallback(async (appointmentId: number) => {
     try {
       const result = await initializeSessionAction(appointmentId);
@@ -416,7 +424,10 @@ export function SessionProvider({ children, initialSession, user, restoredDraft 
     onRefreshPatient: async (patientId: string) => {
       const result = await refreshPatientAction(patientId);
       if (result.success) {
-        setPatient(result.data as any);
+        const patientData = (result.data as any)?.patient;
+        if (patientData) {
+          setPatient(patientData);
+        }
       } else {
         setError(toErrorMessage(result.error));
       }

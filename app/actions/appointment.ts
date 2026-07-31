@@ -559,16 +559,32 @@ export async function removeFromQueue(queueId: number, reason?: string) {
       },
     });
 
-    // Update appointment status back to CHECKED_IN
+    // Handle linked appointment
     if (queueEntry.appointment) {
-      await db.appointment.update({
+      const appointment = await db.appointment.findUnique({
         where: { id: queueEntry.appointment.id },
-        data: {
-          status: AppointmentStatus.CHECKED_IN,
-          status_changed_at: new Date(),
-          status_changed_by: user.userId,
-        },
+        select: { id: true, type: true, source: true, status: true },
       });
+
+      if (appointment) {
+        const isWalkInPlaceholder = appointment.type === 'Walk-in' && appointment.source === 'FRONTDESK_SCHEDULED';
+
+        if (isWalkInPlaceholder) {
+          await db.appointment.update({
+            where: { id: appointment.id },
+            data: { status: AppointmentStatus.CANCELLED },
+          });
+        } else {
+          await db.appointment.update({
+            where: { id: appointment.id },
+            data: {
+              status: AppointmentStatus.CHECKED_IN,
+              status_changed_at: new Date(),
+              status_changed_by: user.userId,
+            },
+          });
+        }
+      }
     }
 
     // Send notification to doctor

@@ -21,6 +21,7 @@ import { ConsultationRequestStatus } from '@/domain/enums/ConsultationRequestSta
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { AppointmentSource, isAppointmentSource } from '@/domain/enums/AppointmentSource';
 import { BookingChannel, isBookingChannel } from '@/domain/enums/BookingChannel';
+import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { subDays } from 'date-fns';
 import { createAppointmentRequestSchema, type CreateAppointmentRequest } from '@/application/dtos/CreateAppointmentRequest';
 import { handleApiSuccess, handleApiError } from '@/app/api/_utils/handleApiError';
@@ -222,6 +223,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const MAX_LIMIT = 500;
     const requestedLimit = limitParam ? Number(limitParam) : DEFAULT_LIMIT;
     const finalLimit = Math.min(Math.max(1, requestedLimit), MAX_LIMIT); // Clamp between 1 and MAX_LIMIT
+
+    // Exclude cancelled appointments from default results for frontdesk/admin roles
+    // Callers can still request cancelled appointments explicitly with ?status=CANCELLED
+    const baseWhere = { ...where };
+    if (!statusParam && (userRole === 'FRONTDESK' || userRole === 'ADMIN')) {
+      where.AND = [
+        baseWhere,
+        { status: { not: AppointmentStatus.CANCELLED } },
+      ];
+    }
 
     // REFACTORED: Use select instead of include for better performance
     // Only fetch fields actually used by the API response

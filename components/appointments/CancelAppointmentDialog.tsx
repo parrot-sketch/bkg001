@@ -3,7 +3,8 @@
 /**
  * Cancel Appointment Dialog
  * 
- * Allows doctor to cancel an appointment with a reason
+ * Allows frontdesk or doctor to cancel an appointment.
+ * Reason is optional.
  */
 
 import { useState } from 'react';
@@ -21,7 +22,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAppointments } from '@/hooks/useAppointments';
-import { toast } from 'sonner';
 
 interface CancelAppointmentDialogProps {
     open: boolean;
@@ -40,14 +40,9 @@ export function CancelAppointmentDialog({
     const { cancelAppointment, isCancelling } = useAppointments({ onCancelSuccess: onSuccess });
 
     const handleCancel = () => {
-        if (!reason.trim()) {
-            toast.error('Please provide a reason for cancellation');
-            return;
-        }
-
         cancelAppointment({
             appointmentId,
-            reason,
+            reason: reason.trim() || undefined,
         });
 
         onOpenChange(false);
@@ -63,7 +58,7 @@ export function CancelAppointmentDialog({
                         Cancel Appointment
                     </DialogTitle>
                     <DialogDescription>
-                        This action cannot be undone. The patient and frontdesk will be notified.
+                        This action cannot be undone. The patient and staff will be notified.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -77,18 +72,17 @@ export function CancelAppointmentDialog({
                 <div className="space-y-4">
                     <div className="space-y-2">
                         <Label htmlFor="reason">
-                            Reason for Cancellation <span className="text-destructive">*</span>
+                            Reason for Cancellation <span className="text-muted-foreground">(optional)</span>
                         </Label>
                         <Textarea
                             id="reason"
-                            placeholder="Please explain why you're cancelling this appointment..."
+                            placeholder="Provide a reason if needed..."
                             value={reason}
                             onChange={(e) => setReason(e.target.value)}
                             rows={4}
-                            required
                         />
                         <p className="text-xs text-muted-foreground">
-                            This reason will be shared with the patient and frontdesk staff.
+                            Leave blank to cancel without a reason.
                         </p>
                     </div>
                 </div>
@@ -104,7 +98,7 @@ export function CancelAppointmentDialog({
                     <Button
                         variant="destructive"
                         onClick={handleCancel}
-                        disabled={isCancelling || !reason.trim()}
+                        disabled={isCancelling}
                     >
                         {isCancelling ? (
                             <>

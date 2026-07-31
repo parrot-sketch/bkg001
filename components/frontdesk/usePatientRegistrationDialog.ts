@@ -89,10 +89,11 @@ export function usePatientRegistrationDialog(params: {
     let fields: (keyof PatientRegistrationFormData)[] = [];
     if (step === 1) fields = ['firstName', 'lastName', 'dateOfBirth', 'gender'];
     else if (step === 2) {
-      fields = ['phone'];
       const dob = form.getValues('dateOfBirth');
       if (dob && !isMinor(dob)) {
-        fields.push('email');
+        fields = ['phone', 'email'];
+      } else {
+        fields = [];
       }
     }
     const valid = fields.length === 0 || (await form.trigger(fields));

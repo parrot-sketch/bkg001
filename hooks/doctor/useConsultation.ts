@@ -29,7 +29,7 @@ export function useStartConsultation() {
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['appointments'] });
             queryClient.invalidateQueries({ queryKey: queryKeys.doctor.dashboard() });
-
+            queryClient.invalidateQueries({ queryKey: ['doctor'] });
             queryClient.invalidateQueries({ queryKey: ['consultation', variables] });
 
             // No toast — navigation to consultation room is the visual feedback

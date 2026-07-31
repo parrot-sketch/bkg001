@@ -10,51 +10,7 @@
 import { LayoutDashboard, Calendar, Users, UserPlus, User, Receipt, Building2, ClipboardList, Bell } from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { useAuth } from '@/hooks/patient/useAuth';
-
-const baseNavItems: NavItem[] = [
-  {
-    name: 'Dashboard',
-    href: '/frontdesk/dashboard',
-    icon: LayoutDashboard,
-    section: 'Overview',
-  },
-  {
-    name: 'Appointments',
-    href: '/frontdesk/appointments',
-    icon: Calendar,
-    section: 'Patient Care',
-  },
-  {
-    name: 'Patients',
-    href: '/frontdesk/patients',
-    icon: Users,
-    section: 'Patient Care',
-  },
-  {
-    name: 'New Patient Intake',
-    href: '/frontdesk/intake/start',
-    icon: ClipboardList,
-    section: 'Patient Care',
-  },
-  {
-    name: 'Theater Scheduling',
-    href: '/frontdesk/theater-scheduling',
-    icon: Building2,
-    section: 'Scheduling',
-  },
-  {
-    name: 'Billing',
-    href: '/frontdesk/billing',
-    icon: Receipt,
-    section: 'Billing & Finance',
-  },
-  {
-    name: 'My Profile',
-    href: '/frontdesk/profile',
-    icon: User,
-    section: 'Account',
-  },
-];
+import { useDashboardStats } from '@/hooks/frontdesk/use-frontdesk-dashboard';
 
 interface FrontdeskSidebarProps {
   isOpen?: boolean;
@@ -64,6 +20,54 @@ interface FrontdeskSidebarProps {
 
 export function FrontdeskSidebar({ isOpen = false, onClose = () => { }, onCollapse }: FrontdeskSidebarProps) {
   const { logout, user } = useAuth();
+  const { data: stats } = useDashboardStats();
+  const newPatientsToday = stats?.newPatientsToday ?? 0;
+
+  const navItems: NavItem[] = [
+    {
+      name: 'Dashboard',
+      href: '/frontdesk/dashboard',
+      icon: LayoutDashboard,
+      section: 'Overview',
+    },
+    {
+      name: 'Appointments',
+      href: '/frontdesk/appointments',
+      icon: Calendar,
+      section: 'Patient Care',
+    },
+    {
+      name: 'Patients',
+      href: newPatientsToday > 0 ? '/frontdesk/patients?createdToday=true' : '/frontdesk/patients',
+      icon: Users,
+      section: 'Patient Care',
+      badge: newPatientsToday > 0 ? newPatientsToday : undefined,
+    },
+    {
+      name: 'New Patient Intake',
+      href: '/frontdesk/intake/start',
+      icon: ClipboardList,
+      section: 'Patient Care',
+    },
+    {
+      name: 'Theater Scheduling',
+      href: '/frontdesk/theater-scheduling',
+      icon: Building2,
+      section: 'Scheduling',
+    },
+    {
+      name: 'Billing',
+      href: '/frontdesk/billing',
+      icon: Receipt,
+      section: 'Billing & Finance',
+    },
+    {
+      name: 'My Profile',
+      href: '/frontdesk/profile',
+      icon: User,
+      section: 'Account',
+    },
+  ];
 
   const handleLogout = async () => {
     try {
@@ -79,17 +83,17 @@ export function FrontdeskSidebar({ isOpen = false, onClose = () => { }, onCollap
 
   const userInfo: UserInfo | null = user
     ? {
-      name: user.firstName || user.email,
-      email: user.email,
-      role: 'FRONTDESK',
-    }
+        name: user.firstName || user.email,
+        email: user.email,
+        role: 'FRONTDESK',
+      }
     : null;
 
   return (
     <UnifiedSidebar
       isOpen={isOpen}
       onClose={onClose}
-      navItems={baseNavItems}
+      navItems={navItems}
       userInfo={userInfo}
       onLogout={handleLogout}
       dashboardHref="/frontdesk/dashboard"

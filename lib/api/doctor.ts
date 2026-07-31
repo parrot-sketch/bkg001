@@ -81,10 +81,12 @@ export const doctorApi = {
   },
 
   /**
-   * Get today's appointments
+   * Get appointments for a specific date (defaults to today if not provided)
    */
-  async getTodayAppointments(doctorId: string): Promise<ApiResponse<AppointmentResponseDto[]>> {
-    return apiClient.get<AppointmentResponseDto[]>(`/doctors/${doctorId}/appointments/today`);
+  async getTodayAppointments(doctorId: string, date?: Date | string): Promise<ApiResponse<AppointmentResponseDto[]>> {
+    const baseUrl = `/doctors/${doctorId}/appointments/today`;
+    const url = date ? `${baseUrl}?date=${encodeURIComponent(typeof date === 'string' ? date : date.toISOString().split('T')[0])}` : baseUrl;
+    return apiClient.get<AppointmentResponseDto[]>(url);
   },
 
   /**
@@ -142,8 +144,17 @@ export const doctorApi = {
   /**
    * Get patient's complete visit history (appointment + consultation + vitals + diagnosis + billing)
    */
-  async getPatientVisits(patientId: string): Promise<ApiResponse<import('@/application/dtos/VisitResponseDto').VisitResponseDto[]>> {
-    return apiClient.get(`/patients/${patientId}/visits`);
+  async getPatientVisits(
+    patientId: string,
+    startDate?: Date | string,
+    endDate?: Date | string
+  ): Promise<ApiResponse<import('@/application/dtos/VisitResponseDto').VisitResponseDto[]>> {
+    const params = new URLSearchParams();
+    if (startDate) params.set('startDate', typeof startDate === 'string' ? startDate : startDate.toISOString().split('T')[0]);
+    if (endDate) params.set('endDate', typeof endDate === 'string' ? endDate : endDate.toISOString().split('T')[0]);
+    const qs = params.toString();
+    const url = `/patients/${patientId}/visits${qs ? `?${qs}` : ''}`;
+    return apiClient.get(url);
   },
 
   /**

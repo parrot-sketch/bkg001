@@ -160,9 +160,9 @@ function buildInitialSession(data: ConsultationPatientData): SerializedSessionDa
     vitals: data.vitals ?? null,
     consultation: data.consultation
       ? {
-        id: data.consultation.id,
-        appointmentId: appointment.id,
-        doctorId: appointment.doctorId,
+          id: data.consultation.id,
+          appointmentId: appointment.id,
+          doctorId: data.consultation.doctorId,
           userId: undefined,
           state: data.consultation.state,
           startedAt: undefined,
@@ -176,7 +176,7 @@ function buildInitialSession(data: ConsultationPatientData): SerializedSessionDa
           followUp: undefined,
         }
       : null,
-    doctorId: appointment.doctorId,
+    doctorId: data.consultation?.doctorId ?? appointment.doctorId,
     workflowState: data.consultation ? 'ACTIVE' : 'READY',
     isDirty: false,
     draftAvailable: false,

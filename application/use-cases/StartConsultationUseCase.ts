@@ -150,6 +150,13 @@ export class StartConsultationUseCase {
         },
       });
 
+      const existingConsultation = await this.consultationRepository.findByAppointmentId(dto.appointmentId);
+      if (existingConsultation && existingConsultation.getDoctorId() !== dto.doctorId) {
+        const reconciled = existingConsultation.withDoctorId(dto.doctorId);
+        await this.consultationRepository.update(reconciled);
+        console.log(`[StartConsultation] Reconciliated consultation #${existingConsultation.getId()} doctor_id → ${dto.doctorId}`);
+      }
+
       appointment = ApplicationAppointmentMapper.updateDoctor(appointment, dto.doctorId);
     }
 

@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { useCheckedInAwaitingAssignment, useLiveQueueBoard, invalidateFrontdeskCache, useCheckIn, useFrontdeskDashboard } from '@/hooks/frontdesk/use-frontdesk-dashboard';
 import type { FrontdeskCheckedInPatient } from '@/hooks/frontdesk/use-frontdesk-dashboard';
-import { assignPatientToQueue, removeFromQueue } from '@/app/actions/appointment';
+import { assignPatientToQueue, removeFromQueue, reassignQueue } from '@/app/actions/appointment';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useQueryClient } from '@tanstack/react-query';
@@ -64,6 +64,7 @@ export function QueueManagementPanels() {
   const { data: liveQueue, isLoading: loadingQueue, error: errorQueue, refetch: refetchQueue } = useLiveQueueBoard();
   const [showDoctorSelect, setShowDoctorSelect] = useState<number | null>(null);
   const [selectedDoctor, setSelectedDoctor] = useState<string>('');
+  const [reassignTarget, setReassignTarget] = useState<{ queueId: number; doctorId: string } | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const handleAssignToQueue = async (patient: CheckedInPatient) => {
@@ -76,16 +77,20 @@ export function QueueManagementPanels() {
         doctorId: selectedDoctor,
         appointmentId: patient.isWalkIn ? undefined : patient.id,
       });
-      if (result.success) {
+       if (result.success) {
         setShowDoctorSelect(null);
         setSelectedDoctor('');
         await invalidateFrontdeskCache();
         refetchAwaiting();
         refetchQueue();
-        queryClient.invalidateQueries({ queryKey: ['doctor', selectedDoctor] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.doctor.queue(selectedDoctor) });
+        toast.success('Patient added to queue');
+      } else {
+        toast.error(result.msg || 'Failed to add patient to queue');
       }
     } catch (error) {
       console.error('Error assigning patient:', error);
+      toast.error('An error occurred while adding to queue');
     } finally {
       setActionLoading(null);
     }
@@ -100,9 +105,37 @@ export function QueueManagementPanels() {
         await invalidateFrontdeskCache();
         refetchAwaiting();
         refetchQueue();
+        toast.success('Patient removed from queue');
+      } else {
+        toast.error(result.msg || 'Failed to remove patient from queue');
       }
     } catch (error) {
       console.error('Error removing patient:', error);
+      toast.error('An error occurred while removing patient');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleReassign = async (queueId: number, newDoctorId: string) => {
+    if (!newDoctorId) return;
+    if (!confirm(`Reassign this patient to another doctor's queue?`)) return;
+    setActionLoading(`reassign-${queueId}`);
+    try {
+      const result = await reassignQueue(queueId, newDoctorId);
+      if (result.success) {
+        setReassignTarget(null);
+        await invalidateFrontdeskCache();
+        refetchAwaiting();
+        refetchQueue();
+        queryClient.invalidateQueries({ queryKey: queryKeys.doctor.queue(newDoctorId) });
+        toast.success('Patient reassigned successfully');
+      } else {
+        toast.error(result.msg || 'Failed to reassign patient');
+      }
+    } catch (error) {
+      console.error('Error reassigning patient:', error);
+      toast.error('An error occurred while reassigning patient');
     } finally {
       setActionLoading(null);
     }
@@ -397,34 +430,92 @@ export function QueueManagementPanels() {
                             Wait: <span className="text-[#0c5d69] font-medium">{patient.waitTime}</span>
                           </p>
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              'text-[9px] px-1.5 py-0 font-medium rounded-none',
-                              patient.status === 'IN_CONSULTATION'
-                                ? 'bg-[#caa26a]/10 text-[#9a7709] border-[#caa26a]/40'
-                                : 'bg-[#e7d6bf]/20 text-[#2c2e4b]/70 border-[#e7d6bf]'
-                            )}
-                          >
-                            {patient.status === 'IN_CONSULTATION' ? 'In progress' : 'Waiting'}
-                          </Badge>
-                          {patient.status === 'WAITING' && (
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleRemoveFromQueue(patient.id)}
-                              disabled={actionLoading === `remove-${patient.id}`}
-                              className="h-6 w-6 p-0 text-[#2c2e4b]/30 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
-                            >
-                              {actionLoading === `remove-${patient.id}` ? (
-                                <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                              ) : (
-                                <UserMinus className="h-2.5 w-2.5" />
-                              )}
-                            </Button>
-                          )}
-                        </div>
+                         <div className="flex items-center gap-1.5 shrink-0">
+                           <Badge
+                             variant="outline"
+                             className={cn(
+                               'text-[9px] px-1.5 py-0 font-medium rounded-none',
+                               patient.status === 'IN_CONSULTATION'
+                                 ? 'bg-[#caa26a]/10 text-[#9a7709] border-[#caa26a]/40'
+                                 : 'bg-[#e7d6bf]/20 text-[#2c2e4b]/70 border-[#e7d6bf]'
+                             )}
+                           >
+                             {patient.status === 'IN_CONSULTATION' ? 'In progress' : 'Waiting'}
+                           </Badge>
+                           {patient.status === 'WAITING' && (
+                             <>
+                               {reassignTarget?.queueId === patient.id ? (
+                                 <div className="flex items-center gap-1">
+                                   <select
+                                     className="text-[10px] border border-[#e7d6bf] rounded-md px-1.5 py-1 max-w-[130px] focus:outline-none focus:ring-1 focus:ring-[#caa26a]/30 focus:border-[#caa26a] bg-white text-[#2c2e4b]"
+                                     value={reassignTarget.doctorId}
+                                     onChange={(e) => setReassignTarget({ queueId: patient.id, doctorId: e.target.value })}
+                                     disabled={loadingDoctors}
+                                   >
+                                     <option value="">
+                                       {loadingDoctors ? 'Loading…' : 'Select doctor'}
+                                     </option>
+                                     {availabilityDoctors
+                                       .filter((doc) => doc.doctorId !== patient.doctorId)
+                                       .map((doc) => {
+                                         const status = availabilityByDoctorId.get(doc.doctorId);
+                                         const suffix = status === 'AVAILABLE' ? ' · Available' : status === 'LATER_TODAY' ? ' · Later' : ' · Off';
+                                         return (
+                                           <option key={doc.doctorId} value={doc.doctorId}>
+                                             {doc.doctorName}{suffix}
+                                           </option>
+                                         );
+                                       })}
+                                   </select>
+                                   <Button
+                                     size="sm"
+                                     onClick={() => handleReassign(patient.id, reassignTarget.doctorId)}
+                                     disabled={!reassignTarget.doctorId || actionLoading === `reassign-${patient.id}`}
+                                     className="h-6 w-6 p-0 bg-[#caa26a] hover:bg-[#b8913e] text-[#2c2e4b] rounded-md"
+                                   >
+                                     {actionLoading === `reassign-${patient.id}` ? (
+                                       <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                                     ) : (
+                                       <CheckCircle2 className="h-2.5 w-2.5" />
+                                     )}
+                                   </Button>
+                                   <Button
+                                     size="sm"
+                                     variant="ghost"
+                                     onClick={() => setReassignTarget(null)}
+                                     disabled={actionLoading === `reassign-${patient.id}`}
+                                     className="h-6 w-6 p-0 text-[#2c2e4b]/40 hover:text-[#2c2e4b] hover:bg-[#e7d6bf]/30 rounded-md"
+                                   >
+                                     <XCircle className="h-2.5 w-2.5" />
+                                   </Button>
+                                 </div>
+                               ) : (
+                                 <Button
+                                   size="sm"
+                                   variant="ghost"
+                                   onClick={() => setReassignTarget({ queueId: patient.id, doctorId: '' })}
+                                   className="h-6 w-6 p-0 text-[#2c2e4b]/30 hover:text-[#caa26a] hover:bg-[#e7d6bf]/30 rounded-md"
+                                   title="Reassign to another doctor"
+                                 >
+                                   <RefreshCw className="h-2.5 w-2.5" />
+                                 </Button>
+                               )}
+                               <Button
+                                 size="sm"
+                                 variant="ghost"
+                                 onClick={() => handleRemoveFromQueue(patient.id)}
+                                 disabled={actionLoading === `remove-${patient.id}`}
+                                 className="h-6 w-6 p-0 text-[#2c2e4b]/30 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
+                               >
+                                 {actionLoading === `remove-${patient.id}` ? (
+                                   <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                                 ) : (
+                                   <UserMinus className="h-2.5 w-2.5" />
+                                 )}
+                               </Button>
+                             </>
+                           )}
+                         </div>
                       </div>
                     ))}
                   </div>

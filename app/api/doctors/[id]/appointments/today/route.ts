@@ -112,13 +112,18 @@ export async function GET(
       );
     }
 
-    // 5. Get today's date range (start and end of day)
-    const today = new Date();
-    const todayStart = new Date(today);
-    todayStart.setHours(0, 0, 0, 0);
+    // 5. Get date range
+    // Accept optional ?date=YYYY-MM-DD query param; default to today
+    const { searchParams } = new URL(request.url);
+    const dateParam = searchParams.get('date');
 
-    const todayEnd = new Date(today);
-    todayEnd.setHours(23, 59, 59, 999);
+    const targetDate = dateParam ? new Date(dateParam + 'T00:00:00') : new Date();
+
+    const dayStart = new Date(targetDate);
+    dayStart.setHours(0, 0, 0, 0);
+
+    const dayEnd = new Date(targetDate);
+    dayEnd.setHours(23, 59, 59, 999);
 
 
 
@@ -128,8 +133,8 @@ export async function GET(
     const where: any = {
       doctor_id: doctorId,
       appointment_date: {
-        gte: todayStart,
-        lte: todayEnd,
+        gte: dayStart,
+        lte: dayEnd,
       },
       OR: [
         {

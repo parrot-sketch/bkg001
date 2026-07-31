@@ -5,7 +5,7 @@ export interface CreatePatientDto {
   readonly dateOfBirth: Date | string;
   readonly gender: string;
   readonly email: string;
-  readonly phone: string;
+  readonly phone?: string;
   readonly whatsappPhone?: string;
   readonly address?: string;
   readonly occupation?: string;

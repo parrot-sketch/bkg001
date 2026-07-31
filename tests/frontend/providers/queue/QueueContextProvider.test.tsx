@@ -2,32 +2,42 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import React from 'react';
 
-vi.mock('@/hooks/doctor/useDoctorDashboard', () => ({
-  useDoctorTodayAppointments: vi.fn(),
+vi.mock('@/hooks/doctor/useDoctorQueue', () => ({
+  useDoctorQueue: vi.fn(),
 }));
 
-import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import type { QueuePatient } from '@/hooks/doctor/useDoctorQueue';
 import { QueueContextProvider, useQueueContext } from '@/providers/queue/QueueContextProvider';
 import { QueryWrapper } from '@/tests/frontend/mocks/react-query';
-import { useDoctorTodayAppointments } from '@/hooks/doctor/useDoctorDashboard';
+import { useDoctorQueue } from '@/hooks/doctor/useDoctorQueue';
 
-const makeAppointment = (id: number, status: string, currentId: number | null = null): AppointmentResponseDto => ({
+const makeQueueEntry = (id: number, status: string, appointmentId: number | null = null, overrides: Partial<QueuePatient> = {}): QueuePatient => ({
   id,
   patientId: '1',
-  doctorId: 'doc-1',
-  appointmentDate: new Date(),
+  patient: {
+    id: '1',
+    firstName: 'Test',
+    lastName: 'Patient',
+    fileNumber: 'FN-001',
+  },
+  appointmentId,
+  appointmentDate: new Date().toISOString(),
   time: '10:00',
-  status,
   type: 'CONSULTATION',
-  createdAt: new Date(),
-  updatedAt: new Date(),
+  status,
+  addedAt: new Date().toISOString(),
+  waitTime: '0m',
+  notes: null,
+  isWalkIn: !appointmentId,
+  ...overrides,
 });
 
-const sampleAppointments: AppointmentResponseDto[] = [
-  makeAppointment(1, 'CHECKED_IN'),
-  makeAppointment(2, 'READY_FOR_CONSULTATION'),
-  makeAppointment(3, 'COMPLETED'),
-  makeAppointment(4, 'SCHEDULED'),
+const sampleQueue: QueuePatient[] = [
+  makeQueueEntry(1, 'CHECKED_IN', 101),
+  makeQueueEntry(2, 'READY_FOR_CONSULTATION', 102),
+  makeQueueEntry(3, 'IN_CONSULTATION', 103),
+  makeQueueEntry(4, 'WAITING', 104),
+  makeQueueEntry(5, 'COMPLETED', 105),
 ];
 
 function wrapper(props: { doctorId?: string | null; currentAppointmentId?: number | null; children: React.ReactNode }) {
@@ -46,14 +56,14 @@ function wrapper(props: { doctorId?: string | null; currentAppointmentId?: numbe
 }
 
 describe('QueueContextProvider', () => {
-  const mockUseDoctorTodayAppointmentsHook = vi.mocked(useDoctorTodayAppointments);
+  const mockUseDoctorQueueHook = vi.mocked(useDoctorQueue);
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('returns initial state', async () => {
-    mockUseDoctorTodayAppointmentsHook.mockReturnValue({
+    mockUseDoctorQueueHook.mockReturnValue({
       data: [],
       refetch: vi.fn(),
       isRefetching: false,
@@ -67,9 +77,9 @@ describe('QueueContextProvider', () => {
     expect(result.current.isQueueRefetching).toBe(false);
   });
 
-  it('computes waitingQueue from appointments', async () => {
-    mockUseDoctorTodayAppointmentsHook.mockReturnValue({
-      data: sampleAppointments,
+  it('computes waitingQueue from queue entries', async () => {
+    mockUseDoctorQueueHook.mockReturnValue({
+      data: sampleQueue,
       refetch: vi.fn(),
       isRefetching: false,
     } as any);
@@ -78,28 +88,28 @@ describe('QueueContextProvider', () => {
       wrapper: wrapper({}),
     });
 
-    expect(result.current.waitingQueue).toHaveLength(2);
-    expect(result.current.waitingQueue.map(a => a.id)).toEqual([1, 2]);
+    expect(result.current.waitingQueue).toHaveLength(4);
+    expect(result.current.waitingQueue.map(q => q.id)).toEqual([1, 2, 3, 4]);
   });
 
   it('excludes current appointment from waitingQueue', async () => {
-    mockUseDoctorTodayAppointmentsHook.mockReturnValue({
-      data: sampleAppointments,
+    mockUseDoctorQueueHook.mockReturnValue({
+      data: sampleQueue,
       refetch: vi.fn(),
       isRefetching: false,
     } as any);
 
     const { result } = renderHook(() => useQueueContext(), {
-      wrapper: wrapper({ currentAppointmentId: 1 }),
+      wrapper: wrapper({ currentAppointmentId: 103 }),
     });
 
-    expect(result.current.waitingQueue).toHaveLength(1);
-    expect(result.current.waitingQueue[0].id).toBe(2);
+    expect(result.current.waitingQueue).toHaveLength(3);
+    expect(result.current.waitingQueue.map(q => q.id)).toEqual([1, 2, 4]);
   });
 
-  it('filters only CHECKED_IN and READY_FOR_CONSULTATION statuses', async () => {
-    mockUseDoctorTodayAppointmentsHook.mockReturnValue({
-      data: sampleAppointments,
+  it('filters active queue statuses', async () => {
+    mockUseDoctorQueueHook.mockReturnValue({
+      data: sampleQueue,
       refetch: vi.fn(),
       isRefetching: false,
     } as any);
@@ -108,12 +118,15 @@ describe('QueueContextProvider', () => {
       wrapper: wrapper({}),
     });
 
-    expect(result.current.waitingQueue.every(a => a.status === 'CHECKED_IN' || a.status === 'READY_FOR_CONSULTATION')).toBe(true);
+    expect(result.current.waitingQueue.every(q => 
+      q.status === 'WAITING' || q.status === 'CHECKED_IN' || q.status === 'READY_FOR_CONSULTATION' || q.status === 'IN_CONSULTATION'
+    )).toBe(true);
+    expect(result.current.waitingQueue.every(q => q.status !== 'COMPLETED')).toBe(true);
   });
 
   it('delegates refetchQueue to hook', async () => {
     const refetch = vi.fn().mockResolvedValue(undefined);
-    mockUseDoctorTodayAppointmentsHook.mockReturnValue({
+    mockUseDoctorQueueHook.mockReturnValue({
       data: [],
       refetch,
       isRefetching: false,
@@ -131,7 +144,7 @@ describe('QueueContextProvider', () => {
   });
 
   it('delegates isQueueRefetching to hook', async () => {
-    mockUseDoctorTodayAppointmentsHook.mockReturnValue({
+    mockUseDoctorQueueHook.mockReturnValue({
       data: [],
       refetch: vi.fn(),
       isRefetching: true,
@@ -146,7 +159,7 @@ describe('QueueContextProvider', () => {
 
   it('loads waiting queue on first call', async () => {
     const refetch = vi.fn().mockResolvedValue(undefined);
-    mockUseDoctorTodayAppointmentsHook.mockReturnValue({
+    mockUseDoctorQueueHook.mockReturnValue({
       data: [],
       refetch,
       isRefetching: false,
@@ -165,7 +178,7 @@ describe('QueueContextProvider', () => {
 
   it('does not refetch when already loaded', async () => {
     const refetch = vi.fn().mockResolvedValue(undefined);
-    mockUseDoctorTodayAppointmentsHook.mockReturnValue({
+    mockUseDoctorQueueHook.mockReturnValue({
       data: [],
       refetch,
       isRefetching: false,
@@ -187,7 +200,7 @@ describe('QueueContextProvider', () => {
   });
 
   it('returns empty queue when doctorId is null', async () => {
-    mockUseDoctorTodayAppointmentsHook.mockReturnValue({
+    mockUseDoctorQueueHook.mockReturnValue({
       data: [],
       refetch: vi.fn(),
       isRefetching: false,

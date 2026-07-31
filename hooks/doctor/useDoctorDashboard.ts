@@ -12,6 +12,7 @@
  * - Automatic background refetch on window focus for clinical safety
  */
 
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { doctorApi } from '@/lib/api/doctor';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
@@ -24,18 +25,31 @@ import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
  * 
  * @param doctorId - Doctor user ID
  * @param enabled - Whether the query should run (default: true)
+ * @param date - Optional specific date to fetch appointments for
  */
-export function useDoctorTodayAppointments(doctorId: string | undefined, enabled = true, refetchInterval: number | false = 30_000) {
+export function useDoctorTodayAppointments(doctorId: string | undefined, enabled = true, refetchInterval: number | false = 30_000, date?: Date | string) {
+  const queryKey = useMemo(() => {
+    const dateStr = date ? (typeof date === 'string' ? date : date.toISOString().split('T')[0]) : 'today';
+    return ['doctor', doctorId, 'appointments', dateStr];
+  }, [doctorId, date]);
+
   const query = useQuery({
-    queryKey: ['doctor', doctorId, 'appointments', 'today'],
+    queryKey,
     queryFn: async () => {
       if (!doctorId) {
         throw new Error('Doctor ID is required');
       }
-      const response = await doctorApi.getTodayAppointments(doctorId);
+      const response = await doctorApi.getTodayAppointments(doctorId, date);
       if (!response.success) {
-        throw new Error(response.error || 'Failed to load today\'s appointments');
+        throw new Error(response.error || 'Failed to load appointments');
       }
+      
+      // Only apply time-based relevance filter for today's view
+      const isTodayView = !date;
+      if (!isTodayView) {
+        return response.data;
+      }
+      
       // Filter to only show CONFIRMED and SCHEDULED sessions
       // AND filter out passed appointments (60-minute grace period)
       const now = new Date();
@@ -43,7 +57,6 @@ export function useDoctorTodayAppointments(doctorId: string | undefined, enabled
       const currentMinutes = now.getMinutes();
 
       return response.data.filter((apt) => {
-        // Basic status filter
         const isActionableStatus =
           apt.status === AppointmentStatus.SCHEDULED ||
           apt.status === AppointmentStatus.CONFIRMED ||
@@ -53,9 +66,6 @@ export function useDoctorTodayAppointments(doctorId: string | undefined, enabled
 
         if (!isActionableStatus) return false;
 
-        // Time-based relevance filter
-        // Skip time check for patients already checked in or in consultation
-        // We want to see them regardless of lateness if they are here
         if (
           apt.status === AppointmentStatus.CHECKED_IN ||
           apt.status === AppointmentStatus.READY_FOR_CONSULTATION ||
@@ -65,29 +75,23 @@ export function useDoctorTodayAppointments(doctorId: string | undefined, enabled
         }
 
         try {
-          // Time format is typically HH:mm
           const [aptHours, aptMinutes] = apt.time.split(':').map(Number);
-
           if (!isNaN(aptHours) && !isNaN(aptMinutes)) {
             const aptTotalMinutes = aptHours * 60 + aptMinutes;
             const nowTotalMinutes = currentHours * 60 + currentMinutes;
-
-            // Allow 60 minutes grace period for late starts
-            // If it started more than 60 mins ago, it's likely done or missed for the dashboard view
             return (aptTotalMinutes + 60) > nowTotalMinutes;
           }
         } catch (e) {
           console.error('Error parsing appointment time:', apt.time);
         }
-
         return true;
       });
     },
-    staleTime: 1000 * 30, // 30 seconds - aligns with polling and avoids duplicate refetches
-    gcTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 30,
+    gcTime: 1000 * 60 * 5,
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    refetchOnWindowFocus: false, // Polling already keeps this fresh enough
+    refetchOnWindowFocus: false,
     refetchOnReconnect: true,
     refetchInterval: refetchInterval,
     networkMode: 'offlineFirst',

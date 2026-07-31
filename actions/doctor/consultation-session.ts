@@ -267,11 +267,17 @@ export async function saveDraft(consultationId: number, doctorId: string, notes:
     }
 
     if (doctorId && consultation.doctor_id !== doctorId && user.role !== 'ADMIN') {
-      const doctorRecord = await db.doctor.findFirst({
+      const consultationOwner = await db.doctor.findFirst({
         where: { id: consultation.doctor_id },
         select: { user_id: true },
       });
-      if (!doctorRecord || doctorRecord.user_id !== user.userId) {
+      const passedDoctor = await db.doctor.findFirst({
+        where: { id: doctorId },
+        select: { user_id: true },
+      });
+      const isConsultationOwner = consultationOwner?.user_id === user.userId;
+      const isPassedDoctor = passedDoctor?.user_id === user.userId;
+      if (!isConsultationOwner && !isPassedDoctor) {
         return makeError(ClinicalErrorCode.UNAUTHORIZED, 'Not authorized for this consultation', ClinicalErrorCategory.AUTHORIZATION, true, false);
       }
     }
@@ -335,11 +341,17 @@ export async function saveCompletedNotes(consultationId: number, doctorId: strin
     }
 
     if (doctorId && consultation.doctor_id !== doctorId && user.role !== 'ADMIN') {
-      const doctorRecord = await db.doctor.findFirst({
+      const consultationOwner = await db.doctor.findFirst({
         where: { id: consultation.doctor_id },
         select: { user_id: true },
       });
-      if (!doctorRecord || doctorRecord.user_id !== user.userId) {
+      const passedDoctor = await db.doctor.findFirst({
+        where: { id: doctorId },
+        select: { user_id: true },
+      });
+      const isConsultationOwner = consultationOwner?.user_id === user.userId;
+      const isPassedDoctor = passedDoctor?.user_id === user.userId;
+      if (!isConsultationOwner && !isPassedDoctor) {
         return makeError(ClinicalErrorCode.UNAUTHORIZED, 'Not authorized for this consultation', ClinicalErrorCategory.AUTHORIZATION, true, false);
       }
     }

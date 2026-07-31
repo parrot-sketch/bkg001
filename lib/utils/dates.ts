@@ -1,58 +1,30 @@
-import { format, formatDistanceToNow, isPast, differenceInDays } from 'date-fns';
-
 /**
- * Formats a date to a readable string: "Apr 6, 2026"
+ * Safe date serialization utilities.
+ *
+ * Prisma may return Date objects or ISO strings depending on driver/runtime.
+ * These helpers normalize both shapes without throwing.
  */
-export function formatDate(date: string | Date): string {
-  return format(new Date(date), 'MMM d, yyyy');
+
+export function toIso(value: Date | string | undefined | null): string | undefined {
+  if (!value) return undefined;
+  if (typeof value === 'string') return value;
+  if (value instanceof Date) return value.toISOString();
+  return undefined;
 }
 
-/**
- * Returns the local date as an ISO date string (YYYY-MM-DD).
- * Uses local time instead of UTC to avoid timezone drift.
- */
+export function toMillis(value: Date | string | undefined | null): number | null {
+  if (!value) return null;
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === 'string') {
+    const millis = new Date(value).getTime();
+    return Number.isFinite(millis) ? millis : null;
+  }
+  return null;
+}
+
 export function getLocalDateString(date: Date): string {
   const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
   return `${year}-${month}-${day}`;
-}
-
-/**
- * Formats a date as relative when recent, otherwise absolute.
- * e.g. "3 days ago" or "Jan 15, 2025"
- */
-export function formatRelativeDate(date: string | Date): string {
-  const d = new Date(date);
-  const daysAgo = Math.abs(differenceInDays(new Date(), d));
-  if (daysAgo <= 30) {
-    return formatDistanceToNow(d, { addSuffix: true });
-  }
-  return format(d, 'MMM d, yyyy');
-}
-
-/**
- * Returns display info for an expiry date badge.
- */
-export function formatExpiryStatus(date: string | Date): {
-  label: string;
-  daysUntil: number;
-  isExpired: boolean;
-  isExpiringSoon: boolean;
-} {
-  const d = new Date(date);
-  const daysUntil = differenceInDays(d, new Date());
-  const isExpired = isPast(d);
-  const isExpiringSoon = !isExpired && daysUntil <= 30;
-
-  let label: string;
-  if (isExpired) {
-    label = `Expired ${format(d, 'MMM d, yyyy')}`;
-  } else if (isExpiringSoon) {
-    label = `${daysUntil}d left (${format(d, 'MMM d')})`;
-  } else {
-    label = format(d, 'MMM d, yyyy');
-  }
-
-  return { label, daysUntil, isExpired, isExpiringSoon };
 }

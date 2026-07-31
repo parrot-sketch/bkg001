@@ -239,17 +239,18 @@ export function UnifiedSidebar({
         {!collapsed && (
           <>
             <span className="flex-1 text-[14px] leading-none truncate">{item.name}</span>
-            {item.badge !== undefined && (
-              <span
-                className={cn(
-                  'px-1.5 py-0.5 rounded-full text-[11px] font-medium tabular-nums',
-                  isActive
-                    ? 'bg-[#caa26a]/15 text-[#caa26a]'
-                    : 'bg-white/10 text-white/80',
-                )}
-              >
-                {item.badge}
-              </span>
+             {item.badge !== undefined && (
+               <span
+                 className={cn(
+                   'px-1.5 py-0.5 rounded-full text-[11px] font-medium tabular-nums',
+                   typeof item.badge === 'number' && item.badge > 0 && 'animate-pulse',
+                   isActive
+                     ? 'bg-[#caa26a]/15 text-[#caa26a]'
+                     : 'bg-white/10 text-white/80',
+                 )}
+               >
+                 {item.badge}
+               </span>
             )}
           </>
         )}

@@ -1,14 +1,19 @@
 'use client';
 
-import { useMemo, useEffect } from 'react';
+import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, RefreshCw, Users } from 'lucide-react';
-import { useQueueContext } from '@/providers/queue/QueueContextProvider';
-import { useSessionContext } from '@/providers/session/SessionProvider';
 import { AppointmentStatus, canStartConsultation } from '@/domain/enums/AppointmentStatus';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
+import type { QueuePatient } from '@/hooks/doctor/useDoctorQueue';
+
+interface QueuePanelProps {
+  queue: QueuePatient[];
+  onRefresh: () => void;
+  onLoadPatient: (appointmentId: number) => void;
+  isRefetching: boolean;
+}
 
 const STATUS_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
   [AppointmentStatus.CHECKED_IN]: { bg: 'bg-[#caa26a]/20', text: 'text-[#2c2e4b]', label: 'Checked In' },
@@ -16,43 +21,14 @@ const STATUS_CONFIG: Record<string, { bg: string; text: string; label: string }>
   [AppointmentStatus.IN_CONSULTATION]: { bg: 'bg-[#caa26a]/30', text: 'text-[#2c2e4b]', label: 'In Consultation' },
 };
 
-export function PatientQueuePanel() {
-  const { waitingQueue, refetchQueue, isQueueRefetching, loadWaitingQueue } = useQueueContext();
-  const { switchToPatient, appointment } = useSessionContext();
-
-  useEffect(() => {
-    loadWaitingQueue();
-  }, [loadWaitingQueue]);
-
+export function QueuePanel({ queue, onRefresh, onLoadPatient, isRefetching }: QueuePanelProps) {
   const sortedQueue = useMemo(() => {
-    return [...waitingQueue].sort((a, b) => {
+    return [...queue].sort((a, b) => {
       const timeCompare = (a.time || '').localeCompare(b.time || '');
       if (timeCompare !== 0) return timeCompare;
       return a.id - b.id;
     });
-  }, [waitingQueue]);
-
-  const handleLoadPatient = async (targetAppointmentId: number) => {
-    if (!appointment) return;
-    try {
-      await switchToPatient(targetAppointmentId);
-    } catch (err: any) {
-      console.error('Failed to load next patient:', err);
-      toast.error(err?.message || 'Failed to switch patient');
-    }
-  };
-
-  const handleRefresh = async () => {
-    try {
-      await refetchQueue();
-    } catch (err) {
-      console.error('Failed to refresh queue:', err);
-    }
-  };
-
-  if (!appointment) {
-    return null;
-  }
+  }, [queue]);
 
   return (
     <div className="h-full flex flex-col border-l border-[#e7d6bf] bg-white">
@@ -64,11 +40,11 @@ export function PatientQueuePanel() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={handleRefresh}
-          disabled={isQueueRefetching}
+          onClick={onRefresh}
+          disabled={isRefetching}
           className="h-7 w-7 text-[#2c2e4b]/50 hover:text-[#2c2e4b] hover:bg-[#e7d6bf]/40"
         >
-          {isQueueRefetching ? (
+          {isRefetching ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
           ) : (
             <RefreshCw className="h-3.5 w-3.5" />
@@ -78,12 +54,15 @@ export function PatientQueuePanel() {
 
       <div className="flex-1 overflow-y-auto custom-scrollbar-light">
         {sortedQueue.length === 0 ? (
-          <div className="p-4 text-center">
-            <p className="text-xs text-[#2c2e4b]/50">No patients in queue</p>
-            <p className="text-[10px] text-[#2c2e4b]/40 mt-1">Checked-in patients will appear here</p>
+          <div className="p-8 text-center">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#caa26a]/10 mb-3">
+              <Users className="h-5 w-5 text-[#caa26a]/80" />
+            </div>
+            <p className="text-xs font-medium text-[#2c2e4b]">No patients in queue</p>
+            <p className="text-[10px] text-[#2c2e4b]/50 mt-1">Checked-in patients will appear here</p>
           </div>
         ) : (
-          <div className="p-2 space-y-2">
+          <div className="p-3 space-y-2.5">
             {sortedQueue.map((queueItem) => {
               const statusConfig = STATUS_CONFIG[queueItem.status] ?? STATUS_CONFIG[AppointmentStatus.CHECKED_IN];
               const patientName = queueItem.patient
@@ -95,35 +74,38 @@ export function PatientQueuePanel() {
                 <div
                   key={queueItem.id}
                   className={cn(
-                    'rounded-lg border border-[#e7d6bf] bg-white p-3 transition-colors',
-                    canLoad && 'hover:border-[#caa26a]/50 hover:shadow-sm'
+                    'group relative rounded-xl border border-[#e7d6bf] bg-white p-3.5 transition-all duration-200',
+                    canLoad
+                      ? 'hover:border-[#caa26a]/50 hover:shadow-md hover:shadow-[#caa26a]/5 cursor-pointer'
+                      : 'opacity-75'
                   )}
                 >
-                  <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className={cn('absolute left-0 top-3 bottom-3 w-1 rounded-r-full', statusConfig.bg.replace('/20', '').replace('/30', '').replace('bg-', 'bg-'))} />
+                  <div className="flex items-start justify-between gap-2 mb-2 pl-2">
                     <div className="min-w-0">
-                      <p className="text-xs font-medium text-[#2c2e4b] truncate">{patientName}</p>
+                      <p className="text-xs font-semibold text-[#2c2e4b] truncate">{patientName}</p>
                       <p className="text-[10px] text-[#2c2e4b]/50 font-mono">
                         #{queueItem.patient?.fileNumber || '—'}
                       </p>
                     </div>
-                    <Badge variant="outline" className={cn('text-[9px] font-medium border-0 shrink-0', statusConfig.bg, statusConfig.text)}>
+                    <Badge variant="outline" className={cn('text-[9px] font-medium border-0 shrink-0 px-2 py-0.5 rounded-full', statusConfig.bg, statusConfig.text)}>
                       {statusConfig.label}
                     </Badge>
                   </div>
 
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] text-[#2c2e4b]/60">
+                  <div className="flex items-center justify-between gap-2 pl-2">
+                    <span className="text-[10px] text-[#2c2e4b]/60 font-mono">
                       {queueItem.time || '--:--'}
                     </span>
-                     {canLoad && queueItem.appointmentId && (
-                       <Button
-                         size="sm"
-                         onClick={() => handleLoadPatient(queueItem.appointmentId)}
-                         className="h-7 px-2.5 text-[10px] rounded-md bg-[#2c2e4b] hover:bg-[#1a1c2f] text-white"
-                       >
-                         Load
-                       </Button>
-                     )}
+                    {canLoad && queueItem.appointmentId && (
+                      <Button
+                        size="sm"
+                        onClick={() => onLoadPatient(queueItem.appointmentId)}
+                        className="h-7 px-3 text-[10px] rounded-md bg-[#2c2e4b] hover:bg-[#1a1c2f] text-white shadow-sm transition-colors"
+                      >
+                        Load
+                      </Button>
+                    )}
                   </div>
                 </div>
               );

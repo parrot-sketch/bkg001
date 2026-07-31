@@ -50,7 +50,7 @@ const DOCTOR_DASHBOARD_KEYS = {
   profile: (id: string) => [...DOCTOR_DASHBOARD_KEYS.all, 'profile', id] as const,
   appointments: (date?: string) => [...DOCTOR_DASHBOARD_KEYS.all, 'appointments', date] as const,
   cases: () => [...DOCTOR_DASHBOARD_KEYS.all, 'cases'] as const,
-  queue: () => [...DOCTOR_DASHBOARD_KEYS.all, 'queue'] as const,
+  queue: (doctorId: string) => [...DOCTOR_DASHBOARD_KEYS.all, 'queue', doctorId] as const,
   availability: () => [...DOCTOR_DASHBOARD_KEYS.all, 'availability'] as const,
 } as const;
 

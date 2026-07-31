@@ -25,7 +25,7 @@ export class PatientMapper {
     }
 
     const email = Email.create(dto.email);
-    const phone = PhoneNumber.create(dto.phone);
+    const phone = PhoneNumber.create(dto.phone || '+254000000000');
 
     return Patient.create({
       id: dto.id,

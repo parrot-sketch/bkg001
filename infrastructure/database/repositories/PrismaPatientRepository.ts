@@ -5,6 +5,7 @@ import { PatientMapper } from '../../mappers/PatientMapper';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { PatientFileNumberGenerator } from '../../../domain/services/PatientFileNumberGenerator';
 import { IPatientFileNumberRepository } from '../../../domain/services/PatientFileNumberGenerator';
+import { toIso } from '@/lib/utils/dates';
 
 /**
  * Repository: PrismaPatientRepository
@@ -319,15 +320,15 @@ export class PrismaPatientRepository implements IPatientRepository, IPatientFile
       fileNumber: p.file_number,
       firstName: p.first_name,
       lastName: p.last_name,
-      dateOfBirth: p.date_of_birth.toISOString(),
+      dateOfBirth: toIso(p.date_of_birth) ?? '',
       gender: p.gender,
       email: p.email,
       phone: p.phone,
       profileImage: p.img ?? undefined,
       colorCode: p.colorCode ?? undefined,
-      createdAt: p.created_at.toISOString(),
+      createdAt: toIso(p.created_at) ?? '',
       totalVisits: p._count.appointments,
-      lastVisitAt: p.appointments[0]?.appointment_date?.toISOString() ?? null,
+      lastVisitAt: toIso(p.appointments[0]?.appointment_date) ?? null,
       queueStatus: (p.patient_queue[0]?.status as 'WAITING' | 'IN_CONSULTATION') ?? null,
       outstandingBalance: p.payments.reduce((sum, pay) => sum + pay.total_amount, 0),
     }));

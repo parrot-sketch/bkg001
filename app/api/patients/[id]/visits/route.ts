@@ -37,10 +37,24 @@ export async function GET(
     // Pass ?scope=all to see all doctors' visits (for patient history context)
     const { searchParams } = new URL(request.url);
     const scope = searchParams.get('scope');
+    const startDateParam = searchParams.get('startDate');
+    const endDateParam = searchParams.get('endDate');
 
     const appointmentFilter: any = { patient_id: patientId };
     if (doctor && scope !== 'all') {
       appointmentFilter.doctor_id = doctor.id;
+    }
+
+    if (startDateParam) {
+      const startDate = new Date(startDateParam + 'T00:00:00');
+      appointmentFilter.appointment_date = appointmentFilter.appointment_date || {};
+      appointmentFilter.appointment_date.gte = startDate;
+    }
+
+    if (endDateParam) {
+      const endDate = new Date(endDateParam + 'T23:59:59');
+      appointmentFilter.appointment_date = appointmentFilter.appointment_date || {};
+      appointmentFilter.appointment_date.lte = endDate;
     }
 
     const appointments = await db.appointment.findMany({

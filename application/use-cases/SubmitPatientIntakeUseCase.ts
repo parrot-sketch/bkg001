@@ -20,7 +20,7 @@ export interface SubmitIntakeInput {
   dateOfBirth: Date;
   gender: 'MALE' | 'FEMALE' | 'OTHER';
   email: string;
-  phone: string;
+  phone?: string;
   address?: string;
   maritalStatus?: 'SINGLE' | 'MARRIED' | 'DIVORCED' | 'WIDOWED' | '';
   occupation?: string;
@@ -88,6 +88,7 @@ export class SubmitPatientIntakeUseCase {
     const submission = IntakeSubmission.create({
       submissionId: uuidv4(),
       ...input,
+      phone: input.phone || '+254000000000',
     });
 
     // 4. Persist submission and update session status atomically

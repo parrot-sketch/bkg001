@@ -249,53 +249,10 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
     }),
   ]);
 
-  // Self-healing: create PatientQueue entries for any checked-in appointments missing from queue
-  const checkedInAppointments = todayAppointments.filter(
-    a => (a.status === 'CHECKED_IN' || a.status === 'READY_FOR_CONSULTATION') &&
-         !queue.some(q => q.appointment_id === a.id)
-  );
-
-  if (checkedInAppointments.length > 0) {
-    await Promise.all(
-      checkedInAppointments.map(apt =>
-        db.patientQueue.create({
-          data: {
-            patient_id: apt.patient_id,
-            doctor_id: doctorId,
-            appointment_id: apt.id,
-            status: 'WAITING',
-            added_by: userId,
-            added_at: apt.checked_in_at || new Date(),
-          },
-        }).catch(() => {})
-      )
-    );
-
-    // Re-fetch queue after healing
-    const healedQueue = await db.patientQueue.findMany({
-      where: {
-        doctor_id: doctorId,
-        status: 'WAITING',
-        added_at: {
-          gte: today,
-          lt: tomorrow,
-        },
-        appointment: {
-          status: { notIn: ['IN_CONSULTATION', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] },
-        },
-      },
-      include: {
-        patient: {
-          select: { id: true, first_name: true, last_name: true, file_number: true },
-        },
-        appointment: {
-          select: { id: true, type: true, status: true, time: true },
-        },
-      },
-      orderBy: { added_at: 'asc' },
-    });
-    queue.splice(0, queue.length, ...healedQueue as any);
-  }
+  // Note: Queue data is fetched separately via useDoctorQueue hook.
+  // The PatientQueue table is the single source of truth for the doctor's
+  // operational queue. This action focuses on appointments, surgical cases,
+  // and notifications.
 
   const completedToday = todayAppointments.filter(a => a.status === 'COMPLETED').length;
   const activeCases = surgicalCases.filter(s => s.status !== 'COMPLETED' && s.status !== 'CANCELLED' && s.status !== 'DRAFT').length;
@@ -315,7 +272,7 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
       availabilityStatus: doctor.availability_status,
       onboardingStatus: doctor.onboarding_status ?? null,
     },
-  todayAppointments: todayAppointments.map(a => ({
+    todayAppointments: todayAppointments.map(a => ({
     id: a.id,
     doctorId: doctor.id,
     patientId: a.patient_id,

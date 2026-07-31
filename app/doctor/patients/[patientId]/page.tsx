@@ -1,16 +1,16 @@
 'use client';
 
-
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { apiClient } from '@/lib/api/client';
 import { doctorApi } from '@/lib/api/doctor';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FileText, Stethoscope, CalendarDays, CreditCard, TrendingUp, Loader2 } from 'lucide-react';
-import { format } from 'date-fns';
+import { DatePicker } from '@/components/ui/date-picker';
+import { FileText, Stethoscope, CalendarDays, CalendarIcon, RefreshCw, CreditCard, TrendingUp, Loader2 } from 'lucide-react';
+import { format, subDays, subMonths, startOfDay, endOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -30,7 +30,25 @@ import {
   PageError,
 } from '@/components/patients/patient-page-extras';
 
-// ─── Query Keys ───────────────────────────────────────────────────
+type DateRange = 'all' | '7d' | '30d' | '3m' | '1y';
+
+function getRangeBounds(range: DateRange): { startDate?: string; endDate?: string } {
+  const now = new Date();
+  switch (range) {
+    case '7d':
+      return { startDate: subDays(now, 7).toISOString().split('T')[0], endDate: now.toISOString().split('T')[0] };
+    case '30d':
+      return { startDate: subDays(now, 30).toISOString().split('T')[0], endDate: now.toISOString().split('T')[0] };
+    case '3m':
+      return { startDate: subMonths(now, 3).toISOString().split('T')[0], endDate: now.toISOString().split('T')[0] };
+    case '1y':
+      return { startDate: new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0], endDate: now.toISOString().split('T')[0] };
+    default:
+      return {};
+  }
+}
+
+// ─── Data hooks ───────────────────────────────────────────────────
 const qkPatient  = (patientId: string) => ['doctor', 'patient', patientId] as const;
 const qkVisits   = (patientId: string) => ['doctor', 'patient', patientId, 'visits'] as const;
 
@@ -51,11 +69,16 @@ function usePatientDetail(patientId: string, enabled: boolean) {
   });
 }
 
-function usePatientVisits(patientId: string, enabled: boolean) {
+function usePatientVisits(patientId: string, enabled: boolean, startDate?: string, endDate?: string) {
+  const queryKey = useMemo(() => {
+    const dateKey = startDate && endDate ? `${startDate}_${endDate}` : 'all';
+    return ['doctor', 'patient', patientId, 'visits', dateKey] as const;
+  }, [patientId, startDate, endDate]);
+
   return useQuery({
-    queryKey: qkVisits(patientId),
+    queryKey,
     queryFn: async () => {
-      const res = await doctorApi.getPatientVisits(patientId);
+      const res = await doctorApi.getPatientVisits(patientId, startDate, endDate);
       if (!res.success) throw new Error(res.error || 'Failed to load visit history');
       return (res as any).data as VisitResponseDto[];
     },
@@ -82,11 +105,27 @@ export default function DoctorPatientProfilePage() {
   const { data: patient,  isLoading: patientLoading,  error: patientError,  refetch: refetchPatient  } =
     usePatientDetail(patientId, queryEnabled);
 
-  const { data: visits,   isLoading: visitsLoading,   error: visitsError,   refetch: refetchVisits    } =
-    usePatientVisits(patientId, queryEnabled);
+  const [activeRange, setActiveRange] = useState<DateRange>('30d');
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  
+  const bounds = getRangeBounds(activeRange);
+  const startDate = selectedDate ? selectedDate.toISOString().split('T')[0] : bounds.startDate;
+  const endDate = selectedDate ? selectedDate.toISOString().split('T')[0] : bounds.endDate;
 
-  const loading  = patientLoading || visitsLoading;
-  const hasError = Boolean(patientError) || Boolean(visitsError);
+  const { data: visits,   isLoading: visitsLoading,   error: visitsError,   refetch: refetchVisits    } =
+    usePatientVisits(patientId, queryEnabled, startDate, endDate);
+
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      setSelectedDate(date);
+      setActiveRange('all');
+    }
+  };
+
+  const handleRangeSelect = (range: DateRange) => {
+    setActiveRange(range);
+    setSelectedDate(undefined);
+  };
 
   // ── Financial summary ───────────────────────────────────────
   const financialSummary = useMemo(() => {
@@ -110,6 +149,9 @@ export default function DoctorPatientProfilePage() {
     }
     return { totalBilled, totalPaid, totalDiscount, outstanding, unpaidCount };
   }, [visits]);
+
+  const loading = patientLoading || visitsLoading;
+  const hasError = Boolean(patientError) || Boolean(visitsError);
 
   const [isStartingConsultation, setIsStartingConsultation] = useState(false);
 
@@ -310,8 +352,61 @@ export default function DoctorPatientProfilePage() {
       )}
 
       {/* 5. Longitudinal Document timeline (Visits & Consultation notes) */}
-      <div className="border border-[#e7d6bf] bg-white p-6 shadow-sm rounded-xl">
-        <ClinicalDocumentTimeline patientId={patientId} visits={visits || []} />
+      <div className="border border-[#e7d6bf] bg-white shadow-sm rounded-xl overflow-hidden">
+        <div className="p-6 pb-4 border-b border-[#e7d6bf]/50">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-bold text-[#2c2e4b] tracking-tight">Clinical Chart Feed</h2>
+              <p className="text-xs text-[#2c2e4b]/40 mt-0.5">
+                Past consultations & visit history
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <DatePicker
+                value={selectedDate}
+                onChange={handleDateSelect}
+                maxDate={endOfDay(new Date())}
+                className={cn(
+                  'w-auto h-9 px-3 py-2 text-xs border border-[#e7d6bf] rounded-lg',
+                  'bg-white text-[#2c2e4b] hover:bg-[#e7d6bf]/10',
+                  'focus:ring-2 focus:ring-[#caa26a]/30 focus:border-[#caa26a]'
+                )}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleRangeSelect('30d')}
+                className={cn(
+                  'h-9 px-3 text-xs border border-[#e7d6bf] rounded-lg',
+                  'bg-white text-[#2c2e4b] hover:bg-[#e7d6bf]/10',
+                  activeRange === '30d' && !selectedDate && 'bg-[#2c2e4b] text-white border-[#2c2e4b]'
+                )}
+              >
+                <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                Last 30 days
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => refetchVisits()}
+                className={cn(
+                  'h-9 w-9 border border-[#e7d6bf] rounded-lg',
+                  'text-[#2c2e4b] hover:bg-[#e7d6bf]/10'
+                )}
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        </div>
+        <div className="p-6">
+          <ClinicalDocumentTimeline
+            patientId={patientId}
+            visits={visits || []}
+            activeRange={activeRange}
+            onRangeChange={handleRangeSelect}
+          />
+        </div>
       </div>
     </div>
   );

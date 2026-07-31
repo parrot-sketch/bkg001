@@ -32,6 +32,7 @@ export interface DashboardStats {
   inConsultation: number;
   completedToday: number;
   pendingIntakeCount: number;
+  newPatientsToday: number;
 }
 
 export interface UseFrontdeskDashboardReturn {
@@ -191,6 +192,7 @@ export function useFrontdeskDashboard(): UseFrontdeskDashboardReturn {
       inConsultation: 0,
       completedToday: 0,
       pendingIntakeCount: 0,
+      newPatientsToday: 0,
     },
     todaysSchedule: queryResult.data?.todaysSchedule ?? {
       scheduled: [],
@@ -236,13 +238,17 @@ export function useCheckIn() {
     onError: () => {
       toast.error('Failed to check in patient');
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       revalidateFrontdeskDashboard();
       queryClient.invalidateQueries({ queryKey: ['frontdesk'] });
       queryClient.invalidateQueries({ queryKey: queryKeys.appointments.list() });
       queryClient.invalidateQueries({ queryKey: queryKeys.doctor.appointments() });
       const today = new Date().toISOString().split('T')[0];
       queryClient.invalidateQueries({ queryKey: queryKeys.appointments.byDate(today) });
+
+      if (data?.doctorId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.doctor.queue(data.doctorId) });
+      }
 
       toast.success('Patient checked in successfully');
     },

@@ -154,10 +154,17 @@ export function useAppointments(options: UseAppointmentsOptions = {}) {
 
     // Mutation: Cancel appointment
     const cancelMutation = useMutation({
-        mutationFn: ({ appointmentId, reason }: {
+        mutationFn: async ({ appointmentId, reason }: {
             appointmentId: number;
-            reason: string;
-        }) => doctorApi.confirmAppointment(appointmentId, 'reject', { rejectionReason: reason }),
+            reason?: string;
+        }) => {
+            const response = await fetch(`/api/appointments/${appointmentId}/cancel`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason: reason || 'Cancelled' }),
+            });
+            return response.json();
+        },
         onMutate: async ({ appointmentId }) => {
             await queryClient.cancelQueries({ queryKey: appointmentKeys.all });
             const previousAppointments = queryClient.getQueryData(appointmentKeys.list(filters));

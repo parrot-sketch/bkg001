@@ -71,13 +71,8 @@ export function FrontdeskAppointmentCardV2({ appointment, onAction }: FrontdeskA
   };
 
   const handleCancel = () => {
-    const reason = prompt('Please provide a reason for cancellation:');
-    if (!reason?.trim()) {
-      onAction?.('cancel', appointment);
-      return;
-    }
     cancelAppointment(
-      { appointmentId: appointment.id, reason: reason.trim() },
+      { appointmentId: appointment.id },
       {
         onSuccess: () => {
           onAction?.('cancel', appointment);

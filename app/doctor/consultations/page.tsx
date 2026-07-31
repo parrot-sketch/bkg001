@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { getConsultationsForHub } from '@/actions/doctor/consultation-hub';
 import { ConsultationLedger, type ConsultationItem } from '@/components/doctor/consultations';
 import { WaitingQueue } from '@/components/doctor/WaitingQueue';
+import type { QueuePatient } from '@/hooks/doctor/useDoctorQueue';
 import db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth/server-auth';
 import { redirect } from 'next/navigation';
@@ -43,7 +44,7 @@ export default async function ConsultationsHubPage() {
 
   const completedConsultations = hubData.success ? hubData.data ?? [] : [];
 
-  const mappedWaitingQueue = waitingQueue.map(q => {
+  const mappedWaitingQueue: QueuePatient[] = waitingQueue.map(q => {
     const appointmentId = q.appointment?.id;
 
     if (!appointmentId) {
@@ -56,22 +57,24 @@ export default async function ConsultationsHubPage() {
     }
 
     return {
-      id: appointmentId ?? q.id,
+      id: q.id,
       patientId: q.patient_id,
-      doctorId: q.doctor_id,
-      appointmentDate: q.appointment?.appointment_date ?? null,
-      time: q.appointment?.time ?? q.added_at.toISOString(),
-      status: q.status,
-      type: q.appointment?.type ?? 'Walk-in',
-      note: q.notes ?? undefined,
-      checkedInAt: q.added_at.toISOString(),
       patient: {
         id: q.patient.id,
         firstName: q.patient.first_name,
         lastName: q.patient.last_name,
         fileNumber: q.patient.file_number,
       },
-    } as ConsultationItem;
+      appointmentId: appointmentId ?? null,
+      appointmentDate: q.appointment?.appointment_date?.toISOString() ?? null,
+      time: q.appointment?.time ?? null,
+      type: q.appointment?.type ?? 'Walk-in',
+      status: q.status,
+      addedAt: q.added_at.toISOString(),
+      waitTime: '',
+      notes: q.notes ?? null,
+      isWalkIn: !q.appointment_id,
+    };
   });
 
   return (
@@ -102,13 +105,13 @@ export default async function ConsultationsHubPage() {
             <UsersIcon className="h-4 w-4 text-[#caa26a]" />
             <h2 className="text-sm font-semibold text-white">Queue</h2>
           </div>
-          {waitingQueue.length === 0 ? (
+          {mappedWaitingQueue.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 border border-[#e7d6bf] rounded-xl bg-white text-center">
               <UsersIcon className="h-6 w-6 text-[#e7d6bf] mb-2" />
               <p className="text-xs text-[#2c2e4b]/60">No patients waiting</p>
             </div>
           ) : (
-            <WaitingQueue appointments={mappedWaitingQueue} />
+            <WaitingQueue queue={mappedWaitingQueue} />
           )}
         </div>
       </div>

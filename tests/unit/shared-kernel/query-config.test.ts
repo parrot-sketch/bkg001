@@ -40,8 +40,8 @@ describe('Consultation Query Key Factories', () => {
   it('produces doctor queue keys matching existing usage', () => {
     expect(doctorQueueKeys.byDoctorId('doctor-1')).toEqual([
       'doctor',
-      'doctor-1',
       'queue',
+      'doctor-1',
     ]);
   });
 });
@@ -109,7 +109,7 @@ describe('Invalidation Triggers', () => {
     const triggers = invalidationTriggers.consultationStarted.map((fnOrArr) =>
       typeof fnOrArr === 'function' ? fnOrArr('doctor-1') : fnOrArr
     );
-    expect(triggers).toContainEqual(['doctor', 'doctor-1', 'queue']);
+    expect(triggers).toContainEqual(['doctor', 'queue', 'doctor-1']);
     expect(triggers).toContainEqual(['appointments']);
     expect(triggers).toContainEqual(['doctor']);
   });

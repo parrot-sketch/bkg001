@@ -61,7 +61,7 @@ export const patientHistoryKeys = {
  * - `ConsultationContext` refetchQueue
  */
 export const doctorQueueKeys = {
-  byDoctorId: (doctorId: string) => ['doctor', doctorId, 'queue'] as const,
+  byDoctorId: (doctorId: string) => ['doctor', 'queue', doctorId] as const,
 } as const;
 
 // ============================================================

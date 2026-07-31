@@ -298,6 +298,27 @@ export class Consultation {
     return this.doctorId;
   }
 
+  withDoctorId(newDoctorId: string): Consultation {
+    return new Consultation(
+      this.id,
+      this.appointmentId,
+      newDoctorId,
+      this.userId,
+      this.state,
+      this.startedAt,
+      this.completedAt,
+      this.duration,
+      this.notes,
+      this.outcomeType,
+      this.patientDecision,
+      this.followUpDate,
+      this.followUpType,
+      this.followUpNotes,
+      this.createdAt,
+      new Date(),
+    );
+  }
+
   getUserId(): string | undefined {
     return this.userId;
   }

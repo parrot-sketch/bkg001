@@ -94,10 +94,9 @@ export function QuickAssignmentDialog({
     setShowConfirm(false);
     setIsSubmitting(true);
     try {
-      const result = await assignPatientToQueue({
+       const result = await assignPatientToQueue({
         patientId: selectedPatient!.id,
         doctorId: selectedDoctorId,
-        appointmentId: initialPatientId,
         notes: 'Added via Quick Assignment',
       });
 
@@ -108,7 +107,7 @@ export function QuickAssignmentDialog({
         onOpenChange(false);
         onSuccess?.();
         queryClient.invalidateQueries({ queryKey: queryKeys.nurse.clinicQueue('today') });
-        queryClient.invalidateQueries({ queryKey: ['doctor', selectedDoctorId] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.doctor.queue(selectedDoctorId) });
       } else {
         toast.error(result.msg || 'Failed to add patient to queue');
       }

@@ -8,8 +8,9 @@
  * - Queue refetch operations
  * - Loading state for queue data
  *
- * This provider computes the filtered waiting queue from today's appointments,
- * excluding the current consultation.
+ * This provider uses PatientQueue as the single source of truth for
+ * the doctor's active queue, ensuring consistency with frontdesk
+ * queue operations.
  */
 
 import React, {
@@ -22,8 +23,8 @@ import React, {
   type ReactNode,
 } from 'react';
 
-import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
-import { useDoctorTodayAppointments } from '@/hooks/doctor/useDoctorDashboard';
+import type { QueuePatient } from '@/hooks/doctor/useDoctorQueue';
+import { useDoctorQueue } from '@/hooks/doctor/useDoctorQueue';
 
 // ============================================================================
 // TYPES
@@ -60,7 +61,7 @@ function queueContextReducer(state: QueueContextState, action: QueueContextActio
 // ============================================================================
 
 interface QueueContextValue {
-  waitingQueue: AppointmentResponseDto[];
+  waitingQueue: QueuePatient[];
   refetchQueue: () => Promise<unknown>;
   isQueueRefetching: boolean;
   loadWaitingQueue: () => void;
@@ -86,17 +87,17 @@ export function QueueContextProvider({
   const [state, dispatch] = useReducer(queueContextReducer, createInitialQueueState());
 
   const {
-    data: todayAppointments = [],
+    data: queue = [],
     refetch: refetchQueue,
     isRefetching: isQueueRefetching,
-  } = useDoctorTodayAppointments(doctorId ?? undefined, state.queueLoaded, false);
+  } = useDoctorQueue(doctorId ?? undefined, state.queueLoaded);
 
   const waitingQueue = useMemo(() => {
-    return todayAppointments.filter((apt) =>
-      apt.id !== currentAppointmentId &&
-      (apt.status === 'CHECKED_IN' || apt.status === 'READY_FOR_CONSULTATION')
+    return queue.filter((item) =>
+      item.appointmentId !== currentAppointmentId &&
+      item.status === 'WAITING'
     );
-  }, [todayAppointments, currentAppointmentId]);
+  }, [queue, currentAppointmentId]);
 
   const refetchRef = React.useRef(refetchQueue);
   React.useEffect(() => {

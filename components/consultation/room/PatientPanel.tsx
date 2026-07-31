@@ -21,29 +21,15 @@ interface VitalsData {
   recordedBy: string | null;
 }
 
-interface Props {
+interface PatientPanelProps {
   patient: PatientResponseDto;
   appointment?: AppointmentResponseDto | null;
   vitals?: VitalsData | null;
-  isReadOnly?: boolean;
   onRefresh?: () => Promise<void>;
   refetchKey?: number;
 }
 
-function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, ' ')
-    .replace(/<\/?(p|div|li|h[1-6]|environment_details|summary)>/gi, ' ')
-    .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&amp;/gi, '&')
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-export function PatientInfoSidebar({ patient, appointment, vitals = null, isReadOnly, onRefresh, refetchKey = 0 }: Props) {
+export function PatientPanel({ patient, appointment, vitals = null, onRefresh, refetchKey = 0 }: PatientPanelProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [history, setHistory] = useState<ConsultationHistoryItem[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -56,13 +42,20 @@ export function PatientInfoSidebar({ patient, appointment, vitals = null, isRead
   const currentAppointmentId = appointment?.id;
 
   const visibleHistory = useMemo(() => {
-    const base = currentAppointmentId
-      ? history.filter((item) => {
-          if (item.appointmentId !== currentAppointmentId) return true;
-          const isCurrentActive = appointment?.status !== 'COMPLETED' && appointment?.status !== 'CANCELLED';
-          return !isCurrentActive;
-        })
-      : history;
+    const hasActiveFilter = searchQuery.trim().length > 0 || dateFilter.trim().length > 0;
+
+    if (!hasActiveFilter && history.length > 0) {
+      return [history[0]];
+    }
+
+    let base = history;
+    if (currentAppointmentId) {
+      base = base.filter((item) => {
+        if (item.appointmentId !== currentAppointmentId) return true;
+        const isCurrentActive = appointment?.status !== 'COMPLETED' && appointment?.status !== 'CANCELLED';
+        return !isCurrentActive;
+      });
+    }
 
     const textMatch = (item: ConsultationHistoryItem) => {
       if (!searchQuery.trim()) return true;
@@ -152,6 +145,11 @@ export function PatientInfoSidebar({ patient, appointment, vitals = null, isRead
   }, [patient?.id, refetchKey]);
 
   const handleSelectConsultation = async (consultation: ConsultationHistoryItem) => {
+    if (selectedPreviousConsultation?.appointmentId === consultation.appointmentId) {
+      setSelectedPreviousConsultation(null);
+      return;
+    }
+
     setIsLoadingNotes(true);
     try {
       const result = await loadPreviousConsultationNotes(consultation.appointmentId);
@@ -195,7 +193,7 @@ export function PatientInfoSidebar({ patient, appointment, vitals = null, isRead
 
   return (
     <div className="h-full flex flex-col">
-      {/* Patient Identity - Fixed height header */}
+      {/* Patient Identity */}
       <div className="px-4 py-4 bg-[#e7d6bf]/30 border-b border-[#e7d6bf] shrink-0">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-[#caa26a] flex items-center justify-center text-sm font-bold text-white shrink-0">
@@ -271,78 +269,82 @@ export function PatientInfoSidebar({ patient, appointment, vitals = null, isRead
               <p className="text-[11px] text-[#2c2e4b]/40 px-3 py-2">No previous consultations</p>
             ) : (
               <div className="space-y-1.5">
-                {visibleHistory.map((consultation) => (
-                  <button
-                    key={consultation.appointmentId}
-                    onClick={() => handleSelectConsultation(consultation)}
-                    disabled={isLoadingNotes}
-                    className={cn(
-                      'w-full text-left rounded-lg border transition-colors',
-                      selectedPreviousConsultation?.appointmentId === consultation.appointmentId
-                        ? 'bg-[#caa26a]/10 border-[#caa26a]/40 shadow-sm'
-                        : 'bg-[#fcfbf8] border-[#e7d6bf] hover:border-[#caa26a]/40 hover:shadow-sm'
-                    )}
-                  >
-                    <div className="px-3 py-2">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[11px] font-semibold text-[#2c2e4b]">
-                          {formatDate(consultation.appointmentDate)}
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          {consultation.durationMinutes && (
+                {visibleHistory.map((consultation) => {
+                  const isSelected = selectedPreviousConsultation?.appointmentId === consultation.appointmentId;
+                  return (
+                    <div key={consultation.appointmentId}>
+                      <button
+                        onClick={() => handleSelectConsultation(consultation)}
+                        disabled={isLoadingNotes}
+                        className={cn(
+                          'w-full text-left rounded-lg border transition-colors',
+                          isSelected
+                            ? 'bg-[#caa26a]/10 border-[#caa26a]/40 shadow-sm'
+                            : 'bg-[#fcfbf8] border-[#e7d6bf] hover:border-[#caa26a]/40 hover:shadow-sm'
+                        )}
+                      >
+                        <div className="px-3 py-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[11px] font-semibold text-[#2c2e4b]">
+                              {formatDate(consultation.appointmentDate)}
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              {consultation.durationMinutes && (
+                                <span className="text-[9px] text-[#2c2e4b]/40">
+                                  {consultation.durationMinutes}m
+                                </span>
+                              )}
+                              {consultation.outcomeType && (
+                                <span className="text-[9px] text-[#caa26a] font-medium capitalize">
+                                  {getOutcomeLabel(consultation.outcomeType)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-[#2c2e4b]/50">
+                              {consultation.doctor?.name || 'Unknown'} · {consultation.state}
+                            </span>
                             <span className="text-[9px] text-[#2c2e4b]/40">
-                              {consultation.durationMinutes}m
+                              {isSelected ? '▼' : '▶'}
                             </span>
-                          )}
-                          {consultation.outcomeType && (
-                            <span className="text-[9px] text-[#caa26a] font-medium capitalize">
-                              {getOutcomeLabel(consultation.outcomeType)}
-                            </span>
+                          </div>
+                          {!isSelected && consultation.notesSummary && (
+                            <p className="text-[10px] text-[#2c2e4b]/60 mt-1.5 line-clamp-2 leading-relaxed">
+                              {consultation.notesSummary}
+                            </p>
                           )}
                         </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-[#2c2e4b]/50">
-                          {consultation.doctor?.name || 'Unknown'} · {consultation.state}
-                        </span>
-                      </div>
-                      {consultation.notesSummary && (
-                        <p className="text-[10px] text-[#2c2e4b]/60 mt-1.5 line-clamp-2 leading-relaxed">
-                          {consultation.notesSummary}
-                        </p>
+                      </button>
+                      {isSelected && selectedPreviousConsultation && (
+                        <div className="px-3 py-2.5 bg-[#fcfbf8] border-x border-b border-[#e7d6bf] rounded-b-lg mt-0.5">
+                          <div className="max-h-48 overflow-y-auto custom-scrollbar-light pr-1 space-y-2">
+                            {selectedPreviousConsultation.notes.structured ? (
+                              <div className="space-y-2.5">
+                                {selectedPreviousConsultation.notes.structured.chiefComplaint && (
+                                  <ColoredNoteBlock label="Subjective" content={selectedPreviousConsultation.notes.structured.chiefComplaint} color="gold" />
+                                )}
+                                {selectedPreviousConsultation.notes.structured.examination && (
+                                  <ColoredNoteBlock label="Objective" content={selectedPreviousConsultation.notes.structured.examination} color="dark" />
+                                )}
+                                {selectedPreviousConsultation.notes.structured.assessment && (
+                                  <ColoredNoteBlock label="Assessment" content={selectedPreviousConsultation.notes.structured.assessment} color="sand" />
+                                )}
+                                {selectedPreviousConsultation.notes.structured.plan && (
+                                  <ColoredNoteBlock label="Plan" content={selectedPreviousConsultation.notes.structured.plan} color="bronze" />
+                                )}
+                              </div>
+                            ) : selectedPreviousConsultation.notes.fullText ? (
+                              <ColoredNoteBlock label="Notes" content={selectedPreviousConsultation.notes.fullText} color="gold" />
+                            ) : (
+                              <p className="text-[11px] text-[#2c2e4b]/40 italic">No notes recorded</p>
+                            )}
+                          </div>
+                        </div>
                       )}
                     </div>
-                  </button>
-                ))}
-              </div>
-            )}
-            {selectedPreviousConsultation && (
-              <div className="mt-3 pt-3 border-t border-[#e7d6bf]">
-                <p className="text-[10px] font-semibold text-[#caa26a] uppercase tracking-wider mb-2.5">Selected Consultation Notes</p>
-                <div className="max-h-52 overflow-y-auto custom-scrollbar-light pr-1">
-                  {selectedPreviousConsultation.notes.structured ? (
-                    <div className="space-y-3">
-                      {selectedPreviousConsultation.notes.structured.chiefComplaint && (
-                        <NoteBlock label="Subjective" content={selectedPreviousConsultation.notes.structured.chiefComplaint} />
-                      )}
-                      {selectedPreviousConsultation.notes.structured.examination && (
-                        <NoteBlock label="Objective" content={selectedPreviousConsultation.notes.structured.examination} />
-                      )}
-                      {selectedPreviousConsultation.notes.structured.assessment && (
-                        <NoteBlock label="Assessment" content={selectedPreviousConsultation.notes.structured.assessment} />
-                      )}
-                      {selectedPreviousConsultation.notes.structured.plan && (
-                        <NoteBlock label="Plan" content={selectedPreviousConsultation.notes.structured.plan} />
-                      )}
-                    </div>
-                  ) : selectedPreviousConsultation.notes.fullText ? (
-                    <div className="space-y-3">
-                      <NoteBlock label="Notes" content={selectedPreviousConsultation.notes.fullText} />
-                    </div>
-                  ) : (
-                    <p className="text-[11px] text-[#2c2e4b]/40 italic">No notes recorded</p>
-                  )}
-                </div>
+                  );
+                })}
               </div>
             )}
           </Section>
@@ -414,12 +416,23 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-function NoteBlock({ label, content }: { label: string; content: string }) {
+const NOTE_STYLES: Record<string, { labelBg: string; bodyText: string }> = {
+  gold: { labelBg: 'bg-[#caa26a]', bodyText: 'text-[#2c2e4b]' },
+  dark: { labelBg: 'bg-[#2c2e4b]', bodyText: 'text-[#2c2e4b]' },
+  sand: { labelBg: 'bg-[#e7d6bf]', bodyText: 'text-[#2c2e4b]' },
+  bronze: { labelBg: 'bg-[#b8956a]', bodyText: 'text-[#2c2e4b]' },
+};
+
+function ColoredNoteBlock({ label, content, color = 'gold' }: { label: string; content: string; color?: keyof typeof NOTE_STYLES }) {
+  const style = NOTE_STYLES[color] || NOTE_STYLES.gold;
+
   return (
-    <div className="space-y-1">
-      <p className="text-xs font-bold text-[#2c2e4b] uppercase tracking-wide">{label}</p>
-      <div 
-        className="text-[11px] text-[#2c2e4b] leading-relaxed prose prose-sm max-w-none"
+    <div className="rounded-lg border border-[#e7d6bf] bg-white overflow-hidden">
+      <div className={`px-2.5 py-1 ${style.labelBg} text-white`}>
+        <p className="text-[9px] font-bold uppercase tracking-wider">{label}</p>
+      </div>
+      <div
+        className={`px-3 py-2 text-[11px] ${style.bodyText} leading-relaxed prose prose-sm max-w-none`}
         dangerouslySetInnerHTML={{ __html: content }}
       />
     </div>
@@ -435,13 +448,13 @@ function VitalsGrid({ vitals }: { vitals: VitalsData }) {
     { label: 'SpO₂', value: vitals.oxygenSaturation != null ? `${vitals.oxygenSaturation}%` : null, warn: vitals.oxygenSaturation != null && vitals.oxygenSaturation < 95 },
     { label: 'Wt', value: vitals.weight != null ? `${vitals.weight}kg` : null, warn: false },
     { label: 'Ht', value: vitals.height != null ? `${vitals.height}cm` : null, warn: false },
-  ].filter(i => i.value != null);
+  ].filter((i) => i.value != null);
 
   if (items.length === 0) return <p className="text-[11px] text-[#2c2e4b]/40 italic">No vitals recorded</p>;
 
   return (
     <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
-      {items.map(item => (
+      {items.map((item) => (
         <div key={item.label} className="flex items-center gap-2 text-[11px]">
           <span className="text-[#2c2e4b]/50 w-7 shrink-0">{item.label}</span>
           <span className={cn('font-medium', item.warn ? 'text-[#caa26a]' : 'text-[#2c2e4b]')}>

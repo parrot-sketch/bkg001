@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { format, parseISO, subDays, subMonths, startOfDay, endOfDay } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,8 @@ import type { VisitResponseDto } from '@/application/dtos/VisitResponseDto';
 interface ClinicalDocumentTimelineProps {
   patientId: string;
   visits: VisitResponseDto[];
+  activeRange?: DateRange;
+  onRangeChange?: (range: DateRange) => void;
 }
 
 type DateRange = 'all' | '7d' | '30d' | '3m' | '1y';
@@ -80,10 +82,21 @@ function groupVisitsByMonth(visits: VisitResponseDto[]): GroupedVisits[] {
     .sort((a, b) => new Date(b.visits[0].date).getTime() - new Date(a.visits[0].date).getTime());
 }
 
-export function ClinicalDocumentTimeline({ patientId, visits }: ClinicalDocumentTimelineProps) {
-  const [range, setRange] = useState<DateRange>('all');
+export function ClinicalDocumentTimeline({ patientId, visits, activeRange, onRangeChange }: ClinicalDocumentTimelineProps) {
+  const [range, setRange] = useState<DateRange>(activeRange || 'all');
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc');
   const [expandedVisits, setExpandedVisits] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    if (activeRange && activeRange !== range) {
+      setRange(activeRange);
+    }
+  }, [activeRange, range]);
+
+  const handleRangeChange = (newRange: DateRange) => {
+    setRange(newRange);
+    onRangeChange?.(newRange);
+  };
 
   const bounds = getRangeBounds(range);
 
@@ -159,7 +172,7 @@ export function ClinicalDocumentTimeline({ patientId, visits }: ClinicalDocument
                   ? 'bg-[#2c2e4b] text-white border-[#2c2e4b]'
                   : 'border-[#e7d6bf] text-[#2c2e4b] hover:bg-[#e7d6bf]/10'
               )}
-              onClick={() => setRange(opt.key)}
+              onClick={() => handleRangeChange(opt.key)}
             >
               {opt.label}
             </Button>
@@ -169,7 +182,7 @@ export function ClinicalDocumentTimeline({ patientId, visits }: ClinicalDocument
               variant="ghost"
               size="sm"
               className="h-7 px-2 text-[11px] text-[#2c2e4b]/60 hover:text-[#2c2e4b] hover:bg-[#e7d6bf]/10 rounded-lg"
-              onClick={() => setRange('all')}
+              onClick={() => handleRangeChange('all')}
             >
               <X className="h-3 w-3 mr-1" />
               Clear

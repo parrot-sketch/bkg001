@@ -15,9 +15,9 @@ import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import { usePatientRegistrationDialog, type PatientRegistrationFormData } from './usePatientRegistrationDialog';
 
 const inputClass =
-  "w-full px-0 py-3 bg-transparent border-0 border-b border-slate-300 text-slate-900 placeholder:text-slate-400 " +
-  "focus:outline-none focus:border-slate-900 transition-colors text-sm";
-const labelClass = "block text-[11px] font-semibold tracking-wide uppercase text-slate-600 mb-1";
+  "w-full px-0 py-3 bg-transparent border-0 border-b border-[#e7d6bf] text-[#2c2e4b] placeholder:text-[#2c2e4b]/40 " +
+  "focus:outline-none focus:border-[#caa26a] transition-colors text-sm";
+const labelClass = "block text-[11px] font-semibold tracking-wide uppercase text-[#2c2e4b]/60 mb-1";
 
 interface PatientRegistrationDialogProps {
   open: boolean;
@@ -45,30 +45,28 @@ export function PatientRegistrationDialog({
     close,
   } = usePatientRegistrationDialog({ open, onClose, onSuccess });
 
-  const { register, control, formState: { errors }, getValues } = form;
+  const { register, control, formState: { errors }, getValues, watch } = form;
 
-  const watchDob = getValues('dateOfBirth');
-  const patientIsMinor = isMinor(watchDob || '');
+  const dateOfBirth = watch('dateOfBirth');
+  const patientIsMinor = dateOfBirth ? isMinor(dateOfBirth) : false;
 
   return (
     <Dialog open={open} onOpenChange={close}>
       <DialogContent className="sm:max-w-[540px] max-h-[90vh] overflow-y-auto p-0 gap-0">
         <DialogTitle className="sr-only">Register patient</DialogTitle>
-        {submitted ? (
+         {submitted ? (
           /* Success Screen */
           <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-            <div className="h-20 w-20 bg-white border border-slate-200 flex items-center justify-center mb-6">
-              <Check className="h-10 w-10 text-slate-900" />
+            <div className="h-20 w-20 bg-white border border-[#e7d6bf] flex items-center justify-center mb-6">
+              <Check className="h-10 w-10 text-[#2c2e4b]" />
             </div>
-            <h1 className="text-xl font-bold text-slate-900 mb-2">Patient Registered</h1>
-            <p className="text-slate-500 text-sm">
+            <h1 className="text-xl font-bold text-[#2c2e4b] mb-2">Patient Registered</h1>
+            <p className="text-[#2c2e4b]/60 text-sm">
               {getValues('firstName')} {getValues('lastName')} has been added to the registry.
             </p>
           </div>
         ) : (
           <>
-            {/* Header removed (per request): keep form minimal and functional */}
-
             {/* Form Content */}
             <div className="px-6 py-6">
               <div className="space-y-4">
@@ -90,22 +88,16 @@ export function PatientRegistrationDialog({
                        <input {...register('dateOfBirth')} type="date" className={inputClass} />
                        {errors.dateOfBirth && <p className="text-red-500 text-xs mt-1">{errors.dateOfBirth.message}</p>}
                      </div>
-                     <div>
-                       <label className={labelClass}>Gender *</label>
-                       <select {...register('gender')} className={cn(inputClass, "bg-white")}>
-                         <option value="FEMALE">Female</option>
-                         <option value="MALE">Male</option>
-                         <option value="OTHER">Other</option>
-                       </select>
-                     </div>
-                     {patientIsMinor && (
-                       <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                         <p className="text-xs text-amber-900 font-medium">Minor patient detected</p>
-                         <p className="text-xs text-amber-700 mt-1">Guardian information will be required.</p>
-                       </div>
-                     )}
-                   </div>
-                 )}
+                      <div>
+                        <label className={labelClass}>Gender *</label>
+                        <select {...register('gender')} className={cn(inputClass, "bg-white")}>
+                          <option value="FEMALE">Female</option>
+                          <option value="MALE">Male</option>
+                          <option value="OTHER">Other</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
 
                  {/* Step 2: Contact */}
                  {step === 2 && (
@@ -269,14 +261,14 @@ export function PatientRegistrationDialog({
             </div>
 
             {/* Bottom Navigation */}
-            <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
+            <div className="px-6 py-4 border-t border-[#e7d6bf] flex gap-3">
               {step > 1 ? (
                 <Button
                   type="button"
                   variant="outline"
                   onClick={goPrev}
                   disabled={submitting}
-                  className="rounded-none h-11"
+                  className="h-11 border-[#e7d6bf] text-[#2c2e4b] hover:bg-[#e7d6bf]/30"
                 >
                   Back
                 </Button>
@@ -286,7 +278,7 @@ export function PatientRegistrationDialog({
                   variant="ghost"
                   onClick={close}
                   disabled={submitting}
-                  className="rounded-none h-11"
+                  className="h-11 text-[#2c2e4b]/60 hover:text-[#2c2e4b]"
                 >
                   Cancel
                 </Button>
@@ -298,7 +290,7 @@ export function PatientRegistrationDialog({
                   onClick={goNext}
                   disabled={submitting}
                   variant="outline"
-                  className="flex-1 rounded-none h-11 border-slate-300 text-slate-900 hover:bg-slate-50"
+                  className="flex-1 h-11 border-[#e7d6bf] text-[#2c2e4b] hover:bg-[#e7d6bf]/30"
                 >
                   Continue
                 </Button>
@@ -307,10 +299,10 @@ export function PatientRegistrationDialog({
                   type="button"
                   onClick={submit}                  disabled={submitting}
                   className={cn(
-                    "flex-1 rounded-none h-11",
+                    "flex-1 h-11 font-medium",
                     submitting
-                      ? "bg-slate-100 text-slate-400"
-                      : "bg-slate-900 hover:bg-slate-800 text-white"
+                      ? "bg-[#e7d6bf] text-[#2c2e4b]/40 cursor-not-allowed"
+                      : "bg-[#caa26a] hover:bg-[#b8913e] text-[#2c2e4b]"
                   )}
                 >
                   {submitting ? (

@@ -10,6 +10,7 @@ const iconMap = {
   'In Waiting Room':  Users,
   'In Consultation':  Stethoscope,
   'Completed Today':  UserCheck,
+  'New Today':        UserPlus,
 } as const;
 
 const pipelineConfig = [
@@ -29,6 +30,10 @@ const pipelineConfig = [
     label: 'Completed Today',
     href: (today: string) => `/frontdesk/appointments?date=${today}&status=COMPLETED`,
   },
+  {
+    label: 'New Today',
+    href: () => `/frontdesk/patients`,
+  },
 ] as const;
 
 export function DashboardPipelineStats() {
@@ -38,7 +43,7 @@ export function DashboardPipelineStats() {
 
   if (isLoading) {
     return (
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+    <section className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         {pipelineConfig.map((item) => {
           const Icon = iconMap[item.label];
           return (
@@ -74,14 +79,17 @@ export function DashboardPipelineStats() {
       case 'Completed Today':
         value = s?.completedToday ?? 0;
         break;
+      case 'New Today':
+        value = s?.newPatientsToday ?? 0;
+        break;
       default:
         value = 0;
     }
     return { ...item, value, href: item.href(today) };
   });
 
-  return (
-    <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+   return (
+     <section className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
       {pipelineData.map((item) => {
         const Icon = iconMap[item.label];
 

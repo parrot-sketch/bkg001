@@ -12,6 +12,7 @@ export interface FrontdeskDashboardStats {
   inConsultation: number;
   completedToday: number;
   pendingIntakeCount: number;
+  newPatientsToday: number;
 }
 
 import {
@@ -108,6 +109,7 @@ async function fetchDashboardDataInternal(): Promise<FrontdeskDashboardData> {
     pendingIntakes,
     liveQueue,
     followUpAppointments,
+    newPatientsToday,
   ] = await Promise.all([
     db.appointment.groupBy({
       by: ['status'],
@@ -200,6 +202,14 @@ async function fetchDashboardDataInternal(): Promise<FrontdeskDashboardData> {
       },
       orderBy: { appointment_date: 'asc' },
     }),
+    db.patient.count({
+      where: {
+        created_at: {
+          gte: today,
+          lt: tomorrow,
+        },
+      },
+    }),
   ]);
 
   const mappedAppointments: FrontdeskAppointment[] = appointments.map(a => ({
@@ -268,8 +278,21 @@ async function fetchDashboardDataInternal(): Promise<FrontdeskDashboardData> {
     liveQueue.filter(q => q.appointment_id === null).map(q => q.patient_id)
   );
 
+  // Get appointment IDs that were intentionally removed from the queue
+  // so they don't reappear in Awaiting Assignment after removal
+  const removedQueueEntries = await db.patientQueue.findMany({
+    where: {
+      status: 'REMOVED',
+      added_at: { gte: today, lt: tomorrow },
+    },
+    select: { appointment_id: true },
+  });
+  const removedAppointmentIds = new Set(
+    removedQueueEntries.map(q => q.appointment_id).filter((id): id is number => id !== null)
+  );
+
   const checkedInAwaitingMapped: FrontdeskCheckedInPatient[] = checkedIn
-    .filter(a => !queuedAppointmentIds.has(a.id) && !queuedPatientIds.has(a.patientId))
+    .filter(a => !queuedAppointmentIds.has(a.id) && !queuedPatientIds.has(a.patientId) && !removedAppointmentIds.has(a.id))
     .map(a => ({
     id: a.id,
     patientId: a.patientId,
@@ -326,6 +349,7 @@ async function fetchDashboardDataInternal(): Promise<FrontdeskDashboardData> {
     inConsultation: statsMap['IN_CONSULTATION'] || 0,
     completedToday: statsMap['COMPLETED'] || 0,
     pendingIntakeCount: pendingIntakes,
+    newPatientsToday,
   };
 
   return {

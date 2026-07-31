@@ -27,13 +27,13 @@ import {
   CreditCard,
   Printer,
   ExternalLink,
-  Loader2,
   X,
   ChevronRight,
   Pill,
   AlertTriangle,
   Users,
   ClipboardList,
+  UserPlus,
 } from 'lucide-react';
 import { format, isToday, isTomorrow } from 'date-fns';
 import { calculateAge } from '@/lib/utils';
@@ -46,7 +46,7 @@ import Link from 'next/link';
 import { useBookAppointmentStore } from '@/hooks/frontdesk/useBookAppointmentStore';
 import { AppointmentSource } from '@/domain/enums/AppointmentSource';
 import { BookingChannel } from '@/domain/enums/BookingChannel';
-import { toast } from 'sonner';
+import { QuickAssignmentDialog } from '@/components/frontdesk/QuickAssignmentDialog';
 
 interface PatientDrawerProps {
   patientId: string | null;
@@ -178,6 +178,12 @@ export function PatientDrawer({ patientId, open, onOpenChange, onNavigate }: Pat
     }
   };
 
+  const [queueDialogOpen, setQueueDialogOpen] = useState(false);
+
+  const handleAddToQueue = () => {
+    setQueueDialogOpen(true);
+  };
+
   const renderContent = () => {
     if (error) {
       return (
@@ -258,6 +264,14 @@ export function PatientDrawer({ patientId, open, onOpenChange, onNavigate }: Pat
             <Calendar className="h-3.5 w-3.5 mr-2 text-[#caa26a]" />
             Book Appointment
             <ChevronRight className="h-3.5 w-3.5 ml-auto text-[#2c2e4b]/30" />
+          </Button>
+          <Button
+            variant="outline"
+            className="w-full justify-start h-9 rounded-lg border-[#e7d6bf] text-[#2c2e4b] hover:bg-[#e7d6bf]/20 text-xs font-medium"
+            onClick={handleAddToQueue}
+          >
+            <UserPlus className="h-3.5 w-3.5 mr-2 text-[#caa26a]" />
+            Add to Queue
           </Button>
           <Link href={`/frontdesk/appointments?patientId=${patient.id}`}>
             <Button
@@ -420,9 +434,19 @@ export function PatientDrawer({ patientId, open, onOpenChange, onNavigate }: Pat
           data-patient-drawer-scroll
           className="flex-1 overflow-y-auto px-5 py-4 scroll-smooth overscroll-contain"
         >
-          {renderContent()}
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
-}
+           {renderContent()}
+         </div>
+       </SheetContent>
+
+       <QuickAssignmentDialog
+         open={queueDialogOpen}
+         onOpenChange={setQueueDialogOpen}
+         initialPatientId={patientId ?? undefined}
+         initialPatientName={patientName || undefined}
+         onSuccess={() => {
+           window.dispatchEvent(new Event('queue-updated'));
+         }}
+       />
+     </Sheet>
+   );
+ }

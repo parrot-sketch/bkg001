@@ -17,6 +17,7 @@ export interface DashboardStats {
     inConsultation: number;       // Currently seeing doctor
     completedToday: number;       // Finished for today
     pendingIntakeCount: number;
+    newPatientsToday: number;
 }
 
 // ============================================================================

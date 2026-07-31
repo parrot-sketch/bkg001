@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { PatientIntakeFormSchema } from '@/lib/schema';
+import { calculateAge } from '@/lib/utils/age';
 import PhoneInput from 'react-phone-number-input';
 
 declare module 'react-phone-number-input' {
@@ -75,6 +76,18 @@ export function MobileIntakeForm({
 
     const { register, control, formState: { errors }, trigger, getValues, watch, setValue } = form;
 
+    const [isMinor, setIsMinor] = useState(false);
+    const dateOfBirth = watch('dateOfBirth');
+
+    useEffect(() => {
+        if (dateOfBirth) {
+            const age = calculateAge(dateOfBirth);
+            setIsMinor(age < 18);
+        } else {
+            setIsMinor(false);
+        }
+    }, [dateOfBirth]);
+
     /* Load draft on mount */
     useEffect(() => {
         try {
@@ -108,8 +121,12 @@ export function MobileIntakeForm({
         
         if (step === 1) {
             fieldsToValidate = ['firstName', 'lastName', 'dateOfBirth', 'gender'];
-        } else if (step === 2) {
-            fieldsToValidate = ['phone', 'email', 'address'];
+        } else         if (step === 2) {
+            if (isMinor) {
+                fieldsToValidate = [];
+            } else {
+                fieldsToValidate = ['phone', 'email', 'address'];
+            }
         } else if (step === 3) {
             fieldsToValidate = [];
         } else if (step === 4) {
@@ -124,7 +141,7 @@ export function MobileIntakeForm({
                 formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
         }
-    }, [step, trigger]);
+    }, [step, trigger, isMinor]);
 
     const goPrev = useCallback(() => {
         setStep((s) => Math.max(s - 1, 1));
@@ -229,6 +246,15 @@ export function MobileIntakeForm({
                         <Shield className="h-3 w-3" />
                         <span>Your information is encrypted</span>
                     </div>
+                </div>
+                <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-4">
+                    <button
+                        type="button"
+                        onClick={() => window.close()}
+                        className="w-full py-3 bg-slate-900 text-white font-medium rounded-none hover:bg-slate-800 transition-colors"
+                    >
+                        Close
+                    </button>
                 </div>
             </div>
         );
@@ -342,7 +368,7 @@ export function MobileIntakeForm({
                                     />
                                 </div>
                                 <div>
-                                    <label className={labelClass}>Email <Required /></label>
+                                    <label className={labelClass}>Email {!isMinor && <Required />}</label>
                                     <input 
                                         {...register('email')} 
                                         type="email"
@@ -352,7 +378,7 @@ export function MobileIntakeForm({
                                     {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
                                 </div>
                                 <div>
-                                    <label className={labelClass}>Home address <Required /></label>
+                                    <label className={labelClass}>Home address {!isMinor && <Required />}</label>
                                     <input 
                                         {...register('address')} 
                                         placeholder="e.g. Westlands, Nairobi"
@@ -360,6 +386,7 @@ export function MobileIntakeForm({
                                     />
                                     {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address.message}</p>}
                                 </div>
+                                {!isMinor && (
                                 <div>
                                     <label className={labelClass}>Marital Status</label>
                                     <select {...register('maritalStatus')} className={cn(inputClass, "bg-white")}>
@@ -370,6 +397,8 @@ export function MobileIntakeForm({
                                         <option value="WIDOWED">Widowed</option>
                                     </select>
                                 </div>
+                                )}
+                                {!isMinor && (
                                 <div>
                                     <label className={labelClass}>Occupation</label>
                                     <input 
@@ -378,6 +407,7 @@ export function MobileIntakeForm({
                                         className={inputClass}
                                     />
                                 </div>
+                                )}
                             </div>
                         )}
 

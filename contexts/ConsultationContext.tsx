@@ -15,7 +15,7 @@ import { useDialogContext } from '@/providers/dialog/DialogProvider';
 import { useDocumentationContext } from '@/providers/documentation/DocumentationProvider';
 import { useQueueContext } from '@/providers/queue/QueueContextProvider';
 import type { ConsultationResponseDto } from '@/application/dtos/ConsultationResponseDto';
-import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import type { QueuePatient } from '@/hooks/doctor/useDoctorQueue';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import type { VitalsData } from '@/providers/patient/PatientContextProvider';
 import type { StructuredNotes } from '@/shared-kernel/types/notes';
@@ -61,7 +61,7 @@ interface ConsultationContextValue {
   canComplete: boolean;
   showStartDialog: boolean;
   showCompleteDialog: boolean;
-  waitingQueue: AppointmentResponseDto[];
+  waitingQueue: QueuePatient[];
   refetchQueue: () => Promise<unknown>;
   isQueueRefetching: boolean;
   loadWaitingQueue: () => void;

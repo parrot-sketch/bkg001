@@ -13,6 +13,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/constants/queryKeys';
 
 export interface QueuePatient {
   id: number;
@@ -44,7 +45,7 @@ async function fetchDoctorQueue(doctorId: string): Promise<QueuePatient[]> {
 
 export function useDoctorQueue(doctorId: string | undefined, enabled = true) {
   return useQuery<QueuePatient[]>({
-    queryKey: ['doctor', doctorId, 'queue'],
+    queryKey: queryKeys.doctor.queue(doctorId ?? ''),
     queryFn: async () => {
       if (!doctorId) {
         throw new Error('Doctor ID is required');
@@ -52,13 +53,13 @@ export function useDoctorQueue(doctorId: string | undefined, enabled = true) {
       
       return fetchDoctorQueue(doctorId);
     },
-    staleTime: 1000 * 30, // 30 seconds - polling + invalidation keep this fresh enough
-    gcTime: 1000 * 60 * 2, // 2 minutes
+    staleTime: 1000 * 30,
+    gcTime: 1000 * 60 * 2,
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
-    refetchInterval: 60_000, // Was 30s — reduced to conserve DB connections
+    refetchInterval: 60_000,
     networkMode: 'offlineFirst',
     enabled: enabled && !!doctorId,
   });

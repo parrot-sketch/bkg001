@@ -237,11 +237,13 @@ export const PatientIntakeFormSchema = z.object({
       // Accept common user formatting (spaces, hyphens, parentheses) and normalize
       // to a bare +/digits string for validation.
       const cleaned = value.replace(/[^\d+]/g, "");
+      if (!cleaned || cleaned === '+') return undefined;
       return cleaned;
     },
     z
       .string()
-      .regex(/^\+?[0-9]{7,15}$/, "Enter a valid phone number (e.g. +254712345678 or 0712345678)"),
+      .regex(/^\+?[0-9]{7,15}$/, "Enter a valid phone number (e.g. +254712345678 or 0712345678)")
+      .optional(),
   ),
 
   whatsappPhone: z

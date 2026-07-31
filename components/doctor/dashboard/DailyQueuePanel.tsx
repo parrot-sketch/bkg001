@@ -4,71 +4,50 @@ import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AppointmentStatus, canStartConsultation, isAwaitingConfirmation } from '@/domain/enums/AppointmentStatus';
+import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { cn } from '@/lib/utils';
+import type { QueuePatient } from '@/hooks/doctor/useDoctorQueue';
 
-const STATUS_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
-  [AppointmentStatus.PENDING]: { bg: 'bg-[#e7d6bf]/60', text: 'text-[#2c2e4b]/70', label: 'Pending' },
-  [AppointmentStatus.PENDING_DOCTOR_CONFIRMATION]: { bg: 'bg-[#e7d6bf]/60', text: 'text-[#2c2e4b]/70', label: 'Awaiting Confirmation' },
-  [AppointmentStatus.SCHEDULED]: { bg: 'bg-[#e7d6bf]/30', text: 'text-[#2c2e4b]', label: 'Scheduled' },
-  [AppointmentStatus.CONFIRMED]: { bg: 'bg-[#e7d6bf]/30', text: 'text-[#2c2e4b]', label: 'Confirmed' },
+const QUEUE_STATUS_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
   [AppointmentStatus.CHECKED_IN]: { bg: 'bg-[#caa26a]/20', text: 'text-[#2c2e4b]', label: 'Checked In' },
   [AppointmentStatus.READY_FOR_CONSULTATION]: { bg: 'bg-[#caa26a]/20', text: 'text-[#2c2e4b]', label: 'Ready' },
   [AppointmentStatus.IN_CONSULTATION]: { bg: 'bg-[#caa26a]/30', text: 'text-[#2c2e4b]', label: 'In Consultation' },
-  [AppointmentStatus.COMPLETED]: { bg: 'bg-[#e7d6bf]/60', text: 'text-[#2c2e4b]/70', label: 'Completed' },
-  [AppointmentStatus.CANCELLED]: { bg: 'bg-[#e7d6bf]/40', text: 'text-[#2c2e4b]/60', label: 'Cancelled' },
-  [AppointmentStatus.NO_SHOW]: { bg: 'bg-[#e7d6bf]/40', text: 'text-[#2c2e4b]/60', label: 'No Show' },
+  WAITING: { bg: 'bg-[#e7d6bf]/30', text: 'text-[#2c2e4b]', label: 'Waiting' },
 };
 
-interface DailyQueueAppointment {
-  id: number;
-  patientId: string;
-  patient: {
-    firstName: string;
-    lastName: string;
-    fileNumber: string;
-  };
-  appointmentDate: Date;
-  time: string;
-  type: string;
-  status: string;
-}
-
 interface DailyQueuePanelProps {
-  appointments: DailyQueueAppointment[];
+  queue: QueuePatient[];
   isLoading?: boolean;
 }
 
-export function DailyQueuePanel({ appointments, isLoading }: DailyQueuePanelProps) {
+export function DailyQueuePanel({ queue, isLoading }: DailyQueuePanelProps) {
   const router = useRouter();
 
-  const sortedAppointments = useMemo(() => {
-    return [...appointments].sort((a, b) => {
+  const sortedQueue = useMemo(() => {
+    return [...queue].sort((a, b) => {
       const timeCompare = (a.time || '').localeCompare(b.time || '');
       if (timeCompare !== 0) return timeCompare;
       return a.id - b.id;
     });
-  }, [appointments]);
+  }, [queue]);
 
-  // No API call — navigate directly. The consultation room handles its own init.
-  const handleNavigate = (appointment: DailyQueueAppointment) => {
-    router.push(`/doctor/consultations/session/${appointment.id}?start=true`);
+  const handleNavigate = (appointmentId: number) => {
+    router.push(`/doctor/consultations/session/${appointmentId}?start=true`);
   };
 
   const getActionLabel = (status: string) => {
     if (status === AppointmentStatus.IN_CONSULTATION) return 'Continue';
-    if (canStartConsultation(status as AppointmentStatus)) return 'Start';
+    if (status === 'WAITING') return 'Start';
     return null;
   };
 
   const isActionEnabled = (status: string) => {
-    return status === AppointmentStatus.IN_CONSULTATION || canStartConsultation(status as AppointmentStatus);
+    return status === AppointmentStatus.IN_CONSULTATION || status === 'WAITING';
   };
 
   const getStatusConfig = (status: string) => {
-    return STATUS_CONFIG[status] ?? { bg: 'bg-[#e7d6bf]/60', text: 'text-[#2c2e4b]/70', label: status };
+    return QUEUE_STATUS_CONFIG[status] ?? { bg: 'bg-[#e7d6bf]/60', text: 'text-[#2c2e4b]/70', label: status };
   };
 
   if (isLoading) {
@@ -97,7 +76,7 @@ export function DailyQueuePanel({ appointments, isLoading }: DailyQueuePanelProp
     );
   }
 
-  if (sortedAppointments.length === 0) {
+  if (sortedQueue.length === 0) {
     return (
       <Card className="border border-[#e7d6bf] bg-white shadow-sm">
         <CardHeader className="border-b border-[#e7d6bf] px-5 py-4">
@@ -116,67 +95,60 @@ export function DailyQueuePanel({ appointments, isLoading }: DailyQueuePanelProp
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold text-[#2c2e4b]">Today's Schedule</CardTitle>
           <span className="text-xs text-[#2c2e4b]/60 font-medium">
-            {sortedAppointments.length} appointment{sortedAppointments.length !== 1 ? 's' : ''}
+            {sortedQueue.length} appointment{sortedQueue.length !== 1 ? 's' : ''}
           </span>
         </div>
       </CardHeader>
       <CardContent className="p-0">
         <div className="divide-y divide-[#e7d6bf]">
-          {sortedAppointments.map((appointment) => {
-            const status = appointment.status;
+          {sortedQueue.map((queueItem) => {
+            const status = queueItem.status;
             const statusConfig = getStatusConfig(status);
             const actionLabel = getActionLabel(status);
             const actionEnabled = isActionEnabled(status);
-            const isAwaiting = isAwaitingConfirmation(status as AppointmentStatus);
-            const patientName = appointment.patient
-              ? `${appointment.patient.firstName} ${appointment.patient.lastName}`
+            const patientName = queueItem.patient
+              ? `${queueItem.patient.firstName} ${queueItem.patient.lastName}`
               : 'Unknown Patient';
 
             return (
               <div
-                key={appointment.id}
+                key={queueItem.id}
                 className={cn(
                   'flex items-center gap-4 px-5 py-3.5 transition-colors',
                   actionEnabled && 'hover:bg-[#e7d6bf]/20 cursor-pointer'
                 )}
                 onClick={() => {
-                  if (actionEnabled) handleNavigate(appointment);
+                  if (actionEnabled && queueItem.appointmentId) handleNavigate(queueItem.appointmentId);
                 }}
               >
                 <div className="w-14 text-center shrink-0">
                   <p className="text-sm font-semibold text-[#2c2e4b] leading-none tabular-nums">
-                    {appointment.time || '--:--'}
+                    {queueItem.time || '--:--'}
                   </p>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium text-[#2c2e4b] truncate">{patientName}</p>
-                    {appointment.patient?.fileNumber && (
+                    {queueItem.patient?.fileNumber && (
                       <span className="text-[10px] text-[#2c2e4b]/50 font-mono shrink-0">
-                        #{appointment.patient.fileNumber}
+                        #{queueItem.patient.fileNumber}
                       </span>
                     )}
                   </div>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-[#2c2e4b]/60 truncate">{appointment.type || 'Consultation'}</span>
-                    {isAwaiting && (
-                      <>
-                        <span className="text-[#e7d6bf]">•</span>
-                        <span className="text-[10px] text-[#caa26a] font-medium">Needs confirmation</span>
-                      </>
-                    )}
+                    <span className="text-xs text-[#2c2e4b]/60 truncate">{queueItem.type || 'Consultation'}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <Badge variant="outline" className={cn('text-[10px] font-medium border-0', statusConfig.bg, statusConfig.text)}>
                     {statusConfig.label}
                   </Badge>
-                  {actionLabel && (
+                  {actionLabel && queueItem.appointmentId && (
                     <Button
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleNavigate(appointment);
+                        handleNavigate(queueItem.appointmentId);
                       }}
                       className={cn(
                         'h-8 px-3 text-xs rounded-lg shadow-sm',

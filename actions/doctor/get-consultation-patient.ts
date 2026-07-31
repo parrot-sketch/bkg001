@@ -2,6 +2,7 @@
 
 import db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth/server-auth';
+import { toIso } from '@/lib/utils/dates';
 
 export interface ConsultationPatientData {
   patient: {
@@ -43,6 +44,7 @@ export interface ConsultationPatientData {
   } | null;
   consultation: {
     id: number;
+    doctorId: string;
     state: string;
     notes: {
       fullText: string;
@@ -105,6 +107,15 @@ export async function getConsultationPatientData(
 
     if (!appointment.patient) {
       return { success: false, error: 'Patient not found' };
+    }
+
+    const doctorRecord = await db.doctor.findFirst({
+      where: { user_id: user.userId },
+      select: { id: true },
+    });
+
+    if (!doctorRecord || appointment.doctor_id !== doctorRecord.id) {
+      return { success: false, error: 'Not authorized for this appointment' };
     }
 
     // Fetch most recent vitals for this patient (one extra query, still O(1))
@@ -199,7 +210,7 @@ export async function getConsultationPatientData(
           fileNumber: p.file_number ?? '',
           firstName: p.first_name,
           lastName: p.last_name,
-          dateOfBirth: p.date_of_birth?.toISOString() ?? null,
+          dateOfBirth: toIso(p.date_of_birth) ?? null,
           gender: p.gender ?? null,
           email: p.email ?? null,
           phone: p.phone ?? null,
@@ -216,7 +227,7 @@ export async function getConsultationPatientData(
           status: appointment.status,
           type: appointment.type ?? 'Consultation',
           time: appointment.time ?? '',
-          appointmentDate: appointment.appointment_date.toISOString(),
+          appointmentDate: toIso(appointment.appointment_date) ?? '',
           doctorId: appointment.doctor_id,
         },
         vitals: vitalsRecord
@@ -229,13 +240,14 @@ export async function getConsultationPatientData(
               oxygenSaturation: vitalsRecord.oxygen_saturation ? Number(vitalsRecord.oxygen_saturation) : null,
               weight: vitalsRecord.weight ? Number(vitalsRecord.weight) : null,
               height: vitalsRecord.height ? Number(vitalsRecord.height) : null,
-              recordedAt: vitalsRecord.recorded_at.toISOString(),
+              recordedAt: toIso(vitalsRecord.recorded_at) ?? '',
               recordedBy: vitalsRecord.recorded_by ?? null,
             }
           : null,
         consultation: consultationRecord
           ? {
               id: consultationRecord.id,
+              doctorId: consultationRecord.doctor_id,
               state: deriveState(consultationRecord),
               notes: parsedNotes,
               outcomeType: consultationRecord.outcome_type ?? null,

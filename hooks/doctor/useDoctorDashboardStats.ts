@@ -18,6 +18,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { doctorApi } from '@/lib/api/doctor';
 import { surgicalCasesApi } from '@/lib/api/surgical-cases';
+import { queryKeys } from '@/lib/constants/queryKeys';
 
 export interface DoctorDashboardStats {
   queueLength: number;
@@ -28,7 +29,7 @@ export interface DoctorDashboardStats {
 
 export function useDoctorDashboardStats(doctorId: string | undefined, enabled = true) {
   return useQuery<DoctorDashboardStats>({
-    queryKey: ['doctor', doctorId, 'dashboard-stats'],
+    queryKey: queryKeys.doctor.queue(doctorId ?? ''),
     queryFn: async () => {
       if (!doctorId) {
         throw new Error('Doctor ID is required');

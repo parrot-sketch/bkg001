@@ -78,8 +78,16 @@ export class LocalStorageDraftStorage<T> implements DraftStorage<T> {
   }
 
   private getStorage(): Storage | null {
-    if (!this.isAvailable()) return null;
-    return globalThis.localStorage;
+    if (typeof window === 'undefined') return null;
+    try {
+      const storage = globalThis.localStorage;
+      const testKey = '__storage_test__';
+      storage.setItem(testKey, '1');
+      storage.removeItem(testKey);
+      return storage;
+    } catch {
+      return null;
+    }
   }
 
   saveDraft(key: string, data: T): DraftResult<void> {
