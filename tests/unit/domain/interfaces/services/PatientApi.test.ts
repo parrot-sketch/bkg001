@@ -86,7 +86,10 @@ describe('HttpPatientApi', () => {
 
   describe('loadUpcomingAppointments', () => {
     it('returns upcoming appointments', async () => {
-      const mockData = [{ id: 1, appointmentDate: '2024-12-01', status: 'SCHEDULED' }] as AppointmentResponseDto[];
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const futureDate = tomorrow.toISOString().split('T')[0];
+      const mockData = [{ id: 1, appointmentDate: futureDate, status: 'SCHEDULED' }] as AppointmentResponseDto[];
       vi.mocked(mockApiClient.get).mockResolvedValue({ success: true, data: mockData });
 
       const result = await api.loadUpcomingAppointments('p1');
