@@ -68,6 +68,7 @@ export class LocalStorageDraftStorage<T> implements DraftStorage<T> {
   private isAvailable(): boolean {
     try {
       const storage = globalThis.localStorage;
+      if (!storage) return false;
       const testKey = '__storage_test__';
       storage.setItem(testKey, '1');
       storage.removeItem(testKey);
@@ -78,9 +79,9 @@ export class LocalStorageDraftStorage<T> implements DraftStorage<T> {
   }
 
   private getStorage(): Storage | null {
-    if (typeof window === 'undefined') return null;
     try {
       const storage = globalThis.localStorage;
+      if (!storage) return null;
       const testKey = '__storage_test__';
       storage.setItem(testKey, '1');
       storage.removeItem(testKey);

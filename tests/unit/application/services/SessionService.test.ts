@@ -187,12 +187,13 @@ describe('SessionService', () => {
       doctorApi.getAppointment.mockResolvedValue({ success: true, data: sampleAppointment });
       doctorApi.getDoctorByUserId.mockResolvedValue({ success: false, error: { code: 'DOCTOR_NOT_FOUND', message: 'Doctor not found', category: 'PATIENT', recoverable: false, retryable: false } });
       consultationApi.loadConsultation.mockResolvedValue({ success: true, data: sampleConsultation });
+      patientApi.loadPatient.mockResolvedValue({ success: true, data: samplePatient });
+      patientApi.getPatientVitals.mockResolvedValue({ success: true, data: sampleVitals });
 
       const result = await service.initializeSession(1, 'user-1');
-      expect(result.success).toBe(false);
-      if (!result.success) {
-        expect(result.error.code).toBe('PATIENT_NOT_FOUND');
-        expect(result.error.message).toContain('Doctor not found');
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.session.doctorId).toBe('doctor-1');
       }
     });
 

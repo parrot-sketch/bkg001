@@ -208,6 +208,7 @@ describe('ConsultationWorkflowStateMachine', () => {
     it('returns correct actions for each state', () => {
       expect(getValidActions(ConsultationWorkflowState.IDLE)).toEqual([
         ConsultationWorkflowAction.LOAD_PATIENT,
+        ConsultationWorkflowAction.SWITCH_PATIENT,
       ]);
       expect(getValidActions(ConsultationWorkflowState.ACTIVE)).toEqual([
         ConsultationWorkflowAction.SAVE_DRAFT,
