@@ -204,15 +204,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       };
       hasExplicitDateFilter = true;
     } else {
-      // REFACTORED: Apply default date range filter if no explicit date filter provided
-      // This prevents unbounded queries that could return thousands of historical records
-      // Default: last 90 days (reasonable for most use cases)
-      const defaultSince = subDays(new Date(), DEFAULT_DATE_RANGE_DAYS);
-      // Set to start of day in local timezone
-      const defaultSinceStart = new Date(defaultSince.getFullYear(), defaultSince.getMonth(), defaultSince.getDate(), 0, 0, 0, 0);
-      where.appointment_date = {
-        gte: defaultSinceStart,
-      };
+      // REFACTORED: Do NOT apply default 90-day filter when querying a specific patient.
+      // Patient-specific queries should return the full history; the UI can paginate/filter as needed.
+      hasExplicitDateFilter = true;
     }
 
     // 4. Fetch appointments
@@ -227,7 +221,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Exclude cancelled appointments from default results for frontdesk/admin roles
     // Callers can still request cancelled appointments explicitly with ?status=CANCELLED
     const baseWhere = { ...where };
-    if (!statusParam && (userRole === 'FRONTDESK' || userRole === 'ADMIN')) {
+    if (!statusParam && (userRole === 'FRONTDESK' || userRole === 'ADMIN') && !patientIdParam) {
       where.AND = [
         baseWhere,
         { status: { not: AppointmentStatus.CANCELLED } },
