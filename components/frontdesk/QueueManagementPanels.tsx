@@ -6,6 +6,10 @@
  * 
  * Branded with Nairobi Sculpt light palette: white cards, beige borders,
  * navy typography, and gold accents.
+ * 
+ * Supports role-based actions:
+ * - FRONTDESK: check-in, assign, reassign, remove
+ * - NURSE: record vitals, add care note, pre-op checklist
  */
 import { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
@@ -19,7 +23,10 @@ import {
   CheckCircle2,
   XCircle,
   UserMinus,
-  RefreshCw
+  RefreshCw,
+  Activity,
+  FileText,
+  ClipboardList,
 } from 'lucide-react';
 import { useCheckedInAwaitingAssignment, useLiveQueueBoard, invalidateFrontdeskCache, useCheckIn, useFrontdeskDashboard } from '@/hooks/frontdesk/use-frontdesk-dashboard';
 import type { FrontdeskCheckedInPatient } from '@/hooks/frontdesk/use-frontdesk-dashboard';
@@ -33,6 +40,13 @@ import type { DoctorAvailabilityResponseDto } from '@/application/dtos/DoctorAva
 import { toast } from 'sonner';
 
 type CheckedInPatient = FrontdeskCheckedInPatient;
+
+interface QueueManagementPanelsProps {
+  role?: 'FRONTDESK' | 'NURSE';
+  onRecordVitals?: (patientId: string, appointmentId?: number) => void;
+  onAddCareNote?: (patientId: string, appointmentId?: number) => void;
+  onPreOpChecklist?: (patientId: string, appointmentId?: number) => void;
+}
 
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(':').map((v) => Number(v));
@@ -59,7 +73,12 @@ function getNowStatus(doctor: DoctorAvailabilityResponseDto, now: Date): Availab
   return later ? 'LATER_TODAY' : 'OFF';
 }
 
-export function QueueManagementPanels() {
+export function QueueManagementPanels({ 
+  role = 'FRONTDESK',
+  onRecordVitals,
+  onAddCareNote,
+  onPreOpChecklist,
+}: QueueManagementPanelsProps) {
   const queryClient = useQueryClient();
   const { data: checkedInAwaiting, isLoading: loadingAwaiting, error: errorAwaiting, refetch: refetchAwaiting } = useCheckedInAwaitingAssignment();
   const { data: liveQueue, isLoading: loadingQueue, error: errorQueue, refetch: refetchQueue } = useLiveQueueBoard();
@@ -178,10 +197,12 @@ export function QueueManagementPanels() {
     }
   };
 
+  const isNurse = role === 'NURSE';
+
   return (
     <div className="space-y-5 w-full">
       {/* Check-In Section - Show scheduled/confirmed appointments that need check-in */}
-      {scheduledAppointments.length > 0 && (
+      {!isNurse && scheduledAppointments.length > 0 && (
         <div className="border border-[#e7d6bf] bg-white">
           <div className="px-4 py-3 border-b border-[#e7d6bf] flex items-center justify-between">
             <div className="text-sm font-semibold text-[#2c2e4b] flex items-center gap-2">
@@ -260,8 +281,8 @@ export function QueueManagementPanels() {
         </div>
       )}
 
-      {/* Awaiting Assignment - Only show if there are patients */}
-      {hasAwaiting && (
+      {/* Awaiting Assignment - Only show if there are patients and role is frontdesk */}
+      {!isNurse && hasAwaiting && (
         <div className="border border-[#e7d6bf] bg-white">
           <div className="px-4 py-3 border-b border-[#e7d6bf] flex items-center justify-between">
             <div className="text-sm font-semibold text-[#2c2e4b] flex items-center gap-2">
@@ -373,7 +394,7 @@ export function QueueManagementPanels() {
             <div className="h-8 w-8 border border-[#e7d6bf] bg-[#e7d6bf]/30 flex items-center justify-center">
               <Users className="h-4 w-4 text-[#caa26a]" />
             </div>
-            Live Queue
+            {isNurse ? 'Patient Queue' : 'Live Queue'}
           </div>
           <Badge variant="outline" className="rounded-none text-xs border-[#e7d6bf] text-[#2c2e4b] font-semibold">
             {totalInQueue}
@@ -443,7 +464,37 @@ export function QueueManagementPanels() {
                            >
                              {patient.status === 'IN_CONSULTATION' ? 'In progress' : 'Waiting'}
                            </Badge>
-                           {patient.status === 'WAITING' && (
+                           {isNurse ? (
+                             <>
+                               <Button
+                                 size="sm"
+                                 variant="ghost"
+                                 onClick={() => onRecordVitals?.(patient.patient.id, patient.appointmentId)}
+                                 className="h-6 w-6 p-0 text-[#2c2e4b]/40 hover:text-[#caa26a] hover:bg-[#e7d6bf]/30 rounded-md"
+                                 title="Record vitals"
+                               >
+                                 <Activity className="h-3 w-3" />
+                               </Button>
+                               <Button
+                                 size="sm"
+                                 variant="ghost"
+                                 onClick={() => onAddCareNote?.(patient.patient.id, patient.appointmentId)}
+                                 className="h-6 w-6 p-0 text-[#2c2e4b]/40 hover:text-[#0c5d69] hover:bg-[#e7d6bf]/30 rounded-md"
+                                 title="Add care note"
+                               >
+                                 <FileText className="h-3 w-3" />
+                               </Button>
+                               <Button
+                                 size="sm"
+                                 variant="ghost"
+                                 onClick={() => onPreOpChecklist?.(patient.patient.id, patient.appointmentId)}
+                                 className="h-6 w-6 p-0 text-[#2c2e4b]/40 hover:text-emerald-600 hover:bg-emerald-50 rounded-md"
+                                 title="Pre-op checklist"
+                               >
+                                 <ClipboardList className="h-3 w-3" />
+                               </Button>
+                             </>
+                           ) : patient.status === 'WAITING' && (
                              <>
                                {reassignTarget?.queueId === patient.id ? (
                                  <div className="flex items-center gap-1">

@@ -46,6 +46,9 @@ import { useRecoveryCases } from '@/hooks/nurse/useRecoveryCases';
 import { WardPrepTableRow } from '@/components/nurse/WardPrepTableRow';
 import { TheatreSupportTableRow } from '@/components/nurse/TheatreSupportTableRow';
 import { RecoveryCaseTableRow } from '@/components/nurse/RecoveryCaseTableRow';
+import { QueueManagementPanels } from '@/components/frontdesk/QueueManagementPanels';
+import { RecordVitalsDialog } from '@/components/nurse/RecordVitalsDialog';
+import { AddCareNoteDialog } from '@/components/nurse/AddCareNoteDialog';
 import Link from 'next/link';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -82,13 +85,6 @@ interface RecoveryCase {
   urgency?: string;
 }
 
-interface CheckedInAppointment {
-  id: number;
-  patientId?: string;
-  patient?: { firstName?: string; lastName?: string; fileNumber?: string };
-  appointmentDate?: Date | string;
-  type?: string;
-}
 
 // ─── Status Config (monochrome) ────────────────────────────────────────────────
 
@@ -163,47 +159,6 @@ function StatCard({
 
 // ─── Row Components ────────────────────────────────────────────────────────────
 
-function PatientQueueRow({ appointment }: { appointment: CheckedInAppointment }) {
-  const router = useRouter();
-  const patientName = appointment.patient
-    ? `${appointment.patient.firstName || ''} ${appointment.patient.lastName || ''}`.trim()
-    : 'Unknown';
-
-  return (
-    <TableRow className="group hover:bg-slate-50/50 cursor-pointer" onClick={() => router.push('/nurse/patients')}>
-      <TableCell className="py-3">
-        <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">
-            {patientName.split(' ').map(n => n[0]).join('').substring(0, 2) || 'P'}
-          </div>
-          <div>
-            <p className="text-sm font-medium text-slate-900">{patientName}</p>
-            <p className="text-[10px] text-slate-400">#{appointment.patient?.fileNumber || '—'}</p>
-          </div>
-        </div>
-      </TableCell>
-
-      <TableCell className="text-[13px] text-slate-600">
-        <div className="flex items-center gap-2">
-          <Calendar className="h-3.5 w-3.5 text-slate-400" />
-          {appointment.appointmentDate ? format(new Date(appointment.appointmentDate as string | Date), 'h:mm a') : '—'}
-        </div>
-      </TableCell>
-
-      <TableCell>
-        <Badge variant="secondary" className="text-[10px] px-2 py-0.5 h-5 bg-slate-100 text-slate-700 border-slate-200">
-          {appointment.type || 'Consultation'}
-        </Badge>
-      </TableCell>
-
-      <TableCell className="text-right">
-        <Button size="sm" variant="ghost" className="h-7 text-[11px] text-slate-600">
-          Record <ChevronRight className="h-3.5 w-3.5 ml-1" />
-        </Button>
-      </TableCell>
-    </TableRow>
-  );
-}
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 
@@ -212,12 +167,67 @@ export default function NurseDashboardPage() {
   const { user, isAuthenticated } = useAuth();
 
   // Data hooks
-  const { data: checkedInPatients = [], isLoading: loadingCheckedIn } = useTodayCheckedInPatients(isAuthenticated && !!user);
+  const { data: checkedInPatients = [], isLoading: loadingCheckedIn, refetch: refetchCheckedIn } = useTodayCheckedInPatients(isAuthenticated && !!user);
   const { summary: preOpSummary, isLoading: loadingPreOp } = usePreOpSummary();
   const { data: preOpCasesData, isLoading: loadingPreOpCases } = usePreOpCases();
   const { data: intraOpData, isLoading: loadingIntraOp } = useIntraOpCases();
   const { data: recoveryData, isLoading: loadingRecovery } = useRecoveryCases();
   const markInTheater = useMarkInTheater();
+
+  // Nurse queue actions
+  const [selectedQueuePatient, setSelectedQueuePatient] = useState<{ patientId: string; appointmentId?: number } | null>(null);
+  const [showVitalsDialog, setShowVitalsDialog] = useState(false);
+  const [showCareNoteDialog, setShowCareNoteDialog] = useState(false);
+
+  const findPatientForQueueAction = (patientId: string, appointmentId?: number) => {
+    const appointment = checkedInPatients.find((a) => a.patientId === patientId);
+    const patient = appointment?.patient;
+    if (!patient) return null;
+    return {
+      patientId,
+      appointmentId,
+      patient: {
+        id: patient.id,
+        fileNumber: patient.fileNumber || '',
+        firstName: patient.firstName || '',
+        lastName: patient.lastName || '',
+        fullName: `${patient.firstName || ''} ${patient.lastName || ''}`.trim() || 'Unknown',
+        dateOfBirth: patient.dateOfBirth ? new Date(patient.dateOfBirth) : new Date(),
+        age: patient.dateOfBirth ? new Date().getFullYear() - new Date(patient.dateOfBirth).getFullYear() : 0,
+        gender: patient.gender || '',
+        email: patient.email || '',
+        phone: patient.phone || '',
+        hasPrivacyConsent: false,
+        hasServiceConsent: false,
+        hasMedicalConsent: false,
+      } as any,
+    };
+  };
+
+  const handleRecordVitals = (patientId: string, appointmentId?: number) => {
+    const context = findPatientForQueueAction(patientId, appointmentId);
+    if (!context) return;
+    setSelectedQueuePatient(context);
+    setShowVitalsDialog(true);
+  };
+
+  const handleAddCareNote = (patientId: string, appointmentId?: number) => {
+    const context = findPatientForQueueAction(patientId, appointmentId);
+    if (!context) return;
+    setSelectedQueuePatient(context);
+    setShowCareNoteDialog(true);
+  };
+
+  const handlePreOpChecklist = (patientId: string, _appointmentId?: number) => {
+    router.push('/nurse/ward-prep');
+  };
+
+  const handleDialogSuccess = () => {
+    setShowVitalsDialog(false);
+    setShowCareNoteDialog(false);
+    setSelectedQueuePatient(null);
+    refetchCheckedIn?.();
+  };
 
   // Derived data
   const wardPrepCases = (preOpCasesData?.cases || []).filter(
@@ -428,57 +438,57 @@ export default function NurseDashboardPage() {
           </CardContent>
         </Card>
 
-        {/* ── Column 3: Clinic Patients ────────────────────────────────────────── */}
+        {/* ── Column 3: Placeholder for balance ─────────────────────────────────── */}
         <Card className="border-slate-200">
           <CardHeader className="pb-3 border-b border-slate-100">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-sm font-semibold text-slate-900">Clinic Queue</CardTitle>
-                <CardDescription className="text-[11px] mt-0.5">Checked-in patients</CardDescription>
+                <CardTitle className="text-sm font-semibold text-slate-900">Quick Actions</CardTitle>
+                <CardDescription className="text-[11px] mt-0.5">Common nursing workflows</CardDescription>
               </div>
               <div className="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center">
-                <Users className="h-4 w-4 text-slate-600" />
+                <ClipboardList className="h-4 w-4 text-slate-600" />
               </div>
             </div>
           </CardHeader>
-          <CardContent className="p-0">
-            {loadingCheckedIn ? (
-              <div className="p-4 space-y-3">
-                {[1, 2].map(i => <div key={i} className="h-12 bg-slate-50 animate-pulse rounded-lg" />)}
-              </div>
-            ) : todayPatients.length === 0 ? (
-              <div className="py-10 text-center">
-                <Users className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-xs font-medium text-slate-600">No patients waiting</p>
-              </div>
-            ) : (
-              <>
-                <Table>
-                  <TableHeader className="bg-slate-50/80">
-                    <TableRow>
-                      <TableHead>Patient</TableHead>
-                      <TableHead>Time</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {todayPatients.map((apt) => (
-                      <PatientQueueRow key={apt.id} appointment={apt} />
-                    ))}
-                  </TableBody>
-                </Table>
-                <div className="p-3 border-t border-slate-100">
-                  <Button variant="ghost" size="sm" className="w-full text-[11px] text-slate-600 h-8" asChild>
-                    <Link href="/nurse/patients">
-                      View All <ChevronRight className="h-3.5 w-3.5 ml-1" />
-                    </Link>
-                  </Button>
-                </div>
-              </>
-            )}
+          <CardContent className="p-4">
+            <div className="flex flex-col gap-2">
+              <Button size="sm" variant="outline" className="h-8 text-[11px] border-slate-200 justify-start" asChild>
+                <Link href="/nurse/ward-prep">
+                  <ClipboardList className="h-3.5 w-3.5 mr-2" />
+                  Ward Checklists
+                </Link>
+              </Button>
+              <Button size="sm" variant="outline" className="h-8 text-[11px] border-slate-200 justify-start" asChild>
+                <Link href="/nurse/theatre-support">
+                  <Activity className="h-3.5 w-3.5 mr-2" />
+                  Theatre Board
+                </Link>
+              </Button>
+              <Button size="sm" variant="outline" className="h-8 text-[11px] border-slate-200 justify-start" asChild>
+                <Link href="/nurse/recovery-discharge">
+                  <HeartPulse className="h-3.5 w-3.5 mr-2" />
+                  Recovery
+                </Link>
+              </Button>
+              <Button size="sm" variant="outline" className="h-8 text-[11px] border-slate-200 justify-start" asChild>
+                <Link href="/nurse/patients">
+                  <Users className="h-3.5 w-3.5 mr-2" />
+                  Patients
+                </Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* ── PATIENT QUEUE ───────────────────────────────────────────────────── */}
+      <QueueManagementPanels
+        role="NURSE"
+        onRecordVitals={handleRecordVitals}
+        onAddCareNote={handleAddCareNote}
+        onPreOpChecklist={handlePreOpChecklist}
+      />
 
       {/* ── QUICK ACTIONS BAR ───────────────────────────────────────────────────── */}
       <Card className="border-slate-200">
@@ -518,6 +528,27 @@ export default function NurseDashboardPage() {
         </CardContent>
       </Card>
 
+      {/* ── DIALOGS ───────────────────────────────────────────────────────── */}
+      {selectedQueuePatient && (
+        <>
+          <RecordVitalsDialog
+            open={showVitalsDialog}
+            onClose={handleDialogSuccess}
+            onSuccess={handleDialogSuccess}
+            patient={selectedQueuePatient.patient}
+            appointment={selectedQueuePatient.appointmentId ? { id: selectedQueuePatient.appointmentId } as any : null}
+            nurseId={user.id}
+          />
+          <AddCareNoteDialog
+            open={showCareNoteDialog}
+            onClose={handleDialogSuccess}
+            onSuccess={handleDialogSuccess}
+            patient={selectedQueuePatient.patient}
+            appointment={selectedQueuePatient.appointmentId ? { id: selectedQueuePatient.appointmentId } as any : null}
+            nurseId={user.id}
+          />
+        </>
+      )}
     </div>
   );
 }
