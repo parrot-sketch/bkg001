@@ -175,7 +175,7 @@ export default function NurseDashboardPage() {
   const markInTheater = useMarkInTheater();
 
   // Nurse queue actions
-  const [selectedQueuePatient, setSelectedQueuePatient] = useState<{ patientId: string; appointmentId?: number } | null>(null);
+  const [selectedQueuePatient, setSelectedQueuePatient] = useState<{ patientId: string; appointmentId?: number; patient: any } | null>(null);
   const [showVitalsDialog, setShowVitalsDialog] = useState(false);
   const [showCareNoteDialog, setShowCareNoteDialog] = useState(false);
 

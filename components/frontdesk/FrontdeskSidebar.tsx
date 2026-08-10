@@ -117,7 +117,7 @@ export function FrontdeskSidebar({ isOpen = false, onClose = () => { }, onCollap
     ? {
         name: user.firstName || user.email,
         email: user.email,
-        role: role,
+        role: role as any,
       }
     : null;
 
