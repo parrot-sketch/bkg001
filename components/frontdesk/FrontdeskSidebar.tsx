@@ -5,6 +5,7 @@
  * 
  * Uses the UnifiedSidebar component for consistent design.
  * Enhanced with proper section grouping for better organization.
+ * Supports FRONTDESK, NURSE, and ADMIN roles with role-adaptive navigation.
  */
 
 import { LayoutDashboard, Calendar, Users, UserPlus, User, Receipt, Building2, ClipboardList, Bell } from 'lucide-react';
@@ -25,6 +26,7 @@ export function FrontdeskSidebar({ isOpen = false, onClose = () => { }, onCollap
   const { logout, user } = useAuth();
   const { data: stats } = useDashboardStats();
   const newPatientsToday = stats?.newPatientsToday ?? 0;
+  const role = user?.role || 'FRONTDESK';
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -34,10 +36,13 @@ export function FrontdeskSidebar({ isOpen = false, onClose = () => { }, onCollap
     }
   }, [newPatientsToday]);
 
+  const isNurse = role === 'NURSE';
+  const isAdmin = role === 'ADMIN';
+
   const navItems: NavItem[] = [
     {
       name: 'Dashboard',
-      href: '/frontdesk/dashboard',
+      href: isNurse ? '/nurse/dashboard' : isAdmin ? '/admin/dashboard' : '/frontdesk/dashboard',
       icon: LayoutDashboard,
       section: 'Overview',
     },
@@ -55,16 +60,10 @@ export function FrontdeskSidebar({ isOpen = false, onClose = () => { }, onCollap
       badge: newPatientsToday > 0 ? newPatientsToday : undefined,
     },
     {
-      name: 'New Patient Intake',
-      href: '/frontdesk/intake/start',
-      icon: ClipboardList,
-      section: 'Patient Care',
-    },
-    {
-      name: 'Theater Scheduling',
+      name: 'Theater Schedule',
       href: '/frontdesk/theater-scheduling',
       icon: Building2,
-      section: 'Scheduling',
+      section: 'Patient Care',
     },
     {
       name: 'Billing',
@@ -72,9 +71,31 @@ export function FrontdeskSidebar({ isOpen = false, onClose = () => { }, onCollap
       icon: Receipt,
       section: 'Billing & Finance',
     },
+    ...(isNurse
+      ? [
+          {
+            name: 'Ward Prep',
+            href: '/nurse/ward-prep',
+            icon: ClipboardList,
+            section: 'Clinical',
+          } as NavItem,
+          {
+            name: 'Theatre Support',
+            href: '/nurse/theatre-support',
+            icon: Building2,
+            section: 'Clinical',
+          } as NavItem,
+          {
+            name: 'Recovery & Discharge',
+            href: '/nurse/recovery-discharge',
+            icon: UserPlus,
+            section: 'Clinical',
+          } as NavItem,
+        ]
+      : []),
     {
       name: 'My Profile',
-      href: '/frontdesk/profile',
+      href: isNurse ? '/nurse/profile' : isAdmin ? '/admin/profile' : '/frontdesk/profile',
       icon: User,
       section: 'Account',
     },
@@ -96,7 +117,7 @@ export function FrontdeskSidebar({ isOpen = false, onClose = () => { }, onCollap
     ? {
         name: user.firstName || user.email,
         email: user.email,
-        role: 'FRONTDESK',
+        role: role,
       }
     : null;
 
@@ -107,7 +128,7 @@ export function FrontdeskSidebar({ isOpen = false, onClose = () => { }, onCollap
       navItems={navItems}
       userInfo={userInfo}
       onLogout={handleLogout}
-      dashboardHref="/frontdesk/dashboard"
+      dashboardHref={isNurse ? '/nurse/dashboard' : isAdmin ? '/admin/dashboard' : '/frontdesk/dashboard'}
       onCollapse={handleCollapse}
     />
   );
