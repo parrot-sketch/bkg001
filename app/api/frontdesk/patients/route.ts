@@ -5,7 +5,7 @@ import { IntakeError } from '@/domain/errors/IntakeErrors';
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await requireAuth(request, ['FRONTDESK', 'ADMIN']);
+    const auth = await requireAuth(request, ['FRONTDESK', 'ADMIN', 'NURSE']);
 
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, Number(searchParams.get('page')) || 1);

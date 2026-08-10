@@ -5,7 +5,7 @@ import { IntakeError } from '@/domain/errors/IntakeErrors';
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await requireAuth(request, ['FRONTDESK', 'ADMIN']);
+    const auth = await requireAuth(request, ['FRONTDESK', 'ADMIN', 'NURSE']);
 
     const ipAddress =
       request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||

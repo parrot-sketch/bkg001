@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
         }
 
         // Only allow FRONTDESK or ADMIN roles
-        if (user.role !== 'FRONTDESK' && user.role !== 'ADMIN') {
+        if (user.role !== 'FRONTDESK' && user.role !== 'ADMIN' && user.role !== 'NURSE') {
              return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
         }
 

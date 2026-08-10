@@ -3,13 +3,14 @@
 /**
  * Nurse Dashboard Layout
  *
- * Main layout for all nurse dashboard pages.
- * Uses NurseHeader for consistent design across all roles.
+ * Mirrors frontdesk shell so clinical staff get the same branded
+ * background, sidebar collapse behavior, and global booking dialog.
  */
 
 import { useState, ReactNode, useEffect } from 'react';
 import { NurseSidebar } from '@/components/nurse/NurseSidebar';
 import { NurseHeader } from './_components/NurseHeader';
+import { BookAppointmentDialog } from '@/components/appointments/BookAppointmentDialog';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { toast } from 'sonner';
@@ -21,7 +22,7 @@ interface NurseLayoutProps {
 export default function NurseLayout({ children }: NurseLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const { user, isLoading, logout } = useAuth();
+  const { user, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -37,10 +38,15 @@ export default function NurseLayout({ children }: NurseLayoutProps) {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-stone-50">
-        <div className="animate-pulse flex flex-col items-center">
-          <div className="h-12 w-12 bg-stone-200 rounded-full mb-4" />
-          <div className="h-4 w-32 bg-stone-100 rounded" />
+      <div className="flex h-screen items-center justify-center bg-[#2c2e4b]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="relative h-10 w-10">
+            <div className="absolute inset-0 rounded-full bg-[#caa26a]/20 animate-ping" />
+            <div className="relative h-10 w-10 rounded-full bg-[#caa26a]/10 flex items-center justify-center">
+              <div className="h-5 w-5 rounded-full bg-[#caa26a]/40 animate-pulse" />
+            </div>
+          </div>
+          <p className="text-xs text-[#caa26a]/80 font-medium tracking-wide">Loading…</p>
         </div>
       </div>
     );
@@ -51,27 +57,27 @@ export default function NurseLayout({ children }: NurseLayoutProps) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-stone-50">
-      {/* Sidebar */}
+    <div className="flex h-screen overflow-hidden bg-[#2c2e4b]">
       <NurseSidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onCollapse={setSidebarCollapsed}
       />
 
-      {/* Content Area */}
       <div
         className="flex-1 flex flex-col min-w-0 h-full overflow-hidden transition-all duration-300 lg:ml-[var(--sidebar-offset)]"
-        style={
-          { '--sidebar-offset': sidebarCollapsed ? '4rem' : '280px' } as React.CSSProperties
-        }
+        style={{ '--sidebar-offset': sidebarCollapsed ? '4rem' : '280px' } as React.CSSProperties}
       >
-        {/* Header — consistent with Doctor/Theater Tech */}
-        <NurseHeader onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+        <div className="shrink-0 bg-white border-b border-[#e7d6bf]">
+          <NurseHeader onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+        </div>
 
-        {/* Main Content */}
-        <main className="flex-1 relative overflow-hidden focus:outline-none bg-gradient-to-b from-stone-50/80 via-white to-stone-50/40 overflow-y-auto overscroll-contain scroll-smooth">
-          <div className="w-full min-h-full mx-auto max-w-[1600px] px-4 py-5 sm:px-5 sm:py-6 lg:px-8 lg:py-7 xl:px-10 xl:py-8">
+        <BookAppointmentDialog />
+
+        <main className="flex-1 relative overflow-hidden focus:outline-none overflow-y-auto overscroll-contain scroll-smooth">
+          <div className="fixed inset-0 bg-cover bg-center bg-no-repeat z-0" style={{ backgroundImage: "url('/bg.webp')" }} aria-hidden="true" />
+          <div className="fixed inset-0 bg-gradient-to-br from-[#2c2e4b]/80 via-[#2c2e4b]/70 to-[#2c2e4b]/50 z-0" aria-hidden="true" />
+          <div className="relative z-10 w-full min-h-full mx-auto max-w-[1600px] px-4 py-5 sm:px-5 sm:py-6 lg:px-8 lg:py-7 xl:px-10 xl:py-8">
             {children}
           </div>
         </main>
