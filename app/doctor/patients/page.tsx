@@ -3,46 +3,39 @@
 /**
  * Doctor Patients Page
  *
- * Purpose-built patient roster for the doctor's clinical context.
- *
- * Architecture:
- * - All filtering, searching, and primary sorting is server-side (pushed into
- *   useDoctorPatients → API route). The client never searches a page slice.
- * - Allergies-only is a lightweight in-memory filter on the current page.
- * - Pagination is server-driven (skip/take) with accurate total count.
- * - Visit decoration (lastVisitDate, visitCount) comes from the API directly
- *   — no second useDoctorAppointments call needed on this page.
+ * Minimal orchestration layer. All data logic is extracted into hooks,
+ * and all presentation is delegated to pure components.
  */
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { useDoctorPatients } from '@/hooks/doctor/useDoctorPatients';
+import { useQueuedPatients } from '@/hooks/doctor/useQueuedPatients';
 import type { DoctorPatientSortBy, DoctorPatientSortOrder } from '@/hooks/doctor/useDoctorPatients';
+import type { QueueSortBy, QueueSortOrder } from '@/hooks/doctor/useQueuedPatients';
+import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { isThisMonth } from 'date-fns';
 import { ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/constants/queryKeys';
 
 // Modular Components
-import { PatientRow }     from './components/PatientRow';
-import { PatientStats }   from './components/PatientStats';
+import { PatientRow } from './components/PatientRow';
+import { PatientStats } from './components/PatientStats';
 import type { ActiveStatCardType } from './components/PatientStats';
 import { PatientFilters } from './components/PatientFilters';
 import type { SortKey, SortOrder, StatusFilter } from './components/PatientFilters';
-
-// ============================================================================
-// CONSTANTS
-// ============================================================================
+import { DoctorPatientsTable } from './components/DoctorPatientsTable';
+import { QueuePatientsView } from './components/QueuePatientsView';
 
 const PAGE_SIZE = 15;
 
-// ============================================================================
-// PAGE
-// ============================================================================
-
 export default function DoctorPatientsPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user, isAuthenticated } = useAuth();
 
   // ── Local UI state ──────────────────────────────────────────────────────────
@@ -55,48 +48,43 @@ export default function DoctorPatientsPage() {
   const [page,           setPage]           = useState(1);
   const [refreshing,     setRefreshing]     = useState(false);
 
-  // ── Server-side data ────────────────────────────────────────────────────────
+  // ── Server-side data: regular patients ──────────────────────────────────────
   const {
-    data,
+    data: patientsData,
     isLoading,
     isFetching,
     error: patientsError,
     refetch: refetchPatients,
-  } = useDoctorPatients(!!user, {
-    status:    statusFilter,
+  } = useDoctorPatients(!!user && statusFilter !== 'QUEUED', {
+    status:    statusFilter === 'QUEUED' ? 'ACTIVE' : statusFilter,
     skip:      (page - 1) * PAGE_SIZE,
     take:      PAGE_SIZE,
     search:    searchQuery,
     sortBy:    sortBy as DoctorPatientSortBy,
-    sortOrder: sortOrder as DoctorPatientSortOrder,
+    sortOrder: sortBy === 'name'
+      ? (sortOrder as DoctorPatientSortOrder)
+      : 'desc',
   });
 
-  const patients = data?.patients ?? [];
-  const total    = data?.total    ?? 0;
+  const patients = patientsData?.patients ?? [];
+  const total    = patientsData?.total    ?? 0;
 
+  // ── Queue data: QUEUED tab ───────────────────────────────────────────────────
+  const {
+    displayQueue,
+    isLoadingQueued,
+  } = useQueuedPatients({
+    enabled: statusFilter === 'QUEUED' && !!user,
+    searchQuery,
+    sortBy: (sortBy === 'name' ? 'name' : 'waitTime') as QueueSortBy,
+    sortOrder: sortOrder as QueueSortOrder,
+  });
+
+  // ── Derived state ───────────────────────────────────────────────────────────
   const loading = isLoading || isFetching;
 
-  // ── Reset to page 1 on filter / search / sort changes ──────────────────────
-  useEffect(() => {
-    setPage(1);
-  }, [statusFilter, allergiesOnly, searchQuery, sortBy, sortOrder]);
-
-  // ── Stats — derived from full roster context ────────────────────────────────
-  // newThisMonth counts within the current page (all we have client-side);
-  // total, withAllergies, withConditions reference the full-page slice totals.
-  // For an accurate cross-page newThisMonth we would need a stats endpoint —
-  // acceptable trade-off for now (same as frontdesk registry approach).
-  const stats = useMemo(() => {
-    const newThisMonth  = patients.filter(
-      (p) => p.assignedAt && isThisMonth(new Date(p.assignedAt))
-    ).length;
-    const withAllergies  = patients.filter((p) => p.allergies?.trim()).length;
-    const withConditions = patients.filter((p) => p.medicalConditions?.trim()).length;
-    return { total, newThisMonth, withAllergies, withConditions };
-  }, [patients, total]);
-
-  // ── Allergies / conditions/new in-memory filter (applied to current page only) ─
   const filteredPatients = useMemo(() => {
+    if (statusFilter === 'QUEUED') return displayQueue;
     let list = [...patients];
 
     if (activeStatCard === 'new') {
@@ -108,12 +96,40 @@ export default function DoctorPatientsPage() {
     }
 
     return list;
-  }, [patients, allergiesOnly, activeStatCard]);
+  }, [patients, displayQueue, statusFilter, allergiesOnly, activeStatCard]);
 
-  // ── Pagination math ─────────────────────────────────────────────────────────
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const start      = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const end        = Math.min(page * PAGE_SIZE, total);
+  const displayTotal = statusFilter === 'QUEUED' ? displayQueue.length : total;
+
+  const stats = useMemo(() => {
+    if (statusFilter === 'QUEUED') {
+      return {
+        total: displayQueue.length,
+        newThisMonth: 0,
+        withAllergies: 0,
+        withConditions: 0,
+      };
+    }
+    const roster = filteredPatients as PatientResponseDto[];
+    const newThisMonth  = roster.filter((p) => p.assignedAt && isThisMonth(new Date(p.assignedAt))).length;
+    const withAllergies = roster.filter((p) => p.allergies?.trim()).length;
+    const withConditions = roster.filter((p) => p.medicalConditions?.trim()).length;
+    return { total: displayTotal, newThisMonth, withAllergies, withConditions };
+  }, [filteredPatients, displayQueue, displayTotal, statusFilter]);
+
+  const totalPages = statusFilter === 'QUEUED' ? 1 : Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const start      = displayTotal === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const end        = Math.min(page * PAGE_SIZE, displayTotal);
+
+  // ── Effects ─────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, allergiesOnly, searchQuery, sortBy, sortOrder]);
+
+  useEffect(() => {
+    if (statusFilter !== 'QUEUED') {
+      queryClient.invalidateQueries({ queryKey: queryKeys.doctor.queue('patients-page') });
+    }
+  }, [statusFilter, queryClient]);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
   const handleRefresh = async () => {
@@ -124,6 +140,10 @@ export default function DoctorPatientsPage() {
 
   const handleNewConsultation = useCallback((patientId: string) => {
     router.push(`/doctor/consultations/new?patientId=${patientId}`);
+  }, [router]);
+
+  const handleOpenQueuedPatient = useCallback((appointmentId: number, status: string) => {
+    router.push(`/doctor/consultations/session/${appointmentId}?start=true`);
   }, [router]);
 
   const handleSortOrderToggle = useCallback(() => {
@@ -143,7 +163,7 @@ export default function DoctorPatientsPage() {
 
   const handleAllergyFilter = useCallback(() => {
     setActiveStatCard((prev) => (prev === 'allergies' ? null : 'allergies'));
-    setAllergiesOnly(false); // stat card takes precedence
+    setAllergiesOnly(false);
   }, []);
 
   const handleConditionsFilter = useCallback(() => {
@@ -152,7 +172,7 @@ export default function DoctorPatientsPage() {
 
   const handleAllergiesToggle = useCallback(() => {
     setAllergiesOnly((prev) => !prev);
-    setActiveStatCard(null); // clear stat card shortcut when using the toggle
+    setActiveStatCard(null);
   }, []);
 
   // ── Auth guard ───────────────────────────────────────────────────────────────
@@ -196,8 +216,10 @@ export default function DoctorPatientsPage() {
         <div>
           <h1 className="text-base font-semibold text-white">My Patients</h1>
           {!isLoading && (
-            <p className="text-xs text-white/40 mt-0.5">
-              {total} patient{total !== 1 ? 's' : ''} in your roster
+            <p className="text-xs text-white/60 mt-0.5">
+              {statusFilter === 'QUEUED'
+                ? `${displayQueue.length} patient${displayQueue.length !== 1 ? 's' : ''} in queue`
+                : `${total} patient${total !== 1 ? 's' : ''} in your roster`}
             </p>
           )}
         </div>
@@ -237,157 +259,88 @@ export default function DoctorPatientsPage() {
         allergiesOnly={allergiesOnly}
         onAllergiesToggle={handleAllergiesToggle}
         resultCount={filteredPatients.length}
-        total={total}
+        total={displayTotal}
         loading={loading}
       />
 
       {/* ── Patient List ────────────────────────────────────────────────────── */}
-      {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="flex items-center gap-4 p-4 bg-white border border-[#e7d6bf] rounded-lg">
-              <Skeleton className="h-9 w-9 rounded-lg bg-[#e7d6bf]/30" />
-              <div className="flex-1 space-y-1.5">
-                <Skeleton className="h-4 w-44 bg-[#e7d6bf]/30" />
-                <Skeleton className="h-3 w-28 bg-[#e7d6bf]/30" />
-              </div>
-              <Skeleton className="h-8 w-20 rounded-lg bg-[#e7d6bf]/30" />
-            </div>
-          ))}
-        </div>
-      ) : patients.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 bg-white border border-[#e7d6bf] rounded-xl">
-          <h3 className="text-sm font-semibold text-[#2c2e4b]">
-            {searchQuery
-              ? 'No patients match your search'
-              : statusFilter === 'ALL'
-                ? 'No patients on record'
-                : `No ${statusFilter.toLowerCase()} patients`}
-          </h3>
-          <p className="text-xs text-[#2c2e4b]/60 max-w-xs text-center mt-1">
-            {searchQuery
-              ? 'Try a different name, file number, or phone number.'
-              : statusFilter === 'ACTIVE'
-                ? 'Patients appear here once assigned to your active care.'
-                : 'Try switching the status filter above.'}
-          </p>
-          {searchQuery && (
+      {statusFilter === 'QUEUED' ? (
+      <QueuePatientsView
+        queue={displayQueue}
+        isLoading={isLoadingQueued}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onSortByChange={(newSortBy) => setSortBy(newSortBy as SortKey)}
+        onSortOrderToggle={handleSortOrderToggle}
+        onOpenPatient={handleOpenQueuedPatient}
+        onNewConsultation={handleNewConsultation}
+      />
+      ) : (
+        <DoctorPatientsTable
+          patients={patients}
+          isLoading={isLoading}
+          onNewConsultation={handleNewConsultation}
+        />
+      )}
+
+      {/* ── Pagination ──────────────────────────────────────────────────────── */}
+      {displayTotal > PAGE_SIZE && statusFilter !== 'QUEUED' && (
+        <div className="flex items-center justify-between gap-3 border border-white/10 bg-white/5 rounded-xl px-4 py-2.5">
+          <span className="text-xs text-white/80 tabular-nums">
+            Showing {start}–{end} of {total}
+          </span>
+          <div className="flex items-center gap-1">
             <Button
               variant="outline"
               size="sm"
-              className="mt-4 rounded-lg border-[#e7d6bf] text-[#2c2e4b]"
-              onClick={() => setSearchQuery('')}
+              className="h-8 px-2.5 text-xs text-white border-white/20 bg-white/5 hover:bg-white/10 gap-1"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1 || loading}
             >
-              Clear search
+              <ChevronLeft className="h-3.5 w-3.5" /> Prev
             </Button>
-          )}
-        </div>
-      ) : filteredPatients.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 bg-white border border-[#e7d6bf] rounded-xl">
-          <h3 className="text-sm font-semibold text-[#2c2e4b]">No patients match your filters</h3>
-          <p className="text-xs text-[#2c2e4b]/60 max-w-xs text-center mt-1">
-            Clear the active filter to see the full page.
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-4 rounded-lg border-[#e7d6bf] text-[#2c2e4b]"
-            onClick={() => { setAllergiesOnly(false); setActiveStatCard(null); }}
-          >
-            Clear filter
-          </Button>
-        </div>
-      ) : (
-        <>
-          {/* ── Table ──────────────────────────────────────────────────────── */}
-          <div className="border border-[#e7d6bf] bg-white overflow-hidden rounded-xl">
-            {/* Column headers */}
-            <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-[#2c2e4b]/60 border-b border-[#e7d6bf]">
-              <div className="col-span-4">Patient</div>
-              <div className="col-span-2">File</div>
-              <div className="col-span-2">Phone</div>
-              <div className="col-span-2">Last visit</div>
-              <div className="col-span-1">Visits</div>
-              <div className="col-span-1">Flags</div>
-              <div className="col-span-1">Actions</div>
+
+            <div className="flex items-center gap-0.5 px-1">
+              {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                const p = i + 1;
+                const nearCurrent = Math.abs(p - page) <= 1;
+                const isEdge = p === 1 || p === totalPages;
+                if (!nearCurrent && !isEdge) {
+                  if (p === 2 || p === totalPages - 1) {
+                    return <span key={p} className="text-white/50 text-xs px-1">…</span>;
+                  }
+                  return null;
+                }
+                return (
+                  <button
+                    key={p}
+                    onClick={() => setPage(p)}
+                    disabled={loading}
+                    className={`h-7 min-w-[28px] px-1.5 rounded-md text-xs font-medium transition-colors duration-150 ${
+                      p === page
+                        ? 'bg-[#caa26a] text-[#2c2e4b]'
+                         : 'text-white/80 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                );
+              })}
             </div>
 
-            {/* Subtle fetch overlay */}
-            {isFetching && !isLoading && (
-              <div className="h-0.5 bg-[#caa26a]/40 animate-pulse" />
-            )}
-
-            <div className="divide-y divide-[#e7d6bf]">
-              {filteredPatients.map((patient) => (
-                <PatientRow
-                  key={patient.id}
-                  patient={patient}
-                  onNewConsultation={handleNewConsultation}
-                />
-              ))}
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 px-2.5 text-xs text-white border-white/20 bg-white/5 hover:bg-white/10 gap-1"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages || loading}
+            >
+              Next <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
           </div>
-
-          {/* ── Pagination ──────────────────────────────────────────────────── */}
-          {total > PAGE_SIZE && (
-            <div className="flex items-center justify-between gap-3 border border-white/10 bg-white/5 rounded-xl px-4 py-2.5">
-              <span className="text-xs text-white/60 tabular-nums">
-                Showing {start}–{end} of {total}
-              </span>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 px-2.5 text-xs text-white border-white/20 bg-white/5 hover:bg-white/10 gap-1"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1 || loading}
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" /> Prev
-                </Button>
-
-                {/* Page number pills */}
-                <div className="flex items-center gap-0.5 px-1">
-                  {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-                    // Show first, last, and pages around current
-                    const p = i + 1;
-                    const nearCurrent = Math.abs(p - page) <= 1;
-                    const isEdge      = p === 1 || p === totalPages;
-                    if (!nearCurrent && !isEdge) {
-                      if (p === 2 || p === totalPages - 1) {
-                        return <span key={p} className="text-white/30 text-xs px-1">…</span>;
-                      }
-                      return null;
-                    }
-                    return (
-                      <button
-                        key={p}
-                        onClick={() => setPage(p)}
-                        disabled={loading}
-                        className={`h-7 min-w-[28px] px-1.5 rounded-md text-xs font-medium transition-colors duration-150 ${
-                          p === page
-                            ? 'bg-[#caa26a] text-[#2c2e4b]'
-                            : 'text-white/60 hover:text-white hover:bg-white/10'
-                        }`}
-                      >
-                        {p}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 px-2.5 text-xs text-white border-white/20 bg-white/5 hover:bg-white/10 gap-1"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages || loading}
-                >
-                  Next <ChevronRight className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
-          )}
-        </>
+        </div>
       )}
     </div>
   );

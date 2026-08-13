@@ -8,6 +8,13 @@ import { AppointmentStatus, canStartConsultation } from '@/domain/enums/Appointm
 import { cn } from '@/lib/utils';
 import type { QueuePatient } from '@/hooks/doctor/useDoctorQueue';
 
+function extractReasonForVisit(notes: string | null): string | null {
+  if (!notes) return null;
+  const reasonMatch = notes.match(/Reason:\s*([^\n]+)/);
+  if (reasonMatch) return reasonMatch[1].trim();
+  return notes.trim() || null;
+}
+
 interface QueuePanelProps {
   queue: QueuePatient[];
   onRefresh: () => void;
@@ -69,6 +76,7 @@ export function QueuePanel({ queue, onRefresh, onLoadPatient, isRefetching }: Qu
                 ? `${queueItem.patient.firstName} ${queueItem.patient.lastName}`
                 : 'Unknown Patient';
               const canLoad = queueItem.status === AppointmentStatus.IN_CONSULTATION || queueItem.status === 'WAITING';
+              const reason = extractReasonForVisit(queueItem.notes);
 
               return (
                 <div
@@ -92,6 +100,14 @@ export function QueuePanel({ queue, onRefresh, onLoadPatient, isRefetching }: Qu
                       {statusConfig.label}
                     </Badge>
                   </div>
+
+                  {reason && (
+                    <div className="pl-2 mb-2">
+                      <p className="text-[10px] text-[#2c2e4b]/70 line-clamp-2">
+                        <span className="font-medium text-[#caa26a]">Reason:</span> {reason}
+                      </p>
+                    </div>
+                  )}
 
                   <div className="flex items-center justify-between gap-2 pl-2">
                     <span className="text-[10px] text-[#2c2e4b]/60 font-mono">

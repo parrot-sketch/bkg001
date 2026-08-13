@@ -21,6 +21,7 @@ interface PatientRowProps {
   appointmentCount?: number;
   lastVisit?:       Date;
   onNewConsultation?: (patientId: string) => void;
+  queueStatus?:     string;
 }
 
 export function PatientRow({
@@ -28,6 +29,7 @@ export function PatientRow({
   appointmentCount,
   lastVisit,
   onNewConsultation,
+  queueStatus,
 }: PatientRowProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -58,6 +60,7 @@ export function PatientRow({
   if (hasAllergies)  flags.push({ label: 'Allergies',  cls: 'bg-rose-50 text-rose-700 border-rose-200'     });
   if (hasConditions) flags.push({ label: 'Conditions', cls: 'bg-amber-50 text-amber-700 border-amber-200'  });
   if (hasInsurance)  flags.push({ label: 'Insured',    cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' });
+  if (queueStatus)   flags.push({ label: queueStatus, cls: 'bg-purple-50 text-purple-700 border-purple-200' });
 
   const handleRowClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;

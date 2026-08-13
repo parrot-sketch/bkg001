@@ -17,6 +17,8 @@ interface Props {
   userRole?: Role;
   onSaveDraft: () => void;
   onComplete: () => void;
+  onNextPatient?: () => void;
+  hasNextPatient?: boolean;
   autoSaveStatus: 'idle' | 'saving' | 'saved' | 'error';
   isSaving?: boolean;
   patientSidebarCollapsed?: boolean;
@@ -30,6 +32,8 @@ export function ConsultationSessionHeader({
   userRole,
   onSaveDraft,
   onComplete,
+  onNextPatient,
+  hasNextPatient,
   autoSaveStatus,
   isSaving = false,
   patientSidebarCollapsed,
@@ -42,6 +46,8 @@ export function ConsultationSessionHeader({
       userRole={userRole}
       onSaveDraft={onSaveDraft}
       onComplete={onComplete}
+      onNextPatient={onNextPatient}
+      hasNextPatient={hasNextPatient}
       autoSaveStatus={autoSaveStatus}
       isSaving={isSaving}
       patientSidebarCollapsed={patientSidebarCollapsed}
@@ -56,6 +62,8 @@ function SessionHeaderContent({
   userRole,
   onSaveDraft,
   onComplete,
+  onNextPatient,
+  hasNextPatient,
   autoSaveStatus,
   isSaving,
   patientSidebarCollapsed,
@@ -102,6 +110,15 @@ function SessionHeaderContent({
 
       {/* Right — Actions */}
       <div className="flex items-center gap-2">
+        {onNextPatient && hasNextPatient && (
+          <Button
+            size="sm"
+            onClick={onNextPatient}
+            className="h-8 px-3 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm transition-colors"
+          >
+            Next Patient
+          </Button>
+        )}
         {onTogglePatientSidebar && (
           <Button
             variant="ghost"

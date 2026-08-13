@@ -155,7 +155,7 @@ export default function DoctorSurgicalCasesPage() {
             <div className="bg-white/10 backdrop-blur-sm rounded-xl px-5 py-4 border border-white/20">
                 <p className="text-xs text-[#caa26a] font-semibold uppercase tracking-widest mb-1">Doctor Workspace</p>
                 <h1 className="text-2xl font-bold tracking-tight text-white">Surgical Cases</h1>
-                <p className="mt-1 text-sm text-white/60">
+                <p className="mt-1 text-sm text-white/80">
                     Follow each case from planning through ward prep, booking, and active surgery.
                 </p>
             </div>
@@ -171,7 +171,7 @@ export default function DoctorSurgicalCasesPage() {
                     { label: 'Active', value: metrics?.inProgress, color: 'text-white', accent: 'text-red-300' },
                 ].map(({ label, value, color, accent }) => (
                     <div key={label} className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-3">
-                        <span className="text-[10px] font-semibold text-white/50 uppercase tracking-wider block mb-1">
+                        <span className="text-[10px] font-semibold text-white/70 uppercase tracking-wider block mb-1">
                             {label}
                         </span>
                         <p className={cn('text-2xl font-bold', accent)}>{value ?? 0}</p>
@@ -212,12 +212,12 @@ export default function DoctorSurgicalCasesPage() {
             {/* Filters Row */}
             <div className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-1 max-w-sm">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/70" />
                     <Input
                         placeholder="Search patient, procedure, diagnosis..."
                         value={search}
                         onChange={(e) => handleSearchChange(e.target.value)}
-                        className="pl-9 h-9 text-sm bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-[#caa26a] focus:ring-[#caa26a]/30"
+                        className="pl-9 h-9 text-sm bg-white/10 border-white/20 text-white placeholder:text-white/60 focus:border-[#caa26a] focus:ring-[#caa26a]/30"
                     />
                 </div>
 
@@ -244,7 +244,7 @@ export default function DoctorSurgicalCasesPage() {
                 </div>
 
                 {isFetching && !isLoading && (
-                    <div className="flex items-center gap-1.5 text-xs text-white/50 animate-pulse self-center">
+                    <div className="flex items-center gap-1.5 text-xs text-white/80 animate-pulse self-center">
                         <div className="h-1.5 w-1.5 rounded-full bg-[#caa26a]" />
                         Updating...
                     </div>
@@ -271,9 +271,9 @@ export default function DoctorSurgicalCasesPage() {
                 </div>
             ) : items.length === 0 ? (
                 <div className="bg-white/5 border border-white/15 border-dashed rounded-xl p-16 flex flex-col items-center justify-center text-center">
-                    <Scissors className="h-8 w-8 text-white/30" />
+                    <Scissors className="h-8 w-8 text-white/60" />
                     <h3 className="mt-4 font-semibold text-white">No Surgical Cases</h3>
-                    <p className="text-sm text-white/50 mt-1">
+                    <p className="text-sm text-white/70 mt-1">
                         Click "Plan Surgery" on a completed consultation in the Consultations Hub to create a case.
                     </p>
                 </div>
@@ -399,9 +399,9 @@ export default function DoctorSurgicalCasesPage() {
             {/* Pagination */}
             {meta && meta.totalPages > 1 && (
                 <div className="flex items-center justify-between pt-2">
-                    <p className="text-xs text-white/50">
-                        Showing <span className="font-medium text-white/80">{(meta.page - 1) * meta.pageSize + 1}–{Math.min(meta.page * meta.pageSize, meta.total)}</span> of{' '}
-                        <span className="font-medium text-white/80">{meta.total}</span> cases
+                    <p className="text-xs text-white/70">
+                        Showing <span className="font-medium text-white">{(meta.page - 1) * meta.pageSize + 1}–{Math.min(meta.page * meta.pageSize, meta.total)}</span> of{' '}
+                        <span className="font-medium text-white">{meta.total}</span> cases
                     </p>
                     <div className="flex items-center gap-1.5">
                         <Button

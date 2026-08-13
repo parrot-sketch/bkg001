@@ -90,7 +90,7 @@ export function QueueContextProvider({
     data: queue = [],
     refetch: refetchQueue,
     isRefetching: isQueueRefetching,
-  } = useDoctorQueue(doctorId ?? undefined, state.queueLoaded);
+  } = useDoctorQueue(doctorId ?? undefined, { enabled: state.queueLoaded });
 
   const waitingQueue = useMemo(() => {
     return queue.filter((item) =>

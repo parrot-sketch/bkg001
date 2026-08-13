@@ -3,17 +3,18 @@
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Stethoscope, Activity, History, CreditCard, Loader2 } from 'lucide-react';
+import { Stethoscope, Activity, History, CreditCard, Loader2, ChevronRight } from 'lucide-react';
 import { ClinicalRichTextEditor } from '@/components/consultation/ClinicalRichTextEditor';
 import type { StructuredNotes } from '@/shared-kernel/types/notes';
+import type { ConsultationHistoryItem } from '@/actions/doctor/get-patient-consultation-history';
 
 type PrimaryTab = 'consultation' | 'vitals' | 'history' | 'billing';
 type SoapTab = 'subjective' | 'objective' | 'assessment' | 'plan';
 
 const SOAP_TABS: { key: SoapTab; label: string; field: keyof StructuredNotes; placeholder: string }[] = [
-  { key: 'subjective', label: 'Subjective', field: 'chiefComplaint', placeholder: 'Patient complaints, symptoms, history of present illness...' },
-  { key: 'objective', label: 'Objective', field: 'examination', placeholder: 'Physical examination findings, vitals, test results...' },
-  { key: 'assessment', label: 'Assessment', field: 'assessment', placeholder: 'Clinical assessment, diagnosis, differential diagnosis...' },
+  { key: 'subjective', label: 'Medical History', field: 'chiefComplaint', placeholder: 'Patient complaints, symptoms, history of present illness...' },
+  { key: 'objective', label: 'Physical Examination', field: 'examination', placeholder: 'Physical examination findings, vitals, test results...' },
+  { key: 'assessment', label: 'Diagnosis', field: 'assessment', placeholder: 'Clinical assessment, diagnosis, differential diagnosis...' },
   { key: 'plan', label: 'Plan', field: 'plan', placeholder: 'Treatment plan, medications, referrals, follow-up...' },
 ];
 
@@ -45,6 +46,8 @@ interface WorkspaceProps {
   vitals?: VitalsData | null;
   patientLoading?: boolean;
   queueLength?: number;
+  history?: ConsultationHistoryItem[];
+  isLoadingHistory?: boolean;
   onReturnToHub?: () => void;
 }
 
@@ -63,6 +66,8 @@ export function Workspace({
   vitals,
   patientLoading,
   queueLength = 0,
+  history = [],
+  isLoadingHistory = false,
   onReturnToHub,
 }: WorkspaceProps) {
   return (
@@ -205,10 +210,55 @@ export function Workspace({
       </TabsContent>
 
       <TabsContent value="history" className="flex-1 mt-0 overflow-hidden">
-        <div className="flex flex-col items-center justify-center h-64 text-center">
-          <History className="h-8 w-8 text-stone-300 mb-2" />
-          <p className="text-sm text-stone-500">Previous consultations will appear here</p>
-        </div>
+        {isLoadingHistory ? (
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="h-6 w-6 animate-spin text-stone-400" />
+          </div>
+        ) : history.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-64 text-center">
+            <History className="h-8 w-8 text-stone-300 mb-2" />
+            <p className="text-sm text-stone-500">No previous consultations found</p>
+          </div>
+        ) : (
+          <div className="h-full overflow-y-auto custom-scrollbar-light p-4 space-y-3">
+            {history.map((consultation) => (
+              <div key={consultation.appointmentId} className="border border-[#e7d6bf] rounded-lg p-4 bg-white">
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <p className="text-sm font-semibold text-[#2c2e4b]">
+                      {new Date(consultation.appointmentDate).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </p>
+                    <p className="text-xs text-[#2c2e4b]/60">
+                      {consultation.doctor.name} · {consultation.state}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {consultation.durationMinutes && (
+                      <span className="text-xs text-[#2c2e4b]/50">{consultation.durationMinutes}m</span>
+                    )}
+                    {consultation.outcomeType && (
+                      <span className="text-xs text-[#caa26a] font-medium capitalize">
+                        {consultation.outcomeType.replace(/_/g, ' ').toLowerCase()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {consultation.notesSummary && (
+                  <p className="text-xs text-[#2c2e4b]/70 leading-relaxed line-clamp-3">
+                    {consultation.notesSummary}
+                  </p>
+                )}
+                <div className="mt-2 flex items-center gap-1 text-xs text-[#caa26a] font-medium cursor-pointer hover:underline">
+                  View details <ChevronRight className="h-3 w-3" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </TabsContent>
 
       <TabsContent value="billing" className="flex-1 mt-0 overflow-hidden">

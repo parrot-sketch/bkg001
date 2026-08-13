@@ -1,7 +1,8 @@
 'use client';
 
+import { useState, useCallback } from 'react';
 import { useDoctorDashboard } from '@/hooks/use-doctor-dashboard';
-import { useDoctorQueue } from '@/hooks/doctor/useDoctorQueue';
+import { useDoctorQueue, type UseDoctorQueueOptions } from '@/hooks/doctor/useDoctorQueue';
 import { DashboardStatCards } from '@/components/doctor/dashboard/DashboardStatCards';
 import { DailyQueuePanel } from '@/components/doctor/dashboard/DailyQueuePanel';
 import { CasePipeline } from '@/components/doctor/dashboard/CasePipeline';
@@ -10,7 +11,16 @@ import { PendingConfirmationsBanner } from '@/components/doctor/dashboard/Pendin
 
 export default function DoctorDashboardPage() {
   const { data: dashboardData, isLoading: dashboardLoading } = useDoctorDashboard();
-  const { data: queue, isLoading: queueLoading } = useDoctorQueue(dashboardData?.doctor?.id);
+  const [queueDateRange, setQueueDateRange] = useState<UseDoctorQueueOptions>({});
+  
+  const { data: queue, isLoading: queueLoading } = useDoctorQueue(dashboardData?.doctor?.id, {
+    ...queueDateRange,
+    enabled: !!dashboardData?.doctor?.id,
+  });
+
+  const handleQueueDateRangeChange = useCallback((startDate: string | undefined, endDate: string | undefined) => {
+    setQueueDateRange({ startDate, endDate });
+  }, []);
 
   return (
     <div className="space-y-5 animate-in fade-in duration-500">
@@ -34,7 +44,11 @@ export default function DoctorDashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 space-y-5">
-          <DailyQueuePanel queue={queue ?? []} isLoading={dashboardLoading || queueLoading} />
+          <DailyQueuePanel 
+            queue={queue ?? []} 
+            isLoading={dashboardLoading || queueLoading} 
+            onDateRangeChange={handleQueueDateRangeChange}
+          />
         </div>
 
         <div className="lg:col-span-1">

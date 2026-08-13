@@ -348,6 +348,7 @@ export async function assignPatientToQueue(data: {
   doctorId: string;
   appointmentId?: number;
   notes?: string;
+  reason?: string;
 }) {
   try {
     const user = await getCurrentUser();
@@ -359,10 +360,14 @@ export async function assignPatientToQueue(data: {
       return { success: false, msg: "Only frontdesk staff can assign patients to queue" };
     }
 
-    const { patientId, doctorId, appointmentId, notes } = data;
+    const { patientId, doctorId, appointmentId, notes, reason } = data;
 
     if (!patientId || !doctorId) {
       return { success: false, msg: "Patient ID and Doctor ID are required" };
+    }
+
+    if (!reason || !reason.trim()) {
+      return { success: false, msg: "Reason for visit is required" };
     }
 
     // Check if patient exists
@@ -473,6 +478,7 @@ export async function assignPatientToQueue(data: {
     }
 
     // Create queue entry
+    const queueNotes = reason ? `Reason: ${reason}${notes ? `\nNotes: ${notes}` : ''}` : notes;
     const queueEntry = await db.patientQueue.create({
       data: {
         patient_id: patientId,
@@ -480,7 +486,7 @@ export async function assignPatientToQueue(data: {
         appointment_id: finalAppointmentId,
         status: 'WAITING',
         added_by: user.userId,
-        notes,
+        notes: queueNotes,
       },
       include: {
         patient: { select: { id: true, first_name: true, last_name: true, file_number: true } },

@@ -82,7 +82,7 @@ function StatCardItem({
       </div>
       <div className={cn(
         'mt-1.5 text-[10px] font-semibold uppercase tracking-wider',
-        active ? 'text-white/80' : 'text-white/40',
+        active ? 'text-white/90' : 'text-white/70',
       )}>
         {label}
       </div>

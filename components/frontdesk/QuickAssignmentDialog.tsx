@@ -32,6 +32,7 @@ export function QuickAssignmentDialog({
   const queryClient = useQueryClient();
   const [selectedPatient, setSelectedPatient] = useState<PatientResponseDto | null>(null);
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>('');
+  const [reasonForVisit, setReasonForVisit] = useState('');
   const [doctors, setDoctors] = useState<DoctorResponseDto[]>([]);
   const [loadingDoctors, setLoadingDoctors] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -87,6 +88,11 @@ export function QuickAssignmentDialog({
       return;
     }
 
+    if (!reasonForVisit.trim()) {
+      toast.error('Please provide a reason for the visit');
+      return;
+    }
+
     setShowConfirm(true);
   };
 
@@ -98,6 +104,7 @@ export function QuickAssignmentDialog({
         patientId: selectedPatient!.id,
         doctorId: selectedDoctorId,
         notes: 'Added via Quick Assignment',
+        reason: reasonForVisit.trim(),
       });
 
       if (result.success) {
@@ -122,6 +129,7 @@ export function QuickAssignmentDialog({
   const handleClose = () => {
     setSelectedPatient(null);
     setSelectedDoctorId('');
+    setReasonForVisit('');
     setShowConfirm(false);
     onOpenChange(false);
   };
@@ -209,6 +217,18 @@ export function QuickAssignmentDialog({
               </p>
             </div>
           )}
+
+          {/* Reason for Visit */}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-[#2c2e4b]">Reason for Visit <span className="text-red-500">*</span></Label>
+            <textarea
+              className="w-full h-20 px-3 py-2 rounded-lg border border-[#e7d6bf] bg-white text-sm text-[#2c2e4b] focus:outline-none focus:ring-2 focus:ring-[#caa26a]/30 focus:border-[#caa26a] transition-all duration-200 resize-none"
+              placeholder="Enter the reason for the patient's visit..."
+              value={reasonForVisit}
+              onChange={(e) => setReasonForVisit(e.target.value)}
+              required
+            />
+          </div>
         </div>
 
         {/* Actions */}

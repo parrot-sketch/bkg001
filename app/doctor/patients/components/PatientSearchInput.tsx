@@ -59,9 +59,9 @@ export function PatientSearchInput({
       {/* Leading icon — spinner during load, search icon otherwise */}
       <span className="absolute left-3 flex items-center pointer-events-none">
         {loading ? (
-          <Loader2 className="h-3.5 w-3.5 text-white/40 animate-spin" />
+          <Loader2 className="h-3.5 w-3.5 text-white/70 animate-spin" />
         ) : (
-          <Search className="h-3.5 w-3.5 text-white/40" />
+          <Search className="h-3.5 w-3.5 text-white/70" />
         )}
       </span>
 
@@ -74,7 +74,7 @@ export function PatientSearchInput({
         className={cn(
           'w-full h-9 pl-9 pr-8',
           'bg-[#2c2e4b] border border-white/25 rounded-lg',
-          'text-sm text-white placeholder:text-white/35',
+          'text-sm text-white placeholder:text-white/60',
           'focus:outline-none focus:ring-1 focus:ring-[#caa26a]/60 focus:border-[#caa26a]/60',
           'transition-colors duration-150',
           '[&::-webkit-search-cancel-button]:appearance-none',

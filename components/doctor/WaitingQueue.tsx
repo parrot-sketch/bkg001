@@ -10,6 +10,13 @@ import { formatDistanceToNow } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { QueuePatient } from '@/hooks/doctor/useDoctorQueue';
 
+function extractReasonForVisit(notes: string | null): string | null {
+  if (!notes) return null;
+  const reasonMatch = notes.match(/Reason:\s*([^\n]+)/);
+  if (reasonMatch) return reasonMatch[1].trim();
+  return notes.trim() || null;
+}
+
 interface WaitingQueueProps {
   queue: QueuePatient[];
   onStartConsultation?: (appointmentId: number) => void;
@@ -52,6 +59,7 @@ export function WaitingQueue({ queue, onStartConsultation }: WaitingQueueProps) 
             const waitTime = item.addedAt
               ? formatDistanceToNow(new Date(item.addedAt), { addSuffix: false })
               : '';
+            const reason = extractReasonForVisit(item.notes);
 
             return (
               <div
@@ -64,12 +72,18 @@ export function WaitingQueue({ queue, onStartConsultation }: WaitingQueueProps) 
                     <h4 className="text-sm font-medium text-[#2c2e4b] truncate">
                       {patientName}
                     </h4>
-                    <div className="flex items-center gap-2 text-xs text-[#2c2e4b]/60 mt-0.5">
-                      <Clock className="h-3 w-3 text-[#caa26a]" />
-                      <span>{waitTime}</span>
-                      <span className="text-[#e7d6bf]">.</span>
-                      <span>{item.type || 'Consultation'}</span>
-                    </div>
+                    {reason ? (
+                      <p className="text-xs text-[#2c2e4b]/70 truncate mt-0.5">
+                        <span className="font-medium text-[#caa26a]">Reason:</span> {reason}
+                      </p>
+                    ) : (
+                      <div className="flex items-center gap-2 text-xs text-[#2c2e4b]/60 mt-0.5">
+                        <Clock className="h-3 w-3 text-[#caa26a]" />
+                        <span>{waitTime}</span>
+                        <span className="text-[#e7d6bf]">.</span>
+                        <span>{item.type || 'Consultation'}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 

@@ -214,13 +214,6 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
       where: {
         doctor_id: doctorId,
         status: 'WAITING',
-        added_at: {
-          gte: today,
-          lt: tomorrow,
-        },
-        appointment: {
-          status: { notIn: ['IN_CONSULTATION', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] },
-        },
       },
       include: {
         patient: {

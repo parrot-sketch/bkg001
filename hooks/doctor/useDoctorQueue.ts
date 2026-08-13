@@ -35,15 +35,28 @@ export interface QueuePatient {
   isWalkIn: boolean;
 }
 
-async function fetchDoctorQueue(doctorId: string): Promise<QueuePatient[]> {
-  const response = await fetch(`/api/doctor/${doctorId}/queue`);
+async function fetchDoctorQueue(doctorId: string, startDate?: string, endDate?: string): Promise<QueuePatient[]> {
+  const params = new URLSearchParams();
+  if (startDate) params.set('startDate', startDate);
+  if (endDate) params.set('endDate', endDate);
+  const queryString = params.toString();
+  const url = queryString ? `/api/doctor/${doctorId}/queue?${queryString}` : `/api/doctor/${doctorId}/queue`;
+  
+  const response = await fetch(url);
   if (!response.ok) {
     throw new Error('Failed to load queue');
   }
   return response.json();
 }
 
-export function useDoctorQueue(doctorId: string | undefined, enabled = true) {
+export interface UseDoctorQueueOptions {
+  startDate?: string;
+  endDate?: string;
+}
+
+export function useDoctorQueue(doctorId: string | undefined, options: UseDoctorQueueOptions & { enabled?: boolean } = {}) {
+  const { startDate, endDate, enabled = true } = options;
+  
   return useQuery<QueuePatient[]>({
     queryKey: queryKeys.doctor.queue(doctorId ?? ''),
     queryFn: async () => {
@@ -51,7 +64,7 @@ export function useDoctorQueue(doctorId: string | undefined, enabled = true) {
         throw new Error('Doctor ID is required');
       }
       
-      return fetchDoctorQueue(doctorId);
+      return fetchDoctorQueue(doctorId, startDate, endDate);
     },
     staleTime: 1000 * 30,
     gcTime: 1000 * 60 * 2,

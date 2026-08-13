@@ -12,6 +12,7 @@ import {
   Workspace,
   QueuePanel,
 } from '@/components/consultation/room';
+import { getPatientConsultationHistory, type ConsultationHistoryItem } from '@/actions/doctor/get-patient-consultation-history';
 
 type PrimaryTab = 'consultation' | 'vitals' | 'history' | 'billing';
 type SoapTab = 'subjective' | 'objective' | 'assessment' | 'plan';
@@ -27,12 +28,50 @@ export function ConsultationSessionContent() {
   const [primaryTab, setPrimaryTab] = useState<PrimaryTab>('consultation');
   const [soapTab, setSoapTab] = useState<SoapTab>('subjective');
   const [sidebarRefetchKey, setSidebarRefetchKey] = useState(0);
+  const [history, setHistory] = useState<ConsultationHistoryItem[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   useEffect(() => {
     if (isReadOnly) {
       setPrimaryTab('consultation');
     }
   }, [isReadOnly]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const patientId = patient?.id;
+
+    const loadHistory = async () => {
+      if (!patientId) {
+        setHistory([]);
+        setIsLoadingHistory(false);
+        return;
+      }
+
+      setIsLoadingHistory(true);
+      try {
+        const result = await getPatientConsultationHistory(patientId);
+        if (cancelled) return;
+        if (result.success) {
+          setHistory(result.data.consultations);
+        }
+      } catch {
+        if (!cancelled) {
+          console.error('Failed to load consultation history');
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingHistory(false);
+        }
+      }
+    };
+
+    loadHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [patient?.id]);
 
   const notes = state.notes;
   const isDirty = canSave;
@@ -44,6 +83,33 @@ export function ConsultationSessionContent() {
   const patientName = patient
     ? `${patient.firstName || 'Unknown'} ${patient.lastName || 'Patient'}`
     : 'Loading patient…';
+
+  const nextPatient = useCallback(() => {
+    const currentId = appointment?.id;
+    if (!currentId || waitingQueue.length === 0) return null;
+    const currentIndex = waitingQueue.findIndex(q => q.appointmentId === currentId);
+    const nextQueueItem = waitingQueue[currentIndex + 1];
+    return nextQueueItem?.appointmentId ?? null;
+  }, [appointment?.id, waitingQueue]);
+
+  const handleNextPatient = useCallback(async () => {
+    const targetId = nextPatient();
+    if (!targetId) {
+      toast.info('No next patient in queue');
+      return;
+    }
+    try {
+      if (isDirty) {
+        await saveDraft();
+      }
+      await switchToPatient(targetId);
+      setSidebarRefetchKey((k) => k + 1);
+      toast.success('Loaded next patient');
+    } catch (err: any) {
+      console.error('Failed to load next patient:', err);
+      toast.error(err?.message || 'Failed to switch patient');
+    }
+  }, [nextPatient, isDirty, saveDraft, switchToPatient]);
 
   const handleSaveDraft = useCallback(async () => {
     try {
@@ -107,6 +173,8 @@ export function ConsultationSessionContent() {
           queuePanelCollapsed={!queuePanelOpen}
           onTogglePatientSidebar={() => setSidebarOpen((v) => !v)}
           onToggleQueuePanel={() => setQueuePanelOpen((v) => !v)}
+          onNextPatient={handleNextPatient}
+          hasNextPatient={!!nextPatient()}
         />
       }
       patientPanel={
@@ -149,6 +217,8 @@ export function ConsultationSessionContent() {
           vitals={vitals}
           patientLoading={patientLoading}
           queueLength={waitingQueue.length}
+          history={history}
+          isLoadingHistory={isLoadingHistory}
           onReturnToHub={() => router.push('/doctor/consultations')}
         />
       }

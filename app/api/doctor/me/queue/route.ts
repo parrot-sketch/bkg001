@@ -1,19 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { JwtMiddleware } from '@/lib/auth/middleware';
 import db from '@/lib/db';
+import { Role } from '@/domain/enums/Role';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest) {
   try {
-    const { id: doctorId } = await params;
+    const authResult = await JwtMiddleware.authenticate(request);
+    if (!authResult.success || !authResult.user) {
+      return NextResponse.json(
+        { success: false, error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    if (authResult.user.role !== Role.DOCTOR) {
+      return NextResponse.json(
+        { success: false, error: 'Access denied: Only doctors can access this endpoint' },
+        { status: 403 }
+      );
+    }
+
+    const doctor = await db.doctor.findUnique({
+      where: { user_id: authResult.user.userId },
+      select: { id: true },
+    });
+
+    if (!doctor) {
+      return NextResponse.json(
+        { success: false, error: 'Doctor profile not found' },
+        { status: 404 }
+      );
+    }
 
     const url = new URL(request.url);
     const startDate = url.searchParams.get('startDate');
     const endDate = url.searchParams.get('endDate');
 
     const where: any = {
-      doctor_id: doctorId,
+      doctor_id: doctor.id,
       status: { in: ['WAITING', 'IN_CONSULTATION'] },
     };
 

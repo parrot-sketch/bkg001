@@ -16,18 +16,29 @@ import { PatientSearchInput } from './PatientSearchInput';
 
 export type SortKey       = 'assignedAt' | 'name';
 export type SortOrder     = 'asc' | 'desc';
-export type StatusFilter  = 'ACTIVE' | 'DISCHARGED' | 'TRANSFERRED' | 'INACTIVE' | 'ALL';
+export type StatusFilter  = 'ACTIVE' | 'DISCHARGED' | 'TRANSFERRED' | 'INACTIVE' | 'ALL' | 'QUEUED';
 
-const SORT_OPTIONS: { key: SortKey; label: string }[] = [
-  { key: 'assignedAt', label: 'Date assigned' },
-  { key: 'name',       label: 'Name A–Z'      },
-];
+const SORT_OPTIONS_BY_STATUS: Record<string, { key: SortKey; label: string }[]> = {
+  QUEUED: [
+    { key: 'assignedAt', label: 'Wait time' },
+    { key: 'name',       label: 'Name A–Z'  },
+  ],
+  DEFAULT: [
+    { key: 'assignedAt', label: 'Date assigned' },
+    { key: 'name',       label: 'Name A–Z'      },
+  ],
+};
+
+function getSortOptions(statusFilter: StatusFilter) {
+  return SORT_OPTIONS_BY_STATUS[statusFilter] ?? SORT_OPTIONS_BY_STATUS.DEFAULT;
+}
 
 const STATUS_OPTIONS: { key: StatusFilter; label: string; dot: string }[] = [
   { key: 'ACTIVE',      label: 'Active',      dot: 'bg-emerald-400' },
   { key: 'DISCHARGED',  label: 'Discharged',  dot: 'bg-zinc-400'    },
   { key: 'TRANSFERRED', label: 'Transferred', dot: 'bg-blue-400'    },
   { key: 'INACTIVE',    label: 'Inactive',    dot: 'bg-amber-400'   },
+  { key: 'QUEUED',      label: 'In Queue',    dot: 'bg-purple-400'  },
   { key: 'ALL',         label: 'All statuses',dot: 'bg-white/40'    },
 ];
 
@@ -64,6 +75,8 @@ export function PatientFilters({
 }: PatientFiltersProps) {
   const currentStatus = STATUS_OPTIONS.find((o) => o.key === statusFilter) ?? STATUS_OPTIONS[0];
 
+  const sortOptions = getSortOptions(statusFilter);
+
   return (
     <div className="space-y-3">
       {/* ── Row 1: Search ─────────────────────────────────────────────────── */}
@@ -88,7 +101,7 @@ export function PatientFilters({
                 'inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-xs font-medium transition-all duration-150',
                 statusFilter === opt.key
                   ? 'bg-[#caa26a] text-[#2c2e4b] shadow-sm'
-                  : 'bg-white/8 border border-white/12 text-white/65 hover:bg-white/14 hover:text-white/90'
+                  : 'bg-white/10 border border-white/15 text-white/80 hover:bg-white/15 hover:text-white'
               )}
             >
               <span className={cn('h-1.5 w-1.5 rounded-full flex-shrink-0', opt.dot)} />
@@ -102,7 +115,7 @@ export function PatientFilters({
 
         {/* Sort-by selector */}
         <div className="flex items-center gap-1">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-white/40 hidden sm:block">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-white/70 hidden sm:block">
             Sort
           </span>
           <div className="relative">
@@ -118,13 +131,13 @@ export function PatientFilters({
                 '[&>option]:text-[#2c2e4b] [&>option]:bg-white',
               )}
             >
-              {SORT_OPTIONS.map((opt) => (
+              {sortOptions.map((opt) => (
                 <option key={opt.key} value={opt.key}>
                   {opt.label}
                 </option>
               ))}
             </select>
-            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-white/40 pointer-events-none" />
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-white/70 pointer-events-none" />
           </div>
 
           {/* Sort direction toggle */}
@@ -132,7 +145,7 @@ export function PatientFilters({
             type="button"
             onClick={onSortOrderToggle}
             aria-label={`Sort order: ${sortOrder === 'asc' ? 'ascending' : 'descending'}`}
-            className="h-7 w-7 flex items-center justify-center rounded-lg border border-white/15 bg-white/8 text-white/60 hover:bg-white/15 hover:text-white transition-colors duration-150"
+            className="h-7 w-7 flex items-center justify-center rounded-lg border border-white/15 bg-white/8 text-white/80 hover:bg-white/15 hover:text-white transition-colors duration-150"
           >
             {sortOrder === 'asc' ? (
               <ArrowUp className="h-3.5 w-3.5" />
@@ -151,7 +164,7 @@ export function PatientFilters({
             'inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-xs font-medium transition-all duration-150',
             allergiesOnly
               ? 'bg-rose-500/80 border border-rose-400/50 text-white shadow-sm shadow-rose-500/20'
-              : 'bg-white/8 border border-white/12 text-white/65 hover:bg-white/14 hover:text-white/90'
+              : 'bg-white/10 border border-white/15 text-white/80 hover:bg-white/15 hover:text-white'
           )}
         >
           <AlertTriangle className="h-3 w-3 flex-shrink-0" />
@@ -159,7 +172,7 @@ export function PatientFilters({
         </button>
 
         {/* Result count */}
-        <span className="text-xs text-white/40 whitespace-nowrap tabular-nums">
+        <span className="text-xs text-white/70 whitespace-nowrap tabular-nums">
           {loading ? '…' : `${resultCount} of ${total}`}
         </span>
       </div>

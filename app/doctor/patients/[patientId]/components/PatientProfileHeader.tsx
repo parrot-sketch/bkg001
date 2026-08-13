@@ -52,7 +52,7 @@ export function PatientProfileHeader({
               onClick={() =>
                 router.push(`/doctor/consultations/session/${consultationAppointmentId}`)
               }
-              className="h-7 px-2 text-white/60 hover:text-white hover:bg-white/10 rounded-lg gap-1"
+               className="h-7 px-2 text-white/80 hover:text-white hover:bg-white/10 rounded-lg gap-1"
             >
               <ArrowLeft className="h-3 w-3" />
               <span className="text-[10px] font-medium">Consultation</span>
@@ -70,7 +70,7 @@ export function PatientProfileHeader({
         </div>
 
         {/* Divider */}
-        <span className="text-white/20 text-sm select-none">/</span>
+        <span className="text-white/50 text-sm select-none">/</span>
 
         {/* Title */}
         <div className="min-w-0">
@@ -78,7 +78,7 @@ export function PatientProfileHeader({
             {patientName || 'Patient Profile'}
           </h1>
           {fileNumber && (
-            <p className="text-[10px] text-white/40 font-mono mt-0.5">
+            <p className="text-[10px] text-white/70 font-mono mt-0.5">
               Chart #{fileNumber}
             </p>
           )}

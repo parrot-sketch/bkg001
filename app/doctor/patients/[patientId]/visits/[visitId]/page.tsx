@@ -285,18 +285,18 @@ function VisitInfoBar({
           variant="ghost"
           size="sm"
           onClick={onBack}
-          className="h-7 px-2.5 text-white/60 hover:text-white hover:bg-white/10 rounded-lg gap-1 shrink-0"
+           className="h-7 px-2.5 text-white/80 hover:text-white hover:bg-white/10 rounded-lg gap-1 shrink-0"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           <span className="text-[10px] font-medium">Profile</span>
         </Button>
 
-        <span className="text-white/20 text-sm select-none">/</span>
+        <span className="text-white/60 text-sm select-none">/</span>
 
         <div className="flex items-center gap-2 flex-wrap min-w-0">
           <h1 className="text-sm font-semibold text-white truncate">{patientName}</h1>
           {fileNumber && (
-            <span className="text-[9px] font-mono text-white/40 border border-white/15 bg-white/5 rounded px-1.5 py-0.5">
+            <span className="text-[9px] font-mono text-white/70 border border-white/15 bg-white/5 rounded px-1.5 py-0.5">
               Chart #{fileNumber}
             </span>
           )}
@@ -310,19 +310,19 @@ function VisitInfoBar({
       </div>
 
       {/* Right section: metadata timeline details */}
-      <div className="flex flex-wrap items-center gap-3 text-[10px] text-white/40 sm:self-end md:self-auto font-medium">
+      <div className="flex flex-wrap items-center gap-3 text-[10px] text-white/70 sm:self-end md:self-auto font-medium">
         <span className="flex items-center gap-1.5">
-          <Calendar className="h-3 w-3 text-white/30" />
+          <Calendar className="h-3 w-3 text-white/60" />
           {format(new Date(date), 'EEE, MMM d, yyyy')}
         </span>
         <span className="flex items-center gap-1.5">
-          <Clock className="h-3 w-3 text-white/30" />
+          <Clock className="h-3 w-3 text-white/60" />
           {time}
         </span>
-        <span className="capitalize px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-white/60">{type.toLowerCase()}</span>
+        <span className="capitalize px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-white/80">{type.toLowerCase()}</span>
         {doctorName && (
           <span className="flex items-center gap-1.5">
-            <User className="h-3 w-3 text-white/30" />
+            <User className="h-3 w-3 text-white/60" />
             {/^dr\.?\s/i.test(doctorName.trim()) ? doctorName.trim() : `Dr. ${doctorName.trim()}`}
           </span>
         )}
@@ -341,7 +341,7 @@ function AppointmentNoteStrip({ note }: { note: string }) {
     <div className="flex items-start gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3">
       <StickyNote className="h-4 w-4 text-[#caa26a] mt-0.5 shrink-0" />
       <div className="min-w-0">
-        <p className="text-[9px] font-bold uppercase tracking-wider text-white/40">
+        <p className="text-[9px] font-bold uppercase tracking-wider text-white/70">
           Appointment Note
         </p>
         <p className="text-xs text-white/80 leading-relaxed whitespace-pre-wrap mt-0.5">{note}</p>
@@ -425,7 +425,7 @@ export default function DoctorVisitDetailPage({ params }: { params: Promise<Page
       <div className="flex items-center justify-center h-screen bg-[#2c2e4b]">
         <div className="text-center animate-in fade-in">
           <Skeleton className="h-10 w-10 rounded-full mx-auto bg-white/10" />
-          <p className="text-sm text-white/40 mt-3">Checking authentication…</p>
+          <p className="text-sm text-white/70 mt-3">Checking authentication…</p>
         </div>
       </div>
     );
@@ -458,12 +458,12 @@ export default function DoctorVisitDetailPage({ params }: { params: Promise<Page
     return (
       <div className="flex flex-col items-center justify-center py-20 animate-in fade-in duration-300">
         <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center mb-3">
-          <FileText className="h-5 w-5 text-white/30" />
+          <FileText className="h-5 w-5 text-white/60" />
         </div>
-        <p className="text-sm font-medium text-white/80">
+        <p className="text-sm font-medium text-white">
           {error instanceof Error ? error.message : 'Visit not found'}
         </p>
-        <p className="text-xs text-white/40 mt-1">
+        <p className="text-xs text-white/70 mt-1">
           This visit may not belong to you or no longer exists.
         </p>
         <Button

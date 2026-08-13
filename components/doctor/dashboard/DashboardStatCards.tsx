@@ -41,7 +41,7 @@ export function DashboardStatCards({ isLoading }: DashboardStatCardsProps) {
                 <p className="text-[11px] uppercase tracking-wider text-[#2c2e4b]/70 font-medium">
                   {label}
                 </p>
-                <p className={`text-3xl font-bold mt-1 ${value === 0 ? 'text-[#2c2e4b]/30' : 'text-[#2c2e4b]'}`}>
+                <p className={`text-3xl font-bold mt-1 ${value === 0 ? 'text-[#2c2e4b]/50' : 'text-[#2c2e4b]'}`}>
                   {value}
                 </p>
               </>

@@ -31,14 +31,13 @@ export default async function ConsultationsHubPage() {
       where: {
         doctor_id: doctorId,
         status: { in: ['WAITING', 'IN_CONSULTATION'] },
-        added_at: { gte: today, lt: tomorrow },
       },
       include: {
         patient: { select: { id: true, first_name: true, last_name: true, file_number: true } },
         appointment: { select: { id: true, type: true, appointment_date: true, time: true } },
       },
       orderBy: { added_at: 'asc' },
-      take: 20,
+      take: 50,
     }),
   ]);
 

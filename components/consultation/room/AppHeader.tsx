@@ -12,6 +12,8 @@ interface AppHeaderProps {
   userRole?: Role;
   onSaveDraft: () => void;
   onComplete: () => void;
+  onNextPatient?: () => void;
+  hasNextPatient?: boolean;
   autoSaveStatus: 'idle' | 'saving' | 'saved' | 'error';
   isSaving?: boolean;
   patientSidebarCollapsed?: boolean;
@@ -28,6 +30,8 @@ export function AppHeader({
   userRole,
   onSaveDraft,
   onComplete,
+  onNextPatient,
+  hasNextPatient,
   autoSaveStatus,
   isSaving = false,
   patientSidebarCollapsed,
@@ -79,6 +83,15 @@ export function AppHeader({
 
       {/* Right — Actions */}
       <div className="flex items-center gap-2">
+        {onNextPatient && hasNextPatient && (
+          <Button
+            size="sm"
+            onClick={onNextPatient}
+            className="h-8 px-3 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm transition-colors"
+          >
+            Next Patient
+          </Button>
+        )}
         {onTogglePatientSidebar && (
           <Button
             variant="ghost"
