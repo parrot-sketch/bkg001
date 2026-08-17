@@ -32,6 +32,7 @@ import { DoctorPatientsTable } from './components/DoctorPatientsTable';
 import { QueuePatientsView } from './components/QueuePatientsView';
 
 const PAGE_SIZE = 15;
+const QUEUE_PAGE_SIZE = 20;
 
 export default function DoctorPatientsPage() {
   const router = useRouter();
@@ -47,6 +48,10 @@ export default function DoctorPatientsPage() {
   const [activeStatCard, setActiveStatCard] = useState<ActiveStatCardType>(null);
   const [page,           setPage]           = useState(1);
   const [refreshing,     setRefreshing]     = useState(false);
+
+  // ── Queue-specific state ────────────────────────────────────────────────────
+  const [queuePage,       setQueuePage]       = useState(1);
+  const [queueDate,       setQueueDate]       = useState(() => new Date().toISOString().split('T')[0]);
 
   // ── Server-side data: regular patients ──────────────────────────────────────
   const {
@@ -73,11 +78,17 @@ export default function DoctorPatientsPage() {
   const {
     displayQueue,
     isLoadingQueued,
+    total: queueTotal,
+    totalPages: queueTotalPages,
+    page: queueCurrentPage,
   } = useQueuedPatients({
     enabled: statusFilter === 'QUEUED' && !!user,
-    searchQuery,
+    date: statusFilter === 'QUEUED' ? queueDate : undefined,
+    searchQuery: statusFilter === 'QUEUED' ? searchQuery : '',
     sortBy: (sortBy === 'name' ? 'name' : 'waitTime') as QueueSortBy,
     sortOrder: sortOrder as QueueSortOrder,
+    page: queuePage,
+    pageSize: QUEUE_PAGE_SIZE,
   });
 
   // ── Derived state ───────────────────────────────────────────────────────────
@@ -98,12 +109,12 @@ export default function DoctorPatientsPage() {
     return list;
   }, [patients, displayQueue, statusFilter, allergiesOnly, activeStatCard]);
 
-  const displayTotal = statusFilter === 'QUEUED' ? displayQueue.length : total;
+  const displayTotal = statusFilter === 'QUEUED' ? queueTotal : total;
 
   const stats = useMemo(() => {
     if (statusFilter === 'QUEUED') {
       return {
-        total: displayQueue.length,
+        total: queueTotal,
         newThisMonth: 0,
         withAllergies: 0,
         withConditions: 0,
@@ -114,16 +125,17 @@ export default function DoctorPatientsPage() {
     const withAllergies = roster.filter((p) => p.allergies?.trim()).length;
     const withConditions = roster.filter((p) => p.medicalConditions?.trim()).length;
     return { total: displayTotal, newThisMonth, withAllergies, withConditions };
-  }, [filteredPatients, displayQueue, displayTotal, statusFilter]);
+  }, [filteredPatients, displayTotal, statusFilter, queueTotal]);
 
-  const totalPages = statusFilter === 'QUEUED' ? 1 : Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const totalPages = statusFilter === 'QUEUED' ? queueTotalPages : Math.max(1, Math.ceil(total / PAGE_SIZE));
   const start      = displayTotal === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const end        = Math.min(page * PAGE_SIZE, displayTotal);
 
   // ── Effects ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, allergiesOnly, searchQuery, sortBy, sortOrder]);
+    setQueuePage(1);
+  }, [statusFilter, allergiesOnly, searchQuery, sortBy, sortOrder, queueDate]);
 
   useEffect(() => {
     if (statusFilter !== 'QUEUED') {
@@ -155,6 +167,7 @@ export default function DoctorPatientsPage() {
     setStatusFilter('ACTIVE');
     setAllergiesOnly(false);
     setActiveStatCard(null);
+    setQueueDate(new Date().toISOString().split('T')[0]);
   }, []);
 
   const handleNewFilter = useCallback(() => {
@@ -175,12 +188,16 @@ export default function DoctorPatientsPage() {
     setActiveStatCard(null);
   }, []);
 
+  const handleQueuePageChange = useCallback((newPage: number) => {
+    setQueuePage(newPage);
+  }, []);
+
   // ── Auth guard ───────────────────────────────────────────────────────────────
   if (!isAuthenticated || !user) {
     return (
       <div className="flex items-center justify-center h-screen bg-white">
         <div className="text-center space-y-3">
-          <div className="h-10 w-10 bg-[#e7d6bf] rounded-full mx-auto animate-pulse" />
+          <div className="h-10 w-10 bg-[#e7d6bf] animate-pulse mx-auto" />
           <p className="text-sm text-[#2c2e4b]/60">Authenticating…</p>
         </div>
       </div>
@@ -191,13 +208,13 @@ export default function DoctorPatientsPage() {
     return (
       <div className="max-w-5xl mx-auto">
         <div className="flex flex-col items-center justify-center py-20 px-4">
-          <div className="w-full max-w-md border border-[#e7d6bf] bg-white p-6 text-center rounded-xl">
+          <div className="w-full max-w-md border border-[#e7d6bf] bg-white p-6 text-center">
             <p className="text-sm font-semibold text-[#2c2e4b]">Unable to load patient roster</p>
             <p className="text-xs text-[#2c2e4b]/60 mt-1">Please retry.</p>
             <Button
               variant="outline"
               size="sm"
-              className="mt-4 rounded-lg border-[#e7d6bf] text-[#2c2e4b]"
+              className="mt-4 border-[#e7d6bf] text-[#2c2e4b]"
               onClick={handleRefresh}
             >
               Retry
@@ -218,7 +235,7 @@ export default function DoctorPatientsPage() {
           {!isLoading && (
             <p className="text-xs text-white/60 mt-0.5">
               {statusFilter === 'QUEUED'
-                ? `${displayQueue.length} patient${displayQueue.length !== 1 ? 's' : ''} in queue`
+                ? `${queueTotal} patient${queueTotal !== 1 ? 's' : ''} in queue`
                 : `${total} patient${total !== 1 ? 's' : ''} in your roster`}
             </p>
           )}
@@ -226,7 +243,7 @@ export default function DoctorPatientsPage() {
         <Button
           variant="outline"
           size="sm"
-          className="text-xs self-start sm:self-auto rounded-lg border-white/20 bg-white/5 text-white hover:bg-white/10 gap-1.5"
+          className="text-xs self-start sm:self-auto border-white/20 bg-white/5 text-white hover:bg-white/10 gap-1.5"
           onClick={handleRefresh}
           disabled={refreshing || loading}
         >
@@ -265,18 +282,18 @@ export default function DoctorPatientsPage() {
 
       {/* ── Patient List ────────────────────────────────────────────────────── */}
       {statusFilter === 'QUEUED' ? (
-      <QueuePatientsView
-        queue={displayQueue}
-        isLoading={isLoadingQueued}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        sortBy={sortBy}
-        sortOrder={sortOrder}
-        onSortByChange={(newSortBy) => setSortBy(newSortBy as SortKey)}
-        onSortOrderToggle={handleSortOrderToggle}
-        onOpenPatient={handleOpenQueuedPatient}
-        onNewConsultation={handleNewConsultation}
-      />
+        <QueuePatientsView
+          queue={displayQueue}
+          isLoading={isLoadingQueued}
+          total={queueTotal}
+          totalPages={queueTotalPages}
+          currentPage={queueCurrentPage}
+          onPageChange={handleQueuePageChange}
+          onOpenPatient={handleOpenQueuedPatient}
+          onNewConsultation={handleNewConsultation}
+          selectedDate={queueDate}
+          onDateChange={setQueueDate}
+        />
       ) : (
         <DoctorPatientsTable
           patients={patients}
@@ -287,7 +304,7 @@ export default function DoctorPatientsPage() {
 
       {/* ── Pagination ──────────────────────────────────────────────────────── */}
       {displayTotal > PAGE_SIZE && statusFilter !== 'QUEUED' && (
-        <div className="flex items-center justify-between gap-3 border border-white/10 bg-white/5 rounded-xl px-4 py-2.5">
+        <div className="flex items-center justify-between gap-3 border border-white/10 bg-white/5 px-4 py-2.5">
           <span className="text-xs text-white/80 tabular-nums">
             Showing {start}–{end} of {total}
           </span>
@@ -318,10 +335,10 @@ export default function DoctorPatientsPage() {
                     key={p}
                     onClick={() => setPage(p)}
                     disabled={loading}
-                    className={`h-7 min-w-[28px] px-1.5 rounded-md text-xs font-medium transition-colors duration-150 ${
+                    className={`h-7 min-w-[28px] px-1.5 text-xs font-medium transition-colors duration-150 ${
                       p === page
                         ? 'bg-[#caa26a] text-[#2c2e4b]'
-                         : 'text-white/80 hover:text-white hover:bg-white/10'
+                        : 'text-white/80 hover:text-white hover:bg-white/10'
                     }`}
                   >
                     {p}

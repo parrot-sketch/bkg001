@@ -1,6 +1,8 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth/server-auth';
+import { authorizeApiRequest } from '@/lib/auth/require-role';
+import { Role } from '@/domain/enums/Role';
 
 export async function GET(req: NextRequest) {
     try {
@@ -9,9 +11,8 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Only allow FRONTDESK or ADMIN roles
-        if (user.role !== 'FRONTDESK' && user.role !== 'ADMIN' && user.role !== 'NURSE') {
-             return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+        if (!authorizeApiRequest({ success: true, user }, [Role.FRONTDESK, Role.NURSE, Role.ADMIN])) {
+            return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
         }
 
         const theaters = await db.theater.findMany({

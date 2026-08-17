@@ -19,9 +19,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role as PrismaRole } from '@prisma/client';
+import { Role as DomainRole } from '@/domain/enums/Role';
+import { authorizeApiRequest } from '@/lib/auth/require-role';
 import * as bcrypt from 'bcrypt';
 import { createStaffDtoSchema } from '@/application/dtos/CreateStaffDto';
-import { Role as DomainRole } from '@/domain/enums/Role';
 import { randomUUID } from 'crypto';
 
 function getStaffRoles(): PrismaRole[] {
@@ -44,30 +45,14 @@ function generateTempLicenseNumber(): string {
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-    // 1. Authenticate request
     const authResult = await JwtMiddleware.authenticate(request);
-    if (!authResult.success || !authResult.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Authentication required',
-        },
-        { status: 401 }
-      );
+    if (!authorizeApiRequest(authResult, [DomainRole.ADMIN])) {
+        return !authResult.user
+            ? NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
+            : NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
     }
 
-    // 2. Check permissions (only ADMIN)
-    if (authResult.user.role !== 'ADMIN') {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Access denied: Admin access required',
-        },
-        { status: 403 }
-      );
-    }
-
-    // 3. Parse query parameters
+    // Parse query parameters
     const { searchParams } = new URL(request.url);
     const roleParam = searchParams.get('role');
     const pageParam = searchParams.get('page');
@@ -180,30 +165,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // 1. Authenticate request
     const authResult = await JwtMiddleware.authenticate(request);
-    if (!authResult.success || !authResult.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Authentication required',
-        },
-        { status: 401 }
-      );
+    if (!authorizeApiRequest(authResult, [DomainRole.ADMIN])) {
+        return !authResult.user
+            ? NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
+            : NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
     }
 
-    // 2. Check permissions (only ADMIN)
-    if (authResult.user.role !== 'ADMIN') {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Access denied: Admin access required',
-        },
-        { status: 403 }
-      );
-    }
-
-    // 3. Parse request body
+    // Parse request body
     let body: any;
     try {
       body = await request.json();
@@ -322,7 +291,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
       await db.auditLog.create({
         data: {
-          user_id: authResult.user.userId,
+          user_id: authResult.user!.userId,
           record_id: newUser.id,
           action: 'CREATE',
           model: 'User',

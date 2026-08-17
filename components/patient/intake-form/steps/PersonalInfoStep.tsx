@@ -87,6 +87,35 @@ export function PersonalInfoStep({ form }: PersonalInfoStepProps) {
             )}
           />
         </div>
+
+        {/* Referral Source */}
+        <FormField
+          control={form.control}
+          name="referralSource"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>How did you hear about us?</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger className="h-11">
+                    <SelectValue placeholder="Select an option" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="SOCIAL_MEDIA">Social Media (Instagram, Facebook, TikTok, X)</SelectItem>
+                  <SelectItem value="GOOGLE_SEARCH">Google Search</SelectItem>
+                  <SelectItem value="FRIEND_FAMILY">Friend / Family Referral</SelectItem>
+                  <SelectItem value="DOCTOR_REFERRAL">Doctor Referral</SelectItem>
+                  <SelectItem value="WALK_IN">Walk-In</SelectItem>
+                  <SelectItem value="WEBSITE">Website</SelectItem>
+                  <SelectItem value="ADVERTISEMENT">Advertisement</SelectItem>
+                  <SelectItem value="OTHER">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
       </div>
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">

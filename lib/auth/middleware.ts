@@ -16,6 +16,7 @@ import { DomainException } from '@/domain/exceptions/DomainException';
 import { NextRequest } from 'next/server';
 import { JwtAuthService } from '@/infrastructure/auth/JwtAuthService';
 import { PrismaUserRepository } from '@/infrastructure/database/repositories/PrismaUserRepository';
+import { getAuthConfig } from '@/infrastructure/auth/AuthFactory';
 import { PrismaClient } from '@prisma/client';
 
 export class JwtMiddleware {
@@ -30,19 +31,12 @@ export class JwtMiddleware {
   private static cachedDb: PrismaClient | null = null;
 
   private static getOrCreateMiddleware(db: PrismaClient): JwtMiddleware {
-    // Reuse if the PrismaClient instance hasn't changed (it shouldn't — singleton)
     if (this.cachedMiddleware && this.cachedDb === db) {
       return this.cachedMiddleware;
     }
 
     const userRepository = new PrismaUserRepository(db);
-    const authConfig = {
-      jwtSecret: process.env.JWT_SECRET || 'dev-secret-change-in-production',
-      jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret-change-in-production',
-      accessTokenExpiresIn: 15 * 60,
-      refreshTokenExpiresIn: 7 * 24 * 60 * 60,
-      saltRounds: 10,
-    };
+    const authConfig = getAuthConfig();
     const authService = new JwtAuthService(userRepository, db, authConfig);
     this.cachedMiddleware = new JwtMiddleware(authService);
     this.cachedDb = db;

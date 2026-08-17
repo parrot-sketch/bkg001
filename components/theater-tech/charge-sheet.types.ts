@@ -32,7 +32,7 @@ export interface ChargeItem {
   catalogAmount?: number;
   /** Quantity — stored as a real number; editing uses RowDraft.quantityStr. */
   quantity: number;
-  type: 'service' | 'inventory';
+  type: 'service' | 'inventory' | 'custom';
   itemId: number | string;
 }
 
@@ -57,7 +57,10 @@ export interface ChargeSearchInputProps {
   onFocus: () => void;
   onAddService: (service: Service) => void;
   onAddInventory: (item: InventoryItem) => void;
+  onAddCustom?: (description: string, quantity: number, amount: number) => void;
   onClose: () => void;
+  suggestedServices?: Service[];
+  inputRef?: React.Ref<HTMLInputElement>;
 }
 
 export interface ChargeItemsTableProps {

@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/constants/queryKeys';
 import Link from 'next/link';
 import { QueueManagementPanels } from '@/components/frontdesk/QueueManagementPanels';
 import { QuickAssignmentDialog } from '@/components/frontdesk/QuickAssignmentDialog';
@@ -10,9 +12,10 @@ import { DoctorAvailabilityAtAGlance } from '@/components/frontdesk/DoctorAvaila
 import { FrontdeskPendingActionsPanel } from '@/components/frontdesk/FrontdeskPendingActionsPanel';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, CalendarIcon } from 'lucide-react';
 import { useBookAppointmentStore } from '@/hooks/frontdesk/useBookAppointmentStore';
 import { QuickBookAppointmentDialog } from '@/components/frontdesk/dashboard/QuickBookAppointmentDialog';
+import { ScheduleProcedureDialog } from '@/components/frontdesk/ScheduleProcedureDialog';
 import { useFrontdeskDashboard } from '@/hooks/frontdesk/use-frontdesk-dashboard';
 import { AppointmentSource } from '@/domain/enums/AppointmentSource';
 import { BookingChannel } from '@/domain/enums/BookingChannel';
@@ -27,9 +30,11 @@ import { DashboardSkeleton } from '@/components/frontdesk/DashboardSkeleton';
  * and composes the dashboard structure using DashboardShell.
  */
 export function FrontdeskDashboardClient() {
+  const queryClient = useQueryClient();
   const { openBookingDialog } = useBookAppointmentStore();
   const [quickAssignmentOpen, setQuickAssignmentOpen] = useState<boolean>(false);
   const [quickBookOpen, setQuickBookOpen] = useState(false);
+  const [scheduleProcedureOpen, setScheduleProcedureOpen] = useState(false);
   const { data, stats, isLoading } = useFrontdeskDashboard();
   const completedAppointments = data?.todaysSchedule.completed ?? [];
 
@@ -67,6 +72,13 @@ export function FrontdeskDashboardClient() {
                 >
                   <UserPlus className="mr-2 h-4 w-4" />
                   Add Patient to Queue
+                </Button>
+                <Button
+                  onClick={(): void => setScheduleProcedureOpen(true)}
+                  className="w-full bg-[#102F52] hover:bg-[#0B2743] text-white font-medium shadow-sm rounded-lg h-9 mt-2"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  Schedule Procedure
                 </Button>
               </CardContent>
             </Card>
@@ -129,6 +141,15 @@ export function FrontdeskDashboardClient() {
       />
 
       <QuickBookAppointmentDialog open={quickBookOpen} onOpenChange={setQuickBookOpen} />
+
+      <ScheduleProcedureDialog
+        open={scheduleProcedureOpen}
+        onOpenChange={setScheduleProcedureOpen}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: queryKeys.frontdesk.theaterQueue() });
+          queryClient.invalidateQueries({ queryKey: queryKeys.shared.surgicalCases() });
+        }}
+      />
     </>
   );
 }

@@ -27,21 +27,37 @@ export class AuditLogger {
     details?: string;
     context: AuditContext;
   }): Promise<void> {
+    const auditData = {
+      record_id: params.recordId,
+      action: params.action,
+      model: params.model,
+      details: params.details ?? null,
+      ip_address: params.context.ipAddress ?? null,
+      user_agent: params.context.userAgent ?? null,
+    };
+
     try {
       await this.prisma.auditLog.create({
         data: {
+          ...auditData,
           user_id: params.context.userId,
-          record_id: params.recordId,
-          action: params.action,
-          model: params.model,
-          details: params.details ?? null,
-          ip_address: params.context.ipAddress ?? null,
-          user_agent: params.context.userAgent ?? null,
         },
       });
     } catch (error) {
-      // Audit failure must never block the operation.
-      // Log to stderr for infrastructure monitoring.
+      const prismaError = error as { code?: string };
+      if (prismaError.code === 'P2003') {
+        try {
+          await this.prisma.auditLog.create({
+            data: {
+              ...auditData,
+              user_id: null,
+            },
+          });
+          return;
+        } catch {
+          // Silently drop audit log if user reference cannot be resolved
+        }
+      }
       console.error('[AuditLogger] Failed to write audit log:', error);
     }
   }

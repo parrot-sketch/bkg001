@@ -86,15 +86,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         if (lowerName.includes('consultation') || lowerName.includes('follow up')) {
           category = 'Consultation';
         } else if (lowerName.includes('abdominoplasty') || lowerName.includes('tummy')) {
-          category = 'BODY_CONTOURING';
+          category = 'BODY';
         } else if (lowerName.includes('breast') || lowerName.includes('augmentation') || lowerName.includes('reduction') || lowerName.includes('lift')) {
           category = 'BREAST';
         } else if (lowerName.includes('facelift') || lowerName.includes('rhinoplasty') || lowerName.includes('blepharoplasty') || lowerName.includes('eyelid') || lowerName.includes('nose')) {
-          category = 'FACE';
+          category = 'FACIAL';
         } else if (lowerName.includes('liposuction') || lowerName.includes('lipo') || lowerName.includes('fat')) {
-          category = 'BODY_CONTOURING';
+          category = 'BODY';
         } else if (lowerName.includes('implants') || lowerName.includes('implant')) {
-          category = 'IMPLANT';
+          category = 'BREAST';
         }
         
         cleanedProcedures.push({

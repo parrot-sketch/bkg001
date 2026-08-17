@@ -33,50 +33,71 @@ export async function GET(request: NextRequest) {
     }
 
     const url = new URL(request.url);
-    const startDate = url.searchParams.get('startDate');
-    const endDate = url.searchParams.get('endDate');
+    const date = url.searchParams.get('date');
+    const search = url.searchParams.get('search')?.trim() || '';
+    const sortBy = url.searchParams.get('sortBy') || 'addedAt';
+    const sortOrder = url.searchParams.get('sortOrder') || 'desc';
+    const skip = Math.max(0, parseInt(url.searchParams.get('skip') || '0', 10) || 0);
+    const take = Math.min(100, Math.max(1, parseInt(url.searchParams.get('take') || '20', 10) || 20));
 
     const where: any = {
       doctor_id: doctor.id,
       status: { in: ['WAITING', 'IN_CONSULTATION'] },
     };
 
-    if (startDate || endDate) {
-      where.added_at = {};
-      if (startDate) {
-        where.added_at.gte = new Date(startDate);
-      }
-      if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        where.added_at.lte = end;
-      }
+    if (date) {
+      const target = new Date(date);
+      const start = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+      const end = new Date(start);
+      end.setDate(end.getDate() + 1);
+      where.added_at = {
+        gte: start,
+        lt: end,
+      };
     }
 
-    const queueEntries = await db.patientQueue.findMany({
-      where,
-      include: {
-        patient: {
-          select: {
-            id: true,
-            first_name: true,
-            last_name: true,
-            file_number: true,
+    if (search) {
+      where.OR = [
+        { patient: { first_name: { contains: search, mode: 'insensitive' } } },
+        { patient: { last_name: { contains: search, mode: 'insensitive' } } },
+        { patient: { file_number: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    const orderBy: any = {};
+    if (sortBy === 'name') {
+      orderBy.patient = { first_name: sortOrder === 'asc' ? 'asc' : 'desc' };
+    } else {
+      orderBy.added_at = sortOrder === 'asc' ? 'asc' : 'desc';
+    }
+
+    const [queueEntries, total] = await Promise.all([
+      db.patientQueue.findMany({
+        where,
+        include: {
+          patient: {
+            select: {
+              id: true,
+              first_name: true,
+              last_name: true,
+              file_number: true,
+            },
+          },
+          appointment: {
+            select: {
+              id: true,
+              appointment_date: true,
+              time: true,
+              type: true,
+            },
           },
         },
-        appointment: {
-          select: {
-            id: true,
-            appointment_date: true,
-            time: true,
-            type: true,
-          },
-        },
-      },
-      orderBy: {
-        added_at: 'asc',
-      },
-    });
+        orderBy,
+        skip,
+        take,
+      }),
+      db.patientQueue.count({ where }),
+    ]);
 
     const result = queueEntries.map((entry) => ({
       id: entry.id,
@@ -98,7 +119,12 @@ export async function GET(request: NextRequest) {
       isWalkIn: !entry.appointment_id,
     }));
 
-    return NextResponse.json(result);
+    return NextResponse.json({
+      data: result,
+      total,
+      skip,
+      take,
+    });
   } catch (error) {
     console.error('[API] Error fetching doctor queue:', error);
     return NextResponse.json({ error: 'Failed to fetch queue' }, { status: 500 });

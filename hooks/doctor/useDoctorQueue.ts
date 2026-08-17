@@ -49,6 +49,16 @@ async function fetchDoctorQueue(doctorId: string, startDate?: string, endDate?: 
   return response.json();
 }
 
+function getTodayRange(): { startDate: string; endDate: string } {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  return {
+    startDate: start.toISOString(),
+    endDate: end.toISOString(),
+  };
+}
+
 export interface UseDoctorQueueOptions {
   startDate?: string;
   endDate?: string;
@@ -57,6 +67,10 @@ export interface UseDoctorQueueOptions {
 export function useDoctorQueue(doctorId: string | undefined, options: UseDoctorQueueOptions & { enabled?: boolean } = {}) {
   const { startDate, endDate, enabled = true } = options;
   
+  const today = getTodayRange();
+  const effectiveStart = startDate ?? today.startDate;
+  const effectiveEnd = endDate ?? today.endDate;
+  
   return useQuery<QueuePatient[]>({
     queryKey: queryKeys.doctor.queue(doctorId ?? ''),
     queryFn: async () => {
@@ -64,7 +78,7 @@ export function useDoctorQueue(doctorId: string | undefined, options: UseDoctorQ
         throw new Error('Doctor ID is required');
       }
       
-      return fetchDoctorQueue(doctorId, startDate, endDate);
+      return fetchDoctorQueue(doctorId, effectiveStart, effectiveEnd);
     },
     staleTime: 1000 * 30,
     gcTime: 1000 * 60 * 2,

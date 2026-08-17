@@ -49,7 +49,11 @@ export async function GET(request: NextRequest) {
 
         // 3. Fetch cases using use case with pagination
         const useCase = TheaterSchedulingFactory.getInstance();
-        const result = await useCase.getSchedulingQueue({ page: safePage, limit: safeLimit });
+        const result = await useCase.getSchedulingQueue({
+          page: safePage,
+          limit: safeLimit,
+          statuses: ['READY_FOR_WARD_PREP', 'IN_WARD_PREP', 'READY_FOR_THEATER_BOOKING'],
+        });
 
         return NextResponse.json({
             success: true,

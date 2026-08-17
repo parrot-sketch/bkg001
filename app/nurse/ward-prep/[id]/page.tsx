@@ -12,6 +12,7 @@ import { WardChecklistPanel } from '@/components/nurse/ward-prep-detail/WardChec
 import { ClinicalNotesPanel } from '@/components/nurse/ward-prep-detail/ClinicalNotesPanel';
 import { PatientDetailsCard, SurgicalTeamCard, CaseInfoCard } from '@/components/nurse/ward-prep-detail/SidebarCards';
 import { PreOpCaseDetailSkeleton } from '@/components/nurse/ward-prep-detail/PreOpCaseDetailSkeleton';
+import { TheaterVitalsPanel } from '@/components/nurse/TheaterVitalsPanel';
 
 export default function PreOpCaseDetailPage() {
   const params = useParams();
@@ -85,10 +86,7 @@ if (error || !caseData) {
 
   return (
     <div className="animate-in fade-in duration-500 pb-10">
-
       <div className="space-y-6">
-
-        {/* Navigation & Header */}
         <WardPrepCaseHeader
           caseId={caseId}
           patientName={patient?.fullName || 'Unknown Patient'}
@@ -99,8 +97,6 @@ if (error || !caseData) {
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-
-          {/* Main Column */}
           <div className="lg:col-span-2 space-y-6">
             <WardChecklistPanel caseId={caseId} wardChecklist={caseData.wardChecklist} />
 
@@ -122,19 +118,18 @@ if (error || !caseData) {
               }}
             />
 
+            {caseData.vitals && caseData.vitals.length > 0 && (
+              <TheaterVitalsPanel vitals={caseData.vitals} />
+            )}
           </div>
 
-          {/* Sidebar Column */}
-          <div className="space-y-6">
+          <div className="space-y-4">
             <PatientDetailsCard patient={patient} />
             <SurgicalTeamCard surgeon={surgeon} />
             <CaseInfoCard createdAt={caseData.createdAt} urgency={caseData.urgency} diagnosis={caseData.diagnosis} />
-
           </div>
         </div>
-
       </div>
-
     </div>
   );
 }

@@ -1,74 +1,77 @@
 'use client';
 
-/**
- * Password Input Component
- * 
- * Secure password input with visibility toggle and caps lock detection.
- * Features:
- * - Show/hide password toggle
- * - Caps lock detection and warning
- * - Accessible ARIA labels
- * - Proper keyboard navigation
- */
-
-import { useState, useRef, useEffect, forwardRef } from 'react';
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
-interface PasswordInputProps extends Omit<React.ComponentProps<typeof Input>, 'type'> {
+interface PasswordInputProps
+  extends Omit<React.ComponentProps<typeof Input>, 'type'> {
   showCapsLockWarning?: boolean;
 }
 
 export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
-  function PasswordInput({ 
-    className, 
-    showCapsLockWarning = true,
-    ...props 
-  }, ref) {
+  function PasswordInput(
+    {
+      className,
+      showCapsLockWarning = true,
+      ...props
+    },
+    ref,
+  ) {
     const [showPassword, setShowPassword] = useState(false);
     const [capsLockOn, setCapsLockOn] = useState(false);
+
     const internalRef = useRef<HTMLInputElement>(null);
-    const inputRef = ref || internalRef;
 
-    // Detect caps lock on keydown/keyup
+    useImperativeHandle(ref, () => internalRef.current as HTMLInputElement);
+
     useEffect(() => {
-      const handleKeyPress = (e: KeyboardEvent) => {
-        if (e.getModifierState && e.getModifierState('CapsLock')) {
-          setCapsLockOn(true);
-        } else {
-          setCapsLockOn(false);
-        }
-      };
+      const input = internalRef.current;
 
-      const input = typeof inputRef === 'function' ? null : inputRef.current;
-      if (input) {
-        input.addEventListener('keydown', handleKeyPress);
-        input.addEventListener('keyup', handleKeyPress);
+      if (!input) {
+        return;
       }
 
-      return () => {
-        if (input) {
-          input.removeEventListener('keydown', handleKeyPress);
-          input.removeEventListener('keyup', handleKeyPress);
+      const handleKeyPress = (event: KeyboardEvent) => {
+        if (event.getModifierState) {
+          setCapsLockOn(event.getModifierState('CapsLock'));
         }
       };
-    }, [inputRef]);
+
+      input.addEventListener('keydown', handleKeyPress);
+      input.addEventListener('keyup', handleKeyPress);
+
+      return () => {
+        input.removeEventListener('keydown', handleKeyPress);
+        input.removeEventListener('keyup', handleKeyPress);
+      };
+    }, []);
 
     const togglePasswordVisibility = () => {
-      setShowPassword(!showPassword);
-      // Maintain focus on input after toggle
-      const input = typeof inputRef === 'function' ? null : inputRef.current;
-      setTimeout(() => input?.focus(), 0);
+      setShowPassword((current) => !current);
+
+      requestAnimationFrame(() => {
+        internalRef.current?.focus();
+      });
     };
 
     return (
       <div className="relative">
         <Input
           {...props}
-          ref={inputRef}
+          ref={internalRef}
           type={showPassword ? 'text' : 'password'}
-          className={cn('pr-10 touch-manipulation select-text', className)}
+          className={cn(
+            'pr-11 touch-manipulation select-text',
+            className,
+          )}
           aria-label={props['aria-label'] || 'Password'}
           style={{
             WebkitAppearance: 'none',
@@ -77,39 +80,49 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
             ...props.style,
           }}
         />
-        
-        {/* Password Visibility Toggle */}
+
         <button
           type="button"
           onClick={togglePasswordVisibility}
-             className={cn(
-             'absolute right-3 top-1/2 -translate-y-1/2',
-             'text-white/70 hover:text-white sm:text-slate-500 sm:hover:text-slate-700',
-             'focus:outline-none focus:ring-2 focus:ring-white/30 sm:focus:ring-ring sm:focus:ring-offset-1 rounded p-0.5',
-             'transition-colors'
-           )}
+          className={cn(
+            'absolute right-3 top-1/2 -translate-y-1/2',
+            'flex h-7 w-7 items-center justify-center',
+            'rounded-md text-[#7C8795]',
+            'transition-colors duration-150',
+            'hover:bg-[#F1F3F5] hover:text-[#102F52]',
+            'focus:outline-none focus:ring-2 focus:ring-[#102F52]/15',
+          )}
           aria-label={showPassword ? 'Hide password' : 'Show password'}
           tabIndex={-1}
         >
           {showPassword ? (
-            <EyeOff className="h-4 w-4" aria-hidden="true" />
+            <EyeOff
+              className="h-4 w-4"
+              aria-hidden="true"
+            />
           ) : (
-            <Eye className="h-4 w-4" aria-hidden="true" />
+            <Eye
+              className="h-4 w-4"
+              aria-hidden="true"
+            />
           )}
         </button>
 
-        {/* Caps Lock Warning */}
         {showCapsLockWarning && capsLockOn && (
           <div
-           className="mt-2 flex items-start gap-1.5 text-sm text-white/80 sm:text-amber-600"
-           role="alert"
-           aria-live="polite"
-         >
-           <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-white/80 sm:text-amber-600" aria-hidden="true" />
+            className="mt-2 flex items-start gap-1.5 text-xs text-[#9A6B20]"
+            role="alert"
+            aria-live="polite"
+          >
+            <AlertCircle
+              className="mt-0.5 h-3.5 w-3.5 shrink-0"
+              aria-hidden="true"
+            />
+
             <span>Caps Lock is on</span>
           </div>
         )}
       </div>
     );
-  }
+  },
 );

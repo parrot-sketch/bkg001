@@ -350,19 +350,24 @@ export async function getPatientFullDataById(id: string) {
         last_name: true,
         email: true,
         phone: true,
+        whatsapp_phone: true,
         date_of_birth: true,
         gender: true,
         address: true,
+        occupation: true,
+        referral_source: true,
         img: true,
         colorCode: true,
-        marital_status: true, // Preserved for UI
-        blood_group: true, // Preserved for UI
-        emergency_contact_name: true, // Preserved for UI
-        emergency_contact_number: true, // Preserved for UI
-        relation: true, // Preserved for UI
-        allergies: true, // Medical information
-        medical_conditions: true, // Medical information
-        medical_history: true, // Medical information
+        marital_status: true,
+        blood_group: true,
+        insurance_provider: true,
+        insurance_number: true,
+        emergency_contact_name: true,
+        emergency_contact_number: true,
+        relation: true,
+        allergies: true,
+        medical_conditions: true,
+        medical_history: true,
         created_at: true,
         updated_at: true,
         _count: {

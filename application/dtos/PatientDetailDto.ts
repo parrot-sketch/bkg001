@@ -27,6 +27,7 @@ export interface PatientDetailDto {
   emergencyContactName?: string;
   emergencyContactNumber?: string;
   relation?: string;
+  referralSource?: string;
   profileImage?: string;
   colorCode?: string;
   createdAt: string;

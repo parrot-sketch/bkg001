@@ -4,38 +4,41 @@
  * For use in Next.js server components and server actions.
  * Gets authenticated user from JWT token stored in cookies.
  * 
- * Supports silent token refresh: if the access token is expired but
- * a valid refresh token cookie exists, a new access token is generated
- * transparently and the cookie is updated.
+ * Does NOT silently refresh expired tokens. Expired or invalid tokens
+ * return null, and the client is responsible for refreshing via
+ * /api/auth/refresh or apiClient's 401 handler. This prevents
+ * cookie/localStorage desync when server-side refresh succeeds but
+ * the updated cookie cannot be persisted in Server Components.
  */
 
 import { cookies } from 'next/headers';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { JwtAuthService } from '@/infrastructure/auth/JwtAuthService';
+import { getAuthConfig } from '@/infrastructure/auth/AuthFactory';
 import { PrismaUserRepository } from '@/infrastructure/database/repositories/PrismaUserRepository';
 import db from '@/lib/db';
 import { AuthContext } from '@/lib/auth/types';
 
-// Initialize auth service (singleton pattern)
+// Initialize auth service using centralized config
 const userRepository = new PrismaUserRepository(db);
-
-const authConfig = {
-  jwtSecret: process.env.JWT_SECRET || 'dev-secret-change-in-production',
-  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret-change-in-production',
-  accessTokenExpiresIn: 15 * 60, // 15 minutes
-  refreshTokenExpiresIn: 7 * 24 * 60 * 60, // 7 days
-  saltRounds: 10,
-};
-
+const authConfig = getAuthConfig();
 const authService = new JwtAuthService(userRepository, db, authConfig);
 const jwtMiddleware = new JwtMiddleware(authService);
+
+// Request-scoped cache for getCurrentUser().
+// Keyed by access token so repeated calls within the same request
+// (or across requests with the same token) return the cached result
+// without re-verifying the JWT.
+const currentUserCache = new Map<string, AuthContext | null>();
 
 /**
  * Get current authenticated user from server-side (server components)
  * 
  * Reads JWT token from cookies and verifies it.
- * If the access token is expired, attempts a silent refresh using
- * the refresh token cookie.
+ * Returns null if no valid access token cookie is present.
+ * 
+ * Note: Does NOT silently refresh expired tokens. The client is
+ * responsible for token refresh to avoid cookie/localStorage desync.
  * 
  * @returns User context or null if not authenticated
  */
@@ -44,69 +47,75 @@ export async function getCurrentUser(): Promise<AuthContext | null> {
     const cookieStore = await cookies();
     const accessToken = cookieStore.get('accessToken')?.value;
 
-    if (accessToken) {
-      try {
-        // Try to verify the access token
-        const user = await jwtMiddleware.authenticate(`Bearer ${accessToken}`);
-        if (user) return user;
-      } catch {
-        // Access token is invalid/expired — fall through to refresh
-      }
-    }
-
-    // ── Silent Refresh ──────────────────────────────────────────────
-    // Access token missing or expired. Try to refresh using the
-    // refresh token stored in the httpOnly cookie.
-    const refreshToken = cookieStore.get('refreshToken')?.value;
-    if (!refreshToken) {
-      // No refresh token available — truly unauthenticated
+    if (!accessToken) {
       return null;
     }
 
+    // Return cached result if we've already verified this token
+    const cached = currentUserCache.get(accessToken);
+    if (cached !== undefined) {
+      return cached;
+    }
+
     try {
-      // Use the auth service to exchange the refresh token for new tokens
-      const tokens = await authService.refreshToken(refreshToken);
-
-      // Verify the new access token FIRST to get the user context.
-      // This must happen before cookie writes, because cookies().set()
-      // throws in Server Components (read-only context). We still want
-      // to return the authenticated user even if cookies can't be persisted.
-      const user = await jwtMiddleware.authenticate(`Bearer ${tokens.accessToken}`);
-
-      // Try to persist updated cookies. This succeeds in Route Handlers
-      // and Server Actions but will throw in Server Components — that's
-      // acceptable because the user is already authenticated for this request.
-      try {
-        cookieStore.set('accessToken', tokens.accessToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          path: '/',
-          maxAge: tokens.expiresIn,
-        });
-
-        cookieStore.set('refreshToken', tokens.refreshToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          path: '/',
-          maxAge: 7 * 24 * 60 * 60,
-        });
-      } catch {
-        // Server Component context — cookies are read-only.
-        // The user is authenticated for this request; cookies will be
-        // refreshed on the next API call or navigation through a
-        // Route Handler / Server Action.
-      }
-
-      return user || null;
-    } catch (refreshError) {
-      // Refresh token is also invalid/expired — truly unauthenticated
-      console.error('Silent token refresh failed:', refreshError instanceof Error ? refreshError.message : refreshError);
+      const user = await jwtMiddleware.authenticate(`Bearer ${accessToken}`);
+      currentUserCache.set(accessToken, user);
+      return user;
+    } catch {
+      // Access token is invalid/expired — cache the miss and return null
+      currentUserCache.set(accessToken, null);
       return null;
     }
   } catch (error) {
     console.error('Error getting current user:', error);
+    return null;
+  }
+}
+
+/**
+ * Explicitly refresh the access token using the refresh token cookie.
+ * 
+ * Use this in Route Handlers and Server Actions where cookies can be
+ * persisted. Returns the new tokens on success, or null on failure.
+ * 
+ * @returns New tokens or null if refresh failed
+ */
+export async function refreshServerSession(): Promise<{ accessToken: string; refreshToken: string; expiresIn: number } | null> {
+  try {
+    const cookieStore = await cookies();
+    const refreshToken = cookieStore.get('refreshToken')?.value;
+
+    if (!refreshToken) {
+      return null;
+    }
+
+    const tokens = await authService.refreshToken(refreshToken);
+
+    try {
+      cookieStore.set('accessToken', tokens.accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: tokens.expiresIn,
+      });
+
+      cookieStore.set('refreshToken', tokens.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60,
+      });
+    } catch {
+      // Route Handler / Server Action context where cookies are writable
+      // If this throws, the caller should handle the error
+      throw new Error('Failed to persist refreshed tokens');
+    }
+
+    return tokens;
+  } catch (error) {
+    console.error('Server session refresh failed:', error instanceof Error ? error.message : error);
     return null;
   }
 }

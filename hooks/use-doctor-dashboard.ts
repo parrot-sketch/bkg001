@@ -71,7 +71,7 @@ export function useDoctorStats(options: { enabled?: boolean } = {}) {
 
 export function useDoctorNotifications(options: { enabled?: boolean } = {}) {
   const { data } = useDoctorDashboard(options);
-  return data?.notifications ?? [];
+  return data?.stats ?? null;
 }
 
 export function useDoctorProfile(options: { enabled?: boolean } = {}) {

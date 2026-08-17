@@ -1,173 +1,118 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { formatDistanceToNow } from 'date-fns';
 import type { QueuePatient } from '@/hooks/doctor/useDoctorQueue';
 
 interface QueuePatientsViewProps {
   queue: QueuePatient[];
   isLoading: boolean;
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
-  sortBy: string;
-  sortOrder: string;
-  onSortByChange: (sortBy: string) => void;
-  onSortOrderToggle: () => void;
+  total: number;
+  totalPages: number;
+  currentPage: number;
+  onPageChange: (page: number) => void;
   onOpenPatient: (appointmentId: number, status: string) => void;
   onNewConsultation: (patientId: string) => void;
+  selectedDate: string;
+  onDateChange: (date: string) => void;
 }
-
-type DateFilter = 'today' | 'week' | 'month' | 'all' | 'custom';
 
 export function QueuePatientsView({
   queue,
   isLoading,
-  searchQuery,
-  onSearchChange,
-  sortBy,
-  sortOrder,
-  onSortByChange,
-  onSortOrderToggle,
+  total,
+  totalPages,
+  currentPage,
+  onPageChange,
   onOpenPatient,
   onNewConsultation,
+  selectedDate,
+  onDateChange,
 }: QueuePatientsViewProps) {
-  const [queueStartDate, setQueueStartDate] = useState('');
-  const [queueEndDate, setQueueEndDate] = useState('');
-  const [queueDateFilter, setQueueDateFilter] = useState<DateFilter>('all');
+  const today = new Date().toISOString().split('T')[0];
 
-  const handleQuickFilter = (filter: DateFilter) => {
-    setQueueDateFilter(filter);
+  const applyQuickFilter = (filter: 'today' | 'yesterday' | 'week' | 'month') => {
     const now = new Date();
-    switch (filter) {
-      case 'today':
-        setQueueStartDate(format(now, 'yyyy-MM-dd'));
-        setQueueEndDate(format(now, 'yyyy-MM-dd'));
-        break;
-      case 'week': {
-        const start = startOfWeek(now, { weekStartsOn: 1 });
-        const end = endOfWeek(now, { weekStartsOn: 1 });
-        setQueueStartDate(format(start, 'yyyy-MM-dd'));
-        setQueueEndDate(format(end, 'yyyy-MM-dd'));
-        break;
-      }
-      case 'month': {
-        const start = startOfMonth(now);
-        const end = endOfMonth(now);
-        setQueueStartDate(format(start, 'yyyy-MM-dd'));
-        setQueueEndDate(format(end, 'yyyy-MM-dd'));
-        break;
-      }
-      case 'all':
-      default:
-        setQueueStartDate('');
-        setQueueEndDate('');
-        break;
+    if (filter === 'today') {
+      onDateChange(now.toISOString().split('T')[0]);
+    } else if (filter === 'yesterday') {
+      const y = new Date(now);
+      y.setDate(y.getDate() - 1);
+      onDateChange(y.toISOString().split('T')[0]);
+    } else if (filter === 'week') {
+      onDateChange(now.toISOString().split('T')[0]);
+    } else if (filter === 'month') {
+      onDateChange(now.toISOString().split('T')[0]);
     }
   };
 
-  const clearFilters = () => {
-    setQueueStartDate('');
-    setQueueEndDate('');
-    setQueueDateFilter('all');
-    onSearchChange('');
-  };
+  const isToday = selectedDate === today;
 
-  const hasActiveFilters = queueStartDate || queueEndDate || searchQuery;
+  if (isLoading) {
+    return (
+      <div className="space-y-2">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="flex items-center gap-4 p-4 bg-white border border-[#e7d6bf]">
+            <div className="h-9 w-9 bg-[#e7d6bf]/30 animate-pulse" />
+            <div className="flex-1 space-y-1.5">
+              <div className="h-4 w-44 bg-[#e7d6bf]/30 animate-pulse" />
+              <div className="h-3 w-28 bg-[#e7d6bf]/30 animate-pulse" />
+            </div>
+            <div className="h-8 w-20 bg-[#e7d6bf]/30 animate-pulse" />
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
-    <>
-      {/* Date filter bar */}
-      <div className="flex flex-wrap items-center gap-2 bg-white border border-[#e7d6bf] rounded-xl p-3">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-[#2c2e4b]/60">Date added</span>
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-[#2c2e4b]/60">Queue date</span>
         <div className="flex items-center gap-1">
           {([
             { key: 'today', label: 'Today' },
+            { key: 'yesterday', label: 'Yesterday' },
             { key: 'week', label: 'This Week' },
             { key: 'month', label: 'This Month' },
-            { key: 'all', label: 'All' },
           ] as const).map((item) => (
             <Button
               key={item.key}
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => handleQuickFilter(item.key)}
+              onClick={() => applyQuickFilter(item.key)}
               className={`h-7 px-2.5 text-[11px] rounded-md border ${
-                queueDateFilter === item.key
-                  ? 'border-[#caa26a] bg-[#caa26a]/10 text-[#2c2e4b]'
-                  : 'border-[#e7d6bf] text-[#2c2e4b]/70 hover:bg-[#e7d6bf]/20'
+                (item.key === 'today' && isToday) ||
+                (item.key === 'week' && selectedDate === today) ||
+                (item.key === 'month' && selectedDate === today)
+                  ? 'border-white/40 bg-white/15 text-white'
+                  : 'border-white/15 text-white/80 hover:bg-white/10 hover:text-white'
               }`}
             >
               {item.label}
             </Button>
           ))}
         </div>
-        <div className="flex items-center gap-1">
-          <input
-            type="date"
-            value={queueStartDate}
-            onChange={(e) => {
-              setQueueStartDate(e.target.value);
-              setQueueDateFilter('custom');
-            }}
-            className="h-7 px-2 text-[11px] rounded-md border border-[#e7d6bf] bg-white text-[#2c2e4b] focus:outline-none focus:ring-1 focus:ring-[#caa26a]/40"
-          />
-          <span className="text-[11px] text-[#2c2e4b]/50">to</span>
-          <input
-            type="date"
-            value={queueEndDate}
-            onChange={(e) => {
-              setQueueEndDate(e.target.value);
-              setQueueDateFilter('custom');
-            }}
-            className="h-7 px-2 text-[11px] rounded-md border border-[#e7d6bf] bg-white text-[#2c2e4b] focus:outline-none focus:ring-1 focus:ring-[#caa26a]/40"
-          />
-        </div>
+        <input
+          type="date"
+          value={selectedDate}
+          onChange={(e) => onDateChange(e.target.value)}
+          className="h-7 px-2 text-[11px] rounded-md border border-[#e7d6bf] bg-white text-[#2c2e4b] focus:outline-none focus:ring-1 focus:ring-[#caa26a]/40"
+        />
       </div>
 
-      {/* Loading state */}
-      {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="flex items-center gap-4 p-4 bg-white border border-[#e7d6bf] rounded-lg">
-              <div className="h-9 w-9 rounded-lg bg-[#e7d6bf]/30 animate-pulse" />
-              <div className="flex-1 space-y-1.5">
-                <div className="h-4 w-44 bg-[#e7d6bf]/30 rounded animate-pulse" />
-                <div className="h-3 w-28 bg-[#e7d6bf]/30 rounded animate-pulse" />
-              </div>
-              <div className="h-8 w-20 bg-[#e7d6bf]/30 rounded-lg animate-pulse" />
-            </div>
-          ))}
-        </div>
-      ) : queue.length === 0 ? (
-      <div className="flex flex-col items-center justify-center py-16 bg-white border border-[#e7d6bf] rounded-xl">
-        <h3 className="text-sm font-semibold text-[#2c2e4b]">
-          {hasActiveFilters ? 'No patients match your filters' : 'No patients in queue'}
-        </h3>
-        <p className="text-xs text-[#2c2e4b]/70 max-w-xs text-center mt-1">
-          {queueStartDate || queueEndDate
-            ? 'Try widening the date range or clearing the date filter.'
-            : searchQuery
-              ? 'Try a different name, file number, or phone number.'
-              : 'Patients added to your queue will appear here until you start their consultation.'}
-        </p>
-          {hasActiveFilters && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-4 rounded-lg border-[#e7d6bf] text-[#2c2e4b]"
-              onClick={clearFilters}
-            >
-              Clear filters
-            </Button>
-          )}
+      {queue.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 bg-white border border-[#e7d6bf]">
+          <h3 className="text-sm font-semibold text-[#2c2e4b]">No patients in queue</h3>
+          <p className="text-xs text-[#2c2e4b]/70 max-w-xs text-center mt-1">
+            Patients added to your queue will appear here until you start their consultation.
+          </p>
         </div>
       ) : (
-        <div className="border border-[#e7d6bf] bg-white overflow-hidden rounded-xl">
+        <div className="border border-[#e7d6bf] bg-white overflow-hidden">
           <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-[#2c2e4b]/60 border-b border-[#e7d6bf]">
             <div className="col-span-4">Patient</div>
             <div className="col-span-2">File</div>
@@ -191,13 +136,13 @@ export function QueuePatientsView({
                   className="flex items-center gap-4 px-4 py-3 hover:bg-[#e7d6bf]/10 transition-colors"
                 >
                   <Link href={`/doctor/patients/${patient.id}`} className="flex-1 min-w-0 flex items-center gap-3">
-                    <div className="h-9 w-9 border border-[#e7d6bf] bg-[#e7d6bf]/30 flex items-center justify-center text-xs font-semibold text-[#2c2e4b] flex-shrink-0 rounded-lg">
+                    <div className="h-9 w-9 border border-[#e7d6bf] bg-[#e7d6bf]/30 flex items-center justify-center text-xs font-semibold text-[#2c2e4b] flex-shrink-0">
                       {`${patient.firstName?.[0] || ''}${patient.lastName?.[0] || ''}`.toUpperCase()}
                     </div>
                     <div className="min-w-0">
                       <div className="text-sm font-medium text-[#2c2e4b] truncate">{`${patient.firstName} ${patient.lastName}`}</div>
                       <div className="md:hidden text-xs text-[#2c2e4b]/60 mt-0.5">
-                        {patient.fileNumber || '—'} · {(patient as any).phone || '—'}
+                        {patient.fileNumber || '—'} · {(entry as any).phone || '—'}
                       </div>
                     </div>
                   </Link>
@@ -231,7 +176,7 @@ export function QueuePatientsView({
                       <Button
                         size="sm"
                         onClick={() => onOpenPatient(appointmentId, queueStatus)}
-                        className={`h-8 px-3 text-xs rounded-lg ${
+                        className={`h-8 px-3 text-xs ${
                           queueStatus === 'In Progress'
                             ? 'bg-violet-600 hover:bg-violet-700 text-white'
                             : 'bg-[#2c2e4b] hover:bg-[#1a1c2f] text-white'
@@ -243,7 +188,7 @@ export function QueuePatientsView({
                       <Button
                         size="sm"
                         onClick={() => onNewConsultation(patient.id)}
-                        className="h-8 px-3 text-xs rounded-lg bg-[#2c2e4b] hover:bg-[#1a1c2f] text-white"
+                        className="h-8 px-3 text-xs bg-[#2c2e4b] hover:bg-[#1a1c2f] text-white"
                       >
                         New
                       </Button>
@@ -253,8 +198,39 @@ export function QueuePatientsView({
               );
             })}
           </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-t border-[#e7d6bf]">
+              <span className="text-xs text-[#2c2e4b]/60 tabular-nums">
+                Page {currentPage} of {totalPages} · {total} total
+              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2.5 text-xs border-[#e7d6bf] text-[#2c2e4b] hover:bg-[#e7d6bf]/20"
+                  onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+                  disabled={currentPage <= 1}
+                >
+                  Prev
+                </Button>
+                <span className="text-xs text-[#2c2e4b]/60 tabular-nums px-2">
+                  {currentPage}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2.5 text-xs border-[#e7d6bf] text-[#2c2e4b] hover:bg-[#e7d6bf]/20"
+                  onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage >= totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
-    </>
+    </div>
   );
 }

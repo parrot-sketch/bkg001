@@ -3,6 +3,9 @@
 import type { NursePreopWardChecklistDraft } from '@/domain/clinical-forms/NursePreopWardChecklist';
 import { getAgeYears, formatSex } from '@/components/nurse/ward-prep-checklist/utils';
 
+import { Button } from '@/components/ui/button';
+import { Printer } from 'lucide-react';
+
 function formatDoctorName(name: string | null | undefined): string {
   if (!name) return '—';
   return name.match(/^(Dr\\.?|Dr\\s)/i) ? name : `Dr. ${name}`;
@@ -40,6 +43,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export function FinalizedChecklistDocument(props: {
+  caseId: string;
   patient: {
     first_name: string;
     last_name: string;
@@ -51,7 +55,7 @@ export function FinalizedChecklistDocument(props: {
   anaesthesiologistName?: string | null;
   data: NursePreopWardChecklistDraft;
 }) {
-  const { patient, surgeonName, anaesthesiologistName, data } = props;
+  const { caseId, patient, surgeonName, anaesthesiologistName, data } = props;
 
   const header = data.header ?? {};
   const doc = data.documentation ?? {};
@@ -67,56 +71,25 @@ export function FinalizedChecklistDocument(props: {
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-      <div className="px-8 py-7 border-b border-slate-200">
-        <div className="text-sm font-extrabold text-slate-900 uppercase tracking-wide">
-          NAIROBI SCULPT AESTHETIC CENTRE
-        </div>
-        <div className="mt-1 text-lg font-black tracking-tight text-slate-900">
-          PRE-OPERATIVE WARD CHECK-LIST
-        </div>
-        <div className="mt-1 text-sm text-slate-600">
-          All information should be filled in clearly before the patient is received in theatre
-        </div>
-
-        <div className="mt-6 grid grid-cols-2 gap-x-10 gap-y-4">
-          <div>
-            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">PATIENT FILE NO.</div>
-            <div className="text-sm font-semibold text-slate-900 mt-1">{patient.file_number}</div>
+      <div className="px-8 py-7 border-b border-slate-200 flex items-center justify-between">
+        <div>
+          <div className="text-sm font-extrabold text-slate-900 uppercase tracking-wide">
+            NAIROBI SCULPT AESTHETIC CENTRE
           </div>
-          <div>
-            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">DATE</div>
-            <div className="text-sm font-semibold text-slate-900 mt-1">{header.date || '—'}</div>
+          <div className="mt-1 text-lg font-black tracking-tight text-slate-900">
+            PRE-OPERATIVE WARD CHECK-LIST
           </div>
-          <div>
-            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">NAME</div>
-            <div className="text-sm font-semibold text-slate-900 mt-1">{patientName}</div>
-          </div>
-          <div>
-            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">DOCTOR</div>
-            <div className="text-sm font-semibold text-slate-900 mt-1">{formatDoctorName(surgeonName)}</div>
-          </div>
-          <div>
-            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">AGE</div>
-            <div className="text-sm font-semibold text-slate-900 mt-1">{getAgeYears(patient.date_of_birth)}</div>
-          </div>
-          <div>
-            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">ANAESTHESIOLOGIST</div>
-            <div className="text-sm font-semibold text-slate-900 mt-1">{anaesthesiologistName || '—'}</div>
-          </div>
-          <div>
-            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">SEX</div>
-            <div className="text-sm font-semibold text-slate-900 mt-1">{formatSex(patient.gender)}</div>
+          <div className="mt-1 text-sm text-slate-600">
+            All information should be filled in clearly before the patient is received in theatre
           </div>
         </div>
 
-        <div className="mt-6">
-          <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
-            NURSING: ACTION/COMMENTS/OBSERVATIONS
-          </div>
-          <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-3 text-sm text-slate-900 whitespace-pre-wrap">
-            {header.nursingComments || '—'}
-          </div>
-        </div>
+        <Button variant="outline" size="sm" className="gap-1.5 h-8" asChild>
+          <a href={`/nurse/ward-prep/${caseId}/checklist/print`} target="_blank" rel="noopener noreferrer">
+            <Printer className="h-3.5 w-3.5" />
+            Print
+          </a>
+        </Button>
       </div>
 
       <div className="px-8 py-7">

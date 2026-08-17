@@ -100,6 +100,20 @@ export function TheaterTechCaseDetailView(props: {
   assistantSurgeons: Array<{ id?: string; name: string; specialization?: string | null }>;
   procedureNames: string[];
   variant?: 'screen' | 'print';
+  vitals?: Array<{
+    id: number;
+    body_temperature?: number | null;
+    systolic?: number | null;
+    diastolic?: number | null;
+    heart_rate?: string | null;
+    respiratory_rate?: number | null;
+    oxygen_saturation?: number | null;
+    weight?: number | null;
+    height?: number | null;
+    recorded_by_name?: string;
+    recorded_at: string;
+  }>;
+  onRecordVitals?: () => void;
 }) {
   const {
     caseId,
@@ -108,6 +122,8 @@ export function TheaterTechCaseDetailView(props: {
     assistantSurgeons,
     procedureNames,
     variant = 'screen',
+    vitals = [],
+    onRecordVitals,
   } = props;
 
   if (variant === 'print') {
@@ -165,9 +181,9 @@ export function TheaterTechCaseDetailView(props: {
 
             <div className="flex items-center gap-2 flex-wrap sm:shrink-0">
               <Button size="sm" variant="outline" asChild className="h-8 gap-1.5">
-                <Link href={`/theater-tech/surgical-cases/${caseId}/charges`}>
+                <Link href={`/theater-tech/surgical-cases/${caseId}`}>
                   <Receipt className="h-3.5 w-3.5" />
-                  <span>Charges</span>
+                  <span>View Billing</span>
                 </Link>
               </Button>
               {isEditable && (
@@ -184,6 +200,12 @@ export function TheaterTechCaseDetailView(props: {
                     <Activity className="h-3.5 w-3.5" />
                     <span>Dayboard</span>
                   </Link>
+                </Button>
+              )}
+              {variant === 'screen' && onRecordVitals && (
+                <Button size="sm" onClick={onRecordVitals} className="h-8 gap-1.5 bg-red-600 hover:bg-red-700 text-white">
+                  <Activity className="h-3.5 w-3.5" />
+                  <span>Record Vitals</span>
                 </Button>
               )}
               <Button size="sm" variant="outline" asChild className="h-8 gap-1.5">
@@ -338,6 +360,60 @@ export function TheaterTechCaseDetailView(props: {
                 <KV label="Total Theater" value={surgicalCase.total_theatre_minutes ? `${surgicalCase.total_theatre_minutes} min` : '—'} />
                 <KV label="Admission" value={displayEnum(surgicalCase.admission_type)} />
               </div>
+            </Section>
+
+            {/* Vitals */}
+            <Section title="Pre-Op Vitals" icon={<Activity className="h-3.5 w-3.5" />}>
+              {vitals.length === 0 ? (
+                <p className="text-sm text-slate-500">No vitals recorded yet.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200">
+                        <th className="text-left py-2 text-xs font-semibold text-slate-500">Recorded</th>
+                        <th className="text-left py-2 text-xs font-semibold text-slate-500">Temp</th>
+                        <th className="text-left py-2 text-xs font-semibold text-slate-500">BP</th>
+                        <th className="text-left py-2 text-xs font-semibold text-slate-500">Pulse</th>
+                        <th className="text-left py-2 text-xs font-semibold text-slate-500">SpO2</th>
+                        <th className="text-left py-2 text-xs font-semibold text-slate-500">Weight</th>
+                        <th className="text-left py-2 text-xs font-semibold text-slate-500">Height</th>
+                        <th className="text-left py-2 text-xs font-semibold text-slate-500">By</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {vitals.map((v) => (
+                        <tr key={v.id}>
+                          <td className="py-3 text-slate-600 whitespace-nowrap">
+                            {format(new Date(v.recorded_at), 'dd MMM yyyy HH:mm')}
+                          </td>
+                          <td className="py-3 text-slate-900 font-medium">
+                            {v.body_temperature != null ? `${v.body_temperature}°C` : '—'}
+                          </td>
+                          <td className="py-3 text-slate-700">
+                            {v.systolic != null && v.diastolic != null ? `${v.systolic}/${v.diastolic}` : '—'}
+                          </td>
+                          <td className="py-3 text-slate-700">
+                            {v.heart_rate ?? '—'}
+                          </td>
+                          <td className="py-3 text-slate-700">
+                            {v.oxygen_saturation != null ? `${v.oxygen_saturation}%` : '—'}
+                          </td>
+                          <td className="py-3 text-slate-700">
+                            {v.weight != null ? `${v.weight} kg` : '—'}
+                          </td>
+                          <td className="py-3 text-slate-700">
+                            {v.height != null ? `${v.height} cm` : '—'}
+                          </td>
+                          <td className="py-3 text-slate-500 text-xs">
+                            {v.recorded_by_name || '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </Section>
 
             {/* Items */}

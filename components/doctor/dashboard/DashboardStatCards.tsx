@@ -29,12 +29,12 @@ export function DashboardStatCards({ isLoading }: DashboardStatCardsProps) {
           <button
             key={key}
             onClick={() => href.startsWith('#') ? null : router.push(href)}
-            className="flex flex-col items-center justify-center p-4 bg-[#e7d6bf] border border-[#2c2e4b]/10 rounded-xl hover:shadow-md hover:border-[#caa26a]/40 transition-all text-center"
+            className="flex flex-col items-center justify-center p-4 bg-white border border-[#e7d6bf] shadow-sm hover:border-[#caa26a]/40 transition-all text-center"
           >
             {isLoading ? (
               <div className="space-y-2 w-full">
-                <div className="h-4 w-3/4 bg-[#2c2e4b]/10 animate-pulse rounded mx-auto" />
-                <div className="h-8 w-1/2 bg-[#2c2e4b]/10 animate-pulse rounded mx-auto" />
+                <div className="h-4 w-3/4 bg-[#e7d6bf] animate-pulse mx-auto" />
+                <div className="h-8 w-1/2 bg-[#e7d6bf] animate-pulse mx-auto" />
               </div>
             ) : (
               <>

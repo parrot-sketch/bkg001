@@ -8,7 +8,7 @@
  * nurse-specific workflows accessible.
  */
 
-import { LayoutDashboard, Calendar, Users, ClipboardList, User, Bell, Activity, HeartPulse } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, ClipboardList, User, Bell, Activity, HeartPulse, FileText } from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { useAuth } from '@/hooks/patient/useAuth';
 
@@ -36,6 +36,12 @@ const navItems: NavItem[] = [
     href: '/frontdesk/theater-scheduling',
     icon: Activity,
     section: 'Patient Care',
+  },
+  {
+    name: 'Surgical Cases',
+    href: '/nurse/surgical-cases',
+    icon: FileText,
+    section: 'Clinical',
   },
   {
     name: 'Ward Prep',

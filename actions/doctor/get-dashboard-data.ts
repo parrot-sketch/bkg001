@@ -88,14 +88,6 @@ export interface DoctorDashboardData {
     waitTime: string;
     isWalkIn: boolean;
   }[];
-  notifications: {
-    id: string;
-    subject: string;
-    message: string;
-    type: string;
-    isRead: boolean;
-    createdAt: Date;
-  }[];
   stats: {
     queueLength: number;
     completedConsultationsToday: number;
@@ -177,7 +169,7 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
     apt.status === 'PENDING_DOCTOR_CONFIRMATION' || apt.status === 'PENDING'
   ).length;
 
-  const [surgicalCases, queue, notifications] = await Promise.all([
+  const [surgicalCases, queue] = await Promise.all([
     db.surgicalCase.findMany({
       where: {
         primary_surgeon_id: doctorId,
@@ -213,7 +205,11 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
     db.patientQueue.findMany({
       where: {
         doctor_id: doctorId,
-        status: 'WAITING',
+        status: { in: ['WAITING', 'IN_CONSULTATION'] },
+        added_at: {
+          gte: today,
+          lt: tomorrow,
+        },
       },
       include: {
         patient: {
@@ -235,17 +231,12 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
       },
       orderBy: { added_at: 'asc' },
     }),
-    db.notification.findMany({
-      where: { user_id: userId },
-      orderBy: { created_at: 'desc' },
-      take: 20,
-    }),
   ]);
 
   // Note: Queue data is fetched separately via useDoctorQueue hook.
   // The PatientQueue table is the single source of truth for the doctor's
   // operational queue. This action focuses on appointments, surgical cases,
-  // and notifications.
+  // and stats.
 
   const completedToday = todayAppointments.filter(a => a.status === 'COMPLETED').length;
   const activeCases = surgicalCases.filter(s => s.status !== 'COMPLETED' && s.status !== 'CANCELLED' && s.status !== 'DRAFT').length;
@@ -332,7 +323,7 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
       return {
         id: q.id,
         patientId: q.patient_id,
-        patientName: `${q.patient.first_name} ${q.patient.last_name}`,
+        patientName: `${q.patient.first_name} ${q.patient.lastName}`,
         patientFileNumber: q.patient.file_number,
         appointmentId: q.appointment_id,
         type: q.appointment?.type || 'Walk-in',
@@ -344,14 +335,6 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
         isWalkIn: !q.appointment_id,
       };
     }),
-    notifications: notifications.map(n => ({
-      id: String(n.id),
-      subject: n.subject || '',
-      message: n.message || '',
-      type: n.type,
-      isRead: !!n.read_at,
-      createdAt: n.created_at,
-    })),
     stats: {
       queueLength: queue.length,
       completedConsultationsToday: completedToday,

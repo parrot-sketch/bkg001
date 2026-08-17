@@ -152,13 +152,14 @@ export async function GET(
             id: item.id,
             serviceId: item.service_id,
             inventoryItemId: item.inventory_item_id,
-            serviceName: item.service?.service_name || item.inventory_item?.name || 'Unknown Item',
+            serviceName: item.custom_description || item.service?.service_name || item.inventory_item?.name || 'Unknown Item',
             serviceCategory: item.service?.category || item.inventory_item?.category || null,
             quantity: item.quantity,
             unitCost: item.unit_cost,
             totalCost: item.total_cost,
             serviceDate: item.service_date,
             isInventory: !!item.inventory_item_id,
+            isCustom: !!item.custom_description,
           })),
         },
         surgicalCase: {
@@ -245,7 +246,7 @@ export async function PUT(
 
     const { billingItems, discount, customTotalAmount, includeInventory, notes } = body;
 
-    // 4. Validate billing items - allow serviceId OR inventoryItemId (string or number)
+    // 4. Validate billing items - allow serviceId OR inventoryItemId OR customDescription
     if (!billingItems || !Array.isArray(billingItems) || billingItems.length === 0) {
       return NextResponse.json(
         { success: false, error: 'At least one billing item is required' },
@@ -256,17 +257,19 @@ export async function PUT(
     const validatedItems = billingItems.map((item: any) => ({
       serviceId: item.serviceId ? Number(item.serviceId) : null,
       inventoryItemId: item.inventoryItemId ? Number(item.inventoryItemId) : null,
+      customDescription: item.customDescription ? String(item.customDescription).trim() : null,
       quantity: item.quantity ? Number(item.quantity) : 1,
       unitCost: item.unitCost ? Number(item.unitCost) : 0,
     }));
 
     for (const item of validatedItems) {
-      // Must have either serviceId or inventoryItemId
+      // Must have either serviceId, inventoryItemId, or customDescription
       const hasService = item.serviceId && item.serviceId > 0;
       const hasInventory = item.inventoryItemId && item.inventoryItemId > 0;
-      if (!hasService && !hasInventory) {
+      const hasCustom = !!item.customDescription;
+      if (!hasService && !hasInventory && !hasCustom) {
         return NextResponse.json(
-          { success: false, error: 'Each billing item must have serviceId or inventoryItemId' },
+          { success: false, error: 'Each billing item must have serviceId, inventoryItemId, or customDescription' },
           { status: 400 }
         );
       }
@@ -358,11 +361,20 @@ export async function PUT(
         where: { payment_id: existingPayment.id },
       });
 
-      // Build bill items for database - handle both service and inventory
+      // Build bill items for database - handle service, inventory, and custom
       const billItemsData = validatedItems.map((item: any) => {
         if (item.inventoryItemId && item.inventoryItemId > 0) {
           return {
             inventory_item_id: parseInt(item.inventoryItemId, 10),
+            service_date: new Date(),
+            quantity: item.quantity,
+            unit_cost: item.unitCost,
+            total_cost: item.quantity * item.unitCost,
+          };
+        }
+        if (item.customDescription) {
+          return {
+            custom_description: item.customDescription,
             service_date: new Date(),
             quantity: item.quantity,
             unit_cost: item.unitCost,
@@ -393,11 +405,20 @@ export async function PUT(
 
       paymentId = existingPayment.id;
     } else {
-      // Build bill items for database - handle both service and inventory
+      // Build bill items for database - handle service, inventory, and custom
       const billItemsData = validatedItems.map((item: any) => {
         if (item.inventoryItemId && item.inventoryItemId > 0) {
           return {
             inventory_item_id: parseInt(item.inventoryItemId, 10),
+            service_date: new Date(),
+            quantity: item.quantity,
+            unit_cost: item.unitCost,
+            total_cost: item.quantity * item.unitCost,
+          };
+        }
+        if (item.customDescription) {
+          return {
+            custom_description: item.customDescription,
             service_date: new Date(),
             quantity: item.quantity,
             unit_cost: item.unitCost,

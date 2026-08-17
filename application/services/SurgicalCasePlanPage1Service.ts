@@ -1,22 +1,18 @@
 import type { PrismaClient, Prisma } from '@prisma/client';
 import { InviteStatus, Role, SurgicalRole } from '@prisma/client';
 import { isEligibleForSurgicalRole } from '@/lib/domain/policies/team-eligibility';
+import bcrypt from 'bcrypt';
 import {
   buildPlannedStaffAssignments,
   diffPlannedStaffAssignments,
 } from '@/domain/services/SurgicalCaseTeamSelection';
 
 export const VALID_PROCEDURE_CATEGORIES = [
-  'FACE',
-  'BREAST',
+  'FACIAL',
   'BODY',
-  'RECONSTRUCTIVE',
-  'FACE_AND_NECK',
-  'BODY_CONTOURING',
-  'INTIMATE_AESTHETIC',
-  'HAIR_RESTORATION',
+  'BREAST',
+  'SKIN_AND_SCAR',
   'NON_SURGICAL',
-  'POST_WEIGHT_LOSS',
   'OTHER',
 ] as const;
 
@@ -41,6 +37,13 @@ export function normalizePage1TeamInput(body: any): {
   anesthesiologistUserId: string | null;
   scrubNurseUserId: string | null;
   circulatingNurseUserId: string | null;
+  customAnesthesiologistName: string | null;
+  customScrubNurseName: string | null;
+  customCirculatingNurseName: string | null;
+  customPrimarySurgeonName: string | null;
+  customAssistantSurgeonNames: string[];
+  customProcedureCategory: string | null;
+  customProcedureNames: string[];
 } {
   const legacySurgeonIds: string[] = Array.isArray(body?.surgeonIds) ? body.surgeonIds : [];
   const primarySurgeonDoctorId: string =
@@ -69,6 +72,34 @@ export function normalizePage1TeamInput(body: any): {
       ? body.circulatingNurseUserId.trim()
       : null;
 
+  const customAnesthesiologistName =
+    typeof body?.customAnesthesiologistName === 'string' && body.customAnesthesiologistName.trim()
+      ? body.customAnesthesiologistName.trim()
+      : null;
+  const customScrubNurseName =
+    typeof body?.customScrubNurseName === 'string' && body.customScrubNurseName.trim()
+      ? body.customScrubNurseName.trim()
+      : null;
+  const customCirculatingNurseName =
+    typeof body?.customCirculatingNurseName === 'string' && body.customCirculatingNurseName.trim()
+      ? body.customCirculatingNurseName.trim()
+      : null;
+
+  const customPrimarySurgeonName =
+    typeof body?.customPrimarySurgeonName === 'string' && body.customPrimarySurgeonName.trim()
+      ? body.customPrimarySurgeonName.trim()
+      : null;
+  const customAssistantSurgeonNames: string[] = Array.isArray(body?.customAssistantSurgeonNames)
+    ? body.customAssistantSurgeonNames.filter((n: any) => typeof n === 'string' && n.trim())
+    : [];
+  const customProcedureCategory =
+    typeof body?.customProcedureCategory === 'string' && body.customProcedureCategory.trim()
+      ? body.customProcedureCategory.trim()
+      : null;
+  const customProcedureNames: string[] = Array.isArray(body?.customProcedureNames)
+    ? body.customProcedureNames.filter((n: any) => typeof n === 'string' && n.trim())
+    : [];
+
   return {
     primarySurgeonDoctorId,
     assistantSurgeonDoctorIds,
@@ -76,6 +107,13 @@ export function normalizePage1TeamInput(body: any): {
     anesthesiologistUserId,
     scrubNurseUserId,
     circulatingNurseUserId,
+    customAnesthesiologistName,
+    customScrubNurseName,
+    customCirculatingNurseName,
+    customPrimarySurgeonName,
+    customAssistantSurgeonNames,
+    customProcedureCategory,
+    customProcedureNames,
   };
 }
 
@@ -83,6 +121,133 @@ function assertEligibility(userRole: Role, surgicalRole: SurgicalRole) {
   if (!isEligibleForSurgicalRole(userRole, surgicalRole)) {
     throw new Error(`User role '${userRole}' is not eligible for surgical role '${surgicalRole}'`);
   }
+}
+
+async function resolveCustomStaffUserId(
+  db: PrismaClient,
+  name: string,
+  role: Role,
+): Promise<string> {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    throw new Error('Custom staff name is required');
+  }
+
+  const existing = await db.user.findFirst({
+    where: {
+      OR: [
+        { first_name: trimmed },
+        { last_name: trimmed },
+        { email: trimmed },
+      ],
+      role,
+    },
+    select: { id: true },
+  });
+
+  if (existing?.id) {
+    return existing.id;
+  }
+
+  const email = `external-${Date.now()}@placeholder.local`;
+  const passwordHash = await bcrypt.hash('external', 10);
+
+  const user = await db.user.create({
+    data: {
+      email,
+      password_hash: passwordHash,
+      role,
+      status: 'ACTIVE',
+      first_name: trimmed,
+      last_name: '',
+    },
+    select: { id: true },
+  });
+
+  return user.id;
+}
+
+async function resolveCustomSurgeonDoctorId(db: PrismaClient, customName: string): Promise<string> {
+  const trimmed = customName.trim();
+  if (!trimmed) {
+    throw new Error('Custom surgeon name is required');
+  }
+
+  const existing = await db.doctor.findFirst({
+    where: { name: trimmed },
+    select: { id: true },
+  });
+
+  if (existing?.id) {
+    return existing.id;
+  }
+
+  const email = `external-${Date.now()}@placeholder.local`;
+  const passwordHash = await bcrypt.hash('external', 10);
+  const licenseNumber = `EXT-${Date.now().toString(36).toUpperCase()}`;
+
+  const user = await db.user.create({
+    data: {
+      email,
+      password_hash: passwordHash,
+      role: 'DOCTOR',
+      status: 'ACTIVE',
+      first_name: trimmed,
+      last_name: '',
+    },
+    select: { id: true },
+  });
+
+  const doctor = await db.doctor.create({
+    data: {
+      user_id: user.id,
+      email,
+      first_name: trimmed,
+      last_name: '',
+      name: trimmed,
+      specialization: 'External',
+      license_number: licenseNumber,
+      phone: 'N/A',
+      address: 'External',
+      availability_status: 'AVAILABLE',
+      type: 'FULL',
+      onboarding_status: 'INVITED',
+    },
+    select: { id: true },
+  });
+
+  return doctor.id;
+}
+
+async function resolveCustomProcedureId(db: PrismaClient | Prisma.TransactionClient, name: string, category: string): Promise<string> {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    throw new Error('Custom procedure name is required');
+  }
+
+  const existing = await db.surgicalProcedureOption.findFirst({
+    where: {
+      name: trimmed,
+      category: category as any,
+    },
+    select: { id: true },
+  });
+
+  if (existing?.id) {
+    return existing.id;
+  }
+
+  const procedure = await db.surgicalProcedureOption.create({
+    data: {
+      name: trimmed,
+      category: category as any,
+      is_active: true,
+      is_billable: true,
+    },
+    select: { id: true },
+  });
+
+  return procedure.id;
 }
 
 export async function saveSurgicalCasePlanPage1(
@@ -101,9 +266,28 @@ export async function saveSurgicalCasePlanPage1(
 
   const team = normalizePage1TeamInput(body);
 
+  // Resolve custom primary surgeon if provided
+  let resolvedPrimarySurgeonDoctorId = team.primarySurgeonDoctorId;
+  if (!resolvedPrimarySurgeonDoctorId && team.customPrimarySurgeonName) {
+    resolvedPrimarySurgeonDoctorId = await resolveCustomSurgeonDoctorId(db, team.customPrimarySurgeonName);
+  }
+
+  // Resolve custom assistant surgeons if provided
+  const resolvedAssistantSurgeonDoctorIds: string[] = [];
+  for (const customName of team.customAssistantSurgeonNames) {
+    const doctorId = await resolveCustomSurgeonDoctorId(db, customName);
+    resolvedAssistantSurgeonDoctorIds.push(doctorId);
+  }
+
+  const allSurgeonDoctorIds = [
+    resolvedPrimarySurgeonDoctorId,
+    ...resolvedAssistantSurgeonDoctorIds,
+    ...team.assistantSurgeonDoctorIds.filter((id) => id !== resolvedPrimarySurgeonDoctorId && !resolvedAssistantSurgeonDoctorIds.includes(id)),
+  ].filter(Boolean);
+
   if (
     !procedureDate ||
-    !team.primarySurgeonDoctorId ||
+    !resolvedPrimarySurgeonDoctorId ||
     !diagnosis ||
     !procedureCategory ||
     !primaryOrRevision
@@ -111,7 +295,8 @@ export async function saveSurgicalCasePlanPage1(
     throw new Error('All required fields must be filled including a primary surgeon');
   }
 
-  if (!VALID_PROCEDURE_CATEGORIES.includes(procedureCategory)) {
+  const effectiveCategory = team.customProcedureCategory || procedureCategory;
+  if (!VALID_PROCEDURE_CATEGORIES.includes(effectiveCategory as any) && effectiveCategory !== team.customProcedureCategory) {
     throw new Error('Invalid procedure category');
   }
 
@@ -148,25 +333,52 @@ export async function saveSurgicalCasePlanPage1(
 
   // Resolve surgeons (doctor ids) → user_ids
   const doctors = await db.doctor.findMany({
-    where: { id: { in: team.surgeonDoctorIds } },
+    where: { id: { in: allSurgeonDoctorIds } },
     select: { id: true, user_id: true },
   });
 
-  const primaryDoctor = doctors.find((d) => d.id === team.primarySurgeonDoctorId);
+  const primaryDoctor = doctors.find((d) => d.id === resolvedPrimarySurgeonDoctorId);
   if (!primaryDoctor?.user_id) {
     throw new Error('Primary surgeon must have a linked user account');
   }
 
   const assistantDoctors = doctors
-    .filter((d) => d.id !== team.primarySurgeonDoctorId)
-    .filter((d) => team.assistantSurgeonDoctorIds.includes(d.id))
+    .filter((d) => d.id !== resolvedPrimarySurgeonDoctorId)
+    .filter((d) => allSurgeonDoctorIds.includes(d.id))
     .filter((d) => !!d.user_id);
+
+  // Resolve custom non-surgeon staff names to user IDs
+  let resolvedAnesthesiologistUserId = team.anesthesiologistUserId;
+  let resolvedScrubNurseUserId = team.scrubNurseUserId;
+  let resolvedCirculatingNurseUserId = team.circulatingNurseUserId;
+
+  if (team.customAnesthesiologistName) {
+    resolvedAnesthesiologistUserId = await resolveCustomStaffUserId(
+      db,
+      team.customAnesthesiologistName,
+      Role.DOCTOR,
+    );
+  }
+  if (team.customScrubNurseName) {
+    resolvedScrubNurseUserId = await resolveCustomStaffUserId(
+      db,
+      team.customScrubNurseName,
+      Role.NURSE,
+    );
+  }
+  if (team.customCirculatingNurseName) {
+    resolvedCirculatingNurseUserId = await resolveCustomStaffUserId(
+      db,
+      team.customCirculatingNurseName,
+      Role.NURSE,
+    );
+  }
 
   // Validate non-surgeon staff users
   const nonSurgeonUserIds = [
-    team.anesthesiologistUserId,
-    team.scrubNurseUserId,
-    team.circulatingNurseUserId,
+    resolvedAnesthesiologistUserId,
+    resolvedScrubNurseUserId,
+    resolvedCirculatingNurseUserId,
   ].filter(Boolean) as string[];
 
   const nonSurgeonUsers = nonSurgeonUserIds.length
@@ -177,19 +389,19 @@ export async function saveSurgicalCasePlanPage1(
     : [];
   const userRoleMap = new Map(nonSurgeonUsers.map((u) => [u.id, u.role]));
 
-  if (team.anesthesiologistUserId) {
-    const role = userRoleMap.get(team.anesthesiologistUserId);
-    if (!role) throw new Error(`User not found: ${team.anesthesiologistUserId}`);
+  if (resolvedAnesthesiologistUserId) {
+    const role = userRoleMap.get(resolvedAnesthesiologistUserId);
+    if (!role) throw new Error(`User not found: ${resolvedAnesthesiologistUserId}`);
     assertEligibility(role, SurgicalRole.ANESTHESIOLOGIST);
   }
-  if (team.scrubNurseUserId) {
-    const role = userRoleMap.get(team.scrubNurseUserId);
-    if (!role) throw new Error(`User not found: ${team.scrubNurseUserId}`);
+  if (resolvedScrubNurseUserId) {
+    const role = userRoleMap.get(resolvedScrubNurseUserId);
+    if (!role) throw new Error(`User not found: ${resolvedScrubNurseUserId}`);
     assertEligibility(role, SurgicalRole.SCRUB_NURSE);
   }
-  if (team.circulatingNurseUserId) {
-    const role = userRoleMap.get(team.circulatingNurseUserId);
-    if (!role) throw new Error(`User not found: ${team.circulatingNurseUserId}`);
+  if (resolvedCirculatingNurseUserId) {
+    const role = userRoleMap.get(resolvedCirculatingNurseUserId);
+    if (!role) throw new Error(`User not found: ${resolvedCirculatingNurseUserId}`);
     assertEligibility(role, SurgicalRole.CIRCULATING_NURSE);
   }
 
@@ -204,21 +416,32 @@ export async function saveSurgicalCasePlanPage1(
   const desiredAssignments = buildPlannedStaffAssignments({
     primarySurgeonUserId: primaryDoctor.user_id,
     assistantSurgeonUserIds: assistantDoctors.map((d) => d.user_id!).filter(Boolean),
-    anesthesiologistUserId: team.anesthesiologistUserId,
-    scrubNurseUserId: team.scrubNurseUserId,
-    circulatingNurseUserId: team.circulatingNurseUserId,
+    anesthesiologistUserId: resolvedAnesthesiologistUserId,
+    scrubNurseUserId: resolvedScrubNurseUserId,
+    circulatingNurseUserId: resolvedCirculatingNurseUserId,
   });
 
   await db.$transaction(async (tx: Prisma.TransactionClient) => {
+    // Create custom procedures if provided
+    const customProcedureIds: string[] = [];
+    if (team.customProcedureNames.length > 0) {
+      for (const customName of team.customProcedureNames) {
+        const procedureId = await resolveCustomProcedureId(tx, customName, effectiveCategory);
+        customProcedureIds.push(procedureId);
+      }
+    }
+
+    const allProcedureIds = [...procedureIds, ...customProcedureIds];
+
     // Case update
     await tx.surgicalCase.update({
       where: { id: input.caseId },
       data: {
         procedure_date: new Date(procedureDate),
-        primary_surgeon_id: team.primarySurgeonDoctorId,
-        surgeon_ids: team.surgeonDoctorIds.length > 0 ? JSON.stringify(team.surgeonDoctorIds) : null,
+        primary_surgeon_id: resolvedPrimarySurgeonDoctorId,
+        surgeon_ids: allSurgeonDoctorIds.length > 0 ? JSON.stringify(allSurgeonDoctorIds) : null,
         diagnosis,
-        procedure_category: procedureCategory,
+        procedure_category: effectiveCategory,
         primary_or_revision: primaryOrRevision,
         // Never regress a case that already progressed beyond planning (e.g., READY_FOR_THEATER_BOOKING).
         ...(surgicalCase.status === 'DRAFT' ? { status: 'PLANNING' } : {}),
@@ -228,7 +451,7 @@ export async function saveSurgicalCasePlanPage1(
     // Procedures sync
     await tx.surgicalCaseProcedure.deleteMany({ where: { surgical_case_id: input.caseId } });
     await tx.surgicalCaseProcedure.createMany({
-      data: procedureIds.map((procedureId: string) => ({
+      data: allProcedureIds.map((procedureId: string) => ({
         surgical_case_id: input.caseId,
         procedure_id: procedureId,
       })),
@@ -305,7 +528,7 @@ export async function saveSurgicalCasePlanPage1(
   });
 
   return {
-    primarySurgeonDoctorId: team.primarySurgeonDoctorId,
-    surgeonDoctorIds: team.surgeonDoctorIds,
+    primarySurgeonDoctorId: resolvedPrimarySurgeonDoctorId,
+    surgeonDoctorIds: allSurgeonDoctorIds,
   };
 }

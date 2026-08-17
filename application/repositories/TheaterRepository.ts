@@ -34,12 +34,13 @@ export class TheaterRepository {
     /**
      * Get surgical cases ready for theater booking with pagination
      */
-    async findCasesForScheduling(options?: { page?: number; limit?: number; from?: Date; to?: Date }): Promise<{ cases: TheaterSchedulingQueueItem[]; total: number }> {
+    async findCasesForScheduling(options?: { page?: number; limit?: number; from?: Date; to?: Date; statuses?: string[] }): Promise<{ cases: TheaterSchedulingQueueItem[]; total: number }> {
         const page = options?.page ?? 1;
         const limit = options?.limit ?? 20;
         const skip = (page - 1) * limit;
         const from = options?.from;
         const to = options?.to;
+        const statuses = options?.statuses ?? [SurgicalCaseStatus.READY_FOR_THEATER_BOOKING];
 
         // Filter by "readiness event" (ward checklist finalization time) rather than case updated_at.
         // This keeps the booking queue focused on recently-cleared cases, not older backlog.
@@ -63,7 +64,7 @@ export class TheaterRepository {
         const [cases, total] = await Promise.all([
             this.prisma.surgicalCase.findMany({
                 where: {
-                    status: SurgicalCaseStatus.READY_FOR_THEATER_BOOKING,
+                    status: { in: statuses as SurgicalCaseStatus[] },
                     ...readinessWhere,
                 },
                 select: {

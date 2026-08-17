@@ -201,6 +201,7 @@ export class PatientMapper {
         }
       })(),
       relation: prismaPatient.relation ?? undefined,
+      referralSource: prismaPatient.referral_source ?? undefined,
       privacyConsent: prismaPatient.privacy_consent,
       serviceConsent: prismaPatient.service_consent,
       medicalConsent: prismaPatient.medical_consent,
@@ -245,6 +246,7 @@ export class PatientMapper {
       emergency_contact_name: patient.getEmergencyContactName() ?? null,
       emergency_contact_number: patient.getEmergencyContactNumber()?.getValue() ?? null,
       relation: patient.getRelation() ?? null,
+      referral_source: patient.getReferralSource() ?? null,
       privacy_consent: patient.hasPrivacyConsent(),
       service_consent: patient.hasServiceConsent(),
       medical_consent: patient.hasMedicalConsent(),
@@ -281,6 +283,7 @@ export class PatientMapper {
       emergency_contact_name: patient.getEmergencyContactName() ?? null,
       emergency_contact_number: patient.getEmergencyContactNumber()?.getValue() ?? null,
       relation: patient.getRelation() ?? null,
+      referral_source: patient.getReferralSource() ?? null,
       privacy_consent: patient.hasPrivacyConsent(),
       service_consent: patient.hasServiceConsent(),
       medical_consent: patient.hasMedicalConsent(),

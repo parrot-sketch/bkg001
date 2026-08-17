@@ -1,6 +1,7 @@
 'use client';
 
 import { Loader2 } from 'lucide-react';
+import { StaffCombobox } from './StaffCombobox';
 
 export interface StaffUserOption {
   id: string;
@@ -28,6 +29,10 @@ export function TeamSelectionPanel({
   value,
   onChange,
 }: Props) {
+  const update = (field: keyof Props['value'], nextValue: string) => {
+    onChange({ ...value, [field]: nextValue });
+  };
+
   return (
     <div className="space-y-4 rounded-lg border border-slate-200 p-4 bg-white">
       <div className="flex items-center justify-between">
@@ -44,62 +49,40 @@ export function TeamSelectionPanel({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            Anaesthesiologist
-          </label>
-          <select
-            className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
-            value={value.anesthesiologistUserId}
-            onChange={(e) => onChange({ ...value, anesthesiologistUserId: e.target.value })}
-          >
-            <option value="">— Select —</option>
-            {staffDoctors.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.fullName}
-              </option>
-            ))}
-          </select>
-          <p className="text-[11px] text-slate-500 mt-1">Uses user accounts (Role: DOCTOR).</p>
-        </div>
+        <StaffCombobox
+          label="Anaesthesiologist"
+          options={staffDoctors}
+          isLoading={isLoading}
+          value={value.anesthesiologistUserId}
+          onChange={(next) => update('anesthesiologistUserId', next)}
+          placeholder="Select anaesthesiologist..."
+          emptyText="No doctors found."
+          customPlaceholder="Enter anaesthesiologist name..."
+          roleHint="Uses user accounts (Role: DOCTOR)."
+        />
 
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            Scrub Nurse
-          </label>
-          <select
-            className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
-            value={value.scrubNurseUserId}
-            onChange={(e) => onChange({ ...value, scrubNurseUserId: e.target.value })}
-          >
-            <option value="">— Select —</option>
-            {staffNurses.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.fullName}
-              </option>
-            ))}
-          </select>
-        </div>
+        <StaffCombobox
+          label="Scrub Nurse"
+          options={staffNurses}
+          isLoading={isLoading}
+          value={value.scrubNurseUserId}
+          onChange={(next) => update('scrubNurseUserId', next)}
+          placeholder="Select scrub nurse..."
+          emptyText="No nurses found."
+          customPlaceholder="Enter scrub nurse name..."
+        />
 
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            Circulating Nurse
-          </label>
-          <select
-            className="w-full h-10 px-3 border border-slate-300 rounded-lg bg-white text-sm"
-            value={value.circulatingNurseUserId}
-            onChange={(e) => onChange({ ...value, circulatingNurseUserId: e.target.value })}
-          >
-            <option value="">— Select —</option>
-            {staffNurses.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.fullName}
-              </option>
-            ))}
-          </select>
-        </div>
+        <StaffCombobox
+          label="Circulating Nurse"
+          options={staffNurses}
+          isLoading={isLoading}
+          value={value.circulatingNurseUserId}
+          onChange={(next) => update('circulatingNurseUserId', next)}
+          placeholder="Select circulating nurse..."
+          emptyText="No nurses found."
+          customPlaceholder="Enter circulating nurse name..."
+        />
       </div>
     </div>
   );
 }
-

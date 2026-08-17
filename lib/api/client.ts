@@ -178,7 +178,15 @@ export class ApiClient {
       }
 
       // Handle 401 Unauthorized - try to refresh token and retry
-      if (response.status === 401 && this.refreshTokenFn && !endpoint.includes('/auth/refresh')) {
+      // Exclude auth endpoints that manage tokens themselves:
+      // - /authentication/login: we are trying to obtain tokens, not refresh them
+      // - /authentication/refresh: avoid infinite refresh loops
+      if (
+        response.status === 401 &&
+        this.refreshTokenFn &&
+        !endpoint.includes('/authentication/login') &&
+        !endpoint.includes('/auth/refresh')
+      ) {
         // Check if token refresh is already in progress
         if (!this.isRefreshing) {
           this.isRefreshing = true;

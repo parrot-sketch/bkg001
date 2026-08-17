@@ -22,12 +22,12 @@ function formatQueueStatus(item: QueueItem): string {
 
 const STATUS_CONFIG: Record<string, { bg: string; text: string }> = {
   ready: { bg: 'bg-[#caa26a]/20', text: 'text-[#2c2e4b]' },
-  'checked in': { bg: 'bg-[#e7d6bf]', text: 'text-[#2c2e4b]' },
-  'walk-in': { bg: 'bg-[#fdf6e3]', text: 'text-[#78350f]' },
+  'checked in': { bg: 'bg-[#caa26a]/20', text: 'text-[#2c2e4b]' },
+  'walk-in': { bg: 'bg-[#caa26a]/20', text: 'text-[#2c2e4b]' },
 };
 
 function getStatusConfig(status: string) {
-  return STATUS_CONFIG[status.toLowerCase()] ?? { bg: 'bg-[#e7d6bf]/60', text: 'text-[#2c2e4b]' };
+  return STATUS_CONFIG[status.toLowerCase()] ?? { bg: 'bg-[#caa26a]/20', text: 'text-[#2c2e4b]' };
 }
 
 export function PatientQueuePanel() {
@@ -56,8 +56,8 @@ export function PatientQueuePanel() {
   };
 
   return (
-    <Card className="border border-[#2c2e4b]/10 bg-[#e7d6bf] shadow-sm">
-      <CardHeader className="border-b border-[#2c2e4b]/10 px-5 py-4">
+    <Card className="border border-[#e7d6bf] bg-white shadow-sm">
+      <CardHeader className="border-b border-[#e7d6bf] px-5 py-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold text-[#2c2e4b]">Patient Queue</CardTitle>
           <span className="text-xs text-[#2c2e4b]/60 font-medium">
@@ -70,7 +70,7 @@ export function PatientQueuePanel() {
         {queue.length === 0 ? (
           <div className="px-5 py-12 text-center text-sm text-[#2c2e4b]/60">No patients waiting</div>
         ) : (
-          <div className="divide-y divide-[#2c2e4b]/10">
+          <div className="divide-y divide-[#e7d6bf]">
             {queue.map((item, index) => {
               const status = formatQueueStatus(item);
               const statusConfig = getStatusConfig(status);
@@ -79,7 +79,7 @@ export function PatientQueuePanel() {
               return (
                 <div
                   key={item.id}
-                  className="px-5 py-3.5 hover:bg-[#2c2e4b]/5 transition-colors"
+                  className="px-5 py-3.5 hover:bg-[#e7d6bf]/10 transition-colors"
                 >
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -105,7 +105,7 @@ export function PatientQueuePanel() {
                         size="sm"
                         onClick={() => handleStart(item)}
                         disabled={isLoading}
-                        className="h-8 px-3 text-xs rounded-lg bg-[#2c2e4b] hover:bg-[#1a1c2f] text-white"
+                        className="h-8 px-3 text-xs bg-[#2c2e4b] hover:bg-[#1a1c2f] text-white"
                       >
                         {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Stethoscope className="h-3 w-3 mr-1" />}
                         Consult

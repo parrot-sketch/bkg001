@@ -37,9 +37,6 @@ export function useFrontdeskPatients({
         throw new Error(result.error);
       }
 
-      // The API returns { success: true, data: [...patients], meta: {...} }
-      // apiClient wraps it as ApiSuccess, so result = { success: true, data: [...patients], meta: {...} }
-      // We need both the patients array AND the meta — return them explicitly.
       const raw = result as unknown as {
         data: PatientRegistryDto[];
         meta: PatientListMeta;
@@ -54,5 +51,6 @@ export function useFrontdeskPatients({
     staleTime: 60_000,
     gcTime: 5 * 60_000,
     enabled,
+    retry: false,
   });
 }

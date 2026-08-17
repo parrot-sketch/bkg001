@@ -33,6 +33,9 @@ export interface DashboardStats {
   completedToday: number;
   pendingIntakeCount: number;
   newPatientsToday: number;
+  scheduledProcedures: number;
+  inTheater: number;
+  completedSurgeriesToday: number;
 }
 
 export interface UseFrontdeskDashboardReturn {
@@ -193,6 +196,9 @@ export function useFrontdeskDashboard(): UseFrontdeskDashboardReturn {
       completedToday: 0,
       pendingIntakeCount: 0,
       newPatientsToday: 0,
+      scheduledProcedures: 0,
+      inTheater: 0,
+      completedSurgeriesToday: 0,
     },
     todaysSchedule: queryResult.data?.todaysSchedule ?? {
       scheduled: [],

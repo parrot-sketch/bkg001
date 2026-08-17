@@ -8,7 +8,7 @@
  * Supports FRONTDESK, NURSE, and ADMIN roles with role-adaptive navigation.
  */
 
-import { LayoutDashboard, Calendar, Users, UserPlus, User, Receipt, Building2, ClipboardList, Bell } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, UserPlus, User, Receipt, Building2, ClipboardList, Bell, Scissors } from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { useDashboardStats } from '@/hooks/frontdesk/use-frontdesk-dashboard';
@@ -58,6 +58,12 @@ export function FrontdeskSidebar({ isOpen = false, onClose = () => { }, onCollap
       icon: Users,
       section: 'Patient Care',
       badge: newPatientsToday > 0 ? newPatientsToday : undefined,
+    },
+    {
+      name: 'Surgical Schedule',
+      href: '/frontdesk/surgical-cases',
+      icon: Scissors,
+      section: 'Patient Care',
     },
     {
       name: 'Theater Schedule',

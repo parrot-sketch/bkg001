@@ -13,6 +13,9 @@ export interface FrontdeskDashboardStats {
   completedToday: number;
   pendingIntakeCount: number;
   newPatientsToday: number;
+  scheduledProcedures: number;
+  inTheater: number;
+  completedSurgeriesToday: number;
 }
 
 import {
@@ -110,6 +113,7 @@ async function fetchDashboardDataInternal(): Promise<FrontdeskDashboardData> {
     liveQueue,
     followUpAppointments,
     newPatientsToday,
+    surgicalCaseStats,
   ] = await Promise.all([
     db.appointment.groupBy({
       by: ['status'],
@@ -208,6 +212,18 @@ async function fetchDashboardDataInternal(): Promise<FrontdeskDashboardData> {
           gte: today,
           lt: tomorrow,
         },
+      },
+    }),
+    db.surgicalCase.groupBy({
+      by: ['status'],
+      where: {
+        procedure_date: {
+          gte: today,
+          lt: tomorrow,
+        },
+      },
+      _count: {
+        status: true,
       },
     }),
   ]);
@@ -342,6 +358,16 @@ async function fetchDashboardDataInternal(): Promise<FrontdeskDashboardData> {
     statsByStatus.map(s => [s.status, s._count.status])
   );
 
+  const surgicalStatsMap = Object.fromEntries(
+    surgicalCaseStats.map(s => [s.status, s._count.status])
+  );
+
+  const scheduledProcedures =
+    (surgicalStatsMap['READY_FOR_WARD_PREP'] || 0) +
+    (surgicalStatsMap['IN_WARD_PREP'] || 0) +
+    (surgicalStatsMap['READY_FOR_THEATER_BOOKING'] || 0) +
+    (surgicalStatsMap['SCHEDULED'] || 0);
+
   const stats: FrontdeskDashboardStats = {
     expectedPatients: appointments.length,
     checkedInPatients: (statsMap['CHECKED_IN'] || 0) + (statsMap['READY_FOR_CONSULTATION'] || 0),
@@ -350,6 +376,9 @@ async function fetchDashboardDataInternal(): Promise<FrontdeskDashboardData> {
     completedToday: statsMap['COMPLETED'] || 0,
     pendingIntakeCount: pendingIntakes,
     newPatientsToday,
+    scheduledProcedures,
+    inTheater: surgicalStatsMap['IN_THEATER'] || 0,
+    completedSurgeriesToday: surgicalStatsMap['COMPLETED'] || 0,
   };
 
   return {
@@ -389,7 +418,31 @@ export async function getFrontdeskDashboardData(): Promise<FrontdeskDashboardDat
   const authUser = await getCurrentUser();
   
   if (!authUser) {
-    throw new Error('Unauthorized - no session');
+    return {
+      stats: {
+        expectedPatients: 0,
+        checkedInPatients: 0,
+        pendingCheckIns: 0,
+        inConsultation: 0,
+        completedToday: 0,
+        pendingIntakeCount: 0,
+        newPatientsToday: 0,
+        scheduledProcedures: 0,
+        inTheater: 0,
+        completedSurgeriesToday: 0,
+      },
+      queue: {
+        checkedInAwaitingAssignment: [],
+        liveQueue: [],
+      },
+      todaysSchedule: {
+        scheduled: [],
+        checkedIn: [],
+        inConsultation: [],
+        completed: [],
+      },
+      timestamp: new Date().toISOString(),
+    };
   }
 
   const cachedFetch = unstable_cache(

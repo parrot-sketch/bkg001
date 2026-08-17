@@ -102,6 +102,80 @@ export interface ConfirmBookingResponse {
     caseStatus: string;
 }
 
+export interface ScheduleProcedureRequest {
+    patientId: string;
+    procedureName: string;
+    procedureDate: string;
+    primarySurgeonDoctorId?: string;
+    primarySurgeonName?: string;
+    diagnosis?: string;
+    procedureCategory?: string;
+    primaryOrRevision?: string;
+    admissionType?: string;
+    appointmentId?: number;
+}
+
+export interface ScheduleProcedureResponse {
+    surgicalCaseId: string;
+    status: string;
+    patientName: string;
+}
+
+export interface ProcedureOption {
+    id: string;
+    category: string;
+    subcategory: string | null;
+    name: string;
+    description: string | null;
+    is_active: boolean;
+    estimated_duration_minutes: number | null;
+    default_price: number | null;
+}
+
+export interface FrontdeskSurgicalCaseListItem {
+    id: string;
+    status: string;
+    procedure_name: string;
+    procedure_date: string | null;
+    diagnosis: string | null;
+    procedure_category: string | null;
+    primary_or_revision: string | null;
+    admission_type: string | null;
+    created_at: string;
+    patient: {
+        id: string;
+        first_name: string;
+        last_name: string;
+        file_number: string | null;
+    };
+    primary_surgeon: {
+        id: string;
+        name: string;
+        specialization: string | null;
+    } | null;
+    primary_surgeon_name: string | null;
+}
+
+export interface FrontdeskSurgicalCasesListResponse {
+    data: FrontdeskSurgicalCaseListItem[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+}
+
+export interface UpdateFrontdeskSurgicalCaseRequest {
+  procedureName?: string;
+  procedureDate?: string;
+  primarySurgeonDoctorId?: string;
+  primarySurgeonName?: string;
+  diagnosis?: string | null;
+  procedureCategory?: string | null;
+  primaryOrRevision?: string | null;
+  admissionType?: string | null;
+  status?: string;
+}
+
 export const frontdeskApi = {
     /**
      * Get surgical cases ready for theater booking with pagination
@@ -135,6 +209,67 @@ export const frontdeskApi = {
      */
     async confirmBooking(caseId: string, request: ConfirmBookingRequest): Promise<{ success: boolean; data?: ConfirmBookingResponse; error?: string }> {
         return apiClient.post<ConfirmBookingResponse>(`/frontdesk/theater-scheduling/${caseId}/confirm`, request);
+    },
+
+    /**
+     * Schedule a new surgical case from frontdesk
+     */
+    async scheduleSurgicalCase(dto: ScheduleProcedureRequest): Promise<{ success: boolean; data?: ScheduleProcedureResponse; error?: string }> {
+        return apiClient.post<ScheduleProcedureResponse>('/frontdesk/surgical-cases', dto);
+    },
+
+    /**
+     * Get all procedure options, optionally filtered by category
+     */
+    async getProcedureOptions(params?: { category?: string; search?: string }): Promise<ApiResponse<ProcedureOption[]>> {
+        const queryParams = new URLSearchParams();
+        if (params?.category) queryParams.set('category', params.category);
+        if (params?.search) queryParams.set('search', params.search);
+        const queryString = queryParams.toString();
+        const url = queryString ? `/admin/procedure-options?${queryString}` : '/admin/procedure-options';
+        return apiClient.get<any[]>(url);
+    },
+
+    /**
+     * Create a new procedure option (admin/frontdesk only)
+     */
+    async createProcedureOption(dto: { name: string; category: string; subcategory?: string; description?: string; estimated_duration_minutes?: number; default_price?: number }): Promise<ApiResponse<ProcedureOption>> {
+        return apiClient.post<ProcedureOption>('/admin/procedure-options', dto);
+    },
+
+    /**
+     * Get a single surgical case by ID
+     */
+    async getSurgicalCase(caseId: string): Promise<ApiResponse<any>> {
+        return apiClient.get<any>(`/frontdesk/surgical-cases/${caseId}`);
+    },
+
+    /**
+     * Get surgical cases list for frontdesk
+     */
+    async getSurgicalCases(params?: { page?: number; limit?: number; status?: string; search?: string }): Promise<ApiResponse<FrontdeskSurgicalCasesListResponse>> {
+        const queryParams = new URLSearchParams();
+        if (params?.page) queryParams.set('page', params.page.toString());
+        if (params?.limit) queryParams.set('limit', params.limit.toString());
+        if (params?.status) queryParams.set('status', params.status);
+        if (params?.search) queryParams.set('search', params.search);
+        const queryString = queryParams.toString();
+        const url = queryString ? `/frontdesk/surgical-cases?${queryString}` : '/frontdesk/surgical-cases';
+        return apiClient.get<FrontdeskSurgicalCasesListResponse>(url);
+    },
+
+    /**
+     * Update a surgical case from frontdesk
+     */
+    async updateSurgicalCase(caseId: string, dto: UpdateFrontdeskSurgicalCaseRequest): Promise<ApiResponse<any>> {
+        return apiClient.patch(`/frontdesk/surgical-cases/${caseId}`, dto);
+    },
+
+    /**
+     * Delete a surgical case from frontdesk
+     */
+    async deleteSurgicalCase(caseId: string): Promise<ApiResponse<{ success: boolean; msg?: string }>> {
+        return apiClient.delete(`/frontdesk/surgical-cases/${caseId}`);
     },
 
     /**

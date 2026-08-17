@@ -7,12 +7,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import db from '@/lib/db';
 
-// Mapping from Form's 4 categories to the 8 enum categories to query
+// Mapping from Form categories to the enum categories to query
 const FORM_CATEGORY_TO_ENUM_CATEGORIES: Record<string, string[]> = {
-  FACE: ['FACE', 'FACE_AND_NECK', 'NON_SURGICAL', 'HAIR_RESTORATION'],
-  BREAST: ['BREAST', 'POST_WEIGHT_LOSS'],
-  BODY: ['BODY', 'BODY_CONTOURING', 'POST_WEIGHT_LOSS', 'INTIMATE_AESTHETIC'],
-  RECONSTRUCTIVE: ['RECONSTRUCTIVE', 'INTIMATE_AESTHETIC'],
+  FACIAL: ['FACIAL'],
+  BODY: ['BODY'],
+  BREAST: ['BREAST'],
+  SKIN_AND_SCAR: ['SKIN_AND_SCAR'],
+  NON_SURGICAL: ['NON_SURGICAL'],
 };
 
 export async function GET(

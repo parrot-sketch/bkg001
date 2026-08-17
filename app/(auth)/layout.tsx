@@ -1,4 +1,5 @@
-import React, { Suspense } from 'react';
+import { AuthShell } from '@/components/auth/AuthShell';
+import { AuthBrandPanel } from '@/components/auth/AuthBrandPanel';
 
 export const metadata = {
   title: 'Sign In — Nairobi Sculpt',
@@ -7,34 +8,16 @@ export const metadata = {
 
 const AuthLayout = ({ children }: { children: React.ReactNode }) => {
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: "url('/bg.webp')" }}
-        aria-hidden="true"
-      />
-      <div
-        className="absolute inset-0 bg-gradient-to-br from-[#2c2e4b]/85 via-[#2c2e4b]/70 to-[#1c1d33]/90"
-        aria-hidden="true"
-      />
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(60% 50% at 50% 45%, rgba(202,162,106,0.12) 0%, rgba(44,46,75,0) 70%)',
-        }}
-        aria-hidden="true"
-      />
-      <main
-        id="main-content"
-        className="relative flex items-center justify-center min-h-screen p-6 sm:p-8"
-        aria-label="Authentication"
-      >
-        <Suspense fallback={null}>
-          {children}
-        </Suspense>
-      </main>
-    </div>
+    <AuthShell
+      brandPanel={<AuthBrandPanel />}
+      authPanel={
+        <div className="flex min-h-screen items-center justify-center px-6 py-12 sm:px-10 lg:px-14 xl:px-20">
+          <div className="w-full max-w-[400px]">
+            {children}
+          </div>
+        </div>
+      }
+    />
   );
 };
 

@@ -67,18 +67,6 @@ export async function GET(
         onboarding_status: true,
         created_at: true,
         updated_at: true,
-        availability_templates: {
-          where: { is_active: true },
-          select: {
-            slots: {
-              select: {
-                day_of_week: true,
-                start_time: true,
-                end_time: true,
-              }
-            }
-          }
-        },
       },
     });
 
@@ -128,23 +116,13 @@ export async function GET(
       type: doctor.type ?? undefined,
     };
 
-    const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const activeTemplate = doctor.availability_templates[0];
-    const workingDays = activeTemplate?.slots.map(slot => ({
-      day: daysOfWeek[slot.day_of_week],
-      start_time: slot.start_time,
-      end_time: slot.end_time
-    })) || [];
-
     const responseData = {
       ...doctorDto,
-      workingDays: workingDays,
     };
 
     console.log('[API] GET /api/doctors/user/[userId] - Success:', {
       doctorId: responseData.id,
       name: responseData.name,
-      workingDaysCount: responseData.workingDays?.length || 0,
     });
 
     return NextResponse.json(

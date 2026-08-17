@@ -1,6 +1,9 @@
 'use client';
 import { UnifiedHeader } from '@/components/shared/UnifiedHeader';
-export function AdminHeader() {
+interface AdminHeaderProps {
+  onMenuClick?: () => void;
+}
+export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
   return (
     <UnifiedHeader
       roleName="Admin"
@@ -9,6 +12,7 @@ export function AdminHeader() {
       profileHref="/admin/profile"
       rootHref="/admin/dashboard"
       searchPlaceholder="Search…"
+      onMenuClick={onMenuClick}
     />
   );
 }

@@ -20,6 +20,7 @@
  */
 
 import { useState, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { format, parseISO } from 'date-fns';
 import {
   Activity,
@@ -128,6 +129,7 @@ export default function TheaterTechDayboard() {
   );
   const [selectedTheater, setSelectedTheater] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
+  const router = useRouter();
 
   // ── Data ──
   const {
@@ -389,6 +391,7 @@ export default function TheaterTechDayboard() {
                   }
                   onViewBlockers={() => setBlockersDialog(caseData)}
                   onTimeline={() => setTimelineDialog(caseData)}
+                  onEditPlan={() => router.push(`/theater-tech/surgical-cases/${caseData.id}/edit`)}
                 />
               ))}
             </div>

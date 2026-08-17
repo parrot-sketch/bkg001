@@ -58,7 +58,6 @@ function SearchTab() {
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [creatingCase, setCreatingCase] = useState<string | null>(null);
 
   useEffect(() => {
     const q = searchQuery.trim();
@@ -76,20 +75,10 @@ function SearchTab() {
     return () => clearTimeout(timer);
   }, [page, searchQuery]);
 
-  const handleCreateCase = async (patientId: string) => {
-    setCreatingCase(patientId);
-    try {
-      const res = await fetch('/api/theater-tech/surgical-cases', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId }) });
-      const data = await res.json();
-      if (data.success && data.surgicalCaseId) router.push(`/theater-tech/surgical-cases/${data.surgicalCaseId}/edit`);
-      else toast.error(data.error || 'Failed to create case');
-    } catch { toast.error('Failed to create case'); }
-  };
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-500">Search for a patient to start surgical planning</p>
+        <p className="text-sm text-slate-500">Search for a patient</p>
         <Badge variant="outline" className="text-xs">{searchQuery.trim().length < 2 ? 'Search required' : `${patients.length} results`}</Badge>
       </div>
       <div className="relative">
@@ -108,7 +97,7 @@ function SearchTab() {
                 <table className="w-full">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
-                      {['Patient','File #','Age / Sex','Action'].map(h => <th key={h} className={cn('text-left text-xs font-medium text-slate-500 px-4 py-2.5', h === 'Action' && 'text-right')}>{h}</th>)}
+                      {['Patient','File #','Age / Sex'].map(h => <th key={h} className="text-left text-xs font-medium text-slate-500 px-4 py-2.5">{h}</th>)}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -117,7 +106,6 @@ function SearchTab() {
                         <td className="px-4 py-2.5"><div className="flex items-center gap-2.5"><div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center"><User className="h-4 w-4 text-slate-500" /></div><p className="text-sm font-medium text-slate-900">{p.first_name} {p.last_name}</p></div></td>
                         <td className="px-4 py-2.5"><div className="flex items-center gap-1.5 text-slate-500"><FileText className="h-3.5 w-3.5" /><span className="text-sm">{p.file_number || '—'}</span></div></td>
                         <td className="px-4 py-2.5 text-sm text-slate-700">{age !== null ? `${age}y` : '—'} / {sex}</td>
-                        <td className="px-4 py-2.5 text-right"><Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => handleCreateCase(p.id)} disabled={creatingCase === p.id}>{creatingCase === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Scissors className="h-3 w-3" />}Plan Surgery</Button></td>
                       </tr>
                     ); })}
                   </tbody>
@@ -125,9 +113,8 @@ function SearchTab() {
               </div>
               <div className="md:hidden flex flex-col divide-y divide-slate-100">
                 {patients.map(p => { const age = calcAge(p.date_of_birth); const sex = p.gender?.toUpperCase() ?? '—'; return (
-                  <div key={p.id} className="p-4 flex flex-col gap-3">
+                  <div key={p.id} className="p-4 flex flex-col gap-2">
                     <div className="flex items-center gap-3"><div className="h-10 w-10 shrink-0 rounded-full bg-slate-100 flex items-center justify-center"><User className="h-5 w-5 text-slate-500" /></div><div className="flex-1 min-w-0"><p className="text-sm font-semibold text-slate-900 truncate">{p.first_name} {p.last_name}</p><div className="flex flex-wrap gap-x-3 gap-y-1 mt-0.5 text-xs text-slate-500"><div className="flex items-center gap-1"><FileText className="h-3 w-3" /><span>{p.file_number || '—'}</span></div><span>{age !== null ? `${age}y` : '—'} / {sex}</span></div></div></div>
-                    <Button size="sm" variant="outline" className="w-full h-10" onClick={() => handleCreateCase(p.id)} disabled={creatingCase === p.id}>{creatingCase === p.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Scissors className="h-4 w-4 mr-2" />}Plan Surgery</Button>
                   </div>
                 ); })}
               </div>

@@ -20,6 +20,7 @@ export type PatientRegistrationFormData = {
   address?: string;
   maritalStatus?: string;
   occupation?: string;
+  referralSource?: string;
   emergencyContactName?: string;
   emergencyContactNumber?: string;
   emergencyContactRelation?: string;
@@ -70,6 +71,7 @@ export function usePatientRegistrationDialog(params: {
       address: '',
       maritalStatus: '',
       occupation: '',
+      referralSource: '',
       emergencyContactName: '',
       emergencyContactNumber: '',
       emergencyContactRelation: '',
@@ -87,13 +89,13 @@ export function usePatientRegistrationDialog(params: {
 
   const validateForStep = useCallback(async () => {
     let fields: (keyof PatientRegistrationFormData)[] = [];
-    if (step === 1) fields = ['firstName', 'lastName', 'dateOfBirth', 'gender'];
+    if (step === 1) fields = ['firstName', 'lastName', 'dateOfBirth', 'gender', 'referralSource'];
     else if (step === 2) {
       const dob = form.getValues('dateOfBirth');
       if (dob && !isMinor(dob)) {
         fields = ['phone', 'email'];
       } else {
-        fields = [];
+        fields = ['phone'];
       }
     }
     const valid = fields.length === 0 || (await form.trigger(fields));

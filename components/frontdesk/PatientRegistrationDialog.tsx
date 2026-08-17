@@ -96,6 +96,20 @@ export function PatientRegistrationDialog({
                           <option value="OTHER">Other</option>
                         </select>
                       </div>
+                       <div>
+                          <label className={labelClass}>How did you hear about us?</label>
+                          <select {...register('referralSource')} className={cn(inputClass, "bg-white")}>
+                            <option value="">Select...</option>
+                            <option value="SOCIAL_MEDIA">Social Media (Instagram, Facebook, TikTok, X)</option>
+                            <option value="GOOGLE_SEARCH">Google Search</option>
+                            <option value="FRIEND_FAMILY">Friend / Family Referral</option>
+                            <option value="DOCTOR_REFERRAL">Doctor Referral</option>
+                            <option value="WALK_IN">Walk-In</option>
+                            <option value="WEBSITE">Website</option>
+                            <option value="ADVERTISEMENT">Advertisement</option>
+                            <option value="OTHER">Other</option>
+                          </select>
+                        </div>
                     </div>
                   )}
 
@@ -136,7 +150,7 @@ export function PatientRegistrationDialog({
                        />
                      </div>
                      <div>
-                       <label className={labelClass}>{patientIsMinor ? 'Email (Parent/Guardian)' : 'Email *'}</label>
+                       <label className={labelClass}>{patientIsMinor ? 'Email (Parent/Guardian)' : 'Email'}</label>
                        <input {...register('email')} type="email" placeholder="email@example.com" className={inputClass} />
                        {!patientIsMinor && errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
                      </div>
@@ -144,24 +158,20 @@ export function PatientRegistrationDialog({
                        <label className={labelClass}>Address</label>
                        <input {...register('address')} placeholder="e.g. Westlands, Nairobi" className={inputClass} />
                      </div>
-                     {!patientIsMinor && (
-                       <div>
-                         <label className={labelClass}>Marital Status</label>
-                         <select {...register('maritalStatus')} className={cn(inputClass, "bg-white")}>
-                           <option value="">Prefer not to say</option>
-                           <option value="SINGLE">Single</option>
-                           <option value="MARRIED">Married</option>
-                           <option value="DIVORCED">Divorced</option>
-                           <option value="WIDOWED">Widowed</option>
-                         </select>
-                       </div>
-                     )}
-                     {!patientIsMinor && (
-                       <div>
-                         <label className={labelClass}>Occupation</label>
-                         <input {...register('occupation')} placeholder="Occupation" className={inputClass} />
-                       </div>
-                     )}
+                      <div>
+                        <label className={labelClass}>Marital Status</label>
+                        <select {...register('maritalStatus')} className={cn(inputClass, "bg-white")}>
+                          <option value="">Prefer not to say</option>
+                          <option value="SINGLE">Single</option>
+                          <option value="MARRIED">Married</option>
+                          <option value="DIVORCED">Divorced</option>
+                          <option value="WIDOWED">Widowed</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className={labelClass}>Occupation</label>
+                        <input {...register('occupation')} placeholder="Occupation" className={inputClass} />
+                      </div>
                    </div>
                  )}
 

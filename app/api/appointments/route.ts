@@ -29,6 +29,8 @@ import { ValidationError } from '@/application/errors/ValidationError';
 import { ForbiddenError } from '@/application/errors/ForbiddenError';
 import { NotFoundError } from '@/application/errors/NotFoundError';
 import { Role } from '@/domain/enums/Role';
+import { createSurgicalCaseFromPatient } from '@/application/services/theater-tech/CreateSurgicalCaseFromPatientService';
+import { SurgicalCaseStatus } from '@prisma/client';
 
 /**
  * GET /api/appointments
@@ -459,7 +461,36 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       parentConsultationId: body.parentConsultationId,
     }, userId, userRole);
 
-    // 6. Return success response (201 Created)
+    const isProcedureType = (body.type ?? '').trim().toLowerCase() === 'procedure';
+    if (isProcedureType && (source === AppointmentSource.FRONTDESK_SCHEDULED || source === AppointmentSource.ADMIN_SCHEDULED)) {
+      try {
+        const appointment = await db.appointment.findUnique({
+          where: { id: result.id },
+          select: {
+            id: true,
+            patient_id: true,
+            doctor_id: true,
+            appointment_date: true,
+            surgical_case: { select: { id: true } },
+          },
+        });
+
+        if (appointment && !appointment.surgical_case?.id) {
+          await createSurgicalCaseFromPatient(db, {
+            patientId: appointment.patient_id,
+            createdByUserId: userId,
+            primarySurgeonDoctorId: appointment.doctor_id,
+            appointmentId: appointment.id,
+            procedureDate: appointment.appointment_date,
+            procedureName: (body.reason ?? body.note ?? '').trim() || undefined,
+            status: SurgicalCaseStatus.READY_FOR_WARD_PREP,
+          });
+        }
+      } catch (error) {
+        console.error('[API] Failed to auto-create surgical case for procedure appointment:', error);
+      }
+    }
+
     return handleApiSuccess(result, 201);
   } catch (error) {
     return handleApiError(error);

@@ -9,6 +9,13 @@ export interface Surgeon {
   name: string;
 }
 
+export interface SearchableOption {
+  id: string;
+  label: string;
+  description?: string;
+  disabled?: boolean;
+}
+
 export interface LinkedService {
   id: number;
   service_name: string;

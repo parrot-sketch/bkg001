@@ -56,14 +56,23 @@ export async function GET(request: NextRequest) {
       take: 200,
     });
 
-    return NextResponse.json({
-      success: true,
-      data: users.map((u) => ({
+    const meaningfulUsers = users
+      .map((u) => ({
         id: u.id,
         fullName: `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email,
         email: u.email,
         role: u.role,
-      })),
+      }))
+      .filter((u) => {
+        const trimmed = u.fullName.trim();
+        if (!trimmed) return false;
+        if (/^(Dr|Mr|Mrs|Ms|Prof|Sir|Madam)\.?$/i.test(trimmed)) return false;
+        return true;
+      });
+
+    return NextResponse.json({
+      success: true,
+      data: meaningfulUsers,
     });
   } catch (error) {
     console.error('[API] GET /api/theater-tech/staff - Error:', error);

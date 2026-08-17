@@ -3,28 +3,30 @@
 /**
  * Admin Dashboard Layout
  *
- * Main layout for all admin dashboard pages.
- * Uses UnifiedDashboardLayout for consistent design.
+ * Mirrors doctor/frontdesk/nurse layout for consistent UX:
+ * - Dark navy shell (#2c2e4b)
+ * - White bordered header area
+ * - Branded background with gradient overlay
+ * - Consistent content padding and max-width
  */
 
-import { ReactNode, useEffect, useState } from 'react';
+import { useState, ReactNode, useEffect } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Settings, Users, BarChart3, Calendar, FileText, Package, CreditCard, Stethoscope, Scissors, ShieldCheck } from 'lucide-react';
-import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
-import { AdminHeader } from './_components/AdminHeader';
+import { ShieldCheck } from 'lucide-react';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
+import { AdminHeader } from './_components/AdminHeader';
 
 interface AdminLayoutProps {
   children: ReactNode;
 }
 
 export default function AdminLayout({ children }: AdminLayoutProps) {
-  const { user, isLoading, logout } = useAuth();
-  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
 
   // Redirect if not authenticated or not admin
   useEffect(() => {
@@ -33,19 +35,24 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             router.replace('/login');
         } else if (user.role !== 'ADMIN') {
             toast.error('Access Denied: Administrative privileges required');
-            router.replace('/frontdesk/patients');
+            router.replace('/login');
         }
     }
   }, [isLoading, user, router]);
 
   if (isLoading) {
     return (
-        <div className="flex h-screen items-center justify-center bg-background">
-            <div className="animate-pulse flex flex-col items-center">
-                <div className="h-12 w-12 bg-slate-200 rounded-full mb-4" />
-                <div className="h-4 w-32 bg-slate-100 rounded" />
+      <div className="flex h-screen items-center justify-center bg-[#2c2e4b]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="relative h-10 w-10">
+            <div className="absolute inset-0 rounded-full bg-[#caa26a]/20 animate-ping" />
+            <div className="relative h-10 w-10 rounded-full bg-[#caa26a]/10 flex items-center justify-center">
+              <div className="h-5 w-5 rounded-full bg-[#caa26a]/40 animate-pulse" />
             </div>
+          </div>
+          <p className="text-xs text-[#caa26a]/80 font-medium tracking-wide">Loading…</p>
         </div>
+      </div>
     );
   }
 
@@ -53,23 +60,15 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     return null;
   }
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
-  };
-
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {/* Mobile Menu Button - Consistent positioning */}
+    <div className="flex h-screen overflow-hidden bg-[#2c2e4b]">
+      {/* Mobile Menu Button */}
       <button
         onClick={() => setSidebarOpen(true)}
-        className="fixed top-4 left-4 z-50 lg:hidden p-2.5 rounded-lg bg-card border border-border shadow-lg hover:bg-muted transition-colors"
+        className="fixed top-4 left-4 z-50 lg:hidden p-2.5 bg-white border border-slate-200 shadow-lg hover:bg-slate-50 transition-colors"
         aria-label="Open sidebar"
       >
-        <ShieldCheck className="h-5 w-5 text-foreground" />
+        <ShieldCheck className="h-5 w-5 text-slate-700" />
       </button>
 
       {/* Sidebar */}
@@ -86,11 +85,19 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
           { '--sidebar-offset': sidebarCollapsed ? '4rem' : '280px' } as React.CSSProperties
         }
       >
-        <AdminHeader />
-        <main className="flex-1 relative overflow-hidden focus:outline-none bg-gradient-to-b from-slate-50/80 via-white to-slate-50/40 overflow-y-auto overscroll-contain scroll-smooth">
-            <div className="w-full min-h-full mx-auto max-w-[1600px] px-4 py-5 sm:px-5 sm:py-6 lg:px-8 lg:py-7 xl:px-10 xl:py-8">
-              {children}
-            </div>
+        {/* Header */}
+        <div className="shrink-0 bg-white border-b border-[#e7d6bf]">
+          <AdminHeader onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+        </div>
+
+        {/* Main scrollable content */}
+        <main className="flex-1 relative overflow-hidden focus:outline-none overflow-y-auto overscroll-contain scroll-smooth">
+          {/* Branded background */}
+          <div className="fixed inset-0 bg-cover bg-center bg-no-repeat z-0" style={{ backgroundImage: "url('/bg.webp')" }} aria-hidden="true" />
+          <div className="fixed inset-0 bg-gradient-to-br from-[#2c2e4b]/80 via-[#2c2e4b]/70 to-[#2c2e4b]/50 z-0" aria-hidden="true" />
+          <div className="relative z-10 w-full min-h-full mx-auto max-w-[1600px] px-4 py-5 sm:px-5 sm:py-6 lg:px-8 lg:py-7 xl:px-10 xl:py-8">
+            {children}
+          </div>
         </main>
       </div>
     </div>

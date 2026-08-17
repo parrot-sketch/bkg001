@@ -15,7 +15,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { toast } from 'sonner';
 import { OnboardingTourProvider } from '@/components/doctor/onboarding-tour/OnboardingTourContext';
-import { useDoctorDashboard } from '@/hooks/use-doctor-dashboard';
 
 interface DoctorLayoutProps {
   children: ReactNode;
@@ -27,11 +26,6 @@ export default function DoctorLayout({ children }: DoctorLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isLoading } = useAuth();
-
-  const isDoctorUser =
-    !isLoading && !!user && (user.role === 'DOCTOR' || user.role === 'ADMIN');
-  const { data: dashboardData } = useDoctorDashboard({ enabled: isDoctorUser });
-  const doctor = dashboardData?.doctor ?? null;
 
   useEffect(() => {
     if (!isLoading) {
@@ -73,7 +67,7 @@ export default function DoctorLayout({ children }: DoctorLayoutProps) {
   }
 
   return (
-    <OnboardingTourProvider onboardingStatus={doctor?.onboardingStatus ?? null}>
+    <OnboardingTourProvider onboardingStatus={null}>
       <div className="flex h-screen overflow-hidden bg-[#2c2e4b]">
         {/* Sidebar */}
         <DoctorSidebar

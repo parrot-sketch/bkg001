@@ -101,7 +101,7 @@ const SHARED_KEYS = {
   appointments: (filters?: { date?: string; status?: string }) => 
     ['shared', 'appointments', filters ?? {}] as const,
   surgicalCase: (id: string) => ['shared', 'surgical-case', id] as const,
-  surgicalCases: (filters?: { status?: string; surgeonId?: string }) => 
+  surgicalCases: (filters?: { status?: string; surgeonId?: string; search?: string }) => 
     ['shared', 'surgical-cases', filters ?? {}] as const,
   theaterBooking: (id: string) => ['shared', 'theater-booking', id] as const,
   notifications: (userId: string) => ['shared', 'notifications', userId] as const,

@@ -1,17 +1,15 @@
 'use client';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { DateField, TextField } from '@/components/nurse/ward-prep-checklist/fields';
+import { DateField } from '@/components/nurse/ward-prep-checklist/fields';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-import { Textarea } from '@/components/ui/textarea';
-import { Circle, FilePen, Lock, Printer } from 'lucide-react';
+import { Circle, FilePen, Lock } from 'lucide-react';
 import { getAgeYears, formatSex } from '@/components/nurse/ward-prep-checklist/utils';
 
 function formatDoctorName(name: string | null | undefined): string {
   if (!name) return '';
-  return name.match(/^(Dr\\.?|Dr\\s)/i) ? name : `Dr. ${name}`;
+  return name.match(/^(Dr\.?|Dr\s)/i) ? name : `Dr. ${name}`;
 }
 
 export function PaperHeaderSection(props: {
@@ -26,8 +24,7 @@ export function PaperHeaderSection(props: {
   surgeonName?: string | null;
   anaesthesiologistName?: string | null;
   headerDate: string | undefined;
-  nursingComments: string | undefined;
-  onHeaderChange: (next: { date: string; nursingComments: string }) => void;
+  onHeaderDateChange: (date: string) => void;
   disabled: boolean;
   isFinalized: boolean;
   isAmendment: boolean;
@@ -40,8 +37,7 @@ export function PaperHeaderSection(props: {
     surgeonName,
     anaesthesiologistName,
     headerDate,
-    nursingComments,
-    onHeaderChange,
+    onHeaderDateChange,
     disabled,
     isFinalized,
     isAmendment,
@@ -49,99 +45,94 @@ export function PaperHeaderSection(props: {
     onStartAmendment,
   } = props;
 
+  const patientName = `${patient.first_name} ${patient.last_name}`.trim();
+
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-      <div className="p-6 border-b border-slate-200">
-        <p className="text-sm font-bold text-slate-900 uppercase tracking-wide">
-          NAIROBI SCULPT AESTHETIC CENTRE
-        </p>
-        <h1 className="text-lg font-extrabold text-slate-900 mt-2">
-          PRE-OPERATIVE WARD CHECK-LIST
-        </h1>
-        <p className="text-sm text-slate-600 mt-1">
-          All information should be filled in clearly before the patient is received in theatre
-        </p>
+    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      {/* Top bar: status + actions */}
+      <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          {isFinalized ? (
+            <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-md">
+              Finalized
+            </span>
+          ) : isAmendment ? (
+            <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-md">
+              Amendment
+            </span>
+          ) : null}
+        </div>
 
-        <div className="mt-5 flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            {isFinalized ? (
-              <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 gap-1">
-                <Lock className="h-3 w-3" />
-                Finalized
-              </Badge>
-            ) : isAmendment ? (
-              <Badge className="bg-amber-100 text-amber-800 border-amber-200 gap-1">
-                <FilePen className="h-3 w-3" />
-                Amendment
-              </Badge>
-            ) : (
-              <Badge variant="secondary" className="gap-1">
-                <Circle className="h-3 w-3" />
-                Draft
-              </Badge>
-            )}
-
-            <Button variant="outline" size="sm" className="gap-1.5 h-8" asChild>
-              <a href={`/nurse/ward-prep/${caseId}/checklist/print`} target="_blank" rel="noopener noreferrer">
-                <Printer className="h-3.5 w-3.5" />
-                Print
-              </a>
+        <div className="flex items-center gap-2">
+          {isFinalized && onStartAmendment && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 h-8 border-amber-300 text-amber-700 hover:bg-amber-50"
+              onClick={onStartAmendment}
+            >
+              <FilePen className="h-3.5 w-3.5" />
+              Amend
             </Button>
+          )}
+        </div>
+      </div>
 
-            {isFinalized && onStartAmendment && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 h-8 border-amber-300 text-amber-700 hover:bg-amber-50"
-                onClick={onStartAmendment}
-              >
-                <FilePen className="h-3.5 w-3.5" />
-                Amend
-              </Button>
-            )}
+      {/* Patient context: compact grid */}
+      <div className="px-5 py-4 bg-slate-50/40 border-b border-slate-100">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div>
+            <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Patient</Label>
+            <p className="text-sm font-semibold text-slate-900 mt-0.5 truncate">{patientName}</p>
           </div>
+          <div>
+            <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">File #</Label>
+            <p className="text-sm font-medium text-slate-700 mt-0.5 font-mono">{patient.file_number}</p>
+          </div>
+          <div>
+            <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Age / Sex</Label>
+            <p className="text-sm font-medium text-slate-700 mt-0.5">
+              {getAgeYears(patient.date_of_birth)} / {formatSex(patient.gender)}
+            </p>
+          </div>
+          <div>
+            <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Surgeon</Label>
+            <p className="text-sm font-medium text-slate-700 mt-0.5 truncate">
+              {surgeonName ? formatDoctorName(surgeonName) : '—'}
+            </p>
+          </div>
+          <div>
+            <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Anaesthesiologist</Label>
+            <p className="text-sm font-medium text-slate-700 mt-0.5 truncate">
+              {anaesthesiologistName || '—'}
+            </p>
+          </div>
+          <div>
+            <Label className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Date</Label>
+            <div className="mt-0.5">
+              <DateField
+                label=""
+                value={headerDate}
+                onChange={(v) => onHeaderDateChange(v)}
+                disabled={disabled}
+              />
+            </div>
+          </div>
+        </div>
 
-          <div className="min-w-[220px]">
+        {/* Progress */}
+        <div className="mt-4 flex items-center gap-3">
+          <div className="flex-1">
             <div className="flex items-center justify-between text-xs mb-1.5">
-              <span className="text-muted-foreground">Checklist Progress</span>
-              <span className="font-medium">
-                {progress.completedSections}/{progress.totalSections} sections complete
+              <span className="text-slate-500">Checklist Progress</span>
+              <span className="font-medium text-slate-700">
+                {progress.completedSections}/{progress.totalSections} sections
               </span>
             </div>
             <Progress value={progress.percent} className={progress.percent === 100 ? '[&>div]:bg-emerald-500' : ''} />
           </div>
         </div>
       </div>
-
-      <div className="p-6 space-y-5">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <TextField label="PATIENT FILE NO." value={patient.file_number} onChange={() => {}} disabled />
-          <TextField label="NAME" value={`${patient.first_name} ${patient.last_name}`.trim()} onChange={() => {}} disabled />
-          <TextField label="AGE" value={getAgeYears(patient.date_of_birth)} onChange={() => {}} disabled />
-          <TextField label="SEX" value={formatSex(patient.gender)} onChange={() => {}} disabled />
-          <DateField
-            label="DATE"
-            value={headerDate}
-            onChange={(v) => onHeaderChange({ date: v, nursingComments: nursingComments || '' })}
-            disabled={disabled}
-          />
-          <TextField label="DOCTOR" value={surgeonName ? formatDoctorName(surgeonName) : '—'} onChange={() => {}} disabled />
-          <TextField label="ANAESTHESIOLOGIST" value={anaesthesiologistName || '—'} onChange={() => {}} disabled />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-sm">NURSING: ACTION/COMMENTS/OBSERVATIONS</Label>
-          <Textarea
-            value={nursingComments || ''}
-            onChange={(e) => onHeaderChange({ date: headerDate || '', nursingComments: e.target.value })}
-            disabled={disabled}
-            className="bg-white text-sm resize-none"
-            rows={3}
-            placeholder="Enter nursing comments/observations…"
-          />
-        </div>
-      </div>
     </div>
   );
 }
-

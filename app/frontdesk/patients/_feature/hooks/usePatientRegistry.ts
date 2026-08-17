@@ -65,7 +65,7 @@ export function usePatientRegistry() {
   }, [resetKey]);
 
   // ── Data fetching ─────────────────────────────────────────────────────────
-  const { data: listResult, isLoading, isFetching } = useFrontdeskPatients({
+  const { data: listResult, isLoading, isFetching, error: listError } = useFrontdeskPatients({
     page: isBrowseMode ? browseCurrentPage : urlPage,
     limit,
     search,
@@ -73,7 +73,7 @@ export function usePatientRegistry() {
     createdThisMonth,
   });
 
-  const { data: stats, isLoading: isStatsLoading } = usePatientStats();
+  const { data: stats, isLoading: isStatsLoading, error: statsError } = usePatientStats();
 
   // ── Accumulate browse results ─────────────────────────────────────────────
   useEffect(() => {
@@ -133,6 +133,8 @@ export function usePatientRegistry() {
     isLoading,
     isFetching,
     isStatsLoading,
+    error: listError,
+    statsError,
 
     // Derived
     isBrowseMode,

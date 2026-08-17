@@ -23,6 +23,7 @@ export interface PatientResponseDto {
   readonly allergies?: string;
   readonly medicalConditions?: string;
   readonly medicalHistory?: string;
+  readonly referralSource?: string;
   readonly insuranceProvider?: string;
   readonly insuranceNumber?: string;
   readonly createdAt?: Date;

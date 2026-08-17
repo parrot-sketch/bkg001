@@ -123,6 +123,19 @@ export interface PreOpSurgicalCase {
     completedAt?: Date;
   };
   wardChecklist: WardChecklistStatus;
+  vitals?: Array<{
+    id: number;
+    body_temperature?: number | null;
+    systolic?: number | null;
+    diastolic?: number | null;
+    heart_rate?: string | null;
+    respiratory_rate?: number | null;
+    oxygen_saturation?: number | null;
+    weight?: number | null;
+    height?: number | null;
+    recorded_by_name?: string;
+    recorded_at: string;
+  }>;
   procedures?: {
     id: string;
     name: string;
@@ -324,6 +337,33 @@ export const nurseApi = {
    */
   async getInventoryStatus(caseId: string): Promise<ApiResponse<InventoryStatusResponse>> {
     return apiClient.get<InventoryStatusResponse>(`/nurse/surgical-cases/${caseId}/inventory-status`);
+  },
+
+  // ============================================
+  // Surgical Cases (Unified List)
+  // ============================================
+
+  /**
+   * Get all surgical cases visible to nurses
+   */
+  async getSurgicalCases(params?: {
+    status?: string;
+    search?: string;
+    page?: number;
+  }): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.set('status', params.status);
+    if (params?.search) queryParams.set('search', params.search);
+    if (params?.page) queryParams.set('page', String(params.page));
+    const qs = queryParams.toString();
+    return apiClient.get<any>(`/nurse/surgical-cases${qs ? `?${qs}` : ''}`);
+  },
+
+  /**
+   * Get a single surgical case by ID
+   */
+  async getSurgicalCase(caseId: string): Promise<ApiResponse<any>> {
+    return apiClient.get<any>(`/nurse/surgical-cases/${caseId}`);
   },
 };
 

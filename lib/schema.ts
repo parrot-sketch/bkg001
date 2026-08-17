@@ -15,7 +15,7 @@ export const PatientFormSchema = z.object({
   gender: z.enum(["MALE", "FEMALE", "OTHER"], { message: "Gender is required" }),
 
   phone: z.string().min(10, "Enter phone number").max(10, "Enter phone number"),
-  email: z.string().email("Invalid email address."),
+  email: z.string().email("Invalid email address.").optional(),
   address: z
     .string()
     .min(5, "Address must be at least 5 characters")
@@ -23,7 +23,7 @@ export const PatientFormSchema = z.object({
   marital_status: z.enum(
     ["married", "single", "divorced", "widowed", "separated"],
     { message: "Marital status is required." }
-  ),
+  ).optional(),
   emergency_contact_name: z
     .string()
     .min(2, "Emergency contact name is required.")
@@ -59,6 +59,8 @@ export const PatientFormSchema = z.object({
     .refine((val) => val === true, {
       message: "You must agree to the medical treatment terms.",
     }),
+  occupation: z.string().optional(),
+  referral_source: z.string().optional(),
   img: z.string().optional(),
 });
 
@@ -77,7 +79,7 @@ export const DoctorSchema = z.object({
     .min(2, "Name must be at least 2 characters")
     .max(50, "Name must be at most 50 characters"),
   phone: z.string().min(10, "Enter phone number").max(10, "Enter phone number"),
-  email: z.string().email("Invalid email address."),
+  email: z.string().email("Invalid email address.").optional(),
   address: z
     .string()
     .min(5, "Address must be at least 5 characters")
@@ -120,7 +122,7 @@ export const StaffSchema = z.object({
     .string()
     .min(10, "Contact must be 10-digits")
     .max(10, "Contact must be 10-digits"),
-  email: z.string().email("Invalid email address."),
+  email: z.string().email("Invalid email address.").optional(),
   address: z
     .string()
     .min(5, "Address must be at least 5 characters")

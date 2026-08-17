@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
+import { authorizeApiRequest } from '@/lib/auth/require-role';
 import db from '@/lib/db';
 import { SurgicalCaseStatus } from '@prisma/client';
 import { TEMPLATE_KEY as WARD_CHECKLIST_TEMPLATE_KEY, TEMPLATE_VERSION as WARD_CHECKLIST_TEMPLATE_VERSION } from '@/domain/clinical-forms/NursePreopWardChecklist';
@@ -25,32 +26,16 @@ import { TEMPLATE_KEY as WARD_CHECKLIST_TEMPLATE_KEY, TEMPLATE_VERSION as WARD_C
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-    // 1. Authenticate request
     const authResult = await JwtMiddleware.authenticate(request);
-    if (!authResult.success || !authResult.user) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Authentication required',
-        },
-        { status: 401 }
-      );
+    if (!authorizeApiRequest(authResult, [Role.NURSE, Role.ADMIN])) {
+        return !authResult.user
+            ? NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
+            : NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
     }
 
-    const userRole = authResult.user.role;
+    const userRole = authResult.user!.role;
 
-    // 2. Check permissions (only NURSE can access)
-    if (userRole !== Role.NURSE) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Access denied: Only nurses can access pre-op dashboard',
-        },
-        { status: 403 }
-      );
-    }
-
-    // 3. Parse query parameters for filtering and pagination
+    // Parse query parameters for filtering and pagination
     const { searchParams } = new URL(request.url);
     const statusFilter = searchParams.get('status');
     const readinessFilter = searchParams.get('readiness');

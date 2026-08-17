@@ -6,3 +6,4 @@ export { AllergiesNpoSection } from './AllergiesNpoSection';
 export { PreparationSection } from './PreparationSection';
 export { ProstheticsSection } from './ProstheticsSection';
 export { VitalsSection } from './VitalsSection';
+export { NursingCommentsSection } from './NursingCommentsSection';

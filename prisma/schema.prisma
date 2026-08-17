@@ -131,6 +131,7 @@ model Patient {
   privacy_consent          Boolean                   @default(false)
   service_consent          Boolean                   @default(false)
   medical_consent          Boolean                   @default(false)
+  referral_source          String?
   img                      String?
   colorCode                String?
   approved                 Boolean                   @default(false)
@@ -560,6 +561,7 @@ model VitalSign {
   patient_id        String
   appointment_id    Int?
   medical_record_id Int?
+  surgical_case_id  String?
   body_temperature  Float?
   systolic          Int?
   diastolic         Int?
@@ -574,10 +576,12 @@ model VitalSign {
   updated_at        DateTime       @updatedAt
   appointment       Appointment?   @relation("VitalSignAppointment", fields: [appointment_id], references: [id])
   medical_record    MedicalRecord? @relation(fields: [medical_record_id], references: [id])
+  surgical_case     SurgicalCase?  @relation(fields: [surgical_case_id], references: [id], onDelete: SetNull)
   patient           Patient        @relation(fields: [patient_id], references: [id], onDelete: Cascade)
 
   @@index([patient_id])
   @@index([appointment_id])
+  @@index([surgical_case_id])
   @@index([recorded_at])
 }
 
@@ -695,6 +699,7 @@ model PatientBill {
   payment                       Payment                   @relation(fields: [payment_id], references: [id], onDelete: Cascade)
   service                       Service?                  @relation(fields: [service_id], references: [id], onDelete: Cascade)
   surgical_medication_record    SurgicalMedicationRecord? @relation("MedicationPatientBill", fields: [surgical_medication_record_id], references: [id])
+  custom_description            String?
 
   @@index([payment_id])
   @@index([service_id])
@@ -1720,6 +1725,7 @@ model SurgicalCase {
   id                    String                     @id @default(uuid())
   patient_id            String
   primary_surgeon_id    String?
+  primary_surgeon_name  String?
   appointment_id        Int?                       @unique
   consultation_id       Int?                       @unique
   urgency               SurgicalUrgency            @default(ELECTIVE)
@@ -1757,6 +1763,7 @@ model SurgicalCase {
   theater_booking       TheaterBooking?
   case_procedures       SurgicalCaseProcedure[]
   appointment           Appointment?               @relation("AppointmentSurgicalCase", fields: [appointment_id], references: [id], onDelete: SetNull)
+  vital_signs           VitalSign[]
 
   @@index([patient_id])
   @@index([primary_surgeon_id])
@@ -2438,16 +2445,11 @@ enum SurgicalCaseStatus {
 }
 
 enum ProcedureCategory {
-  FACE
-  BREAST
+  FACIAL
   BODY
-  RECONSTRUCTIVE
-  FACE_AND_NECK
-  BODY_CONTOURING
-  INTIMATE_AESTHETIC
-  HAIR_RESTORATION
+  BREAST
+  SKIN_AND_SCAR
   NON_SURGICAL
-  POST_WEIGHT_LOSS
   OTHER
 }
 

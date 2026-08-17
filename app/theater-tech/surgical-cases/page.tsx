@@ -1,15 +1,5 @@
 'use client';
 
-/**
- * Theater Tech Surgical Cases Page
- *
- * Mobile: scrollable card list
- * Desktop (md+): full data table
- *
- * Both views have the same dual actions:
- *   - Tap/click row → case detail
- *   - Charges → charge sheet
- */
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -106,7 +96,6 @@ export default function TheaterTechSurgicalCasesPage() {
   });
 
   const toDetail = (id: string) => router.push(`/theater-tech/surgical-cases/${id}`);
-  const toCharges = (id: string) => router.push(`/theater-tech/surgical-cases/${id}/charges`);
   const toEdit = (id: string) => router.push(`/theater-tech/surgical-cases/${id}/edit`);
 
   const handleDelete = async (id: string) => {
@@ -236,8 +225,8 @@ export default function TheaterTechSurgicalCasesPage() {
                         <DropdownMenuItem onClick={() => toEdit(c.id)} className="gap-2">
                           <Pencil className="h-4 w-4 text-muted-foreground" /> Edit Case
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => toCharges(c.id)} className="gap-2">
-                          <Receipt className="h-4 w-4 text-muted-foreground" /> Charges
+                        <DropdownMenuItem onClick={() => toDetail(c.id)} className="gap-2">
+                          <Receipt className="h-4 w-4 text-muted-foreground" /> View Billing
                         </DropdownMenuItem>
                         {c.status === 'DRAFT' && (
                           <>
@@ -339,8 +328,8 @@ export default function TheaterTechSurgicalCasesPage() {
                             <DropdownMenuItem onClick={() => toEdit(c.id)} className="gap-2">
                               <Pencil className="h-4 w-4 text-muted-foreground" /> Edit Case
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => toCharges(c.id)} className="gap-2">
-                              <Receipt className="h-4 w-4 text-muted-foreground" /> Charges
+                            <DropdownMenuItem onClick={() => toDetail(c.id)} className="gap-2">
+                              <Receipt className="h-4 w-4 text-muted-foreground" /> View Billing
                             </DropdownMenuItem>
                             {c.status === 'DRAFT' && (
                               <>

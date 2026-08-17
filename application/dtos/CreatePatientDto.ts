@@ -16,6 +16,7 @@ export interface CreatePatientDto {
   readonly privacyConsent?: boolean;
   readonly serviceConsent?: boolean;
   readonly medicalConsent?: boolean;
+  readonly referralSource?: string;
   readonly bloodGroup?: string;
   readonly allergies?: string;
   readonly medicalConditions?: string;

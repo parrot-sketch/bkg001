@@ -42,8 +42,8 @@ export function CasePipeline({ isLoading }: CasePipelineProps) {
   }, [cases]);
 
   return (
-    <Card className="border border-[#2c2e4b]/10 bg-[#e7d6bf] shadow-sm">
-      <CardHeader className="border-b border-[#2c2e4b]/10 px-5 py-4">
+    <Card className="border border-[#e7d6bf] bg-white shadow-sm">
+      <CardHeader className="border-b border-[#e7d6bf] px-5 py-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold text-[#2c2e4b]">Surgical Cases</CardTitle>
           <Link href="/doctor/surgical-cases" className="text-xs text-[#caa26a] hover:text-[#2c2e4b] transition-colors">
@@ -54,14 +54,14 @@ export function CasePipeline({ isLoading }: CasePipelineProps) {
       <CardContent className="p-0">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabValue)}>
           <div className="px-5 pt-4">
-            <TabsList className="grid w-full grid-cols-3 h-9 bg-[#2c2e4b]/10">
-              <TabsTrigger value="planning" className="text-xs data-[state=active]:bg-[#e7d6bf] data-[state=active]:text-[#2c2e4b] data-[state=active]:shadow-sm">
+            <TabsList className="grid w-full grid-cols-3 h-9 bg-[#e7d6bf]/20">
+              <TabsTrigger value="planning" className="text-xs data-[state=active]:bg-white data-[state=active]:text-[#2c2e4b] data-[state=active]:shadow-sm">
                 Planning ({tabCounts.planning})
               </TabsTrigger>
-              <TabsTrigger value="scheduled" className="text-xs data-[state=active]:bg-[#e7d6bf] data-[state=active]:text-[#2c2e4b] data-[state=active]:shadow-sm">
+              <TabsTrigger value="scheduled" className="text-xs data-[state=active]:bg-white data-[state=active]:text-[#2c2e4b] data-[state=active]:shadow-sm">
                 Scheduled ({tabCounts.scheduled})
               </TabsTrigger>
-              <TabsTrigger value="recovery" className="text-xs data-[state=active]:bg-[#e7d6bf] data-[state=active]:text-[#2c2e4b] data-[state=active]:shadow-sm">
+              <TabsTrigger value="recovery" className="text-xs data-[state=active]:bg-white data-[state=active]:text-[#2c2e4b] data-[state=active]:shadow-sm">
                 Recovery ({tabCounts.recovery})
               </TabsTrigger>
             </TabsList>
@@ -72,7 +72,7 @@ export function CasePipeline({ isLoading }: CasePipelineProps) {
               {isLoading ? (
                 <div className="space-y-2">
                   {[1, 2].map((i) => (
-                    <Skeleton key={i} className="h-20 w-full rounded-lg bg-[#2c2e4b]/10" />
+                    <Skeleton key={i} className="h-20 w-full bg-[#e7d6bf]" />
                   ))}
                 </div>
               ) : filteredCases.length === 0 ? (
@@ -82,7 +82,7 @@ export function CasePipeline({ isLoading }: CasePipelineProps) {
                   {filteredCases.map((caseItem) => (
                     <div
                       key={caseItem.id}
-                      className="p-3 border border-[#2c2e4b]/10 rounded-lg hover:bg-[#2c2e4b]/5 cursor-pointer transition-colors"
+                      className="p-3 border border-[#e7d6bf] hover:bg-[#e7d6bf]/10 cursor-pointer transition-colors"
                       onClick={() => router.push(`/doctor/surgical-cases/${caseItem.id}/case-plan`)}
                     >
                       <div className="flex items-start justify-between gap-3">

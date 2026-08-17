@@ -15,7 +15,8 @@ import {
   Wrench,
   Play,
   Heart,
-  Package // Added Package 
+  Package,
+  FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,7 @@ interface DayboardCaseCardProps {
   onChecklist: (phase: 'SIGN_IN' | 'TIME_OUT' | 'SIGN_OUT' | 'INVENTORY') => void;
   onViewBlockers: () => void;
   onTimeline: () => void;
+  onEditPlan?: () => void;
 }
 
 const NEXT_ACTION_ICONS: Record<string, typeof Wrench> = {
@@ -52,6 +54,7 @@ export function DayboardCaseCard({
   onChecklist,
   onViewBlockers,
   onTimeline,
+  onEditPlan,
 }: DayboardCaseCardProps) {
   const statusCfg = STATUS_CONFIG[caseData.status] || STATUS_CONFIG.SCHEDULED;
   const StatusIcon = statusCfg.icon;
@@ -234,6 +237,19 @@ export function DayboardCaseCard({
                       </TooltipContent>
                     </Tooltip>
                   </div>
+                )}
+
+                {/* Edit Plan */}
+                {onEditPlan && caseData.status !== 'COMPLETED' && caseData.status !== 'CANCELLED' && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-xs h-7 gap-1.5 text-slate-500 hover:text-slate-700"
+                    onClick={onEditPlan}
+                  >
+                    <FileText className="h-3 w-3" />
+                    Edit Plan
+                  </Button>
                 )}
 
                 {/* Primary CTA */}

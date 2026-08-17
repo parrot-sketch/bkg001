@@ -10,11 +10,11 @@ import type { DoctorDashboardData } from '@/hooks/use-doctor-dashboard';
 type TodayAppointment = DoctorDashboardData['todayAppointments'][number];
 
 const STATUS_CONFIG: Record<string, { bg: string; text: string }> = {
-  PENDING_DOCTOR_CONFIRMATION: { bg: 'bg-[#e7d6bf]', text: 'text-[#2c2e4b]' },
+  PENDING_DOCTOR_CONFIRMATION: { bg: 'bg-[#caa26a]/20', text: 'text-[#2c2e4b]' },
   SCHEDULED: { bg: 'bg-[#caa26a]/20', text: 'text-[#2c2e4b]' },
   CONFIRMED: { bg: 'bg-[#caa26a]/20', text: 'text-[#2c2e4b]' },
   CHECKED_IN: { bg: 'bg-[#caa26a]/20', text: 'text-[#2c2e4b]' },
-  READY_FOR_CONSULTATION: { bg: 'bg-[#e7d6bf]', text: 'text-[#2c2e4b]' },
+  READY_FOR_CONSULTATION: { bg: 'bg-[#e7d6bf]/30', text: 'text-[#2c2e4b]' },
   IN_CONSULTATION: { bg: 'bg-[#caa26a]/20', text: 'text-[#2c2e4b]' },
   COMPLETED: { bg: 'bg-[#e7d6bf]/60', text: 'text-[#2c2e4b]/70' },
 };
@@ -36,7 +36,7 @@ export function TodaysAppointmentsPreview({ appointments, isLoading }: { appoint
           <div className="divide-y divide-[#e7d6bf]">
             {[1, 2, 3].map((i) => (
               <div key={i} className="flex items-center gap-4 px-5 py-3">
-                <Skeleton className="h-10 w-10 rounded-lg" />
+                <Skeleton className="h-10 w-10" />
                 <div className="flex-1 space-y-2">
                   <Skeleton className="h-4 w-32" />
                   <Skeleton className="h-3 w-24" />
@@ -110,7 +110,7 @@ function StatusBadge({ status }: { status: string }) {
   const c = getStatusConfig(status);
 
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${c.bg} ${c.text}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-medium border border-[#e7d6bf] ${c.bg} ${c.text}`}>
       {status.replace(/_/g, ' ')}
     </span>
   );

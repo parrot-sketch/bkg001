@@ -240,7 +240,12 @@ export class ScheduleAppointmentUseCase {
     //   PATIENT_REQUESTED, FRONTDESK_SCHEDULED, ADMIN_SCHEDULED → PENDING_DOCTOR_CONFIRMATION (requires doctor review)
     //   DOCTOR_FOLLOW_UP → SCHEDULED (auto-confirmed, doctor scheduling their own follow-up)
     // appointmentSource is already defined above (line 141)
-    const defaultStatus = getDefaultStatusForSource(appointmentSource);
+    let defaultStatus = getDefaultStatusForSource(appointmentSource);
+
+    const isProcedureType = (dto.type ?? '').trim().toLowerCase() === 'procedure';
+    if (isProcedureType && (isFrontdeskBooking || appointmentSource === AppointmentSource.ADMIN_SCHEDULED)) {
+      defaultStatus = AppointmentStatus.SCHEDULED;
+    }
 
     const appointment = ApplicationAppointmentMapper.fromScheduleDto(
       dto,

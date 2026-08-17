@@ -8,34 +8,49 @@
 import { NextRequest } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { JwtAuthService } from '@/infrastructure/auth/JwtAuthService';
+import { getAuthConfig } from '@/infrastructure/auth/AuthFactory';
 import { PrismaUserRepository } from '@/infrastructure/database/repositories/PrismaUserRepository';
 import db from '@/lib/db';
 
-// Initialize auth service (singleton pattern)
+// Initialize auth service using centralized config
 const userRepository = new PrismaUserRepository(db);
-
-const authConfig = {
-  jwtSecret: process.env.JWT_SECRET || 'dev-secret-change-in-production',
-  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'dev-refresh-secret-change-in-production',
-  accessTokenExpiresIn: 15 * 60, // 15 minutes
-  refreshTokenExpiresIn: 7 * 24 * 60 * 60, // 7 days
-  saltRounds: 10,
-};
-
+const authConfig = getAuthConfig();
 const authService = new JwtAuthService(userRepository, db, authConfig);
 const jwtMiddleware = new JwtMiddleware(authService);
 
 /**
  * Authenticate API request using JWT
  * 
+ * Extracts token from Authorization header (preferred) or accessToken cookie (fallback).
+ * Cookie fallback is needed because:
+ *  - httpOnly cookies are set during login but cannot be read from JS
+ *  - The browser always sends them on same-origin requests automatically
+ *  - Some contexts (PdfViewer, file downloads) cannot set Authorization headers
+ * 
  * @param request - Next.js request object
  * @returns Authentication result with user context or error
  */
 export async function authenticateRequest(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const user = await jwtMiddleware.authenticate(authHeader || undefined);
-    
+    let authorizationHeader = request.headers.get('authorization') || undefined;
+
+    if (!authorizationHeader) {
+      const cookieToken = request.cookies.get('accessToken')?.value;
+      if (cookieToken) {
+        authorizationHeader = `Bearer ${cookieToken}`;
+      }
+    }
+
+    if (!authorizationHeader) {
+      return {
+        success: false,
+        error: 'Authorization token required',
+        user: null,
+      };
+    }
+
+    const user = await jwtMiddleware.authenticate(authorizationHeader);
+
     return {
       success: true,
       user,

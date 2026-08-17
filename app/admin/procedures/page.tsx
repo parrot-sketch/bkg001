@@ -79,16 +79,11 @@ interface Category {
 }
 
 const CATEGORIES = [
-  { value: 'FACE', label: 'Face' },
-  { value: 'BREAST', label: 'Breast' },
-  { value: 'BODY', label: 'Body' },
-  { value: 'RECONSTRUCTIVE', label: 'Reconstructive' },
-  { value: 'FACE_AND_NECK', label: 'Face & Neck' },
-  { value: 'BODY_CONTOURING', label: 'Body Contouring' },
-  { value: 'INTIMATE_AESTHETIC', label: 'Intimate Aesthetic' },
-  { value: 'HAIR_RESTORATION', label: 'Hair Restoration' },
-  { value: 'NON_SURGICAL', label: 'Non Surgical' },
-  { value: 'POST_WEIGHT_LOSS', label: 'Post Weight Loss' },
+  { value: 'FACIAL', label: 'Facial Procedures' },
+  { value: 'BODY', label: 'Body Procedures' },
+  { value: 'BREAST', label: 'Breast Procedures' },
+  { value: 'SKIN_AND_SCAR', label: 'Skin and Scar Treatments' },
+  { value: 'NON_SURGICAL', label: 'Non-Surgical Treatments' },
   { value: 'OTHER', label: 'Other' },
 ];
 

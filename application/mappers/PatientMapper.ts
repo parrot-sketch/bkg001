@@ -54,6 +54,7 @@ export class PatientMapper {
       medicalHistory: dto.medicalHistory || undefined,
       insuranceProvider: dto.insuranceProvider || undefined,
       insuranceNumber: dto.insuranceNumber || undefined,
+      referralSource: dto.referralSource || undefined,
     });
   }
 
@@ -85,6 +86,7 @@ export class PatientMapper {
       medicalHistory: patient.getMedicalHistory(),
       insuranceProvider: patient.getInsuranceProvider(),
       insuranceNumber: patient.getInsuranceNumber(),
+      referralSource: patient.getReferralSource(),
       createdAt: patient.getCreatedAt(),
       updatedAt: patient.getUpdatedAt(),
       profileImage: patient.getImg(),

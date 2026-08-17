@@ -36,12 +36,14 @@ export interface UseChargeSheetReturn {
   total: number;
   discountStr: string;
   suggestedCount: number;
+  suggestedServices: Array<{ id: number; service_name: string; price: number }>;
 
   // Actions
   setSearchQuery: (q: string) => void;
   setDropdownOpen: (open: boolean) => void;
   handleAddService: (service: Service) => void;
   handleAddInventory: (item: InventoryItem) => void;
+  handleAddCustom: (description: string, quantity: number, amount: number) => void;
   handleRemoveItem: (id: string) => void;
   handleQuantityChange: (id: string, value: string) => void;
   handleQuantityBlur: (id: string) => void;
@@ -59,7 +61,7 @@ export interface UseChargeSheetReturn {
 
 export function useChargeSheet(
   caseId: string,
-  suggestedServices?: Array<{ id: number; service_name: string; price: number }>
+  initialSuggestedServices?: Array<{ id: number; service_name: string; price: number }>
 ): UseChargeSheetReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -77,6 +79,7 @@ export function useChargeSheet(
   const [searchQuery, setSearchQuery] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [suggestedCount, setSuggestedCount] = useState(0);
+  const [suggestedServices, setSuggestedServices] = useState<Array<{ id: number; service_name: string; price: number }>>([]);
 
   // ── Load existing billing data ──────────────────────────────────────────
   useEffect(() => {
@@ -98,16 +101,14 @@ export function useChargeSheet(
           let items: ChargeItem[] =
             billingData.data.payment.billItems?.map((item: unknown) => {
               const rec = item as Record<string, unknown>;
+              const isCustom = (rec.isCustom as boolean) || !!rec.customDescription;
               return {
                 id: `existing-${rec.id}`,
                 description: rec.serviceName as string,
                 amount: (rec.unitCost as number) ?? 0,
                 quantity: (rec.quantity as number) ?? 1,
-                type:
-                  rec.isInventory || rec.inventoryItemId
-                    ? 'inventory'
-                    : 'service',
-                itemId: (rec.inventoryItemId ?? rec.serviceId) as
+                type: isCustom ? 'custom' : (rec.isInventory ? 'inventory' : 'service'),
+                itemId: (rec.inventoryItemId ?? rec.serviceId ?? `custom-${rec.id}`) as
                   | number
                   | string,
               };
@@ -116,9 +117,10 @@ export function useChargeSheet(
           const hasExistingCharges = billingData.data.payment.billItems?.length > 0;
           let loadedDiscount = (billingData.data.payment.discount as number) ?? 0;
           let count = 0;
+          let suggested: Array<{ id: number; service_name: string; price: number }> = [];
 
-          if (!hasExistingCharges && suggestedServices && suggestedServices.length > 0) {
-            items = suggestedServices.map(s => ({
+          if (!hasExistingCharges && initialSuggestedServices && initialSuggestedServices.length > 0) {
+            items = initialSuggestedServices.map(s => ({
               id: `suggested-${s.id}-${Date.now()}`,
               description: s.service_name,
               amount: s.price,
@@ -127,6 +129,7 @@ export function useChargeSheet(
               itemId: s.id,
             }));
             count = items.length;
+            suggested = initialSuggestedServices;
           }
 
           setChargeItems(items);
@@ -140,6 +143,7 @@ export function useChargeSheet(
           }
           setRowDrafts(drafts);
           setSuggestedCount(count);
+          setSuggestedServices(suggested);
 
           setDiscountStr(String(loadedDiscount));
           // If we auto-populated items, they are not saved yet. Therefore the baseline is empty so isDirty = true.
@@ -301,6 +305,34 @@ export function useChargeSheet(
     [chargeItems]
   );
 
+  const handleAddCustom = useCallback(
+    (description: string, quantity: number, amount: number) => {
+      const trimmed = description.trim();
+      if (!trimmed) return;
+
+      const newItem: ChargeItem = {
+        id: `custom-${Date.now()}`,
+        description: trimmed,
+        amount: amount || 0,
+        quantity: quantity || 1,
+        type: 'custom',
+        itemId: `custom-${Date.now()}`,
+      };
+
+      setChargeItems((prev) => [...prev, newItem]);
+      setRowDrafts((prev) => ({
+        ...prev,
+        [newItem.id]: {
+          quantityStr: String(newItem.quantity),
+          amountStr: String(newItem.amount),
+        },
+      }));
+      setSearchQuery('');
+      setDropdownOpen(false);
+    },
+    []
+  );
+
   const handleRemoveItem = useCallback((id: string) => {
     setChargeItems((prev) => prev.filter((item) => item.id !== id));
     setRowDrafts((prev) => {
@@ -402,6 +434,12 @@ export function useChargeSheet(
               quantity: item.quantity,
               unitCost: item.amount,
             }
+          : item.type === 'custom'
+          ? {
+              customDescription: item.description,
+              quantity: item.quantity,
+              unitCost: item.amount,
+            }
           : {
               serviceId: Number(item.itemId),
               quantity: item.quantity,
@@ -460,11 +498,13 @@ export function useChargeSheet(
     total,
     discountStr,
     suggestedCount,
+    suggestedServices,
 
     setSearchQuery,
     setDropdownOpen,
     handleAddService,
     handleAddInventory,
+    handleAddCustom,
     handleRemoveItem,
     handleQuantityChange,
     handleQuantityBlur,

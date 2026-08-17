@@ -31,7 +31,7 @@ export class TheaterSchedulingUseCase {
     /**
      * Get scheduling queue with pagination
      */
-    async getSchedulingQueue(options?: { page?: number; limit?: number; from?: Date; to?: Date }): Promise<{ cases: TheaterSchedulingQueueItem[]; total: number }> {
+    async getSchedulingQueue(options?: { page?: number; limit?: number; from?: Date; to?: Date; statuses?: string[] }): Promise<{ cases: TheaterSchedulingQueueItem[]; total: number }> {
         return this.theaterRepository.findCasesForScheduling(options);
     }
 
@@ -55,10 +55,6 @@ export class TheaterSchedulingUseCase {
         const surgicalCase = await this.theaterRepository.findCaseById(caseId);
         if (!surgicalCase) {
             throw new Error('Surgical case not found');
-        }
-
-        if (surgicalCase.status !== SurgicalCaseStatus.READY_FOR_THEATER_BOOKING) {
-            throw new Error(`Case must be in READY_FOR_THEATER_BOOKING status (current: ${surgicalCase.status})`);
         }
 
         // Check for overlapping bookings

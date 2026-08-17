@@ -15,7 +15,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2, Lock, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -38,7 +38,6 @@ import { FinalizeChecklistDialog } from '@/components/nurse/ward-prep-checklist/
 import { MissingItemsDialog } from '@/components/nurse/ward-prep-checklist/components/MissingItemsDialog';
 import { PaperHeaderSection } from '@/components/nurse/ward-prep-checklist/components/PaperHeaderSection';
 import { StartAmendmentDialog } from '@/components/nurse/ward-prep-checklist/components/StartAmendmentDialog';
-import { WardChecklistActionsHeader } from '@/components/nurse/ward-prep-checklist/components/WardChecklistActionsHeader';
 import { FinalizedChecklistDocument } from '@/components/nurse/ward-prep-checklist/components/FinalizedChecklistDocument';
 import { todayYmd } from '@/components/nurse/ward-prep-checklist/utils';
 import type { WardChecklistSectionProps } from '@/components/nurse/ward-prep-checklist/types';
@@ -48,6 +47,7 @@ import {
   DocumentationSection,
   HandoverSection,
   MedicationsSection,
+  NursingCommentsSection,
   PreparationSection,
   ProstheticsSection,
   VitalsSection,
@@ -62,6 +62,7 @@ const SECTION_RENDERERS: Record<string, React.FC<WardChecklistSectionProps>> = {
   prosthetics: ProstheticsSection,
   vitals: VitalsSection,
   handover: HandoverSection as unknown as React.FC<WardChecklistSectionProps>,
+  nursingComments: NursingCommentsSection as unknown as React.FC<WardChecklistSectionProps>,
 };
 
 export default function NursePreopWardChecklistPage() {
@@ -267,59 +268,68 @@ export default function NursePreopWardChecklistPage() {
   const form = response.form;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-5 pb-16 animate-in fade-in duration-500">
-      {/* Navigation */}
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" asChild>
-          <Link href={safeReturnTo}>
-            <ArrowLeft className="w-4 h-4 mr-2" /> {backLabel}
-          </Link>
-        </Button>
-      </div>
+    <div className="min-h-screen bg-slate-50/50">
+      <div className="max-w-5xl mx-auto space-y-5 pb-24 animate-in fade-in duration-500">
+        {/* Navigation */}
+        <div className="flex items-center gap-2 pt-4">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href={safeReturnTo}>
+              <ArrowLeft className="w-4 h-4 mr-2" /> {backLabel}
+            </Link>
+          </Button>
+        </div>
 
-      <PaperHeaderSection
-        caseId={caseId}
-        patient={patient}
-        surgeonName={response.surgeonName}
-        anaesthesiologistName={response.anaesthesiologistName || null}
-        headerDate={formData.header?.date}
-        nursingComments={formData.header?.nursingComments}
-        onHeaderChange={(next) => handleChange({ ...formData, header: next })}
-        disabled={isDisabled}
-        isFinalized={isFinalized}
-        isAmendment={isAmendment}
-        progress={paperHeaderProgress}
-        onStartAmendment={() => setShowAmendDialog(true)}
-      />
-
-      {!isFinalized || isAmendment ? (
-        <WardChecklistActionsHeader
-          showActions={isAmendment || !isFinalized}
-          isDirty={isDirty}
-          isSaving={saveMutation.isPending}
-          onSave={handleSave}
-          onFinalize={() => setShowFinalizeDialog(true)}
-        />
-      ) : null}
-
-      {/* Sections */}
-      {isFinalized && !isAmendment ? (
-        <FinalizedChecklistDocument
+        <PaperHeaderSection
+          caseId={caseId}
           patient={patient}
           surgeonName={response.surgeonName}
           anaesthesiologistName={response.anaesthesiologistName || null}
-          data={formData}
+          headerDate={formData.header?.date}
+          onHeaderDateChange={(date) => handleChange({ ...formData, header: { ...formData.header, date } })}
+          disabled={isDisabled}
+          isFinalized={isFinalized}
+          isAmendment={isAmendment}
+          progress={paperHeaderProgress}
+          onStartAmendment={() => setShowAmendDialog(true)}
         />
-      ) : (
-        <div className="space-y-6">
-          {CHECKLIST_SECTIONS.map((section) => {
-            const SectionRenderer = SECTION_RENDERERS[section.key as string];
-            const sectionComplete = sectionCompletion[section.key as string]?.complete ?? false;
-            return (
-              <Card key={section.key} className="overflow-hidden">
-                <div className="bg-slate-50/80 px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">{section.title}</span>
+
+        {/* Sections */}
+        {isFinalized && !isAmendment ? (
+          <FinalizedChecklistDocument
+            caseId={caseId}
+            patient={patient}
+            surgeonName={response.surgeonName}
+            anaesthesiologistName={response.anaesthesiologistName || null}
+            data={formData}
+          />
+        ) : (
+          <div className="grid grid-cols-1 gap-5">
+            {/* Nursing Comments - full width open text box */}
+            <Card className="overflow-hidden border-slate-200 shadow-sm">
+              <div className="bg-slate-50/80 px-5 py-3 border-b border-slate-100 flex items-center gap-3">
+                <span className="text-xs font-bold text-slate-400 w-5">00</span>
+                <span className="font-semibold text-sm text-slate-900">Nursing Comments / Observations</span>
+              </div>
+              <CardContent className="p-5">
+                <NursingCommentsSection
+                  data={formData}
+                  onChange={handleChange}
+                  disabled={isDisabled}
+                  caseId={caseId}
+                  patient={patient}
+                  formResponseId={form.id}
+                />
+              </CardContent>
+            </Card>
+
+            {CHECKLIST_SECTIONS.map((section, idx) => {
+              const SectionRenderer = SECTION_RENDERERS[section.key as string];
+              const sectionComplete = sectionCompletion[section.key as string]?.complete ?? false;
+              return (
+                <Card key={section.key} className="overflow-hidden border-slate-200 shadow-sm">
+                  <div className="bg-slate-50/80 px-5 py-3 border-b border-slate-100 flex items-center gap-3">
+                    <span className="text-xs font-bold text-slate-400 w-5">{String(idx + 1).padStart(2, '0')}</span>
+                    <span className="font-semibold text-sm text-slate-900">{section.title}</span>
                     <span
                       className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md border ${
                         sectionComplete
@@ -330,46 +340,77 @@ export default function NursePreopWardChecklistPage() {
                       {sectionComplete ? 'Complete' : 'Pending'}
                     </span>
                   </div>
-                </div>
-                <CardContent className="p-5">
-                  {SectionRenderer ? (
-                    <SectionRenderer
-                      data={formData}
-                      onChange={handleChange}
-                      disabled={isDisabled}
-                      caseId={caseId}
-                      patient={patient}
-                      formResponseId={form.id}
-                      patientAllergies={patient.allergies}
-                      currentUser={user}
-                      onPersistSignature={persistSignature as WardChecklistSectionProps['onPersistSignature']}
-                    />
-                  ) : null}
-                </CardContent>
-              </Card>
-            );
-          })}
+                  <CardContent className="p-5">
+                    {SectionRenderer ? (
+                      <SectionRenderer
+                        data={formData}
+                        onChange={handleChange}
+                        disabled={isDisabled}
+                        caseId={caseId}
+                        patient={patient}
+                        formResponseId={form.id}
+                        patientAllergies={patient.allergies}
+                        currentUser={user}
+                        onPersistSignature={persistSignature as WardChecklistSectionProps['onPersistSignature']}
+                      />
+                    ) : null}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+
+        <FinalizeChecklistDialog
+          open={showFinalizeDialog}
+          onOpenChange={setShowFinalizeDialog}
+          onConfirm={handleFinalize}
+          isPending={finalizeMutation.isPending}
+        />
+
+        <MissingItemsDialog open={showMissingItems} onOpenChange={setShowMissingItems} items={missingItemsList} />
+
+        <StartAmendmentDialog
+          open={showAmendDialog}
+          onOpenChange={setShowAmendDialog}
+          reason={amendReason}
+          onReasonChange={setAmendReason}
+          error={amendError}
+          isPending={isAmending}
+          onStart={handleStartAmendment}
+        />
+      </div>
+
+      {/* Sticky action bar */}
+      {!isFinalized && (
+        <div className="fixed bottom-0 inset-x-0 bg-white/90 backdrop-blur border-t border-slate-200 z-40">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+            <div className="text-xs text-slate-500">
+              {isDirty ? 'You have unsaved changes' : 'All changes saved'}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={handleSave}
+                disabled={saveMutation.isPending || !isDirty}
+                variant="outline"
+                className="gap-1.5"
+              >
+                {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Save Draft
+              </Button>
+              <Button
+                onClick={() => setShowFinalizeDialog(true)}
+                disabled={saveMutation.isPending}
+                className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                <Lock className="h-4 w-4" />
+                Finalize
+              </Button>
+            </div>
+          </div>
         </div>
       )}
-
-      <FinalizeChecklistDialog
-        open={showFinalizeDialog}
-        onOpenChange={setShowFinalizeDialog}
-        onConfirm={handleFinalize}
-        isPending={finalizeMutation.isPending}
-      />
-
-      <MissingItemsDialog open={showMissingItems} onOpenChange={setShowMissingItems} items={missingItemsList} />
-
-      <StartAmendmentDialog
-        open={showAmendDialog}
-        onOpenChange={setShowAmendDialog}
-        reason={amendReason}
-        onReasonChange={setAmendReason}
-        error={amendError}
-        isPending={isAmending}
-        onStart={handleStartAmendment}
-      />
     </div>
   );
 }
+

@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
+import { authorizeApiRequest } from '@/lib/auth/require-role';
 import db from '@/lib/db';
 import { SurgicalCaseStatus } from '@prisma/client';
 import { INTRAOP_TEMPLATE_KEY, INTRAOP_TEMPLATE_VERSION } from '@/domain/clinical-forms/NurseIntraOpRecord';
@@ -16,12 +17,10 @@ import { INTRAOP_TEMPLATE_KEY, INTRAOP_TEMPLATE_VERSION } from '@/domain/clinica
 export async function GET(request: NextRequest): Promise<NextResponse> {
     try {
         const authResult = await JwtMiddleware.authenticate(request);
-        if (!authResult.success || !authResult.user) {
-            return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
-        }
-
-        if (authResult.user.role !== Role.NURSE) {
-            return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
+        if (!authorizeApiRequest(authResult, [Role.NURSE, Role.ADMIN])) {
+            return !authResult.user
+                ? NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
+                : NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
         }
 
         // Include the live peri-operative queue for today:

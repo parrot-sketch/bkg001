@@ -22,6 +22,11 @@ export async function GET(request: NextRequest) {
         availability_status: {
           not: 'UNAVAILABLE',
         },
+        name: {
+          not: {
+            equals: '',
+          },
+        },
       },
       select: {
         id: true,
@@ -32,7 +37,14 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({ success: true, surgeons });
+    const meaningfulSurgeons = surgeons.filter((s) => {
+      const trimmed = s.name.trim();
+      if (!trimmed) return false;
+      if (/^(Dr|Mr|Mrs|Ms|Prof|Sir|Madam)\.?$/i.test(trimmed)) return false;
+      return true;
+    });
+
+    return NextResponse.json({ success: true, surgeons: meaningfulSurgeons });
   } catch (error: any) {
     console.error('Error fetching surgeons:', error);
     return NextResponse.json(

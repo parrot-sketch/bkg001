@@ -19,51 +19,38 @@ export function ChargeTotals({
   onDiscountBlur,
 }: ChargeTotalsProps) {
   return (
-    <div className="space-y-4">
-      <div>
-        <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium uppercase tracking-[0.16em] text-[#2c2e4b]">
           Bill Summary
         </p>
-        <p className="mt-1 text-sm text-slate-600">
-          Review the totals before saving this consultation charge sheet.
-        </p>
+        <p className="text-xs text-slate-400">KSH</p>
       </div>
 
-      <div className="space-y-2 rounded-2xl bg-slate-50 p-4">
-        <label className="text-sm font-medium text-slate-700">
-          Discount (KSH)
-        </label>
-        <Input
-          type="text"
-          inputMode="decimal"
-          className="h-10 border-slate-200 bg-white"
-          value={discountStr}
-          onChange={(e) => onDiscountChange(e.target.value)}
-          onBlur={onDiscountBlur}
-          aria-label="Discount amount"
-        />
-      </div>
-
-      <div className="space-y-2 border-t border-slate-200 pt-4">
-        {discount > 0 && (
-          <div className="flex items-center justify-between text-sm text-slate-500">
-            <span>Subtotal</span>
-            <span>KSH {subtotal.toLocaleString()}</span>
-          </div>
-        )}
-        {discount > 0 && (
-          <div className="flex items-center justify-between text-sm text-slate-500">
-            <span>Discount</span>
-            <span className="text-red-500">
-              − KSH {discount.toLocaleString()}
-            </span>
-          </div>
-        )}
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-slate-600">Total</span>
-          <span className="text-lg font-semibold text-slate-900">
-            KSH {total.toLocaleString()}
-          </span>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="rounded-xl bg-white border border-slate-200 p-3">
+          <p className="text-[10px] uppercase tracking-wide text-slate-400 mb-1">Subtotal</p>
+          <p className="text-sm font-semibold text-slate-900">
+            {subtotal.toLocaleString()}
+          </p>
+        </div>
+        <div className="rounded-xl bg-white border border-slate-200 p-3">
+          <p className="text-[10px] uppercase tracking-wide text-slate-400 mb-1">Discount</p>
+          <Input
+            type="text"
+            inputMode="decimal"
+            className="h-8 border-slate-200 bg-white text-sm font-semibold text-red-600"
+            value={discountStr}
+            onChange={(e) => onDiscountChange(e.target.value)}
+            onBlur={onDiscountBlur}
+            aria-label="Discount amount"
+          />
+        </div>
+        <div className="rounded-xl bg-[#2c2e4b] p-3">
+          <p className="text-[10px] uppercase tracking-wide text-white/60 mb-1">Total</p>
+          <p className="text-lg font-bold text-[#caa26a]">
+            {total.toLocaleString()}
+          </p>
         </div>
       </div>
     </div>

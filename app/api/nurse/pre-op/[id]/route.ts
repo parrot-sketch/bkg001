@@ -120,6 +120,42 @@ export async function GET(
       wardChecklistSignedBy = signer;
     }
 
+    // 5. Fetch theater-tech recorded vitals for this surgical case
+    const vitals = await db.vitalSign.findMany({
+      where: { surgical_case_id: params.id },
+      orderBy: { recorded_at: 'desc' },
+      select: {
+        id: true,
+        body_temperature: true,
+        systolic: true,
+        diastolic: true,
+        heart_rate: true,
+        respiratory_rate: true,
+        oxygen_saturation: true,
+        weight: true,
+        height: true,
+        recorded_by: true,
+        recorded_at: true,
+      },
+    });
+
+    const recordedByIds = [...new Set(vitals.map(v => v.recorded_by).filter(Boolean))];
+    let recordedByNames: Record<string, string> = {};
+    if (recordedByIds.length > 0) {
+      const users = await db.user.findMany({
+        where: { id: { in: recordedByIds } },
+        select: { id: true, first_name: true, last_name: true, email: true },
+      });
+      recordedByNames = Object.fromEntries(
+        users.map(u => [u.id, `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email])
+      );
+    }
+
+    const vitalsData = vitals.map(v => ({
+      ...v,
+      recorded_by_name: recordedByNames[v.recorded_by] || 'Unknown',
+    }));
+
     // 5. Calculate detailed readiness checklist
     const casePlan = surgicalCase.case_plan;
 
@@ -176,6 +212,7 @@ export async function GET(
         createdAt: wardChecklistForm?.created_at || null,
         updatedAt: wardChecklistForm?.updated_at || null,
       },
+      vitals: vitalsData,
       readiness: {
         intakeFormComplete: false,
         medicalHistoryComplete: false,

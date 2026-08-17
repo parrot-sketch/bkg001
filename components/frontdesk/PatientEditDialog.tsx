@@ -22,7 +22,7 @@ import type { PatientDetailDto } from '@/application/dtos/PatientDetailDto';
 type FormData = {
   firstName: string; lastName: string; dateOfBirth: string; gender: string;
   email: string; phone: string; whatsappPhone?: string; address?: string;
-  maritalStatus?: string; occupation?: string;
+  maritalStatus?: string; occupation?: string; referralSource?: string;
   emergencyContactName?: string; emergencyContactNumber?: string; emergencyContactRelation?: string;
   bloodGroup?: string; allergies?: string; medicalConditions?: string;
   privacyConsent: boolean; serviceConsent: boolean; medicalConsent: boolean;
@@ -69,6 +69,7 @@ export function PatientEditDialog({
       address: patient.address || '',
       maritalStatus: patient.maritalStatus || '',
       occupation: patient.occupation || '',
+      referralSource: patient.referralSource || '',
       emergencyContactName: patient.emergencyContactName || '',
       emergencyContactNumber: patient.emergencyContactNumber || '',
       emergencyContactRelation: patient.relation || '',
@@ -94,6 +95,7 @@ export function PatientEditDialog({
       address: patient.address || '',
       maritalStatus: patient.maritalStatus || '',
       occupation: patient.occupation || '',
+      referralSource: patient.referralSource || '',
       emergencyContactName: patient.emergencyContactName || '',
       emergencyContactNumber: patient.emergencyContactNumber || '',
       emergencyContactRelation: patient.relation || '',
@@ -106,7 +108,7 @@ export function PatientEditDialog({
 
   const goNext = useCallback(async () => {
     let fields: (keyof FormData)[] = [];
-    if (step === 1) fields = ['firstName', 'lastName', 'dateOfBirth', 'gender'];
+    if (step === 1) fields = ['firstName', 'lastName', 'dateOfBirth', 'gender', 'referralSource'];
     else if (step === 2) fields = ['phone', 'email'];
     const valid = fields.length === 0 || await trigger(fields);
     if (valid) setStep((s) => Math.min(s + 1, STEPS.length));
@@ -197,6 +199,20 @@ export function PatientEditDialog({
                   <select {...register('gender')} className={inputClass}>
                     <option value="FEMALE">Female</option>
                     <option value="MALE">Male</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelClass}>How did you hear about us?</label>
+                  <select {...register('referralSource')} className={inputClass}>
+                    <option value="">Select...</option>
+                    <option value="SOCIAL_MEDIA">Social Media (Instagram, Facebook, TikTok, X)</option>
+                    <option value="GOOGLE_SEARCH">Google Search</option>
+                    <option value="FRIEND_FAMILY">Friend / Family Referral</option>
+                    <option value="DOCTOR_REFERRAL">Doctor Referral</option>
+                    <option value="WALK_IN">Walk-In</option>
+                    <option value="WEBSITE">Website</option>
+                    <option value="ADVERTISEMENT">Advertisement</option>
                     <option value="OTHER">Other</option>
                   </select>
                 </div>

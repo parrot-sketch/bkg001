@@ -1,6 +1,7 @@
 'use client';
 
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { PatientDrawer } from '@/components/frontdesk/PatientDrawer';
 import { PatientRegistrationDialog } from '@/components/frontdesk/PatientRegistrationDialog';
 import { PatientStats } from './components/PatientStats';
@@ -51,6 +52,8 @@ export function PatientsFeature() {
     openRegistration,
     closeRegistration,
     handleRegistrationSuccess,
+    error,
+    statsError,
   } = usePatientRegistry();
 
   return (
@@ -99,7 +102,27 @@ export function PatientsFeature() {
         />
 
         <CardContent className="p-0 min-h-[400px] flex flex-col">
-          {isLoading ? (
+          {(error || statsError) && !isLoading ? (
+            <div className="flex flex-col items-center justify-center py-16 px-6">
+              <div className="h-14 w-14 rounded-xl border border-red-200 bg-red-50 flex items-center justify-center mb-4">
+                <span className="text-red-500 text-xl">!</span>
+              </div>
+              <h3 className="text-sm font-semibold text-[#2c2e4b] mb-1">
+                Unable to load patients
+              </h3>
+              <p className="text-xs text-[#2c2e4b]/50 text-center max-w-xs mb-5">
+                {(error as Error)?.message || (statsError as Error)?.message || 'There was a problem loading the patient data. Please try again.'}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.location.reload()}
+                className="rounded-lg border-[#e7d6bf] text-[#2c2e4b] hover:bg-[#e7d6bf]/30"
+              >
+                Retry
+              </Button>
+            </div>
+          ) : isLoading ? (
             <TableSkeleton />
           ) : patients.length === 0 ? (
             <EmptyState

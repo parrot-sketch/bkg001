@@ -2,17 +2,15 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, FileText, Activity, Receipt } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import type { Procedure, LinkedService } from './steps/types';
-import { StepIndicator } from './steps/StepIndicator';
-import { CaseIdentificationForm } from './steps/CaseIdentificationForm';
+import { CaseSetupForm } from './steps/CaseSetupForm';
 import { OperativeDetailsForm } from './steps/OperativeDetailsForm';
 import { ChargeSheetStepWrapper } from './steps/ChargeSheetStepWrapper';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Root export
-// ─────────────────────────────────────────────────────────────────────────────
+import { CaseSummary } from './steps/CaseSummary';
 
 export interface SurgicalCasePlanFormProps {
   caseId: string;
@@ -28,7 +26,6 @@ export interface SurgicalCasePlanFormProps {
     procedureCategory?: string;
     primaryOrRevision?: string;
     procedureIds?: string[];
-    // Step 2 fields
     anaesthesiaType?: string;
     skinToSkinMinutes?: number | null;
     totalTheatreMinutes?: number | null;
@@ -45,8 +42,6 @@ export function SurgicalCasePlanForm({
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [error, setError] = useState<string | null>(null);
-  // Collect selected procedure objects after Step 1 saves, so Step 3 can
-  // derive which services to pre-populate on the charge sheet.
   const [confirmedProcedures, setConfirmedProcedures] = useState<Procedure[]>([]);
 
   const handleError = (msg: string) => setError(msg);
@@ -57,11 +52,9 @@ export function SurgicalCasePlanForm({
     setCurrentStep(n);
   };
 
-  // Flatten linked services from confirmed procedures for the charge sheet
   const suggestedServices = confirmedProcedures
     .flatMap((p) => p.procedure_service_links)
     .filter((l) => l.is_active)
-    // Deduplicate by service id
     .reduce<LinkedService[]>((acc, link) => {
       if (!acc.some((s) => s.id === link.id)) acc.push(link);
       return acc;
@@ -71,101 +64,163 @@ export function SurgicalCasePlanForm({
     if (isTheaterTech) {
       router.push('/theater-tech/surgical-cases');
     } else {
-      // Direct navigation to the next logical clinical step
       router.push(`/doctor/surgical-cases/${caseId}/surgical-notes`);
     }
   };
 
+  const stepConfig = [
+    { num: 1, label: 'Case Setup', icon: FileText, description: 'Procedure, team and diagnosis' },
+    { num: 2, label: 'Operative Details', icon: Activity, description: 'Anaesthesia and timing' },
+    { num: 3, label: 'Charges', icon: Receipt, description: 'Theatre and procedure charges' },
+  ];
+
   return (
-    <div className="max-w-2xl mx-auto px-4 md:px-0">
-      <Card>
-        <CardContent className="pt-4 md:pt-6">
-          <div className="text-center mb-4 md:mb-6">
-            <h2 className="text-lg md:text-xl font-semibold text-slate-900">
-              Surgical Case Plan
-            </h2>
-            <p className="text-xs md:text-sm text-slate-500 mt-1">
-              {currentStep === 1 && 'Case identification and procedures'}
-              {currentStep === 2 && 'Operative and anaesthesia details'}
-              {currentStep === 3 && 'Add charges to the case'}
-            </p>
-          </div>
-
-          <StepIndicator currentStep={currentStep} />
-
-          {error && (
-            <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-lg flex items-center gap-2 text-rose-700">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              <span className="text-sm">{error}</span>
+    <div className="min-h-screen bg-slate-50/50">
+      <div className="max-w-[1400px] mx-auto">
+        {/* Header */}
+        <div className="sticky top-0 z-30 bg-white/80 backdrop-blur border-b border-slate-200">
+          <div className="px-4 md:px-8 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-xl md:text-2xl font-semibold text-slate-900 tracking-tight">
+                  Surgical Case Plan
+                </h1>
+                <p className="text-sm text-slate-500 mt-0.5">
+                  {stepConfig[currentStep - 1]?.description}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-mono text-slate-400">
+                  #{caseId.slice(0, 8).toUpperCase()}
+                </span>
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                  Draft
+                </span>
+              </div>
             </div>
-          )}
 
-          {currentStep === 1 && (
-            <CaseIdentificationForm
-              caseId={caseId}
-              onComplete={() => goToStep(2)}
-              onError={handleError}
-              onProceduresConfirmed={setConfirmedProcedures}
-              isTheaterTech={isTheaterTech}
-              initialData={
-                initialData
-                  ? {
-                      surgeonId: initialData.surgeonId ?? '',
-                      surgeonIds: initialData.surgeonIds ?? [],
-                      assistantSurgeonIds: initialData.assistantSurgeonIds ?? [],
-                      anesthesiologistUserId: initialData.anesthesiologistUserId ?? '',
-                      scrubNurseUserId: initialData.scrubNurseUserId ?? '',
-                      circulatingNurseUserId: initialData.circulatingNurseUserId ?? '',
-                      procedureDate: initialData.procedureDate
-                        ? new Date(initialData.procedureDate)
-                        : null,
-                      diagnosis: initialData.diagnosis ?? '',
-                      procedureCategory: initialData.procedureCategory ?? '',
-                      primaryOrRevision: initialData.primaryOrRevision ?? '',
-                      procedureIds: initialData.procedureIds ?? [],
-                    }
-                  : undefined
-              }
-            />
-          )}
+            {/* Step tabs */}
+            <div className="flex items-center gap-1 mt-4">
+              {stepConfig.map((step, idx) => {
+                const Icon = step.icon;
+                const isActive = currentStep === step.num;
+                const isCompleted = currentStep > step.num;
 
-          {currentStep === 2 && (
-            <OperativeDetailsForm
-              caseId={caseId}
-              onComplete={() => goToStep(3)}
-              onError={handleError}
-              onBack={() => goToStep(1)}
-              initialData={
-                initialData
-                  ? {
-                      anaesthesiaType: initialData.anaesthesiaType ?? '',
-                      skinToSkinMinutes: initialData.skinToSkinMinutes ?? null,
-                      totalTheatreMinutes:
-                        initialData.totalTheatreMinutes ?? null,
-                      admissionType: initialData.admissionType ?? '',
-                    }
-                  : undefined
-              }
-            />
-          )}
+                return (
+                  <button
+                    key={step.num}
+                    type="button"
+                    onClick={() => goToStep(step.num)}
+                    className={cn(
+                      'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                      isActive
+                        ? 'bg-slate-800 text-white shadow-sm'
+                        : isCompleted
+                        ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span className="hidden sm:inline">{step.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
 
-          {currentStep === 3 && (
-            <ChargeSheetStepWrapper
-              caseId={caseId}
-              onBack={() => goToStep(2)}
-              onFinalize={handleFinalize}
-              finishLabel={isTheaterTech ? 'Finish Planning' : 'Finish'}
-              suggestedServices={
-                suggestedServices.map((s) => ({
-                  id: s.id,
-                  service_name: s.service_name,
-                  price: s.price,
-                }))
-              }
-            />
-          )}
-        </CardContent>
-      </Card>
+        {/* Error banner */}
+        {error && (
+          <div className="mx-4 md:mx-8 mt-4 p-3 bg-rose-50 border border-rose-200 rounded-lg flex items-center gap-2 text-rose-700">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span className="text-sm">{error}</span>
+          </div>
+        )}
+
+        {/* Main content */}
+        <div className="p-4 md:p-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Form column */}
+            <div className="lg:col-span-2">
+              <Card className="border-slate-200 shadow-sm">
+                <CardContent className="p-0">
+              {currentStep === 1 && (
+                <CaseSetupForm
+                  caseId={caseId}
+                  currentStep={currentStep}
+                  onComplete={() => goToStep(2)}
+                  onError={handleError}
+                  onProceduresConfirmed={setConfirmedProcedures}
+                  isTheaterTech={isTheaterTech}
+                  initialData={
+                    initialData
+                      ? {
+                          surgeonId: initialData.surgeonId ?? '',
+                          surgeonIds: initialData.surgeonIds ?? [],
+                          assistantSurgeonIds: initialData.assistantSurgeonIds ?? [],
+                          anesthesiologistUserId: initialData.anesthesiologistUserId ?? '',
+                          scrubNurseUserId: initialData.scrubNurseUserId ?? '',
+                          circulatingNurseUserId: initialData.circulatingNurseUserId ?? '',
+                          procedureDate: initialData.procedureDate
+                            ? new Date(initialData.procedureDate)
+                            : null,
+                          diagnosis: initialData.diagnosis ?? '',
+                          procedureCategory: initialData.procedureCategory ?? '',
+                          primaryOrRevision: initialData.primaryOrRevision ?? '',
+                          procedureIds: initialData.procedureIds ?? [],
+                        }
+                      : undefined
+                  }
+                />
+              )}
+
+                  {currentStep === 2 && (
+                    <OperativeDetailsForm
+                      caseId={caseId}
+                      onComplete={() => goToStep(3)}
+                      onError={handleError}
+                      onBack={() => goToStep(1)}
+                      initialData={
+                        initialData
+                          ? {
+                              anaesthesiaType: initialData.anaesthesiaType ?? '',
+                              skinToSkinMinutes: initialData.skinToSkinMinutes ?? null,
+                              totalTheatreMinutes: initialData.totalTheatreMinutes ?? null,
+                              admissionType: initialData.admissionType ?? '',
+                            }
+                          : undefined
+                      }
+                    />
+                  )}
+
+                  {currentStep === 3 && (
+                    <ChargeSheetStepWrapper
+                      caseId={caseId}
+                      onBack={() => goToStep(2)}
+                      onFinalize={handleFinalize}
+                      finishLabel={isTheaterTech ? 'Finish Planning' : 'Finish'}
+                      suggestedServices={suggestedServices.map((s) => ({
+                        id: s.id,
+                        service_name: s.service_name,
+                        price: s.price,
+                      }))}
+                    />
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Summary sidebar */}
+            <div className="lg:col-span-1">
+              <CaseSummary
+                caseId={caseId}
+                currentStep={currentStep}
+                confirmedProcedures={confirmedProcedures}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -10,145 +10,183 @@ import {
     AlertCircle,
     PhoneCall,
     Users,
-    Eye,
+    Mail,
+    Briefcase,
+    Stethoscope,
+    UserPlus,
+    CalendarPlus,
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { BookingChannel } from "@/domain/enums/BookingChannel";
+import { AppointmentSource } from "@/domain/enums/AppointmentSource";
+import { useBookAppointmentStore } from "@/hooks/frontdesk/useBookAppointmentStore";
+import { QuickAssignmentDialog } from "@/components/frontdesk/QuickAssignmentDialog";
 
 interface PatientOverviewPanelProps {
     patient: {
         gender?: string | null;
         date_of_birth?: Date | null;
         phone?: string | null;
+        email?: string | null;
+        whatsapp_phone?: string | null;
         marital_status?: string | null;
+        occupation?: string | null;
+        referral_source?: string | null;
         blood_group?: string | null;
         address?: string | null;
         emergency_contact_name?: string | null;
         emergency_contact_number?: string | null;
         relation?: string | null;
-
+        allergies?: string | null;
+        medical_conditions?: string | null;
+        medical_history?: string | null;
     };
+    patientId: string;
+    patientName: string;
 }
 
-interface InfoFieldProps {
-    icon: React.ReactNode;
+interface FieldRowProps {
     label: string;
     value?: string | null;
-    className?: string;
+    icon?: React.ReactNode;
 }
 
-function InfoField({ icon, label, value, className }: InfoFieldProps) {
+function FieldRow({ label, value, icon }: FieldRowProps) {
+    const displayValue = value || (
+        <span className="text-[#2c2e4b]/30 italic">Not provided</span>
+    );
+
     return (
-        <div className={cn("flex items-start gap-3 p-4 rounded-lg bg-muted/40 hover:bg-muted/70 transition-colors", className)}>
-            <div className="flex-shrink-0 mt-0.5 text-primary/70">{icon}</div>
-            <div className="min-w-0">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-0.5">
+        <div className="flex items-start gap-4 py-3 border-b border-[#e7d6bf]/60 last:border-0">
+            {icon && (
+                <div className="flex-shrink-0 mt-0.5 text-[#caa26a]">
+                    {icon}
+                </div>
+            )}
+            <div className="flex-1 min-w-0 grid grid-cols-[140px_1fr] gap-3">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-[#2c2e4b]/60 truncate">
                     {label}
-                </p>
-                <p className="text-sm font-medium text-foreground capitalize truncate">
-                    {value || (
-                        <span className="text-muted-foreground italic font-normal">Not provided</span>
-                    )}
-                </p>
+                </span>
+                <span className="text-sm text-[#2c2e4b] break-words">
+                    {displayValue}
+                </span>
             </div>
         </div>
     );
 }
 
-export function PatientOverviewPanel({ patient }: PatientOverviewPanelProps) {
-    const [isRevealed, setIsRevealed] = useState(false);
+function SectionHeader({ icon, title }: { icon: React.ReactNode; title: string }) {
+    return (
+        <div className="flex items-center gap-2 pb-3 border-b border-[#e7d6bf]">
+            <div className="text-[#caa26a]">{icon}</div>
+            <h2 className="text-xs font-bold text-[#2c2e4b] uppercase tracking-wider">{title}</h2>
+        </div>
+    );
+}
+
+function CtaButton({ icon: Icon, label, description, onClick, variant = 'default' }: {
+    icon: React.ComponentType<{ className?: string; size?: number }>;
+    label: string;
+    description: string;
+    onClick?: () => void;
+    variant?: 'default' | 'outline';
+}) {
+    const baseClass = "flex items-center gap-3 px-4 py-3 border transition-colors text-left";
+    const variantClass = variant === 'outline'
+        ? "border-[#e7d6bf] hover:bg-[#e7d6bf]/10"
+        : "border-[#caa26a] bg-[#caa26a]/5 hover:bg-[#caa26a]/10";
+
+    return (
+        <button onClick={onClick} className={cn(baseClass, variantClass)}>
+            <div className={cn("p-2 rounded-md", variant === 'outline' ? "bg-[#e7d6bf]/20 text-[#caa26a]" : "bg-[#caa26a]/10 text-[#caa26a]")}>
+                <Icon size={16} />
+            </div>
+            <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-[#2c2e4b] leading-tight">{label}</p>
+                <p className="text-[11px] text-[#2c2e4b]/50 mt-0.5">{description}</p>
+            </div>
+        </button>
+    );
+}
+
+export function PatientOverviewPanel({ patient, patientId, patientName }: PatientOverviewPanelProps) {
+    const [queueDialogOpen, setQueueDialogOpen] = useState(false);
+    const { openBookingDialog } = useBookAppointmentStore();
 
     const dob = patient.date_of_birth
         ? format(patient.date_of_birth, "MMMM d, yyyy")
         : null;
 
     return (
-        <div className="space-y-6">
-            {/* Personal Information */}
-            <div>
-                <div className="flex items-center gap-2 mb-4">
-                    <User size={16} className="text-primary" />
-                    <h2 className="text-base font-semibold text-foreground">Personal Information</h2>
+        <div className="space-y-4">
+            <div className="bg-white/95 backdrop-blur border border-[#e7d6bf] rounded-xl overflow-hidden">
+                <div className="px-5 py-3 border-b border-[#e7d6bf] bg-[#e7d6bf]/5">
+                    <SectionHeader icon={<User size={14} />} title="Personal Information" />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                    <InfoField
-                        icon={<User size={16} />}
-                        label="Gender"
-                        value={patient.gender?.toLowerCase()}
+                <div className="px-5">
+                    <FieldRow label="Gender" value={patient.gender?.toLowerCase()} icon={<User size={14} />} />
+                    <FieldRow label="Date of Birth" value={dob} icon={<Calendar size={14} />} />
+                    <FieldRow label="Phone" value={patient.phone} icon={<Phone size={14} />} />
+                    <FieldRow label="Email" value={patient.email} icon={<Mail size={14} />} />
+                    <FieldRow label="WhatsApp" value={patient.whatsapp_phone} icon={<PhoneCall size={14} />} />
+                    <FieldRow label="Blood Group" value={patient.blood_group} icon={<Droplets size={14} />} />
+                    <FieldRow label="Occupation" value={patient.occupation} icon={<Briefcase size={14} />} />
+                    <FieldRow label="Referral Source" value={patient.referral_source?.replace(/_/g, ' ').toLowerCase()} icon={<Users size={14} />} />
+                    <FieldRow label="Address" value={patient.address} icon={<MapPin size={14} />} />
+                </div>
+            </div>
+
+            <div className="bg-white/95 backdrop-blur border border-[#e7d6bf] rounded-xl overflow-hidden">
+                <div className="px-5 py-3 border-b border-[#e7d6bf] bg-[#e7d6bf]/5">
+                    <SectionHeader icon={<AlertCircle size={14} />} title="Emergency Contact" />
+                </div>
+                <div className="px-5">
+                    <FieldRow label="Contact Person" value={patient.emergency_contact_name} icon={<Users size={14} />} />
+                    <FieldRow label="Contact Number" value={patient.emergency_contact_number} icon={<PhoneCall size={14} />} />
+                    <FieldRow label="Relationship" value={patient.relation?.toLowerCase()} icon={<Heart size={14} />} />
+                </div>
+            </div>
+
+            <div className="bg-white/95 backdrop-blur border border-[#e7d6bf] rounded-xl overflow-hidden">
+                <div className="px-5 py-3 border-b border-[#e7d6bf] bg-[#e7d6bf]/5">
+                    <SectionHeader icon={<Stethoscope size={14} />} title="Medical Overview" />
+                </div>
+                <div className="px-5">
+                    <FieldRow label="Allergies" value={patient.allergies} icon={<AlertCircle size={14} />} />
+                    <FieldRow label="Medical Conditions" value={patient.medical_conditions} icon={<Heart size={14} />} />
+                    <FieldRow label="Medical History" value={patient.medical_history} icon={<Stethoscope size={14} />} />
+                </div>
+            </div>
+
+            <div className="bg-white/95 backdrop-blur border border-[#e7d6bf] rounded-xl p-4">
+                <div className="flex flex-wrap gap-3">
+                    <CtaButton
+                        icon={UserPlus}
+                        label="Add to Queue"
+                        description="Assign to a doctor"
+                        onClick={() => setQueueDialogOpen(true)}
                     />
-                    <InfoField
-                        icon={<Calendar size={16} />}
-                        label="Date of Birth"
-                        value={dob}
-                    />
-                    <InfoField
-                        icon={<Phone size={16} />}
-                        label="Phone Number"
-                        value={patient.phone}
-                    />
-                    <InfoField
-                        icon={<Droplets size={16} />}
-                        label="Blood Group"
-                        value={patient.blood_group}
-                    />
-                    <InfoField
-                        icon={<MapPin size={16} />}
-                        label="Address"
-                        value={patient.address}
-                        className="sm:col-span-2 xl:col-span-1"
+                    <CtaButton
+                        icon={CalendarPlus}
+                        label="Schedule Appointment"
+                        description="Book a new appointment"
+                        onClick={() => openBookingDialog({
+                            initialPatientId: patientId,
+                            source: AppointmentSource.FRONTDESK_SCHEDULED,
+                            bookingChannel: BookingChannel.DASHBOARD,
+                        })}
                     />
                 </div>
             </div>
 
-            {/* Divider */}
-            <div className="border-t border-border" />
-
-            {/* Emergency Contact */}
-            <div className="relative group">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                        <AlertCircle size={16} className="text-destructive/70" />
-                        <h2 className="text-base font-semibold text-foreground">Emergency Contact</h2>
-                    </div>
-                </div>
-
-                <div className="relative overflow-hidden rounded-xl border border-transparent transition-all duration-300">
-                    <div className={cn(
-                        "grid grid-cols-1 sm:grid-cols-3 gap-3 transition-all duration-500",
-                        !isRevealed && "blur-md select-none opacity-40 grayscale"
-                    )}>
-                        <InfoField
-                            icon={<Users size={16} />}
-                            label="Contact Person"
-                            value={patient.emergency_contact_name}
-                        />
-                        <InfoField
-                            icon={<PhoneCall size={16} />}
-                            label="Contact Number"
-                            value={patient.emergency_contact_number}
-                        />
-                        <InfoField
-                            icon={<Heart size={16} />}
-                            label="Relationship"
-                            value={patient.relation}
-                        />
-                    </div>
-
-                    {!isRevealed && (
-                        <div className="absolute inset-0 flex items-center justify-center z-10">
-                            <button
-                                onClick={() => setIsRevealed(true)}
-                                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/90 backdrop-blur-md shadow-lg border border-border/50 text-sm font-semibold text-foreground hover:bg-white hover:scale-105 transition-all duration-300 active:scale-95 group/btn"
-                            >
-                                <Eye size={16} className="text-primary group-hover/btn:scale-110 transition-transform" />
-                                <span>Reveal Contact Details</span>
-                            </button>
-                        </div>
-                    )}
-                </div>
-            </div>
-
+            <QuickAssignmentDialog
+                open={queueDialogOpen}
+                onOpenChange={setQueueDialogOpen}
+                initialPatientId={patientId}
+                initialPatientName={patientName}
+            />
         </div>
     );
 }

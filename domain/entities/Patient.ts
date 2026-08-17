@@ -46,6 +46,7 @@ export class Patient {
     private readonly medicalHistory?: string,
     private readonly insuranceProvider?: string,
     private readonly insuranceNumber?: string,
+    private readonly referralSource?: string,
     private readonly img?: string,
     private readonly colorCode?: string,
     // Timestamps (set by infrastructure)
@@ -88,6 +89,7 @@ export class Patient {
     medicalHistory?: string;
     insuranceProvider?: string;
     insuranceNumber?: string;
+    referralSource?: string;
     img?: string;
     colorCode?: string;
     createdAt?: Date;
@@ -213,6 +215,7 @@ export class Patient {
       params.medicalHistory?.trim(),
       params.insuranceProvider?.trim(),
       params.insuranceNumber?.trim(),
+      params.referralSource?.trim(),
       params.img?.trim(),
       params.colorCode?.trim(),
       params.createdAt,
@@ -324,6 +327,10 @@ export class Patient {
 
   getInsuranceNumber(): string | undefined {
     return this.insuranceNumber;
+  }
+
+  getReferralSource(): string | undefined {
+    return this.referralSource;
   }
 
   getImg(): string | undefined {

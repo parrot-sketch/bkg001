@@ -152,6 +152,16 @@ export function CaseIdentificationForm({
     e.preventDefault();
     setIsLoading(true);
     try {
+      const customAnesthesiologist = formData.anesthesiologistUserId.startsWith('__custom__:')
+        ? formData.anesthesiologistUserId.replace('__custom__:', '')
+        : null;
+      const customScrubNurse = formData.scrubNurseUserId.startsWith('__custom__:')
+        ? formData.scrubNurseUserId.replace('__custom__:', '')
+        : null;
+      const customCirculatingNurse = formData.circulatingNurseUserId.startsWith('__custom__:')
+        ? formData.circulatingNurseUserId.replace('__custom__:', '')
+        : null;
+
       const res = await fetch(
         `/api/doctor/surgical-cases/${caseId}/plan/page1`,
         {
@@ -161,9 +171,12 @@ export function CaseIdentificationForm({
             procedureDate: formData.procedureDate,
             primarySurgeonId: formData.primarySurgeonId,
             assistantSurgeonIds: formData.assistantSurgeonIds,
-            anesthesiologistUserId: formData.anesthesiologistUserId || null,
-            scrubNurseUserId: formData.scrubNurseUserId || null,
-            circulatingNurseUserId: formData.circulatingNurseUserId || null,
+            anesthesiologistUserId: customAnesthesiologist ? null : (formData.anesthesiologistUserId || null),
+            scrubNurseUserId: customScrubNurse ? null : (formData.scrubNurseUserId || null),
+            circulatingNurseUserId: customCirculatingNurse ? null : (formData.circulatingNurseUserId || null),
+            customAnesthesiologistName: customAnesthesiologist,
+            customScrubNurseName: customScrubNurse,
+            customCirculatingNurseName: customCirculatingNurse,
             diagnosis: formData.diagnosis,
             procedureCategory: formData.procedureCategory,
             primaryOrRevision: formData.primaryOrRevision,

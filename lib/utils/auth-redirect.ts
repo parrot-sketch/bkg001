@@ -6,7 +6,6 @@
  */
 
 import { patientApi } from '../api/patient';
-import { doctorApi } from '../api/doctor';
 
 /**
  * User roles from the system
@@ -27,9 +26,7 @@ export enum UserRole {
  * Determines the appropriate redirect path after login/registration
  * 
  * Role-based routing:
- * - DOCTOR: 
- *   - If onboarding_status === ACTIVE → /doctor/dashboard
- *   - If requires onboarding → /doctor/activate (for future new doctors)
+ * - DOCTOR → /doctor/dashboard (dashboard handles onboarding checks)
  * - PATIENT:
  *   - If has PatientProfile → /patient/dashboard
  *   - If no PatientProfile → /portal/welcome (onboarding)
@@ -62,7 +59,7 @@ export async function getPostAuthRedirect(
   // Route based on role
   switch (userRole?.toUpperCase()) {
     case UserRole.DOCTOR:
-      return getDoctorRedirect(userId);
+      return '/doctor/dashboard';
 
     case UserRole.PATIENT:
       return getPatientRedirect(userId);
@@ -91,36 +88,6 @@ export async function getPostAuthRedirect(
     default:
       // Unknown role - try patient check as fallback
       return getPatientRedirect(userId);
-  }
-}
-
-/**
- * Determines doctor redirect path based on onboarding status
- * 
- * - ACTIVE → /doctor/dashboard (ready to work)
- * - Requires onboarding → /doctor/activate (complete profile/activation)
- * 
- * @param userId - Doctor's user ID
- * @returns Promise resolving to redirect path
- */
-async function getDoctorRedirect(userId: string): Promise<string> {
-  try {
-    const doctorRes = await doctorApi.getDoctorByUserId(userId);
-    const onboardingStatus = (doctorRes.success ? doctorRes.data?.onboardingStatus : undefined) as
-      | 'INVITED'
-      | 'ACTIVATED'
-      | 'PROFILE_COMPLETED'
-      | 'SCHEDULE_SETUP'
-      | 'ACTIVE'
-      | undefined;
-
-    if (onboardingStatus === 'INVITED') return '/doctor/activate';
-    
-    return '/doctor/dashboard';
-  } catch (error) {
-    console.error('Error determining doctor redirect:', error);
-    // Safe fallback: go to dashboard
-    return '/doctor/dashboard';
   }
 }
 

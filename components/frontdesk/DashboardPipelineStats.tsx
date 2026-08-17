@@ -1,4 +1,4 @@
-import { UserCheck, Users, UserPlus, Stethoscope } from 'lucide-react';
+import { UserCheck, Users, UserPlus, Stethoscope, CalendarIcon, Scissors } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -11,6 +11,9 @@ const iconMap = {
   'In Consultation':  Stethoscope,
   'Completed Today':  UserCheck,
   'New Today':        UserPlus,
+  'Scheduled Procedures': CalendarIcon,
+  'In Theater':       Scissors,
+  'Completed Surgeries': UserCheck,
 } as const;
 
 const pipelineConfig = [
@@ -34,6 +37,18 @@ const pipelineConfig = [
     label: 'New Today',
     href: () => `/frontdesk/patients`,
   },
+  {
+    label: 'Scheduled Procedures',
+    href: () => `/frontdesk/surgical-cases`,
+  },
+  {
+    label: 'In Theater',
+    href: () => `/frontdesk/surgical-cases?status=IN_THEATER`,
+  },
+  {
+    label: 'Completed Surgeries',
+    href: () => `/frontdesk/surgical-cases?status=COMPLETED`,
+  },
 ] as const;
 
 export function DashboardPipelineStats() {
@@ -43,7 +58,7 @@ export function DashboardPipelineStats() {
 
   if (isLoading) {
     return (
-    <section className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+    <section className="grid grid-cols-2 lg:grid-cols-5 xl:grid-cols-8 gap-3 sm:gap-4">
         {pipelineConfig.map((item) => {
           const Icon = iconMap[item.label];
           return (
@@ -82,6 +97,15 @@ export function DashboardPipelineStats() {
       case 'New Today':
         value = s?.newPatientsToday ?? 0;
         break;
+      case 'Scheduled Procedures':
+        value = s?.scheduledProcedures ?? 0;
+        break;
+      case 'In Theater':
+        value = s?.inTheater ?? 0;
+        break;
+      case 'Completed Surgeries':
+        value = s?.completedSurgeriesToday ?? 0;
+        break;
       default:
         value = 0;
     }
@@ -89,7 +113,7 @@ export function DashboardPipelineStats() {
   });
 
    return (
-     <section className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+     <section className="grid grid-cols-2 lg:grid-cols-5 xl:grid-cols-8 gap-3 sm:gap-4">
       {pipelineData.map((item) => {
         const Icon = iconMap[item.label];
 

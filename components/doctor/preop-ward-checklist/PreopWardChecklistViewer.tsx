@@ -44,6 +44,7 @@ export function PreopWardChecklistViewer(props: {
       </div>
 
       <FinalizedChecklistDocument
+        caseId={caseId}
         patient={patient}
         surgeonName={surgeonName}
         anaesthesiologistName={anaesthesiologistName}
