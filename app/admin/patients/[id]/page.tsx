@@ -109,6 +109,8 @@ export default async function AdminPatientProfilePage(props: ParamsProps) {
                   emergency_contact_number: data.emergency_contact_number,
                   relation: data.relation,
                 }}
+                patientId={patientId}
+                patientName={fullName}
               />
             )}
 

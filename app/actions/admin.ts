@@ -89,15 +89,15 @@ export async function createNewDoctor(data: any) {
     // Use service layer to create user and doctor profile
     const userProfileService = new UserProfileService(db);
     const { user: newUser, doctor } = await userProfileService.createUserWithDoctor({
-      email: validatedValues.email,
+      email: validatedValues.email || '',
       password: validatedValues.password,
       firstName,
       lastName,
-      phone: validatedValues.phone,
+      phone: validatedValues.phone || '',
       name: validatedValues.name,
       specialization: validatedValues.specialization,
       licenseNumber: validatedValues.license_number,
-      address: validatedValues.address,
+      address: validatedValues.address || '',
       department: validatedValues.department,
       clinicLocation: (data as any).clinic_location,
       profileImage: (data as any).profile_image,
