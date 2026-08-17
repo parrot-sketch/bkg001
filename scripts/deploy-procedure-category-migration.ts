@@ -38,16 +38,16 @@ const prisma = new PrismaClient();
 
 async function getCurrentDatabase() {
   try {
-    const result = await prisma.$queryRaw`SELECT current_database() as db_name`;
+    const result = await prisma.$queryRaw<{ db_name: string }[]>`SELECT current_database() as db_name`;
     return result[0]?.db_name || 'unknown';
-  } catch (error) {
+  } catch (error: any) {
     return 'unknown (error: ' + error.message + ')';
   }
 }
 
 async function getCurrentEnumValues() {
   try {
-    const result = await prisma.$queryRaw`
+    const result = await prisma.$queryRaw<{ labels: string[] }[]>`
       SELECT typname, array_agg(enumlabel ORDER BY enumsortorder) as labels
       FROM pg_type 
       JOIN pg_enum ON pg_enum.enumtypid = pg_type.oid 
@@ -55,21 +55,21 @@ async function getCurrentEnumValues() {
       GROUP BY typname
     `;
     return result[0]?.labels || [];
-  } catch (error) {
+  } catch (error: any) {
     return [];
   }
 }
 
 async function getProcedureCounts() {
   try {
-    const result = await prisma.$queryRaw`
+    const result = await prisma.$queryRaw<{ category: string; count: number }[]>`
       SELECT category, COUNT(*) as count
       FROM surgical_procedure_options
       GROUP BY category
       ORDER BY category
     `;
     return result;
-  } catch (error) {
+  } catch (error: any) {
     return [];
   }
 }
@@ -79,7 +79,7 @@ async function executeStep(description: string, sql: string) {
   try {
     await prisma.$executeRawUnsafe(sql);
     console.log(`    ✓ ${description} complete`);
-  } catch (error) {
+  } catch (error: any) {
     console.error(`    ✗ ${description} failed:`, error.message);
     throw error;
   }
@@ -202,7 +202,7 @@ async function main() {
     console.log('     OTHER → OTHER');
     console.log('\n⚠️  Next step: Run the production seed script:');
     console.log('   npx tsx prisma/seeds/surgical-procedures.prod.seed.ts');
-  } catch (error) {
+  } catch (error: any) {
     console.error('\n❌ Migration failed:', error.message);
     process.exit(1);
   } finally {

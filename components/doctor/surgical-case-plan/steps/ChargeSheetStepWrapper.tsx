@@ -5,13 +5,14 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useChargeSheet } from '@/hooks/theater-tech/useChargeSheet';
 import { ChargeSheetStepContent } from '@/components/theater-tech/ChargeSheetStepContent';
+import type { Service } from '@/components/theater-tech/charge-sheet.types';
 
 export interface ChargeSheetStepWrapperProps {
   caseId: string;
   onBack: () => void;
   onFinalize: () => void;
   finishLabel?: string;
-  suggestedServices?: Array<{ id: number; service_name: string; price: number }>;
+  suggestedServices?: Service[];
 }
 
 export function ChargeSheetStepWrapper({

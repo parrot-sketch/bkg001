@@ -36,7 +36,7 @@ export interface UseChargeSheetReturn {
   total: number;
   discountStr: string;
   suggestedCount: number;
-  suggestedServices: Array<{ id: number; service_name: string; price: number }>;
+  suggestedServices: Service[];
 
   // Actions
   setSearchQuery: (q: string) => void;
@@ -61,7 +61,7 @@ export interface UseChargeSheetReturn {
 
 export function useChargeSheet(
   caseId: string,
-  initialSuggestedServices?: Array<{ id: number; service_name: string; price: number }>
+  initialSuggestedServices?: Service[]
 ): UseChargeSheetReturn {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -79,7 +79,7 @@ export function useChargeSheet(
   const [searchQuery, setSearchQuery] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [suggestedCount, setSuggestedCount] = useState(0);
-  const [suggestedServices, setSuggestedServices] = useState<Array<{ id: number; service_name: string; price: number }>>([]);
+  const [suggestedServices, setSuggestedServices] = useState<Service[]>([]);
 
   // ── Load existing billing data ──────────────────────────────────────────
   useEffect(() => {
@@ -117,7 +117,7 @@ export function useChargeSheet(
           const hasExistingCharges = billingData.data.payment.billItems?.length > 0;
           let loadedDiscount = (billingData.data.payment.discount as number) ?? 0;
           let count = 0;
-          let suggested: Array<{ id: number; service_name: string; price: number }> = [];
+          let suggested: Service[] = [];
 
           if (!hasExistingCharges && initialSuggestedServices && initialSuggestedServices.length > 0) {
             items = initialSuggestedServices.map(s => ({

@@ -142,11 +142,38 @@ export interface FrontdeskSurgicalCaseListItem {
     primary_or_revision: string | null;
     admission_type: string | null;
     created_at: string;
+    urgency?: string | null;
+    case_procedures?: Array<{
+        id: string;
+        procedure: {
+            id: number;
+            name: string;
+            category: string | null;
+            subcategory?: string | null;
+            estimated_duration_minutes?: number | null;
+        };
+    }>;
+    case_plan?: {
+        readiness_status?: string | null;
+        ready_for_surgery?: boolean;
+        estimated_duration_minutes?: number | null;
+    } | null;
+    theater_booking?: {
+        id: string;
+        startTime?: string;
+        endTime?: string;
+        status?: string;
+        theater?: {
+            name: string;
+        };
+    } | null;
     patient: {
         id: string;
         first_name: string;
         last_name: string;
         file_number: string | null;
+        email?: string | null;
+        phone?: string | null;
     };
     primary_surgeon: {
         id: string;

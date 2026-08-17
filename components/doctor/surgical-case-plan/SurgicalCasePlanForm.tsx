@@ -203,6 +203,7 @@ export function SurgicalCasePlanForm({
                         id: s.id,
                         service_name: s.service_name,
                         price: s.price,
+                        category: s.category,
                       }))}
                     />
                   )}

@@ -32,23 +32,23 @@ const prisma = new PrismaClient();
 
 async function getCurrentDatabase() {
   try {
-    const result = await prisma.$queryRaw`SELECT current_database() as db_name`;
+    const result = await prisma.$queryRaw<{ db_name: string }[]>`SELECT current_database() as db_name`;
     return result[0]?.db_name || 'unknown';
-  } catch (error) {
+  } catch (error: any) {
     return 'unknown (error: ' + error.message + ')';
   }
 }
 
 async function getVitalSignColumnExists() {
   try {
-    const result = await prisma.$queryRaw`
+    const result = await prisma.$queryRaw<{ column_name: string }[]>`
       SELECT column_name
       FROM information_schema.columns
       WHERE table_name = 'VitalSign'
         AND column_name = 'surgical_case_id'
     `;
     return result.length > 0;
-  } catch (error) {
+  } catch (error: any) {
     return false;
   }
 }
@@ -58,7 +58,7 @@ async function executeStep(description: string, sql: string) {
   try {
     await prisma.$executeRawUnsafe(sql);
     console.log(`    ✓ ${description} complete`);
-  } catch (error) {
+  } catch (error: any) {
     console.error(`    ✗ ${description} failed:`, error.message);
     throw error;
   }
@@ -135,7 +135,7 @@ async function main() {
     console.log('   - Added surgical_case_id column to VitalSign');
     console.log('   - Created index on surgical_case_id');
     console.log('   - Added foreign key constraint to SurgicalCase');
-  } catch (error) {
+  } catch (error: any) {
     console.error('\n❌ Migration failed:', error.message);
     process.exit(1);
   } finally {
