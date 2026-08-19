@@ -104,7 +104,7 @@ export interface ConfirmBookingResponse {
 
 export interface ScheduleProcedureRequest {
     patientId: string;
-    procedureName: string;
+    procedureIds: string[];
     procedureDate: string;
     primarySurgeonDoctorId?: string;
     primarySurgeonName?: string;

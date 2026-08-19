@@ -13,7 +13,7 @@ interface ActionsCardProps {
   isActive: boolean;
   onRecordVitals: () => void;
   onBookTheater: () => void;
-  onScrollToBilling: () => void;
+  onUpdateBill: () => void;
 }
 
 export function ActionsCard({
@@ -23,7 +23,7 @@ export function ActionsCard({
   isActive,
   onRecordVitals,
   onBookTheater,
-  onScrollToBilling,
+  onUpdateBill,
 }: ActionsCardProps) {
   const patientName = `${data.patient.first_name} ${data.patient.last_name}`;
 
@@ -66,7 +66,7 @@ export function ActionsCard({
         </Button>
         <Button
           size="sm"
-          onClick={onScrollToBilling}
+          onClick={onUpdateBill}
           className="w-full bg-[#2c2e4b] hover:bg-[#1e2038] text-white font-bold shadow-sm"
         >
           <Receipt className="h-4 w-4 mr-2" />

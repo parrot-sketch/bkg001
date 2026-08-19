@@ -75,7 +75,7 @@ export function PatientRegistrationDialog({
                    <div className="space-y-4">
                      <div>
                        <label className={labelClass}>First Name *</label>
-                       <input {...register('firstName')} placeholder="First name" className={inputClass} autoFocus />
+                        <input {...register('firstName')} placeholder="First name" className={inputClass} />
                        {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName.message}</p>}
                      </div>
                      <div>

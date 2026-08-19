@@ -7,7 +7,7 @@ import db from '@/lib/db';
 
 export interface ScheduleProcedureRequest {
   patientId: string;
-  procedureName: string;
+  procedureIds: string[];
   procedureDate: string;
   primarySurgeonDoctorId?: string;
   primarySurgeonName?: string;
@@ -154,11 +154,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const body: ScheduleProcedureRequest = await request.json();
-    const { patientId, procedureName, procedureDate, primarySurgeonDoctorId, primarySurgeonName, diagnosis, procedureCategory, primaryOrRevision, admissionType, appointmentId } = body;
+    const { patientId, procedureIds, procedureDate, primarySurgeonDoctorId, primarySurgeonName, diagnosis, procedureCategory, primaryOrRevision, admissionType, appointmentId } = body;
 
-    if (!patientId || !procedureName || !procedureDate) {
+    if (!patientId || !procedureIds || !Array.isArray(procedureIds) || procedureIds.length === 0 || !procedureDate) {
       return NextResponse.json(
-        { success: false, error: 'Missing required fields: patientId, procedureName, procedureDate' },
+        { success: false, error: 'Missing required fields: patientId, procedureIds, procedureDate' },
         { status: 400 }
       );
     }
@@ -193,6 +193,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const procedureDateObj = new Date(procedureDate);
+    const primaryProcedureId = procedureIds[0];
+    const primaryProcedure = await db.surgicalProcedureOption.findUnique({
+      where: { id: primaryProcedureId },
+      select: { name: true },
+    });
+
     const created = await createSurgicalCaseFromPatient(db, {
       patientId,
       createdByUserId: user.userId,
@@ -200,20 +206,42 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       primarySurgeonName: primarySurgeonName?.trim() || undefined,
       appointmentId,
       procedureDate: procedureDateObj,
-      procedureName,
+      procedureName: primaryProcedure?.name || '',
       status: SurgicalCaseStatus.READY_FOR_WARD_PREP,
     });
 
-    if (!created.alreadyExisted && (diagnosis || procedureCategory || primaryOrRevision || admissionType)) {
-      await db.surgicalCase.update({
-        where: { id: created.surgicalCaseId },
-        data: {
-          ...(diagnosis ? { diagnosis } : {}),
-          ...(procedureCategory ? { procedure_category: procedureCategory } : {}),
-          ...(primaryOrRevision ? { primary_or_revision: primaryOrRevision } : {}),
-          ...(admissionType ? { admission_type: admissionType } : {}),
-        },
+    if (!created.alreadyExisted) {
+      if (diagnosis || procedureCategory || primaryOrRevision || admissionType) {
+        await db.surgicalCase.update({
+          where: { id: created.surgicalCaseId },
+          data: {
+            ...(diagnosis ? { diagnosis } : {}),
+            ...(procedureCategory ? { procedure_category: procedureCategory } : {}),
+            ...(primaryOrRevision ? { primary_or_revision: primaryOrRevision } : {}),
+            ...(admissionType ? { admission_type: admissionType } : {}),
+          },
+        });
+      }
+
+      const allProcedures = await db.surgicalProcedureOption.findMany({
+        where: { id: { in: procedureIds } },
+        select: { id: true, name: true },
       });
+
+      if (allProcedures.length > 0) {
+        const procedureNameSummary = allProcedures.map(p => p.name).join(', ');
+        await db.surgicalCase.update({
+          where: { id: created.surgicalCaseId },
+          data: { procedure_name: procedureNameSummary },
+        });
+
+        await db.surgicalCaseProcedure.createMany({
+          data: allProcedures.map((proc) => ({
+            surgical_case_id: created.surgicalCaseId,
+            procedure_id: proc.id,
+          })),
+        });
+      }
     }
 
     const patientName = `${patient.first_name} ${patient.last_name}`.trim() || 'Unknown Patient';

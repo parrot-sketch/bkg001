@@ -31,7 +31,7 @@ export function ChargeSheetStepContent({ cs, emptyHint }: Props) {
       if (el) {
         el.scrollTo({ top: 0, behavior: 'smooth' });
       }
-      inputRef.current?.focus();
+
     }
     prevLengthRef.current = cs.chargeItems.length;
   }, [cs.chargeItems.length]);

@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const auth = await requireAuth(request, ['FRONTDESK', 'ADMIN', 'DOCTOR', 'NURSE']);
+    const auth = await requireAuth(request, ['FRONTDESK', 'ADMIN', 'DOCTOR', 'NURSE', 'THEATER_TECHNICIAN']);
     const { id } = await params;
 
     const ipAddress =
@@ -40,7 +40,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const auth = await requireAuth(request, ['FRONTDESK', 'ADMIN', 'DOCTOR', 'NURSE']);
+    const auth = await requireAuth(request, ['FRONTDESK', 'ADMIN', 'DOCTOR', 'NURSE', 'THEATER_TECHNICIAN']);
     const { id } = await params;
     const body = await request.json();
 

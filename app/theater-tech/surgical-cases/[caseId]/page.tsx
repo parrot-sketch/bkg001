@@ -16,7 +16,8 @@ import { queryKeys } from '@/lib/constants/queryKeys';
 import { EditSurgicalCaseDialog } from '@/components/frontdesk/EditSurgicalCaseDialog';
 import { RecordVitalsDialog } from '@/components/theater-tech/RecordVitalsDialog';
 import { TheaterBookingSectionWrapper } from '@/components/theater-tech/booking/TheaterBookingSectionWrapper';
-import { TheaterTechBillingInline } from '@/components/theater-tech/TheaterTechBillingInline';
+import { TheaterTechBillingSummary } from '@/components/theater-tech/TheaterTechBillingSummary';
+import { TheaterTechBillingSheet } from '@/components/theater-tech/TheaterTechBillingSheet';
 import { TheaterBookingDialog } from '@/components/theater-tech/booking/TheaterBookingDialog';
 import {
   ProcedureDetailsCard,
@@ -56,8 +57,8 @@ export default function TheaterTechCaseDetailPage({ params }: CaseDetailsPagePro
   const [editingCase, setEditingCase] = useState<FrontdeskSurgicalCaseListItem | null>(null);
   const [recordVitalsOpen, setRecordVitalsOpen] = useState(false);
   const [vitals, setVitals] = useState<any[]>([]);
-  const billingRef = useRef<HTMLDivElement>(null);
   const [bookTheaterOpen, setBookTheaterOpen] = useState(false);
+  const [billingSheetOpen, setBillingSheetOpen] = useState(false);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: queryKeys.shared.surgicalCase(caseId),
@@ -122,10 +123,6 @@ export default function TheaterTechCaseDetailPage({ params }: CaseDetailsPagePro
     setBookTheaterOpen(false);
     refetch();
     toast.success('Theater booking updated');
-  };
-
-  const scrollToBilling = () => {
-    billingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   if (isLoading) {
@@ -215,9 +212,12 @@ export default function TheaterTechCaseDetailPage({ params }: CaseDetailsPagePro
 
           <VitalsCard vitals={vitals} onRecordVitals={() => setRecordVitalsOpen(true)} />
 
-          <div ref={billingRef} id="billing-section">
-            <TheaterTechBillingInline caseId={caseId} />
-          </div>
+          {!billingSheetOpen && (
+            <TheaterTechBillingSummary
+              caseId={caseId}
+              onEdit={() => setBillingSheetOpen(true)}
+            />
+          )}
         </div>
 
         <div className="space-y-4">
@@ -232,7 +232,7 @@ export default function TheaterTechCaseDetailPage({ params }: CaseDetailsPagePro
             isActive={isActive}
             onRecordVitals={() => setRecordVitalsOpen(true)}
             onBookTheater={() => setBookTheaterOpen(true)}
-            onScrollToBilling={scrollToBilling}
+            onUpdateBill={() => setBillingSheetOpen(true)}
           />
         </div>
       </div>
@@ -266,6 +266,12 @@ export default function TheaterTechCaseDetailPage({ params }: CaseDetailsPagePro
         open={bookTheaterOpen}
         onOpenChange={setBookTheaterOpen}
         onBookingConfirmed={handleBookingConfirmed}
+      />
+
+      <TheaterTechBillingSheet
+        caseId={caseId}
+        open={billingSheetOpen}
+        onOpenChange={setBillingSheetOpen}
       />
     </div>
   );

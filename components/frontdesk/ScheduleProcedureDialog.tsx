@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, Plus, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { frontdeskApi } from '@/lib/api/frontdesk';
 import { doctorApi } from '@/lib/api/doctor';
@@ -23,6 +23,13 @@ interface ScheduleProcedureDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+}
+
+interface SelectedProcedure extends Omit<ProcedureOption, 'is_active' | 'estimated_duration_minutes' | 'default_price'> {
+  isCustom?: boolean;
+  is_active?: boolean;
+  estimated_duration_minutes?: number | null;
+  default_price?: number | null;
 }
 
 const PROCEDURE_CATEGORIES = [
@@ -47,9 +54,10 @@ export function ScheduleProcedureDialog({ open, onOpenChange, onSuccess }: Sched
   const [customCategoryName, setCustomCategoryName] = useState('');
 
   const [procedureOptions, setProcedureOptions] = useState<ProcedureOption[]>([]);
-  const [selectedProcedureId, setSelectedProcedureId] = useState('');
-  const [isCustomProcedure, setIsCustomProcedure] = useState(false);
-  const [customProcedureName, setCustomProcedureName] = useState('');
+  const [selectedProcedures, setSelectedProcedures] = useState<SelectedProcedure[]>([]);
+  const [procedureSearch, setProcedureSearch] = useState('');
+  const [procedureDropdownOpen, setProcedureDropdownOpen] = useState(false);
+  const procedureInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     procedureDate: format(new Date(), 'yyyy-MM-dd'),
@@ -73,7 +81,6 @@ export function ScheduleProcedureDialog({ open, onOpenChange, onSuccess }: Sched
       loadProcedureOptions(selectedCategory);
     } else {
       setProcedureOptions([]);
-      setSelectedProcedureId('');
     }
   }, [selectedCategory, isCustomCategory]);
 
@@ -126,26 +133,46 @@ export function ScheduleProcedureDialog({ open, onOpenChange, onSuccess }: Sched
     }
   };
 
-  const handleCreateCustomProcedure = async () => {
-    if (!customProcedureName.trim() || !selectedCategory) return;
-    const name = customProcedureName.trim();
+  const addExistingProcedure = (proc: ProcedureOption) => {
+    if (!selectedProcedures.find(p => p.id === proc.id)) {
+      setSelectedProcedures(prev => [...prev, proc]);
+    }
+    setProcedureSearch('');
+    setProcedureDropdownOpen(false);
+    procedureInputRef.current?.focus();
+  };
+
+  const handleCreateAndAddProcedure = async (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+
     const categoryCode = isCustomCategory ? 'OTHER' : selectedCategory;
+    if (!categoryCode) {
+      toast.error('Please select a category first');
+      return;
+    }
+
     try {
       const response = await frontdeskApi.createProcedureOption({
-        name,
+        name: trimmed,
         category: categoryCode,
         subcategory: isCustomCategory ? customCategoryName.trim() : undefined,
       });
       if (response.success) {
-        toast.success(`Procedure "${name}" added`);
-        setSelectedProcedureId(response.data.id);
-        setIsCustomProcedure(false);
-        setCustomProcedureName('');
-        if (isCustomCategory) {
-          await loadProcedureOptions('OTHER');
-        } else {
-          await loadProcedureOptions(selectedCategory);
-        }
+        const newProcedure: SelectedProcedure = {
+          id: response.data.id,
+          name: response.data.name,
+          category: response.data.category,
+          subcategory: response.data.subcategory,
+          description: response.data.description,
+          isCustom: true,
+        };
+        setSelectedProcedures(prev => [...prev, newProcedure]);
+        setProcedureOptions(prev => [...prev, response.data]);
+        setProcedureSearch('');
+        setProcedureDropdownOpen(false);
+        procedureInputRef.current?.focus();
+        toast.success(`Procedure "${trimmed}" added`);
       } else {
         toast.error(response.error || 'Failed to create procedure');
       }
@@ -154,13 +181,46 @@ export function ScheduleProcedureDialog({ open, onOpenChange, onSuccess }: Sched
     }
   };
 
+  const removeProcedure = (procedureId: string) => {
+    setSelectedProcedures(prev => prev.filter(p => p.id !== procedureId));
+  };
+
+  const handleProcedureKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const trimmed = procedureSearch.trim();
+      if (!trimmed) return;
+
+      const exactMatch = procedureOptions.find(
+        p => p.name.toLowerCase() === trimmed.toLowerCase()
+      );
+
+      if (exactMatch) {
+        addExistingProcedure(exactMatch);
+      } else {
+        handleCreateAndAddProcedure(trimmed);
+      }
+    }
+    if (e.key === 'Escape') {
+      setProcedureDropdownOpen(false);
+    }
+  };
+
+  const filteredProcedures = useMemo(() => {
+    if (!procedureSearch) return procedureOptions;
+    const lower = procedureSearch.toLowerCase();
+    return procedureOptions.filter(p => p.name.toLowerCase().includes(lower));
+  }, [procedureSearch, procedureOptions]);
+
+  const exactMatch = useMemo(() => {
+    if (!procedureSearch) return false;
+    return procedureOptions.some(p => p.name.toLowerCase() === procedureSearch.trim().toLowerCase());
+  }, [procedureSearch, procedureOptions]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const effectiveCategory = isCustomCategory ? customCategoryName.trim() : selectedCategory;
-    const effectiveProcedure = isCustomProcedure ? customProcedureName.trim() : procedureOptions.find(p => p.id === selectedProcedureId)?.name;
-
-    if (!selectedPatient || !effectiveProcedure || !formData.procedureDate) {
+    if (!selectedPatient || selectedProcedures.length === 0 || !formData.procedureDate) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -172,14 +232,15 @@ export function ScheduleProcedureDialog({ open, onOpenChange, onSuccess }: Sched
 
     setIsSubmitting(true);
     try {
+      const procedureIds = selectedProcedures.map(p => p.id);
       const response = await frontdeskApi.scheduleSurgicalCase({
         patientId: selectedPatient.id,
-        procedureName: effectiveProcedure,
+        procedureIds,
         procedureDate: formData.procedureDate,
         primarySurgeonDoctorId: formData.primarySurgeonDoctorId || undefined,
         primarySurgeonName: formData.primarySurgeonName.trim() || undefined,
         diagnosis: formData.diagnosis || undefined,
-        procedureCategory: effectiveCategory || undefined,
+        procedureCategory: isCustomCategory ? customCategoryName.trim() || undefined : selectedCategory || undefined,
         primaryOrRevision: formData.primaryOrRevision || undefined,
         admissionType: formData.admissionType || undefined,
       });
@@ -208,9 +269,9 @@ export function ScheduleProcedureDialog({ open, onOpenChange, onSuccess }: Sched
     setIsCustomCategory(false);
     setCustomCategoryName('');
     setProcedureOptions([]);
-    setSelectedProcedureId('');
-    setIsCustomProcedure(false);
-    setCustomProcedureName('');
+    setSelectedProcedures([]);
+    setProcedureSearch('');
+    setProcedureDropdownOpen(false);
     setFormData({
       procedureDate: format(new Date(), 'yyyy-MM-dd'),
       primarySurgeonDoctorId: '',
@@ -230,24 +291,9 @@ export function ScheduleProcedureDialog({ open, onOpenChange, onSuccess }: Sched
       setIsCustomCategory(false);
       setSelectedCategory(value);
     }
-    setSelectedProcedureId('');
-    setIsCustomProcedure(false);
+    setSelectedProcedures([]);
+    setProcedureSearch('');
   };
-
-  const handleProcedureChange = (value: string) => {
-    if (value === '__custom__') {
-      setIsCustomProcedure(true);
-      setSelectedProcedureId('');
-    } else {
-      setIsCustomProcedure(false);
-      setSelectedProcedureId(value);
-    }
-  };
-
-  const selectedProcedureName = useMemo(() => {
-    if (isCustomProcedure) return customProcedureName;
-    return procedureOptions.find(p => p.id === selectedProcedureId)?.name || '';
-  }, [isCustomProcedure, customProcedureName, procedureOptions, selectedProcedureId]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -310,71 +356,106 @@ export function ScheduleProcedureDialog({ open, onOpenChange, onSuccess }: Sched
             )}
           </div>
 
-          {selectedCategory && !isCustomCategory && (
-            <div className="space-y-2">
-              <Label htmlFor="procedure">Procedure Name *</Label>
-              <Select value={isCustomProcedure ? '__custom__' : selectedProcedureId} onValueChange={handleProcedureChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select procedure" />
-                </SelectTrigger>
-                <SelectContent>
-                  {procedureOptions.map(proc => (
-                    <SelectItem key={proc.id} value={proc.id}>
-                      {proc.name} {proc.subcategory ? `(${proc.subcategory})` : ''}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="__custom__">Custom...</SelectItem>
-                </SelectContent>
-              </Select>
-              {isCustomProcedure && (
-                <div className="flex gap-2 mt-2">
-                  <Input
-                    value={customProcedureName}
-                    onChange={(e) => setCustomProcedureName(e.target.value)}
-                    placeholder="Enter new procedure name"
-                    className="flex-1"
-                    autoFocus
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={handleCreateCustomProcedure}
-                    disabled={!customProcedureName.trim()}
-                    className="bg-[#caa26a] hover:bg-[#b8913e] text-[#2c2e4b]"
+          <div className="space-y-2">
+            <Label>Procedures *</Label>
+            
+            {selectedProcedures.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {selectedProcedures.map((proc, idx) => (
+                  <span
+                    key={proc.id}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[#e7d6bf] bg-[#e7d6bf]/10 text-xs font-medium text-[#2c2e4b]"
                   >
-                    Add
-                  </Button>
+                    <span className="text-[#caa26a] font-bold">{idx + 1}.</span>
+                    {proc.name}
+                    {proc.subcategory && (
+                      <span className="text-[#2c2e4b]/40 ml-1">({proc.subcategory})</span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeProcedure(proc.id)}
+                      className="ml-1 text-[#2c2e4b]/40 hover:text-red-500 transition-colors"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div className="relative">
+              <Input
+                ref={procedureInputRef}
+                value={procedureSearch}
+                onChange={(e) => {
+                  setProcedureSearch(e.target.value);
+                  setProcedureDropdownOpen(true);
+                }}
+                onFocus={() => {
+                  if (procedureSearch || filteredProcedures.length > 0) {
+                    setProcedureDropdownOpen(true);
+                  }
+                }}
+                onBlur={() => {
+                  setTimeout(() => setProcedureDropdownOpen(false), 150);
+                }}
+                onKeyDown={handleProcedureKeyDown}
+                placeholder={selectedCategory ? 'Type to search or add procedures...' : 'Select a category first...'}
+                disabled={!selectedCategory && !isCustomCategory}
+                className={!selectedCategory && !isCustomCategory ? 'bg-[#e7d6bf]/10 cursor-not-allowed' : ''}
+              />
+              
+              {procedureDropdownOpen && selectedCategory && (procedureSearch || filteredProcedures.length > 0) && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-[#e7d6bf] rounded-lg shadow-lg max-h-[240px] overflow-y-auto">
+                  {filteredProcedures.length > 0 && (
+                    <div className="py-1">
+                      <div className="px-3 py-1.5 text-[10px] font-semibold text-[#2c2e4b]/40 uppercase tracking-wider">
+                        Existing Procedures
+                      </div>
+                      {filteredProcedures.map(proc => (
+                        <button
+                          key={proc.id}
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => addExistingProcedure(proc)}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-[#e7d6bf]/10 flex items-center justify-between transition-colors"
+                        >
+                          <span className="text-[#2c2e4b]">{proc.name}</span>
+                          {proc.subcategory && (
+                            <span className="text-xs text-[#2c2e4b]/40">({proc.subcategory})</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {procedureSearch.trim() && !exactMatch && (
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => handleCreateAndAddProcedure(procedureSearch.trim())}
+                      className="w-full text-left px-3 py-2.5 text-sm text-[#caa26a] hover:bg-[#e7d6bf]/10 flex items-center gap-2 border-t border-[#e7d6bf] transition-colors"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Add "{procedureSearch.trim()}" as new procedure
+                    </button>
+                  )}
+                  
+                  {procedureSearch && filteredProcedures.length === 0 && !exactMatch && (
+                    <div className="px-3 py-3 text-center text-xs text-[#2c2e4b]/40">
+                      No matching procedures found.
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
-
-          {isCustomCategory && customCategoryName && (
-            <div className="space-y-2">
-              <Label htmlFor="customProcedure">Procedure Name *</Label>
-              <div className="flex gap-2">
-                <Input
-                  value={customProcedureName}
-                  onChange={(e) => setCustomProcedureName(e.target.value)}
-                  placeholder="Enter procedure name"
-                  className="flex-1"
-                  autoFocus
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleCreateCustomProcedure}
-                  disabled={!customProcedureName.trim()}
-                  className="bg-[#caa26a] hover:bg-[#b8913e] text-[#2c2e4b]"
-                >
-                  Add
-                </Button>
-              </div>
-              <p className="text-[11px] text-[#2c2e4b]/50">
-                Custom procedure will be saved under "{customCategoryName}".
+            
+            {!selectedCategory && !isCustomCategory && (
+              <p className="text-[11px] text-[#2c2e4b]/40">
+                Please select a category first to search or add procedures.
               </p>
-            </div>
-          )}
+            )}
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -416,11 +497,9 @@ export function ScheduleProcedureDialog({ open, onOpenChange, onSuccess }: Sched
               </SelectTrigger>
               <SelectContent>
                 {doctors.map(doctor => (
-                  <SelectItem key={doctor.id} value={doctor.id}>
-                    {doctor.name} {doctor.specialization ? `(${doctor.specialization})` : ''}
-                  </SelectItem>
+                  <SelectItem key={doctor.id} value={doctor.id}>{doctor.name}</SelectItem>
                 ))}
-                <SelectItem value="__custom__">External surgeon...</SelectItem>
+                <SelectItem value="__custom__">Custom...</SelectItem>
               </SelectContent>
             </Select>
             {formData.isCustomSurgeon && (
@@ -468,8 +547,8 @@ export function ScheduleProcedureDialog({ open, onOpenChange, onSuccess }: Sched
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting || !selectedProcedureName}>
-              {isSubmitting ? 'Scheduling...' : 'Schedule Procedure'}
+            <Button type="submit" disabled={isSubmitting || selectedProcedures.length === 0}>
+              {isSubmitting ? 'Scheduling...' : `Schedule Procedure${selectedProcedures.length > 1 ? `s (${selectedProcedures.length})` : ''}`}
             </Button>
           </div>
         </form>
