@@ -169,8 +169,11 @@ export interface IInventoryRepository {
   /** Get current balance for a specific item */
   getItemBalance(itemId: number): Promise<number>;
 
-  /** Get current balances for multiple items in bulk (solves N+1) */
+  /** Get balances for multiple items in bulk (solves N+1) */
   getBalances(itemIds: number[]): Promise<Map<number, number>>;
+
+  /** Get nearest expiry date among non-depleted batches for an item */
+  getNearestExpiryDate(itemId: number): Promise<Date | null>;
 
   // ============================================================================
   // USAGE RECORDS

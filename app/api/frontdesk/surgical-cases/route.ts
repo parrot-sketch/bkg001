@@ -80,12 +80,29 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     if (search) {
-      where.OR = [
-        { patient: { first_name: { contains: search, mode: 'insensitive' } } },
-        { patient: { last_name: { contains: search, mode: 'insensitive' } } },
-        { patient: { file_number: { contains: search, mode: 'insensitive' } } },
-        { procedure_name: { contains: search, mode: 'insensitive' } },
+      const trimmed = search.trim();
+      const lowered = trimmed.toLowerCase();
+      const parts = trimmed.split(/\s+/).filter(Boolean);
+
+      const or: any = [
+        { patient: { first_name: { contains: trimmed, mode: 'insensitive' } } },
+        { patient: { last_name: { contains: trimmed, mode: 'insensitive' } } },
+        { patient: { file_number: { contains: trimmed, mode: 'insensitive' } } },
+        { procedure_name: { contains: lowered, mode: 'insensitive' } },
+        { primary_surgeon_name: { contains: lowered, mode: 'insensitive' } },
+        { diagnosis: { contains: lowered, mode: 'insensitive' } },
+        { id: { contains: trimmed, mode: 'insensitive' } },
       ];
+
+      if (parts.length >= 2) {
+        const [a, b] = [parts[0], parts.slice(1).join(' ')];
+        or.push(
+          { AND: [{ patient: { first_name: { contains: a, mode: 'insensitive' } } }, { patient: { last_name: { contains: b, mode: 'insensitive' } } }] },
+          { AND: [{ patient: { first_name: { contains: b, mode: 'insensitive' } } }, { patient: { last_name: { contains: a, mode: 'insensitive' } } }] }
+        );
+      }
+
+      where.OR = or;
     }
 
     const [cases, total] = await Promise.all([

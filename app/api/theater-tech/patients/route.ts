@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
+import { buildPatientSearchWhere } from '@/lib/patients/buildPatientSearchWhere';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
@@ -28,28 +29,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const createdToday = searchParams.get('createdToday') === 'true';
     const createdThisMonth = searchParams.get('createdThisMonth') === 'true';
 
-    const where: any = {};
-
-    if (search) {
-      where.OR = [
-        { first_name: { contains: search, mode: 'insensitive' as const } },
-        { last_name: { contains: search, mode: 'insensitive' as const } },
-        { file_number: { contains: search, mode: 'insensitive' as const } },
-      ];
-    }
-
-    if (createdToday) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      where.created_at = { gte: today };
-    }
-
-    if (createdThisMonth) {
-      const monthStart = new Date();
-      monthStart.setDate(1);
-      monthStart.setHours(0, 0, 0, 0);
-      where.created_at = { ...where.created_at, gte: monthStart };
-    }
+    const where = buildPatientSearchWhere(search, createdToday, createdThisMonth);
 
     const [patients, total] = await Promise.all([
       db.patient.findMany({

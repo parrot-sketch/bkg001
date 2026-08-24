@@ -86,20 +86,21 @@ export function PatientsFeature() {
 
       {/* ── Main card ─────────────────────────────────────────────────── */}
       <Card className="border border-[#e7d6bf] bg-white shadow-sm">
-        <PatientToolbar
-          isSelectionMode={isSelectionMode}
-          isBrowseMode={isBrowseMode}
-          isFetching={isFetching}
-          isLoading={isLoading}
-          totalRecords={meta.totalRecords}
-          hasActiveFilters={hasActiveFilters}
-          activeQuickFilters={activeQuickFilters}
-          onToggleFilter={toggleQuickFilter}
-          onClearFilters={urlState.clearAll}
-          onExitSelectionMode={urlState.exitSelectionMode}
-          onSelectPatient={openDrawer}
-          onOpenRegistration={openRegistration}
-        />
+      <PatientToolbar
+        isSelectionMode={isSelectionMode}
+        isBrowseMode={isBrowseMode}
+        isFetching={isFetching}
+        isLoading={isLoading}
+        totalRecords={meta.totalRecords}
+        hasActiveFilters={hasActiveFilters}
+        activeQuickFilters={activeQuickFilters}
+        search={urlState.search}
+        onSearchChange={urlState.setSearch}
+        onToggleFilter={toggleQuickFilter}
+        onClearFilters={urlState.clearAll}
+        onExitSelectionMode={urlState.exitSelectionMode}
+        onOpenRegistration={openRegistration}
+      />
 
         <CardContent className="p-0 min-h-[400px] flex flex-col">
           {(error || statsError) && !isLoading ? (

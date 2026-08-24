@@ -26,6 +26,7 @@ export interface PatientUrlState {
 export interface PatientUrlActions {
   setPage: (page: number) => void;
   setFilter: (key: 'createdToday' | 'createdThisMonth', value: boolean) => void;
+  setSearch: (search: string) => void;
   clearAll: () => void;
   exitSelectionMode: () => void;
 }

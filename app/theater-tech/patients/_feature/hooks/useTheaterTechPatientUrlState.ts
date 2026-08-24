@@ -23,6 +23,15 @@ export function useTheaterTechPatientUrlState(): PatientUrlState & PatientUrlAct
     [router, pathname, searchParams],
   );
 
+  const replace = useCallback(
+    (mutate: (params: URLSearchParams) => void) => {
+      const params = new URLSearchParams(searchParams.toString());
+      mutate(params);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    },
+    [router, pathname, searchParams],
+  );
+
   const setPage = useCallback(
     (newPage: number) => {
       push((p) => {
@@ -54,6 +63,17 @@ export function useTheaterTechPatientUrlState(): PatientUrlState & PatientUrlAct
     });
   }, [push]);
 
+  const setSearch = useCallback(
+    (search: string) => {
+      replace((p) => {
+        if (search) p.set('q', search);
+        else p.delete('q');
+        p.delete('page');
+      });
+    },
+    [replace],
+  );
+
   return {
     page,
     search,
@@ -61,6 +81,7 @@ export function useTheaterTechPatientUrlState(): PatientUrlState & PatientUrlAct
     createdThisMonth,
     setPage,
     setFilter,
+    setSearch,
     clearAll,
   };
 }

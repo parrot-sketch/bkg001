@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Sheet,
   SheetContent,
@@ -31,8 +31,10 @@ import { format, isToday, isTomorrow } from 'date-fns';
 import { calculateAge } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { frontdeskApi } from '@/lib/api/frontdesk';
+import { ScheduleProcedureDialog } from '@/components/frontdesk/ScheduleProcedureDialog';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import type { ScheduleProcedureResponse } from '@/lib/api/frontdesk';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -40,10 +42,13 @@ interface PatientDrawerProps {
   patientId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onScheduleSuccess?: (data: ScheduleProcedureResponse) => void;
 }
 
-export function PatientDrawer({ patientId, open, onOpenChange }: PatientDrawerProps) {
+export function PatientDrawer({ patientId, open, onOpenChange, onScheduleSuccess }: PatientDrawerProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const [scheduleOpen, setScheduleOpen] = useState(false);
 
   const { data: patient, isLoading: patientLoading, error } = useQuery({
     queryKey: ['theater-tech', 'patient', patientId],
@@ -172,16 +177,15 @@ export function PatientDrawer({ patientId, open, onOpenChange }: PatientDrawerPr
               <ChevronRight className="h-3.5 w-3.5 ml-auto text-[#2c2e4b]/30" />
             </Button>
           </Link>
-          <Link href={`/theater-tech/surgical-cases?patientId=${patient.id}`}>
-            <Button
-              variant="outline"
-              className="w-full justify-start h-9 rounded-lg border-[#e7d6bf] text-[#2c2e4b] hover:bg-[#e7d6bf]/20 text-xs font-medium"
-            >
-              <Calendar className="h-3.5 w-3.5 mr-2 text-[#caa26a]" />
-              Schedule Procedure
-              <ChevronRight className="h-3.5 w-3.5 ml-auto text-[#2c2e4b]/30" />
-            </Button>
-          </Link>
+          <Button
+            variant="outline"
+            className="w-full justify-start h-9 rounded-lg border-[#e7d6bf] text-[#2c2e4b] hover:bg-[#e7d6bf]/20 text-xs font-medium"
+            onClick={() => setScheduleOpen(true)}
+          >
+            <Calendar className="h-3.5 w-3.5 mr-2 text-[#caa26a]" />
+            Schedule Procedure
+            <ChevronRight className="h-3.5 w-3.5 ml-auto text-[#2c2e4b]/30" />
+          </Button>
         </div>
 
         <Separator className="bg-[#e7d6bf]" />
@@ -251,35 +255,50 @@ export function PatientDrawer({ patientId, open, onOpenChange }: PatientDrawerPr
     );
   };
 
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="h-full w-full sm:max-w-[420px] border-l border-[#e7d6bf] bg-white rounded-none">
-        <SheetHeader className="px-5 py-4 border-b border-[#e7d6bf] flex items-center justify-between shrink-0">
-          <div>
-            <SheetTitle className="text-sm font-bold text-[#2c2e4b]">Patient Details</SheetTitle>
-            {patient && !patientLoading && (
-              <SheetDescription className="text-xs text-[#2c2e4b]/50 mt-0.5">
-                {patient.fileNumber}
-              </SheetDescription>
-            )}
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onOpenChange(false)}
-            className="h-8 w-8 rounded-lg hover:bg-[#e7d6bf]/30 text-[#2c2e4b]/40"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </SheetHeader>
+  const handleScheduleSuccess = (data: ScheduleProcedureResponse) => {
+    setScheduleOpen(false);
+    onOpenChange(false);
+    onScheduleSuccess?.(data);
+  };
 
-        <div
-          data-patient-drawer-scroll
-          className="flex-1 overflow-y-auto px-5 py-4 scroll-smooth overscroll-contain"
-        >
-          {renderContent()}
-        </div>
-      </SheetContent>
-    </Sheet>
+  return (
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent className="h-full w-full sm:max-w-[420px] border-l border-[#e7d6bf] bg-white rounded-none">
+          <SheetHeader className="px-5 py-4 border-b border-[#e7d6bf] flex items-center justify-between shrink-0">
+            <div>
+              <SheetTitle className="text-sm font-bold text-[#2c2e4b]">Patient Details</SheetTitle>
+              {patient && !patientLoading && (
+                <SheetDescription className="text-xs text-[#2c2e4b]/50 mt-0.5">
+                  {patient.fileNumber}
+                </SheetDescription>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onOpenChange(false)}
+              className="h-8 w-8 rounded-lg hover:bg-[#e7d6bf]/30 text-[#2c2e4b]/40"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </SheetHeader>
+
+          <div
+            data-patient-drawer-scroll
+            className="flex-1 overflow-y-auto px-5 py-4 scroll-smooth overscroll-contain"
+          >
+            {renderContent()}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <ScheduleProcedureDialog
+        open={scheduleOpen}
+        onOpenChange={setScheduleOpen}
+        initialPatient={patient}
+        onSuccess={handleScheduleSuccess}
+      />
+    </>
   );
 }

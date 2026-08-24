@@ -1,17 +1,17 @@
 /**
- * Stock Report Endpoint
+ * Theater-Tech Stock Report Endpoint
  * 
- * GET /api/admin/inventory/report/stock
+ * GET /api/theater-tech/inventory/report/stock
  * 
  * Returns current stock levels with reorder point indicators.
- * ADMIN and STORES can access (STORES sees limited fields).
+ * THEATER_TECHNICIAN and ADMIN can access.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { handleApiError, handleApiSuccess } from '@/app/api/_utils/handleApiError';
 import { ForbiddenError } from '@/application/errors';
-import { authorizeRoles } from '@/lib/auth/inventoryAuthorization';
+import { authorizeInventoryOperation } from '@/lib/auth/inventoryAuthorization';
 import { Role } from '@/domain/enums/Role';
 import { InventoryCategory } from '@/domain/enums/InventoryCategory';
 import { z } from 'zod';
@@ -33,12 +33,12 @@ const StockReportQuerySchema = z.object({
 }));
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const timer = endpointTimer('GET /api/admin/inventory/report/stock');
+  const timer = endpointTimer('GET /api/theater-tech/inventory/report/stock');
   try {
     const authResult = await JwtMiddleware.authenticate(request);
-    const authzResult = authorizeRoles(authResult, [Role.ADMIN, Role.STORES]);
+    const authzResult = authorizeInventoryOperation(authResult, 'VIEW_REPORTS');
     if (!authzResult.success || !authzResult.user) {
-      return authzResult.error || handleApiError(new ForbiddenError('Only ADMIN or STORES can view stock reports'));
+      return authzResult.error || handleApiError(new ForbiddenError('Unauthorized'));
     }
 
     const { searchParams } = new URL(request.url);

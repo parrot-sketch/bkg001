@@ -15,7 +15,8 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Building2, Search, RefreshCw, Plus, Edit, Trash2 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Building2, Search, RefreshCw, Plus, Edit, Trash2, MoreHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
 import { cn } from '@/lib/utils';
@@ -44,13 +45,17 @@ function VendorsContent() {
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
 
   const [formName, setFormName] = useState('');
   const [formContact, setFormContact] = useState('');
   const [formEmail, setFormEmail] = useState('');
   const [formPhone, setFormPhone] = useState('');
   const [formAddress, setFormAddress] = useState('');
+  const [formIsActive, setFormIsActive] = useState(true);
 
   const debouncedSearch = useDebounce(searchQuery, 300);
 
@@ -76,6 +81,28 @@ function VendorsContent() {
     finally { setLoading(false); }
   };
 
+  const openCreate = () => {
+    setFormName(''); setFormContact(''); setFormEmail(''); setFormPhone(''); setFormAddress(''); setFormIsActive(true);
+    setSelectedVendor(null);
+    setShowCreateDialog(true);
+  };
+
+  const openEdit = (vendor: Vendor) => {
+    setSelectedVendor(vendor);
+    setFormName(vendor.name);
+    setFormContact(vendor.contact_person || '');
+    setFormEmail(vendor.email || '');
+    setFormPhone(vendor.phone || '');
+    setFormAddress(vendor.address || '');
+    setFormIsActive(vendor.is_active);
+    setShowEditDialog(true);
+  };
+
+  const openDelete = (vendor: Vendor) => {
+    setSelectedVendor(vendor);
+    setShowDeleteDialog(true);
+  };
+
   const handleCreate = async () => {
     if (!formName.trim()) { toast.error('Vendor name is required'); return; }
     setIsSubmitting(true);
@@ -88,19 +115,57 @@ function VendorsContent() {
           email: formEmail || undefined,
           phone: formPhone || undefined,
           address: formAddress || undefined,
+          isActive: formIsActive,
         }),
       });
       if (!response.success) throw new Error(response.error || 'Failed');
       toast.success('Vendor created');
       setShowCreateDialog(false);
-      resetForm();
       loadVendors();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to create vendor');
     } finally { setIsSubmitting(false); }
   };
 
-  const resetForm = () => { setFormName(''); setFormContact(''); setFormEmail(''); setFormPhone(''); setFormAddress(''); };
+  const handleUpdate = async () => {
+    if (!selectedVendor || !formName.trim()) { toast.error('Vendor name is required'); return; }
+    setIsSubmitting(true);
+    try {
+      const response = await apiClient.request(`/stores/vendors/${selectedVendor.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          name: formName,
+          contactPerson: formContact || undefined,
+          email: formEmail || undefined,
+          phone: formPhone || undefined,
+          address: formAddress || undefined,
+          isActive: formIsActive,
+        }),
+      });
+      if (!response.success) throw new Error(response.error || 'Failed');
+      toast.success('Vendor updated');
+      setShowEditDialog(false);
+      loadVendors();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update vendor');
+    } finally { setIsSubmitting(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedVendor) return;
+    setIsSubmitting(true);
+    try {
+      const response = await apiClient.request(`/stores/vendors/${selectedVendor.id}`, {
+        method: 'DELETE',
+      });
+      if (!response.success) throw new Error(response.error || 'Failed');
+      toast.success('Vendor deleted');
+      setShowDeleteDialog(false);
+      loadVendors();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete vendor');
+    } finally { setIsSubmitting(false); }
+  };
 
   if (!isAuthenticated) return <div className="flex items-center justify-center h-screen"><p className="text-sm text-slate-400">Authenticating...</p></div>;
 
@@ -111,7 +176,7 @@ function VendorsContent() {
           <h1 className="text-2xl font-bold text-slate-900">Vendors</h1>
           <p className="text-sm text-slate-500 mt-1">Manage supplier information and contacts</p>
         </div>
-        <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
+        <Button onClick={openCreate} className="gap-2">
           <Plus className="h-4 w-4" /> Add Vendor
         </Button>
       </div>
@@ -146,6 +211,7 @@ function VendorsContent() {
                   <TableHead>Email</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -161,6 +227,25 @@ function VendorsContent() {
                       ) : (
                         <Badge variant="secondary" className="text-xs">Inactive</Badge>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => openEdit(vendor)}>
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit Vendor
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openDelete(vendor)} className="text-rose-600">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete Vendor
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -210,8 +295,66 @@ function VendorsContent() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowCreateDialog(false); resetForm(); }}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setShowCreateDialog(false); }}>Cancel</Button>
             <Button onClick={handleCreate} disabled={isSubmitting}>{isSubmitting ? 'Creating...' : 'Create Vendor'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Vendor</DialogTitle>
+            <DialogDescription>Update the vendor details below.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Vendor Name <span className="text-red-500">*</span></Label>
+              <Input value={formName} onChange={e => setFormName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Contact Person</Label>
+              <Input value={formContact} onChange={e => setFormContact(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input type="email" value={formEmail} onChange={e => setFormEmail(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Phone</Label>
+                <Input value={formPhone} onChange={e => setFormPhone(e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Address</Label>
+              <Input value={formAddress} onChange={e => setFormAddress(e.target.value)} />
+            </div>
+            <div className="flex items-center gap-2">
+              <input type="checkbox" id="isActive" checked={formIsActive} onChange={(e) => setFormIsActive(e.target.checked)} />
+              <Label htmlFor="isActive">Active</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowEditDialog(false); }}>Cancel</Button>
+            <Button onClick={handleUpdate} disabled={isSubmitting}>{isSubmitting ? 'Saving...' : 'Update Vendor'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Vendor</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <strong>{selectedVendor?.name}</strong>? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowDeleteDialog(false); }}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={isSubmitting}>
+              {isSubmitting ? 'Deleting...' : 'Delete Vendor'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

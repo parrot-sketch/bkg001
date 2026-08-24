@@ -2,15 +2,16 @@
 
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, ShoppingCart, ArrowDownToLine } from 'lucide-react';
+import { Search, ShoppingCart, ArrowDownToLine, Plus, FileText } from 'lucide-react';
 import Link from 'next/link';
 
 interface InventoryActionBarProps {
   searchQuery: string;
   onSearchChange: (value: string) => void;
+  onCreate?: () => void;
 }
 
-export function InventoryActionBar({ searchQuery, onSearchChange }: InventoryActionBarProps) {
+export function InventoryActionBar({ searchQuery, onSearchChange, onCreate }: InventoryActionBarProps) {
   return (
     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
       <div className="relative w-full sm:w-80">
@@ -34,6 +35,18 @@ export function InventoryActionBar({ searchQuery, onSearchChange }: InventoryAct
           <Link href="/theater-tech/inventory/purchase-orders">
             <ShoppingCart className="w-4 h-4 mr-2" />
             Purchase Orders
+          </Link>
+        </Button>
+        {onCreate && (
+          <Button variant="default" className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm" onClick={onCreate}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Item
+          </Button>
+        )}
+        <Button variant="outline" className="bg-white text-slate-700" asChild>
+          <Link href="/theater-tech/inventory/reports">
+            <FileText className="w-4 h-4 mr-2" />
+            Reports
           </Link>
         </Button>
       </div>

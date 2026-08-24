@@ -2,14 +2,18 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
 import { queryKeys } from '@/lib/constants/queryKeys';
+import { ScheduleProcedureDialog } from '@/components/frontdesk/ScheduleProcedureDialog';
 import { useTheaterTechPatientUrlState } from './useTheaterTechPatientUrlState';
 import { usePatientFilters } from './usePatientFilters';
 import { usePatientDrawer } from '@/app/frontdesk/patients/_feature/hooks/usePatientDrawer';
 import { usePatientRegistration } from '@/app/frontdesk/patients/_feature/hooks/usePatientRegistration';
 import { BATCH_SIZE, SEARCH_BATCH_SIZE } from '../constants/pagination';
 import type { PatientRegistryDto, PatientListMeta } from '../types/patient-page';
+import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 
 const DEFAULT_META: PatientListMeta = {
   totalRecords: 0,
@@ -30,7 +34,27 @@ export function useTheaterTechPatientRegistry() {
     usePatientFilters();
 
   const drawer = usePatientDrawer();
-  const registration = usePatientRegistration();
+  const router = useRouter();
+  const [schedulePatient, setSchedulePatient] = useState<PatientResponseDto | null>(null);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+
+  const openScheduleForPatient = useCallback((patient: PatientResponseDto) => {
+    setSchedulePatient(patient);
+    setScheduleOpen(true);
+  }, []);
+
+  const registration = usePatientRegistration({
+    queryKeyPrefix: 'theater-tech',
+    onPatientRegistered: (patient) => {
+      drawer.openDrawer(patient.id);
+      toast.success(`Registered ${patient.firstName} ${patient.lastName}. Schedule a procedure?`, {
+        action: {
+          label: 'Schedule now',
+          onClick: () => openScheduleForPatient(patient),
+        },
+      });
+    },
+  });
 
   const [accumulatedPatients, setAccumulatedPatients] = useState<PatientRegistryDto[]>([]);
   const [browseCurrentPage, setBrowseCurrentPage] = useState(1);
@@ -161,5 +185,18 @@ export function useTheaterTechPatientRegistry() {
     openRegistration: registration.openDialog,
     closeRegistration: registration.closeDialog,
     handleRegistrationSuccess: registration.handleSuccess,
+    scheduleDialog: (
+      <ScheduleProcedureDialog
+        open={scheduleOpen}
+        onOpenChange={setScheduleOpen}
+        initialPatient={schedulePatient}
+        onSuccess={(data) => {
+          setScheduleOpen(false);
+          setSchedulePatient(null);
+          toast.success(`Scheduled case for ${data.patientName}`);
+          router.push(`/theater-tech/surgical-cases/${data.surgicalCaseId}`);
+        }}
+      />
+    ),
   };
 }

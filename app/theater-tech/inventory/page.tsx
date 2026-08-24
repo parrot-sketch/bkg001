@@ -9,6 +9,8 @@ import { apiClient } from '@/lib/api/client';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { ItemFormDialog } from '@/components/theater-tech/inventory/ItemFormDialog';
+import { AdjustStockDialog } from '@/components/theater-tech/inventory/AdjustStockDialog';
 
 export default function InventoryHub() {
   const router = useRouter();
@@ -17,6 +19,10 @@ export default function InventoryHub() {
   const [data, setData] = useState<{ data: InventoryItemRow[] } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [pendingPoCount, setPendingPoCount] = useState<number>(0);
+  const [showItemDialog, setShowItemDialog] = useState(false);
+  const [showAdjustDialog, setShowAdjustDialog] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<InventoryItemRow | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -39,12 +45,30 @@ export default function InventoryHub() {
     return () => { isMounted = false; };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+    const fetchPendingPOs = async () => {
+      try {
+        const res = await apiClient.get<any>('/stores/purchase-orders?status=PENDING');
+        const submittedRes = await apiClient.get<any>('/stores/purchase-orders?status=SUBMITTED');
+        if (isMounted) {
+          const pending = (res as any).success ? ((res as any).data?.data?.length || 0) : 0;
+          const submitted = (submittedRes as any).success ? ((submittedRes as any).data?.data?.length || 0) : 0;
+          setPendingPoCount(pending + submitted);
+        }
+      } catch {
+        if (isMounted) setPendingPoCount(0);
+      }
+    };
+    fetchPendingPOs();
+    return () => { isMounted = false; };
+  }, []);
+
   const items: InventoryItemRow[] = useMemo(() => {
     if (!data?.data) return [];
     
     let filtered = data.data as InventoryItemRow[];
 
-    // 1. Search filter
     if (searchQuery.trim()) {
       const lowerQuery = searchQuery.toLowerCase();
       filtered = filtered.filter(
@@ -55,7 +79,6 @@ export default function InventoryHub() {
       );
     }
 
-    // 2. Tab filter
     if (activeTab === 'low_stock') {
       filtered = filtered.filter(
         (item) => item.quantityOnHand > 0 && item.quantityOnHand <= item.reorderPoint
@@ -63,8 +86,6 @@ export default function InventoryHub() {
     } else if (activeTab === 'out_of_stock') {
       filtered = filtered.filter((item) => item.quantityOnHand <= 0);
     } else if (activeTab === 'expiring_soon') {
-      // Mock expiring soon logic if nearestExpiryDate is missing. In reality, would compare dates.
-      // Assuming anything expiring in < 30 days.
       const thirtyDaysFromNow = new Date();
       thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
       filtered = filtered.filter((item) => {
@@ -89,9 +110,9 @@ export default function InventoryHub() {
         thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
         return new Date(item.nearestExpiryDate) <= thirtyDaysFromNow && item.quantityOnHand > 0;
       }).length,
-      pendingPo: 3, // Mocked until PO endpoint is integrated
+      pendingPo: pendingPoCount,
     };
-  }, [data]);
+  }, [data, pendingPoCount]);
 
   const handleTabChange = (val: string) => {
     if (val === 'batches') {
@@ -103,6 +124,30 @@ export default function InventoryHub() {
       return;
     }
     setActiveTab(val);
+  };
+
+  const handleItemSaved = () => {
+    setShowItemDialog(false);
+    setShowAdjustDialog(false);
+    setSelectedItem(null);
+    const fetchInventory = async () => {
+      setIsLoading(true);
+      try {
+        const res = await apiClient.get<any>('/inventory/items?limit=100');
+        if (!res.success) throw new Error(res.error);
+        setData(res.data);
+        setError(null);
+      } catch (err) {
+        setError(err as Error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchInventory();
+  };
+
+  const handleViewItem = (item: InventoryItemRow) => {
+    router.push(`/theater-tech/inventory/items/${item.id}`);
   };
 
   return (
@@ -139,6 +184,7 @@ export default function InventoryHub() {
         <InventoryActionBar 
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
+          onCreate={() => setShowItemDialog(true)}
         />
 
         <div className="mb-6">
@@ -192,6 +238,23 @@ export default function InventoryHub() {
           items={items}
           isLoading={isLoading}
           isEmpty={!isLoading && items.length === 0}
+          onEdit={(item) => { setSelectedItem(item); setShowItemDialog(true); }}
+          onAdjust={(item) => { setSelectedItem(item); setShowAdjustDialog(true); }}
+          onView={handleViewItem}
+        />
+
+        <ItemFormDialog
+          open={showItemDialog}
+          onOpenChange={setShowItemDialog}
+          item={selectedItem}
+          onSaved={handleItemSaved}
+        />
+
+        <AdjustStockDialog
+          open={showAdjustDialog}
+          onOpenChange={setShowAdjustDialog}
+          item={selectedItem}
+          onSaved={handleItemSaved}
         />
 
       </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -71,7 +71,7 @@ export interface SurgicalCasesListProps {
   title?: string;
   description?: string;
   showScheduleButton?: boolean;
-  onScheduleSuccess?: () => void;
+  onScheduleSuccess?: (caseId?: string) => void;
   statusFilterOptions?: { value: string; label: string }[];
   rowActions?: (caseItem: FrontdeskSurgicalCaseListItem, canEdit: boolean, canDelete: boolean) => SurgicalCaseAction[];
   detailHref?: (caseItem: FrontdeskSurgicalCaseListItem) => string;
@@ -93,18 +93,39 @@ export function SurgicalCasesList({
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [editingCase, setEditingCase] = useState<FrontdeskSurgicalCaseListItem | null>(null);
 
+  useEffect(() => {
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current);
+    }
+    searchTimerRef.current = setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+    }, 300);
+
+    return () => {
+      if (searchTimerRef.current) {
+        clearTimeout(searchTimerRef.current);
+      }
+    };
+  }, [searchQuery]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, statusFilter]);
+
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: queryKeys.shared.surgicalCases({ status: statusFilter, search: searchQuery }),
+    queryKey: queryKeys.shared.surgicalCases({ status: statusFilter, search: debouncedSearch }),
     queryFn: async () => {
       const response = await frontdeskApi.getSurgicalCases({
         page,
         limit,
         status: statusFilter === 'ALL' ? undefined : statusFilter,
-        search: searchQuery || undefined,
+        search: debouncedSearch || undefined,
       });
       if (response.success === false) {
         throw new Error((response as any).error || 'Failed to load surgical cases');
@@ -209,10 +230,7 @@ export function SurgicalCasesList({
                 <Input
                   placeholder="Search patient, file number, procedure..."
                   value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setPage(1);
-                  }}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9 w-64 bg-white border-[#e7d6bf]"
                 />
               </div>
@@ -399,9 +417,9 @@ export function SurgicalCasesList({
       <ScheduleProcedureDialog
         open={scheduleOpen}
         onOpenChange={setScheduleOpen}
-        onSuccess={() => {
+        onSuccess={(data) => {
           queryClient.invalidateQueries({ queryKey: [queryKeys.shared.all, 'surgical-cases'] });
-          onScheduleSuccess?.();
+          onScheduleSuccess?.(data.surgicalCaseId);
         }}
       />
 

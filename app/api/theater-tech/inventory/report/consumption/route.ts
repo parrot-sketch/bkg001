@@ -1,19 +1,18 @@
 /**
- * Consumption Report Endpoint
+ * Theater-Tech Consumption Report Endpoint
  * 
- * GET /api/admin/inventory/report/consumption
+ * GET /api/theater-tech/inventory/report/consumption
  * 
  * Returns inventory consumption data with filters and grouping.
- * ADMIN only.
+ * THEATER_TECHNICIAN and ADMIN can access.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { handleApiError, handleApiSuccess } from '@/app/api/_utils/handleApiError';
 import { ForbiddenError } from '@/application/errors';
-import { authorizeRoles } from '@/lib/auth/inventoryAuthorization';
+import { authorizeInventoryOperation } from '@/lib/auth/inventoryAuthorization';
 import { Role } from '@/domain/enums/Role';
-import { SourceFormKey } from '@/application/services/InventoryConsumptionBillingService';
 import { InventoryCategory } from '@/domain/enums/InventoryCategory';
 import { z } from 'zod';
 import { ValidationError } from '@/application/errors/ValidationError';
@@ -27,17 +26,17 @@ const ConsumptionReportQuerySchema = z.object({
   from: z.string().datetime().optional(),
   to: z.string().datetime().optional(),
   category: z.nativeEnum(InventoryCategory).optional(),
-  sourceFormKey: z.nativeEnum(SourceFormKey).optional(),
+  sourceFormKey: z.string().optional(),
   groupBy: z.enum(['day', 'category', 'item', 'user', 'source']).optional().default('day'),
 });
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const timer = endpointTimer('GET /api/admin/inventory/report/consumption');
+  const timer = endpointTimer('GET /api/theater-tech/inventory/report/consumption');
   try {
     const authResult = await JwtMiddleware.authenticate(request);
-    const authzResult = authorizeRoles(authResult, [Role.ADMIN]);
+    const authzResult = authorizeInventoryOperation(authResult, 'VIEW_REPORTS');
     if (!authzResult.success || !authzResult.user) {
-      return authzResult.error || handleApiError(new ForbiddenError('Only ADMIN can view consumption reports'));
+      return authzResult.error || handleApiError(new ForbiddenError('Unauthorized'));
     }
 
     const { searchParams } = new URL(request.url);
@@ -60,7 +59,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       from: parsed.from ? new Date(parsed.from) : undefined,
       to: parsed.to ? new Date(parsed.to) : undefined,
       category: parsed.category,
-      sourceFormKey: parsed.sourceFormKey,
+      sourceFormKey: parsed.sourceFormKey as any,
       groupBy: parsed.groupBy,
     };
 

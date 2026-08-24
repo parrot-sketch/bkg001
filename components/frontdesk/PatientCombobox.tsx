@@ -32,17 +32,24 @@ interface PatientComboboxProps {
   value?: string;
   onSelect: (patientId: string, patient?: PatientResponseDto) => void;
   disabled?: boolean;
+  initialValue?: PatientResponseDto | null;
 }
 
-export function PatientCombobox({ value, onSelect, disabled }: PatientComboboxProps) {
+export function PatientCombobox({ value, onSelect, disabled, initialValue }: PatientComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [patients, setPatients] = React.useState<PatientResponseDto[]>([]);
   const [loading, setLoading] = React.useState(false);
-  const [selectedPatient, setSelectedPatient] = React.useState<PatientResponseDto | null>(null);
+  const [selectedPatient, setSelectedPatient] = React.useState<PatientResponseDto | null>(initialValue ?? null);
   const [authError, setAuthError] = React.useState(false);
 
   const debouncedSearch = useDebounce(searchQuery, 300);
+
+  React.useEffect(() => {
+    if (initialValue) {
+      setSelectedPatient(initialValue);
+    }
+  }, [initialValue]);
 
   React.useEffect(() => {
     setAuthError(false);

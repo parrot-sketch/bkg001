@@ -15,10 +15,14 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Package, Search, RefreshCw, AlertTriangle, CheckCircle2, Plus } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Package, Search, RefreshCw, AlertTriangle, CheckCircle2, Plus, MoreHorizontal, FileEdit, Archive, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/api/client';
 import { cn } from '@/lib/utils';
+import { ItemFormDialog } from '@/components/theater-tech/inventory/ItemFormDialog';
+import { AdjustStockDialog } from '@/components/theater-tech/inventory/AdjustStockDialog';
+import { InventoryItemRow } from '@/app/theater-tech/inventory/components/InventoryDataTable';
 
 interface InventoryItem {
   id: number;
@@ -27,9 +31,15 @@ interface InventoryItem {
   category: string;
   quantity_on_hand: number;
   reorder_point: number;
+  low_stock_threshold: number;
   unit_cost: number | null;
   is_active: boolean;
   unit_of_measure: string;
+  description?: string | null;
+  supplier?: string | null;
+  manufacturer?: string | null;
+  is_billable?: boolean;
+  is_implant?: boolean;
 }
 
 interface ItemsResponse {
@@ -51,6 +61,10 @@ function ItemsContent() {
   const [page, setPage] = useState(parseInt(searchParams.get('page') || '1', 10));
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
+
+  const [showItemDialog, setShowItemDialog] = useState(false);
+  const [showAdjustDialog, setShowAdjustDialog] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
 
   const debouncedSearch = useDebounce(searchQuery, 300);
 
@@ -81,13 +95,25 @@ function ItemsContent() {
     }
   };
 
+  const handleItemSaved = () => {
+    setShowItemDialog(false);
+    setShowAdjustDialog(false);
+    setSelectedItem(null);
+    loadItems();
+  };
+
   if (!isAuthenticated) return <div className="flex items-center justify-center h-screen"><p className="text-sm text-slate-400">Authenticating...</p></div>;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Item Catalog</h1>
-        <p className="text-sm text-slate-500 mt-1">Browse and manage inventory items</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Item Catalog</h1>
+          <p className="text-sm text-slate-500 mt-1">Browse and manage inventory items</p>
+        </div>
+        <Button onClick={() => setShowItemDialog(true)} className="gap-2">
+          <Plus className="h-4 w-4" /> Add Item
+        </Button>
       </div>
 
       <Card>
@@ -143,6 +169,7 @@ function ItemsContent() {
                   <TableHead className="text-right">On Hand</TableHead>
                   <TableHead className="text-right">Reorder Pt</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -166,6 +193,29 @@ function ItemsContent() {
                           <Badge variant="secondary" className="text-xs">Inactive</Badge>
                         )}
                       </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => router.push(`/theater-tech/inventory/items/${item.id}`)}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Details
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setSelectedItem(item); setShowItemDialog(true); }}>
+                              <FileEdit className="h-4 w-4 mr-2" />
+                              Edit Item
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { setSelectedItem(item); setShowAdjustDialog(true); }}>
+                              <Archive className="h-4 w-4 mr-2" />
+                              Adjust Stock
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -183,6 +233,32 @@ function ItemsContent() {
           )}
         </CardContent>
       </Card>
+
+      <ItemFormDialog
+        open={showItemDialog}
+        onOpenChange={setShowItemDialog}
+        item={selectedItem}
+        onSaved={handleItemSaved}
+      />
+
+      <AdjustStockDialog
+        open={showAdjustDialog}
+        onOpenChange={setShowAdjustDialog}
+        item={selectedItem ? {
+          id: selectedItem.id,
+          name: selectedItem.name,
+          sku: selectedItem.sku,
+          category: selectedItem.category,
+          quantityOnHand: selectedItem.quantity_on_hand,
+          unitOfMeasure: selectedItem.unit_of_measure,
+          lowStockThreshold: selectedItem.low_stock_threshold,
+          reorderPoint: selectedItem.reorder_point,
+          supplier: selectedItem.supplier ?? null,
+          nearestExpiryDate: null,
+          updatedAt: new Date(),
+        } as InventoryItemRow : null}
+        onSaved={handleItemSaved}
+      />
     </div>
   );
 }

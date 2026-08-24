@@ -60,6 +60,7 @@ export class StockAdjustmentService {
     if (dto.adjustmentType === 'INCREMENT') {
       newQuantity = previousQuantity + dto.quantityChange;
     } else {
+      newQuantity = previousQuantity - dto.quantityChange;
     }
 
     // Transaction: create adjustment record + record inventory transaction

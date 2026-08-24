@@ -17,12 +17,13 @@ import { queryKeys } from '@/lib/constants/queryKeys';
 import { PatientCombobox } from '@/components/frontdesk/PatientCombobox';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import type { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';
-import type { ProcedureOption } from '@/lib/api/frontdesk';
+import type { ProcedureOption, ScheduleProcedureResponse } from '@/lib/api/frontdesk';
 
 interface ScheduleProcedureDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSuccess?: () => void;
+  onSuccess?: (data: ScheduleProcedureResponse) => void;
+  initialPatient?: PatientResponseDto | null;
 }
 
 interface SelectedProcedure extends Omit<ProcedureOption, 'is_active' | 'estimated_duration_minutes' | 'default_price'> {
@@ -41,7 +42,7 @@ const PROCEDURE_CATEGORIES = [
   { value: 'OTHER', label: 'Other' },
 ];
 
-export function ScheduleProcedureDialog({ open, onOpenChange, onSuccess }: ScheduleProcedureDialogProps) {
+export function ScheduleProcedureDialog({ open, onOpenChange, onSuccess, initialPatient }: ScheduleProcedureDialogProps) {
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [doctors, setDoctors] = useState<DoctorResponseDto[]>([]);
@@ -72,7 +73,7 @@ export function ScheduleProcedureDialog({ open, onOpenChange, onSuccess }: Sched
   useEffect(() => {
     if (open) {
       loadDoctors();
-      resetForm();
+      resetForm(initialPatient ?? null);
     }
   }, [open]);
 
@@ -248,7 +249,7 @@ export function ScheduleProcedureDialog({ open, onOpenChange, onSuccess }: Sched
       if (response.success && response.data) {
         toast.success(`Surgical case scheduled for ${response.data.patientName}`);
         onOpenChange(false);
-        onSuccess?.();
+        onSuccess?.(response.data);
         queryClient.invalidateQueries({ queryKey: queryKeys.frontdesk.theaterQueue() });
         queryClient.invalidateQueries({ queryKey: queryKeys.shared.surgicalCases() });
         resetForm();
@@ -263,8 +264,8 @@ export function ScheduleProcedureDialog({ open, onOpenChange, onSuccess }: Sched
     }
   };
 
-  const resetForm = () => {
-    setSelectedPatient(null);
+  const resetForm = (initial: PatientResponseDto | null = null) => {
+    setSelectedPatient(initial);
     setSelectedCategory('');
     setIsCustomCategory(false);
     setCustomCategoryName('');
@@ -313,6 +314,7 @@ export function ScheduleProcedureDialog({ open, onOpenChange, onSuccess }: Sched
               onSelect={(patientId, patient) => {
                 setSelectedPatient(patient || null);
               }}
+              initialValue={initialPatient}
             />
             {selectedPatient && (
               <p className="text-xs text-[#2c2e4b]/50">

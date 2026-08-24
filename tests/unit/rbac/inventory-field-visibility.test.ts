@@ -189,15 +189,17 @@ describe('Inventory Field-Level RBAC', () => {
     });
 
     describe('THEATER_TECHNICIAN role', () => {
-      it('should see operational and billing info but NOT pricing', () => {
+      it('should see all fields including pricing and supplier', () => {
         const filtered = filterItemFields(mockItem, Role.THEATER_TECHNICIAN);
 
-        // Should see billing status
-        expect(filtered).toHaveProperty('isBillable');
-
-        // Should NOT see pricing
-        expect(filtered).not.toHaveProperty('unitCost');
-        expect(filtered).not.toHaveProperty('reorderPoint');
+        // Should see all fields including pricing and supplier
+        expect(filtered).toHaveProperty('unitCost');
+        expect(filtered).toHaveProperty('reorderPoint');
+        expect(filtered).toHaveProperty('lowStockThreshold');
+        expect(filtered).toHaveProperty('supplier');
+        expect(filtered).toHaveProperty('manufacturer');
+        expect(filtered).toHaveProperty('createdAt');
+        expect(filtered).toHaveProperty('updatedAt');
 
         // Should see basic info
         expect(filtered).toHaveProperty('id');

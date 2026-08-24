@@ -1,49 +1,18 @@
 'use client';
 
-import { SurgicalCasesList, type SurgicalCaseAction } from '@/components/frontdesk/SurgicalCasesList';
-import { useRouter } from 'next/navigation';
-import { Receipt, Pencil } from 'lucide-react';
-import type { FrontdeskSurgicalCaseListItem } from '@/lib/api/frontdesk';
-
-const STATUS_TABS = [
-  { value: '', label: 'All' },
-  { value: 'READY_FOR_WARD_PREP,IN_WARD_PREP', label: 'Ward Prep' },
-  { value: 'READY_FOR_THEATER_BOOKING,SCHEDULED', label: 'Booking' },
-  { value: 'IN_PREP,IN_THEATER,RECOVERY', label: 'Live' },
-  { value: 'COMPLETED,CANCELLED', label: 'Done' },
-];
+import { TheaterTechDashboardMetrics } from './TheaterTechDashboardMetrics';
 
 export default function TheaterTechDashboard() {
-  const router = useRouter();
-
-  const theaterTechActions = (caseItem: FrontdeskSurgicalCaseListItem): SurgicalCaseAction[] => {
-    const actions: SurgicalCaseAction[] = [
-      {
-        key: 'view',
-        label: 'View',
-        icon: Receipt,
-        onClick: () => router.push(`/theater-tech/surgical-cases/${caseItem.id}`),
-      },
-      {
-        key: 'edit-plan',
-        label: 'Edit Plan',
-        icon: Pencil,
-        onClick: () => router.push(`/theater-tech/surgical-cases/${caseItem.id}/edit`),
-      },
-    ];
-    return actions;
-  };
-
   return (
-    <SurgicalCasesList
-      title="Surgical Cases"
-      description="View and manage all surgical cases from ward prep through theater."
-      statusFilterOptions={STATUS_TABS}
-      rowActions={theaterTechActions}
-      detailHref={(c) => `/theater-tech/surgical-cases/${c.id}`}
-      onScheduleSuccess={() => {
-        router.refresh();
-      }}
-    />
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Theater Tech Dashboard</h1>
+        <p className="text-sm text-slate-500 mt-1">
+          Patient registry and surgical case activity at a glance.
+        </p>
+      </div>
+
+      <TheaterTechDashboardMetrics />
+    </div>
   );
 }

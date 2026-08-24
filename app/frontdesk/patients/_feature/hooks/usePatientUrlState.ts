@@ -78,6 +78,17 @@ export function usePatientUrlState(): PatientUrlState & PatientUrlActions {
     });
   }, [push]);
 
+  const setSearch = useCallback(
+    (search: string) => {
+      replace((p) => {
+        if (search) p.set('q', search);
+        else p.delete('q');
+        p.delete('page');
+      });
+    },
+    [replace],
+  );
+
   const exitSelectionMode = useCallback(() => {
     replace((p) => {
       p.delete('mode');
@@ -94,6 +105,7 @@ export function usePatientUrlState(): PatientUrlState & PatientUrlActions {
     // Actions
     setPage,
     setFilter,
+    setSearch,
     clearAll,
     exitSelectionMode,
   };

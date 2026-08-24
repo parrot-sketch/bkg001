@@ -1,6 +1,7 @@
 import { X, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { PatientSearchInput } from '@/components/patients/PatientSearchInput';
 import { PatientFilters } from '@/app/frontdesk/patients/_feature/components/PatientFilters';
 import type { QuickFilter } from '../types/patient-page';
 
@@ -10,6 +11,8 @@ interface PatientToolbarProps {
   totalRecords: number;
   hasActiveFilters: boolean;
   activeQuickFilters: QuickFilter[];
+  search: string;
+  onSearchChange: (value: string) => void;
   onToggleFilter: (filter: QuickFilter) => void;
   onClearFilters: () => void;
   onSelectPatient: (patientId: string) => void;
@@ -22,6 +25,8 @@ export function PatientToolbar({
   totalRecords,
   hasActiveFilters,
   activeQuickFilters,
+  search,
+  onSearchChange,
   onToggleFilter,
   onClearFilters,
   onSelectPatient,
@@ -55,6 +60,12 @@ export function PatientToolbar({
               Clear all
             </Button>
           )}
+
+          <PatientSearchInput
+            value={search}
+            onChange={onSearchChange}
+            isFetching={isFetching}
+          />
 
           <Button
             className="h-9 bg-[#caa26a] hover:bg-[#b8913e] text-[#2c2e4b] rounded-lg text-xs font-medium shadow-sm"

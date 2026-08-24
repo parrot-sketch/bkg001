@@ -407,6 +407,18 @@ export class PrismaInventoryRepository implements IInventoryRepository {
     return this.calculateBalances(itemIds);
   }
 
+  async getNearestExpiryDate(itemId: number): Promise<Date | null> {
+    const batch = await this.prisma.inventoryBatch.findFirst({
+      where: {
+        inventory_item_id: itemId,
+        quantity_remaining: { gt: 0 },
+      },
+      orderBy: { expiry_date: 'asc' },
+      select: { expiry_date: true },
+    });
+    return batch?.expiry_date ?? null;
+  }
+
   // ============================================================================
   // USAGE RECORDS
   // ============================================================================

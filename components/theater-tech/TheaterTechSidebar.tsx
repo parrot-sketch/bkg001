@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  Activity, Building2, LayoutDashboard, Scissors, User, Users, Package, Stethoscope
+  Activity, Building2, LayoutDashboard, Scissors, User, Users, Package, Stethoscope, FileText
 } from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { useAuth } from '@/hooks/patient/useAuth';
@@ -89,6 +89,12 @@ const navItems: NavItem[] = [
     name: 'Inventory Hub',
     href: '/theater-tech/inventory',
     icon: Package,
+    section: 'Inventory',
+  },
+  {
+    name: 'Reports',
+    href: '/theater-tech/inventory/reports',
+    icon: FileText,
     section: 'Inventory',
   },
 

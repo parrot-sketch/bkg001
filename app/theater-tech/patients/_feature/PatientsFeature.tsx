@@ -2,6 +2,7 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
 import { PatientRegistrationDialog } from '@/components/frontdesk/PatientRegistrationDialog';
 import { PatientDrawer } from './components/PatientDrawer';
 import { PatientStats } from './components/PatientStats';
@@ -14,8 +15,10 @@ import { PatientPagination } from './components/PatientPagination';
 import { TableSkeleton } from './components/TableSkeleton';
 import { EmptyState } from './components/EmptyState';
 import { useTheaterTechPatientRegistry } from './hooks/useTheaterTechPatientRegistry';
+import type { ScheduleProcedureResponse } from '@/lib/api/frontdesk';
 
 export function PatientsFeature() {
+  const router = useRouter();
   const {
     patients,
     stats,
@@ -43,7 +46,13 @@ export function PatientsFeature() {
     handleRegistrationSuccess,
     error,
     statsError,
+    scheduleDialog,
   } = useTheaterTechPatientRegistry();
+
+  const handleScheduleSuccess = (data: ScheduleProcedureResponse) => {
+    closeDrawer();
+    if (data?.surgicalCaseId) router.push(`/theater-tech/surgical-cases/${data.surgicalCaseId}`);
+  };
 
   return (
     <div className="space-y-4 animate-in fade-in duration-500">
@@ -72,17 +81,19 @@ export function PatientsFeature() {
       <RecentPatients onSelect={openDrawer} />
 
       <Card className="border border-[#e7d6bf] bg-white shadow-sm">
-        <PatientToolbar
-          isFetching={isFetching}
-          isLoading={isLoading}
-          totalRecords={meta.totalRecords}
-          hasActiveFilters={hasActiveFilters}
-          activeQuickFilters={activeQuickFilters}
-          onToggleFilter={toggleQuickFilter}
-          onClearFilters={urlState.clearAll}
-          onSelectPatient={openDrawer}
-          onOpenRegistration={openRegistration}
-        />
+      <PatientToolbar
+        isFetching={isFetching}
+        isLoading={isLoading}
+        totalRecords={meta.totalRecords}
+        hasActiveFilters={hasActiveFilters}
+        activeQuickFilters={activeQuickFilters}
+        search={urlState.search}
+        onSearchChange={urlState.setSearch}
+        onToggleFilter={toggleQuickFilter}
+        onClearFilters={urlState.clearAll}
+        onSelectPatient={openDrawer}
+        onOpenRegistration={openRegistration}
+      />
 
         <CardContent className="p-0 min-h-[400px] flex flex-col">
           {(error || statsError) && !isLoading ? (
@@ -150,7 +161,10 @@ export function PatientsFeature() {
         patientId={drawerPatientId}
         open={drawerOpen}
         onOpenChange={(open) => !open && closeDrawer()}
+        onScheduleSuccess={handleScheduleSuccess}
       />
+
+      {scheduleDialog}
     </div>
   );
 }

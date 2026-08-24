@@ -54,6 +54,9 @@ export class ApiClient {
 
   constructor(baseUrl: string = process.env.NEXT_PUBLIC_API_URL || '/api') {
     this.baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
+    if (typeof window !== 'undefined') {
+      console.debug('[ApiClient] baseUrl:', this.baseUrl);
+    }
   }
 
   /**
@@ -103,6 +106,11 @@ export class ApiClient {
       url = `${url}?_t=${Date.now()}`;
     } else if ((options.method || 'GET') === 'GET' && url.includes('?')) {
       url = `${url}&_t=${Date.now()}`;
+    }
+
+    if (url.startsWith('/api/api/')) {
+      console.warn('[ApiClient] Double /api detected, normalizing:', url);
+      url = url.replace(/^\/api\/api\//, '/api/');
     }
 
     const headers: HeadersInit = {

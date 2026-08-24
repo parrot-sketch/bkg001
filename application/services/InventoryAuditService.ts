@@ -9,6 +9,8 @@ import { PrismaClient } from '@prisma/client';
 import { Role } from '@/domain/enums/Role';
 
 export enum InventoryAuditEventType {
+  INVENTORY_ITEM_CREATED = 'INVENTORY_ITEM_CREATED',
+  INVENTORY_ITEM_UPDATED = 'INVENTORY_ITEM_UPDATED',
   VENDOR_CREATED = 'VENDOR_CREATED',
   VENDOR_UPDATED = 'VENDOR_UPDATED',
   VENDOR_DELETED = 'VENDOR_DELETED',
@@ -28,6 +30,7 @@ export enum InventoryAuditEventType {
 }
 
 export enum InventoryAuditEntityType {
+  INVENTORY_ITEM = 'InventoryItem',
   VENDOR = 'Vendor',
   PURCHASE_ORDER = 'PurchaseOrder',
   GOODS_RECEIPT = 'GoodsReceipt',
@@ -81,6 +84,28 @@ export class InventoryAuditService {
   }
 
   // Convenience methods for common operations
+
+  async emitItemCreated(itemId: number, actorUserId: string, actorRole: Role, metadata?: InventoryAuditMetadata): Promise<void> {
+    await this.emit(
+      InventoryAuditEventType.INVENTORY_ITEM_CREATED,
+      actorUserId,
+      actorRole,
+      InventoryAuditEntityType.INVENTORY_ITEM,
+      itemId.toString(),
+      metadata
+    );
+  }
+
+  async emitItemUpdated(itemId: number, actorUserId: string, actorRole: Role, metadata?: InventoryAuditMetadata): Promise<void> {
+    await this.emit(
+      InventoryAuditEventType.INVENTORY_ITEM_UPDATED,
+      actorUserId,
+      actorRole,
+      InventoryAuditEntityType.INVENTORY_ITEM,
+      itemId.toString(),
+      metadata
+    );
+  }
 
   async emitVendorCreated(vendorId: string, actorUserId: string, actorRole: Role, metadata?: InventoryAuditMetadata): Promise<void> {
     await this.emit(

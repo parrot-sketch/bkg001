@@ -28,6 +28,7 @@ import {
   createAuthenticationError,
   createAuthorizationError,
 } from '@/lib/api/error-response';
+import { authorizeInventoryOperation } from '@/lib/auth/inventoryAuthorization';
 import type { CreateItem } from '@/lib/validation/inventory';
 import type { InventoryItem } from '@/domain/interfaces/repositories/IInventoryRepository';
 
@@ -53,7 +54,8 @@ interface InventoryItemWithBalance {
   isActive: boolean;
   isBillable: boolean;
   isImplant: boolean;
-  quantityOnHand: number; // Calculated from transactions
+  quantityOnHand: number;
+  nearestExpiryDate: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -134,35 +136,38 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       limit,
     });
 
-     // ========================================================================
-     // ENRICH ITEMS WITH BALANCE CALCULATION
-     // ========================================================================
-     // Calculate quantity_on_hand for each item from InventoryTransaction records.
-     // This ensures the balance is always current and audit-trail accurate.
-     let enrichedItems: InventoryItemWithBalance[] = await Promise.all(
-       paginatedResult.items.map(async (item: InventoryItem) => {
-         const quantityOnHand = await inventoryRepository.getItemBalance(item.id);
-         return {
-           id: item.id,
-           name: item.name,
-           sku: item.sku,
-           category: item.category,
-           description: item.description,
-           unitOfMeasure: item.unitOfMeasure,
-           unitCost: item.unitCost,
-           reorderPoint: item.reorderPoint,
-           lowStockThreshold: item.lowStockThreshold,
-           supplier: item.supplier,
-           manufacturer: item.manufacturer,
-           isActive: item.isActive,
-           isBillable: item.isBillable,
-           isImplant: item.isImplant,
-           quantityOnHand,
-           createdAt: item.createdAt,
-           updatedAt: item.updatedAt,
-         };
-       })
-     );
+      // ========================================================================
+      // ENRICH ITEMS WITH BALANCE CALCULATION + NEAREST EXPIRY
+      // ========================================================================
+      // Calculate quantity_on_hand and nearest expiry for each item.
+      let enrichedItems: InventoryItemWithBalance[] = await Promise.all(
+        paginatedResult.items.map(async (item: InventoryItem) => {
+          const [quantityOnHand, nearestExpiry] = await Promise.all([
+            inventoryRepository.getItemBalance(item.id),
+            inventoryRepository.getNearestExpiryDate(item.id),
+          ]);
+          return {
+            id: item.id,
+            name: item.name,
+            sku: item.sku,
+            category: item.category,
+            description: item.description,
+            unitOfMeasure: item.unitOfMeasure,
+            unitCost: item.unitCost,
+            reorderPoint: item.reorderPoint,
+            lowStockThreshold: item.lowStockThreshold,
+            supplier: item.supplier,
+            manufacturer: item.manufacturer,
+            isActive: item.isActive,
+            isBillable: item.isBillable,
+            isImplant: item.isImplant,
+            quantityOnHand,
+            nearestExpiryDate: nearestExpiry,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          };
+        })
+      );
 
      // ========================================================================
      // APPLY LOW STOCK FILTER (if requested)
@@ -254,12 +259,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return createAuthenticationError({ route: 'POST /api/inventory/items' });
     }
 
-    if (authResult.user.role !== Role.ADMIN) {
-      return createAuthorizationError({ 
+    const authzResult = authorizeInventoryOperation(authResult, 'CREATE_ITEMS');
+    if (!authzResult.success || !authzResult.user) {
+      return authzResult.error || createAuthorizationError({ 
         route: 'POST /api/inventory/items',
         userId: authResult.user.userId,
         userRole: authResult.user.role,
-        requiredRole: Role.ADMIN,
       });
     }
 
@@ -308,6 +313,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       manufacturer: itemData.manufacturer,
       isBillable: itemData.is_billable,
       isImplant: itemData.is_implant,
+    });
+
+    // Emit audit event (non-blocking)
+    const { getInventoryAuditService } = await import('@/lib/factories/inventoryAuditFactory');
+    const auditService = getInventoryAuditService();
+    await auditService.emitItemCreated(
+      item.id,
+      authzResult.user.userId,
+      authzResult.user.role as any,
+      { itemName: item.name, sku: item.sku }
+    ).catch(() => {
+      console.warn('[Audit] Failed to emit INVENTORY_ITEM_CREATED event', { itemId: item.id });
     });
 
     return NextResponse.json({

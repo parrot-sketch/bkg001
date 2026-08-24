@@ -34,6 +34,9 @@ interface InventoryDataTableProps {
   items: InventoryItemRow[];
   isLoading: boolean;
   isEmpty: boolean;
+  onEdit?: (item: InventoryItemRow) => void;
+  onAdjust?: (item: InventoryItemRow) => void;
+  onView?: (item: InventoryItemRow) => void;
 }
 
 function getItemStatus(item: InventoryItemRow) {
@@ -43,7 +46,7 @@ function getItemStatus(item: InventoryItemRow) {
   return { label: 'Healthy', variant: 'default' as const };
 }
 
-export function InventoryDataTable({ items, isLoading, isEmpty }: InventoryDataTableProps) {
+export function InventoryDataTable({ items, isLoading, isEmpty, onEdit, onAdjust, onView }: InventoryDataTableProps) {
   if (isLoading) {
     return (
       <div className="rounded-md border border-slate-200 bg-white">
@@ -98,6 +101,9 @@ export function InventoryDataTable({ items, isLoading, isEmpty }: InventoryDataT
             <TableHead className="font-semibold text-slate-700">Status</TableHead>
             <TableHead className="font-semibold text-slate-700">Nearest Expiry</TableHead>
             <TableHead className="font-semibold text-slate-700">Vendor</TableHead>
+            {(onEdit || onAdjust || onView) && (
+              <TableHead className="w-10"></TableHead>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -105,7 +111,15 @@ export function InventoryDataTable({ items, isLoading, isEmpty }: InventoryDataT
             const status = getItemStatus(item);
             return (
               <TableRow key={item.id} className="hover:bg-slate-50/50">
-                <TableCell className="font-medium text-slate-900">{item.name}</TableCell>
+                <TableCell className="font-medium text-slate-900">
+                  {onView ? (
+                    <button onClick={() => onView(item)} className="text-left hover:underline">
+                      {item.name}
+                    </button>
+                  ) : (
+                    item.name
+                  )}
+                </TableCell>
                 <TableCell className="text-slate-500">
                   <span className="capitalize">{item.category.toLowerCase().replace('_', ' ')}</span>
                 </TableCell>
@@ -127,6 +141,37 @@ export function InventoryDataTable({ items, isLoading, isEmpty }: InventoryDataT
                 <TableCell className="text-slate-500">
                   {item.supplier || '-'}
                 </TableCell>
+                {(onEdit || onAdjust || onView) && (
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        {onView && (
+                          <DropdownMenuItem onClick={() => onView(item)}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Details
+                          </DropdownMenuItem>
+                        )}
+                        {onEdit && (
+                          <DropdownMenuItem onClick={() => onEdit(item)}>
+                            <FileEdit className="h-4 w-4 mr-2" />
+                            Edit Item
+                          </DropdownMenuItem>
+                        )}
+                        {onAdjust && (
+                          <DropdownMenuItem onClick={() => onAdjust(item)}>
+                            <Archive className="h-4 w-4 mr-2" />
+                            Adjust Stock
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                )}
               </TableRow>
             );
           })}

@@ -1,74 +1,79 @@
+/**
+ * API Route: GET /api/inventory/transaction
+ * 
+ * List inventory transactions, optionally filtered by item ID.
+ * 
+ * Security:
+ * - Requires authentication
+ * - ADMIN, DOCTOR, NURSE, FRONTDESK, THEATER_TECHNICIAN can view transactions
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
-import { inventoryModule } from '@/application/inventory-module';
+import { PrismaInventoryRepository } from '@/infrastructure/database/repositories/PrismaInventoryRepository';
+import db from '@/lib/db';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
-import { StockMovementType } from '@/domain/interfaces/repositories/IInventoryRepository';
+import { handleApiError, handleApiSuccess } from '@/app/api/_utils/handleApiError';
+import { ForbiddenError } from '@/application/errors';
+import { authorizeInventoryOperation } from '@/lib/auth/inventoryAuthorization';
+import { endpointTimer } from '@/lib/observability/endpointLogger';
 
-/**
- * POST /api/inventory/transaction
- * 
- * Record a manual stock movement (In, Out, Adjustment).
- */
-export async function POST(request: NextRequest): Promise<NextResponse> {
+const inventoryRepository = new PrismaInventoryRepository(db);
+
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  const timer = endpointTimer('GET /api/inventory/transaction');
   try {
     const authResult = await JwtMiddleware.authenticate(request);
-    if (!authResult.success || !authResult.user) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      );
+    const authzResult = authorizeInventoryOperation(authResult, 'VIEW_ITEMS');
+    if (!authzResult.success || !authzResult.user) {
+      return authzResult.error || handleApiError(new ForbiddenError('Unauthorized'));
     }
 
-    const body = await request.json();
-    const { itemId, type, quantity, unitPrice, reference, notes } = body;
+    const { searchParams } = new URL(request.url);
+    const itemId = searchParams.get('itemId');
+    const limit = parseInt(searchParams.get('limit') || '50', 10);
+    const offset = parseInt(searchParams.get('offset') || '0', 10);
 
-    if (!itemId || !type || !quantity) {
-      return NextResponse.json(
-        { success: false, error: 'Missing required fields: itemId, type, quantity' },
-        { status: 400 }
-      );
+    const where: any = {};
+    if (itemId) {
+      where.inventory_item_id = parseInt(itemId, 10);
     }
 
-    let transaction;
-    const dto = {
-      inventoryItemId: itemId,
-      quantity,
-      unitPrice,
-      reference,
-      notes,
-      createdById: authResult.user.userId,
-    };
+    const [transactions, total] = await Promise.all([
+      db.inventoryTransaction.findMany({
+        where,
+        orderBy: { created_at: 'desc' },
+        skip: offset,
+        take: limit,
+      }),
+      db.inventoryTransaction.count({ where }),
+    ]);
 
-    switch (type) {
-      case StockMovementType.STOCK_IN:
-        transaction = await inventoryModule.inventoryService.recordStockIn(dto);
-        break;
-      case StockMovementType.STOCK_OUT:
-        transaction = await inventoryModule.inventoryService.recordStockOut(dto);
-        break;
-      case StockMovementType.ADJUSTMENT:
-        transaction = await inventoryModule.inventoryService.recordAdjustment(dto);
-        break;
-      case StockMovementType.OPENING_BALANCE:
-        if (authResult.user.role !== Role.ADMIN) {
-          return NextResponse.json({ success: false, error: 'Admin only' }, { status: 403 });
-        }
-        transaction = await inventoryModule.inventoryService.setOpeningBalance(dto);
-        break;
-      default:
-        return NextResponse.json({ success: false, error: 'Invalid transaction type' }, { status: 400 });
-    }
+    const mapped = transactions.map((t) => ({
+      id: t.id,
+      inventoryItemId: t.inventory_item_id,
+      type: t.type,
+      quantity: t.quantity,
+      unitPrice: t.unit_price,
+      totalValue: t.total_value,
+      reference: t.reference,
+      notes: t.notes,
+      createdById: t.created_by_user_id,
+      createdAt: t.created_at,
+    }));
 
-    return NextResponse.json({
-      success: true,
-      data: transaction,
-      message: 'Transaction recorded successfully',
-    });
-  } catch (error: any) {
-    console.error('[API] POST /api/inventory/transaction - Error:', error);
-    return NextResponse.json(
-      { success: false, error: error.message || 'Internal server error' },
-      { status: 500 }
-    );
+    timer.end({ userId: authzResult.user.userId, count: mapped.length });
+    return handleApiSuccess({
+      data: mapped,
+      pagination: {
+        total,
+        limit,
+        offset,
+        totalPages: Math.ceil(total / limit),
+      },
+    }, 200);
+  } catch (error) {
+    timer.end({ error: error instanceof Error ? error.message : 'Unknown error' });
+    return handleApiError(error);
   }
 }

@@ -1,7 +1,7 @@
 import { X, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { SearchAutocomplete } from '@/components/frontdesk/SearchAutocomplete';
+import { PatientSearchInput } from '@/components/patients/PatientSearchInput';
 import { PatientFilters } from './PatientFilters';
 import type { QuickFilter } from '../types/patient-page';
 
@@ -13,16 +13,17 @@ interface PatientToolbarProps {
   totalRecords: number;
   hasActiveFilters: boolean;
   activeQuickFilters: QuickFilter[];
+  search: string;
+  onSearchChange: (value: string) => void;
   onToggleFilter: (filter: QuickFilter) => void;
   onClearFilters: () => void;
   onExitSelectionMode: () => void;
-  onSelectPatient: (patientId: string) => void;
   onOpenRegistration: () => void;
 }
 
 /**
  * The `CardHeader` section of the patient registry card.
- * Contains the title, description, search autocomplete, action buttons,
+ * Contains the title, description, search input, action buttons,
  * and quick-filter chips.
  */
 export function PatientToolbar({
@@ -33,10 +34,11 @@ export function PatientToolbar({
   totalRecords,
   hasActiveFilters,
   activeQuickFilters,
+  search,
+  onSearchChange,
   onToggleFilter,
   onClearFilters,
   onExitSelectionMode,
-  onSelectPatient,
   onOpenRegistration,
 }: PatientToolbarProps) {
   const description = isSelectionMode
@@ -83,10 +85,10 @@ export function PatientToolbar({
             </Button>
           )}
 
-          <SearchAutocomplete
-            placeholder="Search by name, phone, ID, insurance..."
-            onSelectPatient={(patient) => onSelectPatient(patient.id)}
-            className="w-full sm:w-72"
+          <PatientSearchInput
+            value={search}
+            onChange={onSearchChange}
+            isFetching={isFetching}
           />
 
           {!isSelectionMode && (

@@ -3,15 +3,14 @@
  * 
  * POST /api/stores/inventory/[id]/adjust
  * 
- * ADMIN only. Requires adjustment reason.
+ * Requires ADJUST_STOCK permission.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { JwtMiddleware } from '@/lib/auth/middleware';
 import { handleApiError, handleApiSuccess } from '@/app/api/_utils/handleApiError';
 import { ForbiddenError } from '@/application/errors';
-import { authorizeRoles } from '@/lib/auth/inventoryAuthorization';
-import { Role } from '@/domain/enums/Role';
+import { authorizeInventoryOperation } from '@/lib/auth/inventoryAuthorization';
 import { getStockAdjustmentService } from '@/lib/factories/stockAdjustmentFactory';
 import { StockAdjustmentType, StockAdjustmentReason } from '@prisma/client';
 import { z } from 'zod';
@@ -34,9 +33,9 @@ export async function POST(
   const timer = endpointTimer('POST /api/stores/inventory/[id]/adjust');
   try {
     const authResult = await JwtMiddleware.authenticate(request);
-    const authzResult = authorizeRoles(authResult, [Role.ADMIN]);
+    const authzResult = authorizeInventoryOperation(authResult, 'ADJUST_STOCK');
     if (!authzResult.success || !authzResult.user) {
-      return authzResult.error || handleApiError(new ForbiddenError('Only ADMIN can adjust stock'));
+      return authzResult.error || handleApiError(new ForbiddenError('Unauthorized'));
     }
 
     const { id } = await context.params;

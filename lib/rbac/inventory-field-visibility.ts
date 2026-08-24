@@ -87,7 +87,7 @@ export const FIELD_VISIBILITY_MAP: Record<Role, (keyof InventoryItem)[]> = {
     'isImplant',
   ],
 
-  // Theater Technician: Can see items, billing status, NO pricing
+  // Theater Technician: Full inventory management access (same as STORES)
   [Role.THEATER_TECHNICIAN]: [
     'id',
     'name',
@@ -95,9 +95,16 @@ export const FIELD_VISIBILITY_MAP: Record<Role, (keyof InventoryItem)[]> = {
     'category',
     'description',
     'unitOfMeasure',
+    'unitCost',
+    'reorderPoint',
+    'lowStockThreshold',
+    'supplier',
+    'manufacturer',
     'isActive',
     'isBillable',
     'isImplant',
+    'createdAt',
+    'updatedAt',
   ],
 
   // FrontDesk: Very limited access, basic inventory info only
