@@ -38,7 +38,7 @@ export function ConsultationRoomLayout({
           {sidebarOpen && patientPanel}
         </aside>
 
-        <main className="flex-1 flex flex-col overflow-hidden">
+        <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
           {workspace}
         </main>
 

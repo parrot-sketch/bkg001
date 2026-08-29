@@ -51,6 +51,7 @@ interface ClinicalRichTextEditorProps {
   autoFocus?: boolean;
   className?: string;
   minHeight?: string;
+  fullHeight?: boolean;
   changeDebounceMs?: number;
   ariaLabel?: string;
   disabled?: boolean;
@@ -64,6 +65,7 @@ export function ClinicalRichTextEditor({
   autoFocus = false,
   className,
   minHeight = '300px',
+  fullHeight = false,
   changeDebounceMs = 0,
   ariaLabel = 'Clinical documentation editor',
   disabled = false,
@@ -131,6 +133,7 @@ export function ClinicalRichTextEditor({
         class: cn(
           'prose prose-sm max-w-none focus:outline-none',
           'px-5 py-4',
+          fullHeight && 'min-h-full',
           className
         ),
         'aria-label': ariaLabel,
@@ -170,13 +173,30 @@ export function ClinicalRichTextEditor({
   }, [flushPendingChange]);
 
   if (!editor) {
-    return null;
+    return (
+      <div
+        className={cn(
+          'rounded-xl border border-slate-200 overflow-hidden bg-white flex flex-col',
+          fullHeight && 'h-full min-h-0',
+          className
+        )}
+        style={fullHeight ? undefined : { minHeight }}
+        aria-busy="true"
+        aria-label={ariaLabel}
+      >
+        {!readOnly && !disabled && (
+          <div className="shrink-0 h-12 border-b border-slate-100 bg-slate-50/50 animate-pulse" />
+        )}
+        <div className="flex-1 min-h-0 bg-white" />
+      </div>
+    );
   }
 
   return (
     <div
       className={cn(
         'rounded-xl border border-slate-200 overflow-hidden bg-white transition-all duration-200 flex flex-col',
+        fullHeight && 'h-full min-h-0',
         !readOnly && !disabled && 'focus-within:border-indigo-300 focus-within:shadow-[0_0_15px_-5px_rgba(79,70,229,0.1)] ring-0',
         disabled && 'opacity-50 cursor-not-allowed',
         className
@@ -320,8 +340,9 @@ export function ClinicalRichTextEditor({
       {/* Editor Content */}
       <EditorContent
         editor={editor}
-        style={{ minHeight }}
+        style={fullHeight ? undefined : { minHeight }}
         className={cn(
+          'min-h-0 flex-1 overflow-y-auto custom-scrollbar-light',
           'prose-headings:font-bold prose-headings:text-slate-900 prose-headings:tracking-tight',
           'prose-p:text-slate-700 prose-p:leading-relaxed prose-p:text-[14px]',
           'prose-strong:text-slate-900 prose-strong:font-bold',

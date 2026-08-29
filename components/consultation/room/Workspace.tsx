@@ -71,7 +71,11 @@ export function Workspace({
   onReturnToHub,
 }: WorkspaceProps) {
   return (
-    <Tabs value={primaryTab} onValueChange={(v) => onPrimaryTabChange(v as PrimaryTab)} className="h-full flex flex-col">
+    <Tabs
+      value={primaryTab}
+      onValueChange={(v) => onPrimaryTabChange(v as PrimaryTab)}
+      className="h-full min-h-0 min-w-0 flex flex-col"
+    >
       <TabsList className="h-12 shrink-0 bg-white border-b border-[#e7d6bf] rounded-none p-0 gap-0 px-2 sm:px-4">
         <TabsTrigger value="consultation" className="h-full px-2 sm:px-4 text-xs font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-[#caa26a] data-[state=active]:text-[#2c2e4b] data-[state=inactive]:text-[#2c2e4b]/50 hover:text-[#2c2e4b] gap-1.5">
           <Stethoscope className="h-3.5 w-3.5" />
@@ -83,7 +87,7 @@ export function Workspace({
         </TabsTrigger>
         <TabsTrigger value="history" className="h-full px-2 sm:px-4 text-xs font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-[#caa26a] data-[state=active]:text-[#2c2e4b] data-[state=inactive]:text-[#2c2e4b]/50 hover:text-[#2c2e4b] gap-1.5">
           <History className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">History</span>
+          <span className="hidden sm:inline">Previous consults</span>
         </TabsTrigger>
         <TabsTrigger value="billing" className="h-full px-2 sm:px-4 text-xs font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-[#caa26a] data-[state=active]:text-[#2c2e4b] data-[state=inactive]:text-[#2c2e4b]/50 hover:text-[#2c2e4b] gap-1.5">
           <CreditCard className="h-3.5 w-3.5" />
@@ -91,7 +95,7 @@ export function Workspace({
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="consultation" className="flex-1 mt-0 overflow-hidden flex flex-col">
+      <TabsContent value="consultation" className="flex-1 min-h-0 mt-0 overflow-hidden flex flex-col">
         {isReadOnly ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center p-8 max-w-md">
@@ -139,7 +143,11 @@ export function Workspace({
                 </button>
               </div>
             </div>
-            <Tabs value={soapTab} onValueChange={(v) => onSoapTabChange(v as SoapTab)} className="flex-1 flex flex-col min-h-0">
+            <Tabs
+              value={soapTab}
+              onValueChange={(v) => onSoapTabChange(v as SoapTab)}
+              className="flex-1 min-h-0 flex flex-col"
+            >
               <TabsList className="h-10 shrink-0 bg-transparent border-b border-[#e7d6bf] rounded-none p-0 gap-0">
                 {SOAP_TABS.map((tab) => (
                   <TabsTrigger
@@ -152,14 +160,19 @@ export function Workspace({
                 ))}
               </TabsList>
               {SOAP_TABS.map((tab) => (
-                <TabsContent key={tab.key} value={tab.key} className="flex-1 mt-0 overflow-hidden flex flex-col">
-                  <div className="flex-1 flex flex-col min-h-0 p-2 sm:p-4">
+                <TabsContent
+                  key={tab.key}
+                  value={tab.key}
+                  forceMount
+                  className="flex-1 min-h-0 mt-0 overflow-hidden flex flex-col data-[state=inactive]:hidden"
+                >
+                  <div className="flex-1 min-h-0 flex flex-col p-2 sm:p-4">
                     <ClinicalRichTextEditor
                       content={notes[tab.field] || ''}
                       onChange={(value) => onUpdateNotes(tab.field, value)}
                       placeholder={tab.placeholder}
                       readOnly={isReadOnly}
-                      minHeight="100%"
+                      fullHeight
                       ariaLabel={`${tab.label} notes editor`}
                     />
                   </div>
