@@ -1,6 +1,7 @@
-import { Suspense } from "react";
 import { PatientOverviewPanel } from "@/components/patient/PatientOverviewPanel";
+import { FrontdeskPatientVisitHistory } from "@/components/frontdesk/patient/FrontdeskPatientVisitHistory";
 import { getPatientFullDataById } from "@/utils/services/patient";
+import { getFrontdeskPatientVisitHistory } from "@/utils/services/patient-visits";
 import { getCurrentUser } from "@/lib/auth/server-auth";
 import { container } from "@/lib/container";
 import { PatientDetailActions } from "@/components/frontdesk/PatientDetailActions";
@@ -18,9 +19,14 @@ interface ParamsProps {
 }
 
 const FrontdeskPatientProfile = async (props: ParamsProps) => {
-  const searchParams = await props.searchParams;
   const params = await props.params;
+  const searchParams = await props.searchParams;
   const id = params.patientId;
+  const visitDateParam = searchParams?.visitDate;
+  const visitDate =
+    typeof visitDateParam === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(visitDateParam)
+      ? visitDateParam
+      : null;
 
   const user = await getCurrentUser();
 
@@ -39,12 +45,24 @@ const FrontdeskPatientProfile = async (props: ParamsProps) => {
   let data;
   let success = false;
   let status = 500;
+  let visitSummary = {
+    totalVisits: 0,
+    completedVisits: 0,
+    upcomingVisits: 0,
+    lastVisitAt: null as Date | null,
+    selectedDate: null as string | null,
+    visits: [] as Awaited<ReturnType<typeof getFrontdeskPatientVisitHistory>>['visits'],
+  };
 
   try {
-    const result = await getPatientFullDataById(id);
+    const [result, visits] = await Promise.all([
+      getPatientFullDataById(id),
+      getFrontdeskPatientVisitHistory(id, { date: visitDate }),
+    ]);
     data = result.data;
     success = result.success;
     status = result.status ?? 500;
+    visitSummary = visits;
   } catch (error) {
     console.error('[PatientProfile] Error loading patient:', error);
     data = null;
@@ -79,6 +97,7 @@ const FrontdeskPatientProfile = async (props: ParamsProps) => {
 
   const fullName = `${data.first_name} ${data.last_name}`;
   const ageLabel = data.date_of_birth ? `${calculateAge(data.date_of_birth)} yrs` : undefined;
+  const lastVisitAt = visitSummary.lastVisitAt;
 
   const patientDetail = {
     id: data.id,
@@ -105,8 +124,8 @@ const FrontdeskPatientProfile = async (props: ParamsProps) => {
     colorCode: data.colorCode ?? undefined,
     createdAt: data.created_at.toISOString(),
     updatedAt: data.updated_at.toISOString(),
-    totalAppointments: data.totalAppointments,
-    lastVisitAt: data.lastVisit?.toISOString() ?? null,
+    totalAppointments: visitSummary.totalVisits,
+    lastVisitAt: lastVisitAt?.toISOString() ?? null,
   };
 
   return (
@@ -167,26 +186,37 @@ const FrontdeskPatientProfile = async (props: ParamsProps) => {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="bg-white/95 backdrop-blur border border-[#e7d6bf] rounded-xl px-4 py-3">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-[#2c2e4b]/50">Appointments</p>
-          <p className="mt-1 text-base font-semibold text-[#2c2e4b] tracking-tight">{data.totalAppointments ?? 0}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-[#2c2e4b]/50">Total visits</p>
+          <p className="mt-1 text-base font-semibold text-[#2c2e4b] tracking-tight">
+            {visitSummary.totalVisits}
+          </p>
         </div>
         <div className="bg-white/95 backdrop-blur border border-[#e7d6bf] rounded-xl px-4 py-3">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-[#2c2e4b]/50">Last visit</p>
           <p className="mt-1 text-base font-semibold text-[#2c2e4b] tracking-tight">
-            {data.lastVisit ? format(data.lastVisit, "MMM d, yyyy") : "—"}
+            {lastVisitAt ? format(lastVisitAt, "MMM d, yyyy") : "—"}
           </p>
         </div>
         <div className="bg-white/95 backdrop-blur border border-[#e7d6bf] rounded-xl px-4 py-3">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-[#2c2e4b]/50">Blood group</p>
-          <p className="mt-1 text-base font-semibold text-[#2c2e4b] tracking-tight">{data.blood_group ?? "—"}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-[#2c2e4b]/50">Completed</p>
+          <p className="mt-1 text-base font-semibold text-[#2c2e4b] tracking-tight">
+            {visitSummary.completedVisits}
+          </p>
         </div>
         <div className="bg-white/95 backdrop-blur border border-[#e7d6bf] rounded-xl px-4 py-3">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-[#2c2e4b]/50">Registered</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-[#2c2e4b]/50">Upcoming</p>
           <p className="mt-1 text-base font-semibold text-[#2c2e4b] tracking-tight">
-            {data.created_at ? format(data.created_at, "MMM d, yyyy") : "—"}
+            {visitSummary.upcomingVisits}
           </p>
         </div>
       </div>
+
+      <FrontdeskPatientVisitHistory
+        patientId={id}
+        visits={visitSummary.visits}
+        totalVisits={visitSummary.totalVisits}
+        selectedDate={visitSummary.selectedDate}
+      />
 
       <PatientOverviewPanel
         patient={{

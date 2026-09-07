@@ -434,6 +434,7 @@ export async function assignPatientToQueue(data: {
           type: 'Walk-in',
           status: AppointmentStatus.CHECKED_IN, // Start with CHECKED_IN for triage
           source: 'FRONTDESK_SCHEDULED',
+          reason: reason.trim(),
           checked_in_at: now,
           checked_in_by: user.userId,
           status_changed_at: now,
@@ -448,7 +449,7 @@ export async function assignPatientToQueue(data: {
       // If already READY_FOR_CONSULTATION, keep as is (already triaged)
       const existingAppointment = await db.appointment.findUnique({
         where: { id: appointmentId },
-        select: { status: true, patient_id: true },
+        select: { status: true, patient_id: true, reason: true },
       });
       if (!existingAppointment) {
         return { success: false, msg: "Appointment not found" };
@@ -468,11 +469,17 @@ export async function assignPatientToQueue(data: {
           where: { id: appointmentId },
           data: {
             status: AppointmentStatus.CHECKED_IN,
+            reason: reason.trim(),
             checked_in_at: now,
             checked_in_by: user.userId,
             status_changed_at: now,
             status_changed_by: user.userId,
           },
+        });
+      } else if (!existingAppointment.reason && reason.trim()) {
+        await db.appointment.update({
+          where: { id: appointmentId },
+          data: { reason: reason.trim() },
         });
       }
     }
