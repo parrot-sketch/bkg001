@@ -20,9 +20,7 @@ const AuthLayout = ({ children }: { children: React.ReactNode }) => {
             aria-hidden="true"
             className="pointer-events-none absolute -bottom-40 -left-32 h-96 w-96 rounded-full bg-[#B0D4E8]/20 blur-3xl"
           />
-          <div className="relative z-10 w-full max-w-[420px]">
-            {children}
-          </div>
+          <div className="relative z-10 w-full max-w-[420px]">{children}</div>
         </div>
       }
     />

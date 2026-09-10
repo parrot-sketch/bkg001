@@ -1,10 +1,9 @@
 'use client';
 
 /**
- * Nurse Sidebar — journey-aligned navigation
+ * Nurse Sidebar
  *
- * Cases → Ward Prep → Intra-Op → Post-Op
- * (plus dashboard + account). No frontdesk cross-links.
+ * Patient care (patients + surgical cases) plus clinical journey queues.
  */
 
 import {
@@ -15,6 +14,7 @@ import {
   Activity,
   HeartPulse,
   FolderKanban,
+  Users,
 } from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { useAuth } from '@/hooks/patient/useAuth';
@@ -27,10 +27,16 @@ const navItems: NavItem[] = [
     section: 'Overview',
   },
   {
-    name: 'Cases',
+    name: 'Patients',
+    href: '/nurse/patients',
+    icon: Users,
+    section: 'Patient Care',
+  },
+  {
+    name: 'Surgical Cases',
     href: '/nurse/surgical-cases',
     icon: FolderKanban,
-    section: 'Journey',
+    section: 'Patient Care',
   },
   {
     name: 'Ward Prep',

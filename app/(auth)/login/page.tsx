@@ -6,7 +6,6 @@ import { ChevronLeft, Info, AlertCircle } from 'lucide-react';
 
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { WorkspaceIdentity } from '@/components/auth/WorkspaceIdentity';
-import { SecureWorkspaceBadge } from '@/components/auth/SecureWorkspaceBadge';
 
 import { useLoginForm } from '@/hooks/auth/useLoginForm';
 import { MSG } from '@/lib/utils/auth-helpers';
@@ -83,11 +82,7 @@ function LoginForm() {
         className="w-full animate-pulse"
         aria-label="Loading authentication"
       >
-        <div className="space-y-2">
-          <div className="h-4 w-32 rounded bg-[#E7EAEE]" />
-          <div className="h-3.5 w-24 rounded bg-[#EEF0F2]" />
-        </div>
-
+        <div className="h-14 w-36 rounded bg-[#EEF0F2]" />
         <div className="mt-10 space-y-3">
           <div className="h-3 w-20 rounded bg-[#E7EAEE]" />
           <div className="h-12 w-full rounded-md bg-[#EEF0F2]" />
@@ -355,11 +350,6 @@ function LoginForm() {
           </div>
         )}
       </form>
-
-      {/* Security / provider information */}
-      <div className="mt-10 border-t border-[#E6E9ED] pt-6">
-        <SecureWorkspaceBadge />
-      </div>
     </div>
   );
 }
@@ -367,11 +357,7 @@ function LoginForm() {
 function LoginLoading() {
   return (
     <div className="w-full animate-pulse" aria-label="Loading authentication">
-      <div className="space-y-2">
-        <div className="h-4 w-32 rounded bg-[#E7EAEE]" />
-        <div className="h-3.5 w-24 rounded bg-[#EEF0F2]" />
-      </div>
-
+      <div className="h-14 w-36 rounded bg-[#EEF0F2]" />
       <div className="mt-10 space-y-3">
         <div className="h-3 w-20 rounded bg-[#E7EAEE]" />
         <div className="h-12 w-full rounded-md bg-[#EEF0F2]" />

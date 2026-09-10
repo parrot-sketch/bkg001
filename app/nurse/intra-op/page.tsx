@@ -17,6 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { TheatreSupportTableRow } from '@/components/nurse/TheatreSupportTableRow';
+import { NursePageHeader } from '@/components/nurse/NursePageHeader';
 
 export default function NurseIntraOpQueuePage() {
   const { user, isAuthenticated } = useAuth();
@@ -26,7 +27,7 @@ export default function NurseIntraOpQueuePage() {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="text-center">
-          <p className="text-muted-foreground">Please log in to view the Intra-Op queue</p>
+          <p className="text-white/70">Please log in to view the Intra-Op queue</p>
           <Link href="/login">
             <Button className="mt-4">Go to Login</Button>
           </Link>
@@ -37,24 +38,24 @@ export default function NurseIntraOpQueuePage() {
 
   return (
     <div className="animate-in fade-in duration-500 pb-10 space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight text-slate-900">Intra-Op</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Nursing Operation Record</p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => refetch()}
-          disabled={isRefetching}
-          className="bg-white"
-        >
-          <RefreshCw className={`w-4 h-4 mr-2 ${isRefetching ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
-      </div>
+      <NursePageHeader
+        title="Intra-Op"
+        description="Nursing Operation Record"
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isRefetching}
+            className="bg-white/90 hover:bg-white text-[#2c2e4b] border-[#e7d6bf]"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isRefetching ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        }
+      />
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white/95 backdrop-blur rounded-xl border border-[#e7d6bf] shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="p-8 space-y-4">
             {[1, 2, 3].map((i) => (

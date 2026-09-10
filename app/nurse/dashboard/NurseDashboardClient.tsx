@@ -147,7 +147,7 @@ export default function NurseDashboardPage() {
   if (!isAuthenticated || !user) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <p className="text-slate-500">Please log in to access your dashboard</p>
+        <p className="text-white/70">Please log in to access your dashboard</p>
       </div>
     );
   }
@@ -156,7 +156,7 @@ export default function NurseDashboardPage() {
     <div className="space-y-5 pb-10 animate-in fade-in duration-300">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricCard
-          title="Cases"
+          title="Surgical Cases"
           subtitle="Schedule & browse"
           value="→"
           href="/nurse/surgical-cases"
