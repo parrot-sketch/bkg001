@@ -40,26 +40,21 @@ export function IntraOpReviewPanel(props: {
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="px-4 py-3 border-b border-slate-100 flex items-start justify-between gap-4">
-        <div>
-          <div className="text-sm font-semibold text-slate-900">Review &amp; Finalize</div>
-          <div className="text-xs text-slate-500 mt-0.5">
-            Quick readiness checks before finalizing the record.
-          </div>
-        </div>
+      <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-4">
+        <div className="text-sm font-semibold text-slate-900">Review</div>
         <Badge className={cn('border', isFinal ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-700 border-slate-200')}>
           {isFinal ? 'FINAL' : 'DRAFT'}
         </Badge>
       </div>
 
       <div className="p-4 space-y-2">
-        <Item ok={completion.page1.complete} label="Page 1 complete" hint="Patient/file/date/doctor must be filled." />
-        <Item ok={completion.page2.complete} label="Page 2 critical items complete" hint="Count correct + signatures captured on finalize." />
-        <Item ok={whoOk} label="WHO checklist completed" hint="Must be Yes for recovery gate." />
-        <Item ok={countOk} label="Count correct" hint="Must be Yes for recovery gate." />
+        <Item ok={completion.page1.complete} label="Page 1 complete" />
+        <Item ok={completion.page2.complete} label="Page 2 critical items complete" />
+        <Item ok={whoOk} label="WHO checklist completed" />
+        <Item ok={countOk} label="Count correct" />
         <Item ok={countActionOk} label="Action taken (if count incorrect)" />
-        <Item ok={scrubNameOk} label="Scrub nurse name present" hint="Used to generate the signature on finalize." />
-        <Item ok={circulatingNameOk} label="Circulating nurse name present" hint="Used to generate the signature on finalize." />
+        <Item ok={scrubNameOk} label="Scrub nurse name present" />
+        <Item ok={circulatingNameOk} label="Circulating nurse name present" />
 
         {missingItems.length > 0 && (
           <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">

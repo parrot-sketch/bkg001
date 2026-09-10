@@ -42,20 +42,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { DatePicker } from '@/components/ui/date-picker';
-
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-    DRAFT: { label: 'Draft', className: 'border border-slate-200 bg-slate-100 text-slate-700' },
-    PLANNING: { label: 'Planning', className: 'border border-amber-200 bg-amber-50 text-amber-700' },
-    READY_FOR_WARD_PREP: { label: 'Ward Prep', className: 'border border-emerald-200 bg-emerald-50 text-emerald-700' },
-    IN_WARD_PREP: { label: 'In Ward Prep', className: 'border border-amber-200 bg-amber-50 text-amber-700' },
-    READY_FOR_THEATER_BOOKING: { label: 'Ready for Booking', className: 'border border-slate-300 bg-slate-100 text-slate-700' },
-    SCHEDULED: { label: 'Scheduled', className: 'border border-slate-300 bg-slate-100 text-slate-700' },
-    IN_PREP: { label: 'In Prep', className: 'border border-amber-200 bg-amber-50 text-amber-700' },
-    IN_THEATER: { label: 'In Theater', className: 'border border-red-200 bg-red-50 text-red-700' },
-    RECOVERY: { label: 'Recovery', className: 'border border-emerald-200 bg-emerald-50 text-emerald-700' },
-    COMPLETED: { label: 'Completed', className: 'border border-emerald-200 bg-emerald-50 text-emerald-700' },
-    CANCELLED: { label: 'Cancelled', className: 'border border-red-200 bg-red-50 text-red-700' },
-};
+import { getSurgicalCaseStatusDisplay } from '@/lib/surgical-case-status-display';
 
 const URGENCY_CONFIG: Record<string, { label: string; className: string }> = {
     ELECTIVE: { label: 'Elective', className: 'text-slate-500' },
@@ -68,7 +55,7 @@ const STATUS_TABS = [
     { value: 'DRAFT', label: 'Draft' },
     { value: 'PLANNING', label: 'Planning' },
     { value: 'READY_FOR_WARD_PREP,IN_WARD_PREP', label: 'Ward Prep' },
-    { value: 'SCHEDULED', label: 'Scheduled' },
+    { value: 'SCHEDULED', label: 'Theater Scheduled' },
     { value: 'IN_PREP,IN_THEATER,RECOVERY', label: 'Active' },
     { value: 'COMPLETED,CANCELLED', label: 'Done' },
 ] as const;
@@ -167,7 +154,7 @@ export default function DoctorSurgicalCasesPage() {
                     { label: 'Draft', value: metrics?.draft, color: 'text-white', accent: 'text-slate-300' },
                     { label: 'Planning', value: metrics?.planning, color: 'text-white', accent: 'text-amber-300' },
                     { label: 'Ward Prep', value: metrics?.readyForWardPrep, color: 'text-white', accent: 'text-emerald-300' },
-                    { label: 'Scheduled', value: metrics?.scheduled, color: 'text-white', accent: 'text-blue-300' },
+                    { label: 'Theater Scheduled', value: metrics?.scheduled, color: 'text-white', accent: 'text-blue-300' },
                     { label: 'Active', value: metrics?.inProgress, color: 'text-white', accent: 'text-red-300' },
                 ].map(({ label, value, color, accent }) => (
                     <div key={label} className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-3">
@@ -294,7 +281,7 @@ export default function DoctorSurgicalCasesPage() {
                             </thead>
                             <tbody className="divide-y divide-slate-100 bg-white">
                                 {items.map((sc) => {
-                                    const status = STATUS_CONFIG[sc.status] ?? STATUS_CONFIG.DRAFT;
+                                    const status = getSurgicalCaseStatusDisplay(sc.status);
                                     const urgency = URGENCY_CONFIG[sc.urgency] ?? URGENCY_CONFIG.ELECTIVE;
                                     const patientName = sc.patient
                                         ? `${sc.patient.firstName} ${sc.patient.lastName}`

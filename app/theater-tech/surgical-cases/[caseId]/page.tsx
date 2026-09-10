@@ -30,21 +30,7 @@ import {
 } from '@/components/theater-tech/surgical-case-details';
 import type { FrontdeskSurgicalCaseListItem } from '@/lib/api/frontdesk';
 import { Card, CardContent } from '@/components/ui/card';
-
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  DRAFT: { label: 'Draft', className: 'border border-slate-300 bg-slate-100 text-slate-700' },
-  PLANNING: { label: 'Planning', className: 'border border-amber-300 bg-amber-100 text-amber-800' },
-  READY_FOR_SCHEDULING: { label: 'Ready for Scheduling', className: 'border border-blue-300 bg-blue-100 text-blue-800' },
-  READY_FOR_WARD_PREP: { label: 'Ward Prep', className: 'border border-emerald-300 bg-emerald-100 text-emerald-800' },
-  IN_WARD_PREP: { label: 'In Ward Prep', className: 'border border-amber-300 bg-amber-100 text-amber-800' },
-  READY_FOR_THEATER_BOOKING: { label: 'Ready for Booking', className: 'border border-slate-300 bg-slate-100 text-slate-700' },
-  SCHEDULED: { label: 'Scheduled', className: 'border border-indigo-300 bg-indigo-100 text-indigo-800' },
-  IN_PREP: { label: 'In Prep', className: 'border border-amber-300 bg-amber-100 text-amber-800' },
-  IN_THEATER: { label: 'In Theater', className: 'border border-red-300 bg-red-100 text-red-800' },
-  RECOVERY: { label: 'Recovery', className: 'border border-emerald-300 bg-emerald-100 text-emerald-800' },
-  COMPLETED: { label: 'Completed', className: 'border border-emerald-300 bg-emerald-100 text-emerald-800' },
-  CANCELLED: { label: 'Cancelled', className: 'border border-red-300 bg-red-100 text-red-800' },
-};
+import { getSurgicalCaseStatusDisplay } from '@/lib/surgical-case-status-display';
 
 interface CaseDetailsPageProps {
   params: Promise<{ caseId: string }>;
@@ -153,7 +139,7 @@ export default function TheaterTechCaseDetailPage({ params }: CaseDetailsPagePro
     );
   }
 
-  const statusCfg = STATUS_CONFIG[data.status] || { label: data.status, className: 'border border-slate-300 bg-slate-100 text-slate-700' };
+  const statusCfg = getSurgicalCaseStatusDisplay(data.status);
   const canEdit = ['DRAFT', 'PLANNING', 'READY_FOR_SCHEDULING', 'READY_FOR_WARD_PREP', 'IN_WARD_PREP'].includes(data.status);
   const canDelete = canEdit;
   const isActive = ['IN_PREP', 'IN_THEATER', 'RECOVERY'].includes(data.status);

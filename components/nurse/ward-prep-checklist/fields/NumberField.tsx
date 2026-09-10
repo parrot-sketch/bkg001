@@ -41,7 +41,7 @@ export function NumberField({
                     max={max}
                     step={step || 1}
                     disabled={disabled}
-                    className={`h-9 max-w-[150px] ${
+                    className={`h-9 w-full ${
                         warning
                             ? warning.severity === 'critical'
                                 ? 'border-red-400 focus-visible:ring-red-400'

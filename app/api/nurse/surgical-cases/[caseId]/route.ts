@@ -26,7 +26,7 @@ export async function GET(
           select: { id: true, first_name: true, last_name: true, file_number: true, email: true, phone: true },
         },
         primary_surgeon: {
-          select: { name: true, specialization: true },
+          select: { id: true, name: true, specialization: true },
         },
         case_procedures: {
           include: { procedure: true },

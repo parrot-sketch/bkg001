@@ -30,7 +30,7 @@ export function VitalsSection({ data, onChange, disabled, patient }: WardCheckli
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
         <NumberField label="Blood Pressure Systolic" value={d.bpSystolic} onChange={(v) => set('bpSystolic', v)} min={60} max={260} unit="mmHg" disabled={disabled} warning={warningMap.get('bpSystolic')} />
         <NumberField label="Blood Pressure Diastolic" value={d.bpDiastolic} onChange={(v) => set('bpDiastolic', v)} min={30} max={160} unit="mmHg" disabled={disabled} warning={warningMap.get('bpDiastolic')} />
         <NumberField label="Pulse Rate" value={d.pulse} onChange={(v) => set('pulse', v)} min={30} max={220} unit="bpm" disabled={disabled} warning={warningMap.get('pulse')} />
@@ -50,7 +50,7 @@ export function VitalsSection({ data, onChange, disabled, patient }: WardCheckli
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
         <NumberField label="Height" value={d.height} onChange={(v) => set('height', v)} min={50} max={250} unit="cm" disabled={disabled} />
         <NumberField label="Weight in kg" value={d.weight} onChange={(v) => set('weight', v)} min={2} max={350} unit="kg" disabled={disabled} />
       </div>

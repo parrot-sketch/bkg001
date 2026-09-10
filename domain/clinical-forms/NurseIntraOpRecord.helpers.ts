@@ -119,8 +119,9 @@ export function getIntraOpSectionCompletion(
 
   const page2Complete =
     (data?.countCorrect === 'Y' || data?.countCorrect === 'N') &&
-    !!data?.scrubNurseSignature &&
-    !!data?.circulatingNurseSignature;
+    !!data?.scrubNurse?.trim() &&
+    !!data?.circulatingNurse?.trim() &&
+    (data?.countCorrect !== 'N' || !!data?.countActionTaken?.trim());
 
   return {
     page1: { complete: page1Complete },

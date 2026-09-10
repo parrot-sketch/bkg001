@@ -107,9 +107,14 @@ export async function PATCH(
     }
 
     const user = authResult.user;
-    if (user.role !== Role.FRONTDESK && user.role !== Role.ADMIN && user.role !== Role.THEATER_TECHNICIAN) {
+    if (
+      user.role !== Role.FRONTDESK &&
+      user.role !== Role.ADMIN &&
+      user.role !== Role.THEATER_TECHNICIAN &&
+      user.role !== Role.NURSE
+    ) {
       return NextResponse.json(
-        { success: false, error: 'Access denied: Only frontdesk or theater-tech can update procedures' },
+        { success: false, error: 'Access denied: Only frontdesk, nurse, or theater-tech can update procedures' },
         { status: 403 }
       );
     }
@@ -201,9 +206,14 @@ export async function DELETE(
     }
 
     const user = authResult.user;
-    if (user.role !== Role.FRONTDESK && user.role !== Role.ADMIN && user.role !== Role.THEATER_TECHNICIAN) {
+    if (
+      user.role !== Role.FRONTDESK &&
+      user.role !== Role.ADMIN &&
+      user.role !== Role.THEATER_TECHNICIAN &&
+      user.role !== Role.NURSE
+    ) {
       return NextResponse.json(
-        { success: false, error: 'Access denied: Only frontdesk or theater-tech can delete procedures' },
+        { success: false, error: 'Access denied: Only frontdesk, nurse, or theater-tech can delete procedures' },
         { status: 403 }
       );
     }

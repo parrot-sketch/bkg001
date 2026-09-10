@@ -111,8 +111,8 @@ export function Page2IntraOpSection(props: {
   return (
     <div className="space-y-4">
       <FieldGroup
+        id="nor-counts"
         title="Counts"
-        description="Complete the count and mark whether it is correct. Signatures are applied on finalization."
       >
         <div className="space-y-4">
           <div className="overflow-x-auto rounded-xl border border-slate-200">
@@ -210,17 +210,17 @@ export function Page2IntraOpSection(props: {
         </div>
       </FieldGroup>
 
-      <FieldGroup title="Wound closure">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <FieldGroup id="nor-closure" title="Wound closure">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           <TextField label="Non-absorbable" value={data.nonAbsorbableSuture ?? ''} disabled={disabled} onChange={(v) => set('nonAbsorbableSuture', v)} />
           <TextField label="Absorbable" value={data.absorbableSuture ?? ''} disabled={disabled} onChange={(v) => set('absorbableSuture', v)} />
           <TextField label="Other" value={data.otherClosure ?? ''} disabled={disabled} onChange={(v) => set('otherClosure', v)} />
-          <TextField label="Dressing applied" value={data.dressingApplied ?? ''} disabled={disabled} onChange={(v) => set('dressingApplied', v)} />
+          <TextField className="md:col-span-2 xl:col-span-3" label="Dressing applied" value={data.dressingApplied ?? ''} disabled={disabled} onChange={(v) => set('dressingApplied', v)} />
         </div>
       </FieldGroup>
 
-      <FieldGroup title="Fluids & outputs (mL)">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <FieldGroup id="nor-fluids" title="Fluids & outputs (mL)">
+        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-4">
           <NumberField label="Packed cells" value={data.packedCellsML} disabled={disabled} onChange={(v) => set('packedCellsML', v)} />
           <NumberField label="Whole blood" value={data.wholeBloodML} disabled={disabled} onChange={(v) => set('wholeBloodML', v)} />
           <NumberField label="Other blood products" value={data.otherBloodProductsML} disabled={disabled} onChange={(v) => set('otherBloodProductsML', v)} />
@@ -230,7 +230,7 @@ export function Page2IntraOpSection(props: {
         </div>
       </FieldGroup>
 
-      <FieldGroup title="Medication">
+      <FieldGroup id="nor-medications" title="Medication">
         <div className="rounded-xl border border-slate-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 h-10">
@@ -312,7 +312,7 @@ export function Page2IntraOpSection(props: {
         </div>
       </FieldGroup>
 
-      <FieldGroup title="Implants / prosthetics">
+      <FieldGroup id="nor-implants" title="Implants / prosthetics">
         <div className="rounded-xl border border-slate-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 h-10">
@@ -380,7 +380,7 @@ export function Page2IntraOpSection(props: {
         </div>
       </FieldGroup>
 
-      <FieldGroup title="Specimens">
+      <FieldGroup id="nor-specimens" title="Specimens">
         <div className="rounded-xl border border-slate-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 h-10">
@@ -471,11 +471,11 @@ export function Page2IntraOpSection(props: {
         </div>
       </FieldGroup>
 
-      <FieldGroup title="Items to be returned to theatre">
+      <FieldGroup id="nor-returned" title="Items to be returned to theatre">
         <TextAreaField label="Notes" value={data.itemsToBeReturnedToTheatre ?? ''} disabled={disabled} onChange={(v) => set('itemsToBeReturnedToTheatre', v)} rows={3} />
       </FieldGroup>
 
-      <FieldGroup title="Charges">
+      <FieldGroup id="nor-charges" title="Charges" defaultCollapsed>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <NumberField label="Anaesthetic materials charge" value={data.anaestheticMaterialsCharge} disabled={disabled} onChange={(v) => set('anaestheticMaterialsCharge', v)} />
           <NumberField label="Theatre fee" value={data.theatreFee} disabled={disabled} onChange={(v) => set('theatreFee', v)} />

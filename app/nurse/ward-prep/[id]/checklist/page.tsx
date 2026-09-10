@@ -27,7 +27,7 @@ import {
   usePreopWardChecklist,
   useSavePreopWardChecklist,
 } from '@/hooks/nurse/usePreopWardChecklist';
-import type { NursePreopWardChecklistDraft } from '@/domain/clinical-forms/NursePreopWardChecklist';
+import type { NursePreopWardChecklistDraft, MissingChecklistItem } from '@/domain/clinical-forms/NursePreopWardChecklist';
 import { CHECKLIST_SECTIONS, normalizeLegacyChecklistData } from '@/domain/clinical-forms/NursePreopWardChecklist';
 
 import { Button } from '@/components/ui/button';
@@ -75,7 +75,12 @@ export default function NursePreopWardChecklistPage() {
 
   const returnTo = searchParams.get('returnTo');
   const safeReturnTo = returnTo && returnTo.startsWith('/') ? returnTo : '/nurse/ward-prep';
-  const backLabel = safeReturnTo === '/nurse/theatre-support' ? 'Back to Theatre Support' : 'Back to Ward List';
+  const backLabel =
+    safeReturnTo.startsWith('/nurse/intra-op') || safeReturnTo === '/nurse/theatre-support'
+      ? 'Back to Intra-Op'
+      : safeReturnTo.startsWith('/nurse/post-op') || safeReturnTo === '/nurse/recovery-discharge'
+        ? 'Back to Post-Op'
+        : 'Back to Ward Prep';
 
   const { data: response, isLoading, error } = usePreopWardChecklist(caseId);
   const saveMutation = useSavePreopWardChecklist(caseId);
@@ -96,6 +101,7 @@ export default function NursePreopWardChecklistPage() {
   const [showFinalizeDialog, setShowFinalizeDialog] = useState(false);
   const [showMissingItems, setShowMissingItems] = useState(false);
   const [missingItemsList, setMissingItemsList] = useState<string[]>([]);
+  const [missingItemsDetailed, setMissingItemsDetailed] = useState<MissingChecklistItem[]>([]);
   const [showAmendDialog, setShowAmendDialog] = useState(false);
   const [amendReason, setAmendReason] = useState('');
   const [isAmending, setIsAmending] = useState(false);
@@ -132,7 +138,6 @@ export default function NursePreopWardChecklistPage() {
     saveMutation.mutate(formData, {
       onSuccess: () => {
         setIsDirty(false);
-        toast.success('Checklist saved successfully');
       },
       onError: (e) => {
         toast.error(e instanceof Error ? e.message : 'Failed to save checklist');
@@ -140,22 +145,53 @@ export default function NursePreopWardChecklistPage() {
     });
   };
 
+  const jumpToSection = useCallback((sectionKey: string) => {
+    const el = document.getElementById(`ward-section-${sectionKey}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      el.classList.add('ring-2', 'ring-amber-400', 'ring-offset-2');
+      window.setTimeout(() => {
+        el.classList.remove('ring-2', 'ring-amber-400', 'ring-offset-2');
+      }, 1800);
+    }
+  }, []);
+
   const handleFinalize = () => {
-    finalizeMutation.mutate(undefined, {
-      onSuccess: () => {
-        setShowFinalizeDialog(false);
-        router.push(safeReturnTo);
-      },
-      onError: (e) => {
-        setShowFinalizeDialog(false);
-        if (e instanceof FinalizeValidationError) {
-          setMissingItemsList(e.missingItems);
-          setShowMissingItems(true);
-          return;
-        }
-        toast.error(e instanceof Error ? e.message : 'Failed to finalize checklist');
-      },
-    });
+    const runFinalize = () => {
+      finalizeMutation.mutate(undefined, {
+        onSuccess: () => {
+          setShowFinalizeDialog(false);
+          router.push(`/nurse/intra-op-cases/${caseId}/record`);
+        },
+        onError: (e) => {
+          setShowFinalizeDialog(false);
+          if (e instanceof FinalizeValidationError) {
+            setMissingItemsList(e.missingItems);
+            setMissingItemsDetailed(e.missingItemsDetailed || []);
+            setShowMissingItems(true);
+            return;
+          }
+          toast.error(e instanceof Error ? e.message : 'Failed to finalize checklist');
+        },
+      });
+    };
+
+    // Always persist current UI state before finalize — finalize reads saved JSON only.
+    if (isDirty) {
+      saveMutation.mutate(formData, {
+        onSuccess: () => {
+          setIsDirty(false);
+          runFinalize();
+        },
+        onError: (e) => {
+          setShowFinalizeDialog(false);
+          toast.error(e instanceof Error ? e.message : 'Save failed — cannot finalize unsaved changes');
+        },
+      });
+      return;
+    }
+
+    runFinalize();
   };
 
   const handleStartAmendment = async () => {
@@ -238,7 +274,7 @@ export default function NursePreopWardChecklistPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 max-w-4xl mx-auto">
+      <div className="space-y-6 w-full">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-32 w-full" />
         <Skeleton className="h-64 w-full" />
@@ -249,7 +285,7 @@ export default function NursePreopWardChecklistPage() {
 
   if (error || !response || !response.form) {
     return (
-      <div className="space-y-6 max-w-4xl mx-auto">
+      <div className="space-y-6 w-full">
         <Button variant="ghost" size="sm" asChild>
           <Link href={safeReturnTo}>
             <ArrowLeft className="w-4 h-4 mr-2" /> {backLabel}
@@ -269,7 +305,7 @@ export default function NursePreopWardChecklistPage() {
 
   return (
     <div className="min-h-screen bg-slate-50/50">
-      <div className="max-w-5xl mx-auto space-y-5 pb-24 animate-in fade-in duration-500">
+      <div className="w-full space-y-5 pb-24 animate-in fade-in duration-500">
         {/* Navigation */}
         <div className="flex items-center gap-2 pt-4">
           <Button variant="ghost" size="sm" asChild>
@@ -303,14 +339,14 @@ export default function NursePreopWardChecklistPage() {
             data={formData}
           />
         ) : (
-          <div className="grid grid-cols-1 gap-5">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
             {/* Nursing Comments - full width open text box */}
-            <Card className="overflow-hidden border-slate-200 shadow-sm">
+            <Card id="ward-section-header" className="xl:col-span-2 overflow-hidden border-slate-200 shadow-sm scroll-mt-24">
               <div className="bg-slate-50/80 px-5 py-3 border-b border-slate-100 flex items-center gap-3">
                 <span className="text-xs font-bold text-slate-400 w-5">00</span>
                 <span className="font-semibold text-sm text-slate-900">Nursing Comments / Observations</span>
               </div>
-              <CardContent className="p-5">
+              <CardContent className="p-5 sm:p-6">
                 <NursingCommentsSection
                   data={formData}
                   onChange={handleChange}
@@ -325,8 +361,18 @@ export default function NursePreopWardChecklistPage() {
             {CHECKLIST_SECTIONS.map((section, idx) => {
               const SectionRenderer = SECTION_RENDERERS[section.key as string];
               const sectionComplete = sectionCompletion[section.key as string]?.complete ?? false;
+              const fullWidth =
+                section.key === 'medications' ||
+                section.key === 'handover' ||
+                section.key === 'vitals';
               return (
-                <Card key={section.key} className="overflow-hidden border-slate-200 shadow-sm">
+                <Card
+                  key={section.key}
+                  id={`ward-section-${section.key}`}
+                  className={`overflow-hidden border-slate-200 shadow-sm scroll-mt-24 transition-shadow ${
+                    fullWidth ? 'xl:col-span-2' : ''
+                  }`}
+                >
                   <div className="bg-slate-50/80 px-5 py-3 border-b border-slate-100 flex items-center gap-3">
                     <span className="text-xs font-bold text-slate-400 w-5">{String(idx + 1).padStart(2, '0')}</span>
                     <span className="font-semibold text-sm text-slate-900">{section.title}</span>
@@ -340,7 +386,7 @@ export default function NursePreopWardChecklistPage() {
                       {sectionComplete ? 'Complete' : 'Pending'}
                     </span>
                   </div>
-                  <CardContent className="p-5">
+                  <CardContent className="p-5 sm:p-6">
                     {SectionRenderer ? (
                       <SectionRenderer
                         data={formData}
@@ -365,10 +411,16 @@ export default function NursePreopWardChecklistPage() {
           open={showFinalizeDialog}
           onOpenChange={setShowFinalizeDialog}
           onConfirm={handleFinalize}
-          isPending={finalizeMutation.isPending}
+          isPending={finalizeMutation.isPending || saveMutation.isPending}
         />
 
-        <MissingItemsDialog open={showMissingItems} onOpenChange={setShowMissingItems} items={missingItemsList} />
+        <MissingItemsDialog
+          open={showMissingItems}
+          onOpenChange={setShowMissingItems}
+          items={missingItemsList}
+          detailedItems={missingItemsDetailed}
+          onJumpToSection={jumpToSection}
+        />
 
         <StartAmendmentDialog
           open={showAmendDialog}
@@ -384,7 +436,7 @@ export default function NursePreopWardChecklistPage() {
       {/* Sticky action bar */}
       {!isFinalized && (
         <div className="fixed bottom-0 inset-x-0 bg-white/90 backdrop-blur border-t border-slate-200 z-40">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+          <div className="max-w-[1600px] mx-auto w-full px-4 sm:px-5 lg:px-8 xl:px-10 py-3 flex items-center justify-between gap-3">
             <div className="text-xs text-slate-500">
               {isDirty ? 'You have unsaved changes' : 'All changes saved'}
             </div>

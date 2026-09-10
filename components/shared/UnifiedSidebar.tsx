@@ -103,6 +103,7 @@ const roleConfig: Record<
 
 const sectionDot: Record<string, string> = {
   Overview:        'bg-[#caa26a]',
+  Journey:         'bg-[#0c5d69]',
   'Patient Care':  'bg-[#0c5d69]',
   Staff:           'bg-[#e7d6bf]',
   Operations:      'bg-[#caa26a]',

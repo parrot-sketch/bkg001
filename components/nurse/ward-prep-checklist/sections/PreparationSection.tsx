@@ -8,7 +8,7 @@ export function PreparationSection({ data, onChange, disabled }: WardChecklistSe
   const set = (field: string, value: boolean) => onChange({ ...data, preparation: { ...d, [field]: value } });
 
   return (
-    <div className="space-y-3">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
       <BooleanField
         label="8. PERI-OPERATIVE PREPARATION – Bath/Shower/Gown"
         value={d.bathGown}

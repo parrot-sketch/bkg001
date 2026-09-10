@@ -9,8 +9,9 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { nurseFormsApi, PreopWardFormDto } from '@/lib/api/nurse-forms';
-import type { NursePreopWardChecklistDraft } from '@/domain/clinical-forms/NursePreopWardChecklist';
+import type { MissingChecklistItem, NursePreopWardChecklistDraft } from '@/domain/clinical-forms/NursePreopWardChecklist';
 import { toast } from 'sonner';
+import { queryKeys } from '@/lib/constants/queryKeys';
 
 // ──────────────────────────────────────────────────────────────────────
 // Query Keys
@@ -77,10 +78,16 @@ export function useSavePreopWardChecklist(caseId: string) {
 
 export class FinalizeValidationError extends Error {
     missingItems: string[];
-    constructor(message: string, missingItems: string[] = []) {
+    missingItemsDetailed: MissingChecklistItem[];
+    constructor(
+        message: string,
+        missingItems: string[] = [],
+        missingItemsDetailed: MissingChecklistItem[] = [],
+    ) {
         super(message);
         this.name = 'FinalizeValidationError';
         this.missingItems = missingItems;
+        this.missingItemsDetailed = missingItemsDetailed;
     }
 }
 
@@ -95,6 +102,7 @@ export function useFinalizePreopWardChecklist(caseId: string) {
                     throw new FinalizeValidationError(
                         response.error || 'Cannot finalize: required fields missing',
                         response.missingItems,
+                        response.missingItemsDetailed || [],
                     );
                 }
                 throw new Error(response.error || 'Failed to finalize checklist');
@@ -102,19 +110,15 @@ export function useFinalizePreopWardChecklist(caseId: string) {
             return response.data;
         },
         onSuccess: () => {
-            toast.success('Checklist finalized and signed');
             queryClient.invalidateQueries({ queryKey: preopWardChecklistKeys.detail(caseId) });
-            // Also invalidate pre-op cases list so readiness status updates
-            queryClient.invalidateQueries({ queryKey: ['nurse', 'pre-op'] });
+            queryClient.invalidateQueries({ queryKey: queryKeys.nurse.wardPrep() });
+            queryClient.invalidateQueries({ queryKey: ['nurse'] });
+            toast.success('Checklist finalized — continue to Intra-Op record');
         },
         onError: (error: Error) => {
-            if (error instanceof FinalizeValidationError) {
-                toast.error(error.message, {
-                    description: `Missing: ${error.missingItems.slice(0, 5).join(', ')}${error.missingItems.length > 5 ? '...' : ''}`,
-                });
-            } else {
-                toast.error(error.message);
-            }
+            // Page shows structured missing-items dialog for validation errors.
+            if (error instanceof FinalizeValidationError) return;
+            toast.error(error.message);
         },
     });
 }

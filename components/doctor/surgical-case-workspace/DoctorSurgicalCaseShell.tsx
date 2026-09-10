@@ -13,20 +13,7 @@ import {
   DoctorSurgicalCaseWorkspaceProvider,
   type DoctorSurgicalCaseWorkspaceContextValue,
 } from '@/components/doctor/surgical-case-workspace/DoctorSurgicalCaseContext';
-
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  DRAFT: { label: 'Draft', className: 'border border-slate-200 bg-slate-100 text-slate-700' },
-  PLANNING: { label: 'Planning', className: 'border border-amber-200 bg-amber-50 text-amber-700' },
-  READY_FOR_WARD_PREP: { label: 'Ward Prep', className: 'border border-emerald-200 bg-emerald-50 text-emerald-700' },
-  IN_WARD_PREP: { label: 'In Ward Prep', className: 'border border-amber-200 bg-amber-50 text-amber-700' },
-  READY_FOR_THEATER_BOOKING: { label: 'Ready for Booking', className: 'border border-slate-300 bg-slate-100 text-slate-700' },
-  SCHEDULED: { label: 'Scheduled', className: 'border border-slate-300 bg-slate-100 text-slate-700' },
-  IN_PREP: { label: 'In Prep', className: 'border border-amber-200 bg-amber-50 text-amber-700' },
-  IN_THEATER: { label: 'In Theater', className: 'border border-red-200 bg-red-50 text-red-700' },
-  RECOVERY: { label: 'Recovery', className: 'border border-emerald-200 bg-emerald-50 text-emerald-700' },
-  COMPLETED: { label: 'Completed', className: 'border border-emerald-200 bg-emerald-50 text-emerald-700' },
-  CANCELLED: { label: 'Cancelled', className: 'border border-red-200 bg-red-50 text-red-700' },
-};
+import { getSurgicalCaseStatusDisplay } from '@/lib/surgical-case-status-display';
 
 const SECTIONS = [
   { hrefSuffix: 'case-plan', label: 'Case Plan', icon: ClipboardList },
@@ -47,10 +34,7 @@ export function DoctorSurgicalCaseShell({
   const router = useRouter();
 
   const status = (value.surgicalCase as { status?: string } | null)?.status || 'DRAFT';
-  const statusCfg = STATUS_CONFIG[status] || {
-    label: status,
-    className: 'border border-slate-200 bg-slate-100 text-slate-700',
-  };
+  const statusCfg = getSurgicalCaseStatusDisplay(status);
 
   const baseHref = `/doctor/surgical-cases/${value.caseId}`;
   const activeSuffix = pathname?.split('/').filter(Boolean).slice(-1)[0] || 'case-plan';

@@ -21,7 +21,7 @@ import {
     TEMPLATE_KEY,
     TEMPLATE_VERSION,
     nursePreopWardChecklistFinalSchema,
-    getMissingChecklistItems,
+    getMissingChecklistItemsDetailed,
 } from '@/domain/clinical-forms/NursePreopWardChecklist';
 
 export async function POST(
@@ -87,12 +87,14 @@ export async function POST(
 
         const parsed = nursePreopWardChecklistFinalSchema.safeParse(currentData);
         if (!parsed.success) {
-            const missingItems = getMissingChecklistItems(currentData as any);
+            const missingDetailed = getMissingChecklistItemsDetailed(currentData as any);
+            const missingItems = missingDetailed.map((i) => i.label);
             return NextResponse.json(
                 {
                     success: false,
                     error: 'Cannot finalize: required fields are missing.',
                     missingItems,
+                    missingItemsDetailed: missingDetailed,
                     details: parsed.error.issues.map((i) => ({
                         path: i.path.join('.'),
                         message: i.message,

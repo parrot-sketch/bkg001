@@ -36,7 +36,7 @@ export const STATUS_CONFIG: Record<string, { label: string; className: string }>
   DRAFT: { label: 'Draft', className: 'bg-slate-100 text-slate-700' },
   PLANNING: { label: 'Planning', className: 'bg-blue-100 text-blue-700' },
   READY_FOR_SCHEDULING: { label: 'Ready for Scheduling', className: 'bg-cyan-100 text-cyan-700' },
-  SCHEDULED: { label: 'Scheduled', className: 'bg-indigo-100 text-indigo-700' },
+  SCHEDULED: { label: 'Theater Scheduled', className: 'bg-indigo-100 text-indigo-700' },
 };
 
 /**

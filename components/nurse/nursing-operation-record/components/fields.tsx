@@ -17,18 +17,36 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 export type UiOption<T extends string | number> = { value: T; label: string };
 
 export function FieldGroup(props: {
+  id?: string;
   title: string;
   description?: string;
   children: React.ReactNode;
   className?: string;
+  /** Soft-collapse optional equipment sections by default */
+  defaultCollapsed?: boolean;
 }) {
+  const [collapsed, setCollapsed] = React.useState(!!props.defaultCollapsed);
+
   return (
-    <section className={cn('rounded-xl border border-slate-200 bg-white', props.className)}>
-      <div className="px-4 py-3 border-b border-slate-100">
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-700">{props.title}</div>
-        {props.description ? <div className="mt-1 text-xs text-slate-500">{props.description}</div> : null}
-      </div>
-      <div className="p-4">{props.children}</div>
+    <section
+      id={props.id}
+      className={cn('rounded-xl border border-slate-200 bg-white scroll-mt-28', props.className)}
+    >
+      <button
+        type="button"
+        className="w-full px-4 py-3 border-b border-slate-100 flex items-start justify-between gap-3 text-left hover:bg-slate-50/60 transition-colors"
+        onClick={() => setCollapsed((v) => !v)}
+        aria-expanded={!collapsed}
+      >
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-700">{props.title}</div>
+          {props.description ? <div className="mt-1 text-xs text-slate-500">{props.description}</div> : null}
+        </div>
+        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 shrink-0 pt-0.5">
+          {collapsed ? 'Show' : 'Hide'}
+        </span>
+      </button>
+      {!collapsed ? <div className="p-4">{props.children}</div> : null}
     </section>
   );
 }
@@ -109,10 +127,29 @@ export function TimeField(props: {
   onChange: (v: string) => void;
   disabled?: boolean;
   className?: string;
+  showNow?: boolean;
 }) {
+  const setNow = () => {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    props.onChange(`${hh}:${mm}`);
+  };
+
   return (
     <div className={cn('space-y-1.5', props.className)}>
-      <Label className="text-xs text-slate-600">{props.label}</Label>
+      <div className="flex items-center justify-between gap-2">
+        <Label className="text-xs text-slate-600">{props.label}</Label>
+        {props.showNow && !props.disabled ? (
+          <button
+            type="button"
+            onClick={setNow}
+            className="text-[10px] font-semibold uppercase tracking-wide text-[#caa26a] hover:text-[#b8913e]"
+          >
+            Now
+          </button>
+        ) : null}
+      </div>
       <Input
         type="time"
         value={props.value}
@@ -223,7 +260,14 @@ export function MultiSelectField<T extends string>(props: {
   return (
     <div className={cn('space-y-2', props.className)}>
       <Label className="text-xs text-slate-600">{props.label}</Label>
-      <div className={cn('grid gap-2', cols === 2 && 'grid-cols-2', cols === 3 && 'grid-cols-3', cols === 4 && 'grid-cols-4')}>
+      <div
+        className={cn(
+          'grid gap-2',
+          cols === 2 && 'grid-cols-1 sm:grid-cols-2',
+          cols === 3 && 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-3',
+          cols === 4 && 'grid-cols-2 md:grid-cols-3 xl:grid-cols-4',
+        )}
+      >
         {props.options.map((o) => {
           const checked = props.value.includes(o.value);
           return (

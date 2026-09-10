@@ -27,22 +27,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TheaterTechCasePrintDocument } from '@/components/theater-tech/surgical-case-details/print/TheaterTechCasePrintDocument';
-
-type StatusCfg = { label: string; className: string };
-
-const STATUS_LABELS: Record<string, StatusCfg> = {
-  DRAFT: { label: 'Draft', className: 'border border-slate-200 bg-slate-100 text-slate-600' },
-  PLANNING: { label: 'Planning', className: 'border border-amber-200 bg-amber-50 text-amber-700' },
-  READY_FOR_WARD_PREP: { label: 'Ward Prep', className: 'border border-emerald-200 bg-emerald-50 text-emerald-700' },
-  IN_WARD_PREP: { label: 'In Ward Prep', className: 'border border-amber-200 bg-amber-50 text-amber-700' },
-  READY_FOR_THEATER_BOOKING: { label: 'Ready to Book', className: 'border border-slate-300 bg-slate-100 text-slate-700' },
-  SCHEDULED: { label: 'Scheduled', className: 'border border-slate-300 bg-slate-100 text-slate-700' },
-  IN_PREP: { label: 'In Prep', className: 'border border-amber-200 bg-amber-50 text-amber-700' },
-  IN_THEATER: { label: 'In Theater', className: 'border border-red-200 bg-red-50 text-red-700' },
-  RECOVERY: { label: 'Recovery', className: 'border border-emerald-200 bg-emerald-50 text-emerald-700' },
-  COMPLETED: { label: 'Completed', className: 'border border-emerald-200 bg-emerald-50 text-emerald-700' },
-  CANCELLED: { label: 'Cancelled', className: 'border border-red-200 bg-red-50 text-red-700' },
-};
+import { getSurgicalCaseStatusDisplay } from '@/lib/surgical-case-status-display';
 
 function Section({
   title,
@@ -138,10 +123,7 @@ export function TheaterTechCaseDetailView(props: {
     );
   }
 
-  const statusCfg = STATUS_LABELS[surgicalCase.status] ?? {
-    label: surgicalCase.status,
-    className: 'border border-slate-200 bg-slate-100 text-slate-600',
-  };
+  const statusCfg = getSurgicalCaseStatusDisplay(surgicalCase.status);
 
   const isActive =
     surgicalCase.status !== 'DRAFT' &&

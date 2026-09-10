@@ -4,7 +4,8 @@ import type { NursePreopWardChecklistDraft } from '@/domain/clinical-forms/Nurse
 import { getAgeYears, formatSex } from '@/components/nurse/ward-prep-checklist/utils';
 
 import { Button } from '@/components/ui/button';
-import { Printer } from 'lucide-react';
+import { ArrowRight, Printer } from 'lucide-react';
+import Link from 'next/link';
 
 function formatDoctorName(name: string | null | undefined): string {
   if (!name) return '—';
@@ -71,7 +72,7 @@ export function FinalizedChecklistDocument(props: {
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-      <div className="px-8 py-7 border-b border-slate-200 flex items-center justify-between">
+      <div className="px-8 py-7 border-b border-slate-200 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="text-sm font-extrabold text-slate-900 uppercase tracking-wide">
             NAIROBI SCULPT AESTHETIC CENTRE
@@ -80,16 +81,24 @@ export function FinalizedChecklistDocument(props: {
             PRE-OPERATIVE WARD CHECK-LIST
           </div>
           <div className="mt-1 text-sm text-slate-600">
-            All information should be filled in clearly before the patient is received in theatre
+            Finalized — next step is the Nursing Operation Record (Intra-Op)
           </div>
         </div>
 
-        <Button variant="outline" size="sm" className="gap-1.5 h-8" asChild>
-          <a href={`/nurse/ward-prep/${caseId}/checklist/print`} target="_blank" rel="noopener noreferrer">
-            <Printer className="h-3.5 w-3.5" />
-            Print
-          </a>
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button asChild size="sm" className="bg-[#2c2e4b] hover:bg-[#1e2038] text-white font-bold gap-1.5 h-8">
+            <Link href={`/nurse/intra-op-cases/${caseId}/record`}>
+              Open Intra-Op Record
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1.5 h-8" asChild>
+            <a href={`/nurse/ward-prep/${caseId}/checklist/print`} target="_blank" rel="noopener noreferrer">
+              <Printer className="h-3.5 w-3.5" />
+              Print
+            </a>
+          </Button>
+        </div>
       </div>
 
       <div className="px-8 py-7">

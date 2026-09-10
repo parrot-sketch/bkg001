@@ -8,7 +8,7 @@ export function DocumentationSection({ data, onChange, disabled }: WardChecklist
     const set = (field: string, value: boolean) => onChange({ ...data, documentation: { ...d, [field]: value } });
 
     return (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-3">
             <BooleanField label="1. WARD CHECKLIST" value={d.wardChecklist} onChange={(v) => set('wardChecklist', v)} disabled={disabled} />
             <BooleanField label="2. COMPLETE/CORRECT DOCUMENTATION" value={d.documentationComplete} onChange={(v) => set('documentationComplete', v)} disabled={disabled} />
             <BooleanField label="3. CORRECT CONSENT" value={d.correctConsent} onChange={(v) => set('correctConsent', v)} disabled={disabled} />

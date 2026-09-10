@@ -68,7 +68,7 @@ import { InventoryPicklistDialog } from '@/components/theater-tech/dayboard/Inve
 
 const STATUS_FILTER_OPTIONS = [
   { value: 'ALL', label: 'All Statuses' },
-  { value: 'SCHEDULED', label: 'Scheduled' },
+  { value: 'SCHEDULED', label: 'Theater Scheduled' },
   { value: 'IN_PREP', label: 'In Prep' },
   { value: 'IN_THEATER', label: 'In Theater' },
   { value: 'RECOVERY', label: 'Recovery' },
@@ -245,7 +245,7 @@ export default function TheaterTechDayboard() {
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
               {[
                 { label: 'Total', value: summary.totalCases },
-                { label: 'Scheduled', value: summary.scheduled },
+                { label: 'Theater Scheduled', value: summary.scheduled },
                 { label: 'In Prep', value: summary.inPrep },
                 { label: 'In Theater', value: summary.inTheater },
                 { label: 'Recovery', value: summary.inRecovery },

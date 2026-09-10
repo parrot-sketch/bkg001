@@ -14,7 +14,7 @@ export function NurseHeader({ onMenuClick }: NurseHeaderProps) {
       profileHref="/nurse/profile"
       rootHref="/nurse/dashboard"
       onMenuClick={onMenuClick}
-      searchPlaceholder="Search patients…"
+      searchPlaceholder="Search cases…"
     />
   );
 }

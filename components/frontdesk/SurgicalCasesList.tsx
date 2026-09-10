@@ -42,21 +42,7 @@ import { queryKeys } from '@/lib/constants/queryKeys';
 import { ScheduleProcedureDialog } from '@/components/frontdesk/ScheduleProcedureDialog';
 import { EditSurgicalCaseDialog } from '@/components/frontdesk/EditSurgicalCaseDialog';
 import type { FrontdeskSurgicalCaseListItem } from '@/lib/api/frontdesk';
-
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  DRAFT: { label: 'Draft', className: 'border border-slate-300 bg-slate-100 text-slate-700' },
-  PLANNING: { label: 'Planning', className: 'border border-amber-300 bg-amber-100 text-amber-800' },
-  READY_FOR_SCHEDULING: { label: 'Ready for Scheduling', className: 'border border-blue-300 bg-blue-100 text-blue-800' },
-  READY_FOR_WARD_PREP: { label: 'Ward Prep', className: 'border border-emerald-300 bg-emerald-100 text-emerald-800' },
-  IN_WARD_PREP: { label: 'In Ward Prep', className: 'border border-amber-300 bg-amber-100 text-amber-800' },
-  READY_FOR_THEATER_BOOKING: { label: 'Ready for Booking', className: 'border border-slate-300 bg-slate-100 text-slate-700' },
-  SCHEDULED: { label: 'Scheduled', className: 'border border-indigo-300 bg-indigo-100 text-indigo-800' },
-  IN_PREP: { label: 'In Prep', className: 'border border-amber-300 bg-amber-100 text-amber-800' },
-  IN_THEATER: { label: 'In Theater', className: 'border border-red-300 bg-red-100 text-red-800' },
-  RECOVERY: { label: 'Recovery', className: 'border border-emerald-300 bg-emerald-100 text-emerald-800' },
-  COMPLETED: { label: 'Completed', className: 'border border-emerald-300 bg-emerald-100 text-emerald-800' },
-  CANCELLED: { label: 'Cancelled', className: 'border border-red-300 bg-red-100 text-red-800' },
-};
+import { SURGICAL_CASE_STATUS_DISPLAY, getSurgicalCaseStatusDisplay } from '@/lib/surgical-case-status-display';
 
 export interface SurgicalCaseAction {
   key: string;
@@ -251,7 +237,7 @@ export function SurgicalCasesList({
                   className="h-9 px-3 rounded-md border border-[#e7d6bf] bg-white text-sm text-[#2c2e4b]"
                 >
                   <option value="ALL">All statuses</option>
-                  {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+                  {Object.entries(SURGICAL_CASE_STATUS_DISPLAY).map(([key, cfg]) => (
                     <option key={key} value={key}>{cfg.label}</option>
                   ))}
                 </select>
@@ -305,7 +291,7 @@ export function SurgicalCasesList({
                   </TableHeader>
                   <TableBody>
                     {filteredCases.map((c) => {
-                      const statusCfg = STATUS_CONFIG[c.status] || { label: c.status, className: 'border border-slate-300 bg-slate-100 text-slate-700' };
+                      const statusCfg = getSurgicalCaseStatusDisplay(c.status);
                       const canEdit = ['DRAFT', 'PLANNING', 'READY_FOR_SCHEDULING', 'READY_FOR_WARD_PREP', 'IN_WARD_PREP'].includes(c.status);
                       const canDelete = canEdit;
                       const surgeonName = c.primary_surgeon?.name || c.primary_surgeon_name || '—';

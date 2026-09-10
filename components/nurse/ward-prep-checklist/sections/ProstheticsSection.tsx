@@ -8,11 +8,13 @@ export function ProstheticsSection({ data, onChange, disabled }: WardChecklistSe
   const set = (field: string, value: unknown) => onChange({ ...data, prosthetics: { ...d, [field]: value } });
 
   return (
-    <div className="space-y-3">
-      <BooleanField label="Contact Lens Removed" value={d.contactLensRemoved} onChange={(v) => set('contactLensRemoved', v)} disabled={disabled} />
-      <BooleanField label="Hearing Aid/Limbs" value={d.limbsProsthesisNoted} onChange={(v) => set('limbsProsthesisNoted', v)} disabled={disabled} />
-      <BooleanField label="Caps/Crowns/Bridgework Present" value={d.crownsBridgeworkNoted} onChange={(v) => set('crownsBridgeworkNoted', v)} disabled={disabled} />
-      <BooleanField label="Dentures Removed" value={d.denturesRemoved} onChange={(v) => set('denturesRemoved', v)} disabled={disabled} />
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+        <BooleanField label="Contact Lens Removed" value={d.contactLensRemoved} onChange={(v) => set('contactLensRemoved', v)} disabled={disabled} />
+        <BooleanField label="Hearing Aid/Limbs" value={d.limbsProsthesisNoted} onChange={(v) => set('limbsProsthesisNoted', v)} disabled={disabled} />
+        <BooleanField label="Caps/Crowns/Bridgework Present" value={d.crownsBridgeworkNoted} onChange={(v) => set('crownsBridgeworkNoted', v)} disabled={disabled} />
+        <BooleanField label="Dentures Removed" value={d.denturesRemoved} onChange={(v) => set('denturesRemoved', v)} disabled={disabled} />
+      </div>
       <TextField label="Notes" value={d.prostheticNotes} onChange={(v) => set('prostheticNotes', v)} disabled={disabled} />
     </div>
   );

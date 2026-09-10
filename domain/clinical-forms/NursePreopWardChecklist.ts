@@ -487,15 +487,127 @@ export function normalizeLegacyChecklistData(raw: unknown): NursePreopWardCheckl
  * Returns the list of missing required fields for finalization.
  * Runs the final schema and collects ZodError issues.
  * Accepts partial/empty data safely.
+ *
+ * Messages are nurse-friendly: "Section — Field: reason"
+ * (not raw paths like "preparation.bathGown: Required").
  */
 export function getMissingChecklistItems(data: Partial<NursePreopWardChecklistDraft> | Record<string, unknown>): string[] {
+    return getMissingChecklistItemsDetailed(data).map((item) => item.label);
+}
+
+export type MissingChecklistItem = {
+    sectionKey: string;
+    sectionTitle: string;
+    fieldKey: string;
+    fieldLabel: string;
+    message: string;
+    /** Human-readable line for dialogs/toasts */
+    label: string;
+};
+
+const SECTION_TITLE_BY_KEY: Record<string, string> = {
+    header: 'Header',
+    documentation: 'Documentation',
+    bloodResults: 'Blood & Lab Results',
+    medications: 'Medications',
+    allergiesNpo: 'Allergies & NPO Status',
+    preparation: 'Peri-Operative Preparation',
+    prosthetics: 'Prosthetics Checks',
+    vitals: 'Immediate Pre-Op Observations',
+    handover: 'Handover',
+};
+
+const FIELD_LABEL_BY_PATH: Record<string, string> = {
+    'header.date': 'Date',
+    'documentation.documentationComplete': 'Documentation complete',
+    'documentation.correctConsent': 'Correct consent',
+    'allergiesNpo.allergiesDocumented': 'Allergies documented',
+    'allergiesNpo.allergiesDetails': 'Allergies (state in red)',
+    'allergiesNpo.npoStatus': 'NPO status',
+    'preparation.bathGown': 'Bath / gown',
+    'preparation.idBandOn': 'ID band on',
+    'preparation.jewelryRemoved': 'Jewelry removed',
+    'preparation.makeupNailPolishRemoved': 'Makeup / nail polish removed',
+    'handover.preparedByName': 'Prepared by (name)',
+};
+
+function humanizeFieldKey(key: string): string {
+    return key
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/_/g, ' ')
+        .replace(/^\w/, (c) => c.toUpperCase())
+        .trim();
+}
+
+/**
+ * Structured missing items grouped for UI jump-to-section.
+ */
+export function getMissingChecklistItemsDetailed(
+    data: Partial<NursePreopWardChecklistDraft> | Record<string, unknown>,
+): MissingChecklistItem[] {
     const result = nursePreopWardChecklistFinalSchema.safeParse(data);
     if (result.success) return [];
 
-    return result.error.issues.map((issue) => {
-        const path = issue.path.join('.');
-        return `${path}: ${issue.message}`;
-    });
+    const seen = new Set<string>();
+    const items: MissingChecklistItem[] = [];
+
+    for (const issue of result.error.issues) {
+        const path = issue.path.map(String);
+        const sectionKey = path[0] || 'form';
+        const fieldKey = path.slice(1).join('.') || path[0] || 'unknown';
+        const fullPath = path.join('.');
+        const dedupeKey = `${fullPath}:${issue.message}`;
+        if (seen.has(dedupeKey)) continue;
+        seen.add(dedupeKey);
+
+        const sectionTitle = SECTION_TITLE_BY_KEY[sectionKey] || humanizeFieldKey(sectionKey);
+        const fieldLabel =
+            FIELD_LABEL_BY_PATH[fullPath] ||
+            (path.length > 1 ? humanizeFieldKey(path[path.length - 1]!) : sectionTitle);
+
+        let message = issue.message;
+        if (message === 'Required' || message === 'Invalid input' || message === 'Expected boolean, received undefined') {
+            message = 'Please answer Yes or No';
+        }
+
+        items.push({
+            sectionKey,
+            sectionTitle,
+            fieldKey,
+            fieldLabel,
+            message,
+            label: `${sectionTitle} — ${fieldLabel}: ${message}`,
+        });
+    }
+
+    return items;
+}
+
+/**
+ * Group missing items by checklist section for the finalize dialog.
+ */
+export function groupMissingChecklistItems(
+    items: MissingChecklistItem[],
+): Array<{ sectionKey: string; sectionTitle: string; items: MissingChecklistItem[] }> {
+    const order = Object.keys(SECTION_TITLE_BY_KEY);
+    const map = new Map<string, { sectionKey: string; sectionTitle: string; items: MissingChecklistItem[] }>();
+
+    for (const item of items) {
+        const existing = map.get(item.sectionKey);
+        if (existing) {
+            existing.items.push(item);
+        } else {
+            map.set(item.sectionKey, {
+                sectionKey: item.sectionKey,
+                sectionTitle: item.sectionTitle,
+                items: [item],
+            });
+        }
+    }
+
+    return Array.from(map.values()).sort(
+        (a, b) => order.indexOf(a.sectionKey) - order.indexOf(b.sectionKey),
+    );
 }
 
 /**
@@ -508,7 +620,16 @@ export function getSectionCompletion(data: Partial<NursePreopWardChecklistDraft>
         documentation: documentationSchema,
         bloodResults: bloodResultsSchema,
         medications: medicationsSchema,
-        allergiesNpo: allergiesNpoSchema,
+        // Match finalization: allergies details required for "complete" signal.
+        allergiesNpo: allergiesNpoSchema.superRefine((val, ctx) => {
+            if (!val.allergiesDetails || val.allergiesDetails.trim().length < 1) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ['allergiesDetails'],
+                    message: 'Allergies field is required',
+                });
+            }
+        }),
         preparation: preparationSchema,
         prosthetics: prostheticsSchema,
         vitals: vitalsSchema.partial(),

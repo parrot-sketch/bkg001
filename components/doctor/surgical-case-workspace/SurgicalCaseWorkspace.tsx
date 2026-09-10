@@ -28,6 +28,7 @@ import { Button } from '@/components/ui/button';
 import { SurgicalCasePlanForm } from '@/components/doctor/surgical-case-plan/SurgicalCasePlanForm';
 import { SurgicalCasePlanView } from '@/components/doctor/surgical-case-plan/SurgicalCasePlanView';
 import { SurgicalNotesEditor } from '@/components/doctor/surgical-notes/SurgicalNotesEditor';
+import { getSurgicalCaseStatusDisplay } from '@/lib/surgical-case-status-display';
 import { OperativeRecordEditor } from '@/components/doctor/operative-record/OperativeRecordEditor';
 import { PreopWardChecklistViewer } from '@/components/doctor/preop-ward-checklist/PreopWardChecklistViewer';
 import { ChargeSheetStep } from '@/components/theater-tech/ChargeSheetStep';
@@ -97,20 +98,6 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]['id'];
 
-const CASE_STATUS_META: Record<string, { label: string; className: string }> = {
-  DRAFT: { label: 'Draft', className: 'border border-slate-200 bg-slate-100 text-slate-700' },
-  PLANNING: { label: 'Planning', className: 'border border-amber-200 bg-amber-50 text-amber-700' },
-  READY_FOR_WARD_PREP: { label: 'Ward Prep', className: 'border border-emerald-200 bg-emerald-50 text-emerald-700' },
-  IN_WARD_PREP: { label: 'In Ward Prep', className: 'border border-amber-200 bg-amber-50 text-amber-700' },
-  READY_FOR_THEATER_BOOKING: { label: 'Ready for Booking', className: 'border border-slate-300 bg-slate-100 text-slate-700' },
-  SCHEDULED: { label: 'Scheduled', className: 'border border-slate-300 bg-slate-100 text-slate-700' },
-  IN_PREP: { label: 'In Prep', className: 'border border-amber-200 bg-amber-50 text-amber-700' },
-  IN_THEATER: { label: 'In Theater', className: 'border border-red-200 bg-red-50 text-red-700' },
-  RECOVERY: { label: 'Recovery', className: 'border border-emerald-200 bg-emerald-50 text-emerald-700' },
-  COMPLETED: { label: 'Completed', className: 'border border-emerald-200 bg-emerald-50 text-emerald-700' },
-  CANCELLED: { label: 'Cancelled', className: 'border border-red-200 bg-red-50 text-red-700' },
-};
-
 // ── Component ───────────────────────────────────────────────────────────
 
 export function SurgicalCaseWorkspace({
@@ -136,10 +123,7 @@ export function SurgicalCaseWorkspace({
 
   const hasInitialPlanData = !!(initialPlanData.procedureCategory || initialPlanData.diagnosis || (surgicalCase.case_procedures && surgicalCase.case_procedures.length > 0));
   const [isEditingCasePlan, setIsEditingCasePlan] = useState(!hasInitialPlanData);
-  const caseStatus = CASE_STATUS_META[surgicalCase.status] ?? {
-    label: surgicalCase.status.replace(/_/g, ' '),
-    className: 'border border-slate-200 bg-slate-100 text-slate-700',
-  };
+  const caseStatus = getSurgicalCaseStatusDisplay(surgicalCase.status);
 
   const SidebarContent = () => (
     <>

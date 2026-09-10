@@ -34,7 +34,7 @@ export function SelectField<T extends string>({
                 onValueChange={(v) => onChange(v as T)}
                 disabled={disabled}
             >
-                <SelectTrigger className="h-9 w-full max-w-[260px]">
+                <SelectTrigger className="h-9 w-full">
                     <SelectValue placeholder={placeholder ?? `Select ${label}`} />
                 </SelectTrigger>
                 <SelectContent>

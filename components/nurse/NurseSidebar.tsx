@@ -1,14 +1,21 @@
 'use client';
 
 /**
- * Nurse Sidebar Navigation
+ * Nurse Sidebar — journey-aligned navigation
  *
- * Mirrors frontdesk grouping so clinical staff can reach the same
- * patient-facing pages (patients, appointments, theater) while keeping
- * nurse-specific workflows accessible.
+ * Cases → Ward Prep → Intra-Op → Post-Op
+ * (plus dashboard + account). No frontdesk cross-links.
  */
 
-import { LayoutDashboard, Calendar, Users, ClipboardList, User, Bell, Activity, HeartPulse, FileText } from 'lucide-react';
+import {
+  LayoutDashboard,
+  ClipboardList,
+  User,
+  Bell,
+  Activity,
+  HeartPulse,
+  FolderKanban,
+} from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { useAuth } from '@/hooks/patient/useAuth';
 
@@ -20,46 +27,28 @@ const navItems: NavItem[] = [
     section: 'Overview',
   },
   {
-    name: 'Appointments',
-    href: '/frontdesk/appointments',
-    icon: Calendar,
-    section: 'Patient Care',
-  },
-  {
-    name: 'Patients',
-    href: '/frontdesk/patients',
-    icon: Users,
-    section: 'Patient Care',
-  },
-  {
-    name: 'Theater Schedule',
-    href: '/frontdesk/theater-scheduling',
-    icon: Activity,
-    section: 'Patient Care',
-  },
-  {
-    name: 'Surgical Cases',
+    name: 'Cases',
     href: '/nurse/surgical-cases',
-    icon: FileText,
-    section: 'Clinical',
+    icon: FolderKanban,
+    section: 'Journey',
   },
   {
     name: 'Ward Prep',
     href: '/nurse/ward-prep',
-    icon: HeartPulse,
-    section: 'Clinical',
+    icon: ClipboardList,
+    section: 'Journey',
   },
   {
-    name: 'Theatre Support',
-    href: '/nurse/theatre-support',
+    name: 'Intra-Op',
+    href: '/nurse/intra-op',
     icon: Activity,
-    section: 'Clinical',
+    section: 'Journey',
   },
   {
-    name: 'Recovery & Discharge',
-    href: '/nurse/recovery-discharge',
+    name: 'Post-Op',
+    href: '/nurse/post-op',
     icon: HeartPulse,
-    section: 'Clinical',
+    section: 'Journey',
   },
   {
     name: 'Notifications',

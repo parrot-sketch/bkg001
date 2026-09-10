@@ -5,6 +5,7 @@ import { apiClient } from '@/lib/api/client';
 import { Users, Stethoscope, BedDouble, Package, Loader2, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
+import { getSurgicalCaseStatusDisplay } from '@/lib/surgical-case-status-display';
 
 interface DashboardMetrics {
   patients: { totalRecords: number; newToday: number; newThisMonth: number };
@@ -35,22 +36,11 @@ interface DashboardMetrics {
   }>;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  DRAFT: { label: 'Draft', className: 'border border-slate-300 bg-slate-100 text-slate-700' },
-  PLANNING: { label: 'Planning', className: 'border border-amber-300 bg-amber-100 text-amber-800' },
-  READY_FOR_SCHEDULING: { label: 'Ready for Scheduling', className: 'border border-blue-300 bg-blue-100 text-blue-800' },
-  READY_FOR_WARD_PREP: { label: 'Ward Prep', className: 'border border-emerald-300 bg-emerald-100 text-emerald-800' },
-  IN_WARD_PREP: { label: 'In Ward Prep', className: 'border border-amber-300 bg-amber-100 text-amber-800' },
-  READY_FOR_THEATER_BOOKING: { label: 'Ready for Booking', className: 'border border-slate-300 bg-slate-100 text-slate-700' },
-  SCHEDULED: { label: 'Scheduled', className: 'border border-indigo-300 bg-indigo-100 text-indigo-800' },
-  IN_PREP: { label: 'In Prep', className: 'border border-amber-300 bg-amber-100 text-amber-800' },
-  IN_THEATER: { label: 'In Theater', className: 'border border-red-300 bg-red-100 text-red-800' },
-  RECOVERY: { label: 'Recovery', className: 'border border-emerald-300 bg-emerald-100 text-emerald-800' },
-  COMPLETED: { label: 'Completed', className: 'border border-emerald-300 bg-emerald-100 text-emerald-800' },
-  CANCELLED: { label: 'Cancelled', className: 'border border-red-300 bg-red-100 text-red-800' },
-};
-
-export function TheaterTechDashboardMetrics() {
+export function TheaterTechDashboardMetrics({
+  onScheduleClick,
+}: {
+  onScheduleClick?: () => void;
+} = {}) {
   const router = useRouter();
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['theater-tech', 'dashboard'],
@@ -99,7 +89,7 @@ export function TheaterTechDashboardMetrics() {
     { label: 'Patients', value: patients?.totalRecords ?? 0, icon: Users, accent: 'text-[#caa26a]', href: '/theater-tech/patients' },
     { label: 'Inventory Items', value: inventory?.totalItems ?? 0, icon: Package, accent: 'text-cyan-600', href: '/theater-tech/inventory' },
     { label: 'Surgical Cases', value: cases?.total ?? 0, icon: Stethoscope, accent: 'text-blue-600', href: '/theater-tech/surgical-cases' },
-    { label: 'Ward Prep', value: cases?.wardPrep ?? 0, icon: BedDouble, accent: 'text-violet-600', href: '/theater-tech/surgical-cases' },
+    { label: 'Awaiting Ward Prep', value: cases?.wardPrep ?? 0, icon: BedDouble, accent: 'text-violet-600', href: '/theater-tech/surgical-cases' },
   ];
 
   return (
@@ -127,15 +117,26 @@ export function TheaterTechDashboardMetrics() {
       </div>
 
       <div className="rounded-xl border border-[#e7d6bf]/60 bg-white/95 backdrop-blur shadow-sm overflow-hidden">
-        <div className="px-4 py-3 border-b border-[#e7d6bf]/60 flex items-center justify-between">
+        <div className="px-4 py-3 border-b border-[#e7d6bf]/60 flex items-center justify-between gap-3">
           <h3 className="text-sm font-semibold text-[#2c2e4b]">Recent Surgical Cases</h3>
-          <button
-            type="button"
-            onClick={() => router.push('/theater-tech/surgical-cases')}
-            className="text-xs text-[#caa26a] hover:text-[#b8913e] font-medium"
-          >
-            View all
-          </button>
+          <div className="flex items-center gap-3">
+            {onScheduleClick && (
+              <button
+                type="button"
+                onClick={onScheduleClick}
+                className="text-xs text-[#2c2e4b] hover:text-[#caa26a] font-medium"
+              >
+                Schedule Procedure
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => router.push('/theater-tech/surgical-cases')}
+              className="text-xs text-[#caa26a] hover:text-[#b8913e] font-medium"
+            >
+              View all
+            </button>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -152,12 +153,21 @@ export function TheaterTechDashboardMetrics() {
               {recentCases.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-8 text-center text-[#2c2e4b]/50 text-xs">
-                    No recent surgical cases found
+                    <p>No recent surgical cases found</p>
+                    {onScheduleClick && (
+                      <button
+                        type="button"
+                        onClick={onScheduleClick}
+                        className="mt-2 text-[#caa26a] hover:text-[#b8913e] font-medium underline underline-offset-2"
+                      >
+                        Schedule a procedure
+                      </button>
+                    )}
                   </td>
                 </tr>
               ) : (
                 recentCases.map((c) => {
-                  const statusCfg = STATUS_CONFIG[c.status] || { label: c.status, className: 'border border-slate-300 bg-slate-100 text-slate-700' };
+                  const statusCfg = getSurgicalCaseStatusDisplay(c.status);
                   return (
                     <tr
                       key={c.id}

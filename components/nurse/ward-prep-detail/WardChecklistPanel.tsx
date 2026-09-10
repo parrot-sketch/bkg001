@@ -46,11 +46,19 @@ export function WardChecklistPanel(props: { caseId: string; wardChecklist: WardC
                     </>
                   ) : null}
                 </p>
-                <p className="text-xs text-slate-500 mt-2">The case is ready for theater scheduling.</p>
+                <p className="text-xs text-slate-500 mt-2">
+                  Next: open the Nursing Operation Record (Intra-Op). Theater booking can proceed in parallel.
+                </p>
               </div>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-2">
+              <Button asChild className="justify-center bg-[#2c2e4b] hover:bg-[#1e2038] text-white">
+                <Link href={`/nurse/intra-op-cases/${caseId}/record`}>
+                  <ClipboardList className="h-4 w-4 mr-2" />
+                  Open Intra-Op Record
+                </Link>
+              </Button>
               <Button variant="outline" asChild className="justify-center">
                 <Link href={`/nurse/ward-prep/${caseId}/checklist`}>
                   <Eye className="h-4 w-4 mr-2" />
@@ -72,7 +80,7 @@ export function WardChecklistPanel(props: { caseId: string; wardChecklist: WardC
                 {wardChecklist.isStarted ? 'Continue the ward checklist' : 'Start the ward checklist'}
               </p>
               <p className="text-xs text-slate-500 mt-1">
-                Once finalized, the case automatically moves to theater scheduling.
+                Once finalized, continue straight to the Intra-Op record. Theater booking is not required first.
               </p>
             </div>
             <Button variant="outline" asChild className="justify-center">

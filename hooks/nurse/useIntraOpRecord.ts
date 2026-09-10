@@ -8,7 +8,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { nurseIntraOpApi, IntraOpFormDto } from '@/lib/api/nurse-forms';
+import { nurseIntraOpApi } from '@/lib/api/nurse-forms';
 import type { NurseIntraOpRecordDraft } from '@/domain/clinical-forms/NurseIntraOpRecord';
 import { toast } from 'sonner';
 
@@ -50,20 +50,22 @@ export function useSaveIntraOpRecord(caseId: string) {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async (data: NurseIntraOpRecordDraft) => {
+        mutationFn: async (input: NurseIntraOpRecordDraft | { data: NurseIntraOpRecordDraft; silent?: boolean }) => {
+            const data = 'data' in input ? input.data : input;
             const response = await nurseIntraOpApi.saveIntraOpRecord(caseId, data);
             if (!response.success) {
                 throw new Error(response.error || 'Failed to save intra-op record');
             }
-            return response.data;
+            return { form: response.data, silent: 'data' in input ? !!input.silent : false };
         },
-        onSuccess: (updatedForm: IntraOpFormDto) => {
-            // Update the cache with the new form data
+        onSuccess: ({ form: updatedForm, silent }) => {
             queryClient.setQueryData(
                 intraOpRecordKeys.detail(caseId),
                 (old: any) => old ? { ...old, form: updatedForm } : old,
             );
-            toast.success('Intra-op record saved');
+            if (!silent) {
+                toast.success('Intra-op record saved');
+            }
         },
         onError: (error: Error) => {
             toast.error(error.message);

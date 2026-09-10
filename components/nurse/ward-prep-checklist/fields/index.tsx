@@ -69,7 +69,7 @@ export function TimeField({ label, value, onChange, disabled }: TimeFieldProps) 
                     value={value || ''}
                     onChange={(e) => onChange(e.target.value)}
                     disabled={disabled}
-                    className="h-9 pl-10 pr-3 max-w-[160px] font-mono"
+                    className="h-9 pl-10 pr-3 w-full font-mono"
                 />
             </div>
         </div>
@@ -92,7 +92,7 @@ export function DateField({ label, value, onChange, disabled }: DateFieldProps) 
                 value={value || ''}
                 onChange={(e) => onChange(e.target.value)}
                 disabled={disabled}
-                className="h-9 max-w-[180px]"
+                className="h-9 w-full"
             />
         </div>
     );

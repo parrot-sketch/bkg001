@@ -54,9 +54,9 @@ export const STATUS_CONFIG: Record<
   { label: string; color: string; bg: string; icon: typeof Activity }
 > = {
   SCHEDULED: {
-    label: 'Scheduled',
-    color: 'text-blue-700',
-    bg: 'bg-blue-50 border-blue-200',
+    label: 'Theater Scheduled',
+    color: 'text-indigo-700',
+    bg: 'bg-indigo-50 border-indigo-200',
     icon: Clock,
   },
   IN_PREP: {

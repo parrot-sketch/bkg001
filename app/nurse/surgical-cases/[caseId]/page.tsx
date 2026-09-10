@@ -7,7 +7,6 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   ArrowLeft,
@@ -15,27 +14,14 @@ import {
   Stethoscope,
   ClipboardList,
   Activity,
-  FileText,
   Calendar,
   HeartPulse,
+  Edit3,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import type { FrontdeskSurgicalCaseListItem } from '@/lib/api/frontdesk';
-
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  DRAFT: { label: 'Draft', className: 'border border-slate-300 bg-slate-100 text-slate-700' },
-  PLANNING: { label: 'Planning', className: 'border border-amber-300 bg-amber-100 text-amber-800' },
-  READY_FOR_SCHEDULING: { label: 'Ready for Scheduling', className: 'border border-blue-300 bg-blue-100 text-blue-800' },
-  READY_FOR_WARD_PREP: { label: 'Ward Prep', className: 'border border-emerald-300 bg-emerald-100 text-emerald-800' },
-  IN_WARD_PREP: { label: 'In Ward Prep', className: 'border border-amber-300 bg-amber-100 text-amber-800' },
-  READY_FOR_THEATER_BOOKING: { label: 'Ready for Booking', className: 'border border-slate-300 bg-slate-100 text-slate-700' },
-  SCHEDULED: { label: 'Scheduled', className: 'border border-indigo-300 bg-indigo-100 text-indigo-800' },
-  IN_PREP: { label: 'In Prep', className: 'border border-amber-300 bg-amber-100 text-amber-800' },
-  IN_THEATER: { label: 'In Theater', className: 'border border-red-300 bg-red-100 text-red-800' },
-  RECOVERY: { label: 'Recovery', className: 'border border-emerald-300 bg-emerald-100 text-emerald-800' },
-  COMPLETED: { label: 'Completed', className: 'border border-emerald-300 bg-emerald-100 text-emerald-800' },
-  CANCELLED: { label: 'Cancelled', className: 'border border-red-300 bg-red-100 text-red-800' },
-};
+import { EditSurgicalCaseDialog } from '@/components/frontdesk/EditSurgicalCaseDialog';
+import { getSurgicalCaseStatusDisplay } from '@/lib/surgical-case-status-display';
 
 interface CaseDetailsPageProps {
   params: Promise<{ caseId: string }>;
@@ -46,6 +32,7 @@ export default function NurseCaseDetailPage({ params }: CaseDetailsPageProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [vitals, setVitals] = useState<any[]>([]);
+  const [editOpen, setEditOpen] = useState(false);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['nurse', 'surgical-case', caseId],
@@ -53,7 +40,7 @@ export default function NurseCaseDetailPage({ params }: CaseDetailsPageProps) {
       const res = await fetch(`/api/nurse/surgical-cases/${caseId}`);
       const json = await res.json();
       if (!json.success) throw new Error(json.error || 'Failed to load case');
-      return json.data;
+      return json.data as FrontdeskSurgicalCaseListItem;
     },
     staleTime: 30_000,
   });
@@ -106,23 +93,23 @@ export default function NurseCaseDetailPage({ params }: CaseDetailsPageProps) {
     );
   }
 
-  const statusCfg = STATUS_CONFIG[data.status] || { label: data.status, className: 'border border-slate-300 bg-slate-100 text-slate-700' };
-  const procedureNames = data.case_procedures?.map((cp: any) => cp.procedure?.name) || [];
+  const statusCfg = getSurgicalCaseStatusDisplay(data.status);
   const patientName = `${data.patient?.first_name} ${data.patient?.last_name}`;
+  const canEdit = data.status !== 'COMPLETED' && data.status !== 'CANCELLED';
 
   const getNurseActions = () => {
     const actions: { label: string; href: string; icon: any; color: string }[] = [];
 
-    if (['READY_FOR_WARD_PREP', 'IN_WARD_PREP'].includes(data.status)) {
+    if (['READY_FOR_WARD_PREP', 'IN_WARD_PREP', 'READY_FOR_THEATER_BOOKING'].includes(data.status)) {
       actions.push({
-        label: 'Pre-Op Checklist',
+        label: 'Ward Prep Checklist',
         href: `/nurse/ward-prep/${data.id}/checklist`,
         icon: ClipboardList,
         color: 'bg-emerald-600 hover:bg-emerald-700',
       });
     }
 
-    if (['SCHEDULED', 'IN_PREP', 'IN_THEATER'].includes(data.status)) {
+    if (['READY_FOR_THEATER_BOOKING', 'SCHEDULED', 'IN_PREP', 'IN_THEATER'].includes(data.status)) {
       actions.push({
         label: 'Intra-Op Record',
         href: `/nurse/intra-op-cases/${data.id}/record`,
@@ -131,30 +118,14 @@ export default function NurseCaseDetailPage({ params }: CaseDetailsPageProps) {
       });
     }
 
-    if (['IN_THEATER', 'RECOVERY'].includes(data.status)) {
+    if (['RECOVERY', 'COMPLETED'].includes(data.status)) {
       actions.push({
-        label: 'Recovery Record',
-        href: `/nurse/immediate-recovery/${data.id}`,
+        label: 'Post-Op Record',
+        href: `/nurse/recovery-cases/${data.id}/record`,
         icon: HeartPulse,
         color: 'bg-purple-600 hover:bg-purple-700',
       });
     }
-
-    if (['RECOVERY', 'COMPLETED'].includes(data.status)) {
-      actions.push({
-        label: 'Recovery Discharge',
-        href: `/nurse/recovery-discharge`,
-        icon: FileText,
-        color: 'bg-slate-600 hover:bg-slate-700',
-      });
-    }
-
-    actions.push({
-      label: 'Record Vitals',
-      href: '#',
-      icon: Activity,
-      color: 'bg-[#caa26a] hover:bg-[#b8913e]',
-    });
 
     return actions;
   };
@@ -169,6 +140,16 @@ export default function NurseCaseDetailPage({ params }: CaseDetailsPageProps) {
           Back
         </Button>
         <div className="flex items-center gap-2">
+          {canEdit && (
+            <Button
+              size="sm"
+              onClick={() => setEditOpen(true)}
+              className="bg-[#caa26a] hover:bg-[#b8913e] text-white font-bold shadow-sm"
+            >
+              <Edit3 className="h-4 w-4 mr-2" />
+              Edit Case
+            </Button>
+          )}
           <Button variant="outline" size="sm" asChild className="bg-white hover:bg-slate-50">
             <Link href={`/nurse/surgical-cases`}>
               <ClipboardList className="h-4 w-4 mr-2" />
@@ -360,6 +341,16 @@ export default function NurseCaseDetailPage({ params }: CaseDetailsPageProps) {
               <CardTitle className="text-base text-[#2c2e4b]">Nurse Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
+              {canEdit && (
+                <Button
+                  size="sm"
+                  onClick={() => setEditOpen(true)}
+                  className="w-full bg-[#2c2e4b] hover:bg-[#1e2038] text-white font-bold shadow-sm"
+                >
+                  <Edit3 className="h-4 w-4 mr-2" />
+                  Edit Case Details
+                </Button>
+              )}
               {nurseActions.map((action) => (
                 <Button
                   key={action.label}
@@ -375,6 +366,16 @@ export default function NurseCaseDetailPage({ params }: CaseDetailsPageProps) {
           </Card>
         </div>
       </div>
+
+      <EditSurgicalCaseDialog
+        open={editOpen}
+        caseItem={data}
+        onOpenChange={setEditOpen}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['nurse', 'surgical-case', caseId] });
+          refetch();
+        }}
+      />
     </div>
   );
 }

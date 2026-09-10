@@ -23,10 +23,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                 : NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
         }
 
-        // Include the live peri-operative queue for today:
-        // - SCHEDULED: booked and visible on the support list
-        // - IN_PREP: awaiting transfer into theater
-        // - IN_THEATER: active surgery
+        // Peri-op nurse queue (not gated on theater tech booking):
+        // - READY_FOR_THEATER_BOOKING: ward prep done — nurse may start Intra-Op record
+        // - SCHEDULED / IN_PREP / IN_THEATER: booked / live theater cases
+        // Booking filter only applies to SCHEDULED+ so post-ward-prep cases still appear.
         const today = new Date();
         const startOfDay = new Date(today);
         startOfDay.setHours(0, 0, 0, 0);
@@ -34,19 +34,24 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         endOfDay.setHours(23, 59, 59, 999);
 
         const statusWhere = {
-            status: {
-                in: [
-                    SurgicalCaseStatus.SCHEDULED,
-                    SurgicalCaseStatus.IN_PREP,
-                    SurgicalCaseStatus.IN_THEATER,
-                ],
-            },
-            theater_booking: {
-                start_time: {
-                    gte: startOfDay,
-                    lte: endOfDay,
+            OR: [
+                { status: SurgicalCaseStatus.READY_FOR_THEATER_BOOKING },
+                {
+                    status: {
+                        in: [
+                            SurgicalCaseStatus.SCHEDULED,
+                            SurgicalCaseStatus.IN_PREP,
+                            SurgicalCaseStatus.IN_THEATER,
+                        ],
+                    },
+                    theater_booking: {
+                        start_time: {
+                            gte: startOfDay,
+                            lte: endOfDay,
+                        },
+                    },
                 },
-            },
+            ],
         };
 
         const surgicalCases = await db.surgicalCase.findMany({

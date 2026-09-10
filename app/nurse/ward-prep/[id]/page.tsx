@@ -66,10 +66,10 @@ if (error || !caseData) {
   const surgeon = caseData.primarySurgeon;
   const casePlan = caseData.casePlan;
   const statusLabelMap: Record<string, string> = {
-    READY_FOR_WARD_PREP: 'Ward Prep',
+    READY_FOR_WARD_PREP: 'Awaiting Ward Prep',
     IN_WARD_PREP: 'In Ward Prep',
     READY_FOR_THEATER_BOOKING: 'Ready for Booking',
-    SCHEDULED: 'Scheduled',
+    SCHEDULED: 'Theater Scheduled',
     IN_PREP: 'Awaiting Theater Entry',
     IN_THEATER: 'In Theater',
     RECOVERY: 'Recovery',

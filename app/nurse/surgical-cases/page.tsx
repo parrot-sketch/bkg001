@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { Search, ChevronRight, User, MoreHorizontal, Eye, Activity, HeartPulse, ClipboardList, FileText, Plus } from 'lucide-react';
+import { Search, User, MoreHorizontal, Eye, Activity, HeartPulse, ClipboardList, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -18,29 +18,17 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useAuth } from '@/hooks/patient/useAuth';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { nurseApi } from '@/lib/api/nurse';
-import Link from 'next/link';
-
-const STATUS_CONFIG: Record<string, { label: string; pill: string }> = {
-  DRAFT:                      { label: 'Draft',         pill: 'border border-slate-200 bg-slate-100 text-slate-600 ring-slate-200'      },
-  PLANNING:                   { label: 'Planning',      pill: 'border border-amber-200 bg-amber-50 text-amber-700 ring-amber-200'      },
-  READY_FOR_WARD_PREP:        { label: 'Ward Prep',     pill: 'border border-emerald-200 bg-emerald-50 text-emerald-700 ring-emerald-200' },
-  IN_WARD_PREP:               { label: 'In Ward Prep',  pill: 'border border-amber-200 bg-amber-50 text-amber-700 ring-amber-200'      },
-  READY_FOR_THEATER_BOOKING:  { label: 'Ready for Booking', pill: 'border border-slate-300 bg-slate-100 text-slate-700 ring-slate-300' },
-  SCHEDULED:                  { label: 'Scheduled',     pill: 'border border-slate-300 bg-slate-100 text-slate-700 ring-slate-300'      },
-  IN_PREP:                    { label: 'In Prep',       pill: 'border border-amber-200 bg-amber-50 text-amber-700 ring-amber-200'      },
-  IN_THEATER:                 { label: 'In Theater',    pill: 'border border-red-200 bg-red-50 text-red-700 ring-red-200'              },
-  RECOVERY:                   { label: 'Recovery',      pill: 'border border-emerald-200 bg-emerald-50 text-emerald-700 ring-emerald-200' },
-  COMPLETED:                  { label: 'Completed',     pill: 'border border-emerald-200 bg-emerald-50 text-emerald-700 ring-emerald-200' },
-  CANCELLED:                  { label: 'Cancelled',     pill: 'border border-red-200 bg-red-50 text-red-700 ring-red-200'              },
-};
+import { ScheduleProcedureDialog } from '@/components/frontdesk/ScheduleProcedureDialog';
+import type { ScheduleProcedureResponse } from '@/lib/api/frontdesk';
+import { getSurgicalCaseStatusDisplay } from '@/lib/surgical-case-status-display';
 
 const STATUS_TABS = [
   { value: '', label: 'All' },
   { value: 'READY_FOR_WARD_PREP,IN_WARD_PREP', label: 'Ward Prep' },
-  { value: 'SCHEDULED,IN_PREP,IN_THEATER', label: 'In Theater' },
-  { value: 'RECOVERY,COMPLETED', label: 'Recovery' },
+  { value: 'READY_FOR_THEATER_BOOKING,SCHEDULED,IN_PREP,IN_THEATER', label: 'Intra-Op' },
+  { value: 'RECOVERY,COMPLETED', label: 'Post-Op' },
 ] as const;
 
 interface SurgicalCaseItem {
@@ -56,11 +44,12 @@ interface SurgicalCaseItem {
 
 export default function NurseSurgicalCasesPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [cases, setCases] = useState<SurgicalCaseItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('');
-
+  const [scheduleOpen, setScheduleOpen] = useState(false);
   const fetchCases = useCallback(async () => {
     setLoading(true);
     try {
@@ -95,15 +84,15 @@ export default function NurseSurgicalCasesPage() {
   const getNurseActions = (caseItem: SurgicalCaseItem) => {
     const actions: { label: string; href: string; icon: any; color?: string }[] = [];
 
-    if (['READY_FOR_WARD_PREP', 'IN_WARD_PREP'].includes(caseItem.status)) {
+    if (['READY_FOR_WARD_PREP', 'IN_WARD_PREP', 'READY_FOR_THEATER_BOOKING'].includes(caseItem.status)) {
       actions.push({
-        label: 'Pre-Op Checklist',
+        label: 'Ward Prep Checklist',
         href: `/nurse/ward-prep/${caseItem.id}/checklist`,
         icon: ClipboardList,
       });
     }
 
-    if (['SCHEDULED', 'IN_PREP', 'IN_THEATER'].includes(caseItem.status)) {
+    if (['READY_FOR_THEATER_BOOKING', 'SCHEDULED', 'IN_PREP', 'IN_THEATER'].includes(caseItem.status)) {
       actions.push({
         label: 'Intra-Op Record',
         href: `/nurse/intra-op-cases/${caseItem.id}/record`,
@@ -111,26 +100,19 @@ export default function NurseSurgicalCasesPage() {
       });
     }
 
-    if (['IN_THEATER', 'RECOVERY'].includes(caseItem.status)) {
+    if (['RECOVERY', 'COMPLETED'].includes(caseItem.status)) {
       actions.push({
-        label: 'Recovery Record',
-        href: `/nurse/immediate-recovery/${caseItem.id}`,
+        label: 'Post-Op Record',
+        href: `/nurse/recovery-cases/${caseItem.id}/record`,
         icon: HeartPulse,
       });
     }
 
-    actions.push(
-      {
-        label: 'View Details',
-        href: `/nurse/surgical-cases/${caseItem.id}`,
-        icon: Eye,
-      },
-      {
-        label: 'Record Vitals',
-        href: `/nurse/surgical-cases/${caseItem.id}`,
-        icon: Activity,
-      }
-    );
+    actions.push({
+      label: 'Case Details',
+      href: `/nurse/surgical-cases/${caseItem.id}`,
+      icon: Eye,
+    });
 
     return actions;
   };
@@ -141,15 +123,16 @@ export default function NurseSurgicalCasesPage() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Surgical Cases</h1>
-          <p className="text-sm text-slate-500 mt-1">Track each case from planning through booking and live theater flow.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Cases</h1>
+          <p className="text-sm text-slate-500 mt-1">Schedule procedures and open the right document for each stage.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button asChild className="bg-[#2c2e4b] hover:bg-[#1e2038] text-white">
-            <Link href="/frontdesk/surgical-cases">
-              <Plus className="h-4 w-4 mr-2" />
-              New Case
-            </Link>
+          <Button
+            className="bg-[#2c2e4b] hover:bg-[#1e2038] text-white"
+            onClick={() => setScheduleOpen(true)}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Schedule Procedure
           </Button>
           <span className="text-xs bg-white border border-slate-200 text-slate-500 px-2.5 py-1 rounded-full tabular-nums">
             {filtered.length} {filtered.length === 1 ? 'case' : 'cases'}
@@ -201,7 +184,7 @@ export default function NurseSurgicalCasesPage() {
         ) : (
           <div className="divide-y divide-slate-100">
             {filtered.map((c) => {
-              const cfg = STATUS_CONFIG[c.status] ?? { label: c.status, pill: 'bg-slate-100 text-slate-600 ring-slate-200' };
+              const cfg = getSurgicalCaseStatusDisplay(c.status);
               const actions = getNurseActions(c);
               return (
                 <div key={c.id} className="flex items-center gap-3 px-4 py-3.5 active:bg-slate-50">
@@ -294,7 +277,7 @@ export default function NurseSurgicalCasesPage() {
                 </tr>
               ) : (
                 filtered.map((c) => {
-                  const cfg = STATUS_CONFIG[c.status] ?? { label: c.status, pill: 'bg-slate-100 text-slate-600 ring-slate-200' };
+                  const cfg = getSurgicalCaseStatusDisplay(c.status);
                   const actions = getNurseActions(c);
                   return (
                     <tr
@@ -354,6 +337,16 @@ export default function NurseSurgicalCasesPage() {
           </div>
         )}
       </div>
+
+      <ScheduleProcedureDialog
+        open={scheduleOpen}
+        onOpenChange={setScheduleOpen}
+        onSuccess={(data: ScheduleProcedureResponse) => {
+          setScheduleOpen(false);
+          queryClient.invalidateQueries({ queryKey: ['nurse'] });
+          router.push(`/nurse/surgical-cases/${data.surgicalCaseId}`);
+        }}
+      />
     </div>
   );
 }

@@ -10,7 +10,6 @@
 import { useState, useMemo } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { usePreOpCases } from '@/hooks/nurse/usePreOpCases';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -21,14 +20,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  Activity,
   Search,
-  CheckCircle2,
-  Clock,
   ClipboardList,
   RefreshCw,
   AlertCircle,
-  FileText
 } from 'lucide-react';
 import {
   Table,
@@ -72,12 +67,6 @@ export default function PreOpCasesPage() {
     );
   }, [data?.cases, searchQuery]);
 
-  // Calculate completed checklists count
-  const completedChecklistsCount = useMemo(() => {
-    if (!data?.cases) return 0;
-    return data.cases.filter((c) => c.wardChecklist?.isComplete).length;
-  }, [data?.cases]);
-
   if (!isAuthenticated || !user) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
@@ -98,50 +87,27 @@ export default function PreOpCasesPage() {
 
         {/* Stats Grid */}
         {data?.summary && (
-          <div className="grid gap-4 grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
             <NurseStatCard
-              title="Total Cases"
-              value={data.summary.total}
-              subtitle="Active in Ward Prep"
-              color="slate"
+              title="Pending"
+              value={data.summary.pending}
+              subtitle="Checklist incomplete"
+              color="amber"
               loading={isLoading}
             />
             <NurseStatCard
-              title="New Today"
-              value={data.metrics?.newToday ?? 0}
-              subtitle="Added to ward prep"
-              color="blue"
-              loading={isLoading}
-              pulse={(data.metrics?.newToday ?? 0) > 0}
-            />
-            <NurseStatCard
-              title="Ready for Booking"
+              title="Ready"
               value={data.summary.ready}
-              subtitle="All checks passed"
+              subtitle="Checklist complete"
               color="emerald"
               loading={isLoading}
               pulse={data.summary.ready > 0}
             />
             <NurseStatCard
-              title="Action Required"
-              value={data.summary.pending}
-              subtitle="Missing Items"
-              color="amber"
-              loading={isLoading}
-            />
-            <NurseStatCard
-              title="Due Next 7d"
-              value={data.metrics?.dueNext7Days ?? 0}
-              subtitle="Upcoming procedures"
+              title="In queue"
+              value={data.summary.total}
+              subtitle="Ward prep cases"
               color="slate"
-              loading={isLoading}
-              pulse={(data.metrics?.dueNext7Days ?? 0) > 0}
-            />
-            <NurseStatCard
-              title="Checklists Completed"
-              value={completedChecklistsCount}
-              subtitle="Ward checklists done"
-              color="emerald"
               loading={isLoading}
             />
           </div>
@@ -150,8 +116,8 @@ export default function PreOpCasesPage() {
         {/* Controls */}
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-slate-800 tracking-tight">Pre-Op Ward Cases</h2>
-            <p className="text-sm text-slate-500">Complete ward checklists to ready patients for surgery</p>
+            <h2 className="text-lg font-semibold text-slate-800 tracking-tight">Ward Prep</h2>
+            <p className="text-sm text-slate-500">Pre-op ward checklist</p>
           </div>
 
           <div className="flex items-center gap-2 w-full md:w-auto">
@@ -210,12 +176,12 @@ export default function PreOpCasesPage() {
             <Table>
               <TableHeader className="bg-slate-50/80">
                 <TableRow>
-                  <TableHead className="w-[220px]">Patient</TableHead>
-                  <TableHead>Case Status</TableHead>
+                  <TableHead>Patient</TableHead>
+                  <TableHead>Procedure</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Surgeon</TableHead>
-                  <TableHead className="w-[180px]">Ward Checklist</TableHead>
-                  <TableHead className="w-[200px]">Quick Actions</TableHead>
-                  <TableHead className="text-right w-[100px]">More</TableHead>
+                  <TableHead>Checklist</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
