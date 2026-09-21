@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useDoctorSurgicalCaseWorkspace } from '@/components/doctor/surgical-case-workspace/DoctorSurgicalCaseContext';
+import { apiClient } from '@/lib/api/client';
 
 type NotesPayload = {
   surgeon_narrative?: string | null;
@@ -84,12 +85,13 @@ export function SurgicalNotesSection() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/doctor/surgical-cases/${caseId}/notes`);
-      const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.error || 'Failed to load notes');
+      const json = await apiClient.get<NotesPayload>(
+        `/doctor/surgical-cases/${caseId}/notes`,
+      );
+      if (!json.success) throw new Error(json.error || 'Failed to load notes');
 
       const d = (json.data || {}) as NotesPayload;
-      setCanEdit(json?.meta?.canEdit ?? true);
+      setCanEdit((json.meta as { canEdit?: boolean } | undefined)?.canEdit ?? true);
       setNarrative(d.surgeon_narrative || '');
       setProcedurePlan(d.procedure_plan || '');
       setRiskFactors(d.risk_factors || '');
@@ -114,21 +116,16 @@ export function SurgicalNotesSection() {
     setError(null);
     setSavedFlash(false);
     try {
-      const res = await fetch(`/api/doctor/surgical-cases/${caseId}/notes`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: narrative,
-          procedure_plan: procedurePlan,
-          risk_factors: riskFactors,
-          planned_anesthesia: plannedAnesthesia,
-          pre_op_notes: preOpNotes,
-          post_op_instructions: postOp,
-          special_instructions: special,
-        }),
+      const json = await apiClient.put(`/doctor/surgical-cases/${caseId}/notes`, {
+        content: narrative,
+        procedure_plan: procedurePlan,
+        risk_factors: riskFactors,
+        planned_anesthesia: plannedAnesthesia,
+        pre_op_notes: preOpNotes,
+        post_op_instructions: postOp,
+        special_instructions: special,
       });
-      const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.error || 'Failed to save');
+      if (!json.success) throw new Error(json.error || 'Failed to save');
       setSavedFlash(true);
       toast.success('Surgical notes saved');
       if (andContinue) {

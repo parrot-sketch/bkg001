@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 
 import { PhotosTab } from '@/components/doctor/case-plan/PhotosTab';
 import { useCasePlanDetail } from '@/hooks/doctor/useCasePlan';
+import { authenticatedFetch } from '@/lib/doctor/authenticatedFetch';
 import { useDoctorSurgicalCaseWorkspace } from '@/components/doctor/surgical-case-workspace/DoctorSurgicalCaseContext';
 import { Button } from '@/components/ui/button';
 
@@ -26,9 +27,8 @@ export function PhotosSection() {
       setBootstrapping(true);
       setBootError(null);
       try {
-        const res = await fetch(`/api/doctor/surgical-cases/${caseId}/notes`, {
+        const res = await authenticatedFetch(`/api/doctor/surgical-cases/${caseId}/notes`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ content: '' }),
         });
         const json = await res.json();

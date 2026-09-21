@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Save, FileText, CheckCircle2 } from 'lucide-react';
 import { RichTextEditor } from '@/components/consultation/RichTextEditor';
 import { SurgicalNotesView } from './SurgicalNotesView';
+import { apiClient } from '@/lib/api/client';
 
 interface SurgicalNotesFields {
   pre_op_notes?: string | null;
@@ -59,23 +60,29 @@ export function SurgicalNotesEditor({ caseId, onContinue }: Props) {
 
   const fetchNotes = useCallback(async () => {
     try {
-      const res = await fetch(`/api/doctor/surgical-cases/${caseId}/notes`);
-      const json = await res.json();
-      
+      const json = await apiClient.get<SurgicalNotesFields>(
+        `/doctor/surgical-cases/${caseId}/notes`,
+      );
+
       if (json.success && json.data) {
-        setCanEdit(json?.meta?.canEdit ?? true);
+        setCanEdit((json.meta as { canEdit?: boolean } | undefined)?.canEdit ?? true);
         setNotesData(json.data);
         const consolidated = consolidateNotes(json.data);
         setContent(consolidated);
-        
-        if ((json?.meta?.canEdit ?? true) && (!consolidated || consolidated.trim().length === 0)) {
+
+        if (
+          ((json.meta as { canEdit?: boolean } | undefined)?.canEdit ?? true) &&
+          (!consolidated || consolidated.trim().length === 0)
+        ) {
           setIsEditing(true);
         } else {
           setIsEditing(false);
         }
+      } else if (json.success) {
+        setCanEdit((json.meta as { canEdit?: boolean } | undefined)?.canEdit ?? true);
+        setIsEditing((json.meta as { canEdit?: boolean } | undefined)?.canEdit ?? true);
       } else {
-        setCanEdit(json?.meta?.canEdit ?? true);
-        setIsEditing(json?.meta?.canEdit ?? true);
+        setError(json.error || 'Failed to load existing notes.');
       }
     } catch (err) {
       console.error('Failed to load surgical notes', err);
@@ -94,23 +101,20 @@ export function SurgicalNotesEditor({ caseId, onContinue }: Props) {
     setIsSaving(true);
     setSaveSuccess(false);
     setError(null);
-    
+
     try {
-      const res = await fetch(`/api/doctor/surgical-cases/${caseId}/notes`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content }),
+      const json = await apiClient.put(`/doctor/surgical-cases/${caseId}/notes`, {
+        content,
       });
-      
-      const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.error || 'Failed to save notes');
-      
+
+      if (!json.success) throw new Error(json.error || 'Failed to save notes');
+
       setSaveSuccess(true);
       setNotesData({ ...notesData, surgeon_narrative: content });
-      
+
       setTimeout(() => {
-          setSaveSuccess(false);
-          setIsEditing(false);
+        setSaveSuccess(false);
+        setIsEditing(false);
       }, 1000);
     } catch (err: any) {
       setError(err.message);

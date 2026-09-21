@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 
 import { ConsentsTab } from '@/components/doctor/case-plan/ConsentsTab';
 import { useCasePlanDetail } from '@/hooks/doctor/useCasePlan';
+import { authenticatedFetch } from '@/lib/doctor/authenticatedFetch';
 import { useDoctorSurgicalCaseWorkspace } from '@/components/doctor/surgical-case-workspace/DoctorSurgicalCaseContext';
 import { Button } from '@/components/ui/button';
 
@@ -31,9 +32,8 @@ export function ConsentsSection() {
       setBootError(null);
       try {
         // Creating empty notes row ensures CasePlan for consents/photos
-        const res = await fetch(`/api/doctor/surgical-cases/${caseId}/notes`, {
+        const res = await authenticatedFetch(`/api/doctor/surgical-cases/${caseId}/notes`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ content: '' }),
         });
         const json = await res.json();
