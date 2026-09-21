@@ -13,34 +13,15 @@ import { cn } from '@/lib/utils';
 import {
     Scissors,
     AlertCircle,
-    Calendar,
-    User,
-    Clock,
-    CheckCircle2,
-    XCircle,
     Search,
     ChevronLeft,
     ChevronRight,
-    FileText,
-    Eye,
-    MoreHorizontal,
     ClipboardList,
-    Receipt,
 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Separator } from '@/components/ui/separator';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { DatePicker } from '@/components/ui/date-picker';
 import { getSurgicalCaseStatusDisplay } from '@/lib/surgical-case-status-display';
 
@@ -276,7 +257,7 @@ export default function DoctorSurgicalCasesPage() {
                                     <th className="text-left px-4 py-3 font-semibold text-[#caa26a] text-xs uppercase tracking-wider">Diagnosis</th>
                                     <th className="text-left px-4 py-3 font-semibold text-[#caa26a] text-xs uppercase tracking-wider">Surgeon</th>
                                     <th className="text-left px-4 py-3 font-semibold text-[#caa26a] text-xs uppercase tracking-wider w-[100px]">Urgency</th>
-                                    <th className="text-center px-4 py-3 font-semibold text-[#caa26a] text-xs uppercase tracking-wider w-[120px]">Action</th>
+                                    <th className="text-center px-4 py-3 font-semibold text-[#caa26a] text-xs uppercase tracking-wider w-[130px]">Action</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 bg-white">
@@ -315,11 +296,6 @@ export default function DoctorSurgicalCasesPage() {
                                                         ? sc.procedures.map(p => p.name).join(', ')
                                                         : sc.procedureName || '—'}
                                                 </span>
-                                                <div className="flex gap-1.5 mt-1.5">
-                                                    {sc.casePlan?.hasProcedurePlan && <Badge variant="secondary" className="border border-slate-200 px-1.5 py-0 text-[10px] font-medium text-slate-600">Plan</Badge>}
-                                                    {sc.casePlan?.hasSurgicalNotes && <Badge variant="secondary" className="border border-emerald-200 bg-emerald-50 px-1.5 py-0 text-[10px] font-medium text-emerald-700">Notes</Badge>}
-                                                    {sc.casePlan?.hasChargeSheet && <Badge variant="secondary" className="border border-slate-300 bg-slate-100 px-1.5 py-0 text-[10px] font-medium text-slate-700">Charges</Badge>}
-                                                </div>
                                             </td>
                                             <td className="px-4 py-3">
                                                 <span className="line-clamp-1 text-sm text-slate-500">
@@ -335,44 +311,14 @@ export default function DoctorSurgicalCasesPage() {
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3 text-center">
-                                                <div className="flex items-center justify-center gap-1">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() => navigateToCase(sc.id)}
-                                                        className="h-7 gap-1.5 rounded-r-none border-r-0 border-[#2c2e4b]/20 text-[#2c2e4b] hover:bg-[#2c2e4b] hover:text-white"
-                                                    >
-                                                        <Eye className="h-3.5 w-3.5" />
-                                                        Open
-                                                    </Button>
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                className="h-7 w-7 p-0 rounded-l-none border-[#2c2e4b]/20 text-[#2c2e4b] hover:bg-[#2c2e4b] hover:text-white"
-                                                            >
-                                                                <MoreHorizontal className="h-3.5 w-3.5" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end" className="w-44">
-                                                            <DropdownMenuLabel className="text-xs">Jump to</DropdownMenuLabel>
-                                                            <DropdownMenuSeparator />
-                                                            <DropdownMenuItem onClick={() => router.push(`/doctor/surgical-cases/${sc.id}/case-plan`)}>
-                                                                <ClipboardList className="h-3.5 w-3.5 mr-2" />
-                                                                Case Plan
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => router.push(`/doctor/surgical-cases/${sc.id}/surgical-notes`)}>
-                                                                <FileText className="h-3.5 w-3.5 mr-2" />
-                                                                Surgical Notes
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => router.push(`/doctor/surgical-cases/${sc.id}/charge-sheet`)}>
-                                                                <Receipt className="h-3.5 w-3.5 mr-2" />
-                                                                Charge Sheet
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </div>
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() => navigateToCase(sc.id)}
+                                                    className="h-8 gap-1.5 bg-[#2c2e4b] text-white hover:bg-[#3a3d63]"
+                                                >
+                                                    <ClipboardList className="h-3.5 w-3.5" />
+                                                    Case Plan
+                                                </Button>
                                             </td>
                                         </tr>
                                     );

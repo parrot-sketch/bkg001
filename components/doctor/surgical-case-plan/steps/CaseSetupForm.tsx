@@ -256,16 +256,12 @@ export function CaseSetupForm({
                   assistantSurgeonIds: prev.assistantSurgeonIds.filter((aid) => aid !== id),
                 }))
               }
-              placeholder="Search surgeon..."
-              searchPlaceholder="Type to search surgeons..."
-              emptyText="No surgeons found."
+              placeholder="Type surgeon name…"
+              searchPlaceholder="Type surgeon name…"
+              emptyText="No directory match — press Enter to use this name."
               loading={isLoadingSurgeons}
               allowCustom
-              customPlaceholder="Enter surgeon name (e.g. external consultant)..."
-              onCustomCreate={(name) => {
-                const customId = `__custom__:${name}`;
-                setFormData((prev) => ({ ...prev, primarySurgeonId: customId }));
-              }}
+              customPlaceholder="Type surgeon name…"
             />
           </Field>
 
@@ -274,16 +270,12 @@ export function CaseSetupForm({
               options={surgeonOptions.filter((s) => s.id !== formData.primarySurgeonId)}
               value={formData.assistantSurgeonIds}
               onChange={(ids) => setFormData((prev) => ({ ...prev, assistantSurgeonIds: ids }))}
-              placeholder="Add assistant surgeons..."
-              searchPlaceholder="Search assistants..."
-              emptyText="No surgeons found."
+              placeholder="Type assistant name…"
+              searchPlaceholder="Type assistant name…"
+              emptyText="No directory match — press Enter to add."
               loading={isLoadingSurgeons}
               allowCustom
-              customPlaceholder="Enter assistant surgeon name..."
-              onCustomCreate={(name) => {
-                const customId = `__custom__:${name}`;
-                setFormData((prev) => ({ ...prev, assistantSurgeonIds: [...prev.assistantSurgeonIds, customId] }));
-              }}
+              customPlaceholder="Type assistant name…"
             />
           </Field>
 
@@ -367,15 +359,11 @@ export function CaseSetupForm({
                   options={procedureOptions}
                   value={formData.procedureIds}
                   onChange={(ids) => setFormData((prev) => ({ ...prev, procedureIds: ids }))}
-                  placeholder="Select procedures..."
-                  searchPlaceholder="Search procedures..."
-                  emptyText="No procedures found for this category."
+                  placeholder="Type a procedure name…"
+                  searchPlaceholder="Type a procedure…"
+                  emptyText="No catalog matches — press Enter to add what you typed."
                   allowCustom
-                  customPlaceholder="Enter custom procedure name..."
-                  onCustomCreate={(name) => {
-                    const customId = `__custom__:${name}`;
-                    setFormData((prev) => ({ ...prev, procedureIds: [...prev.procedureIds, customId] }));
-                  }}
+                  customPlaceholder="Type a procedure and press Enter…"
                 />
               )}
             </Field>

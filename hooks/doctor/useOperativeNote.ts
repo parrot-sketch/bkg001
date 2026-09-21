@@ -54,22 +54,39 @@ export function useSaveOperativeNote(caseId: string) {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: async (data: SurgeonOperativeNoteDraft) => {
-            const response = await doctorOperativeNoteApi.saveOperativeNote(caseId, data);
+        mutationFn: async (vars: {
+            data: SurgeonOperativeNoteDraft;
+            silent?: boolean;
+        }) => {
+            const response = await doctorOperativeNoteApi.saveOperativeNote(caseId, vars.data);
             if (!response.success) {
-                throw new Error(response.error || 'Failed to save operative note');
+                const err = new Error(response.error || 'Failed to save operative note') as Error & {
+                    details?: unknown;
+                };
+                err.details = (response as any).details;
+                throw err;
             }
-            return response.data;
+            return { form: response.data, silent: !!vars.silent };
         },
-        onSuccess: (updatedForm: OperativeNoteFormDto) => {
+        onSuccess: ({ form: updatedForm, silent }) => {
             queryClient.setQueryData(
                 operativeNoteKeys.detail(caseId),
                 (old: any) => old ? { ...old, form: updatedForm } : old,
             );
-            toast.success('Operative note saved');
+            if (!silent) toast.success('Operative note saved');
         },
-        onError: (error: Error) => {
-            toast.error(error.message);
+        onError: (error: Error & { details?: Array<{ path?: string; message?: string }> }) => {
+            const details = (error as any)?.details;
+            const detailText = Array.isArray(details)
+                ? details
+                      .slice(0, 3)
+                      .map((d: any) => (d.path ? `${d.path}: ${d.message}` : d.message))
+                      .filter(Boolean)
+                      .join('; ')
+                : '';
+            toast.error(error.message || 'Failed to save operative note', {
+                description: detailText || undefined,
+            });
         },
     });
 }

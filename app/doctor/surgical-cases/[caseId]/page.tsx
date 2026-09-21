@@ -15,10 +15,13 @@ export default function DoctorSurgicalCaseWorkspacePage() {
   const target = useMemo(() => {
     const tabMap: Record<string, string> = {
       'case-plan': 'case-plan',
-      'preop-ward-checklist': 'preop-ward-checklist',
       'surgical-notes': 'surgical-notes',
       'operative-record': 'operative-record',
       'charge-sheet': 'charge-sheet',
+      'preop-ward-checklist': 'preop-ward-checklist',
+      // Deferred — keep deep-links from landing on unfinished surfaces
+      consents: 'case-plan',
+      photos: 'case-plan',
     };
     return tab && tabMap[tab] ? tabMap[tab] : 'case-plan';
   }, [tab]);

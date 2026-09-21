@@ -104,6 +104,12 @@ export const findingsAndStepsSchema = z.object({
         ),
 });
 
+/** Lenient draft — save in-progress text without length/content gates */
+export const findingsAndStepsDraftSchema = z.object({
+    findings: z.string().optional().default(''),
+    operativeSteps: z.string().optional().default(''),
+});
+
 // ──────────────────────────────────────────────────────────────────────
 // I) Operative Record (Page 2)
 // ──────────────────────────────────────────────────────────────────────
@@ -120,6 +126,12 @@ export const operativeRecordSchema = z.object({
     ),
   // Page 2 signature (combined surgeon/anaesthesiologist)
   surgeonOrAnesthesiologistSignaturePng: signatureDataUrlSchema,
+});
+
+export const operativeRecordDraftSchema = z.object({
+  operationRecord: z.string().optional().default(''),
+  postOperativeInstructions: z.string().optional().default(''),
+  surgeonOrAnesthesiologistSignaturePng: z.string().optional().default(''),
 });
 
 // C) Intra-Op Metrics
@@ -282,13 +294,86 @@ export const postOpPlanSchema = z.object({
 // Full Form Schema — Draft (lenient, all sections partial)
 // ──────────────────────────────────────────────────────────────────────
 
+export const assistantDraftSchema = z.object({
+    userId: z.string().optional().default(''),
+    name: z.string().optional().default(''),
+    role: z.string().optional().default(''),
+});
+
+export const headerDraftSchema = z.object({
+  diagnosisPreOp: z.string().optional().default(''),
+  diagnosisPostOp: z.string().optional().default(''),
+  procedurePlanned: z.string().optional().default(''),
+  procedurePerformed: z.string().optional().default(''),
+  side: z.string().optional().default(''),
+  surgeonId: z.string().optional().default(''),
+  surgeonName: z.string().optional().default(''),
+  assistants: z.array(assistantDraftSchema).optional().default([]),
+  anesthesiologistId: z.string().optional().default(''),
+  anesthesiologistName: z.string().optional().default(''),
+  anesthesiaType: anesthesiaTypeEnum.optional(),
+  shavingY: z.boolean().optional().default(false),
+  shavingN: z.boolean().optional().default(false),
+  shavingExtent: z.string().optional().default(''),
+  skinPrepY: z.boolean().optional().default(false),
+  skinPrepN: z.boolean().optional().default(false),
+});
+
+export const implantsUsedDraftSchema = z.object({
+    implantsUsed: z
+        .array(
+            z.object({
+                name: z.string().optional().default(''),
+                manufacturer: z.string().optional().default(''),
+                lotNumber: z.string().optional().default(''),
+                serialNumber: z.string().optional().default(''),
+                expiryDate: z.string().optional().default(''),
+            }),
+        )
+        .optional()
+        .default([]),
+});
+
+export const specimensDraftSchema = z.object({
+    specimens: z
+        .array(
+            z.object({
+                type: z.string().optional().default(''),
+                site: z.string().optional().default(''),
+                destinationLab: z.string().optional().default(''),
+                timeSent: z.string().optional().default(''),
+            }),
+        )
+        .optional()
+        .default([]),
+});
+
+export const intraOpMetricsDraftSchema = z.object({
+    estimatedBloodLossMl: z.preprocess(
+        (v) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined),
+        z.number().int().min(0).max(20000).optional(),
+    ),
+    fluidsGivenMl: z.preprocess(
+        (v) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined),
+        z.number().int().min(0).max(50000).optional(),
+    ),
+    urineOutputMl: z.preprocess(
+        (v) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined),
+        z.number().int().min(0).max(10000).optional(),
+    ),
+    tourniquetTimeMinutes: z.preprocess(
+        (v) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined),
+        z.number().int().min(0).max(300).optional(),
+    ),
+});
+
 export const surgeonOperativeNoteDraftSchema = z.object({
-    header: headerSchema.partial().optional().default({}),
-    findingsAndSteps: findingsAndStepsSchema.partial().optional().default({}),
-    operativeRecord: operativeRecordSchema.partial().optional().default({}),
-    intraOpMetrics: intraOpMetricsSchema.partial().optional().default({}),
-    implantsUsed: implantsUsedSchema.partial().optional().default({}),
-    specimens: specimensSchema.partial().optional().default({}),
+    header: headerDraftSchema.optional().default({}),
+    findingsAndSteps: findingsAndStepsDraftSchema.optional().default({}),
+    operativeRecord: operativeRecordDraftSchema.optional().default({}),
+    intraOpMetrics: intraOpMetricsDraftSchema.optional().default({}),
+    implantsUsed: implantsUsedDraftSchema.optional().default({}),
+    specimens: specimensDraftSchema.optional().default({}),
     complications: complicationsSchema.partial().optional().default({}),
     countsConfirmation: countsConfirmationSchema.partial().optional().default({}),
     postOpPlan: postOpPlanSchema.partial().optional().default({}),
@@ -378,6 +463,19 @@ export function getMissingOperativeNoteItems(
         const path = issue.path.join('.');
         return `${path}: ${issue.message}`;
     });
+}
+
+/**
+ * Client-side preflight before finalize.
+ * Signatures are applied server-side, so ignore those gaps here.
+ */
+export function getMissingOperativeNoteItemsForUi(
+    data: Partial<SurgeonOperativeNoteDraft> | Record<string, unknown>,
+    nurseHasDiscrepancy = false,
+): string[] {
+    return getMissingOperativeNoteItems(data, nurseHasDiscrepancy).filter(
+        (item) => !/signature/i.test(item),
+    );
 }
 
 /**

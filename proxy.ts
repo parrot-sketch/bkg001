@@ -7,7 +7,12 @@ import { NextRequest, NextResponse } from "next/server";
  * Client-side routes handle authentication through useAuth hook and redirects.
  */
 export default function proxy(request: NextRequest) {
-  const response = NextResponse.next();
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-pathname', request.nextUrl.pathname);
+
+  const response = NextResponse.next({
+    request: { headers: requestHeaders },
+  });
 
   // Content Security Policy configuration
   // Development: More permissive to allow HMR (Hot Module Replacement)

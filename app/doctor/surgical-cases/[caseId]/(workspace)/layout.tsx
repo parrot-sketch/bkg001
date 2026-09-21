@@ -1,9 +1,11 @@
-import { redirect, notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import { ClinicalFormStatus } from '@prisma/client';
 
 import db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth/server-auth';
 import { DoctorSurgicalCaseShell } from '@/components/doctor/surgical-case-workspace/DoctorSurgicalCaseShell';
+import { ServerAuthResume } from '@/components/doctor/ServerAuthResume';
 import {
   TEMPLATE_KEY,
   normalizeLegacyChecklistData,
@@ -19,8 +21,19 @@ export default async function DoctorSurgicalCaseWorkspaceLayout({ children, para
   const { caseId } = await params;
   const user = await getCurrentUser();
 
-  if (!user || user.role !== 'DOCTOR') {
-    redirect('/login');
+  if (!user) {
+    const headerStore = await headers();
+    const pathname = headerStore.get('x-pathname');
+    const fallback = `/doctor/surgical-cases/${caseId}`;
+    const nextPath =
+      pathname && pathname.startsWith(`/doctor/surgical-cases/${caseId}`)
+        ? pathname
+        : fallback;
+    return <ServerAuthResume nextPath={nextPath} />;
+  }
+
+  if (user.role !== 'DOCTOR') {
+    redirect('/unauthorized');
   }
 
   const doctor = await db.doctor.findUnique({
@@ -74,9 +87,43 @@ export default async function DoctorSurgicalCaseWorkspaceLayout({ children, para
 
   const procedureIds = surgicalCase.case_procedures?.map((cp) => String(cp.procedure.id)) || [];
 
+  type StaffInviteLite = {
+    status: string;
+    invited_role: string;
+    invited_user_id: string;
+    invited_user: { first_name: string | null; last_name: string | null } | null;
+  };
+  type TeamMemberLite = { role: string; user_id: string | null };
+
+  const invites = (surgicalCase.staff_invites ?? []) as StaffInviteLite[];
+  const teamMembers = (surgicalCase.team_members ?? []) as TeamMemberLite[];
+
+  const pickInviteUserId = (...roles: string[]) => {
+    const match =
+      invites.find((i) => roles.includes(i.invited_role) && i.status === 'ACCEPTED') ??
+      invites.find((i) => roles.includes(i.invited_role));
+    return match?.invited_user_id || '';
+  };
+
+  const pickTeamUserId = (...roles: string[]) => {
+    const match = teamMembers.find((m) => roles.includes(m.role) && m.user_id);
+    return match?.user_id || '';
+  };
+
+  const assistantSurgeonIds = selectedSurgeonIds.filter(
+    (id) => id && id !== surgicalCase.primary_surgeon_id,
+  );
+
   const initialPlanData = {
     surgeonId: surgicalCase.primary_surgeon_id || '',
     surgeonIds: selectedSurgeonIds,
+    assistantSurgeonIds,
+    anesthesiologistUserId:
+      pickInviteUserId('ANESTHESIOLOGIST', 'ANESTHETIST_NURSE') ||
+      pickTeamUserId('ANESTHESIOLOGIST', 'ANESTHETIST_NURSE'),
+    scrubNurseUserId: pickInviteUserId('SCRUB_NURSE') || pickTeamUserId('SCRUB_NURSE'),
+    circulatingNurseUserId:
+      pickInviteUserId('CIRCULATING_NURSE') || pickTeamUserId('CIRCULATING_NURSE'),
     procedureDate: surgicalCase.procedure_date,
     diagnosis: surgicalCase.diagnosis || '',
     procedureCategory: surgicalCase.procedure_category || '',
@@ -89,12 +136,6 @@ export default async function DoctorSurgicalCaseWorkspaceLayout({ children, para
   };
 
   const getAnaesthesiologistName = () => {
-    type StaffInviteLite = {
-      status: string;
-      invited_role: string;
-      invited_user: { first_name: string | null; last_name: string | null } | null;
-    };
-    const invites = (surgicalCase.staff_invites ?? []) as StaffInviteLite[];
     const matchesRole = (i: StaffInviteLite) =>
       i.invited_role === 'ANESTHESIOLOGIST' || i.invited_role === 'ANESTHETIST_NURSE';
     const ana = invites.find((i) => matchesRole(i) && i.status === 'ACCEPTED') ?? invites.find((i) => matchesRole(i));

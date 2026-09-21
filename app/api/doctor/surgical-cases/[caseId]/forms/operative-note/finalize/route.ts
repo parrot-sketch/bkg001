@@ -27,12 +27,10 @@ import {
     getNurseCountDiscrepancy,
     surgeonOperativeNoteDraftSchema,
 } from '@/domain/clinical-forms/SurgeonOperativeNote';
-import {
-    INTRAOP_TEMPLATE_KEY,
-    INTRAOP_TEMPLATE_VERSION,
-} from '@/domain/clinical-forms/NurseIntraOpRecord';
+import { INTRAOP_TEMPLATE_KEY } from '@/domain/clinical-forms/NurseIntraOpRecord';
 import { makeServerSignatureSvgDataUrl } from '@/lib/crypto/makeServerSignatureSvgDataUrl';
 import { computeSignatureProof } from '@/lib/crypto/signatureProof';
+import { resolveDoctorCaseAccess } from '@/lib/doctor/surgicalCaseDocumentAccess';
 
 function getClientIp(request: NextRequest): string | undefined {
     const forwarded = request.headers.get('x-forwarded-for');
@@ -58,7 +56,26 @@ export async function POST(
 
         const userId = authResult.user.userId;
 
-        // 2. Verify case ownership
+        // 2. Verify surgeon write access (not nurse)
+        const access = await resolveDoctorCaseAccess(userId, caseId);
+        if (!access) {
+            return NextResponse.json({ success: false, error: 'Surgical case not found' }, { status: 404 });
+        }
+        if (!access.canEdit) {
+            return NextResponse.json(
+                { success: false, error: 'Only the case surgeon can finalize the operative note' },
+                { status: 403 },
+            );
+        }
+
+        const doctor = await db.doctor.findFirst({
+            where: { user_id: userId },
+            select: { id: true, name: true },
+        });
+        if (!doctor) {
+            return NextResponse.json({ success: false, error: 'Doctor profile not found' }, { status: 400 });
+        }
+
         const surgicalCase = await db.surgicalCase.findUnique({
             where: { id: caseId },
             select: {
@@ -69,17 +86,6 @@ export async function POST(
         });
         if (!surgicalCase) {
             return NextResponse.json({ success: false, error: 'Surgical case not found' }, { status: 404 });
-        }
-
-        const doctor = await db.doctor.findFirst({
-            where: { user_id: userId },
-            select: { id: true, name: true },
-        });
-        if (!doctor || doctor.id !== surgicalCase.primary_surgeon_id) {
-            return NextResponse.json(
-                { success: false, error: 'Only the case surgeon can finalize the operative note' },
-                { status: 403 },
-            );
         }
 
         // 3. Find existing form response
@@ -107,26 +113,27 @@ export async function POST(
             );
         }
 
-        // 4. Check nurse intra-op record for count discrepancy
-        const nurseIntraOp = await db.clinicalFormResponse.findUnique({
-            where: {
-                template_key_template_version_surgical_case_id: {
-                    template_key: INTRAOP_TEMPLATE_KEY,
-                    template_version: INTRAOP_TEMPLATE_VERSION,
-                    surgical_case_id: caseId,
-                },
-            },
-            select: { data_json: true, status: true },
-        });
-
+        // 4. Optional nurse intra-op hint (never required; never writes nurse forms)
         let nurseHasDiscrepancy = false;
-        if (nurseIntraOp) {
-            try {
-                const nurseData = JSON.parse(nurseIntraOp.data_json);
-                nurseHasDiscrepancy = getNurseCountDiscrepancy(nurseData);
-            } catch {
-                // Ignore parse errors on nurse record
+        try {
+            const nurseIntraOp = await db.clinicalFormResponse.findFirst({
+                where: {
+                    surgical_case_id: caseId,
+                    template_key: INTRAOP_TEMPLATE_KEY,
+                },
+                orderBy: { template_version: 'desc' },
+                select: { data_json: true, status: true },
+            });
+            if (nurseIntraOp) {
+                try {
+                    const nurseData = JSON.parse(nurseIntraOp.data_json);
+                    nurseHasDiscrepancy = getNurseCountDiscrepancy(nurseData);
+                } catch {
+                    // Ignore parse errors on nurse record
+                }
             }
+        } catch {
+            // Nurse lookup must never block surgeon finalize
         }
 
         // 5. Parse current data and validate with FINAL schema

@@ -28,10 +28,8 @@ import {
     prefillSpecimensFromIntraOp,
     getNurseCountDiscrepancy,
 } from '@/domain/clinical-forms/SurgeonOperativeNote';
-import {
-    INTRAOP_TEMPLATE_KEY,
-    INTRAOP_TEMPLATE_VERSION,
-} from '@/domain/clinical-forms/NurseIntraOpRecord';
+import { INTRAOP_TEMPLATE_KEY } from '@/domain/clinical-forms/NurseIntraOpRecord';
+import { resolveDoctorCaseAccess } from '@/lib/doctor/surgicalCaseDocumentAccess';
 
 // ──────────────────────────────────────────────────────────────────────
 // Helpers
@@ -153,33 +151,38 @@ function mapResponseDto(response: {
 }
 
 /**
- * Fetch the nurse intra-op record data for prefilling and discrepancy checks.
+ * Fetch nurse intra-op data for optional prefills / discrepancy hints only.
+ * Never blocks the surgeon operative note. Never writes nurse forms.
+ * Looks up by template key across versions (nurse may be on v1 or v2).
  */
 async function getNurseIntraOpData(caseId: string) {
-    const intraOp = await db.clinicalFormResponse.findUnique({
-        where: {
-            template_key_template_version_surgical_case_id: {
-                template_key: INTRAOP_TEMPLATE_KEY,
-                template_version: INTRAOP_TEMPLATE_VERSION,
-                surgical_case_id: caseId,
-            },
-        },
-        select: {
-            data_json: true,
-            status: true,
-        },
+  try {
+    const intraOp = await db.clinicalFormResponse.findFirst({
+      where: {
+        surgical_case_id: caseId,
+        template_key: INTRAOP_TEMPLATE_KEY,
+      },
+      orderBy: { template_version: 'desc' },
+      select: {
+        data_json: true,
+        status: true,
+      },
     });
 
     if (!intraOp) return null;
 
     try {
-        return {
-            data: JSON.parse(intraOp.data_json) as Record<string, any>,
-            status: intraOp.status,
-        };
+      return {
+        data: JSON.parse(intraOp.data_json) as Record<string, any>,
+        status: intraOp.status,
+      };
     } catch {
-        return null;
+      return null;
     }
+  } catch (err) {
+    console.warn('[operative-note] optional nurse intra-op lookup failed:', err);
+    return null;
+  }
 }
 
 /**
@@ -373,21 +376,12 @@ export async function PUT(
         const auth = await authenticateAndAuthorize(request, WRITE_ROLES);
         if (!auth.success) return auth.error;
 
-        // Verify case ownership
-        const surgicalCase = await db.surgicalCase.findUnique({
-            where: { id: caseId },
-            select: { primary_surgeon_id: true },
-        });
-        if (!surgicalCase) {
+        // Verify surgeon write access (primary or invited surgeon) — not nurse roles
+        const access = await resolveDoctorCaseAccess(auth.user.userId, caseId);
+        if (!access) {
             return NextResponse.json({ success: false, error: 'Surgical case not found' }, { status: 404 });
         }
-
-        // Find doctor record for current user
-        const doctor = await db.doctor.findFirst({
-            where: { user_id: auth.user.userId },
-            select: { id: true },
-        });
-        if (!doctor || doctor.id !== surgicalCase.primary_surgeon_id) {
+        if (!access.canEdit) {
             return NextResponse.json(
                 { success: false, error: 'Only the case surgeon can edit the operative note' },
                 { status: 403 },
@@ -421,6 +415,7 @@ export async function PUT(
         const body = await request.json();
         const parsed = surgeonOperativeNoteDraftSchema.safeParse(body.data);
         if (!parsed.success) {
+            console.warn('[operative-note] draft validation failed', parsed.error.issues);
             return NextResponse.json(
                 {
                     success: false,

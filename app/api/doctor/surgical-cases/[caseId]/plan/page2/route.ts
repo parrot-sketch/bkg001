@@ -50,7 +50,18 @@ export async function PATCH(
       );
     }
 
-    // Update SurgicalCase - mark as ready for ward prep when plan is complete
+    const existing = await db.surgicalCase.findUnique({
+      where: { id: caseId },
+      select: { status: true },
+    });
+    if (!existing) {
+      return NextResponse.json({ success: false, error: 'Surgical case not found' }, { status: 404 });
+    }
+
+    // Only advance early planning statuses — never overwrite booked/active cases on edit.
+    const canAdvanceToWardPrep =
+      existing.status === 'DRAFT' || existing.status === 'PLANNING';
+
     await db.surgicalCase.update({
       where: { id: caseId },
       data: {
@@ -58,9 +69,8 @@ export async function PATCH(
         skin_to_skin_minutes: skinToSkinMinutes || null,
         total_theatre_minutes: totalTheatreMinutes || null,
         admission_type: admissionType || null,
-        // Device used concept removed from workflow; keep column null for clarity.
         device_used: null,
-        status: 'READY_FOR_WARD_PREP', // Plan complete - nurse can now do pre-op checklist
+        ...(canAdvanceToWardPrep ? { status: 'READY_FOR_WARD_PREP' as const } : {}),
       },
     });
 

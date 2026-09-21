@@ -5,4 +5,3 @@ import { SurgicalNotesSection } from '@/components/doctor/surgical-case-workspac
 export default function DoctorSurgicalNotesPage() {
   return <SurgicalNotesSection />;
 }
-
