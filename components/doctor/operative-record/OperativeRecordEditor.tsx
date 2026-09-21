@@ -62,12 +62,27 @@ const EMPTY_DRAFT: SurgeonOperativeNoteDraft = {
     skinPrepN: false,
   },
   intraOpMetrics: {},
-  implantsUsed: {},
-  specimens: {},
-  complications: {},
-  postOpPlan: {},
-  findingsAndSteps: {},
-  operativeRecord: {},
+  implantsUsed: { implantsUsed: [] },
+  specimens: { specimens: [] },
+  complications: {
+    complicationsOccurred: false,
+    complicationsDetails: '',
+  },
+  postOpPlan: {
+    dressingInstructions: '',
+    drainCare: '',
+    meds: '',
+    followUpPlan: '',
+  },
+  findingsAndSteps: {
+    findings: '',
+    operativeSteps: '',
+  },
+  operativeRecord: {
+    operationRecord: '',
+    postOperativeInstructions: '',
+    surgeonOrAnesthesiologistSignaturePng: '',
+  },
   countsConfirmation: {
     countsCorrectY: false,
     countsCorrectN: false,
