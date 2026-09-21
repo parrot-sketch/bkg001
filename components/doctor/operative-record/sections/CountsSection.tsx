@@ -49,7 +49,7 @@ export function CountsSection({ value, disabled, nurseHasDiscrepancy, onChange }
           label="Explanation"
           value={stripToPlain(v.countsExplanation)}
           onChange={(countsExplanation) => patch({ countsExplanation })}
-          placeholder="Type why the count was incorrect…"
+          placeholder="Why incorrect…"
           disabled={disabled}
           rows={4}
         />

@@ -258,7 +258,7 @@ export function CaseSetupForm({
               }
               placeholder="Type surgeon name…"
               searchPlaceholder="Type surgeon name…"
-              emptyText="No directory match — press Enter to use this name."
+              emptyText="No matches"
               loading={isLoadingSurgeons}
               allowCustom
               customPlaceholder="Type surgeon name…"
@@ -272,7 +272,7 @@ export function CaseSetupForm({
               onChange={(ids) => setFormData((prev) => ({ ...prev, assistantSurgeonIds: ids }))}
               placeholder="Type assistant name…"
               searchPlaceholder="Type assistant name…"
-              emptyText="No directory match — press Enter to add."
+              emptyText="No matches"
               loading={isLoadingSurgeons}
               allowCustom
               customPlaceholder="Type assistant name…"
@@ -361,9 +361,9 @@ export function CaseSetupForm({
                   onChange={(ids) => setFormData((prev) => ({ ...prev, procedureIds: ids }))}
                   placeholder="Type a procedure name…"
                   searchPlaceholder="Type a procedure…"
-                  emptyText="No catalog matches — press Enter to add what you typed."
+                  emptyText="No matches"
                   allowCustom
-                  customPlaceholder="Type a procedure and press Enter…"
+                  customPlaceholder="Procedure…"
                 />
               )}
             </Field>
@@ -385,7 +385,6 @@ export function CaseSetupForm({
               placeholder="Select anaesthesiologist..."
               emptyText="No doctors found."
               customPlaceholder="Enter anaesthesiologist name..."
-              roleHint="Uses user accounts (Role: DOCTOR)."
             />
           </Field>
 

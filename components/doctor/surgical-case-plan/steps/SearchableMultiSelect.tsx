@@ -42,9 +42,9 @@ export function SearchableMultiSelect({
   options,
   value,
   onChange,
-  placeholder = 'Type a name and press Enter…',
+  placeholder = 'Search…',
   searchPlaceholder,
-  emptyText = 'No catalog matches — press Enter to add what you typed.',
+  emptyText = 'No matches',
   disabled = false,
   loading = false,
   maxItems,
@@ -292,12 +292,6 @@ export function SearchableMultiSelect({
               <span className="truncate font-medium">“{query.trim()}”</span>
               <span className="ml-auto shrink-0 text-[11px] text-slate-400">Enter</span>
             </button>
-          ) : null}
-
-          {allowCustom ? (
-            <p className="border-t border-slate-100 px-3 py-1.5 text-[10px] text-slate-400">
-              Type a name and press Enter — suggestions are optional
-            </p>
           ) : null}
         </div>
       ) : null}

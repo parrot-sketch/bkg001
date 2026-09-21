@@ -22,16 +22,15 @@ export function ProcedureNotesSection({ value, disabled, onChange }: Props) {
         label="Findings"
         value={stripToPlain(v.findings)}
         onChange={(findings) => patch({ findings })}
-        placeholder="Type key findings…"
+        placeholder="Findings…"
         disabled={disabled}
         rows={4}
       />
       <TypeField
         label="Operative steps"
-        hint="At least 20 characters required to finalize"
         value={stripToPlain(v.operativeSteps)}
         onChange={(operativeSteps) => patch({ operativeSteps })}
-        placeholder="Type what was done — free narrative…"
+        placeholder="Operative steps…"
         disabled={disabled}
         rows={12}
       />

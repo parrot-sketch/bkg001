@@ -41,9 +41,9 @@ export function SearchableSelect({
   options,
   value,
   onChange,
-  placeholder = 'Type to enter…',
+  placeholder = 'Search…',
   searchPlaceholder,
-  emptyText = 'No catalog matches — press Enter to use what you typed.',
+  emptyText = 'No matches',
   disabled = false,
   loading = false,
   className,
@@ -258,12 +258,6 @@ export function SearchableSelect({
               <span className="truncate font-medium">“{query.trim()}”</span>
               <span className="ml-auto shrink-0 text-[11px] text-slate-400">Enter</span>
             </button>
-          ) : null}
-
-          {filtered.length > 0 && allowCustom ? (
-            <p className="border-t border-slate-100 px-3 py-1.5 text-[10px] text-slate-400">
-              Type freely — catalog suggestions appear as you go
-            </p>
           ) : null}
         </div>
       ) : null}

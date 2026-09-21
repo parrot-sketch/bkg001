@@ -59,7 +59,7 @@ export function Page2Section({
           label="Operation record"
           value={stripToPlain(record.operationRecord)}
           onChange={(operationRecord) => onChangeRecord({ ...record, operationRecord })}
-          placeholder="Type the operation record summary…"
+          placeholder="Operation record…"
           disabled={disabled}
           rows={7}
         />
@@ -69,7 +69,7 @@ export function Page2Section({
           onChange={(postOperativeInstructions) =>
             onChangeRecord({ ...record, postOperativeInstructions })
           }
-          placeholder="Type post-op instructions…"
+          placeholder="Post-op instructions…"
           disabled={disabled}
           rows={5}
         />
@@ -101,7 +101,7 @@ export function Page2Section({
                 onChange={(complicationsDetails) =>
                   onChangeComplications({ ...c, complicationsDetails })
                 }
-                placeholder="Type complication details…"
+                placeholder="Complication details…"
                 disabled={disabled}
                 rows={3}
               />

@@ -153,26 +153,11 @@ export function DoctorChargeSheet({ caseId }: { caseId: string }) {
 
   return (
     <div className="space-y-5 pb-28">
-      <header className="space-y-0.5">
-        <p className="text-xs font-semibold uppercase tracking-widest text-[#caa26a]">
-          Billing
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight text-[#2c2e4b]">
-          Charge sheet
-        </h1>
-        <p className="text-sm text-slate-500">
-          Type to add services, stock, or a custom line — then adjust qty and price.
-        </p>
-      </header>
-
       {/* Type-first composer */}
       <div
         ref={rootRef}
         className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm md:p-5"
       >
-        <label className="mb-2 block text-xs font-medium text-slate-600">
-          Add charge
-        </label>
         <div className="relative flex gap-2">
           <div className="relative min-w-0 flex-1">
             <input
@@ -202,7 +187,7 @@ export function DoctorChargeSheet({ caseId }: { caseId: string }) {
                   setOpen(false);
                 }
               }}
-              placeholder="Type a service, stock item, or custom charge…"
+              placeholder="Add service, stock, or custom charge…"
               className={cn(
                 'h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900',
                 'placeholder:text-slate-400 focus:border-[#caa26a] focus:outline-none focus:ring-2 focus:ring-[#caa26a]/25',
@@ -236,9 +221,7 @@ export function DoctorChargeSheet({ caseId }: { caseId: string }) {
                             <span className="block font-medium text-[#2c2e4b]">
                               Use “{s.label}”
                             </span>
-                            <span className="text-xs text-slate-400">
-                              Custom line — set price after adding
-                            </span>
+                            <span className="text-xs text-slate-400">Custom</span>
                           </span>
                           <Plus className="h-4 w-4 text-[#caa26a]" />
                         </button>
@@ -309,9 +292,6 @@ export function DoctorChargeSheet({ caseId }: { caseId: string }) {
             Add
           </Button>
         </div>
-        <p className="mt-2 text-[11px] text-slate-400">
-          Enter adds the highlighted suggestion, or creates a custom charge from what you typed.
-        </p>
       </div>
 
       {/* Lines */}
@@ -337,10 +317,7 @@ export function DoctorChargeSheet({ caseId }: { caseId: string }) {
 
         {cs.chargeItems.length === 0 ? (
           <div className="px-5 py-12 text-center">
-            <p className="text-sm font-medium text-slate-600">No charges yet</p>
-            <p className="mt-1 text-xs text-slate-400">
-              Start typing above to add the first line
-            </p>
+            <p className="text-sm text-slate-400">No charges</p>
           </div>
         ) : (
           <ul className="divide-y divide-slate-100">

@@ -125,18 +125,15 @@ function Field({
 
 function Section({
   title,
-  description,
   children,
 }: {
   title: string;
-  description: string;
   children: React.ReactNode;
 }) {
   return (
     <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm md:p-6">
       <div className="mb-5 border-b border-slate-100 pb-4">
         <h2 className="text-base font-semibold tracking-tight text-[#2c2e4b]">{title}</h2>
-        <p className="mt-0.5 text-sm text-slate-500">{description}</p>
       </div>
       {children}
     </section>
@@ -372,19 +369,6 @@ export function DoctorCasePlanEditor({
 
   return (
     <div className="space-y-5 pb-6">
-      <header className="space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-widest text-[#caa26a]">
-          Case Plan
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight text-[#2c2e4b]">
-          Review &amp; refine the schedule
-        </h1>
-        <p className="max-w-2xl text-sm text-slate-500">
-          Details from frontdesk, theatre tech, or nursing are already here. Type freely to refine —
-          catalogs only suggest when they match.
-        </p>
-      </header>
-
       {error ? (
         <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -392,7 +376,7 @@ export function DoctorCasePlanEditor({
         </div>
       ) : null}
 
-      <Section title="Schedule" description="When and what is planned">
+      <Section title="Schedule">
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <Field label="Procedure date" required>
             <Input
@@ -430,7 +414,6 @@ export function DoctorCasePlanEditor({
           <Field
             label="Procedure category"
             required
-            hint="Type a category — suggestions appear if available"
             className="md:col-span-2"
           >
             <SearchableSelect
@@ -464,7 +447,7 @@ export function DoctorCasePlanEditor({
               }}
               placeholder="Type category…"
               customPlaceholder="e.g. Facial, Body, or your own label…"
-              emptyText="No catalog match — press Enter to use your category."
+              emptyText="No matches"
               allowCustom
             />
           </Field>
@@ -472,7 +455,6 @@ export function DoctorCasePlanEditor({
           <Field
             label="Procedures"
             required
-            hint="Type each procedure and press Enter"
             className="md:col-span-2"
           >
             <SearchableMultiSelect
@@ -480,8 +462,8 @@ export function DoctorCasePlanEditor({
               value={form.procedureIds}
               onChange={(ids) => patch('procedureIds', ids)}
               placeholder="Type a procedure name…"
-              customPlaceholder="Type a procedure and press Enter…"
-              emptyText="No catalog matches — press Enter to add what you typed."
+              customPlaceholder="Procedure…"
+              emptyText="No matches"
               loading={loadingProcedures}
               allowCustom
             />
@@ -489,9 +471,9 @@ export function DoctorCasePlanEditor({
         </div>
       </Section>
 
-      <Section title="Team" description="Type names freely — directory matches are optional">
+      <Section title="Team">
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-          <Field label="Primary surgeon" required hint="Type the surgeon’s name">
+          <Field label="Primary surgeon" required>
             <SearchableSelect
               options={surgeonOptions}
               value={form.primarySurgeonId}
@@ -504,26 +486,26 @@ export function DoctorCasePlanEditor({
               }
               placeholder="Type surgeon name…"
               customPlaceholder="Type surgeon name…"
-              emptyText="No directory match — press Enter to use this name."
+              emptyText="No matches"
               loading={loadingSurgeons}
               allowCustom
             />
           </Field>
 
-          <Field label="Assistant surgeons" hint="Type a name and press Enter for each">
+          <Field label="Assistant surgeons">
             <SearchableMultiSelect
               options={surgeonOptions.filter((s) => s.id !== form.primarySurgeonId)}
               value={form.assistantSurgeonIds}
               onChange={(ids) => patch('assistantSurgeonIds', ids)}
               placeholder="Type assistant name…"
-              customPlaceholder="Type assistant name and press Enter…"
-              emptyText="No directory match — press Enter to add."
+              customPlaceholder="Assistant…"
+              emptyText="No matches"
               loading={loadingSurgeons}
               allowCustom
             />
           </Field>
 
-          <Field label="Anaesthesiologist" hint="Type a name">
+          <Field label="Anaesthesiologist">
             <StaffCombobox
               options={staffDoctors}
               isLoading={loadingStaff}
@@ -531,11 +513,11 @@ export function DoctorCasePlanEditor({
               onChange={(id) => patch('anesthesiologistUserId', id)}
               placeholder="Type name…"
               customPlaceholder="Type anaesthesiologist name…"
-              emptyText="No directory match — press Enter to use this name."
+              emptyText="No matches"
             />
           </Field>
 
-          <Field label="Scrub nurse" hint="Type a name">
+          <Field label="Scrub nurse">
             <StaffCombobox
               options={staffNurses}
               isLoading={loadingStaff}
@@ -543,11 +525,11 @@ export function DoctorCasePlanEditor({
               onChange={(id) => patch('scrubNurseUserId', id)}
               placeholder="Type name…"
               customPlaceholder="Type scrub nurse name…"
-              emptyText="No directory match — press Enter to use this name."
+              emptyText="No matches"
             />
           </Field>
 
-          <Field label="Circulating nurse" hint="Type a name">
+          <Field label="Circulating nurse">
             <StaffCombobox
               options={staffNurses}
               isLoading={loadingStaff}
@@ -555,13 +537,13 @@ export function DoctorCasePlanEditor({
               onChange={(id) => patch('circulatingNurseUserId', id)}
               placeholder="Type name…"
               customPlaceholder="Type circulating nurse name…"
-              emptyText="No directory match — press Enter to use this name."
+              emptyText="No matches"
             />
           </Field>
         </div>
       </Section>
 
-      <Section title="Theatre logistics" description="Anaesthesia and timing estimates">
+      <Section title="Theatre logistics">
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <Field label="Anaesthesia" required className="md:col-span-2">
             <div className="flex flex-wrap gap-2">
@@ -597,7 +579,7 @@ export function DoctorCasePlanEditor({
           </Field>
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:col-span-2">
-            <Field label="Skin-to-skin (minutes)" hint="Estimate">
+            <Field label="Skin-to-skin (minutes)">
               <Input
                 type="number"
                 min={0}
@@ -607,7 +589,7 @@ export function DoctorCasePlanEditor({
                 onChange={(e) => patch('skinToSkinMinutes', e.target.value)}
               />
             </Field>
-            <Field label="Total theatre (minutes)" hint="Estimate">
+            <Field label="Total theatre (minutes)">
               <Input
                 type="number"
                 min={0}

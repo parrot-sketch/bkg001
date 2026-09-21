@@ -39,8 +39,8 @@ export function StaffCombobox({
   isLoading,
   value,
   onChange,
-  placeholder = 'Type a name…',
-  emptyText = 'No directory matches — press Enter to use what you typed.',
+  placeholder = 'Name…',
+  emptyText = 'No matches',
   customPlaceholder,
   roleHint,
 }: StaffComboboxProps) {
@@ -239,10 +239,6 @@ export function StaffCombobox({
               <span className="ml-auto shrink-0 text-[11px] text-slate-400">Enter</span>
             </button>
           ) : null}
-
-          <p className="border-t border-slate-100 px-3 py-1.5 text-[10px] text-slate-400">
-            Type the name — directory matches are optional
-          </p>
         </div>
       ) : null}
 

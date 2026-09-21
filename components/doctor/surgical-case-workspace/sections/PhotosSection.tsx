@@ -71,15 +71,6 @@ export function PhotosSection() {
 
   return (
     <div className="space-y-5">
-      <header className="space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-widest text-[#caa26a]">
-          Doctor document
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight text-[#2c2e4b]">Clinical photos</h1>
-        <p className="max-w-2xl text-sm text-slate-500">
-          Pre-operative imagery attached to this surgical case for planning and consent.
-        </p>
-      </header>
       <PhotosTab casePlan={data?.casePlan as any} caseId={caseId} />
     </div>
   );

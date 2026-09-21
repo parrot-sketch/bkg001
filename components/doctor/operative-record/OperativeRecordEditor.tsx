@@ -97,28 +97,24 @@ const STEPS = [
     id: 'case',
     label: 'Case',
     title: 'Case details',
-    description: 'Diagnoses, procedures, team, and prep',
     icon: ClipboardList,
   },
   {
     id: 'notes',
     label: 'Notes',
     title: 'Operative notes',
-    description: 'Findings and steps performed',
     icon: FileText,
   },
   {
     id: 'counts',
     label: 'Counts',
     title: 'Counts',
-    description: 'Swab and instrument confirmation',
     icon: ShieldCheck,
   },
   {
     id: 'closeout',
     label: 'Close-out',
     title: 'Close-out',
-    description: 'Record summary and post-op plan',
     icon: CheckCircle2,
   },
 ] as const;
@@ -449,14 +445,11 @@ export function OperativeRecordEditor({ caseId, caseProcedureNames, initialDiagn
                 <span className="block text-xs font-semibold">
                   {idx + 1}. {s.label}
                 </span>
-                <span
-                  className={cn(
-                    'hidden truncate text-[10px] sm:block',
-                    active ? 'text-white/70' : hasGap ? 'text-amber-700/80' : 'text-slate-400',
-                  )}
-                >
-                  {hasGap ? 'Needs attention' : s.description}
-                </span>
+                {hasGap ? (
+                  <span className="hidden truncate text-[10px] text-amber-700/80 sm:block">
+                    Needs attention
+                  </span>
+                ) : null}
               </span>
             </button>
           );
@@ -496,7 +489,6 @@ export function OperativeRecordEditor({ caseId, caseProcedureNames, initialDiagn
       <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm md:p-6">
         <div className="mb-5 border-b border-slate-100 pb-4">
           <h2 className="text-base font-semibold text-[#2c2e4b]">{current.title}</h2>
-          <p className="mt-0.5 text-sm text-slate-500">{current.description}</p>
         </div>
 
         {step === 'case' ? (

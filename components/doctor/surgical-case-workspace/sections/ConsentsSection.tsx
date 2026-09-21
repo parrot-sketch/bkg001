@@ -76,16 +76,6 @@ export function ConsentsSection() {
 
   return (
     <div className="space-y-5">
-      <header className="space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-widest text-[#caa26a]">
-          Doctor document
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight text-[#2c2e4b]">Consents</h1>
-        <p className="max-w-2xl text-sm text-slate-500">
-          Procedure and anaesthesia consents for this surgical case. Managed by the surgeon — not
-          the nurse ward checklist.
-        </p>
-      </header>
       <ConsentsTab casePlan={data?.casePlan as any} caseId={caseId} />
     </div>
   );

@@ -77,8 +77,8 @@ export function HeaderSection({
             onChange={(diagnosisPreOp) => patch({ diagnosisPreOp })}
             placeholder={
               initialDiagnosis
-                ? `Type diagnosis… (case plan: ${initialDiagnosis})`
-                : 'Type pre-operative diagnosis…'
+                ? `Diagnosis… (case plan: ${initialDiagnosis})`
+                : 'Pre-operative diagnosis…'
             }
             disabled={disabled}
             rows={3}
@@ -88,7 +88,7 @@ export function HeaderSection({
               label="Operative"
               value={stripToPlain(v.diagnosisPostOp)}
               onChange={(diagnosisPostOp) => patch({ diagnosisPostOp })}
-              placeholder="Type operative diagnosis…"
+              placeholder="Operative diagnosis…"
               disabled={disabled}
               rows={3}
             />
@@ -120,8 +120,8 @@ export function HeaderSection({
             onChange={(procedurePlanned) => patch({ procedurePlanned })}
             placeholder={
               caseProcedureName
-                ? `Type planned… (scheduled: ${caseProcedureName})`
-                : 'Type planned procedure(s)…'
+                ? `Planned… (scheduled: ${caseProcedureName})`
+                : 'Planned procedure(s)…'
             }
             disabled={disabled}
             rows={2}
@@ -131,7 +131,7 @@ export function HeaderSection({
               label="Performed"
               value={stripToPlain(v.procedurePerformed)}
               onChange={(procedurePerformed) => patch({ procedurePerformed })}
-              placeholder="Type procedure(s) performed…"
+              placeholder="Procedure(s) performed…"
               disabled={disabled}
               rows={2}
             />
@@ -179,14 +179,14 @@ export function HeaderSection({
             label="Surgeon"
             value={v.surgeonName || surgeonNameHint || ''}
             onChange={(surgeonName) => patch({ surgeonName })}
-            placeholder="Type surgeon name…"
+            placeholder="Surgeon…"
             disabled={disabled}
           />
           <TextInput
             label="Anaesthesiologist"
             value={v.anesthesiologistName || ''}
             onChange={(anesthesiologistName) => patch({ anesthesiologistName })}
-            placeholder="Type anaesthesiologist name…"
+            placeholder="Anaesthesiologist…"
             disabled={disabled}
           />
         </div>
@@ -227,7 +227,7 @@ export function HeaderSection({
                     addAssistant();
                   }
                 }}
-                placeholder="Type assistant name and press Enter…"
+                placeholder="Assistant…"
                 className="h-10 flex-1 rounded-xl border border-slate-200 bg-white px-3.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#caa26a] focus:outline-none focus:ring-2 focus:ring-[#caa26a]/25"
               />
               <Button
@@ -285,7 +285,7 @@ export function HeaderSection({
                 label="Extent"
                 value={v.shavingExtent || ''}
                 onChange={(shavingExtent) => patch({ shavingExtent })}
-                placeholder="Type extent…"
+                placeholder="Extent…"
                 disabled={disabled}
               />
             ) : null}

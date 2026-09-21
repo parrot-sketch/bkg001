@@ -58,7 +58,6 @@ export function TeamSelectionPanel({
           placeholder="Select anaesthesiologist..."
           emptyText="No doctors found."
           customPlaceholder="Enter anaesthesiologist name..."
-          roleHint="Uses user accounts (Role: DOCTOR)."
         />
 
         <StaffCombobox

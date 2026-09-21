@@ -28,9 +28,6 @@ export function PreopWardChecklistSection() {
       <div className="rounded-2xl border border-dashed border-[#e7d6bf] bg-white/80 px-6 py-14 text-center">
         <ImageBadge />
         <p className="mt-3 text-sm font-medium text-[#2c2e4b]">Awaiting nursing finalization</p>
-        <p className="mt-1 text-xs text-slate-500">
-          The pre-operative ward checklist will appear here once nursing completes it.
-        </p>
       </div>
     );
   }

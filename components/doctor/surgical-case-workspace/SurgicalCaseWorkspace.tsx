@@ -22,7 +22,6 @@ import {
   Receipt,
   ArrowLeft,
   Menu,
-  CircleDot,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SurgicalCasePlanForm } from '@/components/doctor/surgical-case-plan/SurgicalCasePlanForm';
@@ -202,19 +201,10 @@ export function SurgicalCaseWorkspace({
         <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50/50 relative">
           {/* Tab Navigation */}
           <div className="border-b border-slate-200 bg-white px-4 md:px-6 shrink-0 pt-2 overflow-x-auto no-scrollbar">
-            <div className="flex flex-col gap-3 pb-3 pt-2 md:flex-row md:items-start md:justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-medium text-slate-900">Documentation Workspace</h2>
-                  <Badge className={caseStatus.className}>{caseStatus.label}</Badge>
-                </div>
-                <p className="max-w-2xl text-sm text-slate-500">
-                  Plan the case, capture freeform surgical notes, and complete billing from one focused workspace.
-                </p>
-              </div>
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <CircleDot className="h-3.5 w-3.5 text-slate-400" />
-                <span>Current section: {TABS.find((tab) => tab.id === activeTab)?.label}</span>
+            <div className="flex flex-col gap-3 pb-3 pt-2 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-medium text-slate-900">Documentation</h2>
+                <Badge className={caseStatus.className}>{caseStatus.label}</Badge>
               </div>
             </div>
             <div className="flex gap-4 md:gap-6 min-w-max">
