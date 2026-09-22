@@ -5,7 +5,7 @@ import { IntakeError } from '@/domain/errors/IntakeErrors';
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAuth(request, ['FRONTDESK', 'ADMIN']);
+    await requireAuth(request, ['FRONTDESK', 'ADMIN', 'NURSE', 'THEATER_TECHNICIAN']);
 
     const body = await request.json();
     const { sessionId } = body;

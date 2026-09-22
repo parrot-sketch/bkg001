@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 interface UsePatientDrawerReturn {
   patientId: string | null;
@@ -14,11 +14,11 @@ interface UsePatientDrawerReturn {
 /**
  * Manages the patient detail drawer's open/close state and the selected patient.
  *
- * Navigation (View Full Profile) is handled here so the page doesn't
- * need to know the route structure.
+ * Navigation (View Full Profile) stays inside the active role shell when possible.
  */
 export function usePatientDrawer(): UsePatientDrawerReturn {
   const router = useRouter();
+  const pathname = usePathname();
   const [patientId, setPatientId] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -34,9 +34,17 @@ export function usePatientDrawer(): UsePatientDrawerReturn {
   const handleNavigate = useCallback(
     (id: string) => {
       setIsOpen(false);
+      if (pathname?.startsWith('/nurse')) {
+        router.push(`/nurse/patients/${id}`);
+        return;
+      }
+      if (pathname?.startsWith('/theater-tech')) {
+        router.push(`/theater-tech/patients`);
+        return;
+      }
       router.push(`/frontdesk/patient/${id}`);
     },
-    [router],
+    [pathname, router],
   );
 
   return { patientId, isOpen, openDrawer, closeDrawer, handleNavigate };

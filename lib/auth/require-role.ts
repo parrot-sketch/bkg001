@@ -1,86 +1,60 @@
 /**
  * Role-based authorization helpers
- * 
+ *
  * Provides reusable functions for checking user roles
  * and enforcing role-based access control.
  */
 
 import { Role } from '@/domain/enums/Role';
 import { AuthContext } from '@/lib/auth/types';
-import { NextResponse } from 'next/server';
+
+/**
+ * Clinic desk staff: frontdesk ops (intake, queue, appointments, billing)
+ * are shared by reception, nurses, and theater techs.
+ */
+export const CLINIC_DESK_ROLES: Role[] = [
+  Role.FRONTDESK,
+  Role.NURSE,
+  Role.THEATER_TECHNICIAN,
+  Role.ADMIN,
+];
+
+/** String form for requireAuth(request, ...) */
+export const CLINIC_DESK_ROLE_NAMES: string[] = CLINIC_DESK_ROLES.map((r) => r as string);
 
 /**
  * Check if a user has one of the allowed roles
- * 
- * @param user - The authenticated user context
- * @param allowedRoles - Array of allowed roles
- * @returns True if user has one of the allowed roles
  */
 export function hasRole(user: AuthContext | null | undefined, allowedRoles: Role[]): boolean {
   if (!user) return false;
   return allowedRoles.includes(user.role as Role);
 }
 
-/**
- * Check if a user is an admin
- * 
- * @param user - The authenticated user context
- * @returns True if user is an admin
- */
 export function isAdmin(user: AuthContext | null | undefined): boolean {
   return user?.role === Role.ADMIN;
 }
 
-/**
- * Check if a user is a doctor
- * 
- * @param user - The authenticated user context
- * @returns True if user is a doctor or admin
- */
 export function isDoctor(user: AuthContext | null | undefined): boolean {
   return user?.role === Role.DOCTOR || user?.role === Role.ADMIN;
 }
 
-/**
- * Check if a user is a nurse
- * 
- * @param user - The authenticated user context
- * @returns True if user is a nurse or admin
- */
 export function isNurse(user: AuthContext | null | undefined): boolean {
   return user?.role === Role.NURSE || user?.role === Role.ADMIN;
 }
 
-/**
- * Check if a user is frontdesk
- * 
- * @param user - The authenticated user context
- * @returns True if user is frontdesk, nurse, or admin
- */
+/** Reception / nurse / theater tech / admin — shared desk privileges */
 export function isFrontdesk(user: AuthContext | null | undefined): boolean {
-  return user?.role === Role.FRONTDESK || user?.role === Role.NURSE || user?.role === Role.ADMIN;
+  return hasRole(user, CLINIC_DESK_ROLES);
 }
 
-/**
- * Check if a user is a theater technician
- * 
- * @param user - The authenticated user context
- * @returns True if user is a theater technician or admin
- */
+export function isClinicDeskStaff(user: AuthContext | null | undefined): boolean {
+  return hasRole(user, CLINIC_DESK_ROLES);
+}
+
 export function isTheaterTech(user: AuthContext | null | undefined): boolean {
   return user?.role === Role.THEATER_TECHNICIAN || user?.role === Role.ADMIN;
 }
 
-/**
- * Require that a user has one of the allowed roles.
- * Throws a DomainException if not authorized.
- * 
- * @param user - The authenticated user context
- * @param allowedRoles - Array of allowed roles
- * @param message - Optional error message
- * @returns The user context if authorized
- * @throws DomainException if not authorized
- */
 export function requireRole(
   user: AuthContext | null | undefined,
   allowedRoles: Role[],
@@ -91,22 +65,14 @@ export function requireRole(
   }
 
   if (!allowedRoles.includes(user.role as Role)) {
-    throw new Error(message || `Role ${user.role} is not authorized. Allowed roles: ${allowedRoles.join(', ')}`);
+    throw new Error(
+      message || `Role ${user.role} is not authorized. Allowed roles: ${allowedRoles.join(', ')}`
+    );
   }
 
   return user;
 }
 
-/**
- * Authorize an API request based on JWT authentication result.
- * Returns a NextResponse error if unauthorized, or null if authorized.
- * 
- * Use with JwtMiddleware.authenticate() or authenticateRequest() results:
- * 
- * @param authResult - Result from JwtMiddleware.authenticate() or authenticateRequest()
- * @param allowedRoles - Array of allowed roles
- * @returns NextResponse error if unauthorized, null if authorized
- */
 export function authorizeApiRequest(
   authResult: { success: boolean; user?: AuthContext },
   allowedRoles: Role[]
@@ -116,10 +82,5 @@ export function authorizeApiRequest(
   }
 
   const userRole = authResult.user.role as Role;
-
-  if (!allowedRoles.includes(userRole)) {
-    return false;
-  }
-
-  return true;
+  return allowedRoles.includes(userRole);
 }

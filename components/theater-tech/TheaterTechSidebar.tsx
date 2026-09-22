@@ -1,7 +1,19 @@
 'use client';
 
 import {
-  Activity, Building2, LayoutDashboard, Scissors, User, Users, Package, Stethoscope, FileText
+  Activity,
+  Building2,
+  LayoutDashboard,
+  Scissors,
+  User,
+  Users,
+  Package,
+  Stethoscope,
+  FileText,
+  Calendar,
+  QrCode,
+  ClipboardList,
+  Receipt,
 } from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { useAuth } from '@/hooks/patient/useAuth';
@@ -9,40 +21,16 @@ import { useAuth } from '@/hooks/patient/useAuth';
 /**
  * Theater Tech Sidebar
  *
- * Navigation structure (post-consolidation):
- *
- * OVERVIEW
- *   Dashboard
- *
- * OPERATIONS
- *   Theater       → /theater-tech/theater  (Schedule + Booking Queue + Suites)
- *   Dayboard      → /theater-tech/dayboard
- *   Surgical Cases → /theater-tech/surgical-cases
- *
- * PATIENTS
- *   Patients      → /theater-tech/patients (Search + Upcoming Procedures + Consultations)
- *
- * CATALOG
- *   Services      → /theater-tech/services
- *   Procedures    → /theater-tech/procedures
- *
- * INVENTORY
- *   Inventory Hub → /theater-tech/inventory (Items, Batches, Vendors, POs, Receipts)
- *
- * ACCOUNT
- *   My Profile
+ * Theater ops + shared clinic front-desk capabilities (intake, appointments, billing).
  */
 
 const navItems: NavItem[] = [
-  // ── Overview ──────────────────────────────────────────────────────────────
   {
     name: 'Dashboard',
     href: '/theater-tech/dashboard',
     icon: LayoutDashboard,
     section: 'Overview',
   },
-
-  // ── Operations ────────────────────────────────────────────────────────────
   {
     name: 'Theater',
     href: '/theater-tech/theater',
@@ -61,16 +49,36 @@ const navItems: NavItem[] = [
     icon: Scissors,
     section: 'Operations',
   },
-
-  // ── Patients ──────────────────────────────────────────────────────────────
   {
     name: 'Patients',
     href: '/theater-tech/patients',
     icon: Users,
-    section: 'Patients',
+    section: 'Front Desk',
   },
-
-  // ── Catalog ───────────────────────────────────────────────────────────────
+  {
+    name: 'Appointments',
+    href: '/frontdesk/appointments',
+    icon: Calendar,
+    section: 'Front Desk',
+  },
+  {
+    name: 'Patient Intake',
+    href: '/frontdesk/intake/start',
+    icon: QrCode,
+    section: 'Front Desk',
+  },
+  {
+    name: 'Pending Intakes',
+    href: '/frontdesk/intake/pending',
+    icon: ClipboardList,
+    section: 'Front Desk',
+  },
+  {
+    name: 'Billing',
+    href: '/frontdesk/billing',
+    icon: Receipt,
+    section: 'Front Desk',
+  },
   {
     name: 'Services',
     href: '/theater-tech/services',
@@ -83,8 +91,6 @@ const navItems: NavItem[] = [
     icon: Scissors,
     section: 'Catalog',
   },
-
-  // ── Inventory ─────────────────────────────────────────────────────────────
   {
     name: 'Inventory Hub',
     href: '/theater-tech/inventory',
@@ -97,8 +103,6 @@ const navItems: NavItem[] = [
     icon: FileText,
     section: 'Inventory',
   },
-
-  // ── Account ───────────────────────────────────────────────────────────────
   {
     name: 'My Profile',
     href: '/theater-tech/profile',
@@ -117,7 +121,11 @@ export function TheaterTechSidebar({ isOpen, onClose, onCollapse }: TheaterTechS
   const { logout, user } = useAuth();
 
   const handleLogout = async () => {
-    try { await logout(); } catch (e) { console.error('Logout failed:', e); }
+    try {
+      await logout();
+    } catch (e) {
+      console.error('Logout failed:', e);
+    }
   };
 
   const userInfo: UserInfo | null = user

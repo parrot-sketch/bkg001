@@ -1,11 +1,9 @@
 /**
  * Queue Management Panels
- * 
- * Orchestrates queue sections for frontdesk and nurse roles.
- * Delegates to extracted section components for readability.
+ *
+ * Full clinic desk queue for frontdesk, nurse, and theater tech.
+ * Nurses additionally get clinical action hooks on the live board.
  */
-import { useMemo } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useCheckedInAwaitingAssignment, useLiveQueueBoard, useFrontdeskDashboard, useCheckIn } from '@/hooks/frontdesk/use-frontdesk-dashboard';
 import { useQueueActions } from '@/hooks/frontdesk/useQueueActions';
 import { ArrivingTodaySection } from './queue/ArrivingTodaySection';
@@ -19,14 +17,14 @@ interface QueueManagementPanelsProps {
   onPreOpChecklist?: (patientId: string, appointmentId?: number) => void;
 }
 
-export function QueueManagementPanels({ 
+export function QueueManagementPanels({
   role = 'FRONTDESK',
   onRecordVitals,
   onAddCareNote,
   onPreOpChecklist,
 }: QueueManagementPanelsProps) {
-  const queryClient = useQueryClient();
-  const { data: checkedInAwaiting, isLoading: loadingAwaiting, error: errorAwaiting, refetch: refetchAwaiting } = useCheckedInAwaitingAssignment();
+  const { data: checkedInAwaiting, isLoading: loadingAwaiting, error: errorAwaiting, refetch: refetchAwaiting } =
+    useCheckedInAwaitingAssignment();
   const { data: liveQueue, isLoading: loadingQueue, error: errorQueue, refetch: refetchQueue } = useLiveQueueBoard();
   const { data: dashboard, isLoading: loadingDashboard } = useFrontdeskDashboard();
   const checkInMutation = useCheckIn();
@@ -37,7 +35,7 @@ export function QueueManagementPanels({
     try {
       await checkInMutation.mutateAsync({
         appointmentId,
-        notes: 'Checked in at frontdesk',
+        notes: 'Checked in at clinic desk',
       });
       refetchAwaiting();
       refetchQueue();
@@ -57,38 +55,33 @@ export function QueueManagementPanels({
     },
     onReassigned: () => {
       refetchAwaiting();
-      refetchQueue();
     },
   });
 
-  const isNurse = role === 'NURSE';
+  const showClinicalExtras = role === 'NURSE';
 
   return (
     <div className="space-y-5 w-full">
-      {!isNurse && (
-        <ArrivingTodaySection
-          appointments={scheduledAppointments}
-          loading={loadingDashboard}
-          onCheckIn={handleCheckIn}
-          actionLoading={actions.actionLoading}
-        />
-      )}
+      <ArrivingTodaySection
+        appointments={scheduledAppointments}
+        loading={loadingDashboard}
+        onCheckIn={handleCheckIn}
+        actionLoading={actions.actionLoading}
+      />
 
-      {!isNurse && (
-        <AwaitingAssignmentSection
-          patients={checkedInAwaiting ?? []}
-          loading={loadingAwaiting}
-          error={errorAwaiting}
-          onAssign={actions.handleAssignToQueue}
-          actionLoading={actions.actionLoading}
-        />
-      )}
+      <AwaitingAssignmentSection
+        patients={checkedInAwaiting ?? []}
+        loading={loadingAwaiting}
+        error={errorAwaiting}
+        onAssign={actions.handleAssignToQueue}
+        actionLoading={actions.actionLoading}
+      />
 
       <LiveQueueBoard
         loading={loadingQueue}
         error={errorQueue}
         queue={liveQueue ?? []}
-        isNurse={isNurse}
+        isNurse={showClinicalExtras}
         onRecordVitals={onRecordVitals}
         onAddCareNote={onAddCareNote}
         onPreOpChecklist={onPreOpChecklist}

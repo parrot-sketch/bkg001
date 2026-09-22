@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ sessionId: string }> },
 ) {
   try {
-    await requireAuth(request, ['FRONTDESK', 'ADMIN']);
+    await requireAuth(request, ['FRONTDESK', 'ADMIN', 'NURSE', 'THEATER_TECHNICIAN']);
 
     const { sessionId } = await params;
     const result = await container.getIntakeSessionStatus.execute(sessionId);

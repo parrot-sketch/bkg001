@@ -14,11 +14,17 @@ const getAllDoctorsAvailabilityUseCase = new GetAllDoctorsAvailabilityUseCase(
 
 /**
  * Server action to fetch all doctors availability for a date range.
- * Secures access to FRONTDESK and ADMIN roles.
+ * Available to clinic desk staff (frontdesk, nurse, theater tech, admin).
  */
 export async function getDoctorsAvailabilityAction(startDate: Date, endDate: Date) {
   const user = await getCurrentUser();
-  if (!user || (user.role !== Role.FRONTDESK && user.role !== Role.ADMIN)) {
+  if (
+    !user ||
+    (user.role !== Role.FRONTDESK &&
+      user.role !== Role.ADMIN &&
+      user.role !== Role.NURSE &&
+      user.role !== Role.THEATER_TECHNICIAN)
+  ) {
     throw new Error('Unauthorized');
   }
 

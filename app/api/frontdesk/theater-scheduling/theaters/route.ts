@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
         const { role } = authResult.user;
 
         // 2. Check permissions (FRONTDESK or ADMIN only)
-        if (role !== Role.FRONTDESK && role !== Role.ADMIN && role !== Role.NURSE) {
+        if (role !== Role.FRONTDESK && role !== Role.ADMIN && role !== Role.NURSE && role !== Role.THEATER_TECHNICIAN) {
             return NextResponse.json(
                 {
                     success: false,

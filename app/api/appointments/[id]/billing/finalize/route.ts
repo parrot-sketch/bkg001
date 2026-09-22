@@ -42,7 +42,7 @@ export async function POST(
 
     // 3. Check authorization
     const userRole = authResult.user.role as Role;
-    const allowedRoles = [Role.FRONTDESK, Role.ADMIN];
+    const allowedRoles = [Role.FRONTDESK, Role.ADMIN, Role.NURSE, Role.THEATER_TECHNICIAN];
     if (!allowedRoles.includes(userRole)) {
       return NextResponse.json(
         { success: false, error: 'Access denied: Only frontdesk and admin can finalize charge sheets' },

@@ -22,7 +22,7 @@ export async function POST(
       return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
     }
 
-    const allowedRoles = ['FRONTDESK', 'DOCTOR', 'ADMIN'];
+    const allowedRoles = ['FRONTDESK', 'DOCTOR', 'ADMIN', 'NURSE', 'THEATER_TECHNICIAN'];
     if (!allowedRoles.includes(authResult.user.role)) {
       return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
     }

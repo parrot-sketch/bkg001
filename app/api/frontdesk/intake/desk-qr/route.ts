@@ -11,7 +11,7 @@ import QRCode from 'qrcode';
  * Protected: FRONTDESK / ADMIN.
  */
 export async function GET(request: NextRequest) {
-  await requireAuth(request, ['FRONTDESK', 'ADMIN']);
+  await requireAuth(request, ['FRONTDESK', 'ADMIN', 'NURSE', 'THEATER_TECHNICIAN']);
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
   const intakeFormUrl = `${baseUrl.replace(/\/$/, '')}/intake`;

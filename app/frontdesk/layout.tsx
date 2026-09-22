@@ -27,7 +27,12 @@ export default function FrontdeskLayout({ children }: FrontdeskLayoutProps) {
     if (!isLoading) {
       if (!user) {
         router.replace('/login');
-      } else if (user.role !== 'FRONTDESK' && user.role !== 'NURSE' && user.role !== 'ADMIN') {
+      } else if (
+        user.role !== 'FRONTDESK' &&
+        user.role !== 'NURSE' &&
+        user.role !== 'THEATER_TECHNICIAN' &&
+        user.role !== 'ADMIN'
+      ) {
         toast.error('Access Denied: Frontdesk privileges required');
         router.replace('/login');
       }
@@ -51,7 +56,13 @@ export default function FrontdeskLayout({ children }: FrontdeskLayoutProps) {
     );
   }
 
-  if (!user || (user.role !== 'FRONTDESK' && user.role !== 'NURSE' && user.role !== 'ADMIN')) {
+  if (
+    !user ||
+    (user.role !== 'FRONTDESK' &&
+      user.role !== 'NURSE' &&
+      user.role !== 'THEATER_TECHNICIAN' &&
+      user.role !== 'ADMIN')
+  ) {
     return null;
   }
 

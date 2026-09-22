@@ -39,11 +39,11 @@ export async function POST(
         const { userId, role } = authResult.user;
 
         // 2. Authorize role (Frontdesk or Admin only)
-        if (role !== 'FRONTDESK' && role !== 'ADMIN') {
+        if (role !== 'FRONTDESK' && role !== 'ADMIN' && role !== 'NURSE' && role !== 'THEATER_TECHNICIAN') {
             return NextResponse.json(
                 {
                     success: false,
-                    error: 'Access denied: Only frontdesk staff can perform check-ins',
+                    error: 'Access denied: Only clinic desk staff can perform check-ins',
                 },
                 { status: 403 }
             );

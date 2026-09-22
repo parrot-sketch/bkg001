@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         }
 
-        if (!authorizeApiRequest({ success: true, user }, [Role.FRONTDESK, Role.NURSE, Role.ADMIN])) {
+        if (!authorizeApiRequest({ success: true, user }, [Role.FRONTDESK, Role.NURSE, Role.THEATER_TECHNICIAN, Role.ADMIN])) {
             return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
         }
 

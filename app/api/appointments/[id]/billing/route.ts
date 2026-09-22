@@ -50,7 +50,7 @@ export async function GET(
 
     // 3. Check authorization
     const userRole = authResult.user.role as Role;
-    const allowedRoles = [Role.DOCTOR, Role.FRONTDESK, Role.ADMIN];
+    const allowedRoles = [Role.DOCTOR, Role.FRONTDESK, Role.ADMIN, Role.NURSE, Role.THEATER_TECHNICIAN];
     if (!allowedRoles.includes(userRole)) {
       return NextResponse.json(
         { success: false, error: 'Access denied' },
@@ -240,7 +240,7 @@ export async function PUT(
 
     // 3. Check authorization (DOCTOR, FRONTDESK, ADMIN)
     const userRole = authResult.user.role as Role;
-    const allowedRoles = [Role.DOCTOR, Role.FRONTDESK, Role.ADMIN];
+    const allowedRoles = [Role.DOCTOR, Role.FRONTDESK, Role.ADMIN, Role.NURSE, Role.THEATER_TECHNICIAN];
     if (!allowedRoles.includes(userRole)) {
       return NextResponse.json(
         { success: false, error: 'Access denied' },

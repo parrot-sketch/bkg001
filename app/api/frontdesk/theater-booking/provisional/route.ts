@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Check permissions
-        if (user.role !== Role.FRONTDESK && user.role !== Role.ADMIN && user.role !== Role.NURSE) {
+        if (user.role !== Role.FRONTDESK && user.role !== Role.ADMIN && user.role !== Role.NURSE && user.role !== Role.THEATER_TECHNICIAN) {
             return NextResponse.json(
                 { success: false, error: 'Access denied: Only frontdesk, nurse, or admin can book theater' },
                 { status: 403 }

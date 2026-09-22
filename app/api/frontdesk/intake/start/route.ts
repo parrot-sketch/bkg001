@@ -5,7 +5,7 @@ import { IntakeError } from '@/domain/errors/IntakeErrors';
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireAuth(request, ['FRONTDESK', 'ADMIN']);
+    const auth = await requireAuth(request, ['FRONTDESK', 'ADMIN', 'NURSE', 'THEATER_TECHNICIAN']);
 
     const result = await container.startIntake.execute({
       createdByUserId: auth.userId,

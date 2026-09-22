@@ -5,7 +5,7 @@ import { IntakeError } from '@/domain/errors/IntakeErrors';
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAuth(request, ['FRONTDESK', 'ADMIN']);
+    await requireAuth(request, ['FRONTDESK', 'ADMIN', 'NURSE', 'THEATER_TECHNICIAN']);
 
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10), 100);

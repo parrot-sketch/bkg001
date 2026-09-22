@@ -3,7 +3,10 @@
 /**
  * Nurse Sidebar
  *
- * Patient care (patients + surgical cases) plus clinical journey queues.
+ * Clean sections:
+ * - Overview / Journey (clinical)
+ * - Front desk (shared clinic ops — same capabilities as frontdesk)
+ * - Account
  */
 
 import {
@@ -15,6 +18,10 @@ import {
   HeartPulse,
   FolderKanban,
   Users,
+  Calendar,
+  QrCode,
+  Building2,
+  Receipt,
 } from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { useAuth } from '@/hooks/patient/useAuth';
@@ -33,10 +40,40 @@ const navItems: NavItem[] = [
     section: 'Patient Care',
   },
   {
+    name: 'Appointments',
+    href: '/frontdesk/appointments',
+    icon: Calendar,
+    section: 'Front Desk',
+  },
+  {
+    name: 'Patient Intake',
+    href: '/frontdesk/intake/start',
+    icon: QrCode,
+    section: 'Front Desk',
+  },
+  {
+    name: 'Pending Intakes',
+    href: '/frontdesk/intake/pending',
+    icon: ClipboardList,
+    section: 'Front Desk',
+  },
+  {
+    name: 'Theater Schedule',
+    href: '/frontdesk/theater-scheduling',
+    icon: Building2,
+    section: 'Front Desk',
+  },
+  {
+    name: 'Billing',
+    href: '/frontdesk/billing',
+    icon: Receipt,
+    section: 'Front Desk',
+  },
+  {
     name: 'Surgical Cases',
     href: '/nurse/surgical-cases',
     icon: FolderKanban,
-    section: 'Patient Care',
+    section: 'Journey',
   },
   {
     name: 'Ward Prep',
