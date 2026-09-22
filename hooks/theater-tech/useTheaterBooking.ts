@@ -8,6 +8,10 @@ import { useState, useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { tokenStorage } from '@/lib/auth/token';
 import { ApiResponse, isSuccess } from '@/lib/http/apiResponse';
+import {
+  fetchTheaterSchedule,
+  theaterScheduleKeys,
+} from '@/hooks/theater-tech/useTheaterSchedule';
 
 function getToken(): string | null {
   return tokenStorage.getAccessToken();
@@ -70,21 +74,6 @@ interface ConfirmBookingResponse {
 // API Functions
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function fetchTheatersApi(date: string): Promise<TheaterWithBookings[]> {
-  const token = getToken();
-  if (!token) {
-    throw new Error('No authentication token available');
-  }
-  const res = await fetch(`/api/theater-tech/theater-scheduling/theaters?date=${date}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const json: ApiResponse<{ theaters: TheaterWithBookings[] }> = await res.json();
-  if (!isSuccess(json)) {
-    throw new Error(json.error || 'Failed to fetch theaters');
-  }
-  return json.data.theaters;
-}
-
 async function bookTheaterSlot(
   caseId: string,
   theaterId: string,
@@ -144,14 +133,26 @@ export function useTheaterBooking({ caseId, date, enabled = true }: UseTheaterBo
   const queryClient = useQueryClient();
   const [bookingError, setBookingError] = useState<string | null>(null);
 
-  const theatersQuery = useQuery<TheaterWithBookings[], Error>({
-    queryKey: ['theater-tech', 'theater-scheduling', 'theaters', date],
-    queryFn: () => fetchTheatersApi(date),
+  const theatersQuery = useQuery({
+    // Share cache with useTheaterSchedule — same endpoint, one poll.
+    queryKey: theaterScheduleKeys.byDate(date),
+    queryFn: () => fetchTheaterSchedule(date),
     enabled: enabled && !!date,
-    staleTime: 1000 * 30,
-    refetchInterval: enabled ? 1000 * 30 : false,
+    staleTime: 60_000,
+    refetchInterval: enabled ? 60_000 : false,
     refetchOnWindowFocus: false,
     networkMode: 'offlineFirst',
+    select: (data): TheaterWithBookings[] =>
+      data.theaters.map((theater) => ({
+        ...theater,
+        bookings: theater.bookings.map((b) => ({
+          ...b,
+          startTime: new Date(b.startTime),
+          endTime: new Date(b.endTime),
+          lockedAt: b.lockedAt ? new Date(b.lockedAt) : null,
+          lockExpiresAt: b.lockExpiresAt ? new Date(b.lockExpiresAt) : null,
+        })),
+      })),
   });
 
   // Book a slot (provisional lock)
@@ -166,7 +167,7 @@ export function useTheaterBooking({ caseId, date, enabled = true }: UseTheaterBo
       endTime: string;
     }) => bookTheaterSlot(caseId, theaterId, startTime, endTime),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['theater-tech', 'theater-scheduling', 'theaters'] });
+      queryClient.invalidateQueries({ queryKey: theaterScheduleKeys.all });
       queryClient.invalidateQueries({ queryKey: ['theater-tech-case', caseId] });
       setBookingError(null);
     },
@@ -179,7 +180,7 @@ export function useTheaterBooking({ caseId, date, enabled = true }: UseTheaterBo
   const confirmMutation = useMutation({
     mutationFn: async (bookingId: string) => confirmBooking(caseId, bookingId),
     onSuccess: (_data) => {
-      queryClient.invalidateQueries({ queryKey: ['theater-tech', 'theater-scheduling', 'theaters'] });
+      queryClient.invalidateQueries({ queryKey: theaterScheduleKeys.all });
       queryClient.invalidateQueries({ queryKey: ['theater-tech-case', caseId] });
       // Immediately refresh/remove from the scheduling queue so the UI updates without full page reload.
       queryClient.invalidateQueries({ queryKey: ['theater-tech', 'theater-scheduling', 'queue'] });

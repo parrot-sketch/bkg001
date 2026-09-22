@@ -41,12 +41,10 @@ export default async function FrontdeskDashboardPage() {
     return <FrontdeskDashboardClient />;
   }
 
-  // Pre-seed individual split query keys in the React Query cache
-  queryClient.setQueryData(['frontdesk', 'stats', userId], dashboardData);
-  queryClient.setQueryData(['frontdesk', 'schedule', 'today', 'current', userId], dashboardData);
-  queryClient.setQueryData(['frontdesk', 'checked-in-awaiting-assignment', userId], dashboardData);
-  queryClient.setQueryData(['frontdesk', 'live-queue-board', userId], dashboardData);
-  
+  // Seed the single shared dashboard key used by all section hooks.
+  // (Older split keys caused N parallel server-action POSTs for the same payload.)
+  queryClient.setQueryData(['frontdesk', 'dashboard', userId], dashboardData);
+
   // Seed the doctor availability query cache
   queryClient.setQueryData(['doctors', 'availability', 'list', todayStr, todayStr], doctorsAvailability);
 

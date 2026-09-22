@@ -38,7 +38,7 @@ export interface TheaterScheduleResponse {
   date: string;
 }
 
-async function fetchSchedule(date: string): Promise<TheaterScheduleResponse> {
+export async function fetchTheaterSchedule(date: string): Promise<TheaterScheduleResponse> {
   const token = tokenStorage.getAccessToken();
   if (!token) throw new Error('No authentication token available');
 
@@ -61,12 +61,11 @@ export function useTheaterSchedule(date: string, options?: { enabled?: boolean }
   const enabled = options?.enabled ?? true;
   return useQuery<TheaterScheduleResponse, Error>({
     queryKey: theaterScheduleKeys.byDate(date),
-    queryFn: () => fetchSchedule(date),
-    staleTime: 1000 * 30,
-    refetchInterval: enabled ? 1000 * 30 : false,
+    queryFn: () => fetchTheaterSchedule(date),
+    staleTime: 60_000,
+    refetchInterval: enabled ? 60_000 : false,
     refetchOnWindowFocus: false,
     networkMode: 'offlineFirst',
     enabled: enabled && !!date,
   });
 }
-

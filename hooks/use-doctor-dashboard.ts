@@ -36,13 +36,17 @@ export function useDoctorDashboard(options: UseDoctorDashboardOptions = {}) {
 }
 
 export function useDoctorAppointments(options: { enabled?: boolean } = {}) {
-  return useQuery({
-    queryKey: ['doctor', 'dashboard', 'appointments'] as const,
-    queryFn: () => getDoctorDashboardData(),
-    staleTime: 1000 * 60 * 2,
-    gcTime: 1000 * 60 * 5,
-    enabled: options.enabled,
-  });
+  // Share the god-hook cache — never use a second key with the same heavy queryFn.
+  const { data, ...rest } = useDoctorDashboard(options);
+  return {
+    ...rest,
+    data: data
+      ? {
+          today: data.todayAppointments,
+          upcoming: data.upcomingAppointments,
+        }
+      : undefined,
+  };
 }
 
 export function useDoctorQueue(options: { enabled?: boolean } = {}) {

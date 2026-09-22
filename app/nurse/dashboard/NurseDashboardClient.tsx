@@ -99,19 +99,27 @@ export default function NurseDashboardPage() {
     isLoading: loadingWardPrep,
     refetch: refetchWard,
     isRefetching: refetchingWard,
-  } = usePreOpCases({ readiness: 'pending' });
+  } = usePreOpCases(
+    { readiness: 'pending' },
+    true,
+    { refetchInterval: activeQueue === 'ward' ? 60_000 : false },
+  );
   const {
     data: intraOpData,
     isLoading: loadingIntraOp,
     refetch: refetchIntra,
     isRefetching: refetchingIntra,
-  } = useIntraOpCases();
+  } = useIntraOpCases({
+    refetchInterval: activeQueue === 'intra' ? 60_000 : false,
+  });
   const {
     data: recoveryData,
     isLoading: loadingRecovery,
     refetch: refetchPost,
     isRefetching: refetchingPost,
-  } = useRecoveryCases();
+  } = useRecoveryCases({
+    refetchInterval: activeQueue === 'post' ? 60_000 : false,
+  });
 
   const wardCases = useMemo(() => wardPrepData?.cases ?? [], [wardPrepData?.cases]);
   const intraCases = useMemo(() => intraOpData?.cases ?? [], [intraOpData?.cases]);

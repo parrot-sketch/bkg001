@@ -1,18 +1,44 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useDoctorDashboard } from '@/hooks/use-doctor-dashboard';
-import { useDoctorQueue } from '@/hooks/doctor/useDoctorQueue';
+import type { QueuePatient } from '@/hooks/doctor/useDoctorQueue';
 import { DashboardStatCards } from '@/components/doctor/dashboard/DashboardStatCards';
 import { DailyQueuePanel } from '@/components/doctor/dashboard/DailyQueuePanel';
 import { CasePipeline } from '@/components/doctor/dashboard/CasePipeline';
 import { PendingConfirmationsBanner } from '@/components/doctor/dashboard/PendingConfirmationsBanner';
 
 export default function DoctorDashboardPage() {
+  // Single server-action fetch — do not also poll /api/doctor/.../queue here
+  // (that duplicated the same patients every 60s on top of the dashboard payload).
   const { data: dashboardData, isLoading: dashboardLoading } = useDoctorDashboard();
-  
-  const { data: queue, isLoading: queueLoading } = useDoctorQueue(dashboardData?.doctor?.id, {
-    enabled: !!dashboardData?.doctor?.id,
-  });
+
+  const queue = useMemo<QueuePatient[]>(() => {
+    return (dashboardData?.queue ?? []).map((q) => {
+      const parts = (q.patientName || '').trim().split(/\s+/);
+      const firstName = parts[0] || '';
+      const lastName = parts.slice(1).join(' ');
+      return {
+        id: q.id,
+        patientId: q.patientId,
+        patient: {
+          id: q.patientId,
+          firstName,
+          lastName,
+          fileNumber: q.patientFileNumber,
+        },
+        appointmentId: q.appointmentId,
+        appointmentDate: null,
+        time: q.appointmentTime,
+        type: q.type,
+        status: q.appointmentStatus || q.status,
+        addedAt: q.addedAt,
+        waitTime: q.waitTime,
+        notes: null,
+        isWalkIn: q.isWalkIn,
+      };
+    });
+  }, [dashboardData?.queue]);
 
   return (
     <div className="space-y-5 animate-in fade-in duration-500">
@@ -37,8 +63,8 @@ export default function DoctorDashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 space-y-5">
           <DailyQueuePanel 
-            queue={queue ?? []} 
-            isLoading={dashboardLoading || queueLoading} 
+            queue={queue} 
+            isLoading={dashboardLoading} 
           />
         </div>
 

@@ -22,8 +22,11 @@ import { queryKeys } from '@/lib/constants/queryKeys';
  */
 export function usePreOpCases(
   filters?: { status?: string; readiness?: 'ready' | 'pending'; page?: number; limit?: number },
-  enabled = true
+  enabled = true,
+  options?: { refetchInterval?: number | false },
 ) {
+  const refetchInterval = options?.refetchInterval ?? 60_000;
+
   return useQuery({
     queryKey: queryKeys.nurse.wardPrep(filters),
     queryFn: async () => {
@@ -35,7 +38,7 @@ export function usePreOpCases(
     },
     staleTime: 1000 * 30, // 30 seconds - Tier 2 (HIGH urgency)
     gcTime: 1000 * 60 * 5, // 5 minutes
-    refetchInterval: 1000 * 60, // Was 30s — reduced to conserve DB connections
+    refetchInterval: enabled ? refetchInterval : false,
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     refetchOnWindowFocus: false, // Rely on interval polling + explicit invalidations to avoid DB spikes
