@@ -82,11 +82,12 @@ function LoginForm() {
         className="w-full animate-pulse"
         aria-label="Loading authentication"
       >
-        <div className="h-14 w-36 rounded bg-[#EEF0F2]" />
-        <div className="mt-10 space-y-3">
-          <div className="h-3 w-20 rounded bg-[#E7EAEE]" />
-          <div className="h-12 w-full rounded-md bg-[#EEF0F2]" />
-          <div className="h-12 w-full rounded-md bg-[#E7EAEE]" />
+        <div className="h-3 w-28 rounded bg-[#EDE8DF]" />
+        <div className="mt-3 h-7 w-40 rounded bg-[#E8E2D8]" />
+        <div className="mt-8 space-y-3">
+          <div className="h-3 w-20 rounded bg-[#EDE8DF]" />
+          <div className="h-12 w-full rounded-md bg-[#F0EBE3]" />
+          <div className="h-12 w-full rounded-md bg-[#E8E2D8]" />
         </div>
       </div>
     );
@@ -103,16 +104,14 @@ function LoginForm() {
 
   return (
     <div className="w-full">
-      {/* Workspace identity */}
       <WorkspaceIdentity />
 
-      {/* Session expired */}
       {sessionExpired && !error && (
         <div
           className={cn(
-            'mt-7 flex items-start gap-2.5',
+            'mt-6 flex items-start gap-2.5',
             'border-l-2 border-[#C7A45D]',
-            'bg-[#FBF8F0]',
+            'bg-[#F7F1E4]',
             'px-3.5 py-3',
             'text-[13px] leading-5 text-[#7F642C]',
           )}
@@ -128,11 +127,10 @@ function LoginForm() {
         </div>
       )}
 
-      {/* Authentication form */}
       <form
         onSubmit={handleSubmit}
         noValidate
-        className="mt-10"
+        className="mt-7"
         aria-label="Sign in form"
       >
         {/* Email step */}
@@ -357,11 +355,12 @@ function LoginForm() {
 function LoginLoading() {
   return (
     <div className="w-full animate-pulse" aria-label="Loading authentication">
-      <div className="h-14 w-36 rounded bg-[#EEF0F2]" />
-      <div className="mt-10 space-y-3">
-        <div className="h-3 w-20 rounded bg-[#E7EAEE]" />
-        <div className="h-12 w-full rounded-md bg-[#EEF0F2]" />
-        <div className="h-12 w-full rounded-md bg-[#E7EAEE]" />
+      <div className="h-3 w-28 rounded bg-[#EDE8DF]" />
+      <div className="mt-3 h-7 w-40 rounded bg-[#E8E2D8]" />
+      <div className="mt-8 space-y-3">
+        <div className="h-3 w-20 rounded bg-[#EDE8DF]" />
+        <div className="h-12 w-full rounded-md bg-[#F0EBE3]" />
+        <div className="h-12 w-full rounded-md bg-[#E8E2D8]" />
       </div>
     </div>
   );

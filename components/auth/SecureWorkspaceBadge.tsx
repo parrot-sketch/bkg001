@@ -8,12 +8,12 @@ export function SecureWorkspaceBadge({
   provider = 'BKG Consulting Africa',
 }: SecureWorkspaceBadgeProps) {
   return (
-    <div>
-      <div className="flex items-center gap-2 text-[12px] text-[#718096]">
+    <div className="mx-auto mt-8 max-w-md text-center animate-in fade-in duration-1000 fill-mode-both delay-300">
+      <div className="inline-flex items-center gap-2 text-[12px] text-white/55">
         <svg
           viewBox="0 0 20 20"
           fill="currentColor"
-          className="h-3.5 w-3.5 shrink-0 text-[#102F52]"
+          className="h-3.5 w-3.5 shrink-0 text-[var(--auth-gold-bright,#C7A45D)]"
           aria-hidden="true"
         >
           <path
@@ -22,11 +22,10 @@ export function SecureWorkspaceBadge({
             clipRule="evenodd"
           />
         </svg>
-
-        <span>Secure clinical workspace</span>
+        <span>Encrypted · Role-based clinical access</span>
       </div>
 
-      <p className="mt-2 text-[11px] text-[#9AA4B2]">
+      <p className="mt-2 text-[11px] text-white/35">
         Tibaflow · {provider}
       </p>
     </div>

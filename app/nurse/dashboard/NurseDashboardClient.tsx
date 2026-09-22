@@ -107,7 +107,7 @@ function MetricCard({
 export default function NurseDashboardPage() {
   const { user, isAuthenticated } = useAuth();
   const { openBookingDialog } = useBookAppointmentStore();
-  const [mode, setMode] = useState<Mode>('desk');
+  const [mode, setMode] = useState<Mode>('clinical');
   const [activeQueue, setActiveQueue] = useState<QueueKey>('ward');
   const [quickAssignmentOpen, setQuickAssignmentOpen] = useState(false);
 

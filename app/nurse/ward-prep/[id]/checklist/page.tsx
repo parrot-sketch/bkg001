@@ -31,7 +31,6 @@ import type { NursePreopWardChecklistDraft, MissingChecklistItem } from '@/domai
 import { CHECKLIST_SECTIONS, normalizeLegacyChecklistData } from '@/domain/clinical-forms/NursePreopWardChecklist';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
 import { FinalizeChecklistDialog } from '@/components/nurse/ward-prep-checklist/components/FinalizeChecklistDialog';
@@ -285,17 +284,15 @@ export default function NursePreopWardChecklistPage() {
 
   if (error || !response || !response.form) {
     return (
-      <div className="space-y-6 w-full">
+      <div className="mx-auto w-full max-w-[920px] space-y-6 px-4 py-6">
         <Button variant="ghost" size="sm" asChild>
           <Link href={safeReturnTo}>
-            <ArrowLeft className="w-4 h-4 mr-2" /> {backLabel}
+            <ArrowLeft className="mr-2 h-4 w-4" /> {backLabel}
           </Link>
         </Button>
-        <Card>
-          <CardContent className="p-8 text-center">
-            <p className="text-muted-foreground">{(error as Error)?.message || 'Failed to load checklist'}</p>
-          </CardContent>
-        </Card>
+        <div className="border border-slate-300 bg-white p-8 text-center">
+          <p className="text-slate-600">{(error as Error)?.message || 'Failed to load checklist'}</p>
+        </div>
       </div>
     );
   }
@@ -304,32 +301,16 @@ export default function NursePreopWardChecklistPage() {
   const form = response.form;
 
   return (
-    <div className="min-h-screen bg-slate-50/50">
-      <div className="w-full space-y-5 pb-24 animate-in fade-in duration-500">
-        {/* Navigation */}
-        <div className="flex items-center gap-2 pt-4">
-          <Button variant="ghost" size="sm" asChild>
+    <div className="min-h-screen bg-[#e8e6e1]">
+      <div className="mx-auto w-full max-w-[920px] px-3 sm:px-4 py-4 sm:py-6 pb-28 animate-in fade-in duration-300">
+        <div className="mb-3">
+          <Button variant="ghost" size="sm" className="text-slate-700 hover:bg-white/60 -ml-2" asChild>
             <Link href={safeReturnTo}>
               <ArrowLeft className="w-4 h-4 mr-2" /> {backLabel}
             </Link>
           </Button>
         </div>
 
-        <PaperHeaderSection
-          caseId={caseId}
-          patient={patient}
-          surgeonName={response.surgeonName}
-          anaesthesiologistName={response.anaesthesiologistName || null}
-          headerDate={formData.header?.date}
-          onHeaderDateChange={(date) => handleChange({ ...formData, header: { ...formData.header, date } })}
-          disabled={isDisabled}
-          isFinalized={isFinalized}
-          isAmendment={isAmendment}
-          progress={paperHeaderProgress}
-          onStartAmendment={() => setShowAmendDialog(true)}
-        />
-
-        {/* Sections */}
         {isFinalized && !isAmendment ? (
           <FinalizedChecklistDocument
             caseId={caseId}
@@ -339,14 +320,58 @@ export default function NursePreopWardChecklistPage() {
             data={formData}
           />
         ) : (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-            {/* Nursing Comments - full width open text box */}
-            <Card id="ward-section-header" className="xl:col-span-2 overflow-hidden border-slate-200 shadow-sm scroll-mt-24">
-              <div className="bg-slate-50/80 px-5 py-3 border-b border-slate-100 flex items-center gap-3">
-                <span className="text-xs font-bold text-slate-400 w-5">00</span>
-                <span className="font-semibold text-sm text-slate-900">Nursing Comments / Observations</span>
+          <article className="bg-white border border-slate-300 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+            <div className="px-5 sm:px-8 lg:px-10 pt-6 sm:pt-8">
+              <PaperHeaderSection
+                caseId={caseId}
+                patient={patient}
+                surgeonName={response.surgeonName}
+                anaesthesiologistName={response.anaesthesiologistName || null}
+                headerDate={formData.header?.date}
+                onHeaderDateChange={(date) => handleChange({ ...formData, header: { ...formData.header, date } })}
+                disabled={isDisabled}
+                isFinalized={isFinalized}
+                isAmendment={isAmendment}
+                progress={paperHeaderProgress}
+                onStartAmendment={() => setShowAmendDialog(true)}
+              />
+            </div>
+
+            <nav className="sticky top-0 z-20 border-y border-slate-200 bg-white/95 backdrop-blur px-5 sm:px-8 lg:px-10 py-2.5">
+              <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+                <button
+                  type="button"
+                  onClick={() => jumpToSection('header')}
+                  className="shrink-0 border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:border-slate-400"
+                >
+                  Notes
+                </button>
+                {CHECKLIST_SECTIONS.map((section, idx) => {
+                  const complete = sectionCompletion[section.key as string]?.complete === true;
+                  const shortTitle = section.title.replace(/^\d+\.\s*/, '').split('(')[0].trim().slice(0, 22);
+                  return (
+                    <button
+                      key={section.key}
+                      type="button"
+                      onClick={() => jumpToSection(section.key)}
+                      className={`shrink-0 border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                        complete
+                          ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                          : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'
+                      }`}
+                    >
+                      {idx + 1}. {shortTitle}
+                    </button>
+                  );
+                })}
               </div>
-              <CardContent className="p-5 sm:p-6">
+            </nav>
+
+            <div className="px-5 sm:px-8 lg:px-10 py-6 sm:py-8">
+              <section id="ward-section-header" className="scroll-mt-28 pb-6 border-b border-slate-200">
+                <h2 className="mb-4 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-900">
+                  Nursing comments / observations
+                </h2>
                 <NursingCommentsSection
                   data={formData}
                   onChange={handleChange}
@@ -355,38 +380,32 @@ export default function NursePreopWardChecklistPage() {
                   patient={patient}
                   formResponseId={form.id}
                 />
-              </CardContent>
-            </Card>
+              </section>
 
-            {CHECKLIST_SECTIONS.map((section, idx) => {
-              const SectionRenderer = SECTION_RENDERERS[section.key as string];
-              const sectionComplete = sectionCompletion[section.key as string]?.complete ?? false;
-              const fullWidth =
-                section.key === 'medications' ||
-                section.key === 'handover' ||
-                section.key === 'vitals';
-              return (
-                <Card
-                  key={section.key}
-                  id={`ward-section-${section.key}`}
-                  className={`overflow-hidden border-slate-200 shadow-sm scroll-mt-24 transition-shadow ${
-                    fullWidth ? 'xl:col-span-2' : ''
-                  }`}
-                >
-                  <div className="bg-slate-50/80 px-5 py-3 border-b border-slate-100 flex items-center gap-3">
-                    <span className="text-xs font-bold text-slate-400 w-5">{String(idx + 1).padStart(2, '0')}</span>
-                    <span className="font-semibold text-sm text-slate-900">{section.title}</span>
-                    <span
-                      className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md border ${
-                        sectionComplete
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          : 'bg-white text-slate-500 border-slate-200'
-                      }`}
-                    >
-                      {sectionComplete ? 'Complete' : 'Pending'}
-                    </span>
-                  </div>
-                  <CardContent className="p-5 sm:p-6">
+              {CHECKLIST_SECTIONS.map((section, idx) => {
+                const SectionRenderer = SECTION_RENDERERS[section.key as string];
+                const sectionComplete = sectionCompletion[section.key as string]?.complete ?? false;
+                return (
+                  <section
+                    key={section.key}
+                    id={`ward-section-${section.key}`}
+                    className="scroll-mt-28 py-6 border-b border-slate-200 last:border-b-0"
+                  >
+                    <div className="mb-4 flex items-baseline justify-between gap-3">
+                      <h2 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-900">
+                        <span className="mr-2 tabular-nums text-slate-400">
+                          {String(idx + 1).padStart(2, '0')}
+                        </span>
+                        {section.title}
+                      </h2>
+                      <span
+                        className={`shrink-0 text-[10px] font-semibold uppercase tracking-wider ${
+                          sectionComplete ? 'text-emerald-700' : 'text-slate-400'
+                        }`}
+                      >
+                        {sectionComplete ? 'Complete' : 'Incomplete'}
+                      </span>
+                    </div>
                     {SectionRenderer ? (
                       <SectionRenderer
                         data={formData}
@@ -400,11 +419,11 @@ export default function NursePreopWardChecklistPage() {
                         onPersistSignature={persistSignature as WardChecklistSectionProps['onPersistSignature']}
                       />
                     ) : null}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+                  </section>
+                );
+              })}
+            </div>
+          </article>
         )}
 
         <FinalizeChecklistDialog
@@ -433,12 +452,11 @@ export default function NursePreopWardChecklistPage() {
         />
       </div>
 
-      {/* Sticky action bar */}
       {!isFinalized && (
-        <div className="fixed bottom-0 inset-x-0 bg-white/90 backdrop-blur border-t border-slate-200 z-40">
-          <div className="max-w-[1600px] mx-auto w-full px-4 sm:px-5 lg:px-8 xl:px-10 py-3 flex items-center justify-between gap-3">
+        <div className="fixed bottom-0 inset-x-0 z-40 border-t border-slate-300 bg-white/95 backdrop-blur">
+          <div className="mx-auto max-w-[920px] px-4 sm:px-5 py-3 flex items-center justify-between gap-3">
             <div className="text-xs text-slate-500">
-              {isDirty ? 'You have unsaved changes' : 'All changes saved'}
+              {isDirty ? 'Unsaved changes' : 'All changes saved'}
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -453,7 +471,7 @@ export default function NursePreopWardChecklistPage() {
               <Button
                 onClick={() => setShowFinalizeDialog(true)}
                 disabled={saveMutation.isPending}
-                className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="gap-1.5 bg-[#2c2e4b] hover:bg-[#1e2038] text-white"
               >
                 <Lock className="h-4 w-4" />
                 Finalize

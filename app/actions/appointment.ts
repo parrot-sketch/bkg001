@@ -5,6 +5,7 @@ import { VitalSignsFormData } from "@/components/dialogs/add-vital-signs";
 import db from "@/lib/db";
 import { AppointmentSchema, VitalSignsSchema } from "@/lib/schema";
 import { getCurrentUser, getCurrentUserFull } from "@/lib/auth/server-auth";
+import { isClinicDeskStaff } from "@/lib/auth/require-role";
 import { revalidateDoctorDashboard } from '@/actions/doctor/get-dashboard-data';
 import { revalidateFrontdeskDashboard } from '@/actions/frontdesk/get-dashboard-data';
 import { revalidateNurseDashboard } from '@/actions/nurse/get-dashboard-data';
@@ -356,8 +357,8 @@ export async function assignPatientToQueue(data: {
       return { success: false, msg: "Unauthorized" };
     }
 
-    if (user.role !== 'FRONTDESK' && user.role !== 'ADMIN') {
-      return { success: false, msg: "Only frontdesk staff can assign patients to queue" };
+    if (!isClinicDeskStaff(user)) {
+      return { success: false, msg: "Only clinic desk staff can assign patients to queue" };
     }
 
     const { patientId, doctorId, appointmentId, notes, reason } = data;
@@ -540,8 +541,8 @@ export async function removeFromQueue(queueId: number, reason?: string) {
       return { success: false, msg: "Unauthorized" };
     }
 
-    if (user.role !== 'FRONTDESK' && user.role !== 'ADMIN') {
-      return { success: false, msg: "Only frontdesk staff can remove patients from queue" };
+    if (!isClinicDeskStaff(user)) {
+      return { success: false, msg: "Only clinic desk staff can remove patients from queue" };
     }
 
     const queueEntry = await db.patientQueue.findUnique({
@@ -628,8 +629,8 @@ export async function reassignQueue(queueId: number, newDoctorId: string) {
       return { success: false, msg: "Unauthorized" };
     }
 
-    if (user.role !== 'FRONTDESK' && user.role !== 'ADMIN') {
-      return { success: false, msg: "Only frontdesk staff can reassign patients" };
+    if (!isClinicDeskStaff(user)) {
+      return { success: false, msg: "Only clinic desk staff can reassign patients" };
     }
 
     const queueEntry = await db.patientQueue.findUnique({

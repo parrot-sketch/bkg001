@@ -9,7 +9,7 @@ import Link from 'next/link';
 
 function formatDoctorName(name: string | null | undefined): string {
   if (!name) return '—';
-  return name.match(/^(Dr\\.?|Dr\\s)/i) ? name : `Dr. ${name}`;
+  return /^(Dr\.?|Dr\s)/i.test(name) ? name : `Dr. ${name}`;
 }
 
 function YesNo({ value }: { value: boolean | undefined }) {
@@ -25,8 +25,8 @@ function TextVal({ value }: { value: unknown }) {
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-12 gap-3 py-2 border-b border-slate-100 last:border-b-0">
-      <div className="col-span-5 text-xs font-semibold text-slate-600 uppercase tracking-wide">{label}</div>
+    <div className="grid grid-cols-12 gap-3 border-b border-slate-200 py-2.5 last:border-b-0">
+      <div className="col-span-5 text-xs font-semibold uppercase tracking-wide text-slate-600">{label}</div>
       <div className="col-span-7 text-sm text-slate-900">{children}</div>
     </div>
   );
@@ -34,8 +34,8 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="mt-6">
-      <div className="text-[11px] font-extrabold text-slate-900 uppercase tracking-widest border-b border-slate-200 pb-2">
+    <section className="mt-7 first:mt-0">
+      <div className="border-b border-slate-300 pb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-900">
         {title}
       </div>
       <div className="mt-3">{children}</div>
@@ -71,28 +71,42 @@ export function FinalizedChecklistDocument(props: {
   const patientName = `${patient.first_name} ${patient.last_name}`.trim();
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-      <div className="px-8 py-7 border-b border-slate-200 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <article className="overflow-hidden border border-slate-300 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+      <div className="flex flex-col gap-3 border-b border-slate-300 px-5 py-6 sm:flex-row sm:items-start sm:justify-between sm:px-8 lg:px-10 sm:py-8">
         <div>
-          <div className="text-sm font-extrabold text-slate-900 uppercase tracking-wide">
-            NAIROBI SCULPT AESTHETIC CENTRE
-          </div>
-          <div className="mt-1 text-lg font-black tracking-tight text-slate-900">
-            PRE-OPERATIVE WARD CHECK-LIST
-          </div>
-          <div className="mt-1 text-sm text-slate-600">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Nairobi Sculpt Aesthetic Centre
+          </p>
+          <h1 className="mt-1 text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
+            Pre-Operative Ward Check-List
+          </h1>
+          <p className="mt-1 text-sm text-slate-600">
             Finalized — next step is the Nursing Operation Record (Intra-Op)
-          </div>
+          </p>
+          <p className="mt-3 text-sm text-slate-800">
+            <span className="font-semibold">{patientName}</span>
+            <span className="text-slate-400"> · </span>
+            <span className="font-mono text-slate-700">{patient.file_number}</span>
+            <span className="text-slate-400"> · </span>
+            {getAgeYears(patient.date_of_birth)} / {formatSex(patient.gender)}
+          </p>
+          <p className="mt-1 text-sm text-slate-600">
+            Surgeon: {formatDoctorName(surgeonName)}
+            {anaesthesiologistName ? ` · Anaesthesiologist: ${anaesthesiologistName}` : ''}
+          </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <Button asChild size="sm" className="bg-[#2c2e4b] hover:bg-[#1e2038] text-white font-bold gap-1.5 h-8">
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-800">
+            Finalized
+          </span>
+          <Button asChild size="sm" className="h-8 gap-1.5 bg-[#2c2e4b] font-semibold text-white hover:bg-[#1e2038]">
             <Link href={`/nurse/intra-op-cases/${caseId}/record`}>
               Open Intra-Op Record
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5 h-8" asChild>
+          <Button variant="outline" size="sm" className="h-8 gap-1.5" asChild>
             <a href={`/nurse/ward-prep/${caseId}/checklist/print`} target="_blank" rel="noopener noreferrer">
               <Printer className="h-3.5 w-3.5" />
               Print
@@ -101,7 +115,15 @@ export function FinalizedChecklistDocument(props: {
         </div>
       </div>
 
-      <div className="px-8 py-7">
+      <div className="px-5 py-6 sm:px-8 lg:px-10 sm:py-8">
+        {(header as { nursingComments?: string }).nursingComments ? (
+          <Section title="Nursing comments / observations">
+            <p className="whitespace-pre-wrap text-sm text-slate-800">
+              {(header as { nursingComments?: string }).nursingComments}
+            </p>
+          </Section>
+        ) : null}
+
         <Section title="1. Documentation">
           <Row label="Ward checklist"><YesNo value={doc.wardChecklist} /></Row>
           <Row label="Complete/correct documentation"><YesNo value={doc.documentationComplete} /></Row>
@@ -110,7 +132,7 @@ export function FinalizedChecklistDocument(props: {
 
         <Section title="2. Blood / Results (Hb, UECs, X-Match)">
           <Row label="Blood/results checked"><YesNo value={labs.bloodResultsChecked} /></Row>
-          <Row label="Hb"><TextVal value={(labs as any).hb} /></Row>
+          <Row label="Hb"><TextVal value={(labs as { hb?: string }).hb} /></Row>
           <Row label="UECs"><TextVal value={labs.uecs} /></Row>
           <Row label="Units available"><TextVal value={labs.xMatchUnitsAvailable} /></Row>
         </Section>
@@ -119,18 +141,16 @@ export function FinalizedChecklistDocument(props: {
           <Row label="Pre-medication given"><YesNo value={meds.preMedGiven as boolean | undefined} /></Row>
           <Row label="Pre-medication time given"><TextVal value={meds.preMedTimeGiven} /></Row>
           <Row label="Pre-medication (details)"><TextVal value={meds.preMedicationText} /></Row>
-
           <Row label="Peri-operative medication given"><YesNo value={meds.periOpMedsGiven as boolean | undefined} /></Row>
-          <Row label="Peri-operative time given"><TextVal value={(meds as any).periOpMedsTimeGiven} /></Row>
+          <Row label="Peri-operative time given"><TextVal value={(meds as { periOpMedsTimeGiven?: string }).periOpMedsTimeGiven} /></Row>
           <Row label="Peri-operative medication (details)"><TextVal value={meds.periOpMedicationText} /></Row>
-
           <Row label="Regular medication (specify)"><TextVal value={meds.regularMedicationText} /></Row>
         </Section>
 
         <Section title="4. Allergies & Nil By Mouth">
           <Row label="Allergies documented"><YesNo value={allerg.allergiesDocumented} /></Row>
-          <Row label="6. ALLERGIES (STATE IN RED)">
-            <span className="font-extrabold" style={{ color: '#b91c1c', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+          <Row label="Allergies (state in red)">
+            <span className="font-bold" style={{ color: '#b91c1c' }}>
               <TextVal value={allerg.allergiesDetails} />
             </span>
           </Row>
@@ -155,7 +175,9 @@ export function FinalizedChecklistDocument(props: {
         </Section>
 
         <Section title="7. Nursing observations (immediate pre-op)">
-          <Row label="Blood pressure"><TextVal value={(vit.bpSystolic && vit.bpDiastolic) ? `${vit.bpSystolic}/${vit.bpDiastolic} mmHg` : ''} /></Row>
+          <Row label="Blood pressure">
+            <TextVal value={vit.bpSystolic && vit.bpDiastolic ? `${vit.bpSystolic}/${vit.bpDiastolic} mmHg` : ''} />
+          </Row>
           <Row label="Pulse rate"><TextVal value={vit.pulse !== undefined ? `${vit.pulse} bpm` : ''} /></Row>
           <Row label="Respiratory rate"><TextVal value={vit.respiratoryRate !== undefined ? `${vit.respiratoryRate} /min` : ''} /></Row>
           <Row label="CVP"><TextVal value={vit.cvp} /></Row>
@@ -171,19 +193,22 @@ export function FinalizedChecklistDocument(props: {
           <Row label="Received by (name)"><TextVal value={hand.receivedByName} /></Row>
           <Row label="Handed over by (name)"><TextVal value={hand.handedOverByName} /></Row>
 
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
             {([
               { label: 'Prepared by', sig: hand.preparedBySignature?.signatureDataUrl },
               { label: 'Received by', sig: hand.receivedBySignature?.signatureDataUrl },
               { label: 'Handed over by', sig: hand.handedOverBySignature?.signatureDataUrl },
             ] as Array<{ label: string; sig?: string }>).map((s) => (
-              <div key={s.label} className="rounded-xl border border-slate-200 bg-white p-3">
-                <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{s.label} signature</div>
-                <div className="mt-2 h-20 rounded-lg border border-slate-100 bg-slate-50 flex items-center justify-center overflow-hidden">
+              <div key={s.label} className="border border-slate-300 bg-white p-3">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  {s.label} signature
+                </div>
+                <div className="mt-2 flex h-20 items-center justify-center overflow-hidden border border-slate-200 bg-slate-50">
                   {s.sig ? (
-                    <img src={s.sig} alt={`${s.label} signature`} className="h-full w-full object-contain bg-white" />
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={s.sig} alt={`${s.label} signature`} className="h-full w-full bg-white object-contain" />
                   ) : (
-                    <span className="text-xs text-slate-400 italic">—</span>
+                    <span className="text-xs italic text-slate-400">—</span>
                   )}
                 </div>
               </div>
@@ -191,7 +216,7 @@ export function FinalizedChecklistDocument(props: {
           </div>
         </Section>
       </div>
-    </div>
+    </article>
   );
 }
 
