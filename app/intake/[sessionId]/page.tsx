@@ -13,12 +13,13 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useParams } from 'next/navigation';
-import { Shield, AlertCircle, Clock, CheckCircle2, Loader2 } from 'lucide-react';
+import { AlertCircle, Check, Clock } from 'lucide-react';
 import { MobileIntakeForm } from '@/components/patient/intake-form/MobileIntakeForm';
+import { IntakeLoadingScreen, IntakeStatusScreen } from '@/components/patient/intake-form/ui/IntakeShell';
 
 type SessionState =
     | { status: 'loading' }
-    | { status: 'valid'; minutesRemaining: number }
+    | { status: 'valid'; expiresAt: string }
     | { status: 'expired' }
     | { status: 'already_submitted' }
     | { status: 'invalid'; message: string };
@@ -36,155 +37,87 @@ function IntakePageContent() {
 
         async function validateSession() {
             try {
-                const res = await fetch(`/api/patient/intake/validate?sessionId=${sessionId}`);
-                const data = await res.json();
+                const res = await fetch(`/api/patient/intake/validate?sessionId=${encodeURIComponent(sessionId)}`);
+                const data = await res.json().catch(() => ({}));
 
                 if (!res.ok || !data.allowed) {
-                    const reason = data.reason || '';
-                    if (reason.toLowerCase().includes('expired')) {
+                    if (data.code === 'SESSION_EXPIRED') {
                         setSessionState({ status: 'expired' });
-                    } else if (reason.toLowerCase().includes('already') || reason.toLowerCase().includes('submitted')) {
+                    } else if (data.code === 'SESSION_SUBMITTED') {
                         setSessionState({ status: 'already_submitted' });
                     } else {
-                        setSessionState({ status: 'invalid', message: reason || 'This intake session is not valid.' });
+                        setSessionState({
+                            status: 'invalid',
+                            message: data.reason || data.error || 'This link is not valid.',
+                        });
                     }
                     return;
                 }
 
-                // Calculate minutes remaining
-                const session = data.session;
-                const expiresAt = session?.expiresAt ? new Date(session.expiresAt) : null;
-                const minutesRemaining = expiresAt
-                    ? Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 60000))
-                    : 60;
-
-                setSessionState({ status: 'valid', minutesRemaining });
+                const expiresAt = data.session?.expiresAt
+                    ?? new Date(Date.now() + 60 * 60000).toISOString();
+                setSessionState({ status: 'valid', expiresAt });
             } catch {
-                setSessionState({ status: 'invalid', message: 'Could not verify session. Please ask the receptionist to generate a new QR code.' });
+                setSessionState({ status: 'invalid', message: 'Could not connect. Check your internet connection and try again.' });
             }
         }
 
         validateSession();
     }, [sessionId]);
 
-    /* ── Loading ── */
     if (sessionState.status === 'loading') {
-        return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-white">
-                <div className="text-center space-y-4">
-                    <div className="h-14 w-14 rounded-full bg-rose-50 flex items-center justify-center mx-auto">
-                        <Loader2 className="h-6 w-6 text-rose-500 animate-spin" />
-                    </div>
-                    <p className="text-sm font-medium text-slate-500">Verifying session…</p>
-                </div>
-            </div>
-        );
+        return <IntakeLoadingScreen message="Opening your registration form…" />;
     }
 
-    /* ── Expired ── */
     if (sessionState.status === 'expired') {
         return (
-            <StatusScreen
-                icon={<Clock className="h-7 w-7 text-amber-500" />}
-                iconBg="bg-amber-50"
-                title="Session Expired"
-                message="This intake session has expired. Please ask the receptionist to generate a new QR code."
-                hint="Sessions expire after 60 minutes for your security."
+            <IntakeStatusScreen
+                icon={<Clock className="h-9 w-9" />}
+                tone="warning"
+                title="This form timed out"
+                message="For your privacy, forms expire after a while. Any answers you entered are saved on this phone."
+                action={{ href: '/intake', label: 'Continue my form' }}
+                footnote="Nothing has been submitted yet."
             />
         );
     }
 
-    /* ── Already submitted ── */
     if (sessionState.status === 'already_submitted') {
         return (
-            <StatusScreen
-                icon={<CheckCircle2 className="h-7 w-7 text-emerald-500" />}
-                iconBg="bg-emerald-50"
-                title="Form Already Submitted"
-                message="Your intake form has already been received. The receptionist will call you shortly."
-                hint="You can close this browser tab."
+            <IntakeStatusScreen
+                icon={<Check className="h-10 w-10" strokeWidth={2.5} />}
+                tone="success"
+                title="You're all set"
+                message="Your details have already been received. Please take a seat and the front desk will call you shortly."
+                footnote="You can close this page."
             />
         );
     }
 
-    /* ── Invalid ── */
     if (sessionState.status === 'invalid') {
         return (
-            <StatusScreen
-                icon={<AlertCircle className="h-7 w-7 text-red-500" />}
-                iconBg="bg-red-50"
-                title="Invalid Session"
+            <IntakeStatusScreen
+                icon={<AlertCircle className="h-9 w-9" />}
+                tone="error"
+                title="This link isn't working"
                 message={sessionState.message}
-                hint="Please ask the receptionist for assistance."
+                action={{ href: '/intake', label: 'Start a new form' }}
+                footnote="If this keeps happening, please ask the front desk for help."
             />
         );
     }
 
-    /* ── Valid — show form ── */
     return (
         <MobileIntakeForm
             sessionId={sessionId}
-            minutesRemaining={sessionState.minutesRemaining}
+            expiresAt={sessionState.expiresAt}
         />
-    );
-}
-
-/* ── Shared status screen ── */
-function StatusScreen({
-    icon,
-    iconBg,
-    title,
-    message,
-    hint,
-}: {
-    icon: React.ReactNode;
-    iconBg: string;
-    title: string;
-    message: string;
-    hint: string;
-}) {
-    return (
-        <div className="min-h-screen bg-white flex flex-col">
-            {/* Clinic header */}
-            <div className="px-6 pt-10 pb-6 text-center border-b border-slate-100">
-                <div className="inline-flex items-center gap-2 mb-1">
-                    <div className="h-8 w-8 rounded-full bg-rose-600 flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">NS</span>
-                    </div>
-                    <span className="font-bold text-slate-900 text-lg">Nairobi Sculpt</span>
-                </div>
-            </div>
-
-            {/* Status content */}
-            <div className="flex-1 flex flex-col items-center justify-center px-6 text-center max-w-sm mx-auto w-full">
-                <div className={`h-16 w-16 rounded-full ${iconBg} flex items-center justify-center mb-5`}>
-                    {icon}
-                </div>
-                <h1 className="text-xl font-bold text-slate-900 mb-2">{title}</h1>
-                <p className="text-slate-500 text-sm leading-relaxed mb-4">{message}</p>
-                <p className="text-xs text-slate-400">{hint}</p>
-            </div>
-
-            {/* Privacy footer */}
-            <div className="px-6 pb-8 text-center">
-                <div className="flex items-center justify-center gap-1.5 text-xs text-slate-400">
-                    <Shield className="h-3 w-3" />
-                    <span>Your information is encrypted and stored securely.</span>
-                </div>
-            </div>
-        </div>
     );
 }
 
 export default function IntakePage() {
     return (
-        <Suspense
-            fallback={
-                <div className="min-h-screen flex items-center justify-center bg-white">
-                    <Loader2 className="h-6 w-6 text-rose-500 animate-spin" />
-                </div>
-            }
-        >
+        <Suspense fallback={<IntakeLoadingScreen message="Opening your registration form…" />}>
             <IntakePageContent />
         </Suspense>
     );

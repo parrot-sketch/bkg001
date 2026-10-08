@@ -52,12 +52,6 @@ const navItems: NavItem[] = [
     section: 'Front Desk',
   },
   {
-    name: 'Pending Intakes',
-    href: '/frontdesk/intake/pending',
-    icon: ClipboardList,
-    section: 'Front Desk',
-  },
-  {
     name: 'Theater Schedule',
     href: '/frontdesk/theater-scheduling',
     icon: Building2,

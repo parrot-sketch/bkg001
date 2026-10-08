@@ -36,7 +36,7 @@ export default function proxy(request: NextRequest) {
         "base-uri 'self'",
         "form-action 'self'",
         "frame-ancestors 'none'",
-        "upgrade-insecure-requests",
+        // No upgrade-insecure-requests in dev: it breaks plain-HTTP LAN access from phones.
       ].join('; ')
     );
   } else {

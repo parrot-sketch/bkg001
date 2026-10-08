@@ -7,8 +7,15 @@
  * - Audit logging
  */
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { rateLimit } from '@/lib/security/rateLimit';
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isValidSessionId(sessionId: unknown): sessionId is string {
+    return typeof sessionId === 'string' && UUID_REGEX.test(sessionId);
+}
 
 export interface IntakeSecurityConfig {
     /**
@@ -44,7 +51,7 @@ function isIpInRange(ip: string, cidr: string): boolean {
 /**
  * Get client IP address from request
  */
-function getClientIp(request: NextRequest): string {
+export function getClientIp(request: NextRequest): string {
     // Check various headers (in order of preference)
     const forwarded = request.headers.get('x-forwarded-for');
     if (forwarded) {
@@ -74,6 +81,51 @@ export function isIpAllowed(ip: string, config: IntakeSecurityConfig): boolean {
 }
 
 /**
+ * Network allowlist + per-IP rate limit for the public intake endpoints.
+ * Returns a response to send back when the request is rejected, otherwise null.
+ *
+ * Limits are deliberately generous: every patient on the clinic Wi-Fi shares one
+ * public IP. The limiter is in-memory, so on serverless it is per-instance and
+ * only blunts bursts; it is not a substitute for an edge/WAF limit.
+ */
+export function guardIntakeRequest(
+    request: NextRequest,
+    bucket: 'start' | 'validate' | 'submit',
+): NextResponse | null {
+    const ip = getClientIp(request);
+    const config = getIntakeSecurityConfig();
+
+    if (!isIpAllowed(ip, config)) {
+        if (config.enableAuditLogging) {
+            console.log(`[IntakeSecurity] Blocked ${bucket} from IP ${ip}`);
+        }
+        return NextResponse.json(
+            { error: 'Please connect to the clinic Wi-Fi to fill in this form.', code: 'NETWORK_NOT_ALLOWED' },
+            { status: 403 },
+        );
+    }
+
+    const limits = {
+        start: { max: 40, windowMs: 10 * 60_000 },
+        validate: { max: 120, windowMs: 10 * 60_000 },
+        submit: { max: 20, windowMs: 10 * 60_000 },
+    }[bucket];
+
+    const result = rateLimit(ip, { ...limits, keyPrefix: `intake:${bucket}` });
+    if (!result.success) {
+        return NextResponse.json(
+            { error: 'Too many attempts. Please wait a few minutes and try again.', code: 'RATE_LIMITED' },
+            {
+                status: 429,
+                headers: { 'Retry-After': String(Math.ceil((result.reset - Date.now()) / 1000)) },
+            },
+        );
+    }
+
+    return null;
+}
+
+/**
  * Validate intake session access
  * 
  * @param sessionId - Intake session ID
@@ -88,6 +140,7 @@ export async function validateIntakeSessionAccess(
 ): Promise<{
     allowed: boolean;
     reason?: string;
+    code?: 'NETWORK_NOT_ALLOWED' | 'SESSION_NOT_FOUND' | 'SESSION_SUBMITTED' | 'SESSION_EXPIRED';
     session?: {
         id: string;
         expiresAt: Date;
@@ -106,7 +159,8 @@ export async function validateIntakeSessionAccess(
         
         return {
             allowed: false,
-            reason: `Access denied: IP address ${clientIp} is not in the allowed network range. Please connect to the clinic network.`,
+            code: 'NETWORK_NOT_ALLOWED',
+            reason: 'Please connect to the clinic Wi-Fi to fill in this form.',
         };
     }
     
@@ -124,21 +178,24 @@ export async function validateIntakeSessionAccess(
     if (!session) {
         return {
             allowed: false,
-            reason: 'Invalid session ID. Please scan the QR code again or ask the receptionist for a new one.',
+            code: 'SESSION_NOT_FOUND',
+            reason: 'This link is not valid. Please scan the QR code at the front desk again.',
         };
     }
     
-    if (session.status !== 'ACTIVE') {
+    if (session.status === 'SUBMITTED' || session.status === 'CONFIRMED') {
         return {
             allowed: false,
-            reason: 'This intake session is no longer active. Please ask the receptionist to start a new session.',
+            code: 'SESSION_SUBMITTED',
+            reason: 'This form has already been submitted.',
         };
     }
     
-    if (new Date() > session.expires_at) {
+    if (session.status !== 'ACTIVE' || new Date() > session.expires_at) {
         return {
             allowed: false,
-            reason: 'This intake session has expired. Please ask the receptionist to start a new session.',
+            code: 'SESSION_EXPIRED',
+            reason: 'This form has expired. Please start a new one.',
         };
     }
     

@@ -11,7 +11,7 @@
  * - Live-updating relative timestamps (refreshes every 30s)
  */
 
-import { Calendar, UserCheck, XCircle, Clock, AlertCircle, CheckCircle, Info, Bell } from 'lucide-react';
+import { Calendar, UserCheck, UserPlus, XCircle, Clock, AlertCircle, CheckCircle, Bell } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useState, useEffect, useCallback } from 'react';
@@ -80,6 +80,7 @@ function getNotificationIcon(type: string, metadata?: any) {
         'APPOINTMENT_PENDING_CONFIRMATION': Calendar,
         'PREOP_CHECKLIST_COMPLETED': CheckCircle,
         'THEATER_BOOKED': Calendar,
+        'PATIENT_INTAKE_SUBMITTED': UserPlus,
     };
 
     const eventType = metadata?.event;
@@ -107,6 +108,7 @@ function getNotificationColor(type: string, metadata?: any) {
         'APPOINTMENT_PENDING_CONFIRMATION': 'bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400',
         'PREOP_CHECKLIST_COMPLETED': 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400',
         'THEATER_BOOKED': 'bg-purple-100 text-purple-600 dark:bg-purple-950 dark:text-purple-400',
+        'PATIENT_INTAKE_SUBMITTED': 'bg-[#caa26a]/15 text-[#2c2e4b]',
     };
 
     const eventType = metadata?.event;
@@ -162,9 +164,9 @@ export function NotificationItem({ notification, onClick }: NotificationItemProp
                     "text-sm line-clamp-2",
                     isUnread ? "font-semibold" : "font-medium"
                 )}>
-                    {notification.title}
+                    {notification.subject || notification.title}
                 </p>
-                <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
                     {notification.message}
                 </p>
                 <div className="flex items-center gap-1.5 mt-1.5">

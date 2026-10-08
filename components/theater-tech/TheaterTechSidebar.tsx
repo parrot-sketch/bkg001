@@ -12,7 +12,6 @@ import {
   FileText,
   Calendar,
   QrCode,
-  ClipboardList,
   Receipt,
 } from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
@@ -65,12 +64,6 @@ const navItems: NavItem[] = [
     name: 'Patient Intake',
     href: '/frontdesk/intake/start',
     icon: QrCode,
-    section: 'Front Desk',
-  },
-  {
-    name: 'Pending Intakes',
-    href: '/frontdesk/intake/pending',
-    icon: ClipboardList,
     section: 'Front Desk',
   },
   {

@@ -188,12 +188,19 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'bell-ring': {
+					'0%, 100%': { transform: 'rotate(0deg)' },
+					'10%, 30%, 50%': { transform: 'rotate(14deg)' },
+					'20%, 40%, 60%': { transform: 'rotate(-14deg)' },
+					'70%': { transform: 'rotate(0deg)' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
-				'pulse-once': 'pulse-once 0.9s ease-in-out 3'
+				'pulse-once': 'pulse-once 0.9s ease-in-out 3',
+				'bell-ring': 'bell-ring 1.2s ease-in-out 3'
 			}
 		}
 	},

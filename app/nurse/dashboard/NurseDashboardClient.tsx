@@ -39,7 +39,6 @@ import { WardPrepTableRow } from '@/components/nurse/WardPrepTableRow';
 import { TheatreSupportTableRow } from '@/components/nurse/TheatreSupportTableRow';
 import { RecoveryCaseTableRow } from '@/components/nurse/RecoveryCaseTableRow';
 import { QueueManagementPanels } from '@/components/frontdesk/QueueManagementPanels';
-import { PendingIntakesAlert } from '@/components/frontdesk/PendingIntakesAlert';
 import { DashboardPipelineStats } from '@/components/frontdesk/DashboardPipelineStats';
 import { QuickAssignmentDialog } from '@/components/frontdesk/QuickAssignmentDialog';
 import { useBookAppointmentStore } from '@/hooks/frontdesk/useBookAppointmentStore';
@@ -212,7 +211,6 @@ export default function NurseDashboardPage() {
 
       {mode === 'desk' ? (
         <div className="space-y-5">
-          <PendingIntakesAlert />
           <DashboardPipelineStats />
 
           <Card className="border border-[#e7d6bf]/60 bg-white shadow-sm">

@@ -198,6 +198,8 @@ export const ServicesSchema = z.object({
 // PATIENT INTAKE FORM SCHEMA
 // ============================================================================
 
+const PHONE_REGEX = /^(?=.{10,15}$)\+?[0-9]+$/;
+
 export const PatientIntakeFormSchema = z.object({
   // Personal Information
   firstName: z
@@ -232,7 +234,7 @@ export const PatientIntakeFormSchema = z.object({
     .optional()
     .or(z.literal("")),
 
-  // International phone: optional + prefix, 7-15 digits
+  // International phone: optional + prefix; 10-15 chars total to match the PhoneNumber value object
   phone: z.preprocess(
     (value) => {
       if (typeof value !== "string") return value;
@@ -244,7 +246,7 @@ export const PatientIntakeFormSchema = z.object({
     },
     z
       .string()
-      .regex(/^\+?[0-9]{7,15}$/, "Enter a valid phone number (e.g. +254712345678 or 0712345678)")
+      .regex(PHONE_REGEX, "Enter a valid phone number (e.g. +254712345678 or 0712345678)")
       .optional(),
   ),
 
@@ -252,7 +254,7 @@ export const PatientIntakeFormSchema = z.object({
     .preprocess((value) => {
       if (typeof value !== "string") return value;
       return value.replace(/[^\d+]/g, "");
-    }, z.string().regex(/^\+?[0-9]{7,15}$/, "Enter a valid WhatsApp number"))
+    }, z.string().regex(PHONE_REGEX, "Enter a valid WhatsApp number"))
     .optional()
     .or(z.literal("")),
 
@@ -289,7 +291,7 @@ export const PatientIntakeFormSchema = z.object({
     .preprocess((value) => {
       if (typeof value !== "string") return value;
       return value.replace(/[^\d+]/g, "");
-    }, z.string().regex(/^\+?[0-9]{7,15}$/, "Enter a valid phone number"))
+    }, z.string().regex(PHONE_REGEX, "Enter a valid phone number"))
     .optional()
     .or(z.literal("")),
 
@@ -325,3 +327,93 @@ export const PatientIntakeFormSchema = z.object({
 });
 
 export type PatientIntakeFormData = z.infer<typeof PatientIntakeFormSchema>;
+
+// ============================================================================
+// PUBLIC (QR) INTAKE SUBMISSION SCHEMA
+// Shared by the patient-facing form and POST /api/patient/intake so client and
+// server enforce identical rules.
+// ============================================================================
+
+export const MIN_BIRTH_YEAR = 1900;
+
+function isRealCalendarDate(value: string): boolean {
+  const [y, m, d] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
+}
+
+/** Same values as the front desk registration dialog, so reports group consistently. */
+export const REFERRAL_SOURCES = [
+  "SOCIAL_MEDIA",
+  "GOOGLE_SEARCH",
+  "FRIEND_FAMILY",
+  "DOCTOR_REFERRAL",
+  "WALK_IN",
+  "WEBSITE",
+  "ADVERTISEMENT",
+  "OTHER",
+] as const;
+
+export const PublicIntakeSubmissionSchema = PatientIntakeFormSchema.extend({
+  dateOfBirth: z
+    .string({ required_error: "Enter your date of birth" })
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Enter your full date of birth")
+    .refine(isRealCalendarDate, "That date doesn't exist. Check the day and month")
+    .transform((value) => new Date(`${value}T00:00:00.000Z`))
+    .refine((date) => date.getUTCFullYear() >= MIN_BIRTH_YEAR, "Check the year of birth")
+    .refine((date) => date <= new Date(), "Date of birth cannot be in the future"),
+  gender: z.enum(["MALE", "FEMALE", "OTHER"], {
+    errorMap: () => ({ message: "Please select an option" }),
+  }),
+  referralSource: z.enum(REFERRAL_SOURCES).optional().or(z.literal("")),
+  // Checked in superRefine: a field-level failure here would stop zod from
+  // running the cross-field rules below while the patient is on earlier steps.
+  privacyConsent: z.boolean().default(false),
+  serviceConsent: z.boolean().default(false),
+  medicalConsent: z.boolean().default(false),
+}).superRefine((data, ctx) => {
+  for (const consent of ["privacyConsent", "serviceConsent", "medicalConsent"] as const) {
+    if (data[consent] !== true) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [consent], message: "Please confirm to continue" });
+    }
+  }
+
+  const require = (path: keyof typeof data, message: string) => {
+    const value = data[path];
+    if (typeof value !== "string" || value.trim() === "") {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message });
+    }
+  };
+
+  if (data.emergencyContactName && data.emergencyContactName.trim().length === 1) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["emergencyContactName"],
+      message: "Name must be at least 2 characters",
+    });
+  }
+
+  // Zod skips the transform when an earlier date check failed, so the value may still be a string.
+  const dob: unknown = data.dateOfBirth;
+  if (!(dob instanceof Date) || Number.isNaN(dob.getTime())) return;
+
+  const today = new Date();
+  let age = today.getUTCFullYear() - dob.getUTCFullYear();
+  const monthDiff = today.getUTCMonth() - dob.getUTCMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getUTCDate() < dob.getUTCDate())) age--;
+
+  if (age >= 18) {
+    require("phone", "Phone number is required");
+    require("email", "Email is required");
+    require("address", "Home address is required");
+  } else if (!data.phone && !data.emergencyContactNumber) {
+    // A minor needs at least one number someone can be reached on.
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["emergencyContactNumber"],
+      message: "Add a parent or guardian's phone number so we can reach you",
+    });
+  }
+});
+
+export type PublicIntakeSubmissionData = z.infer<typeof PublicIntakeSubmissionSchema>;

@@ -11,8 +11,8 @@
  * - Smooth animations
  */
 
-import { Bell, Loader2, CheckCheck, ChevronRight, Calendar, UserCheck, XCircle, Clock, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { Bell, Loader2, CheckCheck, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
+import { useState, useMemo, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import {
     Popover,
@@ -25,15 +25,38 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { NotificationItem } from './NotificationItem';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { isToday, isYesterday, formatDistanceToNow } from 'date-fns';
+import { isToday, isYesterday } from 'date-fns';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import {
+    PATIENT_INTAKE_SUBMITTED,
+    parseNotificationMetadata,
+    useIntakeNotificationAlerts,
+} from '@/hooks/useIntakeNotificationAlerts';
 
 export function NotificationBell() {
-    const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useNotifications();
-    const [isOpen, setIsOpen] = useState(false);
-    const [showStaleRead, setShowStaleRead] = useState(false);
     const router = useRouter();
     const pathname = usePathname();
+    const isFrontdesk = pathname.startsWith('/frontdesk');
+    const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useNotifications(undefined, {
+        pollIntervalMs: isFrontdesk ? 15_000 : 60_000,
+    });
+    const [isOpen, setIsOpen] = useState(false);
+    const [showStaleRead, setShowStaleRead] = useState(false);
+
+    const openIntakeNotification = useCallback((notification: any) => {
+        if (notification.status !== 'READ') markAsRead(notification.id);
+        const metadata = parseNotificationMetadata(notification.metadata);
+        if (metadata.navigateTo) router.push(metadata.navigateTo);
+    }, [markAsRead, router]);
+
+    const ringing = useIntakeNotificationAlerts(notifications, !loading, openIntakeNotification);
+    const hasUnreadIntake = useMemo(
+        () => notifications.some(
+            (n) => n.status !== 'READ' && parseNotificationMetadata(n.metadata).event === PATIENT_INTAKE_SUBMITTED,
+        ),
+        [notifications],
+    );
 
     // Group notifications by date, separating active from stale read notifications
     const groupedNotifications = useMemo(() => {
@@ -146,10 +169,32 @@ export function NotificationBell() {
     return (
         <Popover open={isOpen} onOpenChange={setIsOpen}>
             <PopoverTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative hover:bg-muted/50 transition-colors">
-                    <Bell className="h-5 w-5 text-muted-foreground" />
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}
+                    className={cn(
+                        "relative hover:bg-muted/50 transition-colors",
+                        hasUnreadIntake && "bg-[#caa26a]/10 hover:bg-[#caa26a]/20",
+                    )}
+                >
+                    <Bell
+                        className={cn(
+                            "h-5 w-5",
+                            hasUnreadIntake ? "text-[#2c2e4b]" : "text-muted-foreground",
+                            ringing && "animate-bell-ring",
+                        )}
+                    />
+                    {hasUnreadIntake && (
+                        <span className="absolute top-1 right-1 h-5 w-5 rounded-full bg-[#caa26a]/60 animate-ping" aria-hidden />
+                    )}
                     {unreadCount > 0 && (
-                        <span className="absolute top-1.5 right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground shadow-lg animate-in zoom-in-50">
+                        <span
+                            className={cn(
+                                "absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold shadow-lg animate-in zoom-in-50",
+                                hasUnreadIntake ? "bg-[#caa26a] text-[#2c2e4b]" : "bg-primary text-primary-foreground",
+                            )}
+                        >
                             {unreadCount > 9 ? '9+' : unreadCount}
                         </span>
                     )}

@@ -5,14 +5,19 @@ import { notificationsApi, NotificationResponseDto } from '@/lib/api/notificatio
 import { toast } from 'sonner';
 import { queryKeys } from '@/lib/constants/queryKeys';
 
+interface UseNotificationsOptions {
+    /** Poll interval; front desk uses a shorter one so new intakes surface quickly. */
+    pollIntervalMs?: number;
+}
+
 /**
  * Hook for managing user notifications.
  *
- * - Polls every 15 seconds (adaptive: faster when dropdown is open)
- * - Refetches on window focus
- * - Marks data fresh for 10 seconds to avoid redundant refetches
+ * - Polls every 60 seconds by default (configurable per caller)
+ * - Marks data fresh for half the poll interval to avoid redundant refetches
  */
-export function useNotifications(userId?: string) {
+export function useNotifications(userId?: string, options: UseNotificationsOptions = {}) {
+    const pollIntervalMs = options.pollIntervalMs ?? 60_000;
     const queryClient = useQueryClient();
 
     // Fetch notifications
@@ -30,12 +35,11 @@ export function useNotifications(userId?: string) {
             }
             return response.data;
         },
-        // Refresh every 60 seconds — non-clinical, no need for aggressive polling
-        refetchInterval: 60_000,
-        // Consider data fresh for 30 seconds (avoids redundant refetches)
-        staleTime: 30_000,
-        // Skip window focus refetch — notifications are non-critical
-        refetchOnWindowFocus: false,
+        refetchInterval: pollIntervalMs,
+        // Keep polling when the tab is in the background so the alert chime still plays.
+        refetchIntervalInBackground: pollIntervalMs < 60_000,
+        staleTime: pollIntervalMs / 2,
+        refetchOnWindowFocus: pollIntervalMs < 60_000,
         // Keep previous data while refetching for smoother UX
         placeholderData: (previousData) => previousData,
     });

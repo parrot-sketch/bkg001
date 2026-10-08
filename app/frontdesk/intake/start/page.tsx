@@ -7,7 +7,7 @@
  *   1. Receptionist generates QR code and link
  *   2. Receptionist copies link and manually sends to patient via WhatsApp
  *   3. Patient receives link and fills form at their own pace
- *   4. When form is submitted → Auto-redirect to /frontdesk/intake/pending
+ *   4. When form is submitted → patient is auto-registered; redirect to /frontdesk/patients
  *
  * 3-state machine:
  *   idle      → receptionist hasn't generated a session yet
@@ -15,8 +15,8 @@
  *   expired   → timer elapsed or session expired before submission
  *
  * The poll hits GET /api/frontdesk/intake/[sessionId]/status every 4 seconds.
- * When status flips to SUBMITTED, auto-redirects to pending page so receptionist
- * can see all submissions in one place.
+ * When status flips to SUBMITTED, auto-redirects to the patient registry where
+ * the newly registered patient appears.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -246,8 +246,6 @@ export default function StartIntakePage() {
         if (data.status === 'SUBMITTED' || data.status === 'CONFIRMED') {
           stopPoll();
           stopCountdown();
-          // Auto-redirect to pending page when form is submitted
-          // This allows frontdesk to manually send form link via WhatsApp and be notified automatically
           router.push('/frontdesk/patients');
         } else if (data.status === 'EXPIRED') {
           stopPoll();
@@ -456,9 +454,9 @@ export default function StartIntakePage() {
                 <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
                 Start Another
               </Button>
-              <Link href="/frontdesk/intake/pending" className="flex-1">
+              <Link href="/frontdesk/patients" className="flex-1">
                 <Button className="w-full h-9 rounded-xl text-sm bg-slate-900 hover:bg-black text-white">
-                  View Pending
+                  View Patients
                 </Button>
               </Link>
             </div>
