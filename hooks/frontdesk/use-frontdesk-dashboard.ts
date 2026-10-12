@@ -12,11 +12,13 @@
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
+import { useFrontdeskServerUserId } from '@/contexts/FrontdeskSessionContext';
 import {
   getFrontdeskDashboardData,
   revalidateFrontdeskDashboard,
   type FrontdeskDashboardData,
   type FrontdeskCheckedInPatient,
+  type FrontdeskDoctorDay,
   type FrontdeskQueueEntry,
 } from '@/actions/frontdesk/get-dashboard-data';
 import { queryKeys } from '@/lib/constants/queryKeys';
@@ -24,7 +26,7 @@ import { frontdeskApi } from '@/lib/api/frontdesk';
 import { toast } from 'sonner';
 
 // Re-export types for external consumers
-export type { FrontdeskCheckedInPatient, FrontdeskQueueEntry };
+export type { FrontdeskCheckedInPatient, FrontdeskDoctorDay, FrontdeskQueueEntry };
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -94,7 +96,8 @@ function useSharedDashboardQuery<TData = FrontdeskDashboardData>(
   select?: (data: FrontdeskDashboardData) => TData,
 ) {
   const { user, isAuthenticated } = useAuth();
-  const userId = user?.id || 'default';
+  const serverUserId = useFrontdeskServerUserId();
+  const userId = user?.id || serverUserId || 'default';
   const isEnabled = isAuthenticated && !!user;
 
   return useQuery<FrontdeskDashboardData, Error, TData>({
@@ -119,6 +122,10 @@ export function useDashboardStats() {
 
 export function useTodaysSchedule() {
   return useSharedDashboardQuery((data) => data.todaysSchedule);
+}
+
+export function useDoctorsToday() {
+  return useSharedDashboardQuery((data) => data.doctorsToday);
 }
 
 export function useCheckedInAwaitingAssignment() {

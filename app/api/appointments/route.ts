@@ -31,6 +31,7 @@ import { NotFoundError } from '@/application/errors/NotFoundError';
 import { Role } from '@/domain/enums/Role';
 import { createSurgicalCaseFromPatient } from '@/application/services/theater-tech/CreateSurgicalCaseFromPatientService';
 import { SurgicalCaseStatus } from '@prisma/client';
+import { revalidateFrontdeskDashboard } from '@/actions/frontdesk/get-dashboard-data';
 
 /**
  * GET /api/appointments
@@ -490,6 +491,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         console.error('[API] Failed to auto-create surgical case for procedure appointment:', error);
       }
     }
+
+    try { await revalidateFrontdeskDashboard(); } catch (_) { /* non-critical */ }
 
     return handleApiSuccess(result, 201);
   } catch (error) {

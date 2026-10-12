@@ -43,6 +43,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { SidebarSkeleton } from './SidebarSkeleton';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -179,13 +180,7 @@ export function UnifiedSidebar({
 
   // ── SSR skeleton ─────────────────────────────────────────────────────────────
   if (!mounted) {
-    return (
-      <aside className="fixed left-0 top-0 z-50 h-screen w-[280px] bg-[#2c2e4b] border-r border-[#e7d6bf]/10">
-        <div className="flex h-full items-center justify-center">
-          <div className="h-8 w-8 rounded-xl bg-[#e7d6bf]/20 animate-pulse" />
-        </div>
-      </aside>
-    );
+    return <SidebarSkeleton />;
   }
 
   // ── Shared nav item renderer ──────────────────────────────────────────────────

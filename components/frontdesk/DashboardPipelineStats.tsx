@@ -1,7 +1,6 @@
 import { UserCheck, Users, UserPlus, Stethoscope, CalendarIcon, Scissors } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
+import { PipelineStatsSkeleton } from '@/components/frontdesk/FrontdeskSkeletons';
 import Link from 'next/link';
 import { useDashboardStats } from '@/hooks/frontdesk/use-frontdesk-dashboard';
 
@@ -57,26 +56,7 @@ export function DashboardPipelineStats() {
   const today = new Date().toISOString().split('T')[0];
 
   if (isLoading) {
-    return (
-    <section className="grid grid-cols-2 lg:grid-cols-5 xl:grid-cols-8 gap-3 sm:gap-4">
-        {pipelineConfig.map((item) => {
-          const Icon = iconMap[item.label];
-          return (
-            <Card key={item.label} className="border border-[#e7d6bf] bg-white shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between pb-2 pt-3 px-4 border-b border-[#e7d6bf]">
-                <Skeleton className="h-3.5 w-20 bg-[#e7d6bf]/30" />
-                <div className="flex size-7 items-center justify-center rounded-md border border-[#e7d6bf] bg-[#e7d6bf]/30 text-[#caa26a]">
-                  <Icon className="size-3.5" />
-                </div>
-              </CardHeader>
-              <CardContent className="px-4 pb-3 pt-0">
-                <Skeleton className="h-7 w-10 bg-[#e7d6bf]/30" />
-              </CardContent>
-            </Card>
-          );
-        })}
-      </section>
-    );
+    return <PipelineStatsSkeleton />;
   }
 
   const pipelineData = pipelineConfig.map((item) => {

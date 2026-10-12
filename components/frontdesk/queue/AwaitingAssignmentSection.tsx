@@ -1,11 +1,10 @@
 import { Card } from '@/components/ui/card';
+import { QueueRowsSkeleton } from '@/components/frontdesk/FrontdeskSkeletons';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Loader2, Clock, CheckCircle2, XCircle } from 'lucide-react';
-import type { FrontdeskCheckedInPatient } from '@/hooks/frontdesk/use-frontdesk-dashboard';
-import type { DoctorAvailabilityResponseDto } from '@/application/dtos/DoctorAvailabilityResponseDto';
-import { useDoctorsAvailability } from '@/hooks/schedule/useDoctorAvailability';
-import { useMemo, useState } from 'react';
+import { useDoctorsToday, type FrontdeskCheckedInPatient } from '@/hooks/frontdesk/use-frontdesk-dashboard';
+import { useState } from 'react';
 
 interface AwaitingAssignmentSectionProps {
   patients: FrontdeskCheckedInPatient[];
@@ -15,41 +14,10 @@ interface AwaitingAssignmentSectionProps {
   actionLoading?: string | null;
 }
 
-function getNowStatus(doctor: DoctorAvailabilityResponseDto, now: Date): string {
-  const dayName = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
-  const wd = doctor.workingDays?.find((d) => (d.day || '').toLowerCase() === dayName);
-  if (!wd?.isAvailable) return 'OFF';
-
-  const nowMins = now.getHours() * 60 + now.getMinutes();
-  const sessions = wd.sessions?.length && wd.sessions.length > 0
-    ? wd.sessions
-    : [{ startTime: wd.startTime, endTime: wd.endTime }];
-
-  const inSession = sessions.some((s) => nowMins >= timeToMinutes(s.startTime) && nowMins < timeToMinutes(s.endTime));
-  if (inSession) return 'AVAILABLE';
-
-  const later = sessions.some((s) => nowMins < timeToMinutes(s.startTime));
-  return later ? 'LATER_TODAY' : 'OFF';
-}
-
-function timeToMinutes(time: string): number {
-  const [h, m] = time.split(':').map((v) => Number(v));
-  return (h || 0) * 60 + (m || 0);
-}
-
 export function AwaitingAssignmentSection({ patients, loading, error, onAssign, actionLoading }: AwaitingAssignmentSectionProps) {
-  const today = useMemo(() => new Date(), []);
-  const { data: availabilityDoctors = [], isLoading: loadingDoctors } = useDoctorsAvailability(today, today, { enabled: true });
+  const { data: doctors = [], isLoading: loadingDoctors } = useDoctorsToday();
   const [showDoctorSelect, setShowDoctorSelect] = useState<number | null>(null);
   const [selectedDoctor, setSelectedDoctor] = useState<string>('');
-
-  const availabilityByDoctorId = useMemo(() => {
-    const map = new Map<string, string>();
-    availabilityDoctors.forEach((d) => {
-      map.set(d.doctorId, getNowStatus(d, today));
-    });
-    return map;
-  }, [availabilityDoctors, today]);
 
   if (patients.length === 0) return null;
 
@@ -69,9 +37,7 @@ export function AwaitingAssignmentSection({ patients, loading, error, onAssign, 
 
       <div className="p-0">
         {loading ? (
-          <div className="p-4 flex justify-center">
-            <Loader2 className="h-4 w-4 animate-spin text-[#caa26a]" />
-          </div>
+          <QueueRowsSkeleton rows={2} />
         ) : error ? (
           <div className="p-3 text-center">
             <p className="text-xs text-[#2c2e4b]/60">
@@ -107,15 +73,11 @@ export function AwaitingAssignmentSection({ patients, loading, error, onAssign, 
                           disabled={loadingDoctors}
                         >
                           <option value="">{loadingDoctors ? 'Loading…' : 'Select doctor'}</option>
-                          {availabilityDoctors.map((doc) => {
-                            const status = availabilityByDoctorId.get(doc.doctorId);
-                            const suffix = status === 'AVAILABLE' ? ' · Available' : status === 'LATER_TODAY' ? ' · Later' : ' · Off';
-                            return (
-                              <option key={doc.doctorId} value={doc.doctorId}>
-                                {doc.doctorName}{suffix}
-                              </option>
-                            );
-                          })}
+                          {doctors.map((doc) => (
+                            <option key={doc.doctorId} value={doc.doctorId}>
+                              {doc.doctorName}{doc.inConsultation ? ' · In consultation' : ''}
+                            </option>
+                          ))}
                         </select>
                         <Button
                           size="sm"
@@ -141,7 +103,7 @@ export function AwaitingAssignmentSection({ patients, loading, error, onAssign, 
                     ) : (
                       <Button
                         size="sm"
-                        onClick={() => setShowDoctorSelect(patient.id)}
+                        onClick={() => { setShowDoctorSelect(patient.id); setSelectedDoctor(patient.doctorId); }}
                         className="h-8 px-3 text-xs bg-[#caa26a] hover:bg-[#b8913e] text-[#2c2e4b] rounded-lg font-medium"
                       >
                         Assign

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
+import { QueueRowsSkeleton } from '@/components/frontdesk/FrontdeskSkeletons';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Loader2, UserPlus } from 'lucide-react';
@@ -30,9 +31,7 @@ export function ArrivingTodaySection({ appointments, loading, onCheckIn, actionL
       </div>
       <div className="p-0">
         {loading ? (
-          <div className="p-4 flex justify-center">
-            <Loader2 className="h-4 w-4 animate-spin text-[#caa26a]" />
-          </div>
+          <QueueRowsSkeleton rows={2} />
         ) : (
           <div className="divide-y divide-[#e7d6bf]/60">
             {appointments.map((appointment) => {

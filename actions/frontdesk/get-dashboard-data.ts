@@ -4,6 +4,7 @@ import { unstable_cache } from 'next/cache';
 import { revalidateTag } from 'next/cache';
 import db from '@/lib/db';
 import { getCurrentUser } from '@/lib/auth/server-auth';
+import { AppointmentStatus, holdsDoctorTime, isAwaitingConfirmation } from '@/domain/enums/AppointmentStatus';
 
 export interface FrontdeskDashboardStats {
   expectedPatients: number;
@@ -34,6 +35,7 @@ export interface FrontdeskAppointment extends AppointmentResponseDto {
 export interface FrontdeskCheckedInPatient {
   id: number;
   patientId: string;
+  doctorId: string;
   patient: {
     id: string;
     firstName: string;
@@ -68,8 +70,19 @@ export interface FrontdeskQueueEntry {
   isWalkIn: boolean;
 }
 
+export interface FrontdeskDoctorDay {
+  doctorId: string;
+  doctorName: string;
+  specialization: string;
+  /** Appointments today that hold the doctor's time (confirmed, in progress or completed). */
+  booked: number;
+  awaitingConfirmation: number;
+  inConsultation: boolean;
+}
+
 export interface FrontdeskDashboardData {
   stats: FrontdeskDashboardStats;
+  doctorsToday: FrontdeskDoctorDay[];
   todaysSchedule: {
     scheduled: FrontdeskAppointment[];
     checkedIn: FrontdeskAppointment[];
@@ -114,6 +127,7 @@ async function fetchDashboardDataInternal(): Promise<FrontdeskDashboardData> {
     followUpAppointments,
     newPatientsToday,
     surgicalCaseStats,
+    doctors,
   ] = await Promise.all([
     db.appointment.groupBy({
       by: ['status'],
@@ -226,6 +240,11 @@ async function fetchDashboardDataInternal(): Promise<FrontdeskDashboardData> {
         status: true,
       },
     }),
+    db.doctor.findMany({
+      where: { availability_status: { not: 'UNAVAILABLE' } },
+      select: { id: true, name: true, specialization: true },
+      orderBy: { name: 'asc' },
+    }),
   ]);
 
   const mappedAppointments: FrontdeskAppointment[] = appointments.map(a => ({
@@ -312,6 +331,7 @@ async function fetchDashboardDataInternal(): Promise<FrontdeskDashboardData> {
     .map(a => ({
     id: a.id,
     patientId: a.patientId,
+    doctorId: a.doctorId,
     patient: {
       id: a.patient?.id || '',
       firstName: a.patient?.firstName || '',
@@ -354,6 +374,24 @@ async function fetchDashboardDataInternal(): Promise<FrontdeskDashboardData> {
     });
   });
 
+  const doctorsToday: FrontdeskDoctorDay[] = doctors
+    .map(d => {
+      const own = appointments.filter(a => a.doctor_id === d.id);
+      return {
+        doctorId: d.id,
+        doctorName: d.name,
+        specialization: d.specialization,
+        booked: own.filter(a => holdsDoctorTime(a.status as AppointmentStatus)).length,
+        awaitingConfirmation: own.filter(a => isAwaitingConfirmation(a.status as AppointmentStatus)).length,
+        inConsultation: own.some(a => a.status === 'IN_CONSULTATION'),
+      };
+    })
+    .sort((a, b) =>
+      Number(b.inConsultation) - Number(a.inConsultation) ||
+      (b.booked + b.awaitingConfirmation) - (a.booked + a.awaitingConfirmation) ||
+      a.doctorName.localeCompare(b.doctorName)
+    );
+
   const statsMap = Object.fromEntries(
     statsByStatus.map(s => [s.status, s._count.status])
   );
@@ -383,6 +421,7 @@ async function fetchDashboardDataInternal(): Promise<FrontdeskDashboardData> {
 
   return {
     stats,
+    doctorsToday,
     todaysSchedule: {
       scheduled,
       checkedIn,
@@ -431,6 +470,7 @@ export async function getFrontdeskDashboardData(): Promise<FrontdeskDashboardDat
         inTheater: 0,
         completedSurgeriesToday: 0,
       },
+      doctorsToday: [],
       queue: {
         checkedInAwaitingAssignment: [],
         liveQueue: [],
@@ -447,7 +487,7 @@ export async function getFrontdeskDashboardData(): Promise<FrontdeskDashboardDat
 
   const cachedFetch = unstable_cache(
     () => fetchDashboardDataInternal(),
-    ['frontdesk-dashboard-v2'],
+    ['frontdesk-dashboard-v3'],
     {
       revalidate: 30,
       tags: ['frontdesk-dashboard-v2'],

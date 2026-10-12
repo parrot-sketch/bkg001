@@ -37,6 +37,7 @@ export function BookAppointmentDialog() {
     queryClient.invalidateQueries({ queryKey: ['appointmentsByDate'] });
     queryClient.invalidateQueries({ queryKey: ['frontdesk-patients'] });
     queryClient.invalidateQueries({ queryKey: ['patient'] });
+    queryClient.invalidateQueries({ queryKey: ['frontdesk', 'dashboard'] });
     closeBookingDialog();
     markBookingSuccess();
   };

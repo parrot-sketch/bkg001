@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { QueueManagementPanels } from '@/components/frontdesk/QueueManagementPanels';
 import { QuickAssignmentDialog } from '@/components/frontdesk/QuickAssignmentDialog';
 import { DashboardPipelineStats } from '@/components/frontdesk/DashboardPipelineStats';
-import { DoctorAvailabilityAtAGlance } from '@/components/frontdesk/DoctorAvailabilityAtAGlance';
+import { DoctorsTodayPanel } from '@/components/frontdesk/DoctorsTodayPanel';
 import { FrontdeskPendingActionsPanel } from '@/components/frontdesk/FrontdeskPendingActionsPanel';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,7 @@ import { AppointmentSource } from '@/domain/enums/AppointmentSource';
 import { BookingChannel } from '@/domain/enums/BookingChannel';
 import { triggerAppointmentExpiry } from '@/app/actions/appointment-expiry';
 import { DashboardShell } from '@/components/dashboard/DashboardShell';
-import { DashboardSkeleton } from '@/components/frontdesk/DashboardSkeleton';
+import { DashboardMainSkeleton } from '@/components/frontdesk/FrontdeskSkeletons';
 
 /**
  * Frontdesk Dashboard Client Coordinator
@@ -39,10 +39,16 @@ export function FrontdeskDashboardClient() {
 
   // Background expiry check — fire and forget, never blocks UI
   useEffect(() => {
-    triggerAppointmentExpiry().catch(() => {
-      // Intentionally silent — expiry is a background operation
-    });
-  }, []);
+    triggerAppointmentExpiry()
+      .then((result) => {
+        if (result.expiredCount > 0) {
+          void queryClient.invalidateQueries({ queryKey: ['frontdesk', 'dashboard'] });
+        }
+      })
+      .catch(() => {
+        // Intentionally silent — expiry is a background operation
+      });
+  }, [queryClient]);
 
   const handleOpenBooking = useCallback((): void => {
     openBookingDialog({
@@ -80,7 +86,7 @@ export function FrontdeskDashboardClient() {
                 </Button>
               </CardContent>
             </Card>
-            <DoctorAvailabilityAtAGlance />
+            <DoctorsTodayPanel />
           </>
         }
         mobileActions={
@@ -115,7 +121,7 @@ export function FrontdeskDashboardClient() {
         }
       >
         {isLoading ? (
-          <DashboardSkeleton />
+          <DashboardMainSkeleton />
         ) : (
           <div className="space-y-5">
             {hasPendingActions && (

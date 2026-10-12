@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
+import { QueueRowsSkeleton } from '@/components/frontdesk/FrontdeskSkeletons';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Users } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { FrontdeskQueueEntry } from '@/hooks/frontdesk/use-frontdesk-dashboard';
 import { QueuePatientRow } from './QueuePatientRow';
@@ -63,9 +64,7 @@ export function LiveQueueBoard({
 
       <div className="p-0">
         {loading ? (
-          <div className="p-4 flex justify-center">
-            <Loader2 className="h-4 w-4 animate-spin text-[#caa26a]" />
-          </div>
+          <QueueRowsSkeleton rows={2} />
         ) : error ? (
           <div className="p-3 text-center">
             <p className="text-xs text-[#2c2e4b]/60">

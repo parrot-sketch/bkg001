@@ -1,56 +1,10 @@
-import { dehydrate, HydrationBoundary } from '@tanstack/react-query';
-import { getQueryClient } from '@/lib/react-query-server';
-import { getFrontdeskDashboardData } from '@/actions/frontdesk/get-dashboard-data';
-import { getDoctorsAvailabilityAction } from '@/actions/frontdesk/get-doctors-availability';
-import { getCurrentUser } from '@/lib/auth/server-auth';
 import { FrontdeskDashboardClient } from './FrontdeskDashboardClient';
 
-export const revalidate = 0; // Disable static rendering cache to ensure operational dashboards are always dynamic
-
 /**
- * Frontdesk Dashboard Page (Server Component)
+ * Frontdesk Dashboard Page
  *
- * Prefetches and seeds the React Query cache on the server, avoiding any
- * client-side loading spinners, hydration mismatches, or layout shifts on initial render.
+ * Dashboard data is prefetched by app/frontdesk/layout.tsx into the shared React Query key.
  */
-export default async function FrontdeskDashboardPage() {
-  const queryClient = getQueryClient();
-  const authUser = await getCurrentUser();
-
-  if (!authUser) {
-    // Fallback to client layout which handles redirect to login
-    return <FrontdeskDashboardClient />;
-  }
-
-  const userId = authUser.userId;
-  const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
-
-  // Fetch the dashboard and doctor availability data in parallel on the server
-  let dashboardData;
-  let doctorsAvailability;
-
-  try {
-    [dashboardData, doctorsAvailability] = await Promise.all([
-      getFrontdeskDashboardData(),
-      getDoctorsAvailabilityAction(today, today),
-    ]);
-  } catch (error) {
-    console.error('[Dashboard Server Prefetch] Error prefetching data:', error);
-    // If fetching fails, render client component with empty cache so it can handle errors and refetch
-    return <FrontdeskDashboardClient />;
-  }
-
-  // Seed the single shared dashboard key used by all section hooks.
-  // (Older split keys caused N parallel server-action POSTs for the same payload.)
-  queryClient.setQueryData(['frontdesk', 'dashboard', userId], dashboardData);
-
-  // Seed the doctor availability query cache
-  queryClient.setQueryData(['doctors', 'availability', 'list', todayStr, todayStr], doctorsAvailability);
-
-  return (
-    <HydrationBoundary state={dehydrate(queryClient)}>
-      <FrontdeskDashboardClient />
-    </HydrationBoundary>
-  );
+export default function FrontdeskDashboardPage() {
+  return <FrontdeskDashboardClient />;
 }
