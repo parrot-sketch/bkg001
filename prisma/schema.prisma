@@ -408,7 +408,9 @@ model Appointment {
   surgical_case                 SurgicalCase?              @relation("AppointmentSurgicalCase")
   vital_signs                   VitalSign[]                @relation("VitalSignAppointment")
 
-  @@unique([doctor_id, scheduled_at], map: "unique_doctor_scheduled_slot")
+  // Partial unique index "unique_doctor_scheduled_slot" on (doctor_id, scheduled_at) is defined in
+  // migration 20261012000000_doctor_slot_unique_confirmed_only. Prisma 6 cannot declare partial
+  // indexes, so `prisma migrate dev` will propose dropping it — remove that DROP from any new migration.
   @@index([patient_id])
   @@index([doctor_id])
   @@index([appointment_date])

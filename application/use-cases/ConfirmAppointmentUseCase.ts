@@ -120,6 +120,19 @@ export class ConfirmAppointmentUseCase {
           notesLength: dto.notes.length,
         });
       }
+
+      // Unconfirmed requests may overlap; only one of them can be confirmed for a given time.
+      const timeAlreadyHeld = await this.appointmentRepository.hasConflict(
+        appointment.getDoctorId(),
+        appointment.getAppointmentDate(),
+        appointment.getTime(),
+      );
+      if (timeAlreadyHeld) {
+        throw new DomainException(
+          `You already have a confirmed appointment at ${appointment.getTime()} on this date. Reschedule this request to a different time instead.`,
+          { appointmentId: dto.appointmentId },
+        );
+      }
     } else {
       // Rejection requires a reason
       if (!dto.rejectionReason || dto.rejectionReason.trim().length === 0) {

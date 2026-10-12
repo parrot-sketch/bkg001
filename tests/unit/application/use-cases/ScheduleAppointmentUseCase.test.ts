@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { ScheduleAppointmentDto } from '../../../../application/dtos/ScheduleAppointmentDto';
 import type { IAppointmentRepository } from '../../../../domain/interfaces/repositories/IAppointmentRepository';
 import type { IPatientRepository } from '../../../../domain/interfaces/repositories/IPatientRepository';
-import type { IAvailabilityRepository } from '../../../../domain/interfaces/repositories/IAvailabilityRepository';
 import type { INotificationService } from '../../../../domain/interfaces/services/INotificationService';
 import type { IAuditService } from '../../../../domain/interfaces/services/IAuditService';
 import type { ITimeService } from '../../../../domain/interfaces/services/ITimeService';
@@ -12,15 +11,6 @@ import { Appointment } from '../../../../domain/entities/Appointment';
 import { AppointmentStatus } from '../../../../domain/enums/AppointmentStatus';
 import { Gender } from '../../../../domain/enums/Gender';
 import { DomainException } from '../../../../domain/exceptions/DomainException';
-
-// Mock ValidateAppointmentAvailabilityUseCase to avoid deep nested dependency issues
-// (getBlocks, sessions, AvailabilityService etc.)
-const mockValidateExecute = vi.fn().mockResolvedValue({ isAvailable: true });
-vi.mock('../../../../application/use-cases/ValidateAppointmentAvailabilityUseCase', () => ({
-  ValidateAppointmentAvailabilityUseCase: vi.fn().mockImplementation(function (this: any) {
-    this.execute = mockValidateExecute;
-  }),
-}));
 
 // Mock UseCaseFactory to prevent importing @/lib/db (which creates a real PrismaClient)
 vi.mock('@/lib/use-case-factory', () => ({
@@ -60,22 +50,6 @@ describe('ScheduleAppointmentUseCase', () => {
     now: Mock;
     today: Mock;
   };
-  let mockAvailabilityRepository: {
-    getDoctorAvailability: Mock;
-    getWorkingDays: Mock;
-    saveWorkingDays: Mock;
-    getOverrides: Mock;
-    createOverride: Mock;
-    deleteOverride: Mock;
-    getBreaks: Mock;
-    createBreak: Mock;
-    deleteBreak: Mock;
-    getSlotConfiguration: Mock;
-    saveSlotConfiguration: Mock;
-    getBlocks: Mock;
-    createBlock: Mock;
-    deleteBlock: Mock;
-  };
   let mockPrisma: PrismaClient;
   let useCase: ScheduleAppointmentUseCase;
 
@@ -109,9 +83,6 @@ describe('ScheduleAppointmentUseCase', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Reset the validate mock to default (available)
-    mockValidateExecute.mockResolvedValue({ isAvailable: true });
-
     mockAppointmentRepository = {
       findById: vi.fn(),
       findByPatient: vi.fn().mockResolvedValue([]),
@@ -143,29 +114,6 @@ describe('ScheduleAppointmentUseCase', () => {
       today: vi.fn().mockReturnValue(new Date('2026-01-01')),
     };
 
-    mockAvailabilityRepository = {
-      getDoctorAvailability: vi.fn().mockResolvedValue(null),
-      getWorkingDays: vi.fn().mockResolvedValue([]),
-      saveWorkingDays: vi.fn().mockResolvedValue(undefined),
-      getOverrides: vi.fn().mockResolvedValue([]),
-      createOverride: vi.fn(),
-      deleteOverride: vi.fn().mockResolvedValue(undefined),
-      getBreaks: vi.fn().mockResolvedValue([]),
-      createBreak: vi.fn(),
-      deleteBreak: vi.fn().mockResolvedValue(undefined),
-      getSlotConfiguration: vi.fn().mockResolvedValue({
-        id: 'slot-1',
-        doctorId: 'doctor-1',
-        defaultDuration: 30,
-        bufferTime: 0,
-        slotInterval: 15,
-      }),
-      saveSlotConfiguration: vi.fn(),
-      getBlocks: vi.fn().mockResolvedValue([]),
-      createBlock: vi.fn(),
-      deleteBlock: vi.fn(),
-    };
-
     // Mock PrismaClient with $transaction that invokes the callback
     // and doctor.findUnique for notification lookup
     mockPrisma = {
@@ -185,7 +133,6 @@ describe('ScheduleAppointmentUseCase', () => {
     useCase = new ScheduleAppointmentUseCase(
       mockAppointmentRepository as unknown as IAppointmentRepository,
       mockPatientRepository as unknown as IPatientRepository,
-      mockAvailabilityRepository as unknown as IAvailabilityRepository,
       mockNotificationService as unknown as INotificationService,
       mockAuditService as unknown as IAuditService,
       mockTimeService as unknown as ITimeService,
@@ -395,7 +342,6 @@ describe('ScheduleAppointmentUseCase', () => {
         new ScheduleAppointmentUseCase(
           null as unknown as IAppointmentRepository,
           mockPatientRepository as unknown as IPatientRepository,
-          mockAvailabilityRepository as unknown as IAvailabilityRepository,
           mockNotificationService as unknown as INotificationService,
           mockAuditService as unknown as IAuditService,
           mockTimeService as unknown as ITimeService,

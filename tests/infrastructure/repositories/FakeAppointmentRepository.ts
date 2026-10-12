@@ -7,7 +7,7 @@
  */
 
 import { Appointment } from '@domain/entities/Appointment';
-import { AppointmentStatus } from '@domain/enums/AppointmentStatus';
+import { AppointmentStatus, holdsDoctorTime } from '@domain/enums/AppointmentStatus';
 import { IAppointmentRepository } from '@domain/interfaces/repositories/IAppointmentRepository';
 
 export class FakeAppointmentRepository implements IAppointmentRepository {
@@ -107,11 +107,7 @@ export class FakeAppointmentRepository implements IAppointmentRepository {
       const docId = (apt as any).doctor_id || (apt as any).getDoctorId?.();
       const status = (apt as any).status || (apt as any).getStatus?.();
 
-      if (
-        docId === doctorId &&
-        status !== AppointmentStatus.CANCELLED &&
-        status !== AppointmentStatus.NO_SHOW
-      ) {
+      if (docId === doctorId && holdsDoctorTime(status)) {
         const aptDate = new Date((apt as any).appointment_date);
         const aptTime = (apt as any).time;
 

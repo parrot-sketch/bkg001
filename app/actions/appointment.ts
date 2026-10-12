@@ -10,7 +10,7 @@ import { revalidateDoctorDashboard } from '@/actions/doctor/get-dashboard-data';
 import { revalidateFrontdeskDashboard } from '@/actions/frontdesk/get-dashboard-data';
 import { revalidateNurseDashboard } from '@/actions/nurse/get-dashboard-data';
 import { revalidatePath } from 'next/cache';
-import { AppointmentStatus } from "@prisma/client";
+import { AppointmentStatus, Prisma } from "@prisma/client";
 import { getScheduleAppointmentUseCase } from "@/lib/use-cases";
 import { DomainException } from "@/domain/exceptions/DomainException";
 import { normalizeAppointmentRequest, isAppointmentRequestLike } from "@/lib/normalize-api-requests";
@@ -339,6 +339,9 @@ export async function reinstateAppointment(appointmentId: number) {
 
     return { success: true, msg: "Appointment reinstated", appointment: updated };
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return { success: false, msg: "This time has since been given to another confirmed appointment. Reschedule instead." };
+    }
     console.error('[reinstateAppointment]', error);
     return { success: false, msg: "Internal Server Error" };
   }

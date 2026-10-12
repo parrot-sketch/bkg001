@@ -343,5 +343,17 @@ describe('PrismaAppointmentRepository', () => {
 
       expect(result).toBe(false);
     });
+
+    it('should ignore unconfirmed, cancelled and no-show appointments', async () => {
+      mockPrisma.appointment.findFirst.mockResolvedValue(null);
+
+      await repository.hasConflict('doctor-1', new Date('2025-02-01'), '10:00');
+
+      const where = mockPrisma.appointment.findFirst.mock.calls[0][0].where;
+      expect(where.status.notIn).toEqual(
+        expect.arrayContaining(['PENDING', 'PENDING_DOCTOR_CONFIRMATION', 'CANCELLED', 'NO_SHOW']),
+      );
+      expect(where.status.notIn).not.toContain('SCHEDULED');
+    });
   });
 });

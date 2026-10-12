@@ -76,7 +76,8 @@ export interface IAppointmentRepository {
    * Checks for appointment conflicts (double booking)
    * 
    * This method performs a database-level conflict check to prevent double booking.
-   * It checks for existing non-cancelled appointments with the same doctor, date, and time.
+   * Only appointments that hold the doctor's time (see holdsDoctorTime) count;
+   * unconfirmed requests, cancellations and no-shows do not.
    * 
    * @param doctorId - The doctor's unique identifier
    * @param appointmentDate - The appointment date

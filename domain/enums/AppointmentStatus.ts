@@ -154,3 +154,21 @@ export function isConfirmed(status: AppointmentStatus): boolean {
   return status === AppointmentStatus.SCHEDULED ||
     status === AppointmentStatus.CONFIRMED;
 }
+
+/**
+ * Statuses that do NOT hold the doctor's time. Unconfirmed requests may overlap
+ * each other; once one is confirmed, that time is held for the doctor.
+ *
+ * Must stay in sync with the partial unique index `unique_doctor_scheduled_slot`
+ * (see migration 20261012000000_doctor_slot_unique_confirmed_only).
+ */
+export const NON_BLOCKING_APPOINTMENT_STATUSES: readonly AppointmentStatus[] = [
+  AppointmentStatus.PENDING,
+  AppointmentStatus.PENDING_DOCTOR_CONFIRMATION,
+  AppointmentStatus.CANCELLED,
+  AppointmentStatus.NO_SHOW,
+];
+
+export function holdsDoctorTime(status: AppointmentStatus): boolean {
+  return !NON_BLOCKING_APPOINTMENT_STATUSES.includes(status);
+}

@@ -1,6 +1,5 @@
 import { IAppointmentRepository } from '../../domain/interfaces/repositories/IAppointmentRepository';
 import { IPatientRepository } from '../../domain/interfaces/repositories/IPatientRepository';
-import { IAvailabilityRepository } from '../../domain/interfaces/repositories/IAvailabilityRepository';
 import { INotificationService } from '../../domain/interfaces/services/INotificationService';
 import { IAuditService } from '../../domain/interfaces/services/IAuditService';
 import { ITimeService } from '../../domain/interfaces/services/ITimeService';
@@ -10,13 +9,13 @@ import { AppointmentSource } from '../../domain/enums/AppointmentSource';
 import { ScheduleAppointmentDto } from '../dtos/ScheduleAppointmentDto';
 import { AppointmentResponseDto } from '../dtos/AppointmentResponseDto';
 import { AppointmentMapper as ApplicationAppointmentMapper } from '../mappers/AppointmentMapper';
-import { ValidateAppointmentAvailabilityUseCase } from './ValidateAppointmentAvailabilityUseCase';
-import { GetAvailableSlotsForDateUseCase } from './GetAvailableSlotsForDateUseCase';
 import { DomainException } from '../../domain/exceptions/DomainException';
 import { NotFoundError } from '../errors/NotFoundError';
 import { ConflictError } from '../errors/ConflictError';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { UseCaseFactory } from '@/lib/use-case-factory';
+
+const DEFAULT_APPOINTMENT_DURATION_MINUTES = 30;
 
 /**
  * Use Case: ScheduleAppointmentUseCase
@@ -24,10 +23,11 @@ import { UseCaseFactory } from '@/lib/use-case-factory';
  * Orchestrates the scheduling of a new appointment between a patient and doctor.
  * 
  * Business Purpose:
- * - Validates appointment availability (no double booking)
+ * - Records a proposed date/time for a doctor; doctors do not publish slots,
+ *   so requests are not validated against availability templates
  * - Ensures patient and doctor exist
- * - Creates appointment record with PENDING status
- * - Sends notification to patient
+ * - Creates appointment record (PENDING_DOCTOR_CONFIRMATION unless auto-confirmed)
+ * - Sends notification to patient and, when confirmation is needed, the doctor
  * - Records audit event
  * 
  * Clinical Workflow:
@@ -41,16 +41,13 @@ import { UseCaseFactory } from '@/lib/use-case-factory';
  * - Patient must exist
  * - Doctor must exist (validated by repository)
  * - Appointment date cannot be in the past
- * - No double booking (same doctor, same date/time)
- * - Appointment starts with PENDING status
+ * - The doctor's time is only held by confirmed/active appointments;
+ *   unconfirmed requests at the same time are allowed (see holdsDoctorTime)
  */
 export class ScheduleAppointmentUseCase {
-  private readonly validateAvailabilityUseCase: ValidateAppointmentAvailabilityUseCase;
-
   constructor(
     private readonly appointmentRepository: IAppointmentRepository,
     private readonly patientRepository: IPatientRepository,
-    private readonly availabilityRepository: IAvailabilityRepository,
     private readonly notificationService: INotificationService,
     private readonly auditService: IAuditService,
     private readonly timeService: ITimeService,
@@ -61,9 +58,6 @@ export class ScheduleAppointmentUseCase {
     }
     if (!patientRepository) {
       throw new Error('PatientRepository is required');
-    }
-    if (!availabilityRepository) {
-      throw new Error('AvailabilityRepository is required');
     }
     if (!notificationService) {
       throw new Error('NotificationService is required');
@@ -81,13 +75,6 @@ export class ScheduleAppointmentUseCase {
     // CRITICAL: Validate that we're using the singleton PrismaClient
     // This prevents connection pool exhaustion from accidental new instances
     UseCaseFactory.validatePrismaClient(prisma);
-
-    // Initialize availability validation use case
-    this.validateAvailabilityUseCase = new ValidateAppointmentAvailabilityUseCase(
-      availabilityRepository,
-      appointmentRepository,
-      prisma,
-    );
   }
 
   /**
@@ -131,108 +118,11 @@ export class ScheduleAppointmentUseCase {
       });
     }
 
-    // Step 2.5: Validate proposed time availability (Simplified Frontdesk Booking)
-    // For frontdesk bookings: Check if proposed time is available
-    // - If available: Auto-allocate slot, create appointment
-    // - If not available: Create appointment with PENDING_DOCTOR_CONFIRMATION, calculate alternatives
-    const slotConfig = await this.availabilityRepository.getSlotConfiguration(dto.doctorId);
-    const appointmentDuration = dto.durationMinutes || slotConfig?.defaultDuration || 30;
-    
+    const appointmentDuration = dto.durationMinutes || DEFAULT_APPOINTMENT_DURATION_MINUTES;
+
     const appointmentSource = dto.source || AppointmentSource.PATIENT_REQUESTED;
     const isFrontdeskBooking = appointmentSource === AppointmentSource.FRONTDESK_SCHEDULED;
     const isDoctorFollowUp = appointmentSource === AppointmentSource.DOCTOR_FOLLOW_UP;
-    
-    // Check if proposed time is available
-    const availabilityCheck = await this.validateAvailabilityUseCase.execute({
-      doctorId: dto.doctorId,
-      date: dto.appointmentDate,
-      time: dto.time,
-      duration: appointmentDuration,
-    });
-
-    // For frontdesk bookings and doctor follow-ups: Don't throw error if not available, create appointment anyway
-    // - Frontdesk: Doctor will see alternatives and can confirm/customize
-    // - Doctor follow-up: Doctor is scheduling their own appointment, so they know their schedule
-    // For other sources: Keep existing behavior (throw error if not available)
-    if (!availabilityCheck.isAvailable && !isFrontdeskBooking && !isDoctorFollowUp) {
-      // Provide helpful error message based on the reason
-      let errorMessage = `Appointment time is not available: ${availabilityCheck.reason || 'Slot is already booked'}`;
-      
-      // If the reason is about no availability configured, provide more helpful guidance
-      if (availabilityCheck.reason?.includes('no availability configured')) {
-        errorMessage = `Doctor has not configured their availability schedule. Please ask the doctor to set up their working hours in the schedule settings, or contact the administrator.`;
-      }
-      
-      throw new ConflictError(errorMessage);
-    }
-    
-    // For doctor follow-ups: If no availability is configured, show a warning but allow scheduling
-    // (Doctor is scheduling their own appointment, so they know their schedule)
-    if (isDoctorFollowUp && availabilityCheck.reason?.includes('no availability configured')) {
-      console.warn(
-        `[ScheduleAppointment] Doctor ${dto.doctorId} is scheduling a follow-up appointment but has no availability configured. ` +
-        `Allowing scheduling anyway since doctor is scheduling their own appointment.`
-      );
-    }
-
-    // Calculate alternative slots if proposed time is not available (for frontdesk bookings)
-    let alternativeSlots: Array<{ date: string; time: string }> | undefined;
-    if (!availabilityCheck.isAvailable && isFrontdeskBooking) {
-      // Get available slots for the same date and nearby dates
-      const getSlotsUseCase = new GetAvailableSlotsForDateUseCase(
-        this.availabilityRepository,
-        this.appointmentRepository,
-        this.prisma
-      );
-      
-      // Get slots for the proposed date
-      const sameDateSlots = await getSlotsUseCase.execute({
-        doctorId: dto.doctorId,
-        date: dto.appointmentDate,
-        duration: appointmentDuration,
-      });
-      
-      // Filter to only available slots and take first 5
-      const availableSameDate = sameDateSlots
-        .filter(slot => slot.isAvailable)
-        .slice(0, 5)
-        .map(slot => ({
-          date: dto.appointmentDate.toISOString().split('T')[0],
-          time: slot.startTime,
-        }));
-      
-      // If not enough slots on same date, get slots for next 3 days
-      if (availableSameDate.length < 3) {
-        const nextDays: Date[] = [];
-        for (let i = 1; i <= 3; i++) {
-          const nextDate = new Date(dto.appointmentDate);
-          nextDate.setDate(nextDate.getDate() + i);
-          nextDays.push(nextDate);
-        }
-        
-        for (const nextDate of nextDays) {
-          if (availableSameDate.length >= 5) break;
-          
-          const nextDateSlots = await getSlotsUseCase.execute({
-            doctorId: dto.doctorId,
-            date: nextDate,
-            duration: appointmentDuration,
-          });
-          
-          const availableNextDate = nextDateSlots
-            .filter(slot => slot.isAvailable)
-            .slice(0, 5 - availableSameDate.length)
-            .map(slot => ({
-              date: nextDate.toISOString().split('T')[0],
-              time: slot.startTime,
-            }));
-          
-          availableSameDate.push(...availableNextDate);
-        }
-      }
-      
-      alternativeSlots = availableSameDate;
-    }
 
     // Step 3: Create appointment domain entity (validates business rules)
     // Note: ID will be 0 temporarily, database will assign actual ID
@@ -271,7 +161,7 @@ export class ScheduleAppointmentUseCase {
 
         if (hasDoctorConflict) {
           throw new ConflictError(
-            `Appointment conflict: Doctor already has an appointment on ${dto.appointmentDate.toISOString()} at ${dto.time}`
+            `Appointment conflict: Doctor already has a confirmed appointment on ${dto.appointmentDate.toLocaleDateString()} at ${dto.time}`
           );
         }
 
@@ -424,7 +314,7 @@ export class ScheduleAppointmentUseCase {
         const targetArray = Array.isArray(target) ? target : (typeof target === 'string' ? [target] : []);
         if (targetArray.some(t => String(t).includes('appointment_no_double_booking') || String(t).includes('unique_doctor_scheduled_slot'))) {
           throw new ConflictError(
-            `Appointment conflict: Doctor already has an appointment on ${dto.appointmentDate.toISOString()} at ${dto.time}`
+            `Appointment conflict: Doctor already has a confirmed appointment on ${dto.appointmentDate.toLocaleDateString()} at ${dto.time}`
           );
         }
       }
@@ -500,17 +390,6 @@ export class ScheduleAppointmentUseCase {
     });
 
     // Step 9: Map domain entity to response DTO
-    const responseDto = ApplicationAppointmentMapper.toResponseDto(savedAppointment);
-    
-    // Add slot allocation metadata for frontdesk bookings
-    if (isFrontdeskBooking) {
-      (responseDto as any).slotAllocation = {
-        autoAllocated: availabilityCheck.isAvailable,
-        proposedTimeAvailable: availabilityCheck.isAvailable,
-        alternativeSlots: alternativeSlots,
-      };
-    }
-    
-    return responseDto;
+    return ApplicationAppointmentMapper.toResponseDto(savedAppointment);
   }
 }

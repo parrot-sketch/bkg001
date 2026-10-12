@@ -8,7 +8,6 @@
 import db from '@/lib/db';
 import { PrismaAppointmentRepository } from '@/infrastructure/database/repositories/PrismaAppointmentRepository';
 import { PrismaPatientRepository } from '@/infrastructure/database/repositories/PrismaPatientRepository';
-import { PrismaAvailabilityRepository } from '@/infrastructure/database/repositories/PrismaAvailabilityRepository';
 import { ConsoleAuditService } from '@/infrastructure/services/ConsoleAuditService';
 import { emailNotificationService } from '@/infrastructure/services/EmailNotificationService';
 import { PrismaNotificationService } from '@/infrastructure/services/PrismaNotificationService';
@@ -25,7 +24,6 @@ import { PrismaVitalSignRepository } from '@/infrastructure/repositories/PrismaV
 // Initialize infrastructure dependencies (singleton pattern)
 const appointmentRepository = new PrismaAppointmentRepository(db);
 const patientRepository = new PrismaPatientRepository(db);
-const availabilityRepository = new PrismaAvailabilityRepository(db);
 const casePlanRepository = new PrismaCasePlanRepository(db);
 const surgicalCaseRepository = new PrismaSurgicalCaseRepository(db);
 const vitalSignRepository = new PrismaVitalSignRepository();
@@ -55,7 +53,6 @@ export function getScheduleAppointmentUseCase(): ScheduleAppointmentUseCase {
   return new ScheduleAppointmentUseCase(
     appointmentRepository,
     patientRepository,
-    availabilityRepository,
     notificationService,
     auditService,
     timeService,

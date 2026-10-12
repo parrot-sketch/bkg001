@@ -201,6 +201,23 @@ describe('Phase 0: Appointment Scheduling Infrastructure', () => {
       expect(hasConflict).toBe(false);
     });
 
+    it('should not count unconfirmed requests as conflicts', async () => {
+      const doctorId = testDataGenerators.doctorId(1);
+      const appointmentDate = testDataGenerators.futureDate(7);
+      const timeSlot = testDataGenerators.timeSlot(14, 30);
+
+      await repository.save(
+        new AppointmentBuilder()
+          .withPatientId('patient-1')
+          .withDoctorId(doctorId)
+          .scheduledFor(appointmentDate, timeSlot)
+          .withStatus(AppointmentStatus.PENDING_DOCTOR_CONFIRMATION)
+          .build(),
+      );
+
+      expect(await repository.hasConflict(doctorId, appointmentDate, timeSlot)).toBe(false);
+    });
+
     it('should update an existing appointment', async () => {
       // Arrange
       const appointment = new AppointmentBuilder()

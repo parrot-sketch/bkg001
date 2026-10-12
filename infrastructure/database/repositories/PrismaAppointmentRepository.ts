@@ -1,7 +1,7 @@
 import { IAppointmentRepository } from '../../../domain/interfaces/repositories/IAppointmentRepository';
 import { IDoctorStatsRepository } from '../../../domain/interfaces/repositories/IDoctorStatsRepository';
 import { Appointment } from '../../../domain/entities/Appointment';
-import { AppointmentStatus } from '../../../domain/enums/AppointmentStatus';
+import { AppointmentStatus, NON_BLOCKING_APPOINTMENT_STATUSES } from '../../../domain/enums/AppointmentStatus';
 import { AppointmentMapper } from '../../mappers/AppointmentMapper';
 import { ConsultationRequestFields, toPrismaCreateConsultationRequestFields, toPrismaConsultationRequestFields, extractConsultationRequestFields } from '../../mappers/ConsultationRequestMapper';
 import { PrismaClient, Prisma } from '@prisma/client';
@@ -257,7 +257,8 @@ export class PrismaAppointmentRepository implements IAppointmentRepository, IDoc
    * Checks for appointment conflicts (double booking)
    * 
    * This method performs a database-level conflict check to prevent double booking.
-   * It checks for existing non-cancelled appointments with the same doctor, date, and time.
+   * Only appointments that hold the doctor's time (see holdsDoctorTime) count;
+   * unconfirmed requests, cancellations and no-shows do not.
    * 
    * @param doctorId - The doctor's unique identifier
    * @param appointmentDate - The appointment date
@@ -285,7 +286,7 @@ export class PrismaAppointmentRepository implements IAppointmentRepository, IDoc
         where: {
           doctor_id: doctorId,
           status: {
-            not: AppointmentStatus.CANCELLED as any,
+            notIn: [...NON_BLOCKING_APPOINTMENT_STATUSES] as any,
           },
           OR: [
             // check legacy fields (exact string match)
