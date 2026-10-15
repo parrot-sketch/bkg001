@@ -26,7 +26,7 @@ export function ContactInfoStep({ form }: ContactInfoStepProps) {
             name="email"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Email Address *</FormLabel>
+                <FormLabel>Email Address (optional)</FormLabel>
                 <FormControl>
                   <Input type="email" placeholder="john@example.com" {...field} className="h-11" />
                 </FormControl>

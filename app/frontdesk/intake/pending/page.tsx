@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { apiClient } from '@/lib/api/client';
+import { realEmail } from '@/lib/utils/patientContact';
 
 interface PatientData {
   firstName: string;
@@ -189,7 +190,7 @@ export default function PendingIntakesPage() {
                         <p className="text-xs text-gray-500 uppercase tracking-wide">
                           Email
                         </p>
-                        <p className="text-sm text-gray-700">{intake.patientData.email}</p>
+                        <p className="text-sm text-gray-700">{realEmail(intake.patientData.email) ?? 'Not provided'}</p>
                       </div>
                       <div>
                         <p className="text-xs text-gray-500 uppercase tracking-wide">

@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { PatientIntakeFormSchema } from '@/lib/schema';
+import { realEmail } from '@/lib/utils/patientContact';
 import { apiClient } from '@/lib/api/client';
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
@@ -63,7 +64,7 @@ export function PatientEditDialog({
       lastName: patient.lastName || '',
       dateOfBirth: patient.dateOfBirth ? new Date(patient.dateOfBirth).toISOString().split('T')[0] : '',
       gender: patient.gender || 'FEMALE',
-      email: patient.email || '',
+      email: realEmail(patient.email) ?? '',
       phone: patient.phone || '',
       whatsappPhone: patient.whatsappPhone || '',
       address: patient.address || '',
@@ -89,7 +90,7 @@ export function PatientEditDialog({
       lastName: patient.lastName || '',
       dateOfBirth: patient.dateOfBirth ? new Date(patient.dateOfBirth).toISOString().split('T')[0] : '',
       gender: patient.gender || 'FEMALE',
-      email: patient.email || '',
+      email: realEmail(patient.email) ?? '',
       phone: patient.phone || '',
       whatsappPhone: patient.whatsappPhone || '',
       address: patient.address || '',
@@ -243,8 +244,8 @@ export function PatientEditDialog({
                   />
                 </div>
                 <div>
-                  <label className={labelClass}>Email *</label>
-                  <input {...register('email')} type="email" placeholder="email@example.com" className={inputClass} />
+                  <label className={labelClass}>Email <span className="font-normal text-slate-400">(optional)</span></label>
+                  <input {...register('email')} type="email" placeholder="Leave blank if none" className={inputClass} />
                   {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
                 </div>
                 <div>

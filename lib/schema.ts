@@ -404,7 +404,6 @@ export const PublicIntakeSubmissionSchema = PatientIntakeFormSchema.extend({
 
   if (age >= 18) {
     require("phone", "Phone number is required");
-    require("email", "Email is required");
     require("address", "Home address is required");
   } else if (!data.phone && !data.emergencyContactNumber) {
     // A minor needs at least one number someone can be reached on.

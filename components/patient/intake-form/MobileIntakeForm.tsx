@@ -611,7 +611,7 @@ export function MobileIntakeForm({
                                     </button>
                                 )}
                             </Field>
-                            <Field name="email" label="Email" htmlFor="email" error={errors.email?.message}>
+                            <Field name="email" label="Email" htmlFor="email" optional error={errors.email?.message} hint="Leave blank if you don't have one.">
                                 {emailInput}
                             </Field>
                             <Field name="address" label="Home address" htmlFor="address" error={errors.address?.message} hint="Area and town is enough.">

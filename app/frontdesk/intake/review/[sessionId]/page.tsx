@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
+import { realEmail } from '@/lib/utils/patientContact';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -222,7 +223,7 @@ export default function ReviewIntakePage() {
             <div className="grid grid-cols-2 gap-6">
               <div>
                 <p className="text-sm text-gray-600">Email</p>
-                <p className="font-medium break-all">{submission.contactInfo.email}</p>
+                <p className="font-medium break-all">{realEmail(submission.contactInfo.email) ?? 'Not provided'}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Phone</p>

@@ -150,8 +150,8 @@ export function PatientRegistrationDialog({
                        />
                      </div>
                      <div>
-                       <label className={labelClass}>{patientIsMinor ? 'Email (Parent/Guardian)' : 'Email'}</label>
-                       <input {...register('email')} type="email" placeholder="email@example.com" className={inputClass} />
+                       <label className={labelClass}>{patientIsMinor ? 'Email (Parent/Guardian)' : 'Email'} <span className="font-normal text-slate-400">(optional)</span></label>
+                       <input {...register('email')} type="email" placeholder="Leave blank if none" className={inputClass} />
                        {!patientIsMinor && errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
                      </div>
                      <div>
