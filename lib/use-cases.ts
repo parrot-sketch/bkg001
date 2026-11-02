@@ -14,6 +14,7 @@ import { PrismaNotificationService } from '@/infrastructure/services/PrismaNotif
 import { SystemTimeService } from '@/infrastructure/services/SystemTimeService';
 import { CreatePatientUseCase } from '@/application/use-cases/CreatePatientUseCase';
 import { ScheduleAppointmentUseCase } from '@/application/use-cases/ScheduleAppointmentUseCase';
+import { RecordPastVisitUseCase } from '@/application/use-cases/RecordPastVisitUseCase';
 import { CheckInPatientUseCase } from '@/application/use-cases/CheckInPatientUseCase';
 import { CreateCasePlanUseCase } from '@/application/use-cases/CreateCasePlanUseCase';
 import { PrismaSurgicalCaseRepository } from '@/infrastructure/database/repositories/PrismaSurgicalCaseRepository';
@@ -54,6 +55,18 @@ export function getScheduleAppointmentUseCase(): ScheduleAppointmentUseCase {
     appointmentRepository,
     patientRepository,
     notificationService,
+    auditService,
+    timeService,
+    db,
+  );
+}
+
+/**
+ * Get RecordPastVisitUseCase instance (frontdesk late entry)
+ */
+export function getRecordPastVisitUseCase(): RecordPastVisitUseCase {
+  return new RecordPastVisitUseCase(
+    patientRepository,
     auditService,
     timeService,
     db,

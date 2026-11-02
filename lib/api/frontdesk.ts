@@ -342,6 +342,22 @@ export const frontdeskApi = {
     },
 
     /**
+     * Record a past visit that already happened but was never entered (late entry).
+     * Creates a COMPLETED appointment within the last 7 days.
+     */
+    async recordPastVisit(dto: {
+        patientId: string;
+        doctorId: string;
+        appointmentDate: string | Date;
+        time: string;
+        type: string;
+        lateEntryNote: string;
+        durationMinutes?: number;
+    }): Promise<ApiResponse<AppointmentResponseDto>> {
+        return apiClient.post<AppointmentResponseDto>('/appointments/past-visit', dto);
+    },
+
+    /**
      * Get pending consultation requests
      */
     async getPendingConsultations(): Promise<ApiResponse<AppointmentResponseDto[]>> {

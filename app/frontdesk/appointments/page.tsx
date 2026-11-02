@@ -44,6 +44,7 @@ function FrontdeskAppointmentsContent(): React.ReactElement {
     dateLabel,
     patientIdFilter,
     highlightedId,
+    setSelectedDate,
     refetch,
   } = useAppointmentsPage();
 
@@ -130,9 +131,14 @@ function FrontdeskAppointmentsContent(): React.ReactElement {
         />
       )}
 
-      <AppointmentsHeader 
-        patientIdFilter={patientIdFilter} 
-        patientNameFromFilter={patientNameFromFilter} 
+      <AppointmentsHeader
+        patientIdFilter={patientIdFilter}
+        patientNameFromFilter={patientNameFromFilter}
+        selectedDate={selectedDate}
+        onPastVisitRecorded={(visitDate) => {
+          setSelectedDate(visitDate);
+          refetch();
+        }}
       />
 
       <AppointmentsPipeline 
