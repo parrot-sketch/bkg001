@@ -40,6 +40,9 @@ export async function GET(
         },
         case_plan: true,
         checklist: true,
+        team_members: {
+          select: { id: true, role: true, name: true, user_id: true, is_external: true },
+        },
       },
     });
 

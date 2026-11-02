@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { AlertTriangle, Loader2, RefreshCw, History, Search, Calendar } from 'lucide-react';
+import { AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
 import { cn } from '@/lib/utils';
@@ -35,60 +35,16 @@ export function PatientPanel({ patient, appointment, vitals = null, onRefresh, r
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isLoadingNotes, setIsLoadingNotes] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [dateFilter, setDateFilter] = useState('');
   const [selectedPreviousConsultation, setSelectedPreviousConsultation] = useState<PreviousConsultationNotes | null>(null);
 
   const currentAppointmentId = appointment?.id;
 
   const visibleHistory = useMemo(() => {
-    const hasActiveFilter = searchQuery.trim().length > 0 || dateFilter.trim().length > 0;
-
-    if (!hasActiveFilter && history.length > 0) {
-      return [history[0]];
-    }
-
-    let base = history;
-    if (currentAppointmentId) {
-      base = base.filter((item) => {
-        if (item.appointmentId !== currentAppointmentId) return true;
-        const isCurrentActive = appointment?.status !== 'COMPLETED' && appointment?.status !== 'CANCELLED';
-        return !isCurrentActive;
-      });
-    }
-
-    const textMatch = (item: ConsultationHistoryItem) => {
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase().trim();
-      const haystack = [
-        item.appointmentDate,
-        item.appointmentTime,
-        item.state,
-        item.outcomeType,
-        item.patientDecision,
-        item.notesSummary,
-        item.doctor?.name,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      return haystack.includes(q);
-    };
-
-    const dateMatch = (item: ConsultationHistoryItem) => {
-      if (!dateFilter.trim()) return true;
-      const filterDate = new Date(dateFilter);
-      if (Number.isNaN(filterDate.getTime())) return true;
-      const itemDate = new Date(item.appointmentDate);
-      return (
-        itemDate.getFullYear() === filterDate.getFullYear() &&
-        itemDate.getMonth() === filterDate.getMonth() &&
-        itemDate.getDate() === filterDate.getDate()
-      );
-    };
-
-    return base.filter((item) => textMatch(item) && dateMatch(item));
-  }, [history, currentAppointmentId, searchQuery, dateFilter, appointment?.status]);
+    if (!currentAppointmentId) return history;
+    const currentIsOpen = appointment?.status !== 'COMPLETED' && appointment?.status !== 'CANCELLED';
+    if (!currentIsOpen) return history;
+    return history.filter((item) => item.appointmentId !== currentAppointmentId);
+  }, [history, currentAppointmentId, appointment?.status]);
 
   const handleRefresh = async () => {
     if (!onRefresh || isRefreshing) return;
@@ -230,43 +186,31 @@ export function PatientPanel({ patient, appointment, vitals = null, onRefresh, r
 
       {/* Scrollable content area */}
       <div className="flex-1 overflow-y-auto custom-scrollbar-light">
-        <div className="py-2 space-y-1">
-          {/* Previous Consultations */}
-          <Section title="Previous Consultations">
-            <div className="space-y-2 mb-2">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by outcome, notes, status..."
-                  className="w-full h-8 pl-8 pr-2 text-[11px] rounded-md border border-[#e7d6bf] bg-white placeholder:text-[#2c2e4b]/40 focus:outline-none focus:border-[#caa26a]"
-                />
-                <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-[#2c2e4b]/40" />
+        <div>
+          <Section title="Allergies">
+            {patient.allergies?.trim() ? (
+              <div className="flex items-start gap-2 bg-[#9b2226]/5 px-3 py-2 text-sm text-[#9b2226]">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>{patient.allergies}</span>
               </div>
-              <div className="relative">
-                <input
-                  type="date"
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
-                  className="w-full h-8 pl-8 pr-2 text-[11px] rounded-md border border-[#e7d6bf] bg-white placeholder:text-[#2c2e4b]/40 focus:outline-none focus:border-[#caa26a]"
-                />
-                <Calendar className="absolute left-2.5 top-2 h-3.5 w-3.5 text-[#2c2e4b]/40" />
-              </div>
-            </div>
-            {(searchQuery || dateFilter) && (
-              <p className="text-[10px] text-[#2c2e4b]/50 mb-2 px-1">
-                {visibleHistory.length} result{visibleHistory.length !== 1 ? 's' : ''} found
-              </p>
+            ) : (
+              <p className="text-sm text-[#2c2e4b]/50">None recorded</p>
             )}
+          </Section>
+
+          <Section title="Vitals">
+            {vitals ? <VitalsGrid vitals={vitals} /> : <p className="text-sm text-[#2c2e4b]/50">Not recorded</p>}
+          </Section>
+
+          <Section title="Previous consultations">
             {isLoadingHistory ? (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="h-4 w-4 animate-spin text-stone-400" />
               </div>
             ) : error ? (
               <p className="text-[11px] text-red-600 px-3 py-2">{error}</p>
-            ) : history.length === 0 ? (
-              <p className="text-[11px] text-[#2c2e4b]/40 px-3 py-2">No previous consultations</p>
+            ) : visibleHistory.length === 0 ? (
+              <p className="text-xs text-[#2c2e4b]/50">No earlier consultations</p>
             ) : (
               <div className="space-y-1.5">
                 {visibleHistory.map((consultation) => {
@@ -301,9 +245,9 @@ export function PatientPanel({ patient, appointment, vitals = null, onRefresh, r
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] text-[#2c2e4b]/50">
-                              {consultation.doctor?.name || 'Unknown'} · {consultation.state}
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="truncate text-[10px] text-[#2c2e4b]/50">
+                              {[consultation.doctor?.name, consultation.state].filter(Boolean).join(' · ')}
                             </span>
                             <span className="text-[9px] text-[#2c2e4b]/40">
                               {isSelected ? '▼' : '▶'}
@@ -322,13 +266,13 @@ export function PatientPanel({ patient, appointment, vitals = null, onRefresh, r
                             {selectedPreviousConsultation.notes.structured ? (
                               <div className="space-y-2.5">
                                 {selectedPreviousConsultation.notes.structured.chiefComplaint && (
-                                  <ColoredNoteBlock label="Subjective" content={selectedPreviousConsultation.notes.structured.chiefComplaint} color="gold" />
+                                  <ColoredNoteBlock label="Medical History" content={selectedPreviousConsultation.notes.structured.chiefComplaint} color="gold" />
                                 )}
                                 {selectedPreviousConsultation.notes.structured.examination && (
-                                  <ColoredNoteBlock label="Objective" content={selectedPreviousConsultation.notes.structured.examination} color="dark" />
+                                  <ColoredNoteBlock label="Physical Examination" content={selectedPreviousConsultation.notes.structured.examination} color="dark" />
                                 )}
                                 {selectedPreviousConsultation.notes.structured.assessment && (
-                                  <ColoredNoteBlock label="Assessment" content={selectedPreviousConsultation.notes.structured.assessment} color="sand" />
+                                  <ColoredNoteBlock label="Diagnosis" content={selectedPreviousConsultation.notes.structured.assessment} color="sand" />
                                 )}
                                 {selectedPreviousConsultation.notes.structured.plan && (
                                   <ColoredNoteBlock label="Plan" content={selectedPreviousConsultation.notes.structured.plan} color="bronze" />
@@ -348,23 +292,6 @@ export function PatientPanel({ patient, appointment, vitals = null, onRefresh, r
               </div>
             )}
           </Section>
-
-          {/* Vitals */}
-          {vitals && (
-            <Section title="Vitals">
-              <VitalsGrid vitals={vitals} />
-            </Section>
-          )}
-
-          {/* Allergies */}
-          {patient.allergies && (
-            <Section title="Allergies">
-              <div className="flex items-start gap-2 text-xs text-red-700 bg-red-50 rounded-lg px-3 py-2">
-                <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
-                <span className="leading-relaxed">{patient.allergies}</span>
-              </div>
-            </Section>
-          )}
 
           {/* Conditions */}
           {patient.medicalConditions && (

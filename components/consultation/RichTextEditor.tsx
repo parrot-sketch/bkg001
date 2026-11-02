@@ -43,6 +43,8 @@ interface RichTextEditorProps {
   className?: string;
   minHeight?: string;
   changeDebounceMs?: number;
+  dictationContextType?: 'appointment' | 'consultation' | 'case' | 'patient';
+  dictationContextId?: string | number | null;
 }
 
 export function RichTextEditor({
@@ -54,6 +56,8 @@ export function RichTextEditor({
   className,
   minHeight = '300px',
   changeDebounceMs = 500,
+  dictationContextType,
+  dictationContextId,
 }: RichTextEditorProps) {
   // Track internal content updates (prop sync) vs user edits.
   const isInternalUpdateRef = useRef(false);
@@ -256,14 +260,18 @@ export function RichTextEditor({
           <ToolbarDivider />
 
           {/* AI / Voice Intelligence Group */}
-          <ToolbarGroup>
-            <DictationControl
-              onTranscription={(text: string) => {
-                editor.chain().focus().insertContent(text + ' ').run();
-              }}
-              context={placeholder?.includes('complaint') ? 'Chief Complaint' : placeholder?.includes('examination') ? 'Examination' : 'default'}
-            />
-          </ToolbarGroup>
+          {dictationContextType && dictationContextId !== undefined && dictationContextId !== null && (
+            <ToolbarGroup>
+              <DictationControl
+                onTranscription={(text: string) => {
+                  editor.chain().focus().insertContent(text + ' ').run();
+                }}
+                contextType={dictationContextType}
+                contextId={dictationContextId}
+                context={placeholder?.includes('complaint') ? 'Chief Complaint' : placeholder?.includes('examination') ? 'Examination' : 'default'}
+              />
+            </ToolbarGroup>
+          )}
 
           {/* Character Count */}
           <div className="ml-auto text-[11px] text-slate-400 font-medium tabular-nums px-1">

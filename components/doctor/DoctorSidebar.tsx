@@ -7,7 +7,7 @@
  * Features structured sections for organized navigation.
  */
 
-import { LayoutDashboard, Calendar, Users, User, Clock, Scissors, ClipboardCheck } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, User, Clock, Scissors } from 'lucide-react';
 import { UnifiedSidebar, NavItem, UserInfo } from '@/components/shared/UnifiedSidebar';
 import { useAuth } from '@/hooks/patient/useAuth';
 
@@ -22,12 +22,6 @@ const baseNavItems: NavItem[] = [
     name: 'Appointments',
     href: '/doctor/appointments',
     icon: Calendar,
-    section: 'Patient Care',
-  },
-  {
-    name: 'Consultations Hub',
-    href: '/doctor/consultations',
-    icon: ClipboardCheck,
     section: 'Patient Care',
   },
   {

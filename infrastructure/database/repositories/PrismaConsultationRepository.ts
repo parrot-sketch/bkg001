@@ -4,6 +4,19 @@ import { ConsultationState } from '../../../domain/enums/ConsultationState';
 import { ConsultationMapper } from '../../mappers/ConsultationMapper';
 import { PrismaClient, Prisma } from '@prisma/client';
 
+function isConsultationClient(value: unknown): value is Prisma.TransactionClient {
+  if (typeof value !== 'object' || value === null) return false;
+  const consultation = (value as { consultation?: { findUnique?: unknown; updateMany?: unknown } }).consultation;
+  return typeof consultation?.findUnique === 'function' && typeof consultation?.updateMany === 'function';
+}
+
+function requireConsultationClient(value: unknown): Prisma.TransactionClient {
+  if (!isConsultationClient(value)) {
+    throw new Error('A transaction client is required for this consultation write');
+  }
+  return value;
+}
+
 /**
  * Repository: PrismaConsultationRepository
  * 
@@ -57,9 +70,10 @@ export class PrismaConsultationRepository implements IConsultationRepository {
    * @param appointmentId - The appointment's unique identifier
    * @returns Promise resolving to the Consultation entity if found, null otherwise
    */
-  async findByAppointmentId(appointmentId: number): Promise<Consultation | null> {
+  async findByAppointmentId(appointmentId: number, txClient?: unknown): Promise<Consultation | null> {
     try {
-      const prismaConsultation = await this.prisma.consultation.findUnique({
+      const client = txClient === undefined ? this.prisma : requireConsultationClient(txClient);
+      const prismaConsultation = await client.consultation.findUnique({
         where: { appointment_id: appointmentId },
       });
 
@@ -184,9 +198,22 @@ export class PrismaConsultationRepository implements IConsultationRepository {
    * @returns Promise that resolves when the update operation completes
    * @throws Error if the consultation does not exist or the update fails
    */
-  async update(consultation: Consultation): Promise<void> {
+  async update(consultation: Consultation, txClient?: unknown): Promise<void> {
     try {
       const updateInput = ConsultationMapper.toPrismaUpdateInput(consultation);
+
+      if (txClient !== undefined) {
+        const client = requireConsultationClient(txClient);
+        const { user: _user, ...scalars } = updateInput;
+        const result = await client.consultation.updateMany({
+          where: { id: consultation.getId(), completed_at: null },
+          data: scalars,
+        });
+        if (result.count !== 1) {
+          throw new Error(`Consultation with ID ${consultation.getId()} was not open for completion`);
+        }
+        return;
+      }
 
       await this.prisma.consultation.update({
         where: { id: consultation.getId() },

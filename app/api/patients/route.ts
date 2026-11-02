@@ -7,6 +7,7 @@ import db from '@/lib/db';
 import { CreatePatientDto } from '@/application/dtos/CreatePatientDto';
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { Role } from '@/domain/enums/Role';
+import { CLINIC_DESK_ROLES } from '@/lib/auth/require-role';
 import { PatientIntakeFormSchema } from '@/lib/schema';
 import { isMinor } from '@/lib/utils/age';
 import { v4 as uuidv4 } from 'uuid';
@@ -27,6 +28,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const userId = authResult.user.userId;
     const userRole = authResult.user.role as Role;
+    if (!CLINIC_DESK_ROLES.includes(userRole)) {
+      return NextResponse.json(
+        { success: false, error: 'Access denied: clinic staff must register patient records' },
+        { status: 403 },
+      );
+    }
     const body = await request.json();
 
     // Validate using the same schema as the patient intake form
@@ -40,16 +47,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const data = validationResult.data;
 
-    // Auto-generate patient ID (frontdesk never provides one)
-    const patientId = body.id || uuidv4();
-
-    // Security check: Patients can only create their own profile
-    if (userRole === Role.PATIENT && body.id && body.id !== userId) {
-      return NextResponse.json(
-        { success: false, error: 'Access denied: Patients can only create their own profile' },
-        { status: 403 },
-      );
-    }
+    // Patient records are staff-created; never accept record identity from the client.
+    const patientId = uuidv4();
 
     // Map intake form data → CreatePatientDto
     const isPatientMinor = isMinor(data.dateOfBirth);

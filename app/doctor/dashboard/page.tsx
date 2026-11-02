@@ -1,5 +1,6 @@
 import { getCurrentUser } from '@/lib/auth/server-auth';
 import { redirect } from 'next/navigation';
+import { getDoctorDashboardData } from '@/actions/doctor/get-dashboard-data';
 import DoctorDashboardClient from './DoctorDashboardClient';
 
 export default async function DoctorDashboardPage() {
@@ -9,5 +10,12 @@ export default async function DoctorDashboardPage() {
     redirect('/login');
   }
 
-  return <DoctorDashboardClient />;
+  let initialData;
+  try {
+    initialData = await getDoctorDashboardData();
+  } catch (error) {
+    console.error('[DoctorDashboard] Failed to load dashboard data:', error);
+  }
+
+  return <DoctorDashboardClient initialData={initialData} />;
 }

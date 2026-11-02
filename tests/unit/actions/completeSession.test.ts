@@ -30,7 +30,7 @@ function makeCompleteResult(overrides: Partial<CompleteSessionResult> = {}): Com
       { queryKey: ['billing'], direction: 'invalidate' as const },
       { queryKey: ['appointment-billing'], direction: 'invalidate' as const },
     ],
-    redirectPath: '/doctor/consultations',
+    redirectPath: '/doctor/patients/patient-1?tab=charges',
     ...overrides,
   };
 }
@@ -55,7 +55,7 @@ describe('completeSession Server Action', () => {
     if (result.success) {
       expect(result.data.completedAppointmentId).toBe(1);
       expect(result.data.clearedLocalStorage).toBe(true);
-      expect(result.data.redirectPath).toBe('/doctor/consultations');
+      expect(result.data.redirectPath).toBe('/doctor/patients/patient-1?tab=charges');
       expect(result.data.invalidationInstructions).toHaveLength(5);
     }
 
@@ -77,6 +77,27 @@ describe('completeSession Server Action', () => {
     }
 
     expect(mockCompleteConsultationSession).not.toHaveBeenCalled();
+  });
+
+  it('returns a retryable failure when clinical note persistence fails', async () => {
+    mockGetCurrentUser.mockResolvedValue({
+      userId: 'doctor-1',
+      email: 'doctor@example.com',
+      role: 'DOCTOR',
+    } as any);
+
+    mockCompleteConsultationSession.mockRejectedValue(
+      new Error('The consultation could not be completed because the clinical note was not saved. database unavailable'),
+    );
+
+    const result = await completeSession(1);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.message).toMatch(/clinical note was not saved/);
+      expect(result.error.retryable).toBe(true);
+      expect(result.error.recoverable).toBe(true);
+    }
   });
 
   it('returns error when factory throws', async () => {

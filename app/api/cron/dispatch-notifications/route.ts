@@ -6,9 +6,15 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
     try {
-        // Optional: Check for CRON_SECRET if environment variable is set
+        const cronSecret = process.env.CRON_SECRET;
         const authHeader = request.headers.get('authorization');
-        if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+        if (!cronSecret && process.env.NODE_ENV === 'production') {
+            return NextResponse.json(
+                { success: false, error: 'Cron authentication is not configured' },
+                { status: 503 },
+            );
+        }
+        if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
             return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         }
 

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
+import { AppointmentStatus, canStartConsultation, isAppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { cn } from '@/lib/utils';
 import type { QueuePatient } from '@/hooks/doctor/useDoctorQueue';
 import { format } from 'date-fns';
@@ -47,11 +47,8 @@ export function DailyQueuePanel({ queue, isLoading }: DailyQueuePanelProps) {
   const getActionLabel = (status: string) => {
     if (status === AppointmentStatus.IN_CONSULTATION) return 'Continue';
     if (status === 'WAITING') return 'Start';
+    if (isAppointmentStatus(status) && canStartConsultation(status)) return 'Start';
     return null;
-  };
-
-  const isActionEnabled = (status: string) => {
-    return status === AppointmentStatus.IN_CONSULTATION || status === 'WAITING';
   };
 
   const getStatusConfig = (status: string) => {
@@ -122,7 +119,6 @@ export function DailyQueuePanel({ queue, isLoading }: DailyQueuePanelProps) {
             const status = queueItem.status;
             const statusConfig = getStatusConfig(status);
             const actionLabel = getActionLabel(status);
-            const actionEnabled = isActionEnabled(status);
             const patientName = queueItem.patient
               ? `${queueItem.patient.firstName} ${queueItem.patient.lastName}`
               : 'Unknown Patient';
@@ -137,7 +133,7 @@ export function DailyQueuePanel({ queue, isLoading }: DailyQueuePanelProps) {
                     : 'hover:bg-[#e7d6bf]/20 cursor-pointer'
                 )}
                 onClick={() => {
-                  if (actionEnabled && queueItem.appointmentId) handleNavigate(queueItem.appointmentId!);
+                  if (actionLabel && queueItem.appointmentId) handleNavigate(queueItem.appointmentId);
                 }}
               >
                 <div className="w-14 text-center shrink-0">

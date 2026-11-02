@@ -181,7 +181,7 @@ export function FrontdeskShellSkeleton({ children }: { children: ReactNode }) {
     <div className="flex h-screen overflow-hidden bg-[#2c2e4b]">
       <SidebarSkeleton />
       <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden lg:ml-[280px]">
-        <div className="relative z-20 flex h-14 shrink-0 items-center justify-between border-b border-[#e7d6bf] bg-white px-4">
+        <div className="relative z-20 flex h-14 shrink-0 items-center justify-between border-b border-[#e7d6bf]/30 bg-[#2c2e4b] px-4">
           <div className="flex items-center gap-3">
             <ShimmerSkeleton className="h-8 w-8 rounded-lg lg:hidden" />
             <ShimmerSkeleton className="h-4 w-36" />
@@ -193,10 +193,12 @@ export function FrontdeskShellSkeleton({ children }: { children: ReactNode }) {
           </div>
         </div>
         <main className="relative flex-1 overflow-hidden">
-          <div className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: "url('/bg.webp')" }} aria-hidden="true" />
-          <div className="fixed inset-0 z-0 bg-gradient-to-br from-[#2c2e4b]/80 via-[#2c2e4b]/70 to-[#2c2e4b]/50" aria-hidden="true" />
-          <div className="relative z-10 mx-auto min-h-full w-full max-w-[1600px] px-4 py-5 sm:px-5 sm:py-6 lg:px-8 lg:py-7 xl:px-10 xl:py-8">
-            {children}
+          <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: "url('/bg.webp')" }} aria-hidden="true" />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#2c2e4b]/80 via-[#2c2e4b]/70 to-[#2c2e4b]/50" aria-hidden="true" />
+          <div className="relative z-10 h-full overflow-y-auto">
+            <div className="mx-auto min-h-full w-full max-w-[1600px] px-4 py-5 sm:px-5 sm:py-6 lg:px-8 lg:py-7 xl:px-10 xl:py-8">
+              {children}
+            </div>
           </div>
         </main>
       </div>

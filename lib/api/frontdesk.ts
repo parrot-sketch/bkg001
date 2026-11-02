@@ -191,6 +191,17 @@ export interface FrontdeskSurgicalCasesListResponse {
     totalPages: number;
 }
 
+export interface SurgicalTeamMemberInput {
+  name: string;
+  doctorId?: string;
+}
+
+/** Team captured after the case is already on the schedule. */
+export interface SurgicalCaseTeamInput {
+  primary?: SurgicalTeamMemberInput | null;
+  assistants?: SurgicalTeamMemberInput[];
+}
+
 export interface UpdateFrontdeskSurgicalCaseRequest {
   procedureName?: string;
   procedureDate?: string;
@@ -201,6 +212,7 @@ export interface UpdateFrontdeskSurgicalCaseRequest {
   primaryOrRevision?: string | null;
   admissionType?: string | null;
   status?: string;
+  team?: SurgicalCaseTeamInput;
 }
 
 export const frontdeskApi = {
@@ -348,13 +360,6 @@ export const frontdeskApi = {
      */
     async getPatient(patientId: string): Promise<ApiResponse<PatientResponseDto>> {
         return apiClient.get<PatientResponseDto>(`/patients/${patientId}`);
-    },
-
-    /**
-     * Create a new patient
-     */
-    async createPatient(dto: import('../../application/dtos/CreatePatientDto').CreatePatientDto): Promise<ApiResponse<PatientResponseDto>> {
-        return apiClient.post<PatientResponseDto>('/patients', dto);
     },
 
     /**

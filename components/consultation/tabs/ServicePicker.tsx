@@ -72,7 +72,7 @@ export function ServicePicker({
     };
 
     const filteredServices = useMemo(() => {
-        let filtered = services.filter(s => !excludeIds.includes(s.id));
+        let filtered = services.filter(s => !excludeIds.includes(s.id) && s.category !== 'Charge sheet');
         
         if (!showZeroPriceItems) {
             filtered = filtered.filter(s => s.price > 0);

@@ -128,7 +128,8 @@ export function CompleteConsultationDialog({
 
       if (result.success) {
         toast.success('Consultation documentation finalized');
-        router.push(result.data.redirectPath || '/doctor/consultations');
+        const patientId = appointment.patientId;
+        router.push(result.data.redirectPath || (patientId ? `/doctor/patients/${patientId}?tab=charges` : '/doctor/dashboard'));
         onClose();
       } else {
         toast.error(result.error?.message || 'Failed to complete consultation');

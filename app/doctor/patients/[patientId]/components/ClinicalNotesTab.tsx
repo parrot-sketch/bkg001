@@ -178,6 +178,7 @@ export function ClinicalNotesTab({ patientId }: ClinicalNotesTabProps) {
       {(showEditor || editingNote) && (
         <NoteEditor
           note={editingNote}
+          patientId={patientId}
           onSave={editingNote
             ? (data) => handleUpdate(editingNote.id, data)
             : handleCreate
@@ -250,11 +251,12 @@ export function ClinicalNotesTab({ patientId }: ClinicalNotesTabProps) {
 
 interface NoteEditorProps {
   note: ClinicalNote | null;
+  patientId: string;
   onSave: (data: { title: string; noteType: string; content: string }) => void;
   onCancel: () => void;
 }
 
-function NoteEditor({ note, onSave, onCancel }: NoteEditorProps) {
+function NoteEditor({ note, patientId, onSave, onCancel }: NoteEditorProps) {
   const [title, setTitle] = useState(note?.title || '');
   const [noteType, setNoteType] = useState(note?.noteType || 'GENERAL');
   const [content, setContent] = useState(note?.content || '');
@@ -295,6 +297,8 @@ function NoteEditor({ note, onSave, onCancel }: NoteEditorProps) {
       <RichTextEditor
         content={content}
         onChange={setContent}
+        dictationContextType="patient"
+        dictationContextId={patientId}
         placeholder="Write your clinical note..."
         minHeight="160px"
       />

@@ -29,6 +29,7 @@ import { isToday, isYesterday } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import {
+    PATIENT_CALLED_IN,
     PATIENT_INTAKE_SUBMITTED,
     parseNotificationMetadata,
     useIntakeNotificationAlerts,
@@ -52,9 +53,11 @@ export function NotificationBell() {
 
     const ringing = useIntakeNotificationAlerts(notifications, !loading, openIntakeNotification);
     const hasUnreadIntake = useMemo(
-        () => notifications.some(
-            (n) => n.status !== 'READ' && parseNotificationMetadata(n.metadata).event === PATIENT_INTAKE_SUBMITTED,
-        ),
+        () => notifications.some((n) => {
+            if (n.status === 'READ') return false;
+            const event = parseNotificationMetadata(n.metadata).event;
+            return event === PATIENT_INTAKE_SUBMITTED || event === PATIENT_CALLED_IN;
+        }),
         [notifications],
     );
 
@@ -174,14 +177,14 @@ export function NotificationBell() {
                     size="icon"
                     aria-label={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}
                     className={cn(
-                        "relative hover:bg-muted/50 transition-colors",
-                        hasUnreadIntake && "bg-[#caa26a]/10 hover:bg-[#caa26a]/20",
+                        "relative text-[#e7d6bf] hover:bg-white/10 hover:text-white transition-colors",
+                        hasUnreadIntake && "bg-[#e7d6bf]/15 hover:bg-[#e7d6bf]/25",
                     )}
                 >
                     <Bell
                         className={cn(
                             "h-5 w-5",
-                            hasUnreadIntake ? "text-[#2c2e4b]" : "text-muted-foreground",
+                            "text-[#e7d6bf]",
                             ringing && "animate-bell-ring",
                         )}
                     />

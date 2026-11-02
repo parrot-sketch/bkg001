@@ -9,12 +9,14 @@
 import { ClinicalRichTextEditor } from '@/components/consultation/ClinicalRichTextEditor';
 
 interface PatientGoalsTabProps {
+    appointmentId?: number | null;
     initialValue?: string;
     onChange: (value: string) => void;
     isReadOnly?: boolean;
 }
 
 export function PatientGoalsTab({
+    appointmentId,
     initialValue = '',
     onChange,
     isReadOnly = false,
@@ -24,6 +26,8 @@ export function PatientGoalsTab({
             <ClinicalRichTextEditor
                 content={initialValue}
                 onChange={onChange}
+                dictationContextType="appointment"
+                dictationContextId={appointmentId}
                 placeholder="Document patient concerns and goals..."
                 readOnly={isReadOnly}
                 minHeight="400px"

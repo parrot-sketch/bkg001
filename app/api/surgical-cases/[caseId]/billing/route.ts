@@ -20,6 +20,51 @@ import { JwtMiddleware } from '@/lib/auth/middleware';
 import { Role } from '@/domain/enums/Role';
 import { chargeSheetService } from '@/application/services/ChargeSheetService';
 
+const CHARGE_SHEET_SERVICE_CATEGORY = 'Charge sheet';
+
+type ValidatedBillItem = {
+  serviceId: number | null;
+  inventoryItemId: number | null;
+  customDescription: string | null;
+  quantity: number;
+  unitCost: number;
+};
+
+/** Turn a typed line into a catalogue service so the next bill can suggest it. */
+async function rememberCustomLines(items: ValidatedBillItem[]) {
+  const known = new Map<string, number>();
+  for (const item of items) {
+    if ((item.serviceId && item.serviceId > 0) || (item.inventoryItemId && item.inventoryItemId > 0) || !item.customDescription) {
+      continue;
+    }
+    const key = item.customDescription.toLowerCase();
+    let serviceId = known.get(key);
+    if (serviceId == null) {
+      const existing = await db.service.findFirst({
+        where: {
+          is_active: true,
+          service_name: { equals: item.customDescription, mode: 'insensitive' },
+        },
+        select: { id: true },
+      });
+      const created = existing ?? await db.service.create({
+        data: {
+          service_name: item.customDescription,
+          price: item.unitCost,
+          category: CHARGE_SHEET_SERVICE_CATEGORY,
+          is_active: true,
+        },
+        select: { id: true },
+      });
+      serviceId = created.id;
+      known.set(key, created.id);
+    }
+    if (serviceId == null) continue;
+    item.serviceId = serviceId;
+    item.customDescription = null;
+  }
+}
+
 /**
  * GET /api/surgical-cases/:caseId/billing
  * 
@@ -57,7 +102,7 @@ export async function GET(
     const surgicalCase = await db.surgicalCase.findUnique({
       where: { id: surgicalCaseId },
       include: {
-        patient: { select: { id: true, first_name: true, last_name: true } },
+        patient: { select: { id: true, first_name: true, last_name: true, file_number: true } },
         primary_surgeon: { select: { id: true, name: true, user_id: true } },
       },
     });
@@ -110,9 +155,11 @@ export async function GET(
           surgicalCase: {
             id: surgicalCase.id,
             procedureName: surgicalCase.procedure_name,
+            procedureDate: surgicalCase.procedure_date,
             status: surgicalCase.status,
-            surgeonName: surgicalCase.primary_surgeon?.name,
-            patientName: `${surgicalCase.patient?.first_name} ${surgicalCase.patient?.last_name}`,
+            surgeonName: surgicalCase.primary_surgeon?.name || surgicalCase.primary_surgeon_name || null,
+            patientName: `${surgicalCase.patient?.first_name ?? ''} ${surgicalCase.patient?.last_name ?? ''}`.trim(),
+            patientFileNumber: surgicalCase.patient?.file_number ?? null,
           },
           inventoryUsage: inventoryUsage.map(u => ({
             id: u.id,
@@ -148,6 +195,7 @@ export async function GET(
           status: payment.status,
           receiptNumber: payment.receipt_number,
           notes: payment.notes,
+          chargeSheetNo: payment.charge_sheet_no,
           billItems: payment.bill_items.map(item => ({
             id: item.id,
             serviceId: item.service_id,
@@ -165,9 +213,11 @@ export async function GET(
         surgicalCase: {
           id: surgicalCase.id,
           procedureName: surgicalCase.procedure_name,
+          procedureDate: surgicalCase.procedure_date,
           status: surgicalCase.status,
-          surgeonName: surgicalCase.primary_surgeon?.name,
-          patientName: `${surgicalCase.patient?.first_name} ${surgicalCase.patient?.last_name}`,
+          surgeonName: surgicalCase.primary_surgeon?.name || surgicalCase.primary_surgeon_name || null,
+          patientName: `${surgicalCase.patient?.first_name ?? ''} ${surgicalCase.patient?.last_name ?? ''}`.trim(),
+          patientFileNumber: surgicalCase.patient?.file_number ?? null,
         },
         inventoryUsage: inventoryUsage.map(u => ({
           id: u.id,
@@ -356,6 +406,8 @@ export async function PUT(
         );
       }
 
+      await rememberCustomLines(validatedItems);
+
       // Delete old bill items
       await db.patientBill.deleteMany({
         where: { payment_id: existingPayment.id },
@@ -405,6 +457,8 @@ export async function PUT(
 
       paymentId = existingPayment.id;
     } else {
+      await rememberCustomLines(validatedItems);
+
       // Build bill items for database - handle service, inventory, and custom
       const billItemsData = validatedItems.map((item: any) => {
         if (item.inventoryItemId && item.inventoryItemId > 0) {
@@ -457,7 +511,7 @@ export async function PUT(
     }
 
     // 8.5 Assign charge sheet number for surgery billing
-    await chargeSheetService.ensureChargeSheetNo(paymentId);
+    const chargeSheetNo = await chargeSheetService.ensureChargeSheetNo(paymentId);
 
     // 9. Fetch updated payment with relations
     const updatedPayment = await db.payment.findUnique({
@@ -477,6 +531,7 @@ export async function PUT(
         totalAmount: finalTotal,
         inventoryTotal,
         discount: finalDiscount,
+        chargeSheetNo,
         status: updatedPayment?.status || 'UNPAID',
         billItems: updatedPayment?.bill_items.map(item => ({
           id: item.id,

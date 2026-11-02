@@ -69,6 +69,8 @@ export function TreatmentPlanTab({
       <ClinicalRichTextEditor
         content={nextSteps}
         onChange={handleChange}
+        dictationContextType="appointment"
+        dictationContextId={consultation?.appointmentId}
         placeholder="Treatment plan, timeline, pre-op requirements, post-op care, patient instructions…"
         readOnly={isReadOnly}
         minHeight="350px"

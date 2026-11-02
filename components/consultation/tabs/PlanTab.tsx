@@ -8,6 +8,7 @@ import { ClinicalRichTextEditor } from '@/components/consultation/ClinicalRichTe
 import type { ConsultationResponseDto } from '@/application/dtos/ConsultationResponseDto';
 
 interface PlanTabProps {
+  appointmentId?: number | null;
   initialValue?: string;
   onChange: (value: string) => void;
   consultation?: ConsultationResponseDto | null;
@@ -15,6 +16,7 @@ interface PlanTabProps {
 }
 
 export function PlanTab({
+  appointmentId,
   initialValue = '',
   onChange,
   consultation,
@@ -65,6 +67,8 @@ export function PlanTab({
       <ClinicalRichTextEditor
         content={nextSteps}
         onChange={handleChange}
+        dictationContextType="appointment"
+        dictationContextId={appointmentId}
         placeholder="Treatment plan, timeline, pre-op requirements, post-op care, patient instructions…"
         readOnly={isReadOnly}
         minHeight="350px"

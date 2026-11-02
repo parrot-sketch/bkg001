@@ -1,285 +1,199 @@
 'use client';
 
-import { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { Stethoscope, Activity, History, CreditCard, Loader2, ChevronRight } from 'lucide-react';
 import { ClinicalRichTextEditor } from '@/components/consultation/ClinicalRichTextEditor';
 import type { StructuredNotes } from '@/shared-kernel/types/notes';
-import type { ConsultationHistoryItem } from '@/actions/doctor/get-patient-consultation-history';
 
-type PrimaryTab = 'consultation' | 'vitals' | 'history' | 'billing';
-type SoapTab = 'subjective' | 'objective' | 'assessment' | 'plan';
+type SoapField = keyof StructuredNotes;
 
-const SOAP_TABS: { key: SoapTab; label: string; field: keyof StructuredNotes; placeholder: string }[] = [
-  { key: 'subjective', label: 'Medical History', field: 'chiefComplaint', placeholder: 'Patient complaints, symptoms, history of present illness...' },
-  { key: 'objective', label: 'Physical Examination', field: 'examination', placeholder: 'Physical examination findings, vitals, test results...' },
-  { key: 'assessment', label: 'Diagnosis', field: 'assessment', placeholder: 'Clinical assessment, diagnosis, differential diagnosis...' },
-  { key: 'plan', label: 'Plan', field: 'plan', placeholder: 'Treatment plan, medications, referrals, follow-up...' },
+const NOTE_SECTIONS: { field: SoapField; label: string; placeholder: string }[] = [
+  {
+    field: 'chiefComplaint',
+    label: 'Medical History',
+    placeholder: 'Patient complaints, symptoms, history of present illness...',
+  },
+  {
+    field: 'examination',
+    label: 'Physical Examination',
+    placeholder: 'Physical examination findings, vitals, test results...',
+  },
+  {
+    field: 'assessment',
+    label: 'Diagnosis',
+    placeholder: 'Clinical assessment, diagnosis, differential diagnosis...',
+  },
+  {
+    field: 'plan',
+    label: 'Plan',
+    placeholder: 'Treatment plan, medications, referrals, follow-up...',
+  },
 ];
 
-interface VitalsData {
-  bodyTemperature: number | null;
-  systolic: number | null;
-  diastolic: number | null;
-  heartRate: string | null;
-  respiratoryRate: number | null;
-  oxygenSaturation: number | null;
-  weight: number | null;
-  height: number | null;
-  recordedAt: string;
-  recordedBy: string | null;
+export interface NextQueuePatient {
+  appointmentId: number;
+  name: string;
+  fileNumber: string;
 }
 
 interface WorkspaceProps {
-  primaryTab: PrimaryTab;
-  soapTab: SoapTab;
-  onPrimaryTabChange: (tab: PrimaryTab) => void;
-  onSoapTabChange: (tab: SoapTab) => void;
+  appointmentId: number | null;
   notes: StructuredNotes;
-  onUpdateNotes: (field: keyof StructuredNotes, value: string) => void;
+  onUpdateNotes: (field: SoapField, value: string) => void;
   isReadOnly: boolean;
   isSaving: boolean;
+  isCompleting?: boolean;
   isDirty: boolean;
   onSaveDraft: () => void;
   onComplete: () => void;
-  vitals?: VitalsData | null;
-  patientLoading?: boolean;
-  queueLength?: number;
-  history?: ConsultationHistoryItem[];
-  isLoadingHistory?: boolean;
   onReturnToHub?: () => void;
+  onLeave?: () => void;
+  nextPatient?: NextQueuePatient | null;
+  queueReady?: boolean;
+  onAdmitNext?: () => void;
+  admitting?: boolean;
 }
 
 export function Workspace({
-  primaryTab,
-  soapTab,
-  onPrimaryTabChange,
-  onSoapTabChange,
+  appointmentId,
   notes,
   onUpdateNotes,
   isReadOnly,
   isSaving,
+  isCompleting = false,
   isDirty,
   onSaveDraft,
   onComplete,
-  vitals,
-  patientLoading,
-  queueLength = 0,
-  history = [],
-  isLoadingHistory = false,
   onReturnToHub,
+  onLeave,
+  nextPatient,
+  queueReady = true,
+  onAdmitNext,
+  admitting = false,
 }: WorkspaceProps) {
-  return (
-    <Tabs
-      value={primaryTab}
-      onValueChange={(v) => onPrimaryTabChange(v as PrimaryTab)}
-      className="h-full min-h-0 min-w-0 flex flex-col"
-    >
-      <TabsList className="h-12 shrink-0 bg-white border-b border-[#e7d6bf] rounded-none p-0 gap-0 px-2 sm:px-4">
-        <TabsTrigger value="consultation" className="h-full px-2 sm:px-4 text-xs font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-[#caa26a] data-[state=active]:text-[#2c2e4b] data-[state=inactive]:text-[#2c2e4b]/50 hover:text-[#2c2e4b] gap-1.5">
-          <Stethoscope className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Consultation</span>
-        </TabsTrigger>
-        <TabsTrigger value="vitals" className="h-full px-2 sm:px-4 text-xs font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-[#caa26a] data-[state=active]:text-[#2c2e4b] data-[state=inactive]:text-[#2c2e4b]/50 hover:text-[#2c2e4b] gap-1.5">
-          <Activity className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Vitals</span>
-        </TabsTrigger>
-        <TabsTrigger value="history" className="h-full px-2 sm:px-4 text-xs font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-[#caa26a] data-[state=active]:text-[#2c2e4b] data-[state=inactive]:text-[#2c2e4b]/50 hover:text-[#2c2e4b] gap-1.5">
-          <History className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Previous consults</span>
-        </TabsTrigger>
-        <TabsTrigger value="billing" className="h-full px-2 sm:px-4 text-xs font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-[#caa26a] data-[state=active]:text-[#2c2e4b] data-[state=inactive]:text-[#2c2e4b]/50 hover:text-[#2c2e4b] gap-1.5">
-          <CreditCard className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Billing</span>
-        </TabsTrigger>
-      </TabsList>
-
-      <TabsContent value="consultation" className="flex-1 min-h-0 mt-0 overflow-hidden flex flex-col">
-        {isReadOnly ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center p-8 max-w-md">
-              <div className="h-16 w-16 rounded-full bg-[#caa26a]/10 flex items-center justify-center mx-auto mb-4">
-                <svg className="h-8 w-8 text-[#caa26a]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-[#2c2e4b] mb-2">Consultation Complete</h3>
-              <p className="text-sm text-[#2c2e4b]/60 mb-6">
-                {queueLength > 0
-                  ? 'This consultation has been completed. Use the queue panel on the right to load the next patient, or return to the hub.'
-                  : 'All patients have been seen. Close the room and return to the hub.'}
-              </p>
-              <div className="flex items-center justify-center gap-3">
-                <Button
-                  onClick={onReturnToHub}
-                  className="px-4 py-2 text-xs font-medium rounded-lg bg-[#2c2e4b] hover:bg-[#1a1c2f] text-white"
-                >
-                  Close Room
-                </Button>
-              </div>
+  if (isReadOnly) {
+    const firstName = nextPatient?.name.split(' ')[0];
+    if (!queueReady) {
+      return (
+        <div className="flex h-full items-center justify-center overflow-y-auto px-4 py-8">
+          <div className="w-full max-w-lg border border-[#e7d6bf] bg-white">
+            <div className="border-b border-[#2c2e4b] bg-[#2c2e4b] px-5 py-4 text-white">
+              <h2 className="text-lg font-semibold">Consultation complete</h2>
+            </div>
+            <div className="bg-[#e7d6bf]/30 px-5 py-6">
+              <p className="text-base font-semibold text-[#2c2e4b]">Checking the live queue…</p>
+            </div>
+            <div className="px-5 py-4">
+              <button
+                type="button"
+                onClick={onReturnToHub}
+                className="h-12 w-full border border-[#2c2e4b]/20 px-4 text-base font-medium text-[#2c2e4b]"
+              >
+                Open charge sheet
+              </button>
             </div>
           </div>
-        ) : (
-          <div className="flex-1 flex flex-col min-h-0">
-            <div className="shrink-0 flex items-center justify-between px-4 py-2 bg-white border-b border-[#e7d6bf]">
-              <div className="text-[11px] text-[#2c2e4b]/60">
-                {isDirty ? 'Unsaved changes' : 'All changes saved'}
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={onSaveDraft}
-                  disabled={isSaving || !isDirty}
-                  className="px-3 py-1.5 text-xs font-medium border border-[#e7d6bf] rounded-lg text-[#2c2e4b] bg-white hover:bg-[#fcfbf8] transition-colors disabled:opacity-50"
-                >
-                  {isSaving ? 'Saving...' : 'Save Draft'}
-                </button>
-                <button
-                  onClick={onComplete}
-                  disabled={isSaving}
-                  className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#caa26a] hover:bg-[#caa26a]/90 text-[#2c2e4b] transition-colors disabled:opacity-50"
-                >
-                  Complete
-                </button>
-              </div>
-            </div>
-            <Tabs
-              value={soapTab}
-              onValueChange={(v) => onSoapTabChange(v as SoapTab)}
-              className="flex-1 min-h-0 flex flex-col"
-            >
-              <TabsList className="h-10 shrink-0 bg-transparent border-b border-[#e7d6bf] rounded-none p-0 gap-0">
-                {SOAP_TABS.map((tab) => (
-                  <TabsTrigger
-                    key={tab.key}
-                    value={tab.key}
-                    className="h-full px-4 text-xs font-medium rounded-none border-b-2 border-transparent data-[state=active]:border-[#caa26a] data-[state=active]:text-[#2c2e4b] data-[state=inactive]:text-[#2c2e4b]/50 hover:text-[#2c2e4b]"
-                  >
-                    {tab.label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-              {SOAP_TABS.map((tab) => (
-                <TabsContent
-                  key={tab.key}
-                  value={tab.key}
-                  forceMount
-                  className="flex-1 min-h-0 mt-0 overflow-hidden flex flex-col data-[state=inactive]:hidden"
-                >
-                  <div className="flex-1 min-h-0 flex flex-col p-2 sm:p-4">
-                    <ClinicalRichTextEditor
-                      content={notes[tab.field] || ''}
-                      onChange={(value) => onUpdateNotes(tab.field, value)}
-                      placeholder={tab.placeholder}
-                      readOnly={isReadOnly}
-                      fullHeight
-                      ariaLabel={`${tab.label} notes editor`}
-                    />
-                  </div>
-                </TabsContent>
-              ))}
-            </Tabs>
+        </div>
+      );
+    }
+    return (
+      <div className="flex h-full items-center justify-center overflow-y-auto px-4 py-8">
+        <div className="w-full max-w-lg border border-[#e7d6bf] bg-white">
+          <div className="border-b border-[#2c2e4b] bg-[#2c2e4b] px-5 py-4 text-white">
+            <h2 className="text-lg font-semibold">Consultation complete</h2>
           </div>
-        )}
-      </TabsContent>
-
-      <TabsContent value="vitals" className="flex-1 mt-0 overflow-hidden">
-        {patientLoading ? (
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="h-6 w-6 animate-spin text-stone-400" />
-          </div>
-        ) : !vitals ? (
-          <div className="flex flex-col items-center justify-center h-64 text-center">
-            <Activity className="h-8 w-8 text-stone-300 mb-2" />
-            <p className="text-sm text-stone-500">No vitals recorded for this patient</p>
-          </div>
-        ) : (
-          <div className="p-6 max-w-2xl">
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {[
-                { label: 'Temp', value: vitals.bodyTemperature != null ? `${vitals.bodyTemperature}°C` : null },
-                { label: 'BP', value: vitals.systolic != null && vitals.diastolic != null ? `${vitals.systolic}/${vitals.diastolic}` : null },
-                { label: 'HR', value: vitals.heartRate ? `${vitals.heartRate} bpm` : null },
-                { label: 'RR', value: vitals.respiratoryRate != null ? `${vitals.respiratoryRate}/min` : null },
-                { label: 'SpO₂', value: vitals.oxygenSaturation != null ? `${vitals.oxygenSaturation}%` : null },
-                { label: 'Wt', value: vitals.weight != null ? `${vitals.weight}kg` : null },
-                { label: 'Ht', value: vitals.height != null ? `${vitals.height}cm` : null },
-              ]
-                .filter((i) => i.value != null)
-                .map((item) => (
-                  <div key={item.label} className="bg-white border border-[#e7d6bf] rounded-lg p-4">
-                    <p className="text-[10px] uppercase font-bold text-[#2c2e4b]/40 tracking-wider">{item.label}</p>
-                    <p className="text-sm font-semibold text-[#2c2e4b] mt-1">{item.value}</p>
-                  </div>
-                ))}
-            </div>
-            {vitals.recordedAt && (
-              <p className="text-[11px] text-[#2c2e4b]/40 mt-4">
-                Recorded {new Date(vitals.recordedAt).toLocaleString()} {vitals.recordedBy ? `by ${vitals.recordedBy}` : ''}
-              </p>
+          <div className="bg-[#e7d6bf]/30 px-5 py-4">
+            {nextPatient ? (
+              <>
+                <p className="text-sm text-[#2c2e4b]/70">Next in the live queue</p>
+                <p className="mt-1 text-lg font-semibold text-[#2c2e4b]">{nextPatient.name}</p>
+                {nextPatient.fileNumber ? (
+                  <p className="font-mono text-sm text-[#2c2e4b]/70">{nextPatient.fileNumber}</p>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <p className="text-lg font-semibold text-[#2c2e4b]">The queue is clear</p>
+                <p className="mt-1 text-sm text-[#2c2e4b]/70">No one is waiting to be seen.</p>
+              </>
             )}
           </div>
-        )}
-      </TabsContent>
-
-      <TabsContent value="history" className="flex-1 mt-0 overflow-hidden">
-        {isLoadingHistory ? (
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="h-6 w-6 animate-spin text-stone-400" />
+          <div className="flex flex-col gap-2 px-5 py-4">
+            {nextPatient && onAdmitNext ? (
+              <button
+                type="button"
+                onClick={onAdmitNext}
+                disabled={admitting}
+                className="h-12 bg-[#ee9b00] px-4 text-base font-semibold text-[#2c2e4b] disabled:opacity-50"
+              >
+                {admitting ? 'Admitting…' : `Admit ${firstName || 'next patient'}`}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={onReturnToHub}
+              className="h-12 border border-[#2c2e4b]/20 px-4 text-base font-medium text-[#2c2e4b]"
+            >
+              Open charge sheet
+            </button>
+            {!nextPatient && onLeave ? (
+              <button
+                type="button"
+                onClick={onLeave}
+                className="h-12 px-4 text-base font-medium text-[#2c2e4b]/70"
+              >
+                Back to dashboard
+              </button>
+            ) : null}
           </div>
-        ) : history.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-center">
-            <History className="h-8 w-8 text-stone-300 mb-2" />
-            <p className="text-sm text-stone-500">No previous consultations found</p>
-          </div>
-        ) : (
-          <div className="h-full overflow-y-auto custom-scrollbar-light p-4 space-y-3">
-            {history.map((consultation) => (
-              <div key={consultation.appointmentId} className="border border-[#e7d6bf] rounded-lg p-4 bg-white">
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <p className="text-sm font-semibold text-[#2c2e4b]">
-                      {new Date(consultation.appointmentDate).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </p>
-                    <p className="text-xs text-[#2c2e4b]/60">
-                      {consultation.doctor.name} · {consultation.state}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {consultation.durationMinutes && (
-                      <span className="text-xs text-[#2c2e4b]/50">{consultation.durationMinutes}m</span>
-                    )}
-                    {consultation.outcomeType && (
-                      <span className="text-xs text-[#caa26a] font-medium capitalize">
-                        {consultation.outcomeType.replace(/_/g, ' ').toLowerCase()}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                {consultation.notesSummary && (
-                  <p className="text-xs text-[#2c2e4b]/70 leading-relaxed line-clamp-3">
-                    {consultation.notesSummary}
-                  </p>
-                )}
-                <div className="mt-2 flex items-center gap-1 text-xs text-[#caa26a] font-medium cursor-pointer hover:underline">
-                  View details <ChevronRight className="h-3 w-3" />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </TabsContent>
-
-      <TabsContent value="billing" className="flex-1 mt-0 overflow-hidden">
-        <div className="flex flex-col items-center justify-center h-64 text-center">
-          <CreditCard className="h-8 w-8 text-stone-300 mb-2" />
-          <p className="text-sm text-stone-500">Billing information will appear here</p>
         </div>
-      </TabsContent>
-    </Tabs>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[#e7d6bf] bg-white px-4 py-2 sm:px-6">
+        <p className="text-sm text-[#2c2e4b]/60">{isDirty ? 'Unsaved changes' : 'Saved'}</p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onSaveDraft}
+            disabled={isSaving || !isDirty}
+            className="h-10 border border-[#2c2e4b]/20 px-3 text-sm font-medium text-[#2c2e4b] disabled:opacity-40"
+          >
+            {isSaving ? 'Saving…' : 'Save'}
+          </button>
+          <button
+            type="button"
+            onClick={onComplete}
+            disabled={isSaving || isCompleting}
+            className="h-10 bg-[#caa26a] px-4 text-sm font-semibold text-[#2c2e4b] disabled:opacity-40"
+          >
+            {isCompleting ? 'Completing…' : 'Complete'}
+          </button>
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {NOTE_SECTIONS.map((section) => (
+          <section key={section.field} className="border-b border-[#e7d6bf]">
+            <div className="border-b border-[#2c2e4b] bg-[#e7d6bf]/30 px-4 py-3 sm:px-6">
+              <h2 className="text-sm font-semibold">{section.label}</h2>
+            </div>
+            <div className="px-2 py-3 sm:px-4">
+              <ClinicalRichTextEditor
+                content={notes[section.field] || ''}
+                onChange={(value) => onUpdateNotes(section.field, value)}
+                dictationContextType="appointment"
+                dictationContextId={appointmentId}
+                placeholder={section.placeholder}
+                readOnly={isReadOnly}
+                minHeight="9rem"
+                ariaLabel={`${section.label} notes`}
+              />
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
   );
 }

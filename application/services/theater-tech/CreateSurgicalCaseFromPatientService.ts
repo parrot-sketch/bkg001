@@ -69,49 +69,71 @@ export async function createSurgicalCaseFromPatient(
 
     if (doctor?.user_id) {
       const patientName = `${patient.first_name} ${patient.last_name}`.trim() || 'Unknown Patient';
-
-      await db.staffInvite.upsert({
-        where: {
-          surgical_case_id_invited_user_id_invited_role: {
-            surgical_case_id: surgicalCase.id,
-            invited_user_id: doctor.user_id,
-            invited_role: SurgicalRole.SURGEON,
-          },
-        },
-        update: {
-          status: InviteStatus.ACCEPTED,
-          acknowledged_at: new Date(),
-        },
-        create: {
-          surgical_case_id: surgicalCase.id,
-          invited_user_id: doctor.user_id,
-          invited_role: SurgicalRole.SURGEON,
-          invited_by_user_id: input.createdByUserId,
-          status: InviteStatus.ACCEPTED,
-          acknowledged_at: new Date(),
-        },
-        select: { id: true },
-      });
-
-      await db.notification.create({
-        data: {
-          user_id: doctor.user_id,
-          sender_id: input.createdByUserId,
-          type: 'IN_APP',
-          status: 'PENDING',
-          subject: 'New Surgical Case',
-          message: `A new surgical case has been created for patient ${patientName} and assigned to you.`,
-          metadata: JSON.stringify({
-            surgicalCaseId: surgicalCase.id,
-            patientName,
-            role: 'SURGEON',
-            event: 'SURGICAL_CASE_ASSIGNMENT',
-          }),
-        },
-        select: { id: true },
+      await recordStaffAssignment(db, {
+        surgicalCaseId: surgicalCase.id,
+        patientName,
+        invitedUserId: doctor.user_id,
+        invitedRole: SurgicalRole.SURGEON,
+        assignedByUserId: input.createdByUserId,
       });
     }
   }
 
   return { surgicalCaseId: surgicalCase.id, alreadyExisted: false };
+}
+
+export async function recordStaffAssignment(
+  db: PrismaClient,
+  input: {
+    surgicalCaseId: string;
+    patientName: string;
+    invitedUserId: string;
+    invitedRole: SurgicalRole;
+    assignedByUserId: string;
+  },
+): Promise<void> {
+  const message = input.invitedRole === SurgicalRole.SURGEON
+    ? `A new surgical case has been created for patient ${input.patientName} and assigned to you.`
+    : `A surgical case for patient ${input.patientName} lists you as an assistant surgeon.`;
+
+  await db.staffInvite.upsert({
+    where: {
+      surgical_case_id_invited_user_id_invited_role: {
+        surgical_case_id: input.surgicalCaseId,
+        invited_user_id: input.invitedUserId,
+        invited_role: input.invitedRole,
+      },
+    },
+    update: {
+      status: InviteStatus.ACCEPTED,
+      acknowledged_at: new Date(),
+    },
+    create: {
+      surgical_case_id: input.surgicalCaseId,
+      invited_user_id: input.invitedUserId,
+      invited_role: input.invitedRole,
+      invited_by_user_id: input.assignedByUserId,
+      status: InviteStatus.ACCEPTED,
+      acknowledged_at: new Date(),
+    },
+    select: { id: true },
+  });
+
+  await db.notification.create({
+    data: {
+      user_id: input.invitedUserId,
+      sender_id: input.assignedByUserId,
+      type: 'IN_APP',
+      status: 'PENDING',
+      subject: 'New Surgical Case',
+      message,
+      metadata: JSON.stringify({
+        surgicalCaseId: input.surgicalCaseId,
+        patientName: input.patientName,
+        role: input.invitedRole,
+        event: 'SURGICAL_CASE_ASSIGNMENT',
+      }),
+    },
+    select: { id: true },
+  });
 }

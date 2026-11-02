@@ -120,7 +120,11 @@ export function ConsultationWorkspaceOptimized() {
 
     const handleSave = useCallback(async () => {
         if (!canSave) return;
-        await saveNotes();
+        try {
+            await saveNotes();
+        } catch {
+            // The documentation provider already reports the failed save.
+        }
     }, [canSave, saveNotes]);
 
     const handleNoteChange = useCallback(
@@ -169,6 +173,7 @@ export function ConsultationWorkspaceOptimized() {
                     <TabsContent value="subjective" className="m-0 h-full border-none">
                         <div className="p-6 max-w-3xl mx-auto">
                             <SubjectiveTab
+                                appointmentId={state.workflow.appointmentId}
                                 initialValue={notes.chiefComplaint || ''}
                                 onChange={handleNoteChange('chiefComplaint')}
                                 isReadOnly={isReadOnly}
@@ -179,6 +184,7 @@ export function ConsultationWorkspaceOptimized() {
                     <TabsContent value="objective" className="m-0 h-full border-none">
                         <div className="p-6 max-w-3xl mx-auto">
                             <ObjectiveTab
+                                appointmentId={state.workflow.appointmentId}
                                 initialValue={notes.examination || ''}
                                 onChange={handleNoteChange('examination')}
                                 isReadOnly={isReadOnly}
@@ -189,6 +195,7 @@ export function ConsultationWorkspaceOptimized() {
                     <TabsContent value="assessment" className="m-0 h-full border-none">
                         <div className="p-6 max-w-3xl mx-auto">
                             <AssessmentTab
+                                appointmentId={state.workflow.appointmentId}
                                 initialValue={notes.assessment || ''}
                                 onChange={handleNoteChange('assessment')}
                                 isReadOnly={isReadOnly}
@@ -199,6 +206,7 @@ export function ConsultationWorkspaceOptimized() {
                     <TabsContent value="plan" className="m-0 h-full border-none">
                         <div className="p-6 max-w-3xl mx-auto">
                             <PlanTab
+                                appointmentId={state.workflow.appointmentId}
                                 initialValue={notes.plan || ''}
                                 onChange={handleNoteChange('plan')}
                                 consultation={state.consultation}

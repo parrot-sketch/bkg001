@@ -13,48 +13,29 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getFileUrl, downloadResource } from '@/lib/cloudinary';
-import jwt from 'jsonwebtoken';
-
-/** Verify a raw JWT token string against the server secret. */
-function verifyToken(token: string): boolean {
-    try {
-        const secret = process.env.JWT_SECRET || 'dev-secret-change-in-production';
-        jwt.verify(token, secret);
-        return true;
-    } catch {
-        return false;
-    }
-}
-
-/** Extract a verified token from the request (header first, then cookie). */
-function extractAndVerifyToken(request: NextRequest): boolean {
-    // 1. Authorization: Bearer <token>  (preferred for API clients)
-    const authHeader = request.headers.get('authorization');
-    if (authHeader?.startsWith('Bearer ')) {
-        const token = authHeader.slice(7);
-        return verifyToken(token);
-    }
-
-    // 2. httpOnly cookie  (browser PdfViewer — credentials: 'include')
-    const cookieToken = request.cookies.get('accessToken')?.value;
-    if (cookieToken) {
-        return verifyToken(cookieToken);
-    }
-
-    return false;
-}
+import { downloadResource } from '@/lib/cloudinary';
+import { JwtMiddleware } from '@/lib/auth/middleware';
+import { Role } from '@/domain/enums/Role';
+import db from '@/lib/db';
 
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ userId: string; filename: string }> }
 ): Promise<NextResponse> {
     try {
-        // 1. Auth check (header or cookie)
-        if (!extractAndVerifyToken(request)) {
+        const auth = await JwtMiddleware.authenticate(request);
+        if (!auth.success || !auth.user) {
             return NextResponse.json(
                 { success: false, error: 'Authentication required' },
                 { status: 401 }
+            );
+        }
+
+        const allowedRoles = [Role.DOCTOR, Role.NURSE, Role.ADMIN];
+        if (!allowedRoles.includes(auth.user.role as Role)) {
+            return NextResponse.json(
+                { success: false, error: 'Access denied' },
+                { status: 403 }
             );
         }
 
@@ -84,15 +65,29 @@ export async function GET(
             );
         }
 
-        // Construct Cloudinary Public ID
-        const cloudinaryPublicId = `consent-templates/${userId}/${filename}`;
-        
-        // Generate Cloudinary URL (raw resource, unsigned by default)
-        const cloudinaryUrl = getFileUrl(cloudinaryPublicId, {
-            resource_type: 'raw',
+        const fileUrl = `/api/files/consent-templates/${userId}/${filename}`;
+        const template = await db.consentTemplate.findFirst({
+            where: { pdf_url: fileUrl },
+            select: { created_by: true, is_active: true, status: true },
         });
 
-        // Fetch from Cloudinary using authentication
+        const isOwner = userId === auth.user.userId && auth.user.role === Role.DOCTOR;
+        const isPublishedTemplate = template?.is_active === true && template.status === 'ACTIVE';
+        const mayReadPublishedTemplate =
+            isPublishedTemplate && allowedRoles.includes(auth.user.role as Role);
+
+        // A doctor may preview their own upload before attaching it to a template.
+        // Other users may read only files referenced by an active template.
+        if (!(isOwner || mayReadPublishedTemplate) || (template && template.created_by === null && !isPublishedTemplate)) {
+            return NextResponse.json(
+                { success: false, error: 'Template file not found' },
+                { status: 404 }
+            );
+        }
+
+        // Construct the Cloudinary public ID only after identity and resource checks.
+        const cloudinaryPublicId = `consent-templates/${userId}/${filename}`;
+
         const response = await downloadResource(cloudinaryPublicId, 'raw');
         
         if (!response.ok) {

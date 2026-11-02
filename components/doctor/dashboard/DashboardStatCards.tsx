@@ -1,29 +1,39 @@
 'use client';
 
-import { Users, CheckCircle, Activity, HeartPulse, Loader2 } from 'lucide-react';
-import { useDoctorStats } from '@/hooks/use-doctor-dashboard';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+interface DashboardStats {
+  queueLength: number;
+  completedConsultationsToday: number;
+  activeSurgicalCases: number;
+  recoveryCases: number;
+}
 
 interface DashboardStatCardsProps {
   isLoading: boolean;
+  stats?: DashboardStats;
 }
 
 const stats = [
-  { key: 'queueLength', label: 'In Queue', href: '#queue', icon: Users },
-  { key: 'completedConsultationsToday', label: 'Completed Today', href: '/doctor/consultations', icon: CheckCircle },
-  { key: 'activeSurgicalCases', label: 'Active Surgeries', href: '/doctor/surgical-cases', icon: Activity },
-  { key: 'recoveryCases', label: 'In Recovery', href: '/doctor/surgical-cases?status=RECOVERY', icon: HeartPulse },
+  { key: 'queueLength', label: 'In Queue', href: '#queue' },
+  { key: 'completedConsultationsToday', label: 'Completed Today', href: '/doctor/patients' },
+  { key: 'activeSurgicalCases', label: 'Active Surgeries', href: '/doctor/surgical-cases' },
+  { key: 'recoveryCases', label: 'In Recovery', href: '/doctor/surgical-cases?status=RECOVERY' },
 ] as const;
 
-export function DashboardStatCards({ isLoading }: DashboardStatCardsProps) {
-  const data = useDoctorStats();
+export function DashboardStatCards({ isLoading, stats: data }: DashboardStatCardsProps) {
   const router = useRouter();
+  const statsData = data ?? {
+    queueLength: 0,
+    completedConsultationsToday: 0,
+    activeSurgicalCases: 0,
+    recoveryCases: 0,
+  };
 
   return (
     <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      {stats.map(({ key, label, href, icon: Icon }) => {
-        const value = data[key as keyof typeof data];
+      {stats.map(({ key, label, href }) => {
+        const value = statsData[key];
 
         return (
           <button

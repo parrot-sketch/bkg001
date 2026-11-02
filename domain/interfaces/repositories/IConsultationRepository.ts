@@ -28,7 +28,7 @@ export interface IConsultationRepository {
    * @param appointmentId - The appointment's unique identifier
    * @returns Promise resolving to the Consultation entity if found, null otherwise
    */
-  findByAppointmentId(appointmentId: number): Promise<Consultation | null>;
+  findByAppointmentId(appointmentId: number, txClient?: unknown): Promise<Consultation | null>;
 
   /**
    * Finds all consultations for a specific doctor
@@ -69,7 +69,7 @@ export interface IConsultationRepository {
    * @returns Promise that resolves when the update operation completes
    * @throws Error if the consultation does not exist or the update fails
    */
-  update(consultation: Consultation): Promise<void>;
+  update(consultation: Consultation, txClient?: unknown): Promise<void>;
 
   /**
    * Deletes a consultation from the data store

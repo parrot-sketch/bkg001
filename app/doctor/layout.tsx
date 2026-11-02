@@ -38,21 +38,6 @@ export default function DoctorLayout({ children }: DoctorLayoutProps) {
     }
   }, [isLoading, user, router]);
 
-  if (isLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-[#f0f4f5]">
-        <div className="animate-pulse flex flex-col items-center">
-          <div className="h-12 w-12 bg-slate-200 rounded-full mb-4" />
-          <div className="h-4 w-32 bg-slate-100 rounded" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!user || (user.role !== 'DOCTOR' && user.role !== 'ADMIN')) {
-    return null;
-  }
-
   const isOnboarding = pathname === '/doctor/onboarding';
   if (isOnboarding) {
     return (
@@ -83,17 +68,24 @@ export default function DoctorLayout({ children }: DoctorLayoutProps) {
             { '--sidebar-offset': sidebarCollapsed ? '4rem' : '280px' } as React.CSSProperties
           }
         >
-          <div className="shrink-0 bg-white border-b border-[#e7d6bf]">
+          {pathname.startsWith('/doctor/consultations/session') ? (
+            <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden">{children}</main>
+          ) : (
+            <>
+          <div className="shrink-0 bg-[#2c2e4b]">
             <DoctorHeader onMenuClick={() => setSidebarOpen(true)} />
           </div>
-          <main className="flex-1 relative overflow-hidden focus:outline-none overflow-y-auto overscroll-contain scroll-smooth">
-            {/* Branded background */}
-            <div className="fixed inset-0 bg-cover bg-center bg-no-repeat z-0" style={{ backgroundImage: "url('/bg.webp')" }} aria-hidden="true" />
-            <div className="fixed inset-0 bg-gradient-to-br from-[#2c2e4b]/80 via-[#2c2e4b]/70 to-[#2c2e4b]/50 z-0" aria-hidden="true" />
-            <div className="relative z-10 w-full min-h-full mx-auto max-w-[1600px] px-4 py-5 sm:px-5 sm:py-6 lg:px-8 lg:py-7 xl:px-10 xl:py-8">
-              {children}
+          <main className="relative flex-1 overflow-hidden focus:outline-none">
+            <div className="absolute inset-0 bg-cover bg-center bg-no-repeat" style={{ backgroundImage: "url('/bg.webp')" }} aria-hidden="true" />
+            <div className="absolute inset-0 bg-gradient-to-br from-[#2c2e4b]/80 via-[#2c2e4b]/70 to-[#2c2e4b]/50" aria-hidden="true" />
+            <div className="relative z-10 h-full overflow-y-auto overscroll-contain scroll-smooth">
+              <div className="mx-auto min-h-full w-full max-w-[1600px] px-4 py-5 sm:px-5 sm:py-6 lg:px-8 lg:py-7 xl:px-10 xl:py-8">
+                {children}
+              </div>
             </div>
           </main>
+            </>
+          )}
         </div>
       </div>
     </OnboardingTourProvider>

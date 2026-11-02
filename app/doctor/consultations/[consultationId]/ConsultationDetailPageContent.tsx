@@ -49,6 +49,7 @@ export default function ConsultationDetailPageContent({ recordData }: Consultati
         time={recordData.appointment.time}
         durationMinutes={recordData.durationMinutes}
         onPrint={handlePrint}
+        backHref={patient.id ? `/doctor/patients/${patient.id}?tab=charges` : '/doctor/dashboard'}
       />
 
       <PatientInfoSection

@@ -19,7 +19,6 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { PatientRegistrationDialog } from '@/components/frontdesk/PatientRegistrationDialog';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
-import type { CreatePatientDto } from '@/application/dtos/CreatePatientDto';
 
 export default function FrontdeskPatientIntakePage() {
   const { user, isAuthenticated } = useAuth();

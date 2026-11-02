@@ -3,7 +3,9 @@
 import { CheckCircle2, ChevronLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useState } from 'react';
 import { useChargeSheet } from '@/hooks/theater-tech/useChargeSheet';
+import { ChargeSheetPreview } from '@/components/theater-tech/ChargeSheetPreview';
 import { ChargeSheetStepContent } from '@/components/theater-tech/ChargeSheetStepContent';
 import type { Service } from '@/components/theater-tech/charge-sheet.types';
 
@@ -23,6 +25,7 @@ export function ChargeSheetStepWrapper({
   suggestedServices,
 }: ChargeSheetStepWrapperProps) {
   const cs = useChargeSheet(caseId, suggestedServices);
+  const [reviewing, setReviewing] = useState(false);
 
   const handleBack = async () => {
     if (cs.isDirty && cs.chargeItems.length > 0) {
@@ -33,11 +36,16 @@ export function ChargeSheetStepWrapper({
   };
 
   const handleFinish = async () => {
-    // If user has added charges and they are dirty, save first to reduce errors.
     if (cs.chargeItems.length > 0 && cs.isDirty) {
-      const saved = await cs.handleSave();
-      if (!saved) return;
+      setReviewing(true);
+      return;
     }
+    onFinalize();
+  };
+
+  const saveAndFinish = async () => {
+    const saved = await cs.handleSave();
+    if (!saved) return;
     onFinalize();
   };
 
@@ -61,8 +69,25 @@ export function ChargeSheetStepWrapper({
         </div>
       )}
 
-      <ChargeSheetStepContent cs={cs} />
+      {reviewing ? (
+        <ChargeSheetPreview
+          items={cs.chargeItems}
+          subtotal={cs.subtotal}
+          discount={cs.discount}
+          total={cs.total}
+          caseInfo={cs.caseInfo}
+          saving={cs.isSaving}
+          saveLabel="Save and finish"
+          onBack={() => setReviewing(false)}
+          onSave={() => {
+            void saveAndFinish();
+          }}
+        />
+      ) : (
+        <ChargeSheetStepContent cs={cs} />
+      )}
 
+      {!reviewing && (
       <div className="sticky bottom-0 -mx-4 md:mx-0 pt-3 pb-4 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-t border-slate-200 px-4 md:px-0">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <Button type="button" variant="outline" onClick={handleBack} className="sm:w-auto">
@@ -97,6 +122,7 @@ export function ChargeSheetStepWrapper({
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

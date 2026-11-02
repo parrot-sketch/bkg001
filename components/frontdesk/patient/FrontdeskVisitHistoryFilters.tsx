@@ -38,7 +38,7 @@ export function FrontdeskVisitHistoryFilters({
           value={selectedDate ? parseISO(selectedDate) : undefined}
           onChange={pushDate}
           placeholder="Filter by date"
-          className="h-8 text-xs border-[#e7d6bf] bg-white text-[#2c2e4b] hover:bg-[#e7d6bf]/20"
+          className="h-8 rounded-none border-[#e7d6bf] bg-white text-xs text-[#2c2e4b] hover:bg-[#e7d6bf]/20"
         />
       </div>
       {selectedDate ? (
@@ -51,7 +51,7 @@ export function FrontdeskVisitHistoryFilters({
             variant="ghost"
             size="sm"
             onClick={() => pushDate(undefined)}
-            className="h-8 px-2 text-xs text-[#2c2e4b]/70 hover:text-[#2c2e4b] hover:bg-[#e7d6bf]/30"
+            className="h-8 rounded-none px-2 text-xs text-[#2c2e4b]/70 hover:bg-[#e7d6bf]/30 hover:text-[#2c2e4b]"
           >
             <X className="h-3.5 w-3.5 mr-1" />
             Clear

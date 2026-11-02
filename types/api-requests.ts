@@ -25,51 +25,6 @@ export interface CreateAppointmentRequest {
 }
 
 /**
- * Update Appointment Request
- */
-export interface UpdateAppointmentRequest {
-  appointmentDate?: string;
-  time?: string;
-  status?: 'PENDING' | 'SCHEDULED' | 'CANCELLED' | 'COMPLETED';
-  type?: string;
-  note?: string;
-  reason?: string;
-}
-
-/**
- * Create Patient Request
- * 
- * Note: date_of_birth accepts both Date (from forms) and string (from API)
- * to handle different input sources gracefully.
- */
-export interface CreatePatientRequest {
-  first_name: string;
-  last_name: string;
-  email: string;
-  phone: string;
-  date_of_birth?: string | Date; // Accepts both Date (forms) and string (API)
-  gender?: 'MALE' | 'FEMALE' | 'OTHER';
-  address?: string;
-  marital_status?: string;
-  emergency_contact_name?: string;
-  emergency_contact_number?: string;
-  relation?: string;
-  blood_group?: string;
-  allergies?: string;
-  medical_conditions?: string;
-  medical_history?: string;
-  insurance_provider?: string;
-  insurance_number?: string;
-  privacy_consent?: boolean;
-  service_consent?: boolean;
-  medical_consent?: boolean;
-  password?: string;
-  occupation?: string;
-  whatsapp_phone?: string;
-  dob?: string | Date; // Alternative field name (also accepts both)
-}
-
-/**
  * Update Patient Request
  * 
  * Note: date_of_birth accepts both Date (from forms) and string (from API)

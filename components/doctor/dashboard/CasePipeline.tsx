@@ -2,32 +2,31 @@
 
 import { useState, useMemo } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useDoctorCases } from '@/hooks/use-doctor-dashboard';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { SurgicalCaseStatus } from '@prisma/client';
 import Link from 'next/link';
+import type { DoctorDashboardData } from '@/hooks/use-doctor-dashboard';
 
 type TabValue = 'planning' | 'scheduled' | 'recovery';
 
 interface CasePipelineProps {
   isLoading: boolean;
+  cases?: DoctorDashboardData['surgicalCases'];
 }
 
-export function CasePipeline({ isLoading }: CasePipelineProps) {
-  const cases = useDoctorCases();
+export function CasePipeline({ isLoading, cases = [] }: CasePipelineProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabValue>('planning');
 
   const filteredCases = useMemo(() => {
     const c = cases || [];
     switch (activeTab) {
-      case 'planning': return c.filter((sc) => sc.status === SurgicalCaseStatus.PLANNING);
-      case 'scheduled': return c.filter((sc) => sc.status === SurgicalCaseStatus.SCHEDULED);
-      case 'recovery': return c.filter((sc) => sc.status === SurgicalCaseStatus.RECOVERY);
+      case 'planning': return c.filter((sc) => sc.status === 'PLANNING');
+      case 'scheduled': return c.filter((sc) => sc.status === 'SCHEDULED');
+      case 'recovery': return c.filter((sc) => sc.status === 'RECOVERY');
       default: return [];
     }
   }, [cases, activeTab]);
@@ -35,9 +34,9 @@ export function CasePipeline({ isLoading }: CasePipelineProps) {
   const tabCounts = useMemo(() => {
     const c = cases || [];
     return {
-      planning: c.filter((sc) => sc.status === SurgicalCaseStatus.PLANNING).length,
-      scheduled: c.filter((sc) => sc.status === SurgicalCaseStatus.SCHEDULED).length,
-      recovery: c.filter((sc) => sc.status === SurgicalCaseStatus.RECOVERY).length,
+      planning: c.filter((sc) => sc.status === 'PLANNING').length,
+      scheduled: c.filter((sc) => sc.status === 'SCHEDULED').length,
+      recovery: c.filter((sc) => sc.status === 'RECOVERY').length,
     };
   }, [cases]);
 

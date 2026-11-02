@@ -152,9 +152,9 @@ export function SessionRecoveryModal({
           )}
 
           {/* View history button */}
-          <Link href="/doctor/consultations" className="w-full">
+          <Link href="/doctor/patients" className="w-full">
             <Button variant="outline" className="w-full">
-              View Consultation History
+              My patients
             </Button>
           </Link>
 

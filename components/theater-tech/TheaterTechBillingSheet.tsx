@@ -1,62 +1,69 @@
 'use client';
 
-import { Loader2, Save, Receipt } from 'lucide-react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Loader2 } from 'lucide-react';
 import { useChargeSheet } from '@/hooks/theater-tech/useChargeSheet';
+import { ChargeSheetPreview } from './ChargeSheetPreview';
 import { ChargeSheetStepContent } from './ChargeSheetStepContent';
+import type { Service } from '@/components/theater-tech/charge-sheet.types';
 
 interface TheaterTechBillingSheetProps {
   caseId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  suggestedServices?: Service[];
 }
 
-export function TheaterTechBillingSheet({ caseId, open, onOpenChange }: TheaterTechBillingSheetProps) {
-  const cs = useChargeSheet(caseId);
+export function TheaterTechBillingSheet({ caseId, open, onOpenChange, suggestedServices }: TheaterTechBillingSheetProps) {
+  const cs = useChargeSheet(caseId, suggestedServices);
+  const [reviewing, setReviewing] = useState(false);
+
+  const close = (next: boolean) => {
+    if (!next) setReviewing(false);
+    onOpenChange(next);
+  };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-xl flex flex-col p-0">
-        <SheetHeader className="bg-[#2c2e4b] text-white rounded-t-xl pb-4 pt-4 px-6 shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Receipt className="h-5 w-5 text-[#caa26a]" />
-              <SheetTitle className="text-base font-semibold text-white">Charge Sheet</SheetTitle>
-            </div>
-            {cs.chargeItems.length > 0 && (
-              <Button
-                size="sm"
-                onClick={cs.handleSave}
-                disabled={cs.isSaving}
-                className="bg-[#caa26a] hover:bg-[#b8913e] text-white font-bold shadow-sm h-8"
-              >
-                {cs.isSaving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )}
-                <span className="ml-1.5">
-                  {cs.isSaving ? 'Saving…' : 'Save Bill'}
-                </span>
-              </Button>
-            )}
+    <Dialog open={open} onOpenChange={close}>
+      <DialogContent className="flex max-h-[90vh] w-[calc(100%-2rem)] flex-col gap-0 overflow-hidden rounded-none p-0 sm:max-w-3xl sm:rounded-none">
+        <DialogHeader className="flex flex-row items-center justify-between gap-3 space-y-0 border-b border-border px-6 py-4 pr-12 text-left">
+          <div>
+            <DialogTitle className="text-primary">{reviewing ? 'Review bill' : 'Charge sheet'}</DialogTitle>
+            <DialogDescription>
+              {reviewing ? 'Check every line and the total, then save.' : 'Add or change lines, then review the bill.'}
+            </DialogDescription>
           </div>
-        </SheetHeader>
-
-        <div className="flex-1 overflow-hidden flex flex-col">
+          {!reviewing && cs.chargeItems.length > 0 && (
+            <Button size="sm" onClick={() => setReviewing(true)} disabled={cs.isLoading} className="shrink-0 rounded-none">
+              Review bill
+            </Button>
+          )}
+        </DialogHeader>
+        <div className="min-h-0 flex-1 overflow-y-auto">
           {cs.isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-[#caa26a]" />
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
-          ) : (
-            <ChargeSheetStepContent
-              cs={cs}
-              emptyHint="Search and add services or inventory items to build the charge sheet"
+          ) : reviewing ? (
+            <ChargeSheetPreview
+              items={cs.chargeItems}
+              subtotal={cs.subtotal}
+              discount={cs.discount}
+              total={cs.total}
+              caseInfo={cs.caseInfo}
+              saving={cs.isSaving}
+              onBack={() => setReviewing(false)}
+              onSave={() => {
+                void cs.handleSave();
+              }}
             />
+          ) : (
+            <ChargeSheetStepContent cs={cs} emptyHint="No lines on this bill yet." />
           )}
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }

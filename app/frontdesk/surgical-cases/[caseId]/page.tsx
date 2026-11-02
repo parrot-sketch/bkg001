@@ -1,33 +1,61 @@
 'use client';
 
-import { use, useEffect, useState } from 'react';
+import { use, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  ArrowLeft,
-  CalendarIcon,
-  User,
-  Stethoscope,
-  ClipboardList,
-  Theater,
-  Loader2,
-  Edit3,
-  Trash2,
-} from 'lucide-react';
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { ArrowLeft, Edit3, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { frontdeskApi } from '@/lib/api/frontdesk';
 import { queryKeys } from '@/lib/constants/queryKeys';
 import { EditSurgicalCaseDialog } from '@/components/frontdesk/EditSurgicalCaseDialog';
+import { SurgicalCaseSetupCard } from '@/components/frontdesk/SurgicalCaseSetupCard';
+import { TheaterTechBillingSummary } from '@/components/theater-tech/TheaterTechBillingSummary';
+import { TheaterTechBillingSheet } from '@/components/theater-tech/TheaterTechBillingSheet';
+import { suggestedServicesFromCase } from '@/components/theater-tech/suggestedCaseServices';
 import type { FrontdeskSurgicalCaseListItem } from '@/lib/api/frontdesk';
 import { getSurgicalCaseStatusDisplay } from '@/lib/surgical-case-status-display';
+import { categoryLabel } from '@/lib/clinical/procedureSuggestions';
 
 interface CaseDetailsPageProps {
   params: Promise<{ caseId: string }>;
+}
+
+const KNOWN_LABELS: Record<string, string> = {
+  PRIMARY: 'Primary',
+  REVISION: 'Revision',
+  DAYCASE: 'Day case',
+  OVERNIGHT: 'Overnight',
+};
+
+function displayValue(value: string | null | undefined): string {
+  if (!value) return '—';
+  if (KNOWN_LABELS[value]) return KNOWN_LABELS[value];
+  if (/^[A-Z0-9_]+$/.test(value)) {
+    return value
+      .toLowerCase()
+      .split('_')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  }
+  return value;
+}
+
+function displayDate(value: string | null | undefined, withTime = false): string {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return format(date, withTime ? 'd MMM yyyy, HH:mm' : 'd MMM yyyy');
 }
 
 export default function CaseDetailsPage({ params }: CaseDetailsPageProps) {
@@ -35,6 +63,8 @@ export default function CaseDetailsPage({ params }: CaseDetailsPageProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [editingCase, setEditingCase] = useState<FrontdeskSurgicalCaseListItem | null>(null);
+  const [teamOpen, setTeamOpen] = useState(false);
+  const [billingSheetOpen, setBillingSheetOpen] = useState(false);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: queryKeys.shared.surgicalCase(caseId),
@@ -73,30 +103,31 @@ export default function CaseDetailsPage({ params }: CaseDetailsPageProps) {
     }
   }, [error]);
 
+  const suggestedServices = useMemo(
+    () => suggestedServicesFromCase(data?.case_procedures),
+    [data?.case_procedures],
+  );
+
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-64 w-full" />
+      <div className="bg-white">
+        <Skeleton className="h-24 w-full rounded-none" />
+        <Skeleton className="h-64 w-full rounded-none" />
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="space-y-4">
-        <Button variant="ghost" onClick={() => router.back()} className="text-white hover:text-white/80">
+      <div className="bg-white px-6 py-10">
+        <Button variant="ghost" onClick={() => router.back()} className="text-primary">
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
+          Back to cases
         </Button>
-        <Card className="bg-white/95">
-          <CardContent className="py-12 text-center text-slate-600">
-            <p className="text-sm font-medium">Failed to load surgical case</p>
-            <Button variant="link" onClick={() => refetch()} className="text-[#caa26a] hover:text-[#b8913e]">
-              Retry
-            </Button>
-          </CardContent>
-        </Card>
+        <p className="mt-6 text-sm text-foreground">This surgical case could not be loaded.</p>
+        <Button variant="link" onClick={() => refetch()} className="px-0 text-primary">
+          Retry
+        </Button>
       </div>
     );
   }
@@ -104,243 +135,177 @@ export default function CaseDetailsPage({ params }: CaseDetailsPageProps) {
   const statusCfg = getSurgicalCaseStatusDisplay(data.status);
   const canEdit = ['DRAFT', 'PLANNING', 'READY_FOR_SCHEDULING', 'READY_FOR_WARD_PREP', 'IN_WARD_PREP'].includes(data.status);
   const canDelete = canEdit;
+  const patientName = `${data.patient.first_name} ${data.patient.last_name}`.trim();
+  const procedures = data.case_procedures ?? [];
+  const categorySummary = data.procedure_category
+    ? data.procedure_category.split(',').map((part: string) => categoryLabel(part.trim())).join(', ')
+    : '—';
+  const surgeonName = data.primary_surgeon?.name || data.primary_surgeon_name || 'Not assigned';
+  const procedureRows = procedures.length > 0
+    ? procedures.map((row: any) => [
+        row.procedure?.name || '—',
+        categoryLabel(row.procedure?.category ?? '', row.procedure?.subcategory),
+        row.procedure?.estimated_duration_minutes ? `${row.procedure.estimated_duration_minutes} min` : '—',
+      ])
+    : [[data.procedure_name || 'Unnamed procedure', categorySummary, '—']];
+
+  const highlights = [
+    ['Procedure date', displayDate(data.procedure_date)],
+    ['Surgeon', surgeonName],
+    ['Admission', displayValue(data.admission_type)],
+    ['Type', displayValue(data.primary_or_revision)],
+  ];
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" onClick={() => router.back()} className="text-white hover:text-white/80">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Cases
-        </Button>
-        <div className="flex items-center gap-2">
-          {canEdit && (
-            <Button variant="outline" size="sm" onClick={() => setEditingCase(data)} className="bg-white hover:bg-slate-50">
-              <Edit3 className="h-4 w-4 mr-2" />
-              Edit
-            </Button>
-          )}
-          {canDelete && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                if (confirm(`Delete surgical case for ${data.patient.first_name} ${data.patient.last_name}?`)) {
-                  deleteMutation.mutate();
-                }
-              }}
-              className="text-red-600 border-red-200 hover:bg-red-50"
+    <div className="bg-white text-foreground">
+      <header className="bg-primary px-6 py-5 text-primary-foreground">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <button
+              type="button"
+              onClick={() => router.push('/frontdesk/surgical-cases')}
+              className="inline-flex items-center text-sm font-medium text-white/80 hover:text-white"
             >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
+              <ArrowLeft className="mr-1.5 h-4 w-4" />
+              Surgical cases
+            </button>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl font-semibold tracking-tight">{patientName}</h1>
+              <span className="border border-white/30 bg-white/10 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide">
+                {statusCfg.label}
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-white/80">{data.procedure_name || 'Unnamed procedure'}</p>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => setTeamOpen(true)} className="border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white">
+              Update team
             </Button>
-          )}
+            <Button variant="outline" size="sm" onClick={() => setBillingSheetOpen(true)} className="border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white">
+              Update bill
+            </Button>
+            {canEdit && (
+              <Button variant="outline" size="sm" onClick={() => setEditingCase(data)} className="border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white">
+                <Edit3 className="h-4 w-4 mr-2" />
+                Edit
+              </Button>
+            )}
+            {canDelete && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (confirm(`Delete surgical case for ${patientName}?`)) {
+                    deleteMutation.mutate();
+                  }
+                }}
+                className="border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
+            )}
+          </div>
         </div>
+      </header>
+
+      <div className="grid grid-cols-2 gap-px bg-border lg:grid-cols-4">
+        {highlights.map(([label, value]) => (
+          <div key={label} className="bg-[#e7d6bf]/30 px-5 py-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-secondary">{label}</p>
+            <p className="mt-1 text-base font-semibold text-primary">{value}</p>
+          </div>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 space-y-4">
-          <Card className="bg-white/95">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base text-slate-900">Procedure Details</CardTitle>
-                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ${statusCfg.className}`}>
-                  {statusCfg.label}
-                </span>
-              </div>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs text-slate-500">Procedure</p>
-                <p className="text-sm font-medium text-slate-900">{data.procedure_name || 'Unnamed procedure'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Category</p>
-                <p className="text-sm font-medium text-slate-900">{data.procedure_category || '—'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Date</p>
-                <p className="text-sm font-medium text-slate-900">
-                  {data.procedure_date ? format(new Date(data.procedure_date), 'MMM d, yyyy') : '—'}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Admission Type</p>
-                <p className="text-sm font-medium text-slate-900">{data.admission_type || '—'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Primary / Revision</p>
-                <p className="text-sm font-medium text-slate-900">{data.primary_or_revision || '—'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Urgency</p>
-                <p className="text-sm font-medium text-slate-900">{data.urgency || '—'}</p>
-              </div>
-              {data.diagnosis && (
-                <div className="sm:col-span-2">
-                  <p className="text-xs text-slate-500">Diagnosis</p>
-                  <p className="text-sm font-medium text-slate-900">{data.diagnosis}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+      {data.diagnosis && (
+        <div className="border-b border-border bg-[#e7d6bf]/30 px-5 py-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-secondary">Diagnosis</p>
+          <p className="mt-1 text-sm font-medium text-foreground">{data.diagnosis}</p>
+        </div>
+      )}
 
-          {data.case_procedures && data.case_procedures.length > 0 && (
-            <Card className="bg-white/95">
-              <CardHeader>
-                <CardTitle className="text-base text-slate-900">Associated Procedures</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {data.case_procedures.map((cp) => (
-                    <div key={cp.id} className="flex items-center justify-between p-3 border border-slate-200 rounded-lg">
-                      <div>
-                        <p className="text-sm font-medium text-slate-900">{cp.procedure.name}</p>
-                        <p className="text-xs text-slate-500">{cp.procedure.category} {cp.procedure.subcategory ? `· ${cp.procedure.subcategory}` : ''}</p>
-                      </div>
-                      {cp.procedure.estimated_duration_minutes && (
-                        <span className="text-xs text-slate-600">{cp.procedure.estimated_duration_minutes} min</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+      <div className="grid lg:grid-cols-[minmax(0,1.7fr)_minmax(17rem,0.9fr)]">
+        <div className="min-w-0 border-b border-border lg:border-b-0 lg:border-r">
+          <Section title="Procedures">
+            <RecordTable columns={['Procedure', 'Category', 'Duration']} rows={procedureRows} />
+          </Section>
 
-          {data.case_plan && (
-            <Card className="bg-white/95">
-              <CardHeader>
-                <CardTitle className="text-base text-slate-900">Case Plan</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-slate-500">Readiness Status</p>
-                  <p className="text-sm font-medium text-slate-900">{data.case_plan.readiness_status || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500">Ready for Surgery</p>
-                  <p className="text-sm font-medium text-slate-900">{data.case_plan.ready_for_surgery ? 'Yes' : 'No'}</p>
-                </div>
-                {data.case_plan.estimated_duration_minutes && (
-                  <div>
-                    <p className="text-xs text-slate-500">Estimated Duration</p>
-                    <p className="text-sm font-medium text-slate-900">{data.case_plan.estimated_duration_minutes} min</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+          <SurgicalCaseSetupCard
+            embedded
+            showAction={false}
+            editing={teamOpen}
+            onEditingChange={setTeamOpen}
+            caseId={caseId}
+            diagnosis={data.diagnosis}
+            primaryOrRevision={data.primary_or_revision}
+            admissionType={data.admission_type}
+            primarySurgeonId={data.primary_surgeon?.id}
+            primarySurgeonName={data.primary_surgeon?.name || data.primary_surgeon_name}
+            teamMembers={data.team_members}
+            onSaved={() => { void refetch(); }}
+          />
+        </div>
 
+        <aside className="bg-[#e7d6bf]/30">
+          <Section title="Patient">
+            <FactList
+              rows={[
+                ['File number', data.patient.file_number ? `#${data.patient.file_number}` : '—'],
+                ['Phone', data.patient.phone || '—'],
+                ['Email', data.patient.email || '—'],
+              ]}
+            />
+          </Section>
+          <Section title="Clinical">
+            <FactList
+              rows={[
+                ['Urgency', displayValue(data.urgency)],
+                ['Created', displayDate(data.created_at, true)],
+                ['Updated', displayDate(data.updated_at, true)],
+              ]}
+            />
+          </Section>
           {data.theater_booking && (
-            <Card className="bg-white/95">
-              <CardHeader>
-                <CardTitle className="text-base text-slate-900">Theater Booking</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-slate-500">Theater</p>
-                  <p className="text-sm font-medium text-slate-900">{data.theater_booking.theater?.name || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500">Start Time</p>
-                  <p className="text-sm font-medium text-slate-900">
-                    {data.theater_booking.startTime ? format(new Date(data.theater_booking.startTime), 'MMM d, yyyy HH:mm') : '—'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500">End Time</p>
-                  <p className="text-sm font-medium text-slate-900">
-                    {data.theater_booking.endTime ? format(new Date(data.theater_booking.endTime), 'MMM d, yyyy HH:mm') : '—'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-500">Status</p>
-                  <p className="text-sm font-medium text-slate-900">{data.theater_booking.status || '—'}</p>
-                </div>
-              </CardContent>
-            </Card>
+            <Section title="Theater">
+              <FactList
+                rows={[
+                  ['Theater', data.theater_booking.theater?.name || '—'],
+                  ['Start', displayDate(data.theater_booking.startTime, true)],
+                  ['End', displayDate(data.theater_booking.endTime, true)],
+                  ['Status', displayValue(data.theater_booking.status)],
+                ]}
+              />
+            </Section>
           )}
-        </div>
-
-        <div className="space-y-4">
-          <Card className="bg-white/95">
-            <CardHeader>
-              <CardTitle className="text-base text-slate-900 flex items-center gap-2">
-                <User className="h-4 w-4" />
-                Patient
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <p className="text-xs text-slate-500">Name</p>
-                <p className="text-sm font-medium text-slate-900">
-                  {data.patient.first_name} {data.patient.last_name}
-                </p>
-              </div>
-              {data.patient.file_number && (
-                <div>
-                  <p className="text-xs text-slate-500">File Number</p>
-                  <p className="text-sm font-medium text-slate-900">#{data.patient.file_number}</p>
-                </div>
-              )}
-              {data.patient.email && (
-                <div>
-                  <p className="text-xs text-slate-500">Email</p>
-                  <p className="text-sm font-medium text-slate-900">{data.patient.email}</p>
-                </div>
-              )}
-              {data.patient.phone && (
-                <div>
-                  <p className="text-xs text-slate-500">Phone</p>
-                  <p className="text-sm font-medium text-slate-900">{data.patient.phone}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white/95">
-            <CardHeader>
-              <CardTitle className="text-base text-slate-900 flex items-center gap-2">
-                <Stethoscope className="h-4 w-4" />
-                Surgeon
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {data.primary_surgeon ? (
-                <div>
-                  <p className="text-sm font-medium text-slate-900">{data.primary_surgeon.name}</p>
-                  {data.primary_surgeon.specialization && (
-                    <p className="text-xs text-slate-500">{data.primary_surgeon.specialization}</p>
-                  )}
-                </div>
-              ) : data.primary_surgeon_name ? (
-                <p className="text-sm font-medium text-slate-900">{data.primary_surgeon_name}</p>
-              ) : (
-                <p className="text-sm text-slate-500">Not assigned</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="bg-white/95">
-            <CardHeader>
-              <CardTitle className="text-base text-slate-900 flex items-center gap-2">
-                <CalendarIcon className="h-4 w-4" />
-                Timeline
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div>
-                <p className="text-xs text-slate-500">Created</p>
-                <p className="text-sm font-medium text-slate-900">{format(new Date(data.created_at), 'MMM d, yyyy HH:mm')}</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500">Last Updated</p>
-                <p className="text-sm font-medium text-slate-900">{format(new Date(data.updated_at), 'MMM d, yyyy HH:mm')}</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+          {data.case_plan && (
+            <Section title="Case plan">
+              <FactList
+                rows={[
+                  ['Readiness', displayValue(data.case_plan.readiness_status)],
+                  ['Ready for surgery', data.case_plan.ready_for_surgery ? 'Yes' : 'No'],
+                  ['Duration', data.case_plan.estimated_duration_minutes ? `${data.case_plan.estimated_duration_minutes} min` : '—'],
+                ]}
+              />
+            </Section>
+          )}
+        </aside>
       </div>
+
+      <TheaterTechBillingSummary
+        flush
+        showAction={false}
+        caseId={caseId}
+        suggestedServices={suggestedServices}
+        onEdit={() => setBillingSheetOpen(true)}
+      />
+
+      <TheaterTechBillingSheet
+        caseId={caseId}
+        suggestedServices={suggestedServices}
+        open={billingSheetOpen}
+        onOpenChange={setBillingSheetOpen}
+      />
 
       {editingCase && (
         <EditSurgicalCaseDialog
@@ -357,5 +322,57 @@ export default function CaseDetailsPage({ params }: CaseDetailsPageProps) {
         />
       )}
     </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="border-b border-border last:border-b-0">
+      <h2 className="border-b-2 border-primary bg-[#e7d6bf]/30 px-5 py-2.5 text-sm font-semibold text-primary">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+function FactList({ rows }: { rows: Array<[string, string]> }) {
+  return (
+    <dl>
+      {rows.map(([label, value]) => (
+        <div key={label} className="grid grid-cols-[8.5rem_1fr] gap-3 border-b border-border px-5 py-2.5 last:border-b-0">
+          <dt className="text-xs text-muted-foreground">{label}</dt>
+          <dd className="min-w-0 break-words text-sm font-medium text-foreground">{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function RecordTable({ columns, rows }: { columns: string[]; rows: string[][] }) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="border-border hover:bg-transparent">
+          {columns.map((column) => (
+            <TableHead key={column} className="h-9 bg-[#e7d6bf]/30 px-6 text-[11px] font-semibold uppercase tracking-wider text-secondary">
+              {column}
+            </TableHead>
+          ))}
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((row, index) => (
+          <TableRow key={`${row[0]}-${index}`} className="border-border hover:bg-[#e7d6bf]/30">
+            {row.map((cell, cellIndex) => (
+              <TableCell
+                key={`${columns[cellIndex]}-${index}`}
+                className={cellIndex === 0 ? 'px-6 py-2.5 font-medium text-foreground' : 'px-6 py-2.5 text-foreground'}
+              >
+                {cell}
+              </TableCell>
+            ))}
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }

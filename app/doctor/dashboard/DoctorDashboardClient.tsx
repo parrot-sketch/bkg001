@@ -1,17 +1,17 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useDoctorDashboard } from '@/hooks/use-doctor-dashboard';
+import { useDoctorDashboard, type DoctorDashboardData } from '@/hooks/use-doctor-dashboard';
 import type { QueuePatient } from '@/hooks/doctor/useDoctorQueue';
 import { DashboardStatCards } from '@/components/doctor/dashboard/DashboardStatCards';
 import { DailyQueuePanel } from '@/components/doctor/dashboard/DailyQueuePanel';
 import { CasePipeline } from '@/components/doctor/dashboard/CasePipeline';
 import { PendingConfirmationsBanner } from '@/components/doctor/dashboard/PendingConfirmationsBanner';
 
-export default function DoctorDashboardPage() {
-  // Single server-action fetch — do not also poll /api/doctor/.../queue here
-  // (that duplicated the same patients every 60s on top of the dashboard payload).
-  const { data: dashboardData, isLoading: dashboardLoading } = useDoctorDashboard();
+export default function DoctorDashboardPage({ initialData }: { initialData?: DoctorDashboardData }) {
+  // The server page already loaded this payload. React Query keeps it fresh
+  // after the first paint instead of blocking the dashboard on a second request.
+  const { data: dashboardData, isLoading: dashboardLoading } = useDoctorDashboard({ initialData });
 
   const queue = useMemo<QueuePatient[]>(() => {
     return (dashboardData?.queue ?? []).map((q) => {
@@ -57,7 +57,7 @@ export default function DoctorDashboardPage() {
       />
 
       <section>
-        <DashboardStatCards isLoading={dashboardLoading} />
+        <DashboardStatCards isLoading={dashboardLoading} stats={dashboardData?.stats} />
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -69,7 +69,7 @@ export default function DoctorDashboardPage() {
         </div>
 
         <div className="lg:col-span-1">
-          <CasePipeline isLoading={dashboardLoading} />
+          <CasePipeline isLoading={dashboardLoading} cases={dashboardData?.surgicalCases} />
         </div>
       </div>
     </div>

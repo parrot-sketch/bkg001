@@ -200,6 +200,8 @@ export function SurgicalNotesEditor({ caseId, onContinue }: Props) {
             placeholder="Start writing the surgical narrative, findings, and plan here..." 
             content={content} 
             onChange={setContent} 
+          dictationContextType="case"
+          dictationContextId={caseId}
             minHeight="600px" 
             className="bg-white" 
         />

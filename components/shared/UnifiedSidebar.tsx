@@ -272,7 +272,7 @@ export function UnifiedSidebar({
         aria-label="Main navigation"
         className={cn(
           'fixed left-0 top-0 z-50 h-screen flex flex-col',
-          'bg-[#2c2e4b] border-r border-[#e7d6bf]/10',
+          'bg-[#2c2e4b]',
           'transition-[width,transform] duration-200 ease-out will-change-transform',
           // Width
           collapsed ? 'w-16' : 'w-[280px]',

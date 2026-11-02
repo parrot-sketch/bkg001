@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useConsultationContext } from '@/contexts/ConsultationContext';
 import { usePatientContext } from '@/providers/patient/PatientContextProvider';
+import { startSession } from '@/actions/doctor/consultation-session';
+import { runEncounterTransition } from '@/lib/consultation/encounterTransition';
 import { useRouter } from 'next/navigation';
 import {
   ConsultationRoomLayout,
@@ -12,77 +14,52 @@ import {
   Workspace,
   QueuePanel,
 } from '@/components/consultation/room';
-import { getPatientConsultationHistory, type ConsultationHistoryItem } from '@/actions/doctor/get-patient-consultation-history';
-
-type PrimaryTab = 'consultation' | 'vitals' | 'history' | 'billing';
-type SoapTab = 'subjective' | 'objective' | 'assessment' | 'plan';
 
 export function ConsultationSessionContent() {
   const router = useRouter();
-  const { state, isReadOnly, canSave, switchToPatient, updateNotes, saveDraft, completeConsultation, waitingQueue, refetchQueue, isQueueRefetching } =
+  const { state, isReadOnly, canSave, switchToPatient, updateNotes, saveDraft, completeConsultation, waitingQueue, refetchQueue, isQueueRefetching, queueReady, loadWaitingQueue } =
     useConsultationContext();
-  const { patient, vitals, isLoading: patientLoading, refreshPatient } = usePatientContext();
+  const { patient, vitals, refreshPatient } = usePatientContext();
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [queuePanelOpen, setQueuePanelOpen] = useState(true);
-  const [primaryTab, setPrimaryTab] = useState<PrimaryTab>('consultation');
-  const [soapTab, setSoapTab] = useState<SoapTab>('subjective');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [queuePanelOpen, setQueuePanelOpen] = useState(false);
   const [sidebarRefetchKey, setSidebarRefetchKey] = useState(0);
-  const [history, setHistory] = useState<ConsultationHistoryItem[]>([]);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [admitting, setAdmitting] = useState(false);
+  const transitionGuard = useRef(false);
 
   useEffect(() => {
-    if (isReadOnly) {
-      setPrimaryTab('consultation');
-    }
-  }, [isReadOnly]);
+    loadWaitingQueue();
+  }, [loadWaitingQueue]);
 
   useEffect(() => {
-    let cancelled = false;
-    const patientId = patient?.id;
-
-    const loadHistory = async () => {
-      if (!patientId) {
-        setHistory([]);
-        setIsLoadingHistory(false);
-        return;
-      }
-
-      setIsLoadingHistory(true);
-      try {
-        const result = await getPatientConsultationHistory(patientId);
-        if (cancelled) return;
-        if (result.success) {
-          setHistory(result.data.consultations);
-        }
-      } catch {
-        if (!cancelled) {
-          console.error('Failed to load consultation history');
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoadingHistory(false);
-        }
-      }
+    const patientQuery = window.matchMedia('(min-width: 1024px)');
+    const queueQuery = window.matchMedia('(min-width: 1280px)');
+    const sync = () => {
+      setSidebarOpen(patientQuery.matches);
+      setQueuePanelOpen(queueQuery.matches);
     };
-
-    loadHistory();
-
+    sync();
+    patientQuery.addEventListener('change', sync);
+    queueQuery.addEventListener('change', sync);
     return () => {
-      cancelled = true;
+      patientQuery.removeEventListener('change', sync);
+      queueQuery.removeEventListener('change', sync);
     };
-  }, [patient?.id]);
+  }, []);
 
   const notes = state.notes;
   const isDirty = canSave;
   const isSaving = state.isSaving;
-  const isLoading = state.isLoading;
   const autoSaveStatus = state.autoSaveStatus;
   const appointment = state.appointment;
 
   const patientName = patient
     ? `${patient.firstName || 'Unknown'} ${patient.lastName || 'Patient'}`
     : 'Loading patient…';
+  const chargeSheetDestination = patient?.id
+    ? `/doctor/patients/${patient.id}?tab=charges`
+    : '/doctor/dashboard';
 
   const nextPatient = useCallback(() => {
     const currentId = appointment?.id;
@@ -98,18 +75,21 @@ export function ConsultationSessionContent() {
       toast.info('No next patient in queue');
       return;
     }
+    if (transitionGuard.current) return;
     try {
-      if (isDirty) {
-        await saveDraft();
-      }
-      await switchToPatient(targetId);
+      const outcome = await runEncounterTransition({
+        guard: transitionGuard,
+        save: saveDraft,
+        transition: () => switchToPatient(targetId),
+      });
+      if (outcome !== 'completed') return;
       setSidebarRefetchKey((k) => k + 1);
       toast.success('Loaded next patient');
     } catch (err: any) {
       console.error('Failed to load next patient:', err);
       toast.error(err?.message || 'Failed to switch patient');
     }
-  }, [nextPatient, isDirty, saveDraft, switchToPatient]);
+  }, [nextPatient, saveDraft, switchToPatient]);
 
   const handleSaveDraft = useCallback(async () => {
     try {
@@ -120,16 +100,65 @@ export function ConsultationSessionContent() {
   }, [saveDraft]);
 
   const handleComplete = useCallback(async () => {
+    if (isReadOnly || transitionGuard.current) return;
+    setIsCompleting(true);
     try {
-      if (isDirty) {
-        await saveDraft();
-      }
-      await completeConsultation();
+      const outcome = await runEncounterTransition({
+        guard: transitionGuard,
+        save: saveDraft,
+        transition: async () => {
+          await completeConsultation();
+        },
+      });
+      if (outcome !== 'completed') return;
       setSidebarRefetchKey((k) => k + 1);
+      loadWaitingQueue();
+      await refetchQueue();
+      setQueuePanelOpen(true);
     } catch (err: any) {
       toast.error(err?.message || 'Failed to complete consultation');
+    } finally {
+      setIsCompleting(false);
     }
-  }, [isDirty, saveDraft, completeConsultation]);
+  }, [isReadOnly, saveDraft, completeConsultation, loadWaitingQueue, refetchQueue]);
+
+  const handleAdmit = useCallback(async (targetAppointmentId: number) => {
+    if (admitting) return;
+    const doctorId = state.doctorId;
+    if (!doctorId) {
+      toast.error('Unable to admit this patient');
+      return;
+    }
+    setAdmitting(true);
+    try {
+      const result = await startSession(targetAppointmentId, doctorId);
+      if (!result.success) {
+        toast.error(result.error.message || 'Unable to admit this patient');
+        return;
+      }
+      router.push(`/doctor/consultations/session/${targetAppointmentId}`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Unable to admit this patient');
+    } finally {
+      setAdmitting(false);
+    }
+  }, [admitting, state.doctorId, router]);
+
+  const navigateAfterSave = useCallback(async (destination: string) => {
+    if (transitionGuard.current) return;
+    try {
+      const outcome = await runEncounterTransition({
+        guard: transitionGuard,
+        save: saveDraft,
+        transition: async () => {
+          router.push(destination);
+        },
+      });
+      if (outcome !== 'completed') return;
+    } catch (err: any) {
+      toast.error(err?.message || 'Save the note before leaving this consultation');
+    }
+  }, [saveDraft, router]);
 
   const handleRefreshPatient = useCallback(async () => {
     if (!refreshPatient || !patient?.id) return;
@@ -144,19 +173,21 @@ export function ConsultationSessionContent() {
 
   const handleLoadPatient = useCallback(
     async (targetAppointmentId: number) => {
-      if (!appointment) return;
+      if (!appointment || transitionGuard.current) return;
       try {
-        if (isDirty) {
-          await saveDraft();
-        }
-        await switchToPatient(targetAppointmentId);
+        const outcome = await runEncounterTransition({
+          guard: transitionGuard,
+          save: saveDraft,
+          transition: () => switchToPatient(targetAppointmentId),
+        });
+        if (outcome !== 'completed') return;
         setSidebarRefetchKey((k) => k + 1);
       } catch (err: any) {
         console.error('Failed to load next patient:', err);
         toast.error(err?.message || 'Failed to switch patient');
       }
     },
-    [appointment, switchToPatient, isDirty, saveDraft]
+    [appointment, switchToPatient, saveDraft]
   );
 
   return (
@@ -171,10 +202,23 @@ export function ConsultationSessionContent() {
           isSaving={isSaving}
           patientSidebarCollapsed={!sidebarOpen}
           queuePanelCollapsed={!queuePanelOpen}
-          onTogglePatientSidebar={() => setSidebarOpen((v) => !v)}
-          onToggleQueuePanel={() => setQueuePanelOpen((v) => !v)}
-          onNextPatient={handleNextPatient}
-          hasNextPatient={!!nextPatient()}
+          onTogglePatientSidebar={() => {
+            setSidebarOpen((open) => {
+              const next = !open;
+              if (next && window.innerWidth < 1280) setQueuePanelOpen(false);
+              return next;
+            });
+          }}
+          onToggleQueuePanel={() => {
+            setQueuePanelOpen((open) => {
+              const next = !open;
+              if (next && window.innerWidth < 1280) setSidebarOpen(false);
+              return next;
+            });
+          }}
+          onNextPatient={isReadOnly ? undefined : handleNextPatient}
+          hasNextPatient={!isReadOnly && !!nextPatient()}
+          onBack={() => { void navigateAfterSave(chargeSheetDestination); }}
         />
       }
       patientPanel={
@@ -203,37 +247,48 @@ export function ConsultationSessionContent() {
       }
       workspace={
         <Workspace
-          primaryTab={primaryTab}
-          soapTab={soapTab}
-          onPrimaryTabChange={setPrimaryTab}
-          onSoapTabChange={setSoapTab}
+          appointmentId={appointment?.id ?? null}
           notes={notes}
           onUpdateNotes={updateNotes}
           isReadOnly={isReadOnly}
           isSaving={isSaving}
+          isCompleting={isCompleting}
           isDirty={isDirty}
           onSaveDraft={handleSaveDraft}
           onComplete={handleComplete}
-          vitals={vitals}
-          patientLoading={patientLoading}
-          queueLength={waitingQueue.length}
-          history={history}
-          isLoadingHistory={isLoadingHistory}
-          onReturnToHub={() => router.push('/doctor/consultations')}
+          onReturnToHub={() => { void navigateAfterSave(chargeSheetDestination); }}
+          onLeave={() => { void navigateAfterSave('/doctor/dashboard'); }}
+          queueReady={queueReady}
+          nextPatient={(() => {
+            const waiting = waitingQueue[0];
+            if (!waiting?.appointmentId) return null;
+            const name = `${waiting.patient?.firstName || ''} ${waiting.patient?.lastName || ''}`.trim();
+            return {
+              appointmentId: waiting.appointmentId,
+              name: name || 'Next patient',
+              fileNumber: waiting.patient?.fileNumber || '',
+            };
+          })()}
+          onAdmitNext={() => {
+            const targetId = waitingQueue[0]?.appointmentId;
+            if (targetId) void handleAdmit(targetId);
+          }}
+          admitting={admitting}
         />
       }
       queuePanel={
         <QueuePanel
           queue={waitingQueue}
           onRefresh={refetchQueue}
-          onLoadPatient={handleLoadPatient}
+          onLoadPatient={isReadOnly ? handleAdmit : handleLoadPatient}
+          actionLabel={isReadOnly ? 'Admit' : 'Load'}
           isRefetching={isQueueRefetching}
         />
       }
       sidebarOpen={sidebarOpen}
       queuePanelOpen={queuePanelOpen}
-      onToggleSidebar={() => setSidebarOpen((v) => !v)}
-      onToggleQueuePanel={() => setQueuePanelOpen((v) => !v)}
+      onToggleSidebar={() => setSidebarOpen(false)}
+      onToggleQueuePanel={() => setQueuePanelOpen(false)}
     />
   );
 }

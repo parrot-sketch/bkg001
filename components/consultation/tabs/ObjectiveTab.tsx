@@ -3,12 +3,14 @@
 import { ClinicalRichTextEditor } from '@/components/consultation/ClinicalRichTextEditor';
 
 interface ObjectiveTabProps {
+  appointmentId?: number | null;
   initialValue?: string;
   onChange: (value: string) => void;
   isReadOnly?: boolean;
 }
 
 export function ObjectiveTab({
+  appointmentId,
   initialValue = '',
   onChange,
   isReadOnly = false,
@@ -28,6 +30,8 @@ export function ObjectiveTab({
       <ClinicalRichTextEditor
         content={initialValue}
         onChange={onChange}
+        dictationContextType="appointment"
+        dictationContextId={appointmentId}
         placeholder="Document vitals, physical examination findings, investigation results..."
         readOnly={isReadOnly}
         minHeight="400px"

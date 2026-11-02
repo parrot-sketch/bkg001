@@ -65,6 +65,7 @@ interface ConsultationContextValue {
   waitingQueue: QueuePatient[];
   refetchQueue: () => Promise<unknown>;
   isQueueRefetching: boolean;
+  queueReady: boolean;
   loadWaitingQueue: () => void;
   loadAppointment: (appointmentId: number) => Promise<void>;
   startConsultation: () => Promise<void>;
@@ -165,6 +166,7 @@ function CompatibilityAdapter({ children }: { children: React.ReactNode }) {
     waitingQueue: queue.waitingQueue,
     refetchQueue: queue.refetchQueue,
     isQueueRefetching: queue.isQueueRefetching,
+    queueReady: queue.queueReady,
     loadWaitingQueue: queue.loadWaitingQueue,
     loadAppointment: session.initializeSession,
     startConsultation: session.startConsultation,
@@ -179,7 +181,7 @@ function CompatibilityAdapter({ children }: { children: React.ReactNode }) {
     completeConsultation: session.completeSession,
     switchToPatient: session.switchToPatient,
     goToSurgeryPlanning: session.goToSurgeryPlanning,
-  }), [state, isActive, isReadOnly, canSave, canComplete, dialog.isStartDialogOpen, dialog.isCompleteDialogOpen, queue.waitingQueue, queue.refetchQueue, queue.isQueueRefetching, queue.loadWaitingQueue, session.initializeSession, session.startConsultation, dialog.closeStartDialog, docs.saveDraft, docs.saveNotes, docs.updateNotes, docs.setOutcome, docs.setPatientDecision, dialog.openCompleteDialog, dialog.closeCompleteDialog, session.completeSession, session.switchToPatient, session.goToSurgeryPlanning]);
+  }), [state, isActive, isReadOnly, canSave, canComplete, dialog.isStartDialogOpen, dialog.isCompleteDialogOpen, queue.waitingQueue, queue.refetchQueue, queue.isQueueRefetching, queue.queueReady, queue.loadWaitingQueue, session.initializeSession, session.startConsultation, dialog.closeStartDialog, docs.saveDraft, docs.saveNotes, docs.updateNotes, docs.setOutcome, docs.setPatientDecision, dialog.openCompleteDialog, dialog.closeCompleteDialog, session.completeSession, session.switchToPatient, session.goToSurgeryPlanning]);
 
   return (
     <ConsultationContext.Provider value={value}>

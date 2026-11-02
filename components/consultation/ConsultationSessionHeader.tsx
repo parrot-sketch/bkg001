@@ -86,7 +86,7 @@ function SessionHeaderContent({
           variant="ghost"
           size="icon"
           className="h-8 w-8 text-[#e7d6bf] hover:text-white hover:bg-[#2c2e4b] rounded-lg transition-colors"
-          onClick={() => router.push('/doctor/consultations')}
+          onClick={() => router.push('/doctor/dashboard')}
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>

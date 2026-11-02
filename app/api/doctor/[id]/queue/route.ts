@@ -1,12 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
+import { JwtMiddleware } from '@/lib/auth/middleware';
+import { Role } from '@/domain/enums/Role';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await JwtMiddleware.authenticate(request);
+    if (!auth.success || !auth.user) {
+      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    }
+
+    if (auth.user.role !== Role.DOCTOR) {
+      return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
+    }
+
     const { id: doctorId } = await params;
+    const doctor = await db.doctor.findUnique({
+      where: { id: doctorId },
+      select: { user_id: true },
+    });
+
+    if (!doctor || doctor.user_id !== auth.user.userId) {
+      return NextResponse.json({ success: false, error: 'Queue not found' }, { status: 404 });
+    }
 
     const url = new URL(request.url);
     const startDate = url.searchParams.get('startDate');

@@ -69,6 +69,10 @@ export function EditSurgicalCaseDialog({ open, caseItem, onOpenChange, onSuccess
       const dateStr = caseItem.procedure_date ? format(new Date(caseItem.procedure_date), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
       const isCustom = Boolean(caseItem.procedure_name && !COMMON_PROCEDURES.includes(caseItem.procedure_name));
 
+      const categoryMatch = PROCEDURE_CATEGORIES.find(
+        (category) => category.value === caseItem.procedure_category
+          || category.label.toLowerCase() === (caseItem.procedure_category || '').toLowerCase(),
+      );
       setFormData({
         procedureName: caseItem.procedure_name || '',
         procedureDate: dateStr,
@@ -76,13 +80,13 @@ export function EditSurgicalCaseDialog({ open, caseItem, onOpenChange, onSuccess
         primarySurgeonName: caseItem.primary_surgeon_name || '',
         isCustomSurgeon: !caseItem.primary_surgeon?.id && !!caseItem.primary_surgeon_name,
         diagnosis: caseItem.diagnosis || '',
-        procedureCategory: caseItem.procedure_category || '',
+        procedureCategory: categoryMatch?.value || '',
         primaryOrRevision: caseItem.primary_or_revision || '',
         admissionType: caseItem.admission_type || '',
         status: caseItem.status,
       });
-      setIsCustomCategory(!PROCEDURE_CATEGORIES.some(c => c.value === caseItem.procedure_category) && !!caseItem.procedure_category);
-      setCustomCategory(caseItem.procedure_category || '');
+      setIsCustomCategory(!categoryMatch && !!caseItem.procedure_category);
+      setCustomCategory(categoryMatch ? '' : (caseItem.procedure_category || ''));
       loadDoctors();
     }
   }, [open, caseItem]);

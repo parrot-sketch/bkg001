@@ -258,7 +258,7 @@ describe('SessionOperationsShim', () => {
           completedAppointmentId: 1,
           clearedLocalStorage: true,
           invalidationInstructions: [],
-          redirectPath: '/doctor/consultations',
+          redirectPath: '/doctor/patients/patient-1?tab=charges',
         },
       });
 

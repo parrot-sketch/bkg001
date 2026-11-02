@@ -6,16 +6,9 @@
 /**
  * UnifiedHeader — shared top navigation bar for all authenticated roles.
  *
- * Design rationale:
- * - The sidebar is slate-950 (dark navy). The header must be visually
- *   connected — not a cold white bar floating above dark content.
- * - Solution: white background with a 3px brand-primary top border and a
- *   very subtle bottom border (border-slate-200). The left edge of the
- *   header aligns with the sidebar's right edge, so the sidebar's accent
- *   colour "bleeds" across into the header top strip.
- * - Breadcrumbs use slate-900 for the active segment and slate-400 for
- *   parent segments — consistent with sidebar section label language.
- * - Avatar fallback uses slate-800 bg + white text matching sidebar dark theme.
+ * The header uses the same navy as the sidebar so the two read as one frame.
+ * Champagne is only the quiet edge under that frame. The page photograph
+ * stays in the content area below.
  *
  * Props:
  *   roleName       — shown as the root breadcrumb label e.g. "Doctor"
@@ -31,7 +24,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { useEffect, useState } from 'react';
 import {
-  ChevronRight, HelpCircle, Menu, Search, User,
+  ChevronRight, HelpCircle, Menu, User,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -44,6 +37,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { HeaderSearch } from '@/components/shared/HeaderSearch';
 import { cn } from '@/lib/utils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -125,10 +119,7 @@ export function UnifiedHeader({
   // SSR skeleton
   if (!mounted) {
     return (
-      <div
-        className="h-14 shrink-0 border-b border-slate-200 bg-white"
-        style={{ borderTop: '3px solid #1E3A5F' }}
-      />
+      <div className="h-14 shrink-0 border-b border-[#e7d6bf]/30 bg-[#2c2e4b]" />
     );
   }
 
@@ -137,10 +128,9 @@ export function UnifiedHeader({
       className={cn(
         'shrink-0 sticky top-0 z-30',
         'flex h-14 w-full items-center justify-between',
-        'bg-white border-b border-[#e7d6bf]',
+        'bg-[#2c2e4b] border-b border-[#e7d6bf]/30',
         'px-4 sm:px-6',
       )}
-      style={{ borderTop: '3px solid #caa26a' }}
     >
 
       {/* ── Left: hamburger + breadcrumbs ──────────────────────────────────── */}
@@ -154,7 +144,7 @@ export function UnifiedHeader({
             aria-label="Open navigation menu"
             className={cn(
               'lg:hidden flex items-center justify-center h-8 w-8 rounded-lg -ml-1',
-              'text-slate-500 hover:text-slate-900 hover:bg-slate-100',
+              'text-[#e7d6bf] hover:text-white hover:bg-white/10',
               'transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand-primary',
             )}
           >
@@ -166,20 +156,20 @@ export function UnifiedHeader({
         <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-xs overflow-hidden">
           <Link
             href={rootHref}
-            className="text-slate-400 font-medium hidden sm:inline shrink-0 hover:text-slate-600 transition-colors"
+            className="text-[#e7d6bf]/70 font-medium hidden sm:inline shrink-0 hover:text-white transition-colors"
           >
             {roleName}
           </Link>
 
           {breadcrumbs.map((crumb, i) => (
             <span key={i} className="flex items-center gap-1 min-w-0">
-              <ChevronRight className="h-3.5 w-3.5 text-slate-300 shrink-0" aria-hidden />
+              <ChevronRight className="h-3.5 w-3.5 text-[#e7d6bf]/40 shrink-0" aria-hidden />
               {crumb.isLast ? (
-                <span className="truncate font-medium text-slate-900">{crumb.label}</span>
+                <span className="truncate font-medium text-white">{crumb.label}</span>
               ) : (
                 <Link
                   href={crumb.href}
-                  className="truncate font-medium text-slate-400 hover:text-slate-600 transition-colors"
+                  className="truncate font-medium text-[#e7d6bf]/70 hover:text-white transition-colors"
                 >
                   {crumb.label}
                 </Link>
@@ -193,30 +183,11 @@ export function UnifiedHeader({
       <div className="flex items-center gap-2 shrink-0">
 
         {/* Search (optional) */}
-        {searchPlaceholder && (
-          <div className="hidden md:flex items-center relative">
-            <Search
-              className="absolute left-3 h-3.5 w-3.5 text-slate-400 pointer-events-none"
-              aria-hidden
-            />
-            <input
-              type="search"
-              placeholder={searchPlaceholder}
-              aria-label={searchPlaceholder}
-              className={cn(
-                'pl-8 pr-3 py-1.5 h-8 w-52 rounded-lg text-[13px]',
-                'bg-slate-50 border border-slate-200',
-                'text-slate-900 placeholder-slate-400',
-                'outline-none focus:bg-white focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary/40',
-                'transition-all',
-              )}
-            />
-          </div>
-        )}
+        {searchPlaceholder && <HeaderSearch placeholder={searchPlaceholder} />}
 
         {/* Divider */}
         {searchPlaceholder && (
-          <div className="hidden md:block h-5 w-px bg-slate-200 mx-1" aria-hidden />
+          <div className="hidden md:block h-5 w-px bg-[#e7d6bf]/30 mx-1" aria-hidden />
         )}
 
         {/* Notification bell */}
@@ -228,11 +199,11 @@ export function UnifiedHeader({
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 rounded-full hover:bg-slate-100 outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+              className="h-8 w-8 rounded-full hover:bg-white/10 outline-none focus-visible:ring-2 focus-visible:ring-[#e7d6bf]/50"
               aria-label="Open profile menu"
             >
               <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-brand-primary text-white text-[11px] font-bold">
+                <AvatarFallback className="bg-[#e7d6bf] text-[#2c2e4b] text-[11px] font-bold">
                   {initials}
                 </AvatarFallback>
               </Avatar>

@@ -19,7 +19,7 @@ export async function POST(
     const result = await reinstateAppointment(appointmentId);
     
     return NextResponse.json(result, {
-      status: result.success ? 200 : 400,
+      status: result.success ? 200 : result.msg === 'Unauthorized' ? 401 : result.msg === 'Access denied' ? 403 : 400,
     });
   } catch (error) {
     console.error('[API] Reinstate appointment error:', error);

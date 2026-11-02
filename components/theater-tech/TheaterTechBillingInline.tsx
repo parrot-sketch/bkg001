@@ -1,9 +1,11 @@
 'use client';
 
-import { Loader2, Save, Receipt } from 'lucide-react';
+import { useState } from 'react';
+import { Loader2, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useChargeSheet } from '@/hooks/theater-tech/useChargeSheet';
+import { ChargeSheetPreview } from './ChargeSheetPreview';
 import { ChargeSheetStepContent } from './ChargeSheetStepContent';
 
 interface TheaterTechBillingInlineProps {
@@ -12,6 +14,7 @@ interface TheaterTechBillingInlineProps {
 
 export function TheaterTechBillingInline({ caseId }: TheaterTechBillingInlineProps) {
   const cs = useChargeSheet(caseId);
+  const [reviewing, setReviewing] = useState(false);
 
   if (cs.isLoading) {
     return (
@@ -29,31 +32,35 @@ export function TheaterTechBillingInline({ caseId }: TheaterTechBillingInlinePro
             <Receipt className="h-5 w-5 text-[#caa26a]" />
             <CardTitle className="text-base font-semibold text-white">Charge Sheet</CardTitle>
           </div>
-          {cs.chargeItems.length > 0 && (
+          {cs.chargeItems.length > 0 && !reviewing && (
             <Button
               size="sm"
-              onClick={cs.handleSave}
-              disabled={cs.isSaving}
+              onClick={() => setReviewing(true)}
               className="bg-[#caa26a] hover:bg-[#b8913e] text-white font-bold shadow-sm h-8"
             >
-              {cs.isSaving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              <span className="ml-1.5">
-                {cs.isSaving ? 'Saving…' : 'Save Bill'}
-              </span>
+              Review bill
             </Button>
           )}
         </div>
       </CardHeader>
 
       <CardContent className="p-0">
-        <ChargeSheetStepContent
-          cs={cs}
-          emptyHint="Search and add services or inventory items to build the charge sheet"
-        />
+        {reviewing ? (
+          <ChargeSheetPreview
+            items={cs.chargeItems}
+            subtotal={cs.subtotal}
+            discount={cs.discount}
+            total={cs.total}
+            caseInfo={cs.caseInfo}
+            saving={cs.isSaving}
+            onBack={() => setReviewing(false)}
+            onSave={() => {
+              void cs.handleSave();
+            }}
+          />
+        ) : (
+          <ChargeSheetStepContent cs={cs} emptyHint="No lines on this bill yet." />
+        )}
       </CardContent>
     </Card>
   );

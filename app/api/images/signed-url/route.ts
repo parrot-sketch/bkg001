@@ -33,7 +33,6 @@ export async function GET(request: NextRequest) {
         if (!auth.success || !auth.user) {
             return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
         }
-
         // 2. Extract publicId from query string
         const { searchParams } = new URL(request.url);
         const publicId = searchParams.get('publicId');
@@ -42,7 +41,6 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ success: false, error: 'publicId is required' }, { status: 400 });
         }
 
-        // 3. Guard: only allow medical/ folder — prevent signed URLs for public assets
         if (!publicId.startsWith('medical/')) {
             return NextResponse.json(
                 { success: false, error: 'Only medical images can be accessed via this endpoint' },

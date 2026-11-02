@@ -147,11 +147,13 @@ export const doctorApi = {
   async getPatientVisits(
     patientId: string,
     startDate?: Date | string,
-    endDate?: Date | string
+    endDate?: Date | string,
+    scope?: 'all' | 'mine'
   ): Promise<ApiResponse<import('@/application/dtos/VisitResponseDto').VisitResponseDto[]>> {
     const params = new URLSearchParams();
     if (startDate) params.set('startDate', typeof startDate === 'string' ? startDate : startDate.toISOString().split('T')[0]);
     if (endDate) params.set('endDate', typeof endDate === 'string' ? endDate : endDate.toISOString().split('T')[0]);
+    if (scope) params.set('scope', scope);
     const qs = params.toString();
     const url = `/patients/${patientId}/visits${qs ? `?${qs}` : ''}`;
     return apiClient.get(url);

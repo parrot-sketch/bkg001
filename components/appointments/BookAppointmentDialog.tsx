@@ -22,6 +22,7 @@ export function BookAppointmentDialog() {
     lockDoctor,
     initialDate,
     initialTime,
+    initialType,
     source,
     bookingChannel,
     parentAppointmentId,
@@ -50,6 +51,7 @@ export function BookAppointmentDialog() {
       >
         <SheetTitle className="sr-only">Book Appointment</SheetTitle>
         <AppointmentBookingWizard
+          key={`${isOpen ? 'open' : 'closed'}-${parentAppointmentId ?? 'new'}-${initialPatientId ?? ''}-${initialType ?? ''}`}
           initialPatientId={initialPatientId}
           initialPatient={initialPatient}
           initialDoctorId={initialDoctorId}
@@ -57,6 +59,7 @@ export function BookAppointmentDialog() {
           lockDoctor={lockDoctor}
           initialDate={initialDate}
           initialTime={initialTime}
+          initialType={initialType}
           source={source}
           bookingChannel={bookingChannel}
           parentAppointmentId={parentAppointmentId}

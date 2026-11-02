@@ -19,14 +19,17 @@ export const DOCTOR_DASHBOARD_KEY = ['doctor', 'dashboard'] as const;
 interface UseDoctorDashboardOptions {
   enabled?: boolean;
   retry?: number;
+  initialData?: DoctorDashboardData;
 }
 
 export function useDoctorDashboard(options: UseDoctorDashboardOptions = {}) {
-  const { enabled = true, retry = 3 } = options;
+  const { enabled = true, retry = 3, initialData } = options;
 
   return useQuery<DoctorDashboardData>({
     queryKey: DOCTOR_DASHBOARD_KEY,
     queryFn: () => getDoctorDashboardData(),
+    initialData,
+    initialDataUpdatedAt: initialData ? Date.now() : undefined,
     staleTime: 1000 * 60 * 3,
     gcTime: 1000 * 60 * 10,
     retry,

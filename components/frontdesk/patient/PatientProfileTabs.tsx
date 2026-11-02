@@ -4,13 +4,14 @@ import { useState, type ReactNode } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
-export type PatientProfileTab = 'overview' | 'visits' | 'billing';
+export type PatientProfileTab = 'overview' | 'visits' | 'charges' | 'billing';
 
 interface PatientProfileTabsProps {
   defaultTab: PatientProfileTab;
   visitCount: number;
   overview: ReactNode;
   visits: ReactNode;
+  charges: ReactNode;
   billing: ReactNode;
 }
 
@@ -19,7 +20,7 @@ interface PatientProfileTabsProps {
  * what visits they've had, and what they owe. The active tab is mirrored to
  * `?tab=` so a refresh or shared link lands on the same view.
  */
-export function PatientProfileTabs({ defaultTab, visitCount, overview, visits, billing }: PatientProfileTabsProps) {
+export function PatientProfileTabs({ defaultTab, visitCount, overview, visits, charges, billing }: PatientProfileTabsProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -36,15 +37,16 @@ export function PatientProfileTabs({ defaultTab, visitCount, overview, visits, b
   const tabs: { id: PatientProfileTab; label: string; count?: number }[] = [
     { id: 'overview', label: 'Overview' },
     { id: 'visits', label: 'Visits', count: visitCount },
+    { id: 'charges', label: 'Charge sheet' },
     { id: 'billing', label: 'Billing' },
   ];
 
   return (
-    <div className="space-y-4">
+    <div>
       <div
         role="tablist"
         aria-label="Patient record sections"
-        className="flex gap-1 rounded-xl border border-[#e7d6bf] bg-white/95 p-1 backdrop-blur"
+        className="flex border-b border-[#e7d6bf]"
       >
         {tabs.map((tab) => (
           <button
@@ -54,22 +56,15 @@ export function PatientProfileTabs({ defaultTab, visitCount, overview, visits, b
             aria-selected={active === tab.id}
             onClick={() => select(tab.id)}
             className={cn(
-              'flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors sm:flex-none sm:px-5',
+              'flex items-center justify-center gap-2 border-b-2 px-5 py-3 text-sm font-medium transition-colors',
               active === tab.id
-                ? 'bg-[#2c2e4b] text-white shadow-sm'
-                : 'text-[#2c2e4b]/70 hover:bg-[#e7d6bf]/30 hover:text-[#2c2e4b]',
+                ? 'border-[#2c2e4b] bg-[#e7d6bf]/30 text-[#2c2e4b]'
+                : 'border-transparent text-[#2c2e4b]/60 hover:bg-[#e7d6bf]/30 hover:text-[#2c2e4b]',
             )}
           >
             {tab.label}
             {typeof tab.count === 'number' && (
-              <span
-                className={cn(
-                  'rounded-full px-1.5 text-[11px] tabular-nums',
-                  active === tab.id ? 'bg-white/15 text-white' : 'bg-[#e7d6bf]/50 text-[#2c2e4b]/70',
-                )}
-              >
-                {tab.count}
-              </span>
+              <span className="font-mono text-[11px] tabular-nums text-[#005f73]">{tab.count}</span>
             )}
           </button>
         ))}
@@ -78,6 +73,7 @@ export function PatientProfileTabs({ defaultTab, visitCount, overview, visits, b
       <div role="tabpanel">
         {active === 'overview' && overview}
         {active === 'visits' && visits}
+        {active === 'charges' && charges}
         {active === 'billing' && billing}
       </div>
     </div>

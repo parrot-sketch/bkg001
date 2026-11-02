@@ -24,6 +24,7 @@ import { getDbRateLimiter } from '@/infrastructure/rate-limiting/DbRateLimiter';
 import type { ApiResponse } from '@/lib/api/client';
 
 type ApiErrorResponse = ApiResponse<never>;
+type LoginPublicResponse = Pick<LoginResponseDto, 'user'>;
 
 const emitter = NodeSecurityEventEmitter.getInstance();
 
@@ -33,7 +34,7 @@ const { loginUseCase } = AuthFactory.create(db);
 
 export async function POST(
   request: NextRequest,
-): Promise<NextResponse<ApiErrorResponse | ApiResponse<LoginResponseDto>>> {
+): Promise<NextResponse<ApiErrorResponse | ApiResponse<LoginPublicResponse>>> {
   const correlationId =
     request.headers.get('x-correlation-id') || crypto.randomUUID();
 
@@ -180,7 +181,7 @@ export async function POST(
 
     // ─── Build response + set cookies ────────────────────────────────────────
     const nextResponse = NextResponse.json(
-      { success: true, data: response } satisfies ApiResponse<LoginResponseDto>,
+      { success: true, data: { user: response.user } } satisfies ApiResponse<LoginPublicResponse>,
       { status: 200 },
     );
 

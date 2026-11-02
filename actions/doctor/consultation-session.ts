@@ -1,11 +1,12 @@
 'use server';
 
 import { getCurrentUser } from '@/lib/auth/server-auth';
+import { revalidateFrontdeskDashboard } from '@/actions/frontdesk/get-dashboard-data';
 import { createConsultationSession, startConsultationSession, type StartSessionResult, resumeConsultationSession, type ResumeSessionResult, completeConsultationSession, type CompleteSessionResult, refreshPatientSession, type RefreshPatientResult, switchPatientSession } from '@/infrastructure/factories/ConsultationSessionFactory';
 import { ClinicalErrorCode, ClinicalErrorCategory } from '@/shared-kernel/errors/codes';
+import { Role } from '@/domain/enums/Role';
 import { resolveConsultationServiceId } from '@/application/services/billing/resolveConsultationServiceId';
 import db from '@/lib/db';
-import { Prisma } from '@prisma/client';
 import { cookies } from 'next/headers';
 
 type ActionError = {
@@ -85,12 +86,14 @@ export async function startSession(appointmentId: number, doctorId: string): Pro
   try {
     const accessToken = await getServerAccessToken();
     const result = await startConsultationSession({ appointmentId, user: { id: user.userId, email: user.email, role: user.role }, accessToken }, appointmentId, doctorId);
+    await revalidateFrontdeskDashboard();
     return {
       success: true,
       data: result,
     };
   } catch (error) {
-    return makeError(ClinicalErrorCode.UNKNOWN, 'Failed to start consultation', ClinicalErrorCategory.SYSTEM, true, true, error);
+    const message = error instanceof Error && error.message ? error.message : 'Failed to start consultation';
+    return makeError(ClinicalErrorCode.UNKNOWN, message, ClinicalErrorCategory.SYSTEM, true, true, error);
   }
 }
 
@@ -190,100 +193,86 @@ export async function resumePausedSession(): Promise<ActionResult<any>> {
   return makeError(ClinicalErrorCode.UNKNOWN, 'Not implemented in Phase 1', ClinicalErrorCategory.SYSTEM, true, true);
 }
 
-export async function saveDraft(consultationId: number, doctorId: string, notes: { chiefComplaint?: string; examination?: string; assessment?: string; plan?: string }, outcomeType?: string, patientDecision?: string | null): Promise<ActionResult<any>> {
+type ClinicalNoteFields = {
+  chiefComplaint?: string;
+  examination?: string;
+  assessment?: string;
+  plan?: string;
+};
+
+type AuthorizedConsultation = {
+  id: number;
+  appointment_id: number;
+  doctor_id: string;
+  completed_at: Date | null;
+};
+
+async function authorizeConsultationWrite(
+  appointmentId: number,
+  consultationId: number,
+): Promise<{ consultation: AuthorizedConsultation } | { error: ActionError }> {
   const user = await getCurrentUser();
   if (!user) {
-    return makeError(ClinicalErrorCode.UNAUTHORIZED, 'Unauthorized', ClinicalErrorCategory.AUTHORIZATION, true, false);
+    return { error: makeError(ClinicalErrorCode.UNAUTHORIZED, 'Unauthorized', ClinicalErrorCategory.AUTHORIZATION, true, false) };
   }
 
-  try {
-    if (consultationId <= 0) {
-      return makeError(ClinicalErrorCode.INVALID_INPUT, 'Invalid consultation ID', ClinicalErrorCategory.VALIDATION, false, false);
-    }
+  if (!Number.isInteger(appointmentId) || appointmentId <= 0 || !Number.isInteger(consultationId) || consultationId <= 0) {
+    return { error: makeError(ClinicalErrorCode.INVALID_INPUT, 'Invalid appointment or consultation', ClinicalErrorCategory.VALIDATION, false, false) };
+  }
 
-    let consultation = await db.consultation.findFirst({
-      where: {
-        OR: [
-          { id: consultationId },
-          { appointment_id: consultationId },
-        ],
-      },
-      select: { id: true, doctor_id: true, appointment_id: true },
-    });
+  const [doctor, appointment, consultation] = await Promise.all([
+    db.doctor.findUnique({ where: { user_id: user.userId }, select: { id: true } }),
+    db.appointment.findUnique({ where: { id: appointmentId }, select: { id: true, doctor_id: true } }),
+    db.consultation.findUnique({
+      where: { appointment_id: appointmentId },
+      select: { id: true, doctor_id: true, appointment_id: true, completed_at: true },
+    }),
+  ]);
+
+  if (!appointment) {
+    return { error: makeError(ClinicalErrorCode.APPOINTMENT_NOT_FOUND, 'Appointment not found', ClinicalErrorCategory.CONSULTATION, false, false) };
+  }
+
+  if (!consultation) {
+    return { error: makeError(ClinicalErrorCode.SESSION_NOT_FOUND, 'Consultation not found', ClinicalErrorCategory.CONSULTATION, false, false) };
+  }
+
+  if (consultation.id !== consultationId || consultation.appointment_id !== appointmentId) {
+    return { error: makeError(ClinicalErrorCode.VALIDATION_ERROR, 'Consultation does not match this appointment', ClinicalErrorCategory.VALIDATION, false, false) };
+  }
+
+  const isAdmin = user.role === Role.ADMIN;
+  const ownsAppointment = doctor?.id === appointment.doctor_id && doctor?.id === consultation.doctor_id;
+  if (!isAdmin && !ownsAppointment) {
+    return { error: makeError(ClinicalErrorCode.UNAUTHORIZED, 'Not authorized for this consultation', ClinicalErrorCategory.AUTHORIZATION, true, false) };
+  }
+
+  return { consultation };
+}
+
+export async function saveDraft(
+  appointmentId: number,
+  consultationId: number,
+  notes: ClinicalNoteFields,
+  outcomeType?: string,
+  patientDecision?: string | null,
+): Promise<ActionResult<any>> {
+  try {
+    const authorized = await authorizeConsultationWrite(appointmentId, consultationId);
+    if ('error' in authorized) return authorized.error;
+
+    if (authorized.consultation.completed_at) {
+      return makeError(ClinicalErrorCode.CONSULTATION_COMPLETED, 'Consultation is already completed', ClinicalErrorCategory.CONSULTATION, false, false);
+    }
 
     const now = new Date();
     const doctorNotes = [notes.chiefComplaint, notes.examination, notes.assessment, notes.plan].filter(Boolean).join('\n\n') || null;
-
-    if (!consultation) {
-      // Find appointment by consultationId (treating it as appointmentId)
-      const appointment = await db.appointment.findUnique({
-        where: { id: consultationId },
-        select: { id: true, doctor_id: true, status: true },
-      });
-
-      if (!appointment) {
-        return makeError(ClinicalErrorCode.SESSION_NOT_FOUND, 'Consultation and appointment not found', ClinicalErrorCategory.CONSULTATION, false, false);
-      }
-
-      const assignedDoctorId = doctorId || appointment.doctor_id;
-
-      // Auto-create consultation record for appointment
-      const created = await db.consultation.create({
-        data: {
-          appointment_id: appointment.id,
-          doctor_id: assignedDoctorId,
-          user_id: user.userId,
-          started_at: now,
-          doctor_notes: doctorNotes,
-          chief_complaint: notes.chiefComplaint ?? null,
-          examination: notes.examination ?? null,
-          assessment: notes.assessment ?? null,
-          plan: notes.plan ?? null,
-          outcome_type: outcomeType ?? null,
-          patient_decision: patientDecision ?? null,
-          last_activity_at: now,
-        },
-      });
-
-      // Ensure appointment status is updated if checked-in or ready
-      if (['CHECKED_IN', 'READY_FOR_CONSULTATION'].includes(appointment.status)) {
-        await db.appointment.update({
-          where: { id: appointment.id },
-          data: {
-            status: 'IN_CONSULTATION',
-            consultation_started_at: now,
-          },
-        });
-      }
-
-      return {
-        success: true,
-        data: {
-          version: created.updated_at.toISOString(),
-          updatedAt: created.updated_at,
-          consultationId: created.id,
-        },
-      };
-    }
-
-    if (doctorId && consultation.doctor_id !== doctorId && user.role !== 'ADMIN') {
-      const consultationOwner = await db.doctor.findFirst({
-        where: { id: consultation.doctor_id },
-        select: { user_id: true },
-      });
-      const passedDoctor = await db.doctor.findFirst({
-        where: { id: doctorId },
-        select: { user_id: true },
-      });
-      const isConsultationOwner = consultationOwner?.user_id === user.userId;
-      const isPassedDoctor = passedDoctor?.user_id === user.userId;
-      if (!isConsultationOwner && !isPassedDoctor) {
-        return makeError(ClinicalErrorCode.UNAUTHORIZED, 'Not authorized for this consultation', ClinicalErrorCategory.AUTHORIZATION, true, false);
-      }
-    }
-
-    const updated = await db.consultation.update({
-      where: { id: consultation.id },
+    const updated = await db.consultation.updateMany({
+      where: {
+        id: consultationId,
+        appointment_id: appointmentId,
+        completed_at: null,
+      },
       data: {
         doctor_notes: doctorNotes,
         chief_complaint: notes.chiefComplaint ?? null,
@@ -297,68 +286,43 @@ export async function saveDraft(consultationId: number, doctorId: string, notes:
       },
     });
 
+    if (updated.count !== 1) {
+      return makeError(ClinicalErrorCode.CONSULTATION_COMPLETED, 'Consultation is already completed', ClinicalErrorCategory.CONSULTATION, false, false);
+    }
+
     return {
       success: true,
       data: {
-        version: updated.updated_at.toISOString(),
-        updatedAt: updated.updated_at,
-        consultationId: updated.id,
+        version: now.toISOString(),
+        updatedAt: now,
+        consultationId,
       },
     };
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return makeError(ClinicalErrorCode.SESSION_NOT_FOUND, 'Consultation not found', ClinicalErrorCategory.CONSULTATION, false, false);
-      }
-    }
     return makeError(ClinicalErrorCode.UNKNOWN, 'Failed to save draft', ClinicalErrorCategory.SYSTEM, true, true, error);
   }
 }
 
-export async function saveCompletedNotes(consultationId: number, doctorId: string, notes: { chiefComplaint?: string; examination?: string; assessment?: string; plan?: string }): Promise<ActionResult<any>> {
-  const user = await getCurrentUser();
-  if (!user) {
-    return makeError(ClinicalErrorCode.UNAUTHORIZED, 'Unauthorized', ClinicalErrorCategory.AUTHORIZATION, true, false);
-  }
-
+export async function saveCompletedNotes(
+  appointmentId: number,
+  consultationId: number,
+  notes: ClinicalNoteFields,
+): Promise<ActionResult<any>> {
   try {
-    if (consultationId <= 0) {
-      return makeError(ClinicalErrorCode.INVALID_INPUT, 'Invalid consultation ID', ClinicalErrorCategory.VALIDATION, false, false);
-    }
+    const authorized = await authorizeConsultationWrite(appointmentId, consultationId);
+    if ('error' in authorized) return authorized.error;
 
-    let consultation = await db.consultation.findFirst({
-      where: {
-        OR: [
-          { id: consultationId },
-          { appointment_id: consultationId },
-        ],
-      },
-      select: { id: true, doctor_id: true },
-    });
-
-    if (!consultation) {
-      return makeError(ClinicalErrorCode.SESSION_NOT_FOUND, 'Consultation not found', ClinicalErrorCategory.CONSULTATION, false, false);
-    }
-
-    if (doctorId && consultation.doctor_id !== doctorId && user.role !== 'ADMIN') {
-      const consultationOwner = await db.doctor.findFirst({
-        where: { id: consultation.doctor_id },
-        select: { user_id: true },
-      });
-      const passedDoctor = await db.doctor.findFirst({
-        where: { id: doctorId },
-        select: { user_id: true },
-      });
-      const isConsultationOwner = consultationOwner?.user_id === user.userId;
-      const isPassedDoctor = passedDoctor?.user_id === user.userId;
-      if (!isConsultationOwner && !isPassedDoctor) {
-        return makeError(ClinicalErrorCode.UNAUTHORIZED, 'Not authorized for this consultation', ClinicalErrorCategory.AUTHORIZATION, true, false);
-      }
+    if (!authorized.consultation.completed_at) {
+      return makeError(ClinicalErrorCode.VALIDATION_ERROR, 'Consultation is not completed', ClinicalErrorCategory.VALIDATION, false, false);
     }
 
     const now = new Date();
-    const updated = await db.consultation.update({
-      where: { id: consultation.id },
+    const updated = await db.consultation.updateMany({
+      where: {
+        id: consultationId,
+        appointment_id: appointmentId,
+        completed_at: { not: null },
+      },
       data: {
         chief_complaint: notes.chiefComplaint,
         examination: notes.examination,
@@ -369,20 +333,19 @@ export async function saveCompletedNotes(consultationId: number, doctorId: strin
       },
     });
 
+    if (updated.count !== 1) {
+      return makeError(ClinicalErrorCode.SESSION_NOT_FOUND, 'Consultation not found', ClinicalErrorCategory.CONSULTATION, false, false);
+    }
+
     return {
       success: true,
       data: {
-        version: updated.updated_at.toISOString(),
-        updatedAt: updated.updated_at,
-        consultationId: updated.id,
+        version: now.toISOString(),
+        updatedAt: now,
+        consultationId,
       },
     };
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return makeError(ClinicalErrorCode.SESSION_NOT_FOUND, 'Consultation not found', ClinicalErrorCategory.CONSULTATION, false, false);
-      }
-    }
     return makeError(ClinicalErrorCode.UNKNOWN, 'Failed to save completed notes', ClinicalErrorCategory.SYSTEM, true, true, error);
   }
 }

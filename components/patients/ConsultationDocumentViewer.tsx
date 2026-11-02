@@ -29,10 +29,10 @@ import type { VisitConsultation } from '@/application/dtos/VisitResponseDto';
 // ─── helpers ──────────────────────────────────────────────────────
 
 const SECTION_COPY: Record<string, { label: string; icon: typeof Stethoscope }> = {
-  chiefComplaint:   { label: 'Chief Complaint',   icon: Phone },
-  examination:      { label: 'Examination',        icon: Stethoscope },
-  assessment:       { label: 'Assessment',         icon: ClipboardList },
-  plan:             { label: 'Treatment Plan',     icon: Lightbulb },
+  chiefComplaint:   { label: 'Medical History',        icon: Phone },
+  examination:      { label: 'Physical Examination',   icon: Stethoscope },
+  assessment:       { label: 'Diagnosis',              icon: ClipboardList },
+  plan:             { label: 'Plan',                   icon: Lightbulb },
   doctorNotes:      { label: 'Doctor Notes',       icon: PenLine },
 };
 

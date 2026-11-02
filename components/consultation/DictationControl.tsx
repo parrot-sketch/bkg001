@@ -8,6 +8,8 @@ import { toast } from 'sonner';
 
 interface DictationControlProps {
     onTranscription: (text: string) => void;
+    contextType: 'appointment' | 'consultation' | 'case' | 'patient';
+    contextId: string | number;
     context?: string;
     disabled?: boolean;
 }
@@ -20,6 +22,8 @@ interface DictationControlProps {
  */
 export function DictationControl({
     onTranscription,
+    contextType,
+    contextId,
     context = 'default',
     disabled = false
 }: DictationControlProps) {
@@ -39,7 +43,7 @@ export function DictationControl({
             try {
                 const response = await fetch('/api/clinical/dictation');
                 const data = await response.json();
-                if (!data.available) {
+                if (!response.ok || !data.available) {
                     setIsUnavailable(true);
                     setUnavailableReason(data.message || 'AI Service Not Configured');
                 }
@@ -53,7 +57,7 @@ export function DictationControl({
         return () => {
             if (timerRef.current) clearInterval(timerRef.current);
         };
-    }, []);
+    }, [contextType, contextId]);
 
     const startRecording = async () => {
         try {
@@ -111,6 +115,10 @@ export function DictationControl({
 
             const response = await fetch('/api/clinical/dictation', {
                 method: 'POST',
+                headers: {
+                    'x-clinical-context-type': contextType,
+                    'x-clinical-context-id': String(contextId),
+                },
                 body: formData,
             });
 

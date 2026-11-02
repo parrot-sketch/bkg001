@@ -65,6 +65,7 @@ export class PrismaPaymentRepository implements IPaymentRepository {
         lastName: data.patient.last_name,
         email: data.patient.email,
         phone: data.patient.phone,
+        fileNumber: data.patient.file_number ?? undefined,
       } : undefined,
       appointment: data.appointment ? {
         id: data.appointment.id,
@@ -176,6 +177,57 @@ export class PrismaPaymentRepository implements IPaymentRepository {
     return results.map(this.mapToPaymentWithRelations.bind(this));
   }
 
+  /**
+   * Checkout desk: a saved charge sheet can be billed. A bill created at
+   * consultation completion stays a draft until that sheet is saved.
+   * Recorded today keeps the receipt number visible.
+   */
+  async findCheckoutDesk(limit = 200): Promise<{
+    ready: PaymentWithRelations[];
+    drafts: PaymentWithRelations[];
+    recorded: PaymentWithRelations[];
+  }> {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const [ready, drafts, recorded] = await Promise.all([
+      this.prisma.payment.findMany({
+        where: {
+          status: { in: ['UNPAID', 'PART'] },
+          OR: [
+            { charge_sheet_no: { not: null } },
+            { finalized_at: { not: null } },
+          ],
+        },
+        include: this.fullInclude,
+        orderBy: { bill_date: 'asc' },
+        take: limit,
+      }),
+      this.prisma.payment.findMany({
+        where: {
+          status: { in: ['UNPAID', 'PART'] },
+          charge_sheet_no: null,
+          finalized_at: null,
+        },
+        include: this.fullInclude,
+        orderBy: { bill_date: 'desc' },
+        take: limit,
+      }),
+      this.prisma.payment.findMany({
+        where: { status: 'PAID', payment_date: { gte: todayStart } },
+        include: this.fullInclude,
+        orderBy: { payment_date: 'desc' },
+        take: limit,
+      }),
+    ]);
+
+    return {
+      ready: ready.map(this.mapToPaymentWithRelations.bind(this)),
+      drafts: drafts.map(this.mapToPaymentWithRelations.bind(this)),
+      recorded: recorded.map(this.mapToPaymentWithRelations.bind(this)),
+    };
+  }
+
   async create(dto: CreatePaymentDto): Promise<Payment> {
     const computedTotal = dto.billItems
       ? dto.billItems.reduce((sum, item) => sum + item.quantity * item.unitCost, 0)
@@ -223,6 +275,7 @@ export class PrismaPaymentRepository implements IPaymentRepository {
         status: true,
         payment_date: true,
         finalized_at: true,
+        charge_sheet_no: true,
       },
     });
 
@@ -230,8 +283,8 @@ export class PrismaPaymentRepository implements IPaymentRepository {
       throw new Error(`Payment ${dto.paymentId} not found`);
     }
 
-    if (!current.finalized_at) {
-      throw new Error('Charge sheet is not finalized. Finalize before collecting payment.');
+    if (!current.charge_sheet_no && !current.finalized_at) {
+      throw new Error('Save the charge sheet before recording a payment.');
     }
 
     // Calculate new total paid

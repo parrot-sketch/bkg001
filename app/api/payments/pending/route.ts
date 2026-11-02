@@ -77,6 +77,29 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const limit = parseInt(searchParams.get('limit') || '50', 10);
+    const view = searchParams.get('view');
+
+    if (view === 'checkout') {
+      const desk = await paymentRepository.findCheckoutDesk(Number.isFinite(limit) ? Math.max(limit, 1) : 200);
+      const balanceDue = desk.ready.reduce(
+        (sum, payment) => sum + Math.max(0, payment.totalAmount - payment.discount - payment.amountPaid),
+        0,
+      );
+      return NextResponse.json({
+        success: true,
+        data: {
+          ready: desk.ready.map(mapPaymentToResponse),
+          drafts: desk.drafts.map(mapPaymentToResponse),
+          recorded: desk.recorded.map(mapPaymentToResponse),
+          summary: {
+            balanceDue,
+            readyCount: desk.ready.length,
+            draftCount: desk.drafts.length,
+            recordedCount: desk.recorded.length,
+          },
+        },
+      });
+    }
 
     // 4. Fetch payments based on status filter
     let payments: PaymentWithRelations[];

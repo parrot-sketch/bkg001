@@ -11,6 +11,7 @@ import { revalidateFrontdeskDashboard } from '@/actions/frontdesk/get-dashboard-
 import { revalidateNurseDashboard } from '@/actions/nurse/get-dashboard-data';
 import { revalidatePath } from 'next/cache';
 import { AppointmentStatus, Prisma } from "@prisma/client";
+import { Role } from "@/domain/enums/Role";
 import { getScheduleAppointmentUseCase } from "@/lib/use-cases";
 import { DomainException } from "@/domain/exceptions/DomainException";
 import { normalizeAppointmentRequest, isAppointmentRequestLike } from "@/lib/normalize-api-requests";
@@ -198,6 +199,9 @@ export async function markNoShow(appointmentId: number, reason?: string) {
     if (!user) {
       return { success: false, msg: "Unauthorized" };
     }
+    if (user.role !== Role.FRONTDESK && user.role !== Role.ADMIN) {
+      return { success: false, msg: "Access denied" };
+    }
 
     const appointment = await db.appointment.findUnique({
       where: { id: appointmentId },
@@ -275,6 +279,9 @@ export async function reinstateAppointment(appointmentId: number) {
     const user = await getCurrentUser();
     if (!user) {
       return { success: false, msg: "Unauthorized" };
+    }
+    if (user.role !== Role.FRONTDESK && user.role !== Role.ADMIN) {
+      return { success: false, msg: "Access denied" };
     }
 
     const appointment = await db.appointment.findUnique({

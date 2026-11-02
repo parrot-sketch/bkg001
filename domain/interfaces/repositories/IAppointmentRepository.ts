@@ -123,7 +123,8 @@ export interface IAppointmentRepository {
    */
   update(
     appointment: Appointment,
-    consultationRequestFields?: unknown
+    consultationRequestFields?: unknown,
+    txClient?: unknown
   ): Promise<void>;
 
   /**

@@ -3,12 +3,14 @@
 import { ClinicalRichTextEditor } from '@/components/consultation/ClinicalRichTextEditor';
 
 interface AssessmentTabProps {
+  appointmentId?: number | null;
   initialValue?: string;
   onChange: (value: string) => void;
   isReadOnly?: boolean;
 }
 
 export function AssessmentTab({
+  appointmentId,
   initialValue = '',
   onChange,
   isReadOnly = false,
@@ -28,6 +30,8 @@ export function AssessmentTab({
       <ClinicalRichTextEditor
         content={initialValue}
         onChange={onChange}
+        dictationContextType="appointment"
+        dictationContextId={appointmentId}
         placeholder="Document clinical impression, working diagnosis, differential diagnoses..."
         readOnly={isReadOnly}
         minHeight="400px"

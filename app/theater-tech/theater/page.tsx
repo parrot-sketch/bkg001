@@ -12,7 +12,7 @@
  * Old URLs are kept as redirect pages so existing bookmarks still work.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { format } from 'date-fns';
@@ -322,7 +322,7 @@ function SuitesTab() {
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-export default function TheaterHubPage() {
+function TheaterHubPage() {
   const searchParams = useSearchParams();
   const paramTab = (searchParams.get('tab') || '').toLowerCase();
   const caseId = searchParams.get('caseId') || undefined;
@@ -373,5 +373,13 @@ export default function TheaterHubPage() {
       {tab === 'queue'    && <BookingQueueTab initialCaseId={caseId} />}
       {tab === 'suites'   && <SuitesTab />}
     </div>
+  );
+}
+
+export default function TheaterHubRoute() {
+  return (
+    <Suspense fallback={null}>
+      <TheaterHubPage />
+    </Suspense>
   );
 }

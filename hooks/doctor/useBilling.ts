@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 export interface BillItem {
   id?: number;
   serviceId: number;
+  inventoryItemId?: number | null;
   serviceName: string;
   serviceCategory?: string | null;
   quantity: number;
@@ -68,7 +69,8 @@ export interface AppointmentBilling {
 export interface SaveBillingDto {
   appointmentId: number;
   billingItems: Array<{
-    serviceId: number;
+    serviceId?: number;
+    inventoryItemId?: number;
     quantity: number;
     unitCost: number;
   }>;

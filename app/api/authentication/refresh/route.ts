@@ -14,7 +14,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
-import { RefreshTokenDto, refreshTokenDtoSchema, RefreshTokenResponseDto } from '@/application/dtos/RefreshTokenDto';
 import { DomainException } from '@/domain/exceptions/DomainException';
 import { AuthFactory } from '@/infrastructure/auth/AuthFactory';
 
@@ -26,6 +25,7 @@ import type { ApiResponse } from '@/lib/api/client';
  * Standardized API error response
  */
 type ApiErrorResponse = ApiResponse<never>;
+type RefreshSessionResponse = { expiresIn: number };
 
 /**
  * POST /api/auth/refresh
@@ -37,37 +37,17 @@ type ApiErrorResponse = ApiResponse<never>;
  * - 401: Invalid or expired refresh token
  * - 500: Internal server error
  */
-export async function POST(request: NextRequest): Promise<NextResponse<ApiErrorResponse | ApiResponse<RefreshTokenResponseDto>>> {
+export async function POST(request: NextRequest): Promise<NextResponse<ApiErrorResponse | ApiResponse<RefreshSessionResponse>>> {
 
   try {
-    // Parse request body
-    let rawBody: unknown;
-    try {
-      rawBody = await request.json();
-    } catch (error) {
-      const errorResponse: ApiErrorResponse = {
-        success: false,
-        error: 'Invalid JSON in request body',
-      };
-      return NextResponse.json(errorResponse, { status: 400 });
+    const refreshToken = request.cookies.get('refreshToken')?.value;
+    if (!refreshToken) {
+      return NextResponse.json({ success: false, error: 'Refresh session required' }, { status: 401 });
     }
-
-    // Validate with Zod schema
-    const validationResult = refreshTokenDtoSchema.safeParse(rawBody);
-    if (!validationResult.success) {
-      const firstError = validationResult.error.errors[0];
-      const errorResponse: ApiErrorResponse = {
-        success: false,
-        error: firstError?.message || 'Invalid request data',
-      };
-      return NextResponse.json(errorResponse, { status: 400 });
-    }
-
-    const body: RefreshTokenDto = validationResult.data;
 
     // Execute refresh token use case
     const response = await refreshTokenUseCase.execute({
-      refreshToken: body.refreshToken,
+      refreshToken,
     });
 
     // Validate response structure
@@ -80,9 +60,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiErrorR
     }
 
     // Create success response with standardized ApiResponse format
-    const successResponse: ApiResponse<RefreshTokenResponseDto> = {
+    const successResponse: ApiResponse<RefreshSessionResponse> = {
       success: true,
-      data: response,
+      data: { expiresIn: response.expiresIn },
     };
 
     const nextResponse = NextResponse.json(successResponse, { status: 200 });

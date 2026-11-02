@@ -64,6 +64,7 @@ interface QueueContextValue {
   waitingQueue: QueuePatient[];
   refetchQueue: () => Promise<unknown>;
   isQueueRefetching: boolean;
+  queueReady: boolean;
   loadWaitingQueue: () => void;
 }
 
@@ -90,12 +91,15 @@ export function QueueContextProvider({
     data: queue = [],
     refetch: refetchQueue,
     isRefetching: isQueueRefetching,
+    isFetched,
+    isError,
   } = useDoctorQueue(doctorId ?? undefined, { enabled: state.queueLoaded });
 
   const waitingQueue = useMemo(() => {
+    const visible = new Set(['WAITING', 'CHECKED_IN', 'READY_FOR_CONSULTATION', 'IN_CONSULTATION']);
     return queue.filter((item) =>
       item.appointmentId !== currentAppointmentId &&
-      item.status === 'WAITING'
+      visible.has(item.status)
     );
   }, [queue, currentAppointmentId]);
 
@@ -111,14 +115,17 @@ export function QueueContextProvider({
     }
   }, [state.queueLoaded]);
 
+  const queueReady = state.queueLoaded && (isFetched || isError);
+
   const value = useMemo(
     () => ({
       waitingQueue,
       refetchQueue,
       isQueueRefetching,
+      queueReady,
       loadWaitingQueue,
     }),
-    [waitingQueue, refetchQueue, isQueueRefetching, loadWaitingQueue]
+    [waitingQueue, refetchQueue, isQueueRefetching, queueReady, loadWaitingQueue]
   );
 
   return (

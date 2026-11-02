@@ -380,14 +380,26 @@ export class SessionService {
 
     const command: WorkflowCommand = { type: 'START_CONSULTATION' };
     const coordinatorResult = await this.executeWorkflowCommand(command);
+    // The consultation is already IN_PROGRESS in the database. This command only
+    // moves a fresh in-memory workflow that starts at IDLE, so a rejected
+    // transition must not undo the start or block opening the room.
     if (!coordinatorResult.success) {
-      const error = this.mapCoordinatorError(coordinatorResult.error);
-      return { success: false, error };
+      console.warn('[TRACE] startSession workflow transition not applied:', coordinatorResult.error.message);
     }
 
     return {
       success: true,
-      data: this.buildSessionData(appointmentResult.data as SessionData['appointment'], patientResult.data as SessionData['patient'], consultationResult.data as any, doctorId, coordinatorResult.data.workflowState, false, notes, outcomeType, patientDecision),
+      data: this.buildSessionData(
+        appointmentResult.data as SessionData['appointment'],
+        patientResult.data as SessionData['patient'],
+        consultationResult.data as any,
+        doctorId,
+        coordinatorResult.success ? coordinatorResult.data.workflowState : ConsultationWorkflowState.ACTIVE,
+        false,
+        notes,
+        outcomeType,
+        patientDecision,
+      ),
     };
   }
 
@@ -613,7 +625,9 @@ export class SessionService {
         completedAppointmentId: consultation.appointmentId,
         clearedLocalStorage: true,
         invalidationInstructions,
-        redirectPath: '/doctor/consultations',
+        redirectPath: appointment.patientId
+          ? `/doctor/patients/${appointment.patientId}?tab=charges`
+          : '/doctor/dashboard',
       },
     };
   }

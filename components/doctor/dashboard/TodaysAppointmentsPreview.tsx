@@ -69,7 +69,7 @@ export function TodaysAppointmentsPreview({ appointments, isLoading }: { appoint
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-semibold text-[#2c2e4b]">Today's Schedule</CardTitle>
           <button
-            onClick={() => router.push('/doctor/consultations')}
+            onClick={() => router.push('/doctor/appointments')}
             className="text-xs text-[#caa26a] hover:text-[#2c2e4b] transition-colors flex items-center gap-1"
           >
             View all <ChevronRight className="h-3 w-3" />

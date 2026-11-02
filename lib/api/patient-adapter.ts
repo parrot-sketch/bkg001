@@ -23,7 +23,6 @@ import { mapApiError, mapNetworkError } from '@/lib/api/adapter-utils';
 import type { ClinicalError } from '@/shared-kernel/errors/types';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
-import type { CreatePatientDto } from '@/application/dtos/CreatePatientDto';
 import type { ScheduleAppointmentDto } from '@/application/dtos/ScheduleAppointmentDto';
 import type { CheckInPatientDto } from '@/application/dtos/CheckInPatientDto';
 import type { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';

@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, RefreshCw, Users } from 'lucide-react';
-import { AppointmentStatus, canStartConsultation } from '@/domain/enums/AppointmentStatus';
+import { AppointmentStatus, canStartConsultation, isAppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { cn } from '@/lib/utils';
 import type { QueuePatient } from '@/hooks/doctor/useDoctorQueue';
 
@@ -20,15 +20,17 @@ interface QueuePanelProps {
   onRefresh: () => void;
   onLoadPatient: (appointmentId: number) => void;
   isRefetching: boolean;
+  actionLabel?: string;
 }
 
 const STATUS_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
+  WAITING: { bg: 'bg-[#caa26a]/20', text: 'text-[#2c2e4b]', label: 'Waiting' },
   [AppointmentStatus.CHECKED_IN]: { bg: 'bg-[#caa26a]/20', text: 'text-[#2c2e4b]', label: 'Checked In' },
   [AppointmentStatus.READY_FOR_CONSULTATION]: { bg: 'bg-[#caa26a]/20', text: 'text-[#2c2e4b]', label: 'Ready' },
   [AppointmentStatus.IN_CONSULTATION]: { bg: 'bg-[#caa26a]/30', text: 'text-[#2c2e4b]', label: 'In Consultation' },
 };
 
-export function QueuePanel({ queue, onRefresh, onLoadPatient, isRefetching }: QueuePanelProps) {
+export function QueuePanel({ queue, onRefresh, onLoadPatient, isRefetching, actionLabel = 'Load' }: QueuePanelProps) {
   const sortedQueue = useMemo(() => {
     return [...queue].sort((a, b) => {
       const timeCompare = (a.time || '').localeCompare(b.time || '');
@@ -75,7 +77,9 @@ export function QueuePanel({ queue, onRefresh, onLoadPatient, isRefetching }: Qu
               const patientName = queueItem.patient
                 ? `${queueItem.patient.firstName} ${queueItem.patient.lastName}`
                 : 'Unknown Patient';
-              const canLoad = queueItem.status === AppointmentStatus.IN_CONSULTATION || queueItem.status === 'WAITING';
+              const canLoad = queueItem.status === AppointmentStatus.IN_CONSULTATION
+                || queueItem.status === 'WAITING'
+                || (isAppointmentStatus(queueItem.status) && canStartConsultation(queueItem.status));
               const reason = extractReasonForVisit(queueItem.notes);
 
               return (
@@ -117,9 +121,9 @@ export function QueuePanel({ queue, onRefresh, onLoadPatient, isRefetching }: Qu
                       <Button
                         size="sm"
                         onClick={() => onLoadPatient(queueItem.appointmentId as number)}
-                        className="h-7 px-3 text-[10px] rounded-md bg-[#2c2e4b] hover:bg-[#1a1c2f] text-white shadow-sm transition-colors"
+                        className="h-9 px-3 text-xs rounded-none bg-[#2c2e4b] hover:bg-[#1a1c2f] text-white shadow-sm transition-colors"
                       >
-                        Load
+                        {actionLabel}
                       </Button>
                     )}
                   </div>

@@ -12,6 +12,7 @@ interface DocumentHeaderProps {
   time?: string;
   durationMinutes?: number;
   onPrint: () => void;
+  backHref?: string;
 }
 
 export function DocumentHeader({
@@ -20,6 +21,7 @@ export function DocumentHeader({
   time,
   durationMinutes,
   onPrint,
+  backHref = '/doctor/dashboard',
 }: DocumentHeaderProps) {
   return (
     <>
@@ -28,9 +30,9 @@ export function DocumentHeader({
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button asChild variant="ghost" size="sm" className="h-9 px-2 text-[#2c2e4b]/70 hover:text-[#2c2e4b]">
-              <Link href="/doctor/consultations">
+              <Link href={backHref}>
                 <ChevronLeft className="h-5 w-5 mr-1" />
-                <span className="hidden sm:inline">Back to Hub</span>
+                <span className="hidden sm:inline">{backHref.includes('/doctor/patients/') ? 'Patient record' : 'Dashboard'}</span>
               </Link>
             </Button>
             <div className="h-6 w-px bg-[#e7d6bf]" />

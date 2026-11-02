@@ -180,13 +180,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    if (!primarySurgeonDoctorId && !primarySurgeonName?.trim()) {
-      return NextResponse.json(
-        { success: false, error: 'Missing required field: primarySurgeonDoctorId or primarySurgeonName' },
-        { status: 400 }
-      );
-    }
-
     const patient = await db.patient.findUnique({
       where: { id: patientId },
       select: { id: true, first_name: true, last_name: true },

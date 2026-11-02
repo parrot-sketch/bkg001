@@ -106,6 +106,10 @@ function toWorkflowState(state: string): ConsultationWorkflowState {
   }
 }
 
+function isAlreadyCompletedMessage(message: string): boolean {
+  return /G-044|G-045|already been completed|not IN_PROGRESS|Appointment is COMPLETED/i.test(message);
+}
+
 function toErrorMessage(error: unknown): string {
   if (!error || typeof error !== 'object') {
     return 'An unexpected error occurred';
@@ -125,6 +129,10 @@ function toErrorMessage(error: unknown): string {
     // ignore serialization failures
   }
   return 'An unexpected error occurred';
+}
+
+function appointmentCanStart(status?: string | null): boolean {
+  return status !== AppointmentStatus.COMPLETED && status !== AppointmentStatus.CANCELLED;
 }
 
 // ============================================================================
@@ -161,9 +169,9 @@ export function SessionProvider({ children, initialSession, user, restoredDraft 
   }, [appointment, consultation]);
 
   const isReadOnly = useMemo(() => {
-    if (!appointment || !consultation) return false;
+    if (!appointment) return false;
     const completed = appointment.status === AppointmentStatus.COMPLETED || appointment.status === AppointmentStatus.CANCELLED;
-    return completed || consultation.state === ConsultationState.COMPLETED;
+    return completed || consultation?.state === ConsultationState.COMPLETED;
   }, [appointment, consultation]);
 
   useEffect(() => {
@@ -230,7 +238,12 @@ export function SessionProvider({ children, initialSession, user, restoredDraft 
     }
     console.log('[DEBUG completeSession] GUARD PASSED - calling API for appointment', appointment.id);
     if (isCompletingRef.current) return;
+    if (appointment.status === 'COMPLETED') return;
     isCompletingRef.current = true;
+    const markCompleted = () => {
+      setAppointment((prev) => prev ? { ...prev, status: 'COMPLETED' as any, consultationEndedAt: new Date() } : prev);
+      setConsultation((prev) => prev ? { ...prev, state: 'COMPLETED' as ConsultationState, completedAt: new Date() } : prev);
+    };
     try {
       console.log('[DEBUG completeSession] BEFORE API CALL');
       const result = await completeSessionAction(appointment.id);
@@ -241,19 +254,42 @@ export function SessionProvider({ children, initialSession, user, restoredDraft 
             queryClient.invalidateQueries({ queryKey: instruction.queryKey as any });
           }
         }
-        setAppointment((prev) => prev ? { ...prev, status: 'COMPLETED' as any, consultationEndedAt: new Date() } : prev);
-        setConsultation((prev) => prev ? { ...prev, state: 'COMPLETED' as ConsultationState, completedAt: new Date() } : prev);
-        toast.success('Consultation completed successfully');
-        isCompletingRef.current = false;
+        markCompleted();
+        toast.success('Consultation completed');
       } else {
-        isCompletingRef.current = false;
-        toast.error(toErrorMessage(result.error) || 'Failed to complete consultation');
+        const message = toErrorMessage(result.error) || 'Failed to complete consultation';
+        if (isAlreadyCompletedMessage(message)) {
+          markCompleted();
+        } else {
+          throw new Error(message);
+        }
       }
     } catch (error) {
+      const message = toErrorMessage(error) || 'Failed to complete consultation';
+      if (isAlreadyCompletedMessage(message)) {
+        markCompleted();
+      } else {
+        throw error instanceof Error ? error : new Error(message);
+      }
+    } finally {
       isCompletingRef.current = false;
-      toast.error(toErrorMessage(error) || 'Failed to complete consultation');
     }
   }, [consultation, appointment, queryClient]);
+
+  const openConsultation = useCallback(async (
+    appointmentId: number,
+    starterDoctorId: string | null | undefined,
+  ): Promise<SerializedSessionData | null> => {
+    if (!starterDoctorId) return null;
+    const started = await startSessionAction(appointmentId, starterDoctorId);
+    if (!started.success || !started.data.session?.consultation?.id) {
+      if (!started.success) {
+        toast.error(toErrorMessage(started.error) || 'Failed to start consultation');
+      }
+      return null;
+    }
+    return started.data.session;
+  }, []);
 
   const switchToPatient = useCallback(async (appointmentId: number) => {
     if (!appointment || !user) return;
@@ -262,9 +298,13 @@ export function SessionProvider({ children, initialSession, user, restoredDraft 
       if (result.success) {
         const next = result.data.nextSession;
         if (next) {
-          const session = next.session;
-          setAppointment(session.appointment);
-          setPatient(session.patient);
+          let session = next.session as SerializedSessionData;
+          if (session?.appointment?.id && !session.consultation?.id && appointmentCanStart(session.appointment.status)) {
+            const opened = await openConsultation(session.appointment.id, session.doctorId || doctorId || user.id);
+            if (opened) session = opened;
+          }
+          setAppointment(session.appointment as any);
+          setPatient(session.patient as any);
           setVitals(session.vitals as any);
           setConsultation(session.consultation as any);
           setDoctorId(session.doctorId);
@@ -286,7 +326,7 @@ export function SessionProvider({ children, initialSession, user, restoredDraft 
     } catch (error) {
       toast.error(toErrorMessage(error) || 'Failed to switch patient');
     }
-  }, [user, appointment, queryClient]);
+  }, [user, appointment, doctorId, openConsultation, queryClient]);
 
   const resumeSession = useCallback(async () => {
     if (!consultation || !appointment) return;
@@ -380,39 +420,58 @@ export function SessionProvider({ children, initialSession, user, restoredDraft 
   }, [appointment, router]);
 
   const docsProps = useMemo(() => ({
+    appointmentId: appointment?.id ?? null,
     consultationId: consultation?.id ?? null,
     doctorId,
     isCompleted: isReadOnly,
     notes,
     outcomeType,
     patientDecision,
-    onSaveDraft: async (notes: StructuredNotes, outcomeType: ConsultationOutcomeType | null, patientDecision: PatientDecision | null): Promise<{ success: true; version: string }> => {
-      const targetId = consultation?.id || appointment?.id || 0;
-      const result = await saveDraftAction(targetId, doctorId || consultation?.doctorId || '', {
-        chiefComplaint: notes.chiefComplaint,
-        examination: notes.examination,
-        assessment: notes.assessment,
-        plan: notes.plan,
-      }, outcomeType as any, patientDecision as any);
+    onSaveDraft: async (draftNotes: StructuredNotes, draftOutcome: ConsultationOutcomeType | null, draftDecision: PatientDecision | null): Promise<{ success: true; version: string }> => {
+      const activeAppointmentId = appointment?.id;
+      let activeConsultationId = consultation?.id;
+      if (activeAppointmentId && !activeConsultationId && appointmentCanStart(appointment?.status)) {
+        const opened = await openConsultation(activeAppointmentId, doctorId || appointment?.doctorId);
+        if (opened?.consultation?.id) {
+          activeConsultationId = opened.consultation.id;
+          setConsultation(opened.consultation as any);
+          setAppointment(opened.appointment as any);
+          setWorkflowState(toWorkflowState(opened.workflowState));
+          if (opened.doctorId) setDoctorId(opened.doctorId);
+        }
+      }
+      if (!activeAppointmentId || !activeConsultationId) {
+        throw new Error('Start the consultation before saving notes');
+      }
+      const result = await saveDraftAction(activeAppointmentId, activeConsultationId, {
+        chiefComplaint: draftNotes.chiefComplaint,
+        examination: draftNotes.examination,
+        assessment: draftNotes.assessment,
+        plan: draftNotes.plan,
+      }, draftOutcome as any, draftDecision as any);
       if (result.success) {
         return { success: true, version: result.data.version || '' };
       }
       throw new Error(result.error?.message || 'Failed to save draft');
     },
-    onSaveNotes: async (notes: StructuredNotes) => {
-      const targetId = consultation?.id || appointment?.id || 0;
-      const result = await saveCompletedNotesAction(targetId, doctorId || consultation?.doctorId || '', {
-        chiefComplaint: notes.chiefComplaint,
-        examination: notes.examination,
-        assessment: notes.assessment,
-        plan: notes.plan,
+    onSaveNotes: async (completedNotes: StructuredNotes) => {
+      const activeAppointmentId = appointment?.id;
+      const activeConsultationId = consultation?.id;
+      if (!activeAppointmentId || !activeConsultationId) {
+        throw new Error('Consultation not found');
+      }
+      const result = await saveCompletedNotesAction(activeAppointmentId, activeConsultationId, {
+        chiefComplaint: completedNotes.chiefComplaint,
+        examination: completedNotes.examination,
+        assessment: completedNotes.assessment,
+        plan: completedNotes.plan,
       });
       if (result.success) {
-        return { success: true, version: new Date().toISOString() } as any;
+        return { success: true as const };
       }
       throw new Error(result.error?.message || 'Failed to save notes');
     },
-  }), [consultation?.id, doctorId, isReadOnly, notes, outcomeType, patientDecision]);
+  }), [appointment, consultation?.id, doctorId, isReadOnly, notes, outcomeType, patientDecision, openConsultation]);
 
   const patientProps = useMemo(() => ({
     patient,

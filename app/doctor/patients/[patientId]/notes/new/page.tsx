@@ -210,6 +210,8 @@ export default function NewClinicalNotePage() {
         <RichTextEditor
           content={content}
           onChange={handleContentChange}
+          dictationContextType="patient"
+          dictationContextId={patientId}
           placeholder="Write your clinical notes, findings, observations..."
           minHeight="500px"
           autoFocus

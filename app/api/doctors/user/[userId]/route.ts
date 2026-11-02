@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
 import type { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';
+import { JwtMiddleware } from '@/lib/auth/middleware';
+import { Role } from '@/domain/enums/Role';
 
 /**
  * GET /api/doctors/user/[userId]
@@ -15,8 +17,20 @@ export async function GET(
   let userId: string | undefined;
 
   try {
+    const auth = await JwtMiddleware.authenticate(request);
+    if (!auth.success || !auth.user) {
+      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+    }
+    if (auth.user.role !== Role.DOCTOR && auth.user.role !== Role.ADMIN) {
+      return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
+    }
+
     const paramsResult = await params;
     userId = paramsResult.userId;
+
+    if (auth.user.role === Role.DOCTOR && userId !== auth.user.userId) {
+      return NextResponse.json({ success: false, error: 'Doctor profile not found' }, { status: 404 });
+    }
 
     console.log('[API] GET /api/doctors/user/[userId] - Request:', {
       userId: userId,

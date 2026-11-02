@@ -25,13 +25,6 @@ export const patientApi = {
   },
 
   /**
-   * Create a new patient
-   */
-  async createPatient(dto: CreatePatientDto): Promise<ApiResponse<PatientResponseDto>> {
-    return apiClient.post<PatientResponseDto>('/patients', dto);
-  },
-
-  /**
    * Update patient information
    */
   async updatePatient(

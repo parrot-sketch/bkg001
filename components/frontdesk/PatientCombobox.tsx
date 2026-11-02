@@ -8,7 +8,7 @@
  */
 
 import * as React from 'react';
-import { Check, ChevronsUpDown, Search, User, Loader2, Phone, Mail } from 'lucide-react';
+import { Check, ChevronsUpDown, Search, User, Loader2, Phone, Mail, UserPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,9 +33,11 @@ interface PatientComboboxProps {
   onSelect: (patientId: string, patient?: PatientResponseDto) => void;
   disabled?: boolean;
   initialValue?: PatientResponseDto | null;
+  /** When set, an empty search can register a patient without leaving the current flow. */
+  onRegisterNew?: (searchQuery: string) => void;
 }
 
-export function PatientCombobox({ value, onSelect, disabled, initialValue }: PatientComboboxProps) {
+export function PatientCombobox({ value, onSelect, disabled, initialValue, onRegisterNew }: PatientComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [patients, setPatients] = React.useState<PatientResponseDto[]>([]);
@@ -104,34 +106,34 @@ export function PatientCombobox({ value, onSelect, disabled, initialValue }: Pat
           role="combobox"
           aria-expanded={open}
           className={cn(
-            'w-full justify-between h-11 rounded-lg border-[#e7d6bf] hover:border-[#caa26a]/50 transition-all',
+            'w-full justify-between h-11 rounded-lg border-border hover:border-primary/40 transition-all',
             'text-left font-normal',
-            selectedPatient && 'border-[#caa26a] bg-[#e7d6bf]/15',
+            selectedPatient && 'border-primary bg-secondary/10',
             disabled && 'opacity-50 cursor-not-allowed'
           )}
           disabled={disabled}
         >
           {selectedPatient ? (
             <div className="flex items-center gap-2.5 text-left overflow-hidden">
-              <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-[#e7d6bf]/30 flex items-center justify-center">
-                <User className="h-3.5 w-3.5 text-[#caa26a]" />
+              <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-secondary/15 flex items-center justify-center">
+                <User className="h-3.5 w-3.5 text-primary" />
               </div>
               <div className="flex flex-col truncate">
-                <span className="truncate text-sm font-semibold text-[#2c2e4b]">
+                <span className="truncate text-sm font-semibold text-foreground">
                   {selectedPatient.firstName} {selectedPatient.lastName}
                 </span>
-                <span className="text-[10px] text-[#2c2e4b]/60 truncate">
+                <span className="text-[10px] text-muted-foreground truncate">
                   {selectedPatient.fileNumber || selectedPatient.email}
                 </span>
               </div>
             </div>
           ) : (
-            <span className="text-sm text-[#2c2e4b]/40">Search patient by name, email, or phone...</span>
+            <span className="text-sm text-muted-foreground">Search by name, email, or phone</span>
           )}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-[#2c2e4b]/30" />
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 text-muted-foreground" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[440px] p-0 rounded-xl shadow-xl border border-[#e7d6bf]" align="start">
+      <PopoverContent className="w-[440px] p-0 rounded-xl shadow-xl border border-border" align="start">
         <Command shouldFilter={false}>
           <div className="relative">
             <CommandInput
@@ -141,7 +143,7 @@ export function PatientCombobox({ value, onSelect, disabled, initialValue }: Pat
               className="h-11"
             />
             {loading && (
-              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-[#caa26a]" />
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-primary" />
             )}
           </div>
           <CommandList className="max-h-[280px]">
@@ -155,25 +157,27 @@ export function PatientCombobox({ value, onSelect, disabled, initialValue }: Pat
             {!authError && !loading && patients.length === 0 && searchQuery.length >= 2 && (
               <CommandEmpty>
                 <div className="py-6 text-center">
-                  <User className="h-8 w-8 text-[#e7d6bf] mx-auto mb-2" />
-                  <p className="text-sm text-[#2c2e4b]">No patients found</p>
-                  <p className="text-xs text-[#2c2e4b]/50 mt-0.5">Try a different search term</p>
+                  <User className="h-8 w-8 text-secondary/40 mx-auto mb-2" />
+                  <p className="text-sm text-foreground">No patients found</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {onRegisterNew ? 'Register them and continue scheduling.' : 'Try a different search term'}
+                  </p>
                 </div>
               </CommandEmpty>
             )}
 
             {!authError && !loading && searchQuery.length < 2 && (
-              <div className="py-8 text-center">
-                <Search className="h-8 w-8 text-[#e7d6bf] mx-auto mb-2" />
-                <p className="text-sm text-[#2c2e4b] font-medium">Search Patients</p>
-                <p className="text-xs text-[#2c2e4b]/50 mt-0.5">Type at least 2 characters to begin</p>
+              <div className="py-6 text-center">
+                <Search className="h-8 w-8 text-secondary/40 mx-auto mb-2" />
+                <p className="text-sm text-foreground font-medium">Search patients</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Type at least 2 characters, or register someone new</p>
               </div>
             )}
 
             {!authError && loading && patients.length === 0 && (
               <div className="py-8 text-center">
-                <Loader2 className="h-6 w-6 animate-spin text-[#caa26a] mx-auto mb-2" />
-                <p className="text-xs text-[#2c2e4b]/50">Searching...</p>
+                <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto mb-2" />
+                <p className="text-xs text-muted-foreground">Searching...</p>
               </div>
             )}
 
@@ -194,8 +198,8 @@ export function PatientCombobox({ value, onSelect, disabled, initialValue }: Pat
                     <div className={cn(
                       'flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold',
                       value === patient.id
-                        ? 'bg-[#e7d6bf]/40 text-[#2c2e4b]'
-                        : 'bg-[#e7d6bf]/20 text-[#2c2e4b]/70'
+                        ? 'bg-secondary/20 text-foreground'
+                        : 'bg-secondary/10 text-foreground/70'
                     )}>
                       {patient.firstName?.charAt(0)}{patient.lastName?.charAt(0)}
                     </div>
@@ -203,25 +207,25 @@ export function PatientCombobox({ value, onSelect, disabled, initialValue }: Pat
                     {/* Info */}
                     <div className="flex flex-col flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-semibold text-sm text-[#2c2e4b] truncate">
+                        <span className="font-semibold text-sm text-foreground truncate">
                           {patient.firstName} {patient.lastName}
                         </span>
                         {patient.fileNumber && (
-                          <span className="text-[10px] font-mono text-[#2c2e4b]/50 bg-[#e7d6bf]/20 px-1.5 py-0.5 rounded shrink-0">
+                          <span className="text-[10px] font-mono text-muted-foreground bg-secondary/10 px-1.5 py-0.5 rounded shrink-0">
                             {patient.fileNumber}
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-3 text-[11px] text-[#2c2e4b]/50 mt-0.5">
+                      <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-0.5">
                         {patient.email && (
                           <span className="flex items-center gap-1 truncate">
-                            <Mail className="h-3 w-3 text-[#caa26a]/60" />
+                            <Mail className="h-3 w-3 text-secondary" />
                             {patient.email}
                           </span>
                         )}
                         {patient.phone && (
                           <span className="flex items-center gap-1 shrink-0">
-                            <Phone className="h-3 w-3 text-[#caa26a]/60" />
+                            <Phone className="h-3 w-3 text-secondary" />
                             {patient.phone}
                           </span>
                         )}
@@ -232,7 +236,7 @@ export function PatientCombobox({ value, onSelect, disabled, initialValue }: Pat
                     <Check
                       className={cn(
                         'h-4 w-4 shrink-0 transition-opacity',
-                        value === patient.id ? 'opacity-100 text-[#caa26a]' : 'opacity-0'
+                        value === patient.id ? 'opacity-100 text-primary' : 'opacity-0'
                       )}
                     />
                   </CommandItem>
@@ -240,6 +244,27 @@ export function PatientCombobox({ value, onSelect, disabled, initialValue }: Pat
               </CommandGroup>
             )}
           </CommandList>
+          {onRegisterNew && !authError && (
+            <div className="border-t border-border p-2">
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-left text-sm font-medium text-primary hover:bg-primary/10"
+                onClick={() => {
+                  onRegisterNew(searchQuery.trim());
+                  setOpen(false);
+                }}
+              >
+                <UserPlus className="h-4 w-4" />
+                {searchQuery.trim().length >= 2 ? (
+                  <span>
+                    Register <span className="font-semibold">{searchQuery.trim()}</span>
+                  </span>
+                ) : (
+                  <span>Register new patient</span>
+                )}
+              </button>
+            </div>
+          )}
         </Command>
       </PopoverContent>
     </Popover>

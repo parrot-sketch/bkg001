@@ -21,6 +21,7 @@ import {
 import { format } from 'date-fns';
 import type { FrontdeskSurgicalCaseListItem } from '@/lib/api/frontdesk';
 import { EditSurgicalCaseDialog } from '@/components/frontdesk/EditSurgicalCaseDialog';
+import { SurgicalCaseSetupCard } from '@/components/frontdesk/SurgicalCaseSetupCard';
 import { getSurgicalCaseStatusDisplay } from '@/lib/surgical-case-status-display';
 
 interface CaseDetailsPageProps {
@@ -161,6 +162,17 @@ export default function NurseCaseDetailPage({ params }: CaseDetailsPageProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
+          <SurgicalCaseSetupCard
+            caseId={caseId}
+            diagnosis={data.diagnosis}
+            primaryOrRevision={data.primary_or_revision}
+            admissionType={data.admission_type}
+            primarySurgeonId={data.primary_surgeon?.id}
+            primarySurgeonName={data.primary_surgeon?.name || data.primary_surgeon_name}
+            teamMembers={(data as { team_members?: Array<{ id?: string; role?: string; name?: string; user_id?: string | null; is_external?: boolean }> }).team_members}
+            onSaved={() => { void refetch(); }}
+          />
+
           <Card className="bg-white/95">
             <CardHeader>
               <div className="flex items-center justify-between">

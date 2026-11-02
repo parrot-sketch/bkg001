@@ -12,6 +12,7 @@ import { ConsultationNotes } from '../../domain/value-objects/ConsultationNotes'
 import { DomainException } from '../../domain/exceptions/DomainException';
 import { AppointmentStateTransitionService } from '../../domain/services/AppointmentStateTransitionService';
 import db from '@/lib/db';
+import { notifyFrontdeskPatientCalled } from '@/lib/notifications/patientCalledNotification';
 
 /**
  * Use Case: StartConsultationUseCase
@@ -284,6 +285,32 @@ export class StartConsultationUseCase {
     } catch (assignmentError) {
       // Non-blocking but log for visibility
       console.error('[StartConsultation] Failed to ensure DoctorPatientAssignment:', assignmentError);
+    }
+
+    // Step 7.6: Let reception know the patient should be shown into the room.
+    try {
+      const [patientRow, doctorRow] = await Promise.all([
+        db.patient.findUnique({
+          where: { id: appointment.getPatientId() },
+          select: { id: true, first_name: true, last_name: true, file_number: true },
+        }),
+        db.doctor.findUnique({
+          where: { id: dto.doctorId },
+          select: { name: true },
+        }),
+      ]);
+      if (patientRow) {
+        const patientName = `${patientRow.first_name ?? ''} ${patientRow.last_name ?? ''}`.trim();
+        await notifyFrontdeskPatientCalled({
+          patientId: patientRow.id,
+          patientName,
+          fileNumber: patientRow.file_number,
+          doctorName: doctorRow?.name,
+          senderId: dto.userId,
+        });
+      }
+    } catch (notifyError) {
+      console.error('[StartConsultation] Failed to notify frontdesk:', notifyError);
     }
 
     // Step 8: Record audit event

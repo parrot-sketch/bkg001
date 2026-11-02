@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useEffect, useState, useRef } from 'react';
+import { use, useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -31,6 +31,8 @@ import {
 import type { FrontdeskSurgicalCaseListItem } from '@/lib/api/frontdesk';
 import { Card, CardContent } from '@/components/ui/card';
 import { getSurgicalCaseStatusDisplay } from '@/lib/surgical-case-status-display';
+import { SurgicalCaseSetupCard } from '@/components/frontdesk/SurgicalCaseSetupCard';
+import { suggestedServicesFromCase } from '@/components/theater-tech/suggestedCaseServices';
 
 interface CaseDetailsPageProps {
   params: Promise<{ caseId: string }>;
@@ -111,6 +113,11 @@ export default function TheaterTechCaseDetailPage({ params }: CaseDetailsPagePro
     toast.success('Theater booking updated');
   };
 
+  const suggestedServices = useMemo(
+    () => suggestedServicesFromCase(data?.case_procedures),
+    [data?.case_procedures],
+  );
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -181,6 +188,17 @@ export default function TheaterTechCaseDetailPage({ params }: CaseDetailsPagePro
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-4">
+          <SurgicalCaseSetupCard
+            caseId={caseId}
+            diagnosis={data.diagnosis}
+            primaryOrRevision={data.primary_or_revision}
+            admissionType={data.admission_type}
+            primarySurgeonId={data.primary_surgeon?.id}
+            primarySurgeonName={data.primary_surgeon?.name || data.primary_surgeon_name}
+            teamMembers={data.team_members}
+            onSaved={() => { void refetch(); }}
+          />
+
           <ProcedureDetailsCard data={data} />
 
           <AssociatedProceduresCard data={data} />
@@ -201,6 +219,7 @@ export default function TheaterTechCaseDetailPage({ params }: CaseDetailsPagePro
           {!billingSheetOpen && (
             <TheaterTechBillingSummary
               caseId={caseId}
+              suggestedServices={suggestedServices}
               onEdit={() => setBillingSheetOpen(true)}
             />
           )}
@@ -256,6 +275,7 @@ export default function TheaterTechCaseDetailPage({ params }: CaseDetailsPagePro
 
       <TheaterTechBillingSheet
         caseId={caseId}
+        suggestedServices={suggestedServices}
         open={billingSheetOpen}
         onOpenChange={setBillingSheetOpen}
       />

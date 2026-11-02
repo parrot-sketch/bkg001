@@ -23,6 +23,15 @@ export interface InventoryItem {
   category?: string;
 }
 
+export interface ChargeSheetCaseInfo {
+  patientName: string;
+  fileNumber: string | null;
+  procedureName: string | null;
+  procedureDate: string | null;
+  surgeonName: string | null;
+  chargeSheetNo: string | null;
+}
+
 export interface ChargeItem {
   id: string;
   description: string;
@@ -57,7 +66,8 @@ export interface ChargeSearchInputProps {
   onFocus: () => void;
   onAddService: (service: Service) => void;
   onAddInventory: (item: InventoryItem) => void;
-  onAddCustom?: (description: string, quantity: number, amount: number) => void;
+  onAddCustom?: (description: string, quantity: number, amount: number) => boolean | void;
+  addBlocked?: boolean;
   onClose: () => void;
   suggestedServices?: Service[];
   inputRef?: React.Ref<HTMLInputElement>;
@@ -70,6 +80,10 @@ export interface ChargeItemsTableProps {
   onQuantityBlur: (id: string) => void;
   onAmountChange: (id: string, value: string) => void;
   onAmountBlur: (id: string) => void;
+  onDescriptionChange?: (id: string, value: string) => void;
+  onDescriptionFocus?: (id: string) => void;
+  onDescriptionBlur?: (id: string) => void;
+  highlightedItemId?: string | null;
   onRemoveItem: (id: string) => void;
   getDraft: (item: ChargeItem) => RowDraft;
 }

@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, RefreshCw, Users } from 'lucide-react';
 import { useQueueContext } from '@/providers/queue/QueueContextProvider';
 import { useSessionContext } from '@/providers/session/SessionProvider';
-import { AppointmentStatus, canStartConsultation } from '@/domain/enums/AppointmentStatus';
+import { AppointmentStatus, canStartConsultation, isAppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -89,7 +89,9 @@ export function PatientQueuePanel() {
               const patientName = queueItem.patient
                 ? `${queueItem.patient.firstName} ${queueItem.patient.lastName}`
                 : 'Unknown Patient';
-              const canLoad = queueItem.status === AppointmentStatus.IN_CONSULTATION || queueItem.status === 'WAITING';
+              const canLoad = queueItem.status === AppointmentStatus.IN_CONSULTATION
+                || queueItem.status === 'WAITING'
+                || (isAppointmentStatus(queueItem.status) && canStartConsultation(queueItem.status));
 
               return (
                 <div

@@ -3,12 +3,14 @@
 import { ClinicalRichTextEditor } from '@/components/consultation/ClinicalRichTextEditor';
 
 interface SubjectiveTabProps {
+  appointmentId?: number | null;
   initialValue?: string;
   onChange: (value: string) => void;
   isReadOnly?: boolean;
 }
 
 export function SubjectiveTab({
+  appointmentId,
   initialValue = '',
   onChange,
   isReadOnly = false,
@@ -28,6 +30,8 @@ export function SubjectiveTab({
       <ClinicalRichTextEditor
         content={initialValue}
         onChange={onChange}
+        dictationContextType="appointment"
+        dictationContextId={appointmentId}
         placeholder="Document patient concerns, history of present illness, review of systems..."
         readOnly={isReadOnly}
         minHeight="400px"

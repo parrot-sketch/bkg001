@@ -245,6 +245,7 @@ export function ConsultationWorkspace({
           <Tabs value={activeTab} className="h-full">
             <TabsContent value="goals" className="mt-0 h-full">
               <PatientGoalsTab
+                appointmentId={consultation?.appointmentId ?? null}
                 initialValue={notesState.chiefComplaint}
                 onChange={(value) => updateStructuredNotes('chiefComplaint', value)}
                 isReadOnly={isReadOnly}
@@ -253,6 +254,7 @@ export function ConsultationWorkspace({
 
             <TabsContent value="examination" className="mt-0 h-full">
               <ExaminationTab
+                appointmentId={consultation?.appointmentId ?? null}
                 initialValue={notesState.examination}
                 onChange={(value) => updateStructuredNotes('examination', value)}
                 isReadOnly={isReadOnly}

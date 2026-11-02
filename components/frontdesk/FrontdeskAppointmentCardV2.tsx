@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useCheckIn } from '@/hooks/frontdesk/useTodaysSchedule';
 import { useAppointments } from '@/hooks/useAppointments';
+import { frontdeskChargeSheetPath, openFollowUpBooking } from '@/hooks/frontdesk/useBookAppointmentStore';
 
 const STATUS_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
   [AppointmentStatus.PENDING]: { bg: 'bg-[#e7d6bf]/60', text: 'text-[#2c2e4b]/70', label: 'Pending' },
@@ -183,9 +184,15 @@ export function FrontdeskAppointmentCardV2({ appointment, onAction }: FrontdeskA
                         if (item.action === 'details') {
                           router.push(`/frontdesk/appointments/${appointment.id}`);
                         } else if (item.action === 'chargesheet') {
-                          router.push(`/frontdesk/appointments/${appointment.id}?tab=billing`);
-} else if (item.action === 'followup') {
-  router.push(`/frontdesk/appointments/${appointment.id}/followup?patientId=${appointment.patientId}&doctorId=${appointment.doctorId}`);
+                          router.push(frontdeskChargeSheetPath(appointment.patientId, appointment.id));
+                        } else if (item.action === 'followup') {
+                          openFollowUpBooking({
+                            appointmentId: appointment.id,
+                            patientId: appointment.patientId,
+                            patientName,
+                            doctorId: appointment.doctorId,
+                            doctorName: appointment.doctor?.name,
+                          });
                         } else if (item.action === 'checkin') {
                           handleCheckIn();
                         } else if (item.action === 'cancel') {

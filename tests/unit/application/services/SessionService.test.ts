@@ -264,7 +264,7 @@ describe('SessionService', () => {
       const result = await service.completeSession(1);
       expect(result.success).toBe(true);
       if (result.success) {
-        expect(result.data.redirectPath).toBe('/doctor/consultations');
+        expect(result.data.redirectPath).toBe('/doctor/patients/patient-1?tab=charges');
         expect(result.data.clearedLocalStorage).toBe(true);
       }
       expect(draftService.discardDraft).toHaveBeenCalledWith(1);
@@ -312,6 +312,33 @@ describe('SessionService', () => {
 
       const result = await service.initializeSession(1, 'user-1');
       expect(result.success).toBe(true);
+    });
+
+    it('opens the session when the in-memory workflow rejects START_CONSULTATION', async () => {
+      doctorApi.getAppointment.mockResolvedValue({ success: true, data: sampleAppointment });
+      doctorApi.startConsultation.mockResolvedValue({ success: true, data: sampleAppointment });
+      consultationApi.loadConsultation.mockResolvedValue({ success: true, data: { ...sampleConsultation, state: 'IN_PROGRESS' } });
+      patientApi.loadPatient.mockResolvedValue({ success: true, data: samplePatient });
+      coordinator.execute.mockResolvedValue({
+        status: 'failure',
+        workflowResult: {
+          decision: {
+            success: false,
+            nextConsultationState: null,
+            previousConsultationState: ConsultationWorkflowState.IDLE,
+            events: [],
+            sideEffects: [],
+            errors: [{ message: 'Cannot transition from IDLE to null via START_CONSULTATION' }],
+            metadata: {},
+          },
+        },
+      });
+
+      const result = await service.startSession(1, 'doctor-1', 'user-1');
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.workflowState).toBe(ConsultationWorkflowState.ACTIVE);
+      }
     });
 
     it('emits START_CONSULTATION command during startSession', async () => {

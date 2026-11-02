@@ -8,14 +8,25 @@
  * ChargeSheetStep.
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { toast } from 'sonner';
 import type {
   Service,
   InventoryItem,
   ChargeItem,
   RowDraft,
+  ChargeSheetCaseInfo,
 } from '@/components/theater-tech/charge-sheet.types';
+import { duplicateChargeMessage, findDuplicateChargeLine, hasDuplicateChargeLines } from '@/lib/clinical/chargeSheetLines';
+
+function chargeSheetHeaders(extra?: HeadersInit): HeadersInit {
+  const headers = new Headers(extra);
+  if (typeof window !== 'undefined') {
+    const token = window.localStorage.getItem('hims_access_token');
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+  }
+  return headers;
+}
 
 // ── Hook Return Type ────────────────────────────────────────────────────────
 
@@ -37,18 +48,25 @@ export interface UseChargeSheetReturn {
   discountStr: string;
   suggestedCount: number;
   suggestedServices: Service[];
+  caseInfo: ChargeSheetCaseInfo | null;
+  duplicateMessage: string | null;
+  highlightedItemId: string | null;
+  addBlocked: boolean;
 
   // Actions
   setSearchQuery: (q: string) => void;
   setDropdownOpen: (open: boolean) => void;
   handleAddService: (service: Service) => void;
   handleAddInventory: (item: InventoryItem) => void;
-  handleAddCustom: (description: string, quantity: number, amount: number) => void;
+  handleAddCustom: (description: string, quantity: number, amount: number) => boolean;
   handleRemoveItem: (id: string) => void;
   handleQuantityChange: (id: string, value: string) => void;
   handleQuantityBlur: (id: string) => void;
   handleAmountChange: (id: string, value: string) => void;
   handleAmountBlur: (id: string) => void;
+  handleDescriptionChange: (id: string, value: string) => void;
+  handleDescriptionFocus: (id: string) => void;
+  handleDescriptionBlur: (id: string) => void;
   handleDiscountChange: (value: string) => void;
   handleDiscountBlur: () => void;
   handleSave: () => Promise<boolean>;
@@ -80,15 +98,19 @@ export function useChargeSheet(
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [suggestedCount, setSuggestedCount] = useState(0);
   const [suggestedServices, setSuggestedServices] = useState<Service[]>([]);
+  const [caseInfo, setCaseInfo] = useState<ChargeSheetCaseInfo | null>(null);
+  const descriptionSnapshots = useRef<Record<string, Pick<ChargeItem, 'description' | 'type' | 'itemId' | 'catalogAmount'>>>({});
+  const suggestedRef = useRef(initialSuggestedServices);
+  suggestedRef.current = initialSuggestedServices;
 
   // ── Load existing billing data ──────────────────────────────────────────
   useEffect(() => {
     async function loadData() {
       try {
         const [billingRes, servicesRes, inventoryRes] = await Promise.all([
-          fetch(`/api/surgical-cases/${caseId}/billing`),
-          fetch('/api/services'),
-          fetch('/api/inventory/items?limit=100'),
+          fetch(`/api/surgical-cases/${caseId}/billing`, { headers: chargeSheetHeaders() }),
+          fetch('/api/services', { headers: chargeSheetHeaders() }),
+          fetch('/api/inventory/items?limit=100', { headers: chargeSheetHeaders() }),
         ]);
 
         const [billingData, servicesData, inventoryData] = await Promise.all([
@@ -96,6 +118,18 @@ export function useChargeSheet(
           servicesRes.json(),
           inventoryRes.json(),
         ]);
+
+        if (billingData.success && billingData.data?.surgicalCase) {
+          const record = billingData.data.surgicalCase as Record<string, unknown>;
+          setCaseInfo({
+            patientName: String(record.patientName || 'Patient'),
+            fileNumber: (record.patientFileNumber as string | null) ?? null,
+            procedureName: (record.procedureName as string | null) ?? null,
+            procedureDate: record.procedureDate ? String(record.procedureDate) : null,
+            surgeonName: (record.surgeonName as string | null) ?? null,
+            chargeSheetNo: (billingData.data.payment?.chargeSheetNo as string | null) ?? null,
+          });
+        }
 
         if (billingData.success && billingData.data?.payment) {
           let items: ChargeItem[] =
@@ -119,9 +153,10 @@ export function useChargeSheet(
           let count = 0;
           let suggested: Service[] = [];
 
-          if (!hasExistingCharges && initialSuggestedServices && initialSuggestedServices.length > 0) {
-            items = initialSuggestedServices.map(s => ({
-              id: `suggested-${s.id}-${Date.now()}`,
+          const linkedServices = suggestedRef.current ?? [];
+          if (!hasExistingCharges && linkedServices.length > 0) {
+            items = linkedServices.map(s => ({
+              id: `suggested-${s.id}`,
               description: s.service_name,
               amount: s.price,
               quantity: 1,
@@ -129,7 +164,7 @@ export function useChargeSheet(
               itemId: s.id,
             }));
             count = items.length;
-            suggested = initialSuggestedServices;
+            suggested = linkedServices;
           }
 
           setChargeItems(items);
@@ -150,6 +185,28 @@ export function useChargeSheet(
           const baselineHash = count > 0 ? '' : JSON.stringify({ items, discount: loadedDiscount });
           setLastSavedHash(baselineHash);
           setLastSavedAt(new Date());
+        } else if (billingData.success) {
+          const suggested = suggestedRef.current ?? [];
+          if (suggested.length > 0) {
+            const items: ChargeItem[] = suggested.map((service) => ({
+              id: `suggested-${service.id}`,
+              description: service.service_name,
+              amount: service.price,
+              quantity: 1,
+              type: 'service',
+              itemId: service.id,
+            }));
+            const drafts: Record<string, RowDraft> = {};
+            for (const item of items) {
+              drafts[item.id] = { quantityStr: String(item.quantity), amountStr: String(item.amount) };
+            }
+            setChargeItems(items);
+            setRowDrafts(drafts);
+            setSuggestedCount(items.length);
+            setSuggestedServices(suggested);
+            setDiscountStr('0');
+            setLastSavedHash('');
+          }
         }
 
         if (servicesData.success) {
@@ -219,6 +276,34 @@ export function useChargeSheet(
       )
       .slice(0, 10);
   }, [inventoryItems, searchQuery]);
+
+  const draftDuplicate = useMemo(() => {
+    const exact = services.find((service) => service.service_name.toLowerCase() === searchQuery.trim().toLowerCase());
+    const exactStock = inventoryItems.find((item) => item.name.toLowerCase() === searchQuery.trim().toLowerCase());
+    return findDuplicateChargeLine(chargeItems, {
+      name: searchQuery,
+      serviceId: exact?.id ?? null,
+      inventoryId: exactStock?.id ?? null,
+    });
+  }, [chargeItems, inventoryItems, searchQuery, services]);
+
+  const rowDuplicate = useMemo(() => {
+    for (const item of chargeItems) {
+      const match = findDuplicateChargeLine(chargeItems, {
+        name: item.description,
+        serviceId: item.type === 'service' ? Number(item.itemId) : null,
+        inventoryId: item.type === 'inventory' ? item.itemId : null,
+        exceptId: item.id,
+      });
+      if (match) return item;
+    }
+    return null;
+  }, [chargeItems]);
+
+  const blockingLine = draftDuplicate ?? rowDuplicate;
+  const duplicateMessage = blockingLine ? duplicateChargeMessage(blockingLine.description) : null;
+  const highlightedItemId = blockingLine?.id ?? null;
+  const addBlocked = draftDuplicate !== null;
 
   // ── Totals ──────────────────────────────────────────────────────────────
   const subtotal = useMemo(
@@ -308,16 +393,47 @@ export function useChargeSheet(
   const handleAddCustom = useCallback(
     (description: string, quantity: number, amount: number) => {
       const trimmed = description.trim();
-      if (!trimmed) return;
+      if (!trimmed) return false;
 
-      const newItem: ChargeItem = {
-        id: `custom-${Date.now()}`,
-        description: trimmed,
-        amount: amount || 0,
-        quantity: quantity || 1,
-        type: 'custom',
-        itemId: `custom-${Date.now()}`,
-      };
+      const exact = services.find((service) => service.service_name.toLowerCase() === trimmed.toLowerCase());
+      const exactStock = inventoryItems.find((item) => item.name.toLowerCase() === trimmed.toLowerCase());
+      const existing = findDuplicateChargeLine(chargeItems, {
+        name: trimmed,
+        serviceId: exact?.id ?? null,
+        inventoryId: exactStock?.id ?? null,
+      });
+      if (existing) return false;
+
+      const lineAmount = Number.isFinite(amount) ? amount : 0;
+      const lineQty = quantity || 1;
+      const newItem: ChargeItem = exact
+        ? {
+            id: `service-${Date.now()}`,
+            description: exact.service_name,
+            amount: lineAmount,
+            catalogAmount: exact.price,
+            quantity: lineQty,
+            type: 'service',
+            itemId: exact.id,
+          }
+        : exactStock
+        ? {
+            id: `inv-${Date.now()}`,
+            description: exactStock.name,
+            amount: lineAmount,
+            catalogAmount: exactStock.unit_cost,
+            quantity: lineQty,
+            type: 'inventory',
+            itemId: exactStock.id,
+          }
+        : {
+            id: `custom-${Date.now()}`,
+            description: trimmed,
+            amount: lineAmount,
+            quantity: lineQty,
+            type: 'custom',
+            itemId: `custom-${Date.now()}`,
+          };
 
       setChargeItems((prev) => [...prev, newItem]);
       setRowDrafts((prev) => ({
@@ -329,9 +445,52 @@ export function useChargeSheet(
       }));
       setSearchQuery('');
       setDropdownOpen(false);
+      return true;
     },
-    []
+    [services, inventoryItems, chargeItems]
   );
+
+  const handleDescriptionFocus = useCallback((id: string) => {
+    const item = chargeItems.find((line) => line.id === id);
+    if (!item) return;
+    descriptionSnapshots.current[id] = {
+      description: item.description,
+      type: item.type,
+      itemId: item.itemId,
+      catalogAmount: item.catalogAmount,
+    };
+  }, [chargeItems]);
+
+  const handleDescriptionBlur = useCallback((id: string) => {
+    const item = chargeItems.find((line) => line.id === id);
+    const snapshot = descriptionSnapshots.current[id];
+    if (!item || !snapshot) return;
+    const clash = findDuplicateChargeLine(chargeItems, {
+      name: item.description,
+      serviceId: item.type === 'service' ? Number(item.itemId) : null,
+      inventoryId: item.type === 'inventory' ? item.itemId : null,
+      exceptId: id,
+    });
+    if (!item.description.trim() || clash) {
+      setChargeItems((prev) => prev.map((line) => (line.id === id ? { ...line, ...snapshot } : line)));
+    }
+  }, [chargeItems]);
+
+  const handleDescriptionChange = useCallback((id: string, value: string) => {
+    const trimmed = value.trim().toLowerCase();
+    const serviceMatch = services.find((service) => service.service_name.toLowerCase() === trimmed);
+    const stockMatch = inventoryItems.find((item) => item.name.toLowerCase() === trimmed);
+    setChargeItems((prev) => prev.map((item) => {
+      if (item.id !== id) return item;
+      if (serviceMatch) {
+        return { ...item, description: value, type: 'service', itemId: serviceMatch.id, catalogAmount: serviceMatch.price };
+      }
+      if (stockMatch) {
+        return { ...item, description: value, type: 'inventory', itemId: stockMatch.id, catalogAmount: stockMatch.unit_cost };
+      }
+      return { ...item, description: value, type: 'custom', itemId: `custom-${item.id}`, catalogAmount: undefined };
+    }));
+  }, [services, inventoryItems]);
 
   const handleRemoveItem = useCallback((id: string) => {
     setChargeItems((prev) => prev.filter((item) => item.id !== id));
@@ -424,6 +583,10 @@ export function useChargeSheet(
       toast.error('Add at least one item to save');
       return false;
     }
+    if (hasDuplicateChargeLines(chargeItems)) {
+      toast.error('Each item can appear once. Update the quantity on the existing line.');
+      return false;
+    }
 
     setIsSaving(true);
     try {
@@ -449,15 +612,33 @@ export function useChargeSheet(
 
       const res = await fetch(`/api/surgical-cases/${caseId}/billing`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: chargeSheetHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({ billingItems, discount }),
       });
 
       const data = await res.json();
       if (data.success) {
         toast.success('Charge sheet saved');
-        setLastSavedHash(currentHash);
         setLastSavedAt(new Date());
+        let nextItems = chargeItems;
+        const servicesRes = await fetch('/api/services', { headers: chargeSheetHeaders() });
+        const servicesJson = await servicesRes.json();
+        if (servicesJson.success && Array.isArray(servicesJson.data)) {
+          const list = servicesJson.data as Service[];
+          setServices(list);
+          nextItems = chargeItems.map((item) => {
+            if (item.type !== 'custom') return item;
+            const match = list.find((service) => service.service_name.toLowerCase() === item.description.toLowerCase());
+            return match
+              ? { ...item, type: 'service' as const, itemId: match.id, description: match.service_name, catalogAmount: match.price }
+              : item;
+          });
+          setChargeItems(nextItems);
+        }
+        setLastSavedHash(JSON.stringify({ items: nextItems, discount: parseFloat(discountStr) || 0 }));
+        if (data.data?.chargeSheetNo) {
+          setCaseInfo((current) => current ? { ...current, chargeSheetNo: String(data.data.chargeSheetNo) } : current);
+        }
         return true;
       } else {
         toast.error(data.error || 'Failed to save');
@@ -470,7 +651,7 @@ export function useChargeSheet(
     } finally {
       setIsSaving(false);
     }
-  }, [chargeItems, caseId, currentHash, discount]);
+  }, [chargeItems, caseId, discount, discountStr]);
 
   // ── Helper ──────────────────────────────────────────────────────────────
   const getDraft = useCallback(
@@ -499,6 +680,10 @@ export function useChargeSheet(
     discountStr,
     suggestedCount,
     suggestedServices,
+    caseInfo,
+    duplicateMessage,
+    highlightedItemId,
+    addBlocked,
 
     setSearchQuery,
     setDropdownOpen,
@@ -510,6 +695,9 @@ export function useChargeSheet(
     handleQuantityBlur,
     handleAmountChange,
     handleAmountBlur,
+    handleDescriptionChange,
+    handleDescriptionFocus,
+    handleDescriptionBlur,
     handleDiscountChange,
     handleDiscountBlur,
     handleSave,

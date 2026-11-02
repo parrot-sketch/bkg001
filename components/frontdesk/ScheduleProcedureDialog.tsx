@@ -1,23 +1,31 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CalendarIcon, Plus, X } from 'lucide-react';
+import { Loader2, Plus, X } from 'lucide-react';
 import { format } from 'date-fns';
+import PhoneInput from 'react-phone-number-input';
 import { frontdeskApi } from '@/lib/api/frontdesk';
-import { doctorApi } from '@/lib/api/doctor';
+import { apiClient } from '@/lib/api/client';
 import { queryKeys } from '@/lib/constants/queryKeys';
 import { PatientCombobox } from '@/components/frontdesk/PatientCombobox';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
-import type { DoctorResponseDto } from '@/application/dtos/DoctorResponseDto';
 import type { ProcedureOption, ScheduleProcedureResponse } from '@/lib/api/frontdesk';
+import { SurgicalCaseSetupForm } from '@/components/frontdesk/SurgicalCaseSetupForm';
+import {
+  categoryLabel,
+  pickSuggestionOnEnter,
+  PROCEDURE_CATEGORY_LABELS,
+  rankProcedures,
+  rankTextSuggestions,
+  resolveCatalogCategory,
+} from '@/lib/clinical/procedureSuggestions';
 
 interface ScheduleProcedureDialogProps {
   open: boolean;
@@ -26,535 +34,563 @@ interface ScheduleProcedureDialogProps {
   initialPatient?: PatientResponseDto | null;
 }
 
-interface SelectedProcedure extends Omit<ProcedureOption, 'is_active' | 'estimated_duration_minutes' | 'default_price'> {
-  isCustom?: boolean;
-  is_active?: boolean;
-  estimated_duration_minutes?: number | null;
-  default_price?: number | null;
+type DialogStep = 'schedule' | 'register' | 'details';
+
+interface SelectedProcedure {
+  id: string;
+  name: string;
+  category: string;
+  subcategory: string | null;
 }
 
-const PROCEDURE_CATEGORIES = [
-  { value: 'FACIAL', label: 'Facial' },
-  { value: 'BODY', label: 'Body' },
-  { value: 'BREAST', label: 'Breast' },
-  { value: 'SKIN_AND_SCAR', label: 'Skin & Scar' },
-  { value: 'NON_SURGICAL', label: 'Non-Surgical' },
-  { value: 'OTHER', label: 'Other' },
-];
+type ScheduledCase = ScheduleProcedureResponse;
+
+const inputClass = 'h-11';
 
 export function ScheduleProcedureDialog({ open, onOpenChange, onSuccess, initialPatient }: ScheduleProcedureDialogProps) {
   const queryClient = useQueryClient();
+  const wasOpen = useRef(false);
+  const reportedSuccess = useRef(false);
+
+  const [step, setStep] = useState<DialogStep>('schedule');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [doctors, setDoctors] = useState<DoctorResponseDto[]>([]);
-  const [loadingDoctors, setLoadingDoctors] = useState(false);
+  const [catalog, setCatalog] = useState<ProcedureOption[]>([]);
+
   const [selectedPatient, setSelectedPatient] = useState<PatientResponseDto | null>(null);
-  const router = useRouter();
-
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [isCustomCategory, setIsCustomCategory] = useState(false);
-  const [customCategoryName, setCustomCategoryName] = useState('');
-
-  const [procedureOptions, setProcedureOptions] = useState<ProcedureOption[]>([]);
+  const [procedureDate, setProcedureDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [selectedProcedures, setSelectedProcedures] = useState<SelectedProcedure[]>([]);
-  const [procedureSearch, setProcedureSearch] = useState('');
-  const [procedureDropdownOpen, setProcedureDropdownOpen] = useState(false);
-  const procedureInputRef = useRef<HTMLInputElement>(null);
+  const [procedureQuery, setProcedureQuery] = useState('');
+  const [procedureOpen, setProcedureOpen] = useState(false);
+  const [categoryQuery, setCategoryQuery] = useState('');
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const [creatingProcedure, setCreatingProcedure] = useState(false);
 
-  const [formData, setFormData] = useState({
-    procedureDate: format(new Date(), 'yyyy-MM-dd'),
-    primarySurgeonDoctorId: '',
-    primarySurgeonName: '',
-    isCustomSurgeon: false,
-    diagnosis: '',
-    primaryOrRevision: '',
-    admissionType: '',
+  const [registerForm, setRegisterForm] = useState({
+    firstName: '',
+    lastName: '',
+    dateOfBirth: '',
+    gender: 'FEMALE',
+    phone: '',
   });
+  const [registerError, setRegisterError] = useState<string | null>(null);
+
+  const [scheduledCase, setScheduledCase] = useState<ScheduledCase | null>(null);
 
   useEffect(() => {
-    if (open) {
-      loadDoctors();
-      resetForm(initialPatient ?? null);
+    if (open && !wasOpen.current) {
+      reset(initialPatient ?? null);
+      void loadReferenceData();
     }
-  }, [open]);
+    wasOpen.current = open;
+  }, [open, initialPatient]);
 
-  useEffect(() => {
-    if (selectedCategory && !isCustomCategory) {
-      loadProcedureOptions(selectedCategory);
-    } else {
-      setProcedureOptions([]);
-    }
-  }, [selectedCategory, isCustomCategory]);
+  const procedureSuggestions = useMemo(
+    () => rankProcedures(procedureQuery, catalog).filter((item) => !selectedProcedures.some((selected) => selected.id === item.id)),
+    [procedureQuery, catalog, selectedProcedures],
+  );
+  const trimmedProcedure = procedureQuery.trim();
+  const addingNewProcedure = trimmedProcedure.length >= 2
+    && !catalog.some((item) => item.name.toLowerCase() === trimmedProcedure.toLowerCase());
 
-  const loadDoctors = async () => {
-    setLoadingDoctors(true);
+  const categorySuggestions = useMemo(() => {
+    const labels = [
+      ...Object.values(PROCEDURE_CATEGORY_LABELS),
+      ...catalog.map((item) => item.subcategory).filter((value): value is string => Boolean(value)),
+    ];
+    return rankTextSuggestions(categoryQuery, labels, 6);
+  }, [categoryQuery, catalog]);
+
+  const loadReferenceData = async () => {
     try {
-      const response = await doctorApi.getAllDoctors();
-      if (response.success && response.data) {
-        setDoctors(response.data);
-      }
+      const procedures = await frontdeskApi.getProcedureOptions();
+      if (procedures.success && procedures.data) setCatalog(procedures.data);
     } catch (error) {
-      console.error('Failed to load doctors:', error);
-    } finally {
-      setLoadingDoctors(false);
+      console.error('Failed to load scheduling reference data:', error);
     }
   };
 
-  const loadProcedureOptions = async (category: string) => {
-    try {
-      const response = await frontdeskApi.getProcedureOptions({ category });
-      if (response.success && response.data) {
-        setProcedureOptions(response.data);
-      }
-    } catch (error) {
-      console.error('Failed to load procedure options:', error);
-    }
+  const reset = (patient: PatientResponseDto | null) => {
+    setStep('schedule');
+    setIsSubmitting(false);
+    setSelectedPatient(patient);
+    setProcedureDate(format(new Date(), 'yyyy-MM-dd'));
+    setSelectedProcedures([]);
+    setProcedureQuery('');
+    setProcedureOpen(false);
+    setCategoryQuery('');
+    setCategoryOpen(false);
+    setCreatingProcedure(false);
+    setRegisterError(null);
+    setScheduledCase(null);
+    reportedSuccess.current = false;
   };
 
-  const handleCreateCustomCategory = async () => {
-    if (!customCategoryName.trim()) return;
-    const name = customCategoryName.trim();
-    const categoryCode = 'OTHER';
-    try {
-      const response = await frontdeskApi.createProcedureOption({
-        name: name,
-        category: categoryCode,
-        subcategory: name,
-      });
-      if (response.success) {
-        toast.success(`Category "${name}" created`);
-        setSelectedCategory(categoryCode);
-        setIsCustomCategory(false);
-        setCustomCategoryName('');
-        await loadProcedureOptions(categoryCode);
-      } else {
-        toast.error(response.error || 'Failed to create category');
-      }
-    } catch (error) {
-      toast.error('Failed to create category');
-    }
+  const invalidateCases = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.frontdesk.theaterQueue() });
+    queryClient.invalidateQueries({ queryKey: queryKeys.shared.surgicalCases() });
   };
 
-  const addExistingProcedure = (proc: ProcedureOption) => {
-    if (!selectedProcedures.find(p => p.id === proc.id)) {
-      setSelectedProcedures(prev => [...prev, proc]);
-    }
-    setProcedureSearch('');
-    setProcedureDropdownOpen(false);
-    procedureInputRef.current?.focus();
+  const addProcedure = (procedure: SelectedProcedure) => {
+    setSelectedProcedures((prev) => (prev.some((item) => item.id === procedure.id) ? prev : [...prev, procedure]));
+    setProcedureQuery('');
+    setProcedureOpen(false);
+    setCategoryQuery('');
+    setCategoryOpen(false);
   };
 
-  const handleCreateAndAddProcedure = async (name: string) => {
+  const createProcedure = async (name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
 
-    const categoryCode = isCustomCategory ? 'OTHER' : selectedCategory;
-    if (!categoryCode) {
-      toast.error('Please select a category first');
+    const existing = catalog.find((item) => item.name.toLowerCase() === trimmed.toLowerCase());
+    if (existing) {
+      addProcedure(existing);
+      toast.message(`Using “${existing.name}” from the catalog`);
       return;
     }
 
+    if (!categoryQuery.trim()) {
+      setCategoryOpen(true);
+      toast.error('Choose a category for this new procedure');
+      return;
+    }
+
+    const resolved = resolveCatalogCategory(categoryQuery);
+    setCreatingProcedure(true);
     try {
       const response = await frontdeskApi.createProcedureOption({
         name: trimmed,
-        category: categoryCode,
-        subcategory: isCustomCategory ? customCategoryName.trim() : undefined,
+        category: resolved.category,
+        subcategory: resolved.subcategory ?? undefined,
       });
-      if (response.success) {
-        const newProcedure: SelectedProcedure = {
-          id: response.data.id,
-          name: response.data.name,
-          category: response.data.category,
-          subcategory: response.data.subcategory,
-          description: response.data.description,
-          isCustom: true,
-        };
-        setSelectedProcedures(prev => [...prev, newProcedure]);
-        setProcedureOptions(prev => [...prev, response.data]);
-        setProcedureSearch('');
-        setProcedureDropdownOpen(false);
-        procedureInputRef.current?.focus();
-        toast.success(`Procedure "${trimmed}" added`);
-      } else {
-        toast.error(response.error || 'Failed to create procedure');
+      if (!response.success) {
+        toast.error(response.error || 'Failed to add procedure');
+        return;
       }
+      if (!response.data) {
+        toast.error('Failed to add procedure');
+        return;
+      }
+      const created = response.data;
+      setCatalog((prev) => [...prev, created]);
+      addProcedure(created);
+      toast.success(`Added “${created.name}”`);
     } catch (error) {
-      toast.error('Failed to create procedure');
+      console.error(error);
+      toast.error('Failed to add procedure');
+    } finally {
+      setCreatingProcedure(false);
     }
   };
 
-  const removeProcedure = (procedureId: string) => {
-    setSelectedProcedures(prev => prev.filter(p => p.id !== procedureId));
-  };
-
-  const handleProcedureKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const trimmed = procedureSearch.trim();
-      if (!trimmed) return;
-
-      const exactMatch = procedureOptions.find(
-        p => p.name.toLowerCase() === trimmed.toLowerCase()
-      );
-
-      if (exactMatch) {
-        addExistingProcedure(exactMatch);
-      } else {
-        handleCreateAndAddProcedure(trimmed);
-      }
-    }
-    if (e.key === 'Escape') {
-      setProcedureDropdownOpen(false);
-    }
-  };
-
-  const filteredProcedures = useMemo(() => {
-    if (!procedureSearch) return procedureOptions;
-    const lower = procedureSearch.toLowerCase();
-    return procedureOptions.filter(p => p.name.toLowerCase().includes(lower));
-  }, [procedureSearch, procedureOptions]);
-
-  const exactMatch = useMemo(() => {
-    if (!procedureSearch) return false;
-    return procedureOptions.some(p => p.name.toLowerCase() === procedureSearch.trim().toLowerCase());
-  }, [procedureSearch, procedureOptions]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!selectedPatient || selectedProcedures.length === 0 || !formData.procedureDate) {
-      toast.error('Please fill in all required fields');
+  const handleProcedureKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Escape') {
+      setProcedureOpen(false);
       return;
     }
-
-    if (!formData.primarySurgeonDoctorId && !formData.primarySurgeonName.trim()) {
-      toast.error('Please select or enter a primary surgeon');
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    const match = pickSuggestionOnEnter(procedureQuery, procedureSuggestions);
+    if (match) {
+      addProcedure(match);
+      if (match.closeMatch) toast.message(`Matched “${match.name}”`);
       return;
     }
+    void createProcedure(procedureQuery);
+  };
 
+  const openRegistration = (query: string) => {
+    const parts = query.trim().split(/\s+/).filter(Boolean);
+    setRegisterForm({
+      firstName: parts[0] ?? '',
+      lastName: parts.slice(1).join(' '),
+      dateOfBirth: '',
+      gender: 'FEMALE',
+      phone: '',
+    });
+    setRegisterError(null);
+    setStep('register');
+  };
+
+  const submitRegistration = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!registerForm.phone.trim()) {
+      setRegisterError('Phone number is required');
+      return;
+    }
+    setRegisterError(null);
     setIsSubmitting(true);
     try {
-      const procedureIds = selectedProcedures.map(p => p.id);
-      const response = await frontdeskApi.scheduleSurgicalCase({
-        patientId: selectedPatient.id,
-        procedureIds,
-        procedureDate: formData.procedureDate,
-        primarySurgeonDoctorId: formData.primarySurgeonDoctorId || undefined,
-        primarySurgeonName: formData.primarySurgeonName.trim() || undefined,
-        diagnosis: formData.diagnosis || undefined,
-        procedureCategory: isCustomCategory ? customCategoryName.trim() || undefined : selectedCategory || undefined,
-        primaryOrRevision: formData.primaryOrRevision || undefined,
-        admissionType: formData.admissionType || undefined,
+      const result = await apiClient.post<PatientResponseDto>('/patients', {
+        firstName: registerForm.firstName.trim(),
+        lastName: registerForm.lastName.trim(),
+        dateOfBirth: registerForm.dateOfBirth,
+        gender: registerForm.gender,
+        phone: registerForm.phone,
+        privacyConsent: true,
+        serviceConsent: true,
+        medicalConsent: true,
       });
-
-      if (response.success && response.data) {
-        toast.success(`Surgical case scheduled for ${response.data.patientName}`);
-        onOpenChange(false);
-        onSuccess?.(response.data);
-        queryClient.invalidateQueries({ queryKey: queryKeys.frontdesk.theaterQueue() });
-        queryClient.invalidateQueries({ queryKey: queryKeys.shared.surgicalCases() });
-        resetForm();
-      } else {
-        toast.error(response.error || 'Failed to schedule procedure');
+      if (!result.success) {
+        setRegisterError(result.error || 'Could not register the patient');
+        return;
       }
+      setSelectedPatient(result.data);
+      setStep('schedule');
+      toast.success(`${result.data.firstName} ${result.data.lastName} is registered`);
     } catch (error) {
-      toast.error('Failed to schedule procedure');
-      console.error(error);
+      setRegisterError(error instanceof Error ? error.message : 'Could not register the patient');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const resetForm = (initial: PatientResponseDto | null = null) => {
-    setSelectedPatient(initial);
-    setSelectedCategory('');
-    setIsCustomCategory(false);
-    setCustomCategoryName('');
-    setProcedureOptions([]);
-    setSelectedProcedures([]);
-    setProcedureSearch('');
-    setProcedureDropdownOpen(false);
-    setFormData({
-      procedureDate: format(new Date(), 'yyyy-MM-dd'),
-      primarySurgeonDoctorId: '',
-      primarySurgeonName: '',
-      isCustomSurgeon: false,
-      diagnosis: '',
-      primaryOrRevision: '',
-      admissionType: '',
-    });
+  const submitSchedule = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!selectedPatient || selectedProcedures.length === 0 || !procedureDate) {
+      toast.error('Choose a patient, at least one procedure, and a date');
+      return;
+    }
+
+    const procedureCategory = [...new Set(
+      selectedProcedures.map((procedure) => categoryLabel(procedure.category, procedure.subcategory)),
+    )].join(', ');
+
+    setIsSubmitting(true);
+    try {
+      const response = await frontdeskApi.scheduleSurgicalCase({
+        patientId: selectedPatient.id,
+        procedureIds: selectedProcedures.map((procedure) => procedure.id),
+        procedureDate,
+        procedureCategory,
+      });
+
+      if (!response.success || !response.data) {
+        toast.error(response.error || 'Failed to schedule procedure');
+        return;
+      }
+
+      toast.success(`Scheduled for ${response.data.patientName}`);
+      setScheduledCase(response.data);
+      setStep('details');
+      invalidateCases();
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to schedule procedure');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleCategoryChange = (value: string) => {
-    if (value === '__custom__') {
-      setIsCustomCategory(true);
-      setSelectedCategory('');
-    } else {
-      setIsCustomCategory(false);
-      setSelectedCategory(value);
+  const closeAfterSchedule = () => {
+    if (scheduledCase && !reportedSuccess.current) {
+      reportedSuccess.current = true;
+      onSuccess?.(scheduledCase);
     }
-    setSelectedProcedures([]);
-    setProcedureSearch('');
+    onOpenChange(false);
   };
+
+  const requestClose = (nextOpen: boolean) => {
+    if (!nextOpen && step === 'details') {
+      closeAfterSchedule();
+      return;
+    }
+    onOpenChange(nextOpen);
+  };
+
+  const title = step === 'register'
+    ? 'Register patient'
+    : step === 'details'
+      ? 'Surgical team and details'
+      : 'Schedule procedure';
+
+  const description = step === 'register'
+    ? 'A few details are enough to put this patient on the schedule. The rest of the chart can be completed later.'
+    : step === 'details'
+      ? `${scheduledCase?.patientName ?? 'This case'} is on the schedule. Add the team, diagnosis, and procedure details when you have them.`
+      : 'Choose the patient, the procedure, and the date. Team and clinical details come next.';
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={requestClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Schedule Procedure</DialogTitle>
-          <DialogDescription>
-            Create a new surgical case and schedule it for the selected date.
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="space-y-2">
-            <Label htmlFor="patient">Patient *</Label>
-            <PatientCombobox
-              value={selectedPatient?.id || ''}
-              onSelect={(patientId, patient) => {
-                setSelectedPatient(patient || null);
-              }}
-              initialValue={initialPatient}
-            />
-            {selectedPatient && (
-              <p className="text-xs text-[#2c2e4b]/50">
-                {selectedPatient.email} • {selectedPatient.phone || 'No phone'}
-              </p>
-            )}
+        {step !== 'register' && (
+          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide">
+            <span className={step === 'schedule' ? 'text-primary' : 'text-muted-foreground'}>1 · Schedule</span>
+            <span className="text-border">/</span>
+            <span className={step === 'details' ? 'text-primary' : 'text-muted-foreground'}>2 · Team and details</span>
           </div>
+        )}
 
-          <div className="space-y-2">
-            <Label htmlFor="category">Category *</Label>
-            <Select value={isCustomCategory ? '__custom__' : selectedCategory} onValueChange={handleCategoryChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {PROCEDURE_CATEGORIES.map(cat => (
-                  <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
-                ))}
-                <SelectItem value="__custom__">Custom...</SelectItem>
-              </SelectContent>
-            </Select>
-            {isCustomCategory && (
-              <div className="flex gap-2 mt-2">
-                <Input
-                  value={customCategoryName}
-                  onChange={(e) => setCustomCategoryName(e.target.value)}
-                  placeholder="Enter new category name"
-                  className="flex-1"
-                  autoFocus
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleCreateCustomCategory}
-                  disabled={!customCategoryName.trim()}
-                  className="bg-[#caa26a] hover:bg-[#b8913e] text-[#2c2e4b]"
-                >
-                  Add
-                </Button>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label>Procedures *</Label>
-            
-            {selectedProcedures.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-2">
-                {selectedProcedures.map((proc, idx) => (
-                  <span
-                    key={proc.id}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-[#e7d6bf] bg-[#e7d6bf]/10 text-xs font-medium text-[#2c2e4b]"
-                  >
-                    <span className="text-[#caa26a] font-bold">{idx + 1}.</span>
-                    {proc.name}
-                    {proc.subcategory && (
-                      <span className="text-[#2c2e4b]/40 ml-1">({proc.subcategory})</span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => removeProcedure(proc.id)}
-                      className="ml-1 text-[#2c2e4b]/40 hover:text-red-500 transition-colors"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-
-            <div className="relative">
-              <Input
-                ref={procedureInputRef}
-                value={procedureSearch}
-                onChange={(e) => {
-                  setProcedureSearch(e.target.value);
-                  setProcedureDropdownOpen(true);
-                }}
-                onFocus={() => {
-                  if (procedureSearch || filteredProcedures.length > 0) {
-                    setProcedureDropdownOpen(true);
-                  }
-                }}
-                onBlur={() => {
-                  setTimeout(() => setProcedureDropdownOpen(false), 150);
-                }}
-                onKeyDown={handleProcedureKeyDown}
-                placeholder={selectedCategory ? 'Type to search or add procedures...' : 'Select a category first...'}
-                disabled={!selectedCategory && !isCustomCategory}
-                className={!selectedCategory && !isCustomCategory ? 'bg-[#e7d6bf]/10 cursor-not-allowed' : ''}
-              />
-              
-              {procedureDropdownOpen && selectedCategory && (procedureSearch || filteredProcedures.length > 0) && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-[#e7d6bf] rounded-lg shadow-lg max-h-[240px] overflow-y-auto">
-                  {filteredProcedures.length > 0 && (
-                    <div className="py-1">
-                      <div className="px-3 py-1.5 text-[10px] font-semibold text-[#2c2e4b]/40 uppercase tracking-wider">
-                        Existing Procedures
-                      </div>
-                      {filteredProcedures.map(proc => (
-                        <button
-                          key={proc.id}
-                          type="button"
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => addExistingProcedure(proc)}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-[#e7d6bf]/10 flex items-center justify-between transition-colors"
-                        >
-                          <span className="text-[#2c2e4b]">{proc.name}</span>
-                          {proc.subcategory && (
-                            <span className="text-xs text-[#2c2e4b]/40">({proc.subcategory})</span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {procedureSearch.trim() && !exactMatch && (
-                    <button
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => handleCreateAndAddProcedure(procedureSearch.trim())}
-                      className="w-full text-left px-3 py-2.5 text-sm text-[#caa26a] hover:bg-[#e7d6bf]/10 flex items-center gap-2 border-t border-[#e7d6bf] transition-colors"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      Add "{procedureSearch.trim()}" as new procedure
-                    </button>
-                  )}
-                  
-                  {procedureSearch && filteredProcedures.length === 0 && !exactMatch && (
-                    <div className="px-3 py-3 text-center text-xs text-[#2c2e4b]/40">
-                      No matching procedures found.
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-            
-            {!selectedCategory && !isCustomCategory && (
-              <p className="text-[11px] text-[#2c2e4b]/40">
-                Please select a category first to search or add procedures.
-              </p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="procedureDate">Procedure Date *</Label>
-              <Input
-                id="procedureDate"
-                type="date"
-                value={formData.procedureDate}
-                onChange={(e) => setFormData(prev => ({ ...prev, procedureDate: e.target.value }))}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="admissionType">Admission Type</Label>
-              <Select value={formData.admissionType} onValueChange={(value) => setFormData(prev => ({ ...prev, admissionType: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="DAYCASE">Daycase</SelectItem>
-                  <SelectItem value="OVERNIGHT">Overnight</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="surgeon">Primary Surgeon</Label>
-            <Select value={formData.isCustomSurgeon ? '__custom__' : formData.primarySurgeonDoctorId} onValueChange={(value) => {
-              if (value === '__custom__') {
-                setFormData(prev => ({ ...prev, isCustomSurgeon: true, primarySurgeonDoctorId: '', primarySurgeonName: '' }));
-              } else {
-                setFormData(prev => ({ ...prev, isCustomSurgeon: false, primarySurgeonDoctorId: value, primarySurgeonName: '' }));
-              }
-            }}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a surgeon or enter custom name" />
-              </SelectTrigger>
-              <SelectContent>
-                {doctors.map(doctor => (
-                  <SelectItem key={doctor.id} value={doctor.id}>{doctor.name}</SelectItem>
-                ))}
-                <SelectItem value="__custom__">Custom...</SelectItem>
-              </SelectContent>
-            </Select>
-            {formData.isCustomSurgeon && (
-              <Input
-                value={formData.primarySurgeonName}
-                onChange={(e) => setFormData(prev => ({ ...prev, primarySurgeonName: e.target.value }))}
-                placeholder="Enter surgeon name"
-                className="mt-2"
-                autoFocus
-              />
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="diagnosis">Diagnosis</Label>
-            <Input
-              id="diagnosis"
-              value={formData.diagnosis}
-              onChange={(e) => setFormData(prev => ({ ...prev, diagnosis: e.target.value }))}
-              placeholder="Enter diagnosis"
-            />
-          </div>
-
-          <div className="border border-[#e7d6bf] rounded-lg p-4 bg-[#e7d6bf]/5">
-            <div className="flex items-center gap-2 mb-3">
-              <Label className="text-xs font-bold text-[#2c2e4b] uppercase tracking-wider">Procedure Details</Label>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {step === 'register' && (
+          <form onSubmit={submitRegistration} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="primaryOrRevision">Primary / Revision</Label>
-                <Select value={formData.primaryOrRevision} onValueChange={(value) => setFormData(prev => ({ ...prev, primaryOrRevision: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
+                <Label htmlFor="reg-first">First name *</Label>
+                <Input id="reg-first" value={registerForm.firstName} onChange={(event) => setRegisterForm((prev) => ({ ...prev, firstName: event.target.value }))} required className={inputClass} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="reg-last">Last name *</Label>
+                <Input id="reg-last" value={registerForm.lastName} onChange={(event) => setRegisterForm((prev) => ({ ...prev, lastName: event.target.value }))} required className={inputClass} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="reg-dob">Date of birth *</Label>
+                <Input id="reg-dob" type="date" value={registerForm.dateOfBirth} onChange={(event) => setRegisterForm((prev) => ({ ...prev, dateOfBirth: event.target.value }))} required className={inputClass} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="reg-gender">Gender *</Label>
+                <Select value={registerForm.gender} onValueChange={(gender) => setRegisterForm((prev) => ({ ...prev, gender }))}>
+                  <SelectTrigger id="reg-gender" className={inputClass}><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="PRIMARY">Primary</SelectItem>
-                    <SelectItem value="REVISION">Revision</SelectItem>
+                    <SelectItem value="FEMALE">Female</SelectItem>
+                    <SelectItem value="MALE">Male</SelectItem>
+                    <SelectItem value="OTHER">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
-          </div>
+            <div className="space-y-2">
+              <Label>Phone *</Label>
+              <PhoneInput
+                international
+                defaultCountry="KE"
+                value={registerForm.phone}
+                onChange={(phone) => setRegisterForm((prev) => ({ ...prev, phone: phone ?? '' }))}
+                className="phone-input-custom"
+              />
+            </div>
+            {registerError && <p className="text-xs text-red-600">{registerError}</p>}
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setStep('schedule')}>Back</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Registering...' : 'Register and continue'}
+              </Button>
+            </div>
+          </form>
+        )}
 
-          <div className="flex justify-end gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting || selectedProcedures.length === 0}>
-              {isSubmitting ? 'Scheduling...' : `Schedule Procedure${selectedProcedures.length > 1 ? `s (${selectedProcedures.length})` : ''}`}
-            </Button>
-          </div>
-        </form>
+        {step === 'schedule' && (
+          <form onSubmit={submitSchedule} className="space-y-5">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <Label>Patient *</Label>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+                  onClick={() => openRegistration('')}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Register new patient
+                </button>
+              </div>
+              <PatientCombobox
+                value={selectedPatient?.id || ''}
+                onSelect={(_patientId, patient) => setSelectedPatient(patient || null)}
+                initialValue={selectedPatient ?? initialPatient}
+                onRegisterNew={openRegistration}
+              />
+              {selectedPatient && (
+                <p className="text-xs text-muted-foreground">
+                  {selectedPatient.fileNumber ? `${selectedPatient.fileNumber} · ` : ''}
+                  {selectedPatient.phone || selectedPatient.email || 'Registered just now'}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="procedure-name">Procedure *</Label>
+              {selectedProcedures.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {selectedProcedures.map((procedure, index) => (
+                    <span key={procedure.id} className="inline-flex items-center gap-1 rounded-lg border border-secondary/30 bg-secondary/10 px-2.5 py-1 text-xs font-medium text-foreground">
+                      <span className="font-bold text-secondary">{index + 1}.</span>
+                      {procedure.name}
+                      <button type="button" onClick={() => setSelectedProcedures((prev) => prev.filter((item) => item.id !== procedure.id))} className="text-muted-foreground hover:text-destructive">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <SuggestField
+                id="procedure-name"
+                value={procedureQuery}
+                open={procedureOpen}
+                placeholder="Type the procedure name"
+                onChange={(value) => {
+                  setProcedureQuery(value);
+                  setProcedureOpen(true);
+                }}
+                onFocus={() => setProcedureOpen(true)}
+                onBlur={() => setTimeout(() => setProcedureOpen(false), 150)}
+                onKeyDown={handleProcedureKeyDown}
+              >
+                {procedureOpen && procedureQuery.trim().length >= 2 && (
+                  <SuggestionList>
+                    {procedureSuggestions.map((procedure) => (
+                      <SuggestionButton key={procedure.id} onClick={() => addProcedure(procedure)}>
+                        <span>{procedure.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {procedure.closeMatch ? 'Close match · ' : ''}
+                          {categoryLabel(procedure.category, procedure.subcategory)}
+                        </span>
+                      </SuggestionButton>
+                    ))}
+                    {addingNewProcedure && (
+                      <SuggestionButton onClick={() => void createProcedure(procedureQuery)} disabled={creatingProcedure}>
+                        <span className="inline-flex items-center gap-2 text-primary">
+                          {creatingProcedure ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+                          Add “{procedureQuery.trim()}”
+                        </span>
+                      </SuggestionButton>
+                    )}
+                  </SuggestionList>
+                )}
+              </SuggestField>
+              <p className="text-[11px] text-muted-foreground">
+                Add more than one procedure. Each keeps the category already on its catalog record.
+              </p>
+            </div>
+
+            {addingNewProcedure && (
+              <div className="space-y-2">
+                <Label htmlFor="procedure-category">Category for “{trimmedProcedure}” *</Label>
+                <SuggestField
+                  id="procedure-category"
+                  value={categoryQuery}
+                  open={categoryOpen}
+                  placeholder="Type a category, or pick a suggestion"
+                  onChange={(value) => {
+                    setCategoryQuery(value);
+                    setCategoryOpen(true);
+                  }}
+                  onFocus={() => setCategoryOpen(true)}
+                  onBlur={() => setTimeout(() => setCategoryOpen(false), 150)}
+                >
+                  {categoryOpen && categorySuggestions.length > 0 && (
+                    <SuggestionList>
+                      {categorySuggestions.map((label) => (
+                        <SuggestionButton
+                          key={label}
+                          onClick={() => {
+                            setCategoryQuery(label);
+                            setCategoryOpen(false);
+                          }}
+                        >
+                          <span>{label}</span>
+                        </SuggestionButton>
+                      ))}
+                    </SuggestionList>
+                  )}
+                </SuggestField>
+                <p className="text-[11px] text-muted-foreground">
+                  This name is not in the catalog yet. A category is only needed to add it.
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="procedureDate">Procedure date *</Label>
+              <Input id="procedureDate" type="date" value={procedureDate} onChange={(event) => setProcedureDate(event.target.value)} required className={inputClass} />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => requestClose(false)}>Cancel</Button>
+              <Button type="submit" disabled={isSubmitting || selectedProcedures.length === 0}>
+                {isSubmitting ? 'Scheduling...' : 'Schedule procedure'}
+              </Button>
+            </div>
+          </form>
+        )}
+
+        {step === 'details' && scheduledCase && (
+          <SurgicalCaseSetupForm
+            caseId={scheduledCase.surgicalCaseId}
+            cancelLabel="Do this later"
+            onCancel={() => requestClose(false)}
+            onSaved={() => {
+              invalidateCases();
+              closeAfterSchedule();
+            }}
+          />
+        )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function SuggestField({
+  id,
+  value,
+  open,
+  placeholder,
+  onChange,
+  onFocus,
+  onBlur,
+  onKeyDown,
+  children,
+}: {
+  id: string;
+  value: string;
+  open: boolean;
+  placeholder: string;
+  onChange: (value: string) => void;
+  onFocus: () => void;
+  onBlur: () => void;
+  onKeyDown?: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="relative">
+      <Input
+        id={id}
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        onFocus={onFocus}
+        onBlur={onBlur}
+        onKeyDown={onKeyDown}
+        autoComplete="off"
+        aria-expanded={open}
+        className={inputClass}
+      />
+      {children}
+    </div>
+  );
+}
+
+function SuggestionList({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-lg border border-border bg-popover shadow-lg">
+      {children}
+    </div>
+  );
+}
+
+function SuggestionButton({
+  children,
+  onClick,
+  disabled,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onClick}
+      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm text-foreground hover:bg-[#e7d6bf]/30 disabled:opacity-50"
+    >
+      {children}
+    </button>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/patient/useAuth';
 import { apiClient } from '@/lib/api/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -185,6 +185,8 @@ function InventoryContent() {
 
 export default function DoctorInventoryPage() {
   return (
-    <InventoryContent />
+    <Suspense fallback={<div className="p-6 text-sm text-slate-500">Loading inventory…</div>}>
+      <InventoryContent />
+    </Suspense>
   );
 }

@@ -108,7 +108,21 @@ async function getAuthenticatedDoctor() {
   }
   
   const doctor = await db.doctor.findUnique({
-    where: { user_id: authUser.userId }
+    where: { user_id: authUser.userId },
+    select: {
+      id: true,
+      user_id: true,
+      first_name: true,
+      last_name: true,
+      name: true,
+      title: true,
+      specialization: true,
+      email: true,
+      phone: true,
+      profile_image: true,
+      availability_status: true,
+      onboarding_status: true,
+    },
   });
   
   if (!doctor) {
@@ -120,7 +134,6 @@ async function getAuthenticatedDoctor() {
 
 async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardData> {
   const doctorId = doctor.id;
-  const userId = doctor.user_id;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today);
@@ -128,30 +141,100 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
   const dayAfter = new Date(today);
   dayAfter.setDate(dayAfter.getDate() + 2);
 
-  // Fetch appointments: today + tomorrow (48h window), all relevant statuses including pending
-  const allAppointments = await db.appointment.findMany({
-    where: {
-      doctor_id: doctorId,
-      appointment_date: {
-        gte: today,
-        lt: dayAfter,
-      },
-      status: {
-        in: ['PENDING_DOCTOR_CONFIRMATION', 'PENDING', 'SCHEDULED', 'CONFIRMED', 'CHECKED_IN', 'READY_FOR_CONSULTATION', 'IN_CONSULTATION'],
-      },
+  const appointmentWhere = {
+    doctor_id: doctorId,
+    appointment_date: {
+      gte: today,
+      lt: dayAfter,
     },
-    include: {
-      patient: {
-        select: {
-          id: true,
-          first_name: true,
-          last_name: true,
-          file_number: true,
+    status: {
+      in: ['PENDING_DOCTOR_CONFIRMATION', 'PENDING', 'SCHEDULED', 'CONFIRMED', 'CHECKED_IN', 'READY_FOR_CONSULTATION', 'IN_CONSULTATION'] as const,
+    },
+  };
+  const patientSelect = {
+    id: true,
+    first_name: true,
+    last_name: true,
+    file_number: true,
+  } as const;
+
+  const [allAppointments, surgicalCases, queue] = await Promise.all([
+    db.appointment.findMany({
+      where: appointmentWhere,
+      select: {
+        id: true,
+        patient_id: true,
+        appointment_date: true,
+        time: true,
+        type: true,
+        status: true,
+        patient: { select: patientSelect },
+      },
+      orderBy: [{ appointment_date: 'asc' }, { time: 'asc' }],
+    }),
+    db.surgicalCase.findMany({
+      where: {
+        primary_surgeon_id: doctorId,
+        status: { notIn: [SurgicalCaseStatus.DRAFT, SurgicalCaseStatus.CANCELLED] },
+      },
+      select: {
+        id: true,
+        status: true,
+        urgency: true,
+        diagnosis: true,
+        procedure_name: true,
+        side: true,
+        created_at: true,
+        updated_at: true,
+        patient: { select: patientSelect },
+        case_plan: {
+          select: {
+            id: true,
+            readiness_status: true,
+            ready_for_surgery: true,
+          },
+        },
+        theater_booking: {
+          select: {
+            id: true,
+            start_time: true,
+            end_time: true,
+            status: true,
+            theater: { select: { name: true } },
+          },
         },
       },
-    },
-    orderBy: [{ appointment_date: 'asc' }, { time: 'asc' }],
-  });
+      orderBy: { updated_at: 'desc' },
+      take: 100,
+    }),
+    db.patientQueue.findMany({
+      where: {
+        doctor_id: doctorId,
+        status: { in: ['WAITING', 'IN_CONSULTATION'] },
+        added_at: {
+          gte: today,
+          lt: tomorrow,
+        },
+      },
+      select: {
+        id: true,
+        patient_id: true,
+        appointment_id: true,
+        status: true,
+        added_at: true,
+        patient: { select: patientSelect },
+        appointment: {
+          select: {
+            id: true,
+            type: true,
+            status: true,
+            time: true,
+          },
+        },
+      },
+      orderBy: { added_at: 'asc' },
+    }),
+  ]);
 
   // Split into today and upcoming (tomorrow only)
   const todayAppointments = allAppointments.filter(apt => {
@@ -168,75 +251,6 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
   const pendingCount = allAppointments.filter(apt =>
     apt.status === 'PENDING_DOCTOR_CONFIRMATION' || apt.status === 'PENDING'
   ).length;
-
-  const [surgicalCases, queue] = await Promise.all([
-    db.surgicalCase.findMany({
-      where: {
-        primary_surgeon_id: doctorId,
-        status: { notIn: [SurgicalCaseStatus.DRAFT, SurgicalCaseStatus.CANCELLED] },
-      },
-      include: {
-        patient: {
-          select: {
-            id: true,
-            first_name: true,
-            last_name: true,
-            file_number: true,
-          },
-        },
-        case_plan: {
-          select: {
-            id: true,
-            readiness_status: true,
-            ready_for_surgery: true,
-          },
-        },
-        theater_booking: {
-          include: {
-            theater: {
-              select: { name: true },
-            },
-          },
-        },
-      },
-      orderBy: { updated_at: 'desc' },
-      take: 100,
-    }),
-    db.patientQueue.findMany({
-      where: {
-        doctor_id: doctorId,
-        status: { in: ['WAITING', 'IN_CONSULTATION'] },
-        added_at: {
-          gte: today,
-          lt: tomorrow,
-        },
-      },
-      include: {
-        patient: {
-          select: {
-            id: true,
-            first_name: true,
-            last_name: true,
-            file_number: true,
-          },
-        },
-        appointment: {
-          select: {
-            id: true,
-            type: true,
-            status: true,
-            time: true,
-          },
-        },
-      },
-      orderBy: { added_at: 'asc' },
-    }),
-  ]);
-
-  // Note: Queue data is fetched separately via useDoctorQueue hook.
-  // The PatientQueue table is the single source of truth for the doctor's
-  // operational queue. This action focuses on appointments, surgical cases,
-  // and stats.
 
   const completedToday = todayAppointments.filter(a => a.status === 'COMPLETED').length;
   const activeCases = surgicalCases.filter(s => s.status !== 'COMPLETED' && s.status !== 'CANCELLED' && s.status !== 'DRAFT').length;
@@ -323,7 +337,7 @@ async function fetchDashboardDataInternal(doctor: any): Promise<DoctorDashboardD
       return {
         id: q.id,
         patientId: q.patient_id,
-        patientName: `${q.patient.first_name} ${q.patient.lastName}`,
+        patientName: `${q.patient.first_name} ${q.patient.last_name}`,
         patientFileNumber: q.patient.file_number,
         appointmentId: q.appointment_id,
         type: q.appointment?.type || 'Walk-in',

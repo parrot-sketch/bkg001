@@ -32,10 +32,10 @@ export function PatientProfileActions({ patientId, patientName, className }: Pat
 
   return (
     <>
-      <div className={cn('flex flex-col gap-2 sm:flex-row', className)}>
+      <div className={cn('flex flex-wrap items-center gap-2', className)}>
         <Button
           onClick={() => setQueueOpen(true)}
-          className="h-10 rounded-lg bg-[#caa26a] px-4 font-semibold text-[#2c2e4b] shadow-sm hover:bg-[#b8913e]"
+          className="h-9 rounded-none bg-[#caa26a] px-4 font-semibold text-[#2c2e4b] shadow-none hover:bg-[#b8913e]"
         >
           <UserPlus className="mr-2 h-4 w-4" />
           Add to doctor&apos;s queue
@@ -49,9 +49,9 @@ export function PatientProfileActions({ patientId, patientName, className }: Pat
               bookingChannel: BookingChannel.DASHBOARD,
             })
           }
-          className="h-10 rounded-lg border-[#2c2e4b]/20 bg-white px-4 font-medium text-[#2c2e4b] hover:bg-[#e7d6bf]/30"
+          className="h-9 rounded-none border-white/40 bg-transparent px-4 font-medium text-white shadow-none hover:bg-white/10 hover:text-white"
         >
-          <CalendarPlus className="mr-2 h-4 w-4 text-[#caa26a]" />
+          <CalendarPlus className="mr-2 h-4 w-4" />
           Book appointment
         </Button>
       </div>

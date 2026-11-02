@@ -35,6 +35,7 @@ import {
   ChevronRight,
   Eye,
   Receipt,
+  Users,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { frontdeskApi } from '@/lib/api/frontdesk';
@@ -295,7 +296,21 @@ export function SurgicalCasesList({
                       const canEdit = ['DRAFT', 'PLANNING', 'READY_FOR_SCHEDULING', 'READY_FOR_WARD_PREP', 'IN_WARD_PREP'].includes(c.status);
                       const canDelete = canEdit;
                       const surgeonName = c.primary_surgeon?.name || c.primary_surgeon_name || '—';
-                      const actions = availableActions(c, canEdit, canDelete);
+                      const provided = availableActions(c, canEdit, canDelete);
+                      const continueSetup: SurgicalCaseAction = {
+                        key: 'team-details',
+                        label: 'Team & details',
+                        icon: Users,
+                        onClick: () => {
+                          const href = detailHref(c);
+                          router.push(href.includes('?') ? `${href}&setup=team` : `${href}?setup=team`);
+                        },
+                      };
+                      const actions = [
+                        ...provided.slice(0, 1),
+                        continueSetup,
+                        ...provided.slice(1).filter((action) => action.key !== 'team-details'),
+                      ];
 
                       return (
                         <TableRow key={c.id} className="hover:bg-[#e7d6bf]/10 cursor-pointer" onClick={() => router.push(detailHref(c))}>

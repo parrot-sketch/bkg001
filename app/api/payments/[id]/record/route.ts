@@ -90,6 +90,7 @@ export async function POST(
       // Common domain guard failures should not surface as 500s.
       if (
         msg.toLowerCase().includes('not finalized') ||
+        msg.toLowerCase().includes('save the charge sheet') ||
         msg.toLowerCase().includes('exceeds') ||
         msg.toLowerCase().includes('positive')
       ) {

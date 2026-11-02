@@ -55,6 +55,8 @@ interface ClinicalRichTextEditorProps {
   changeDebounceMs?: number;
   ariaLabel?: string;
   disabled?: boolean;
+  dictationContextType?: 'appointment' | 'consultation' | 'case' | 'patient';
+  dictationContextId?: string | number | null;
 }
 
 export function ClinicalRichTextEditor({
@@ -69,6 +71,8 @@ export function ClinicalRichTextEditor({
   changeDebounceMs = 0,
   ariaLabel = 'Clinical documentation editor',
   disabled = false,
+  dictationContextType,
+  dictationContextId,
 }: ClinicalRichTextEditorProps) {
   const isInternalUpdateRef = useRef(false);
   const onChangeRef = useRef(onChange);
@@ -321,14 +325,18 @@ export function ClinicalRichTextEditor({
           <ToolbarDivider />
 
           {/* Voice / AI group */}
-          <ToolbarGroup>
-            <DictationControl
-              onTranscription={(text: string) => {
-                editor.chain().focus().insertContent(text + ' ').run();
-              }}
-              context={placeholder?.toLowerCase().includes('complaint') ? 'Chief Complaint' : placeholder?.toLowerCase().includes('examination') ? 'Examination' : 'default'}
-            />
-          </ToolbarGroup>
+          {dictationContextType && dictationContextId !== undefined && dictationContextId !== null && (
+            <ToolbarGroup>
+              <DictationControl
+                onTranscription={(text: string) => {
+                  editor.chain().focus().insertContent(text + ' ').run();
+                }}
+                contextType={dictationContextType}
+                contextId={dictationContextId}
+                context={placeholder?.toLowerCase().includes('complaint') ? 'Chief Complaint' : placeholder?.toLowerCase().includes('examination') ? 'Examination' : 'default'}
+              />
+            </ToolbarGroup>
+          )}
 
           {/* Character Count */}
           <div className="ml-auto text-[11px] text-slate-400 font-medium tabular-nums px-1" aria-live="polite">

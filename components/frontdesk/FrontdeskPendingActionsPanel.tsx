@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import type { AppointmentResponseDto } from '@/application/dtos/AppointmentResponseDto';
+import { frontdeskChargeSheetPath, openFollowUpBooking } from '@/hooks/frontdesk/useBookAppointmentStore';
 
 interface FrontdeskPendingActionsPanelProps {
   completedAppointments: AppointmentResponseDto[];
@@ -137,7 +138,7 @@ export function FrontdeskPendingActionsPanel({
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => router.push(`/frontdesk/appointments/${action.appointmentId}/billing`)}
+                      onClick={() => router.push(frontdeskChargeSheetPath(action.patientId, action.appointmentId))}
                       disabled={actioningId === action.appointmentId}
                       className="h-8 px-2.5 text-[10px] rounded-lg border border-[#e7d6bf] text-[#2c2e4b] hover:bg-[#e7d6bf]/30"
                     >
@@ -153,7 +154,13 @@ export function FrontdeskPendingActionsPanel({
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => router.push(`/frontdesk/appointments/${action.appointmentId}/followup?patientId=${action.patientId}&doctorId=${action.doctorId}`)}
+                      onClick={() => openFollowUpBooking({
+                        appointmentId: action.appointmentId,
+                        patientId: action.patientId,
+                        patientName: action.patientName,
+                        doctorId: action.doctorId,
+                        doctorName: action.doctorName,
+                      })}
                       disabled={actioningId === action.appointmentId}
                       className="h-8 px-2.5 text-[10px] rounded-lg border border-[#e7d6bf] text-[#2c2e4b] hover:bg-[#e7d6bf]/30"
                     >

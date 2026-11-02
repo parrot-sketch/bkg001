@@ -39,7 +39,6 @@ export async function POST(request: NextRequest) {
         if (auth.user.role !== Role.DOCTOR && auth.user.role !== Role.ADMIN) {
             return NextResponse.json({ success: false, error: 'Only doctors can upload medical images' }, { status: 403 });
         }
-
         // 2. Parse multipart form data
         const formData = await request.formData();
         const file = formData.get('file') as File | null;

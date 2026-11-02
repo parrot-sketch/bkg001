@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import type { NotificationResponseDto } from '@/lib/api/notifications';
 
 export const PATIENT_INTAKE_SUBMITTED = 'PATIENT_INTAKE_SUBMITTED';
+export const PATIENT_CALLED_IN = 'PATIENT_CALLED_IN';
 
 // Module-level so remounting the header (route changes) or rendering more than
 // one bell never re-alerts for notifications that were already seen.
@@ -67,12 +68,11 @@ export function useIntakeNotificationAlerts(
       return;
     }
 
-    const fresh = notifications.filter(
-      (n) =>
-        !seenIds.has(n.id) &&
-        n.status !== 'READ' &&
-        parseNotificationMetadata(n.metadata).event === PATIENT_INTAKE_SUBMITTED,
-    );
+    const fresh = notifications.filter((n) => {
+      if (seenIds.has(n.id) || n.status === 'READ') return false;
+      const event = parseNotificationMetadata(n.metadata).event;
+      return event === PATIENT_INTAKE_SUBMITTED || event === PATIENT_CALLED_IN;
+    });
     notifications.forEach((n) => seenIds.add(n.id));
     if (fresh.length === 0) return;
 

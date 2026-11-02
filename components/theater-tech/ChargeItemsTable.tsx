@@ -1,43 +1,16 @@
 'use client';
 
-/**
- * ChargeItemsTable
- *
- * Responsive display for charge sheet items:
- * - Mobile: stacked cards (md:hidden)
- * - Desktop: table layout (hidden md:block)
- */
-
-import { FileText, Trash2, Package, GripVertical, Tag } from 'lucide-react';
+import { useEffect } from 'react';
+import { X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import type { ChargeItem, ChargeItemsTableProps } from './charge-sheet.types';
-
-function ItemTypeIcon({ type }: { type: ChargeItem['type'] }) {
-  if (type === 'service') {
-    return (
-      <div className="h-8 w-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-        <FileText className="h-4 w-4" />
-      </div>
-    );
-  }
-  if (type === 'inventory') {
-    return (
-      <div className="h-8 w-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
-        <Package className="h-4 w-4" />
-      </div>
-    );
-  }
-  return (
-    <div className="h-8 w-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
-      <Tag className="h-4 w-4" />
-    </div>
-  );
-}
 
 function lineTotal(item: ChargeItem): string {
   return ((item.amount || 0) * (item.quantity || 0)).toLocaleString();
 }
+
+const cell = 'border-b border-border px-3 py-2 align-middle';
+const head = 'h-9 border-b border-border bg-[#e7d6bf]/30 px-3 text-left text-[11px] font-semibold uppercase tracking-wider text-secondary';
 
 export function ChargeItemsTable({
   chargeItems,
@@ -45,182 +18,92 @@ export function ChargeItemsTable({
   onQuantityBlur,
   onAmountChange,
   onAmountBlur,
+  onDescriptionChange,
+  onDescriptionFocus,
+  onDescriptionBlur,
+  highlightedItemId,
   onRemoveItem,
   getDraft,
 }: ChargeItemsTableProps) {
+  useEffect(() => {
+    if (!highlightedItemId) return;
+    document.getElementById(`charge-row-${highlightedItemId}`)?.scrollIntoView({ block: 'nearest' });
+  }, [highlightedItemId]);
+
   return (
-    <div className="space-y-3">
-      {/* Mobile: stacked cards */}
-      <div className="md:hidden space-y-3">
-        {chargeItems.map((item) => {
-          const draft = getDraft(item);
-          return (
-            <div key={item.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="flex items-start gap-3 mb-3">
-                <GripVertical className="h-4 w-4 text-slate-300 mt-0.5 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <ItemTypeIcon type={item.type} />
-                    <span className="text-sm font-medium text-slate-900 truncate flex-1">
-                      {item.description}
-                    </span>
-                  </div>
-                  <Badge variant="outline" className="border-slate-200 bg-slate-50 text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">
-                    {item.type}
-                  </Badge>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onRemoveItem(item.id)}
-                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg touch-manipulation transition-colors"
-                  aria-label="Remove item"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-              {typeof item.catalogAmount === 'number' && (
-                <p className="mb-3 text-xs text-slate-500 bg-slate-50 rounded-lg px-2 py-1.5">
-                  Catalog: KSH {item.catalogAmount.toLocaleString()}
-                </p>
-              )}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] uppercase tracking-wide text-slate-400 mb-1 block">Qty</label>
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[640px] text-sm">
+        <thead>
+          <tr>
+            <th className={head}>Item</th>
+            <th className={`${head} text-right`}>Qty</th>
+            <th className={`${head} text-right`}>Price per unit</th>
+            <th className={`${head} text-right`}>Line total</th>
+            <th className={`${head} w-10`} />
+          </tr>
+        </thead>
+        <tbody>
+          {chargeItems.map((item) => {
+            const draft = getDraft(item);
+            return (
+              <tr
+                key={item.id}
+                id={`charge-row-${item.id}`}
+                className={item.id === highlightedItemId ? 'bg-[#e7d6bf]/30' : 'hover:bg-[#e7d6bf]/30'}
+              >
+                <td className={`${cell} font-medium text-foreground`}>
+                  {onDescriptionChange ? (
+                    <Input
+                      className="h-9 rounded-none"
+                      value={item.description}
+                      onChange={(event) => onDescriptionChange(item.id, event.target.value)}
+                      onFocus={() => onDescriptionFocus?.(item.id)}
+                      onBlur={() => onDescriptionBlur?.(item.id)}
+                      aria-label="Item name"
+                    />
+                  ) : (
+                    item.description
+                  )}
+                </td>
+                <td className={`${cell} text-right`}>
                   <Input
                     type="text"
                     inputMode="numeric"
                     pattern="[0-9]*"
-                    className="h-9 border-slate-200 bg-white touch-manipulation"
+                    className="ml-auto h-9 w-20 rounded-none text-right"
                     value={draft.quantityStr}
-                    onChange={(e) =>
-                      onQuantityChange(item.id, e.target.value)
-                    }
+                    onChange={(event) => onQuantityChange(item.id, event.target.value)}
                     onBlur={() => onQuantityBlur(item.id)}
                     aria-label="Quantity"
                   />
-                </div>
-                <div>
-                  <label className="text-[10px] uppercase tracking-wide text-slate-400 mb-1 block">Unit Price (KSH)</label>
+                </td>
+                <td className={`${cell} text-right`}>
                   <Input
                     type="text"
                     inputMode="decimal"
-                    className="h-9 border-slate-200 bg-white touch-manipulation"
+                    className="ml-auto h-9 w-28 rounded-none text-right"
                     value={draft.amountStr}
-                    onChange={(e) =>
-                      onAmountChange(item.id, e.target.value)
-                    }
+                    onChange={(event) => onAmountChange(item.id, event.target.value)}
                     onBlur={() => onAmountBlur(item.id)}
                     aria-label="Unit price"
                   />
-                </div>
-              </div>
-              <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs text-slate-500">Line Total</span>
-                <span className="text-sm font-semibold text-[#2c2e4b]">
-                  KSH {lineTotal(item)}
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Desktop: table */}
-      <div className="hidden md:block overflow-x-auto rounded-xl border border-slate-200">
-        <table className="w-full min-w-[600px]">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3 w-8" />
-              <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3">
-                Item
-              </th>
-              <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3 w-24">
-                Type
-              </th>
-              <th className="text-right text-xs font-semibold text-slate-500 px-4 py-3 w-24">
-                Qty
-              </th>
-              <th className="text-right text-xs font-semibold text-slate-500 px-4 py-3 w-32">
-                Unit Price
-              </th>
-              <th className="text-right text-xs font-semibold text-slate-500 px-4 py-3 w-28">
-                Total
-              </th>
-              <th className="w-10 px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {chargeItems.map((item) => {
-              const draft = getDraft(item);
-              return (
-                <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-4 py-3">
-                    <GripVertical className="h-4 w-4 text-slate-300" />
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <ItemTypeIcon type={item.type} />
-                      <div>
-                        <p className="text-sm font-medium text-slate-900">{item.description}</p>
-                        {typeof item.catalogAmount === 'number' && (
-                          <p className="text-xs text-slate-500">
-                            Catalog: KSH {item.catalogAmount.toLocaleString()}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge variant="outline" className="border-slate-200 bg-white text-[10px] font-medium uppercase tracking-[0.14em] text-slate-500">
-                      {item.type}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      className="h-8 w-20 ml-auto border-slate-200 bg-white text-right"
-                      value={draft.quantityStr}
-                      onChange={(e) =>
-                        onQuantityChange(item.id, e.target.value)
-                      }
-                      onBlur={() => onQuantityBlur(item.id)}
-                      aria-label="Quantity"
-                    />
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      className="h-8 w-28 ml-auto border-slate-200 bg-white text-right"
-                      value={draft.amountStr}
-                      onChange={(e) =>
-                        onAmountChange(item.id, e.target.value)
-                      }
-                      onBlur={() => onAmountBlur(item.id)}
-                      aria-label="Unit price"
-                    />
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm font-semibold text-[#2c2e4b]">
-                    KSH {lineTotal(item)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => onRemoveItem(item.id)}
-                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      aria-label="Remove item"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                </td>
+                <td className={`${cell} text-right tabular-nums font-medium text-foreground`}>{lineTotal(item)}</td>
+                <td className={cell}>
+                  <button
+                    type="button"
+                    onClick={() => onRemoveItem(item.id)}
+                    className="text-muted-foreground hover:text-destructive"
+                    aria-label={`Remove ${item.description}`}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

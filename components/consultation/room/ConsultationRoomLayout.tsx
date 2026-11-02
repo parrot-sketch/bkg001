@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { cn } from '@/lib/utils';
 
 interface ConsultationRoomLayoutProps {
   header: ReactNode;
@@ -24,32 +25,53 @@ export function ConsultationRoomLayout({
   onToggleQueuePanel,
 }: ConsultationRoomLayoutProps) {
   return (
-    <div className="flex flex-col h-[100dvh] bg-[#fcfbf8] text-[#2c2e4b]">
+    <div className="flex h-full min-h-0 flex-1 flex-col bg-white text-[#2c2e4b]">
       {header}
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="relative flex min-h-0 flex-1 overflow-hidden">
+        {sidebarOpen && (
+          <button
+            type="button"
+            aria-label="Close patient details"
+            className="absolute inset-0 z-20 bg-[#2c2e4b]/40 lg:hidden"
+            onClick={onToggleSidebar}
+          />
+        )}
+        {queuePanelOpen && (
+          <button
+            type="button"
+            aria-label="Close queue"
+            className="absolute inset-0 z-20 bg-[#2c2e4b]/40 xl:hidden"
+            onClick={onToggleQueuePanel}
+          />
+        )}
+
         <aside
-          className={`
-            shrink-0 hidden lg:flex flex-col bg-white overflow-hidden
-            transition-[width] duration-200 ease-out
-            ${sidebarOpen ? 'w-[280px] border-r border-[#e7d6bf] shadow-[4px_0_24px_-8px_rgba(44,46,75,0.06)]' : 'w-0 border-r-0'}
-          `}
+          className={cn(
+            'flex min-h-0 flex-col overflow-hidden bg-white',
+            'absolute inset-y-0 left-0 z-30 w-[min(100%,22rem)] border-r border-[#e7d6bf] shadow-xl transition-transform',
+            'lg:static lg:z-auto lg:shadow-none lg:transition-[width]',
+            sidebarOpen
+              ? 'translate-x-0 lg:w-[280px]'
+              : '-translate-x-full lg:w-0 lg:translate-x-0 lg:border-r-0',
+          )}
         >
-          {sidebarOpen && patientPanel}
+          <div className="h-full min-h-0 w-[min(100%,22rem)] lg:w-[280px]">{patientPanel}</div>
         </aside>
 
-        <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
-          {workspace}
-        </main>
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{workspace}</main>
 
         <aside
-          className={`
-            shrink-0 hidden xl:flex flex-col bg-white overflow-hidden
-            transition-[width] duration-200 ease-out
-            ${queuePanelOpen ? 'w-[300px] border-l border-[#e7d6bf] shadow-[-4px_0_24px_-8px_rgba(44,46,75,0.06)]' : 'w-0 border-l-0'}
-          `}
+          className={cn(
+            'flex min-h-0 flex-col overflow-hidden bg-white',
+            'absolute inset-y-0 right-0 z-30 w-[min(100%,22rem)] border-l border-[#e7d6bf] shadow-xl transition-transform',
+            'xl:static xl:z-auto xl:shadow-none xl:transition-[width]',
+            queuePanelOpen
+              ? 'translate-x-0 xl:w-[300px]'
+              : 'translate-x-full xl:w-0 xl:translate-x-0 xl:border-l-0',
+          )}
         >
-          {queuePanelOpen && queuePanel}
+          <div className="h-full min-h-0 w-[min(100%,22rem)] xl:w-[300px]">{queuePanel}</div>
         </aside>
       </div>
     </div>

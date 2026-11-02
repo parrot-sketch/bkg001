@@ -20,6 +20,7 @@ interface AppHeaderProps {
   queuePanelCollapsed?: boolean;
   onTogglePatientSidebar?: () => void;
   onToggleQueuePanel?: () => void;
+  onBack?: () => void;
   elapsed?: string;
   remainingDisplay?: string | null;
 }
@@ -38,6 +39,7 @@ export function AppHeader({
   queuePanelCollapsed,
   onTogglePatientSidebar,
   onToggleQueuePanel,
+  onBack,
 }: AppHeaderProps) {
   const router = useRouter();
   const { elapsed, remainingDisplay } = useTimerContext();
@@ -61,7 +63,7 @@ export function AppHeader({
           variant="ghost"
           size="icon"
           className="h-8 w-8 text-[#e7d6bf] hover:text-white hover:bg-[#2c2e4b] rounded-lg transition-colors"
-          onClick={() => router.push('/doctor/consultations')}
+          onClick={() => (onBack ? onBack() : router.push('/doctor/dashboard'))}
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>

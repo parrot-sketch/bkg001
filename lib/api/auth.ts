@@ -5,8 +5,8 @@
  */
 
 import { apiClient, ApiResponse } from './client';
-import type { LoginDto, LoginResponseDto } from '../../application/dtos/LoginDto';
-import type { RefreshTokenDto, RefreshTokenResponseDto } from '../../application/dtos/RefreshTokenDto';
+import type { LoginDto } from '../../application/dtos/LoginDto';
+import type { StoredUser } from '../auth/token';
 
 /**
  * Authentication API client
@@ -18,15 +18,22 @@ export const authApi = {
   /**
    * Login with email and password
    */
-  async login(dto: LoginDto): Promise<ApiResponse<LoginResponseDto>> {
-    return apiClient.post<LoginResponseDto>('/authentication/login', dto);
+  async login(dto: LoginDto): Promise<ApiResponse<{ user: StoredUser }>> {
+    return apiClient.post<{ user: StoredUser }>('/authentication/login', dto);
   },
 
   /**
    * Refresh access token
    */
-  async refreshToken(dto: RefreshTokenDto): Promise<ApiResponse<RefreshTokenResponseDto>> {
-    return apiClient.post<RefreshTokenResponseDto>('/authentication/refresh', dto);
+  async refreshToken(): Promise<ApiResponse<{ expiresIn: number }>> {
+    return apiClient.post<{ expiresIn: number }>('/authentication/refresh');
+  },
+
+  /**
+   * Restore the current user from the HttpOnly access cookie.
+   */
+  async session(): Promise<ApiResponse<{ user: StoredUser }>> {
+    return apiClient.get<{ user: StoredUser }>('/authentication/session');
   },
 
   /**

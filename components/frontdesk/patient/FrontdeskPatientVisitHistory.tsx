@@ -1,73 +1,34 @@
-import type { ComponentType } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import {
-  Calendar,
-  Clock,
-  Stethoscope,
-  AlertCircle,
-  CheckCircle,
-  ArrowRight,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import type { FrontdeskPatientVisit } from '@/utils/services/patient-visits';
 import { FrontdeskVisitHistoryFilters } from '@/components/frontdesk/patient/FrontdeskVisitHistoryFilters';
 
-const STATUS_CONFIG: Record<
-  string,
-  { label: string; className: string; icon: ComponentType<{ className?: string }> }
-> = {
-  PENDING: {
-    label: 'Pending',
-    className: 'bg-amber-50 text-amber-800 border-amber-200',
-    icon: AlertCircle,
-  },
-  PENDING_DOCTOR_CONFIRMATION: {
-    label: 'Awaiting Doctor',
-    className: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-    icon: Clock,
-  },
-  SCHEDULED: {
-    label: 'Scheduled',
-    className: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    icon: Calendar,
-  },
-  CONFIRMED: {
-    label: 'Confirmed',
-    className: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-    icon: CheckCircle,
-  },
-  CHECKED_IN: {
-    label: 'Checked In',
-    className: 'bg-sky-50 text-sky-700 border-sky-200',
-    icon: CheckCircle,
-  },
-  READY_FOR_CONSULTATION: {
-    label: 'Ready',
-    className: 'bg-[#e7d6bf]/40 text-[#2c2e4b] border-[#e7d6bf]',
-    icon: Stethoscope,
-  },
-  IN_CONSULTATION: {
-    label: 'In Consultation',
-    className: 'bg-violet-50 text-violet-700 border-violet-200',
-    icon: Stethoscope,
-  },
-  COMPLETED: {
-    label: 'Completed',
-    className: 'bg-green-50 text-green-700 border-green-200',
-    icon: CheckCircle,
-  },
-  CANCELLED: {
-    label: 'Cancelled',
-    className: 'bg-red-50 text-red-700 border-red-200',
-    icon: AlertCircle,
-  },
-  NO_SHOW: {
-    label: 'No Show',
-    className: 'bg-gray-50 text-gray-600 border-gray-200',
-    icon: AlertCircle,
-  },
+const STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Pending',
+  PENDING_DOCTOR_CONFIRMATION: 'Awaiting doctor',
+  SCHEDULED: 'Scheduled',
+  CONFIRMED: 'Confirmed',
+  CHECKED_IN: 'Checked in',
+  READY_FOR_CONSULTATION: 'Ready',
+  IN_CONSULTATION: 'In consultation',
+  COMPLETED: 'Completed',
+  CANCELLED: 'Cancelled',
+  NO_SHOW: 'No show',
 };
+
+function statusClass(status: string) {
+  if (status === 'CANCELLED' || status === 'NO_SHOW') return 'text-[#9b2226]';
+  if (status === 'COMPLETED') return 'text-[#005f73]';
+  return 'text-[#2c2e4b]';
+}
 
 interface FrontdeskPatientVisitHistoryProps {
   patientId: string;
@@ -85,110 +46,69 @@ export function FrontdeskPatientVisitHistory({
   const hasDateFilter = Boolean(selectedDate);
 
   return (
-    <div className="bg-white/95 backdrop-blur border border-[#e7d6bf] rounded-xl overflow-hidden">
-      <div className="px-5 py-3 border-b border-[#e7d6bf] bg-[#e7d6bf]/5 space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Calendar size={14} className="text-[#caa26a]" />
-            <h2 className="text-xs font-bold text-[#2c2e4b] uppercase tracking-wider">
-              Visit History
-            </h2>
-          </div>
-          <span className="text-[11px] font-medium text-[#2c2e4b]/60 bg-[#e7d6bf]/30 border border-[#e7d6bf] px-2 py-0.5 rounded">
+    <div>
+      <div className="flex flex-col gap-3 border-b border-[#e7d6bf] bg-[#e7d6bf]/30 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-sm font-semibold text-[#2c2e4b]">Visit history</h2>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <FrontdeskVisitHistoryFilters
+            patientId={patientId}
+            selectedDate={selectedDate}
+            filteredCount={visits.length}
+            totalCount={totalVisits}
+          />
+          <span className="text-xs font-medium text-[#2c2e4b]/60">
             {hasDateFilter
-              ? `${visits.length} on ${format(new Date(`${selectedDate}T12:00:00`), 'MMM d, yyyy')}`
+              ? `${visits.length} on ${format(new Date(`${selectedDate}T12:00:00`), 'd MMM yyyy')}`
               : `${totalVisits} visit${totalVisits === 1 ? '' : 's'}`}
           </span>
         </div>
-
-        <FrontdeskVisitHistoryFilters
-          patientId={patientId}
-          selectedDate={selectedDate}
-          filteredCount={visits.length}
-          totalCount={totalVisits}
-        />
       </div>
 
       {visits.length === 0 ? (
-        <div className="px-5 py-12 text-center">
-          <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-[#e7d6bf]/30">
-            <Calendar className="h-5 w-5 text-[#2c2e4b]/40" />
-          </div>
+        <div className="px-5 py-10">
           <p className="text-sm font-medium text-[#2c2e4b]">
             {hasDateFilter ? 'No visits on this date' : 'No visits yet'}
           </p>
-          <p className="mt-1 text-xs text-[#2c2e4b]/50">
+          <p className="mt-1 text-sm text-[#2c2e4b]/55">
             {hasDateFilter
               ? 'Try another date, or clear the filter to see the full history.'
               : "Visits appear here after the patient is added to a doctor's queue or booked for an appointment."}
           </p>
         </div>
       ) : (
-        <div className="divide-y divide-[#e7d6bf]/60">
-          {visits.map((visit) => {
-            const status = STATUS_CONFIG[visit.status] ?? {
-              label: visit.status,
-              className: 'bg-gray-50 text-gray-600 border-gray-200',
-              icon: Calendar,
-            };
-            const StatusIcon = status.icon;
-
-            return (
-              <Link
-                key={visit.id}
-                href={`/frontdesk/appointments/${visit.id}`}
-                className="flex items-center gap-4 px-5 py-3.5 hover:bg-[#e7d6bf]/15 transition-colors group"
-              >
-                <div className="w-12 shrink-0 text-center">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-[#2c2e4b]/50">
-                    {format(visit.date, 'MMM')}
-                  </p>
-                  <p className="text-lg font-bold leading-none text-[#2c2e4b] tabular-nums">
-                    {format(visit.date, 'd')}
-                  </p>
-                  <p className="text-[10px] text-[#2c2e4b]/45">{format(visit.date, 'yyyy')}</p>
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <p className="text-sm font-medium text-[#2c2e4b]">
-                      {visit.time || 'Time TBD'}
-                    </p>
-                    <span className="text-[#e7d6bf]">·</span>
-                    <p className="text-xs text-[#2c2e4b]/60 truncate">{visit.type || 'Visit'}</p>
-                  </div>
-                  {visit.doctorName ? (
-                    <p className="mt-0.5 text-xs text-[#2c2e4b]/55 truncate">
-                      {visit.doctorName}
-                      {visit.doctorSpecialization ? ` · ${visit.doctorSpecialization}` : ''}
-                    </p>
-                  ) : null}
-                  {visit.reason ? (
-                    <p className="mt-1 text-xs text-[#2c2e4b]/70 truncate">
-                      <span className="font-medium text-[#caa26a]">Reason:</span> {visit.reason}
-                    </p>
-                  ) : null}
-                </div>
-
-                <div className="flex shrink-0 items-center gap-2">
-                  <span
-                    className={cn(
-                      'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-medium',
-                      status.className,
-                    )}
-                  >
-                    <StatusIcon className="h-3 w-3" />
-                    {status.label}
-                  </span>
-                  <ArrowRight
-                    size={14}
-                    className="text-[#2c2e4b]/25 group-hover:text-[#caa26a] transition-colors"
-                  />
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+        <Table>
+          <TableHeader>
+            <TableRow className="border-[#e7d6bf] hover:bg-transparent">
+              {['Date', 'Time', 'Visit', 'Clinician', 'Reason', 'Status'].map((column) => (
+                <TableHead key={column} className="h-9 bg-[#e7d6bf]/30 px-5 text-[11px] font-semibold uppercase tracking-wider text-[#005f73]">
+                  {column}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {visits.map((visit) => (
+              <TableRow key={visit.id} className="border-[#e7d6bf] hover:bg-[#e7d6bf]/30">
+                <TableCell className="px-5 py-2.5 font-medium tabular-nums text-[#2c2e4b]">
+                  <Link href={`/frontdesk/appointments/${visit.id}`} className="hover:underline">
+                    {format(visit.date, 'd MMM yyyy')}
+                  </Link>
+                </TableCell>
+                <TableCell className="px-5 py-2.5 tabular-nums text-[#2c2e4b]">{visit.time || '—'}</TableCell>
+                <TableCell className="px-5 py-2.5 text-[#2c2e4b]">{visit.type || 'Visit'}</TableCell>
+                <TableCell className="px-5 py-2.5 text-[#2c2e4b]">
+                  {visit.doctorName
+                    ? `${visit.doctorName}${visit.doctorSpecialization ? ` · ${visit.doctorSpecialization}` : ''}`
+                    : '—'}
+                </TableCell>
+                <TableCell className="max-w-[16rem] truncate px-5 py-2.5 text-[#2c2e4b]">{visit.reason || '—'}</TableCell>
+                <TableCell className={`px-5 py-2.5 text-sm font-medium ${statusClass(visit.status)}`}>
+                  {STATUS_LABELS[visit.status] ?? visit.status}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
     </div>
   );

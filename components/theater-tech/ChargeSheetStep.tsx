@@ -8,9 +8,11 @@
  * and exposes the same billing UX via shared sub-components.
  */
 
-import { Loader2, Save } from 'lucide-react';
+import { useState } from 'react';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useChargeSheet } from '@/hooks/theater-tech/useChargeSheet';
+import { ChargeSheetPreview } from './ChargeSheetPreview';
 import { ChargeSheetStepContent } from './ChargeSheetStepContent';
 
 interface Props {
@@ -19,6 +21,7 @@ interface Props {
 
 export function ChargeSheetStep({ caseId }: Props) {
   const cs = useChargeSheet(caseId);
+  const [reviewing, setReviewing] = useState(false);
 
   if (cs.isLoading) {
     return (
@@ -28,26 +31,31 @@ export function ChargeSheetStep({ caseId }: Props) {
     );
   }
 
+  if (reviewing) {
+    return (
+      <ChargeSheetPreview
+        items={cs.chargeItems}
+        subtotal={cs.subtotal}
+        discount={cs.discount}
+        total={cs.total}
+        caseInfo={cs.caseInfo}
+        saving={cs.isSaving}
+        onBack={() => setReviewing(false)}
+        onSave={() => {
+          void cs.handleSave();
+        }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-4">
       <ChargeSheetStepContent cs={cs} />
 
-      {/* Save button (standalone usage) */}
       {cs.chargeItems.length > 0 && (
         <div className="flex justify-end pt-1">
-          <Button
-            size="sm"
-            variant={cs.isDirty ? 'default' : 'outline'}
-            onClick={cs.handleSave}
-            disabled={cs.isSaving}
-            className="h-8"
-          >
-            {cs.isSaving ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-1" />
-            ) : (
-              <Save className="h-4 w-4 mr-1" />
-            )}
-            {cs.isSaving ? 'Saving…' : cs.isDirty ? 'Save Charges' : 'Saved'}
+          <Button size="sm" onClick={() => setReviewing(true)} className="h-8 rounded-none">
+            Review bill
           </Button>
         </div>
       )}

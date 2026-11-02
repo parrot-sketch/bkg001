@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { InventoryCategory, Prisma } from '@prisma/client';
+import { JwtMiddleware } from '@/lib/auth/middleware';
+import { Role } from '@/domain/enums/Role';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +16,15 @@ export async function GET(
     props: { params: Promise<{ caseId: string }> }
 ): Promise<NextResponse> {
     try {
+        const auth = await JwtMiddleware.authenticate(request);
+        if (!auth.success || !auth.user) {
+            return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 });
+        }
+
+        if (auth.user.role !== Role.NURSE && auth.user.role !== Role.ADMIN) {
+            return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
+        }
+
         const params = await props.params;
         const { caseId } = params;
 

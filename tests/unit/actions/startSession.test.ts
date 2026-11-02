@@ -11,6 +11,10 @@ vi.mock('@/infrastructure/factories/ConsultationSessionFactory', () => ({
   startConsultationSession: vi.fn(),
 }));
 
+vi.mock('@/actions/frontdesk/get-dashboard-data', () => ({
+  revalidateFrontdeskDashboard: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { getCurrentUser } from '@/lib/auth/server-auth';
 import { startConsultationSession } from '@/infrastructure/factories/ConsultationSessionFactory';
 
@@ -150,7 +154,7 @@ describe('startSession Server Action', () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.code).toBe('UNKNOWN');
-      expect(result.error.message).toBe('Failed to start consultation');
+      expect(result.error.message).toBe('Workflow error');
       expect(result.error.category).toBe('SYSTEM');
       expect(result.error.recoverable).toBe(true);
       expect(result.error.retryable).toBe(true);
@@ -170,7 +174,7 @@ describe('startSession Server Action', () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.message).toBe('Failed to start consultation');
+      expect(result.error.message).toBe('Invalid appointment ID');
     }
   });
 

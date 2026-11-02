@@ -1,18 +1,18 @@
 /**
  * User Profile Service
  * 
- * Service layer for creating users and their associated profiles (Patient, Doctor, Staff).
+ * Service layer for creating staff users and their associated profiles.
  * Follows clean architecture principles by encapsulating business logic.
  * 
  * Database Schema Understanding:
  * - User: Central authentication entity (id: UUID)
  * - Doctor: Has user_id linking to User, and its own id (UUID)
- * - Patient: Has user_id (optional) linking to User, and its own id (UUID) with file_number
+ * - Patients are records created through the intake workflow, not login Users.
  * - Staff: Legacy model (may not have user_id, needs investigation)
  * 
  * Workflow:
  * 1. Create User first (with role, email, password_hash)
- * 2. Create profile (Doctor/Patient) with user_id linking to User
+ * 2. Create the associated staff profile with user_id linking to User
  * 3. Handle transactions to ensure data consistency
  */
 
@@ -21,7 +21,6 @@ import { JwtAuthService } from '@/infrastructure/auth/JwtAuthService';
 import { PrismaUserRepository } from '@/infrastructure/database/repositories/PrismaUserRepository';
 import { Role } from '@/domain/enums/Role';
 import { Status } from '@/domain/enums/Status';
-import { PrismaPatientRepository } from '@/infrastructure/repositories/PatientRepository';
 import { randomUUID } from 'crypto';
 
 interface CreateUserWithDoctorParams {
@@ -48,33 +47,6 @@ interface CreateUserWithDoctorParams {
     endTime: string;
     isAvailable?: boolean;
   }>;
-}
-
-interface CreateUserWithPatientParams {
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-  phone: string;
-  // Patient-specific fields
-  dateOfBirth: Date;
-  gender: 'MALE' | 'FEMALE' | 'OTHER';
-  address: string;
-  maritalStatus: string;
-  emergencyContactName: string;
-  emergencyContactNumber: string;
-  relation: string;
-  occupation?: string;
-  whatsappPhone?: string;
-  bloodGroup?: string;
-  allergies?: string;
-  medicalHistory?: string;
-  medicalConditions?: string;
-  insuranceProvider?: string;
-  insuranceNumber?: string;
-  privacyConsent?: boolean;
-  serviceConsent?: boolean;
-  medicalConsent?: boolean;
 }
 
 export class UserProfileService {
@@ -184,107 +156,4 @@ export class UserProfileService {
     });
   }
 
-  /**
-   * Creates a User and associated Patient profile
-   * 
-   * Database Schema:
-   * - User.id (UUID) - Primary key for User
-   * - Patient.id (UUID) - Primary key for Patient (separate from User.id)
-   * - Patient.user_id (UUID, optional) - Foreign key linking to User.id
-   * - Patient.file_number (String, unique) - System-generated file number (NS001, etc.)
-   */
-  async createUserWithPatient(params: CreateUserWithPatientParams) {
-    // Hash password
-    const passwordHash = await this.authService.hashPassword(params.password);
-
-    // Generate IDs
-    const userId = randomUUID();
-    const patientId = randomUUID();
-
-    // Generate file number using the standard sequence generator
-    const patientRepo = new PrismaPatientRepository(this.db);
-    const fileNumber = await patientRepo.generateNextFileNumber();
-
-    // Use transaction to ensure atomicity
-    return await this.db.$transaction(async (tx) => {
-      // 1. Create User
-      const user = await tx.user.create({
-        data: {
-          id: userId,
-          email: params.email,
-          password_hash: passwordHash,
-          first_name: params.firstName,
-          last_name: params.lastName,
-          phone: params.phone,
-          role: Role.PATIENT,
-          status: Status.ACTIVE,
-        },
-      });
-
-      // 2. Create Patient profile with user_id linking to User
-      const patient = await tx.patient.create({
-        data: {
-          id: patientId,
-          user_id: userId, // Link to User
-          file_number: fileNumber,
-          first_name: params.firstName,
-          last_name: params.lastName,
-          email: params.email,
-          phone: params.phone,
-          whatsapp_phone: params.whatsappPhone,
-          date_of_birth: params.dateOfBirth,
-          gender: params.gender,
-          address: params.address,
-          marital_status: params.maritalStatus,
-          occupation: params.occupation,
-          emergency_contact_name: params.emergencyContactName,
-          emergency_contact_number: params.emergencyContactNumber,
-          relation: params.relation,
-          blood_group: params.bloodGroup,
-          allergies: params.allergies,
-          medical_conditions: params.medicalConditions,
-          medical_history: params.medicalHistory,
-          insurance_provider: params.insuranceProvider,
-          insurance_number: params.insuranceNumber,
-          privacy_consent: params.privacyConsent ?? false,
-          service_consent: params.serviceConsent ?? false,
-          medical_consent: params.medicalConsent ?? false,
-          approved: false, // Requires admin approval
-        },
-      });
-
-      return { user, patient };
-    });
-  }
-
-  /**
-   * Updates User and Patient profiles
-   */
-  async updateUserWithPatient(
-    userId: string,
-    patientId: string,
-    userData: {
-      firstName?: string;
-      lastName?: string;
-      email?: string;
-      phone?: string;
-    },
-    patientData: any
-  ) {
-    return await this.db.$transaction(async (tx) => {
-      // Update User if userData provided
-      if (Object.keys(userData).length > 0) {
-        await tx.user.update({
-          where: { id: userId },
-          data: userData,
-        });
-      }
-
-      // Update Patient
-      await tx.patient.update({
-        where: { id: patientId },
-        data: patientData,
-      });
-    });
-  }
 }

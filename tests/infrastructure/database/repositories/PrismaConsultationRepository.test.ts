@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { PrismaConsultationRepository } from '../../../../infrastructure/database/repositories/PrismaConsultationRepository';
 import { Consultation } from '../../../../domain/entities/Consultation';
+import { ConsultationNotes } from '../../../../domain/value-objects/ConsultationNotes';
 import { ConsultationState } from '../../../../domain/enums/ConsultationState';
 import { ConsultationOutcomeType } from '../../../../domain/enums/ConsultationOutcomeType';
 import { PatientDecision } from '../../../../domain/enums/PatientDecision';
@@ -306,6 +307,58 @@ describe('PrismaConsultationRepository', () => {
       await expect(repository.update(consultation)).rejects.toThrow(
         'Consultation with ID 999 not found'
       );
+    });
+
+    it('updates an open consultation through the transaction client and refuses a closed row', async () => {
+      const notes = ConsultationNotes.createStructured({
+        chiefComplaint: 'Headache',
+        examination: 'Normal exam',
+        assessment: 'Migraine',
+        plan: 'Review in two weeks',
+      });
+      const consultation = Consultation.create({
+        id: 1,
+        appointmentId: 100,
+        doctorId: 'doctor-1',
+        userId: 'user-1',
+      }).start('user-1', new Date('2026-01-01T09:00:00.000Z')).updateDraft({
+        notes,
+        outcomeType: ConsultationOutcomeType.CONSULTATION_ONLY,
+        patientDecision: PatientDecision.PENDING,
+      }).complete({
+        notes,
+        outcomeType: ConsultationOutcomeType.CONSULTATION_ONLY,
+        patientDecision: PatientDecision.PENDING,
+        completedAt: new Date('2026-01-01T10:00:00.000Z'),
+      });
+      const tx = {
+        consultation: {
+          findUnique: vi.fn(),
+          updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        },
+        appointment: {
+          findUnique: vi.fn(),
+          update: vi.fn(),
+        },
+      };
+
+      await repository.update(consultation, tx);
+
+      expect(tx.consultation.updateMany).toHaveBeenCalledWith({
+        where: { id: 1, completed_at: null },
+        data: expect.objectContaining({
+          chief_complaint: 'Headache',
+          doctor_notes: notes.toFullText(),
+          completed_at: consultation.getCompletedAt(),
+          outcome_type: ConsultationOutcomeType.CONSULTATION_ONLY,
+          patient_decision: PatientDecision.PENDING,
+        }),
+      });
+      expect(mockPrisma.consultation.update).not.toHaveBeenCalled();
+
+      tx.consultation.updateMany.mockResolvedValue({ count: 0 });
+      await expect(repository.update(consultation, tx)).rejects.toThrow(/not open for completion/);
+      expect(mockPrisma.consultation.update).not.toHaveBeenCalled();
     });
   });
 

@@ -242,7 +242,7 @@ export default function DoctorSurgicalCasesPage() {
                     <Scissors className="h-8 w-8 text-white/60" />
                     <h3 className="mt-4 font-semibold text-white">No Surgical Cases</h3>
                     <p className="text-sm text-white/70 mt-1">
-                        Click "Plan Surgery" on a completed consultation in the Consultations Hub to create a case.
+                        Cases appear here once a procedure is planned for a patient.
                     </p>
                 </div>
             ) : (

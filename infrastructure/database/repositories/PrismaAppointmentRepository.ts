@@ -5,6 +5,19 @@ import { AppointmentStatus, NON_BLOCKING_APPOINTMENT_STATUSES } from '../../../d
 import { AppointmentMapper } from '../../mappers/AppointmentMapper';
 import { ConsultationRequestFields, toPrismaCreateConsultationRequestFields, toPrismaConsultationRequestFields, extractConsultationRequestFields } from '../../mappers/ConsultationRequestMapper';
 import { PrismaClient, Prisma } from '@prisma/client';
+
+function isAppointmentClient(value: unknown): value is Prisma.TransactionClient {
+  if (typeof value !== 'object' || value === null) return false;
+  const appointment = (value as { appointment?: { findUnique?: unknown; update?: unknown } }).appointment;
+  return typeof appointment?.findUnique === 'function' && typeof appointment?.update === 'function';
+}
+
+function requireAppointmentClient(value: unknown): Prisma.TransactionClient {
+  if (!isAppointmentClient(value)) {
+    throw new Error('A transaction client is required for this appointment write');
+  }
+  return value;
+}
 import { subMonths, subDays } from 'date-fns';
 
 /**
@@ -373,7 +386,11 @@ export class PrismaAppointmentRepository implements IAppointmentRepository, IDoc
    * @returns Promise that resolves when the update operation completes
    * @throws Error if the appointment does not exist or the update fails
    */
-  async update(appointment: Appointment, consultationRequestFields?: ConsultationRequestFields): Promise<void> {
+  async update(
+    appointment: Appointment,
+    consultationRequestFields?: ConsultationRequestFields,
+    txClient?: unknown,
+  ): Promise<void> {
     try {
       const updateInput = AppointmentMapper.toPrismaUpdateInput(appointment);
 
@@ -383,7 +400,8 @@ export class PrismaAppointmentRepository implements IAppointmentRepository, IDoc
         Object.assign(updateInput, consultationFields);
       }
 
-      await this.prisma.appointment.update({
+      const client = txClient === undefined ? this.prisma : requireAppointmentClient(txClient);
+      await client.appointment.update({
         where: { id: appointment.getId() },
         data: updateInput,
       });

@@ -62,6 +62,8 @@ export function ProcedureDiscussionTab({
         <ClinicalRichTextEditor
           content={discussionContent}
           onChange={(content) => onDiscussionChange?.(content)}
+          dictationContextType="appointment"
+          dictationContextId={consultation?.appointmentId}
           placeholder="Procedures discussed, options presented, risks explained, patient questions..."
           readOnly={isReadOnly}
           minHeight="400px"

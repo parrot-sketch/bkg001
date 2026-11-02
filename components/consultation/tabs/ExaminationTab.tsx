@@ -8,12 +8,14 @@ import { ClinicalRichTextEditor } from '@/components/consultation/ClinicalRichTe
 import { CheckCircle2, FileText } from 'lucide-react';
 
 interface ExaminationTabProps {
+  appointmentId?: number | null;
   initialValue?: string;
   onChange: (value: string) => void;
   isReadOnly?: boolean;
 }
 
 export function ExaminationTab({
+  appointmentId,
   initialValue = '',
   onChange,
   isReadOnly = false,
@@ -37,6 +39,8 @@ export function ExaminationTab({
       <ClinicalRichTextEditor
         content={initialValue}
         onChange={onChange}
+        dictationContextType="appointment"
+        dictationContextId={appointmentId}
         placeholder="Document examination findings..."
         readOnly={isReadOnly}
         minHeight="400px"

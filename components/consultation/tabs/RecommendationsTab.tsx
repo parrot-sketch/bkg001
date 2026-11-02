@@ -252,6 +252,8 @@ export function RecommendationsTab({
         <ClinicalRichTextEditor
           content={assessment}
           onChange={handleAssessmentChange}
+          dictationContextType="appointment"
+          dictationContextId={consultation?.appointmentId}
           placeholder="Clinical assessment, findings summary, diagnosis, candidacy evaluation…"
           readOnly={isReadOnly}
           minHeight="300px"

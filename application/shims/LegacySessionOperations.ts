@@ -218,7 +218,7 @@ export class LegacySessionOperations {
         data: {
           completedAppointmentId: appointmentId,
           clearedLocalStorage: true,
-          redirectPath: '/doctor/consultations',
+          redirectPath: '/doctor/dashboard',
         },
       };
     } catch (error: any) {

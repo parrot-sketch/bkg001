@@ -1,30 +1,73 @@
 'use client';
 
-import { PatientRow } from './PatientRow';
+import Link from 'next/link';
+import { format } from 'date-fns';
 import type { PatientResponseDto } from '@/application/dtos/PatientResponseDto';
 
 interface DoctorPatientsTableProps {
   patients: PatientResponseDto[];
   isLoading: boolean;
-  onNewConsultation: (patientId: string) => void;
+  isUpdating: boolean;
+  hasSearch: boolean;
+}
+
+function humanize(value?: string | null) {
+  if (!value) return null;
+  return value.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
+}
+
+function identity(patient: PatientResponseDto) {
+  const age = typeof patient.age === 'number' ? `${patient.age} yrs` : null;
+  return [humanize(patient.gender), age].filter(Boolean).join(' · ');
+}
+
+function PatientLine({ patient }: { patient: PatientResponseDto }) {
+  const lastVisit = patient.lastVisitDate
+    ? format(new Date(patient.lastVisitDate), 'd MMM yyyy')
+    : 'No visit yet';
+  const allergy = patient.allergies?.trim();
+
+  return (
+    <Link
+      href={`/doctor/patients/${patient.id}`}
+      className="grid grid-cols-1 gap-1 border-b border-[#e7d6bf] px-4 py-4 active:bg-[#e7d6bf]/40 sm:grid-cols-[minmax(0,1.5fr)_7.5rem_9.5rem_8rem] sm:items-center sm:gap-4 sm:px-6"
+    >
+      <div className="min-w-0">
+        <div className="truncate text-base font-medium">{patient.firstName} {patient.lastName}</div>
+        <div className="mt-0.5 truncate text-sm text-[#2c2e4b]/60">{identity(patient) || '—'}</div>
+        {allergy && (
+          <div className="mt-1 truncate text-sm text-[#9b2226]">Allergy: {allergy}</div>
+        )}
+      </div>
+      <div className="text-sm sm:text-[#2c2e4b]">
+        <span className="text-[#2c2e4b]/50 sm:hidden">File </span>
+        {patient.fileNumber || '—'}
+      </div>
+      <div className="text-sm">
+        <span className="text-[#2c2e4b]/50 sm:hidden">Phone </span>
+        {patient.phone || '—'}
+      </div>
+      <div className="text-sm text-[#2c2e4b]/80">
+        <span className="text-[#2c2e4b]/50 sm:hidden">Last visit </span>
+        {lastVisit}
+      </div>
+    </Link>
+  );
 }
 
 export function DoctorPatientsTable({
   patients,
   isLoading,
-  onNewConsultation,
+  isUpdating,
+  hasSearch,
 }: DoctorPatientsTableProps) {
   if (isLoading) {
     return (
-      <div className="space-y-2">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="flex items-center gap-4 p-4 bg-white border border-[#e7d6bf] rounded-lg">
-            <div className="h-9 w-9 rounded-lg bg-[#e7d6bf]/30 animate-pulse" />
-            <div className="flex-1 space-y-1.5">
-              <div className="h-4 w-44 bg-[#e7d6bf]/30 rounded animate-pulse" />
-              <div className="h-3 w-28 bg-[#e7d6bf]/30 rounded animate-pulse" />
-            </div>
-            <div className="h-8 w-20 bg-[#e7d6bf]/30 rounded-lg animate-pulse" />
+      <div>
+        {[1, 2, 3, 4, 5, 6].map((row) => (
+          <div key={row} className="border-b border-[#e7d6bf] px-4 py-4 sm:px-6">
+            <div className="h-4 w-40 animate-pulse bg-[#e7d6bf]/50" />
+            <div className="mt-2 h-3 w-24 animate-pulse bg-[#e7d6bf]/40" />
           </div>
         ))}
       </div>
@@ -33,37 +76,30 @@ export function DoctorPatientsTable({
 
   if (patients.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 bg-white border border-[#e7d6bf] rounded-xl">
-        <h3 className="text-sm font-semibold text-[#2c2e4b]">No patients on record</h3>
-        <p className="text-xs text-[#2c2e4b]/70 max-w-xs text-center mt-1">
-          Patients appear here once assigned to your active care.
+      <div className="px-4 py-16 text-center sm:px-6">
+        <p className="text-sm font-semibold">
+          {hasSearch ? 'No patients match that search' : 'No patients on your list'}
+        </p>
+        <p className="mt-1 text-sm text-[#2c2e4b]/60">
+          {hasSearch
+            ? 'Try the file number or part of the name.'
+            : 'Patients appear here once they are assigned to you.'}
         </p>
       </div>
     );
   }
 
   return (
-    <div className="border border-[#e7d6bf] bg-white overflow-hidden rounded-xl">
-      {/* Column headers */}
-      <div className="hidden md:grid grid-cols-12 gap-4 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-[#2c2e4b]/70 border-b border-[#e7d6bf]">
-        <div className="col-span-4">Patient</div>
-        <div className="col-span-2">File</div>
-        <div className="col-span-2">Phone</div>
-        <div className="col-span-2">Last visit</div>
-        <div className="col-span-1">Visits</div>
-        <div className="col-span-1">Flags</div>
-        <div className="col-span-1">Actions</div>
+    <div className={isUpdating ? 'opacity-60' : undefined}>
+      <div className="hidden border-b border-[#2c2e4b] bg-[#e7d6bf]/30 px-6 py-2 text-xs font-semibold uppercase tracking-wide text-[#2c2e4b]/70 sm:grid sm:grid-cols-[minmax(0,1.5fr)_7.5rem_9.5rem_8rem] sm:gap-4">
+        <div>Patient</div>
+        <div>File</div>
+        <div>Phone</div>
+        <div>Last visit</div>
       </div>
-
-      <div className="divide-y divide-[#e7d6bf]">
-        {patients.map((patient) => (
-          <PatientRow
-            key={patient.id}
-            patient={patient}
-            onNewConsultation={onNewConsultation}
-          />
-        ))}
-      </div>
+      {patients.map((patient) => (
+        <PatientLine key={patient.id} patient={patient} />
+      ))}
     </div>
   );
 }

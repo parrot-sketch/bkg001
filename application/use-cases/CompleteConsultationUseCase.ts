@@ -16,6 +16,7 @@ import { AppointmentResponseDto } from '../dtos/AppointmentResponseDto';
 import { AppointmentMapper as ApplicationAppointmentMapper } from '../mappers/AppointmentMapper';
 import { DomainException } from '../../domain/exceptions/DomainException';
 import { ScheduleAppointmentDto } from '../dtos/ScheduleAppointmentDto';
+import { Prisma } from '@prisma/client';
 import db from '@/lib/db';
 import { chargeSheetService } from '@/application/services/ChargeSheetService';
 import { resolveConsultationServiceId } from '@/application/services/billing/resolveConsultationServiceId';
@@ -126,82 +127,86 @@ export class CompleteConsultationUseCase {
       });
     }
 
-    // Step 4: Finalize consultation + appointment ATOMICALLY
-    // This transaction ensures that the Consultation record, Appointment status,
-    // and temporal fields are all updated together or not at all.
+    // Step 4: Persist the consultation, appointment status, and end time together.
+    // Billing, email, queue, assignment, audit, and follow-up stay outside this transaction.
     const completedAt = new Date();
-
-    // 4a. Finalize the Consultation record (if it exists)
-    if (this.consultationRepository) {
-      const consultation = await this.consultationRepository.findByAppointmentId(dto.appointmentId);
-      if (consultation && !consultation.isCompleted()) {
-        try {
-          // Preserve existing structured notes from draft saves, only add outcome as new content
-          const existingNotes = consultation.getNotes();
-          const outcomeNote = dto.outcome?.trim() 
-            ? `\n\n=== CONSULTATION OUTCOME ===\n${dto.outcome.trim()}` 
-            : '';
-          
-          let finalNotes: ConsultationNotes;
-          if (existingNotes && !existingNotes.isEmpty()) {
-            // Merge existing structured notes with outcome
-            const existingText = existingNotes.toFullText();
-            const combinedText = existingText + outcomeNote;
-            finalNotes = ConsultationNotes.createRaw(combinedText);
-          } else if (outcomeNote) {
-            finalNotes = ConsultationNotes.createRaw('Documentation complete.' + outcomeNote);
-          } else {
-            finalNotes = ConsultationNotes.createRaw('Documentation complete.');
-          }
-          
-          const completedConsultation = consultation.complete({
-            outcomeType: dto.outcomeType as ConsultationOutcomeType | undefined,
-            notes: finalNotes,
-            patientDecision: dto.patientDecision as PatientDecision | undefined,
-            completedAt,
-          });
-          await this.consultationRepository.update(completedConsultation);
-        } catch (consultationError) {
-          // If the domain entity rejects (e.g. state mismatch), log but continue
-          // The appointment completion is still valid
-          console.error('Failed to finalize Consultation record:', consultationError);
-        }
-      }
-    }
-
-    // 4b. Update Appointment status + temporal tracking
     let updatedAppointment = ApplicationAppointmentMapper.updateStatus(
       appointment,
       AppointmentStatus.COMPLETED,
     );
-
-    // Add outcome to notes
     const existingNote = appointment.getNote() || '';
-    const outcomeNote = existingNote
+    const outcomeSentence = existingNote
       ? `${existingNote}\n\n[Consultation Completed] ${dto.outcome}`
       : `[Consultation Completed] ${dto.outcome}`;
-    updatedAppointment = ApplicationAppointmentMapper.updateNote(updatedAppointment, outcomeNote);
+    updatedAppointment = ApplicationAppointmentMapper.updateNote(updatedAppointment, outcomeSentence);
 
-    // Step 5: Save updated appointment
-    await this.appointmentRepository.update(updatedAppointment);
+    try {
+      await db.$transaction(async (tx: Prisma.TransactionClient) => {
+        if (this.consultationRepository) {
+          const consultation = await this.consultationRepository.findByAppointmentId(dto.appointmentId, tx);
+          if (consultation && !consultation.isCompleted()) {
+            const existingNotes = consultation.getNotes();
+            const outcomeNote = dto.outcome?.trim()
+              ? `\n\n=== CONSULTATION OUTCOME ===\n${dto.outcome.trim()}`
+              : '';
 
-    // 5b. Update temporal fields directly (consultation_ended_at, duration)
-    // Read the raw appointment to get consultation_started_at for duration calculation
-    const rawAppointment = await db.appointment.findUnique({
-      where: { id: dto.appointmentId },
-      select: { consultation_started_at: true },
-    });
-    const consultationDuration = rawAppointment?.consultation_started_at
-      ? Math.round((completedAt.getTime() - rawAppointment.consultation_started_at.getTime()) / 60000)
-      : null;
+            let finalNotes: ConsultationNotes;
+            if (existingNotes && !existingNotes.isEmpty() && existingNotes.isStructured()) {
+              finalNotes = existingNotes;
+            } else if (existingNotes && !existingNotes.isEmpty()) {
+              finalNotes = ConsultationNotes.createRaw(existingNotes.toFullText() + outcomeNote);
+            } else if (outcomeNote) {
+              finalNotes = ConsultationNotes.createRaw('Documentation complete.' + outcomeNote);
+            } else {
+              finalNotes = ConsultationNotes.createRaw('Documentation complete.');
+            }
 
-    await db.appointment.update({
-      where: { id: dto.appointmentId },
-      data: {
-        consultation_ended_at: completedAt,
-        consultation_duration: consultationDuration,
-      },
-    });
+            const completedConsultation = consultation.complete({
+              outcomeType: (dto.outcomeType as ConsultationOutcomeType | undefined) ?? consultation.getOutcomeType(),
+              notes: finalNotes,
+              patientDecision: (dto.patientDecision as PatientDecision | undefined) ?? consultation.getPatientDecision(),
+              completedAt,
+            });
+            await this.consultationRepository.update(completedConsultation, tx);
+          }
+        }
+
+        await this.appointmentRepository.update(updatedAppointment, undefined, tx);
+
+        const rawAppointment = await tx.appointment.findUnique({
+          where: { id: dto.appointmentId },
+          select: { consultation_started_at: true },
+        });
+        if (!rawAppointment) {
+          throw new DomainException(`Appointment with ID ${dto.appointmentId} not found`, {
+            appointmentId: dto.appointmentId,
+          });
+        }
+        const consultationDuration = rawAppointment.consultation_started_at
+          ? Math.round((completedAt.getTime() - rawAppointment.consultation_started_at.getTime()) / 60000)
+          : null;
+
+        await tx.appointment.update({
+          where: { id: dto.appointmentId },
+          data: {
+            consultation_ended_at: completedAt,
+            consultation_duration: consultationDuration,
+          },
+        });
+      });
+    } catch (completionError) {
+      console.error('Failed to commit consultation completion:', completionError);
+      if (completionError instanceof DomainException) {
+        throw completionError;
+      }
+      const detail = completionError instanceof Error
+        ? completionError.message
+        : 'The consultation record could not be saved';
+      throw new DomainException(
+        `The consultation could not be completed because the clinical note was not saved. ${detail}`,
+        { appointmentId: dto.appointmentId },
+      );
+    }
 
     // Step 6: Optionally schedule follow-up appointment
     let followUpAppointment: AppointmentResponseDto | undefined;
@@ -376,12 +381,8 @@ export class CompleteConsultationUseCase {
           paymentId = payment.id;
         }
 
-        // Note: Charge sheet is NOT finalized here so frontdesk can still edit it.
-        // It will be finalized when payment is recorded.
-        // Finalize the charge sheet to lock editing since consultation is now complete
-        // if (paymentId) {
-        //   await chargeSheetService.finalize(paymentId, dto.doctorId);
-        // }
+        // Completion writes the consultation fee onto the bill. The desk can record
+        // payment after the doctor saves the charge sheet.
 
         // Notify frontdesk users about pending payment
         if (this.userRepository && paymentId) {

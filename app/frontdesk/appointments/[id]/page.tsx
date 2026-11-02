@@ -18,6 +18,7 @@ import { FrontdeskActivityTimeline } from './components/FrontdeskActivityTimelin
 import { RescheduleDialog } from '@/components/appointments/RescheduleDialog';
 import { CancelAppointmentDialog } from '@/components/appointments/CancelAppointmentDialog';
 import { ChargeSheetCard } from '@/components/billing/ChargeSheetCard';
+import { frontdeskChargeSheetPath } from '@/hooks/frontdesk/useBookAppointmentStore';
 import { useChargeSheet } from '@/hooks/billing/useChargeSheet';
 import { useFinalizeChargeSheet } from '@/hooks/billing/useFinalizeChargeSheet';
 
@@ -190,7 +191,7 @@ export default function FrontdeskAppointmentDetailPage({ params }: PageProps) {
             <ChargeSheetCard
               chargeSheet={frontdeskChargeSheet}
               appointmentId={appointment.id}
-              onEdit={() => router.push(`/frontdesk/appointments/${appointment.id}?tab=chargesheet`)}
+              onEdit={() => router.push(frontdeskChargeSheetPath(appointment.patientId, appointment.id))}
               onFinalize={async () => {
                 await finalizeChargeSheet({ appointmentId: appointment.id });
                 router.refresh();
