@@ -56,12 +56,23 @@ export function useAppointmentBookingWizard({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState(() => {
+    // Prefer YYYY-MM-DD as-is to avoid timezone shifting calendar days
     let parsedDate = '';
     if (initialDate) {
-      try {
-        parsedDate = new Date(initialDate).toISOString().split('T')[0];
-      } catch {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(initialDate)) {
         parsedDate = initialDate;
+      } else {
+        try {
+          const d = new Date(initialDate);
+          if (!Number.isNaN(d.getTime())) {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            parsedDate = `${y}-${m}-${day}`;
+          }
+        } catch {
+          parsedDate = '';
+        }
       }
     }
     return {

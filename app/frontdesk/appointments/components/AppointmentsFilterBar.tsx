@@ -1,15 +1,15 @@
 import { useCallback } from 'react';
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  Search, 
-  Loader2, 
-  CalendarDays, 
-  Clock, 
-  AlertCircle, 
-  Calendar, 
-  CheckCircle, 
-  Stethoscope 
+import {
+  ChevronLeft,
+  ChevronRight,
+  Search,
+  Loader2,
+  CalendarDays,
+  Clock,
+  AlertCircle,
+  Calendar,
+  CheckCircle,
+  Stethoscope,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,46 +19,22 @@ import { AppointmentStatus } from '@/domain/enums/AppointmentStatus';
 import type { StatusCounts } from '@/lib/constants/frontdesk';
 
 export const STATUS_CHIPS = [
-  {
-    key: 'ALL',
-    label: 'All',
-    icon: CalendarDays,
-  },
+  { key: 'ALL', label: 'All', icon: CalendarDays },
   {
     key: AppointmentStatus.PENDING_DOCTOR_CONFIRMATION,
-    label: 'Awaiting Doctor',
+    label: 'Awaiting doctor',
     icon: Clock,
   },
-  {
-    key: AppointmentStatus.PENDING,
-    label: 'Pending',
-    icon: AlertCircle,
-  },
-  {
-    key: AppointmentStatus.SCHEDULED,
-    label: 'Scheduled',
-    icon: Calendar,
-  },
-  {
-    key: AppointmentStatus.CHECKED_IN,
-    label: 'Checked In',
-    icon: CheckCircle,
-  },
+  { key: AppointmentStatus.PENDING, label: 'Pending', icon: AlertCircle },
+  { key: AppointmentStatus.SCHEDULED, label: 'Scheduled', icon: Calendar },
+  { key: AppointmentStatus.CHECKED_IN, label: 'Checked in', icon: CheckCircle },
   {
     key: AppointmentStatus.IN_CONSULTATION,
-    label: 'In Consult',
+    label: 'In consult',
     icon: Stethoscope,
   },
-  {
-    key: AppointmentStatus.COMPLETED,
-    label: 'Completed',
-    icon: CheckCircle,
-  },
-  {
-    key: AppointmentStatus.CANCELLED,
-    label: 'Cancelled',
-    icon: AlertCircle,
-  },
+  { key: AppointmentStatus.COMPLETED, label: 'Completed', icon: CheckCircle },
+  { key: AppointmentStatus.CANCELLED, label: 'Cancelled', icon: AlertCircle },
 ] as const;
 
 interface AppointmentsFilterBarProps {
@@ -94,49 +70,55 @@ export function AppointmentsFilterBar({
     handleNavigateDate('next');
   }, [handleNavigateDate]);
 
-  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>): void => {
-    setSearchQuery(e.target.value);
-  }, [setSearchQuery]);
+  const handleSearchChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>): void => {
+      setSearchQuery(e.target.value);
+    },
+    [setSearchQuery],
+  );
 
   const handleClearSearch = useCallback((): void => {
     setSearchQuery('');
   }, [setSearchQuery]);
 
-  const handleStatusClick = useCallback((status: string) => {
-    setStatusFilter(status);
-  }, [setStatusFilter]);
-
   return (
-    <div className="border border-[#e7d6bf] rounded-xl shadow-sm bg-white p-4 space-y-4">
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-        <div className="flex items-center gap-1.5 shrink-0">
+    <div className="space-y-3 border border-white/15 bg-[#2c2e4b]/45 px-3 py-3 sm:px-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex items-center gap-1 shrink-0">
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9 rounded-lg text-[#2c2e4b]/60 hover:text-[#2c2e4b] hover:bg-[#e7d6bf]/30"
+            className="h-9 w-9 rounded-md text-[#e7d6bf] hover:bg-white/10 hover:text-white"
             onClick={handlePrevClick}
+            aria-label="Previous day"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
 
           <button
+            type="button"
             onClick={handleGoToToday}
             className={cn(
-              'px-4 py-2 rounded-xl text-sm font-semibold transition-all border',
+              'min-w-[9.5rem] border px-3 py-1.5 text-left transition-colors',
               isToday(selectedDate)
-                ? 'bg-[#2c2e4b] text-white border-[#2c2e4b]'
-                : 'bg-white text-[#2c2e4b] border-[#e7d6bf] hover:border-[#caa26a]/60 hover:bg-[#e7d6bf]/10'
+                ? 'border-[#caa26a] bg-[#caa26a]/15 text-white'
+                : 'border-white/20 bg-transparent text-white hover:border-[#caa26a]/50',
             )}
           >
-            <span className="block text-xs font-normal opacity-60">{dateLabel}</span>
-            <span>{format(selectedDate, 'MMM d, yyyy')}</span>
+            <span className="block text-[10px] font-medium uppercase tracking-[0.08em] text-[#e7d6bf]">
+              {dateLabel}
+            </span>
+            <span className="text-sm font-semibold tabular-nums">
+              {format(selectedDate, 'MMM d, yyyy')}
+            </span>
           </button>
 
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9 rounded-lg text-[#2c2e4b]/60 hover:text-[#2c2e4b] hover:bg-[#e7d6bf]/30"
+            className="h-9 w-9 rounded-md text-[#e7d6bf] hover:bg-white/10 hover:text-white"
             onClick={handleNextClick}
+            aria-label="Next day"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -146,25 +128,27 @@ export function AppointmentsFilterBar({
               variant="ghost"
               size="sm"
               onClick={handleGoToToday}
-              className="text-xs text-[#caa26a] hover:text-[#b8913e] hover:bg-[#e7d6bf]/15 rounded-lg ml-1"
+              className="ml-1 h-8 rounded-md px-2 text-xs text-[#caa26a] hover:bg-white/10 hover:text-[#ee9b00]"
             >
               Today
             </Button>
           )}
         </div>
 
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#2c2e4b]/40" />
+        <div className="relative max-w-md flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#2c2e4b]/45" />
           <Input
             placeholder="Search patient, doctor, type..."
             value={searchQuery}
             onChange={handleSearchChange}
-            className="pl-10 h-10 rounded-lg border-[#e7d6bf] text-[#2c2e4b] placeholder-[#2c2e4b]/40 focus:border-[#caa26a]"
+            className="h-10 rounded-md border-0 bg-white pl-10 text-sm text-[#2c2e4b] placeholder:text-[#2c2e4b]/45 focus-visible:ring-[#caa26a]"
           />
           {searchQuery && (
             <button
+              type="button"
               onClick={handleClearSearch}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#2c2e4b]/40 hover:text-[#2c2e4b]"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#2c2e4b]/45 hover:text-[#2c2e4b]"
+              aria-label="Clear search"
             >
               ×
             </button>
@@ -172,14 +156,14 @@ export function AppointmentsFilterBar({
         </div>
 
         {isRefetching && (
-          <div className="flex items-center gap-1.5 text-xs text-[#2c2e4b]/40">
+          <div className="flex items-center gap-1.5 text-xs text-[#e7d6bf]">
             <Loader2 className="h-3 w-3 animate-spin" />
-            Refreshing...
+            Refreshing
           </div>
         )}
       </div>
 
-      <div className="flex gap-1.5 overflow-x-auto pb-0.5 -mx-1 px-1 scrollbar-none">
+      <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
         {STATUS_CHIPS.map((chip) => {
           const count = statusCounts[chip.key] || 0;
           const isActive = statusFilter === chip.key;
@@ -188,12 +172,13 @@ export function AppointmentsFilterBar({
           return (
             <button
               key={chip.key}
-              onClick={() => handleStatusClick(chip.key)}
+              type="button"
+              onClick={() => setStatusFilter(chip.key)}
               className={cn(
-                'shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border',
+                'flex shrink-0 items-center gap-1.5 border px-2.5 py-1.5 text-xs font-medium transition-colors',
                 isActive
-                  ? 'bg-[#caa26a]/10 text-[#caa26a] border-[#caa26a]'
-                  : 'bg-white text-[#2c2e4b]/60 border-[#e7d6bf]/60 hover:border-[#caa26a]/60 hover:bg-[#e7d6bf]/10'
+                  ? 'border-[#caa26a] bg-[#caa26a]/20 text-white'
+                  : 'border-white/15 text-[#e7d6bf] hover:border-white/30 hover:text-white',
               )}
             >
               <Icon className="h-3 w-3" />
@@ -201,10 +186,8 @@ export function AppointmentsFilterBar({
               {count > 0 && (
                 <span
                   className={cn(
-                    'ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none',
-                    isActive
-                      ? 'text-[#caa26a] bg-white/80'
-                      : 'text-[#2c2e4b]/50 bg-[#e7d6bf]/20'
+                    'ml-0.5 px-1.5 py-0.5 text-[10px] font-bold leading-none',
+                    isActive ? 'bg-white/15 text-white' : 'bg-white/10 text-[#e7d6bf]',
                   )}
                 >
                   {count}

@@ -51,7 +51,7 @@ export function BookAppointmentDialog() {
       >
         <SheetTitle className="sr-only">Book Appointment</SheetTitle>
         <AppointmentBookingWizard
-          key={`${isOpen ? 'open' : 'closed'}-${parentAppointmentId ?? 'new'}-${initialPatientId ?? ''}-${initialType ?? ''}`}
+          key={`${isOpen ? 'open' : 'closed'}-${parentAppointmentId ?? 'new'}-${initialPatientId ?? ''}-${initialDate ?? ''}-${initialType ?? ''}`}
           initialPatientId={initialPatientId}
           initialPatient={initialPatient}
           initialDoctorId={initialDoctorId}

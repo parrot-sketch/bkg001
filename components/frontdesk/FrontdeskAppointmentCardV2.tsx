@@ -20,16 +20,16 @@ import { useAppointments } from '@/hooks/useAppointments';
 import { frontdeskChargeSheetPath, openFollowUpBooking } from '@/hooks/frontdesk/useBookAppointmentStore';
 
 const STATUS_CONFIG: Record<string, { bg: string; text: string; label: string }> = {
-  [AppointmentStatus.PENDING]: { bg: 'bg-[#e7d6bf]/60', text: 'text-[#2c2e4b]/70', label: 'Pending' },
-  [AppointmentStatus.PENDING_DOCTOR_CONFIRMATION]: { bg: 'bg-[#e7d6bf]/60', text: 'text-[#2c2e4b]/70', label: 'Awaiting Confirmation' },
-  [AppointmentStatus.SCHEDULED]: { bg: 'bg-[#e7d6bf]/30', text: 'text-[#2c2e4b]', label: 'Scheduled' },
-  [AppointmentStatus.CONFIRMED]: { bg: 'bg-[#e7d6bf]/30', text: 'text-[#2c2e4b]', label: 'Confirmed' },
-  [AppointmentStatus.CHECKED_IN]: { bg: 'bg-[#caa26a]/20', text: 'text-[#2c2e4b]', label: 'Checked In' },
-  [AppointmentStatus.READY_FOR_CONSULTATION]: { bg: 'bg-[#caa26a]/20', text: 'text-[#2c2e4b]', label: 'Ready' },
-  [AppointmentStatus.IN_CONSULTATION]: { bg: 'bg-[#caa26a]/30', text: 'text-[#2c2e4b]', label: 'In Consultation' },
-  [AppointmentStatus.COMPLETED]: { bg: 'bg-[#e7d6bf]/60', text: 'text-[#2c2e4b]/70', label: 'Completed' },
-  [AppointmentStatus.CANCELLED]: { bg: 'bg-[#e7d6bf]/40', text: 'text-[#2c2e4b]/60', label: 'Cancelled' },
-  [AppointmentStatus.NO_SHOW]: { bg: 'bg-[#e7d6bf]/40', text: 'text-[#2c2e4b]/60', label: 'No Show' },
+  [AppointmentStatus.PENDING]: { bg: 'bg-[#e7d6bf]/70', text: 'text-[#2c2e4b]', label: 'Pending' },
+  [AppointmentStatus.PENDING_DOCTOR_CONFIRMATION]: { bg: 'bg-[#005f73]/15', text: 'text-[#005f73]', label: 'Awaiting confirmation' },
+  [AppointmentStatus.SCHEDULED]: { bg: 'bg-[#e7d6bf]/50', text: 'text-[#2c2e4b]', label: 'Scheduled' },
+  [AppointmentStatus.CONFIRMED]: { bg: 'bg-[#e7d6bf]/50', text: 'text-[#2c2e4b]', label: 'Confirmed' },
+  [AppointmentStatus.CHECKED_IN]: { bg: 'bg-[#caa26a]/25', text: 'text-[#2c2e4b]', label: 'Checked in' },
+  [AppointmentStatus.READY_FOR_CONSULTATION]: { bg: 'bg-[#caa26a]/25', text: 'text-[#2c2e4b]', label: 'Ready' },
+  [AppointmentStatus.IN_CONSULTATION]: { bg: 'bg-[#caa26a]/35', text: 'text-[#2c2e4b]', label: 'In consultation' },
+  [AppointmentStatus.COMPLETED]: { bg: 'bg-[#003b53]/10', text: 'text-[#003b53]', label: 'Completed' },
+  [AppointmentStatus.CANCELLED]: { bg: 'bg-[#9b2226]/10', text: 'text-[#9b2226]', label: 'Cancelled' },
+  [AppointmentStatus.NO_SHOW]: { bg: 'bg-[#9b2226]/10', text: 'text-[#9b2226]', label: 'No show' },
 };
 
 function getStatusConfig(status: string) {
@@ -39,9 +39,15 @@ function getStatusConfig(status: string) {
 interface FrontdeskAppointmentCardV2Props {
   appointment: AppointmentResponseDto;
   onAction?: (action: string, appointment: AppointmentResponseDto) => void;
+  /** Flat row for the appointments day board; default keeps a bordered card elsewhere */
+  variant?: 'card' | 'row';
 }
 
-export function FrontdeskAppointmentCardV2({ appointment, onAction }: FrontdeskAppointmentCardV2Props) {
+export function FrontdeskAppointmentCardV2({
+  appointment,
+  onAction,
+  variant = 'card',
+}: FrontdeskAppointmentCardV2Props) {
   const router = useRouter();
   const checkInMutation = useCheckIn();
   const { cancelAppointment, markNoShow } = useAppointments();
@@ -121,48 +127,65 @@ export function FrontdeskAppointmentCardV2({ appointment, onAction }: FrontdeskA
   return (
     <div
       className={cn(
-        'group bg-white border border-[#e7d6bf] rounded-lg transition-all duration-200',
-        'hover:border-[#caa26a]/50 hover:shadow-sm'
+        'group bg-white transition-colors duration-150',
+        variant === 'card' &&
+          'rounded-md border border-[#e7d6bf] hover:border-[#caa26a]/60',
+        variant === 'row' && 'hover:bg-[#e7d6bf]/15',
       )}
     >
       <div className="px-4 py-3">
         <div className="flex items-start gap-3">
-          <div className="flex flex-col items-center pt-1 shrink-0">
-            <span className="text-sm font-semibold text-[#2c2e4b] leading-none tabular-nums">
+          <div className="flex w-14 shrink-0 flex-col items-start pt-1">
+            <span className="text-sm font-semibold tabular-nums leading-none text-[#2c2e4b]">
               {appointment.time || '--:--'}
             </span>
           </div>
 
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-3">
-              <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                <div className="h-9 w-9 rounded-full bg-[#e7d6bf]/30 flex items-center justify-center border border-[#e7d6bf] shrink-0">
+              <div className="flex min-w-0 flex-1 items-start gap-2.5">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center border border-[#e7d6bf] bg-[#e7d6bf]/35">
                   <span className="text-[11px] font-semibold text-[#2c2e4b]">{patientInitials}</span>
                 </div>
-                <div className="flex flex-col min-w-0 gap-0.5">
-                  <h4 className="text-sm font-medium text-[#2c2e4b] truncate leading-tight">{patientName}</h4>
-                  <div className="flex items-center gap-1.5 text-xs text-[#2c2e4b]/50">
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <h4 className="truncate text-sm font-semibold leading-tight text-[#2c2e4b]">
+                    {patientName}
+                  </h4>
+                  <div className="flex items-center gap-1.5 text-xs text-[#2c2e4b]/75">
                     <span className="truncate">{appointment.doctor?.name || 'Unassigned'}</span>
+                    {appointment.type ? (
+                      <>
+                        <span className="text-[#2c2e4b]/35">·</span>
+                        <span className="truncate">{appointment.type}</span>
+                      </>
+                    ) : null}
                   </div>
                 </div>
               </div>
               <StatusBadge config={config} />
             </div>
 
-            <div className="flex items-center justify-between gap-2 mt-2.5 pt-2.5 border-t border-[#e7d6bf]">
+            <div
+              className={cn(
+                'mt-2.5 flex items-center justify-between gap-2 pt-2.5',
+                variant === 'card' ? 'border-t border-[#e7d6bf]' : 'border-t border-[#e7d6bf]/70',
+              )}
+            >
               <div className="flex items-center gap-2">
                 {canCheckInAppt && (
                   <Button
                     onClick={handleCheckIn}
                     disabled={checkInMutation.isPending}
                     size="sm"
-                    className="h-7 px-3 text-xs font-medium rounded-lg bg-[#caa26a] hover:bg-[#b8913e] text-[#2c2e4b]"
+                    className="h-7 rounded-md bg-[#caa26a] px-3 text-xs font-semibold text-[#2c2e4b] hover:bg-[#b8913e]"
                   >
-                    {checkInMutation.isPending ? 'Checking...' : 'Check In'}
+                    {checkInMutation.isPending ? 'Checking...' : 'Check in'}
                   </Button>
                 )}
                 {isAwaiting && (
-                  <span className="text-[10px] text-[#caa26a] font-medium">Awaiting confirmation</span>
+                  <span className="text-[11px] font-medium text-[#005f73]">
+                    Awaiting confirmation
+                  </span>
                 )}
               </div>
 
@@ -171,7 +194,7 @@ export function FrontdeskAppointmentCardV2({ appointment, onAction }: FrontdeskA
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-[#2c2e4b]/30 hover:text-[#2c2e4b] hover:bg-[#e7d6bf]/30 rounded-lg"
+                    className="h-8 w-8 rounded-md text-[#2c2e4b]/55 hover:bg-[#e7d6bf]/40 hover:text-[#2c2e4b]"
                   >
                     <MoreVertical className="h-4 w-4" />
                   </Button>

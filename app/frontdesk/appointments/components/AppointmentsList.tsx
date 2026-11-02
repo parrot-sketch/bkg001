@@ -1,4 +1,4 @@
-import { Calendar, Filter, Plus, Loader2 } from 'lucide-react';
+import { Calendar, ClipboardList, Filter, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { FrontdeskAppointmentCardV2 } from '@/components/frontdesk/FrontdeskAppointmentCardV2';
@@ -14,6 +14,9 @@ interface AppointmentsListProps {
   dateLabel: string;
   highlightedId: number | null;
   onClearFilters: () => void;
+  viewingPastDay: boolean;
+  onBookAppointment: () => void;
+  onRecordPastVisit: () => void;
 }
 
 export function AppointmentsList({
@@ -24,51 +27,60 @@ export function AppointmentsList({
   dateLabel,
   highlightedId,
   onClearFilters,
+  viewingPastDay,
+  onBookAppointment,
+  onRecordPastVisit,
 }: AppointmentsListProps) {
   const router = useRouter();
 
   return (
-    <div className="space-y-2.5">
-      {/* List header */}
-      <div className="flex items-center justify-between px-1">
-        <p className="text-xs font-semibold text-[#2c2e4b]/50 uppercase tracking-wider">
+    <div className="space-y-3">
+      <div className="flex items-center justify-between px-0.5">
+        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#e7d6bf]">
           {loading
-            ? 'Loading...'
+            ? 'Loading…'
             : `${filteredAppointments.length} appointment${filteredAppointments.length !== 1 ? 's' : ''}`}
           {statusFilter !== 'ALL' && (
-            <span className="text-[#2c2e4b]/50 font-normal ml-1">
+            <span className="ml-1 font-normal text-[#e7d6bf]/70">
               ({STATUS_CHIPS.find((c) => c.key === statusFilter)?.label})
             </span>
           )}
         </p>
         {filteredAppointments.length > 0 && (
-          <p className="text-[10px] text-[#2c2e4b]/50">
-            Sorted by scheduled time
-          </p>
+          <p className="text-[11px] text-[#e7d6bf]/70">Sorted by scheduled time</p>
         )}
       </div>
 
-      {/* Content */}
       {loading ? (
         <AppointmentsSkeleton />
       ) : filteredAppointments.length === 0 ? (
         <EmptyState
           hasFilters={!!searchQuery || statusFilter !== 'ALL'}
           dateLabel={dateLabel}
+          viewingPastDay={viewingPastDay}
           onClearFilters={onClearFilters}
+          onBookAppointment={onBookAppointment}
+          onRecordPastVisit={onRecordPastVisit}
         />
       ) : (
-        <div className="space-y-2">
+        <div className="divide-y divide-[#e7d6bf]/70 border border-[#e7d6bf]/80 bg-white">
           {filteredAppointments.map((appointment: AppointmentResponseDto) => (
-            <FrontdeskAppointmentCardV2
+            <div
               key={appointment.id}
-              appointment={appointment}
-              onAction={(action) => {
-                if (action === 'details') {
-                  router.push(`/frontdesk/appointments/${appointment.id}`);
-                }
-              }}
-            />
+              className={
+                highlightedId === appointment.id ? 'bg-[#caa26a]/10' : undefined
+              }
+            >
+              <FrontdeskAppointmentCardV2
+                appointment={appointment}
+                variant="row"
+                onAction={(action) => {
+                  if (action === 'details') {
+                    router.push(`/frontdesk/appointments/${appointment.id}`);
+                  }
+                }}
+              />
+            </div>
           ))}
         </div>
       )}
@@ -76,73 +88,86 @@ export function AppointmentsList({
   );
 }
 
-/** Empty state */
 function EmptyState({
   hasFilters,
   dateLabel,
+  viewingPastDay,
   onClearFilters,
+  onBookAppointment,
+  onRecordPastVisit,
 }: {
   hasFilters: boolean;
   dateLabel: string;
+  viewingPastDay: boolean;
   onClearFilters: () => void;
+  onBookAppointment: () => void;
+  onRecordPastVisit: () => void;
 }) {
-  const router = useRouter();
-
   return (
-    <div className="flex flex-col items-center justify-center py-16 rounded-xl border border-dashed border-[#e7d6bf] bg-[#e7d6bf]/5">
-      <div className="h-16 w-16 rounded-2xl bg-[#e7d6bf]/20 flex items-center justify-center mb-5">
-        <Calendar className="h-8 w-8 text-[#caa26a]" />
-      </div>
-      <h3 className="text-sm font-semibold text-[#2c2e4b] mb-1">
-        {hasFilters ? 'No matching appointments' : `No appointments ${dateLabel.toLowerCase()}`}
-      </h3>
-      <p className="text-xs text-[#2c2e4b]/60 mb-5 text-center max-w-xs">
+    <div className="flex flex-col items-center justify-center border border-dashed border-[#e7d6bf]/50 bg-[#2c2e4b]/40 px-6 py-14">
+      <Calendar className="mb-4 h-8 w-8 text-[#caa26a]" />
+      <h3 className="mb-1 text-sm font-semibold text-white">
         {hasFilters
-          ? 'Try adjusting your filters or search query'
-          : 'Appointments booked for this date will appear here'}
+          ? 'No matching appointments'
+          : viewingPastDay
+            ? `No visits recorded for ${dateLabel.toLowerCase()}`
+            : `No appointments ${dateLabel.toLowerCase()}`}
+      </h3>
+      <p className="mb-5 max-w-sm text-center text-xs leading-relaxed text-[#e7d6bf]">
+        {hasFilters
+          ? 'Adjust filters or clear search to see the full day board.'
+          : viewingPastDay
+            ? 'If patients were seen but never entered, record the past visit here without leaving this page.'
+            : 'Book on this date without leaving the appointments board.'}
       </p>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-center gap-2">
         {hasFilters && (
           <Button
             variant="outline"
             size="sm"
             onClick={onClearFilters}
-            className="border-[#e7d6bf] text-[#2c2e4b] hover:bg-[#e7d6bf]/30 hover:border-[#caa26a]/60 rounded-lg"
+            className="h-8 rounded-md border-white/25 bg-transparent text-xs text-[#e7d6bf] hover:bg-white/10 hover:text-white"
           >
-            <Filter className="h-3 w-3 mr-1.5" />
-            Clear Filters
+            <Filter className="mr-1.5 h-3 w-3" />
+            Clear filters
           </Button>
         )}
-        <Button
-          onClick={() => router.push('/frontdesk/patients?mode=book')}
-          size="sm"
-          className="bg-[#caa26a] hover:bg-[#b8913e] text-[#2c2e4b] rounded-lg"
-        >
-          <Plus className="h-3 w-3 mr-1.5" />
-          Book Appointment
-        </Button>
+        {viewingPastDay ? (
+          <Button
+            size="sm"
+            onClick={onRecordPastVisit}
+            className="h-8 rounded-md bg-[#005f73] px-3 text-xs font-semibold text-white hover:bg-[#003b53]"
+          >
+            <ClipboardList className="mr-1.5 h-3 w-3" />
+            Record past visit
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            onClick={onBookAppointment}
+            className="h-8 rounded-md bg-[#caa26a] px-3 text-xs font-semibold text-[#2c2e4b] hover:bg-[#b8913e]"
+          >
+            <Plus className="mr-1.5 h-3 w-3" />
+            Book appointment
+          </Button>
+        )}
       </div>
     </div>
   );
 }
 
-/** Loading skeleton */
 function AppointmentsSkeleton() {
   return (
-    <div className="space-y-2.5">
-      {[1, 2, 3, 4, 5].map((i) => (
-        <div key={i} className="flex items-center gap-4 p-4 bg-white rounded-xl border border-slate-100">
-          <Skeleton className="h-1.5 w-1.5 rounded-full" />
-          <div className="flex flex-col gap-2 flex-1">
-            <div className="flex items-center gap-3">
-              <Skeleton className="h-10 w-10 rounded-full" />
-              <div className="space-y-1.5 flex-1">
-                <Skeleton className="h-4 w-40" />
-                <Skeleton className="h-3 w-28" />
-              </div>
-            </div>
+    <div className="divide-y divide-[#e7d6bf]/60 border border-[#e7d6bf]/70 bg-white">
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} className="flex items-center gap-4 px-4 py-3.5">
+          <Skeleton className="h-4 w-12" />
+          <Skeleton className="h-9 w-9 rounded-full" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-3 w-28" />
           </div>
-          <Skeleton className="h-9 w-24 rounded-lg" />
+          <Skeleton className="h-6 w-20" />
         </div>
       ))}
     </div>
