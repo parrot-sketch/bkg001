@@ -2,14 +2,12 @@
 
 /**
  * When a server layout cannot read the httpOnly accessToken cookie
- * (expired / desynced) but the browser still has a refresh token in
- * localStorage, refresh once to rewrite cookies and resume the page.
+ * (expired / desynced), refresh once via the refresh cookie and resume the page.
  */
 
 import { useEffect, useState } from 'react';
 import { authApi } from '@/lib/api/auth';
 import { tokenStorage } from '@/lib/auth/token';
-import { apiClient } from '@/lib/api/client';
 
 export function ServerAuthResume({ nextPath }: { nextPath: string }) {
   const [message, setMessage] = useState('Restoring your session…');
@@ -18,23 +16,13 @@ export function ServerAuthResume({ nextPath }: { nextPath: string }) {
     let cancelled = false;
 
     const run = async () => {
-      const refreshToken = tokenStorage.getRefreshToken();
-      if (!refreshToken) {
-        window.location.replace('/login');
-        return;
-      }
-
       try {
-        const response = await authApi.refreshToken({ refreshToken });
+        const response = await authApi.refreshToken();
         if (!response.success) {
           tokenStorage.clear();
           window.location.replace('/login');
           return;
         }
-
-        tokenStorage.setAccessToken(response.data.accessToken);
-        tokenStorage.setRefreshToken(response.data.refreshToken);
-        apiClient.setAuthTokenProvider(() => tokenStorage.getAccessToken());
 
         if (!cancelled) {
           window.location.replace(nextPath);

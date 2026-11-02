@@ -5,8 +5,6 @@ import { Printer } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { authApi } from '@/lib/api/auth';
-import { tokenStorage } from '@/lib/auth/token';
-import { apiClient } from '@/lib/api/client';
 
 /**
  * Opens the standalone print view in a new tab after refreshing
@@ -17,18 +15,10 @@ export function OperativeNotePrintButton({ caseId }: { caseId: string }) {
     const url = `/doctor/surgical-cases/${caseId}/operative-record/print`;
 
     // Best-effort cookie sync before leaving the authenticated shell
-    const refreshToken = tokenStorage.getRefreshToken();
-    if (refreshToken) {
-      try {
-        const response = await authApi.refreshToken({ refreshToken });
-        if (response.success) {
-          tokenStorage.setAccessToken(response.data.accessToken);
-          tokenStorage.setRefreshToken(response.data.refreshToken);
-          apiClient.setAuthTokenProvider(() => tokenStorage.getAccessToken());
-        }
-      } catch {
-        // Print page itself does not require auth; continue anyway
-      }
+    try {
+      await authApi.refreshToken();
+    } catch {
+      // Print page itself does not require auth; continue anyway
     }
 
     const opened = window.open(url, '_blank', 'noopener,noreferrer');

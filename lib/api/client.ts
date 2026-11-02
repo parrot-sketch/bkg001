@@ -193,6 +193,7 @@ export class ApiClient {
         response.status === 401 &&
         this.refreshTokenFn &&
         !endpoint.includes('/authentication/login') &&
+        !endpoint.includes('/authentication/refresh') &&
         !endpoint.includes('/auth/refresh')
       ) {
         // Check if token refresh is already in progress

@@ -10,7 +10,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<SessionRes
   const auth = await authenticateRequest(request);
   if (!auth.success || !auth.user) {
     return NextResponse.json(
-      { success: false, error: 'Authentication required' },
+      { success: false, error: 'Authentication required' } satisfies SessionResponse,
       { status: 401, headers: { 'Cache-Control': 'no-store' } },
     );
   }
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<SessionRes
 
   if (!user || user.status !== 'ACTIVE') {
     const response = NextResponse.json(
-      { success: false, error: 'Authentication required' },
+      { success: false, error: 'Authentication required' } satisfies SessionResponse,
       { status: 401, headers: { 'Cache-Control': 'no-store' } },
     );
     response.cookies.delete('accessToken');
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<SessionRes
           phone: user.phone ?? undefined,
         },
       },
-    },
+    } satisfies SessionResponse,
     { status: 200, headers: { 'Cache-Control': 'no-store' } },
   );
 }
