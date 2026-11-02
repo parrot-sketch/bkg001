@@ -113,7 +113,7 @@ export function StaffAccountProfile({
       try {
         const res = await apiClient.get<ProfileData>('/users/me');
         if (cancelled) return;
-        if (!res.success || !res.data) {
+        if (!res.success) {
           setLoadError(res.error || 'Could not load your profile.');
           // Fall back to auth cache so the page is still usable
           setProfile({
@@ -190,7 +190,7 @@ export function StaffAccountProfile({
         lastName: lastName.trim(),
         phone: phone.trim() || null,
       });
-      if (!res.success || !res.data) {
+      if (!res.success) {
         toast.error(res.error || 'Could not save profile.');
         return;
       }
