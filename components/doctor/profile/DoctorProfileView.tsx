@@ -178,7 +178,14 @@ export function DoctorProfileView({ doctorData }: DoctorProfileViewProps) {
       .toUpperCase()
       .slice(0, 2) ?? '';
 
-  const displayName = `${doctor.title ? `${doctor.title} ` : ''}${doctor.name}`.trim();
+  const displayName = (() => {
+    const rawName = (doctor.name || '').trim();
+    const title = (doctor.title || '').trim();
+    if (!title) return rawName;
+    // name is often already stored as "Dr. First Last" — don't double the title
+    if (rawName.toLowerCase().startsWith(title.toLowerCase())) return rawName;
+    return `${title} ${rawName}`.trim();
+  })();
   const needsOnboarding = Boolean(
     doctor.onboardingStatus && doctor.onboardingStatus !== 'ACTIVE',
   );
