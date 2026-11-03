@@ -92,11 +92,14 @@ export function StaffAccountProfile({
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPasswords, setShowPasswords] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
 
   const [newEmail, setNewEmail] = useState('');
   const [emailPassword, setEmailPassword] = useState('');
+  const [showEmailPassword, setShowEmailPassword] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
 
   useEffect(() => {
@@ -374,7 +377,8 @@ export function StaffAccountProfile({
               id="acct-cur-pw"
               value={currentPassword}
               onChange={setCurrentPassword}
-              show={showPasswords}
+              show={showCurrentPassword}
+              onToggleShow={() => setShowCurrentPassword((v) => !v)}
               autoComplete="current-password"
             />
           </Field>
@@ -383,7 +387,8 @@ export function StaffAccountProfile({
               id="acct-new-pw"
               value={newPassword}
               onChange={setNewPassword}
-              show={showPasswords}
+              show={showNewPassword}
+              onToggleShow={() => setShowNewPassword((v) => !v)}
               autoComplete="new-password"
             />
             <p className="mt-1.5 text-xs text-[#2c2e4b]/55">
@@ -395,18 +400,11 @@ export function StaffAccountProfile({
               id="acct-confirm-pw"
               value={confirmPassword}
               onChange={setConfirmPassword}
-              show={showPasswords}
+              show={showConfirmPassword}
+              onToggleShow={() => setShowConfirmPassword((v) => !v)}
               autoComplete="new-password"
             />
           </Field>
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-[#005f73]"
-            onClick={() => setShowPasswords((v) => !v)}
-          >
-            {showPasswords ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-            {showPasswords ? 'Hide passwords' : 'Show passwords'}
-          </button>
         </div>
         <div className="mt-5">
           <Button
@@ -442,12 +440,12 @@ export function StaffAccountProfile({
             />
           </Field>
           <Field label="Current password" htmlFor="acct-email-pw">
-            <Input
+            <PasswordInput
               id="acct-email-pw"
-              type="password"
               value={emailPassword}
-              onChange={(e) => setEmailPassword(e.target.value)}
-              className="rounded-none border-[#e7d6bf] focus-visible:ring-[#005f73]"
+              onChange={setEmailPassword}
+              show={showEmailPassword}
+              onToggleShow={() => setShowEmailPassword((v) => !v)}
               autoComplete="current-password"
             />
           </Field>
@@ -542,22 +540,34 @@ function PasswordInput({
   value,
   onChange,
   show,
+  onToggleShow,
   autoComplete,
 }: {
   id: string;
   value: string;
   onChange: (v: string) => void;
   show: boolean;
+  onToggleShow: () => void;
   autoComplete?: string;
 }) {
   return (
-    <Input
-      id={id}
-      type={show ? 'text' : 'password'}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="rounded-none border-[#e7d6bf] focus-visible:ring-[#005f73]"
-      autoComplete={autoComplete}
-    />
+    <div className="relative">
+      <Input
+        id={id}
+        type={show ? 'text' : 'password'}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="rounded-none border-[#e7d6bf] pr-11 focus-visible:ring-[#005f73]"
+        autoComplete={autoComplete}
+      />
+      <button
+        type="button"
+        onClick={onToggleShow}
+        className="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center text-[#2c2e4b]/55 hover:text-[#2c2e4b]"
+        aria-label={show ? 'Hide password' : 'Show password'}
+      >
+        {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </button>
+    </div>
   );
 }

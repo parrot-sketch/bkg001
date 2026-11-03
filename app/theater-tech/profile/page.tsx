@@ -1,30 +1,19 @@
 'use client';
 
 /**
- * Theater Tech Profile Page (placeholder)
- *
- * Minimal profile page for the Theater Technician role.
- * Can be expanded later with personal details, notification preferences, etc.
+ * Theater technician profile & account management.
+ * Shared staff surface: profile, password, email, sign-out.
  */
 
-import { User } from 'lucide-react';
+import { StaffAccountProfile } from '@/components/account/StaffAccountProfile';
 
 export default function TheaterTechProfilePage() {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900 tracking-tight">My Profile</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Theater Technician account settings
-        </p>
-      </div>
-
-      <div className="flex flex-col items-center justify-center h-64 text-center">
-        <User className="h-12 w-12 text-slate-300 mb-3" />
-        <p className="text-sm text-muted-foreground">
-          Profile management coming soon.
-        </p>
-      </div>
+    <div className="mx-auto max-w-3xl px-1 pb-10 sm:px-0">
+      <StaffAccountProfile
+        title="Your account"
+        subtitle="Update your name and phone, and change the password you use to sign in."
+      />
     </div>
   );
 }
