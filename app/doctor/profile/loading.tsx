@@ -1,58 +1,42 @@
 /**
- * Loading skeleton for Doctor Profile page.
- *
- * Matches the actual layout: identity card, slot settings, professional info.
+ * Loading skeleton for Doctor Profile — matches clinical board layout.
  */
 
 export default function DoctorProfileLoading() {
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-pulse">
-      {/* Identity Card Skeleton */}
-      <div className="border border-stone-200 rounded-lg bg-white p-5">
-        <div className="flex gap-5">
-          <div className="w-16 h-16 rounded-full bg-stone-100 shrink-0" />
-          <div className="flex-1 space-y-2">
-            <div className="h-5 w-48 bg-stone-100 rounded" />
-            <div className="h-4 w-24 bg-stone-100 rounded" />
-            <div className="flex gap-3 mt-2">
-              <div className="h-3 w-32 bg-stone-100 rounded" />
-              <div className="h-3 w-24 bg-stone-100 rounded" />
+    <div className="mx-auto max-w-4xl animate-pulse space-y-5">
+      <div className="space-y-2 border-b border-white/10 pb-4">
+        <div className="h-7 w-48 bg-white/10" />
+        <div className="h-4 w-80 max-w-full bg-white/5" />
+      </div>
+
+      <div className="border border-[#e7d6bf]/40 bg-white/95">
+        <div className="border-b border-[#e7d6bf]/50 px-5 py-3.5">
+          <div className="h-4 w-40 bg-[#e7d6bf]/50" />
+        </div>
+        <div className="flex gap-5 px-5 py-5">
+          <div className="h-20 w-20 shrink-0 bg-[#e7d6bf]/40" />
+          <div className="flex-1 space-y-3">
+            <div className="h-5 w-56 bg-[#e7d6bf]/50" />
+            <div className="h-4 w-36 bg-[#e7d6bf]/40" />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="h-4 bg-[#e7d6bf]/35" />
+              <div className="h-4 bg-[#e7d6bf]/35" />
             </div>
-            <div className="flex gap-3 mt-1">
-              <div className="h-3 w-20 bg-stone-100 rounded" />
-              <div className="h-3 w-16 bg-stone-100 rounded" />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <div className="h-8 w-20 bg-stone-100 rounded" />
-            <div className="h-8 w-16 bg-stone-100 rounded" />
           </div>
         </div>
       </div>
 
-      {/* Slot Settings Skeleton */}
-      <div className="border border-stone-200 rounded-lg bg-white p-5">
-        <div className="h-4 w-32 bg-stone-100 rounded mb-4" />
-        <div className="grid grid-cols-3 gap-3">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="border border-stone-100 rounded-lg p-3 text-center space-y-2">
-              <div className="h-4 w-4 bg-stone-100 rounded mx-auto" />
-              <div className="h-6 w-12 bg-stone-100 rounded mx-auto" />
-              <div className="h-3 w-16 bg-stone-100 rounded mx-auto" />
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        {[1, 2].map((i) => (
+          <div key={i} className="border border-[#e7d6bf]/40 bg-white/95">
+            <div className="border-b border-[#e7d6bf]/50 px-5 py-3.5">
+              <div className="h-4 w-32 bg-[#e7d6bf]/50" />
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Professional Info Skeleton */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {[1, 2, 3, 4].map(i => (
-          <div key={i} className="border border-stone-200 rounded-lg bg-white p-5 space-y-3">
-            <div className="h-4 w-28 bg-stone-100 rounded" />
-            <div className="space-y-2">
-              <div className="h-3 w-full bg-stone-100 rounded" />
-              <div className="h-3 w-5/6 bg-stone-100 rounded" />
-              <div className="h-3 w-4/6 bg-stone-100 rounded" />
+            <div className="space-y-2 px-5 py-5">
+              <div className="h-10 bg-[#e7d6bf]/35" />
+              <div className="h-10 bg-[#e7d6bf]/30" />
+              <div className="h-10 bg-[#e7d6bf]/25" />
             </div>
           </div>
         ))}

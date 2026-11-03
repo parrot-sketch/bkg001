@@ -27,11 +27,11 @@ export function ManageAvailabilitySheet({
     initialSlotConfig,
 }: ManageAvailabilitySheetProps) {
     return (
-        <Sheet open={open} onOpenChange={onClose}>
-            <SheetContent className="w-full sm:max-w-xl md:max-w-2xl overflow-y-auto">
+        <Sheet open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+            <SheetContent className="w-full overflow-y-auto border-l border-[#e7d6bf] bg-white sm:max-w-xl md:max-w-2xl">
                 <SheetHeader className="mb-6">
-                    <SheetTitle>Manage Schedule & Availability</SheetTitle>
-                    <SheetDescription>
+                    <SheetTitle className="text-[#2c2e4b]">Manage schedule & availability</SheetTitle>
+                    <SheetDescription className="text-[#2c2e4b]/70">
                         Set your regular working hours, break times, and consultation slot durations.
                     </SheetDescription>
                 </SheetHeader>

@@ -51,10 +51,11 @@ export default function DoctorProfilePage() {
   // ─── Error / missing profile ────────────────────────────────────────────
   if (profileError || !profileData) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <div className="text-center">
-          <p className="text-muted-foreground">
-            Profile not found. Please contact support.
+      <div className="flex h-[60vh] items-center justify-center">
+        <div className="max-w-md border border-white/15 bg-[#2c2e4b]/70 px-6 py-8 text-center">
+          <p className="text-sm font-semibold text-white">Profile not found</p>
+          <p className="mt-2 text-xs text-[#e7d6bf]">
+            We could not load your doctor profile. Please refresh or contact clinic support.
           </p>
         </div>
       </div>
