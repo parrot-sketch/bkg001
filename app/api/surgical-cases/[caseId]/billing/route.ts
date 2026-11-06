@@ -30,7 +30,11 @@ type ValidatedBillItem = {
   unitCost: number;
 };
 
-/** Turn a typed line into a catalogue service so the next bill can suggest it. */
+/**
+ * Turn a typed charge-sheet line into a Service catalogue row so the next bill
+ * can suggest it (name + last unit price). Procedures stay in SurgicalProcedureOption —
+ * this path is only for priced products/services on the bill.
+ */
 async function rememberCustomLines(items: ValidatedBillItem[]) {
   const known = new Map<string, number>();
   for (const item of items) {
@@ -45,19 +49,31 @@ async function rememberCustomLines(items: ValidatedBillItem[]) {
           is_active: true,
           service_name: { equals: item.customDescription, mode: 'insensitive' },
         },
-        select: { id: true },
+        select: { id: true, price: true },
       });
-      const created = existing ?? await db.service.create({
-        data: {
-          service_name: item.customDescription,
-          price: item.unitCost,
-          category: CHARGE_SHEET_SERVICE_CATEGORY,
-          is_active: true,
-        },
-        select: { id: true },
-      });
-      serviceId = created.id;
-      known.set(key, created.id);
+      if (existing) {
+        serviceId = existing.id;
+        // Keep catalogue price in sync with the latest charged unit price
+        if (Number.isFinite(item.unitCost) && item.unitCost >= 0 && existing.price !== item.unitCost) {
+          await db.service.update({
+            where: { id: existing.id },
+            data: { price: item.unitCost },
+          });
+        }
+      } else {
+        const created = await db.service.create({
+          data: {
+            service_name: item.customDescription,
+            price: item.unitCost,
+            category: CHARGE_SHEET_SERVICE_CATEGORY,
+            is_active: true,
+          },
+          select: { id: true },
+        });
+        serviceId = created.id;
+      }
+      if (serviceId == null) continue;
+      known.set(key, serviceId);
     }
     if (serviceId == null) continue;
     item.serviceId = serviceId;

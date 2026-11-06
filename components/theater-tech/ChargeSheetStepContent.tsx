@@ -64,8 +64,9 @@ export function ChargeSheetStepContent({ cs, emptyHint }: Props) {
           getDraft={cs.getDraft}
         />
       ) : (
-        <p className="px-5 py-8 text-sm text-muted-foreground">
-          {emptyHint ?? 'No lines on this bill yet.'}
+        <p className="px-5 py-8 text-sm text-[#2c2e4b]/65">
+          {emptyHint ??
+            'No lines on this bill yet. Add products or services used during the procedure.'}
         </p>
       )}
 

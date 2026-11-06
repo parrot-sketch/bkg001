@@ -618,7 +618,12 @@ export function useChargeSheet(
 
       const data = await res.json();
       if (data.success) {
-        toast.success('Charge sheet saved');
+        const newCustomCount = chargeItems.filter((item) => item.type === 'custom').length;
+        toast.success(
+          newCustomCount > 0
+            ? `Charge sheet saved. ${newCustomCount} new item${newCustomCount === 1 ? '' : 's'} added to the catalogue.`
+            : 'Charge sheet saved',
+        );
         setLastSavedAt(new Date());
         let nextItems = chargeItems;
         const servicesRes = await fetch('/api/services', { headers: chargeSheetHeaders() });

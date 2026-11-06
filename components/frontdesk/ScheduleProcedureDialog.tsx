@@ -174,7 +174,7 @@ export function ScheduleProcedureDialog({ open, onOpenChange, onSuccess, initial
       const created = response.data;
       setCatalog((prev) => [...prev, created]);
       addProcedure(created);
-      toast.success(`Added “${created.name}”`);
+      toast.success(`Saved “${created.name}” to the procedure catalogue`);
     } catch (error) {
       console.error(error);
       toast.error('Failed to add procedure');
@@ -404,14 +404,26 @@ export function ScheduleProcedureDialog({ open, onOpenChange, onSuccess, initial
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="procedure-name">Procedure *</Label>
+              <Label htmlFor="procedure-name" className="text-[#2c2e4b]">
+                Procedure name *
+              </Label>
               {selectedProcedures.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {selectedProcedures.map((procedure, index) => (
-                    <span key={procedure.id} className="inline-flex items-center gap-1 rounded-lg border border-secondary/30 bg-secondary/10 px-2.5 py-1 text-xs font-medium text-foreground">
-                      <span className="font-bold text-secondary">{index + 1}.</span>
+                    <span
+                      key={procedure.id}
+                      className="inline-flex items-center gap-1.5 border border-[#e7d6bf] bg-[#e7d6bf]/25 px-2.5 py-1 text-xs font-medium text-[#2c2e4b]"
+                    >
+                      <span className="font-semibold text-[#005f73]">{index + 1}.</span>
                       {procedure.name}
-                      <button type="button" onClick={() => setSelectedProcedures((prev) => prev.filter((item) => item.id !== procedure.id))} className="text-muted-foreground hover:text-destructive">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedProcedures((prev) => prev.filter((item) => item.id !== procedure.id))
+                        }
+                        className="text-[#2c2e4b]/50 hover:text-[#9b2226]"
+                        aria-label={`Remove ${procedure.name}`}
+                      >
                         <X className="h-3 w-3" />
                       </button>
                     </span>
@@ -422,7 +434,7 @@ export function ScheduleProcedureDialog({ open, onOpenChange, onSuccess, initial
                 id="procedure-name"
                 value={procedureQuery}
                 open={procedureOpen}
-                placeholder="Type the procedure name"
+                placeholder="Type to search or add a procedure name"
                 onChange={(value) => {
                   setProcedureQuery(value);
                   setProcedureOpen(true);
@@ -435,63 +447,84 @@ export function ScheduleProcedureDialog({ open, onOpenChange, onSuccess, initial
                   <SuggestionList>
                     {procedureSuggestions.map((procedure) => (
                       <SuggestionButton key={procedure.id} onClick={() => addProcedure(procedure)}>
-                        <span>{procedure.name}</span>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-[#2c2e4b]">{procedure.name}</span>
+                        <span className="text-xs text-[#2c2e4b]/55">
                           {procedure.closeMatch ? 'Close match · ' : ''}
                           {categoryLabel(procedure.category, procedure.subcategory)}
                         </span>
                       </SuggestionButton>
                     ))}
-                    {addingNewProcedure && (
-                      <SuggestionButton onClick={() => void createProcedure(procedureQuery)} disabled={creatingProcedure}>
-                        <span className="inline-flex items-center gap-2 text-primary">
-                          {creatingProcedure ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-                          Add “{procedureQuery.trim()}”
-                        </span>
-                      </SuggestionButton>
-                    )}
                   </SuggestionList>
                 )}
               </SuggestField>
-              <p className="text-[11px] text-muted-foreground">
-                Add more than one procedure. Each keeps the category already on its catalog record.
+              <p className="text-[11px] text-[#2c2e4b]/60">
+                Names only — pricing is added later on the charge sheet. You can add more than one
+                procedure.
               </p>
             </div>
 
             {addingNewProcedure && (
-              <div className="space-y-2">
-                <Label htmlFor="procedure-category">Category for “{trimmedProcedure}” *</Label>
-                <SuggestField
-                  id="procedure-category"
-                  value={categoryQuery}
-                  open={categoryOpen}
-                  placeholder="Type a category, or pick a suggestion"
-                  onChange={(value) => {
-                    setCategoryQuery(value);
-                    setCategoryOpen(true);
-                  }}
-                  onFocus={() => setCategoryOpen(true)}
-                  onBlur={() => setTimeout(() => setCategoryOpen(false), 150)}
+              <div className="space-y-3 border border-[#caa26a]/40 bg-[#caa26a]/10 px-3.5 py-3.5">
+                <div>
+                  <p className="text-sm font-semibold text-[#2c2e4b]">
+                    New procedure — save to catalogue
+                  </p>
+                  <p className="mt-0.5 text-xs text-[#2c2e4b]/70">
+                    “{trimmedProcedure}” is not in the catalogue yet. Choose a category, then save
+                    the name for reuse on future cases.
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="procedure-category" className="text-[#2c2e4b]">
+                    Category *
+                  </Label>
+                  <SuggestField
+                    id="procedure-category"
+                    value={categoryQuery}
+                    open={categoryOpen}
+                    placeholder="e.g. Breast, Face, Body…"
+                    onChange={(value) => {
+                      setCategoryQuery(value);
+                      setCategoryOpen(true);
+                    }}
+                    onFocus={() => setCategoryOpen(true)}
+                    onBlur={() => setTimeout(() => setCategoryOpen(false), 150)}
+                  >
+                    {categoryOpen && categorySuggestions.length > 0 && (
+                      <SuggestionList>
+                        {categorySuggestions.map((label) => (
+                          <SuggestionButton
+                            key={label}
+                            onClick={() => {
+                              setCategoryQuery(label);
+                              setCategoryOpen(false);
+                            }}
+                          >
+                            <span>{label}</span>
+                          </SuggestionButton>
+                        ))}
+                      </SuggestionList>
+                    )}
+                  </SuggestField>
+                </div>
+                <Button
+                  type="button"
+                  disabled={creatingProcedure || !categoryQuery.trim()}
+                  onClick={() => void createProcedure(procedureQuery)}
+                  className="h-9 rounded-md bg-[#005f73] px-3 text-xs font-semibold text-white hover:bg-[#003b53]"
                 >
-                  {categoryOpen && categorySuggestions.length > 0 && (
-                    <SuggestionList>
-                      {categorySuggestions.map((label) => (
-                        <SuggestionButton
-                          key={label}
-                          onClick={() => {
-                            setCategoryQuery(label);
-                            setCategoryOpen(false);
-                          }}
-                        >
-                          <span>{label}</span>
-                        </SuggestionButton>
-                      ))}
-                    </SuggestionList>
+                  {creatingProcedure ? (
+                    <>
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      Saving…
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="mr-1.5 h-3.5 w-3.5" />
+                      Save procedure name
+                    </>
                   )}
-                </SuggestField>
-                <p className="text-[11px] text-muted-foreground">
-                  This name is not in the catalog yet. A category is only needed to add it.
-                </p>
+                </Button>
               </div>
             )}
 
